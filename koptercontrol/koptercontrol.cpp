@@ -153,7 +153,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     connect(mFlightController, SIGNAL(wayPointReached(WayPoint)), mBaseConnection, SLOT(slotWayPointReached(WayPoint)));
     connect(mFlightController, SIGNAL(wayPointInserted(quint16,WayPoint)), mBaseConnection, SLOT(slotRoverWayPointInserted(quint16,WayPoint)));
-    connect(mFlightController, SIGNAL(currentWayPoints(QList<WayPoint>*const)), mBaseConnection, SLOT(slotFlightControllerWayPointsChanged(QList<WayPoint>*const));
+    connect(mFlightController, SIGNAL(currentWayPoints(QList<WayPoint>*const)), mBaseConnection, SLOT(slotFlightControllerWayPointsChanged(QList<WayPoint>*const)));
     connect(mFlightController, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mFlightController, SIGNAL(flightControllerWeightsChanged()), mBaseConnection, SLOT(slotFlightControllerWeightsChanged()));
 
