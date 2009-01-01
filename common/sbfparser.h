@@ -268,7 +268,7 @@ signals:
     void newVehiclePoseLogPlayer(const Pose&); // emitted at full rate, all poses
     void newVehiclePoseSensorFuser(const Pose&); // emitted at full rate, high-precision
     void newVehiclePoseFlightController(const Pose&); // emitted at *up to* 10Hz, high-precision and only integrated poses (not extrapolated)
-    void newVehiclePoseStatus(const Pose&); // emitted at 1-2Hz, all Poses
+    void newVehiclePoseStatus(const Pose&); // emitted at 10Hz, all Poses
 
     // Emitted when the incoming poses (IntPVAAGeod) from SBF are good enough to be used by anyone.
     // Used to tell GpsDevice to decrease the IntPVAAGeod interval to msec20 (and to enable/disable the laserscanner?)
