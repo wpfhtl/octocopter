@@ -1,0 +1,71 @@
+# The name of our project is "SIMULATOR". CMakeLists files in this project can
+# refer to the root source directory of the project as ${SIMULATOR_SOURCE_DIR} and
+# to the root binary directory of the project as ${SIMULATOR_BINARY_DIR}.
+CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
+PROJECT (simulator)
+
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} /usr/lib64/OGRE/cmake/)
+
+SET(SRC_FILES
+main
+simulator
+ogrewidget
+battery
+laserscanner
+statuswidget
+simulationcontrolwidget
+coordinategps
+vehicle
+coordinateconverter
+)
+
+SET(INC_FILES
+simulator.h
+ogrewidget.h
+battery.h
+laserscanner.h
+statuswidget.h
+simulationcontrolwidget.h
+coordinategps.h
+vehicle.h
+coordinateconverter.h
+)
+
+SET(UI_FILES
+statuswidget.ui
+simulationcontrolwidget.ui
+)
+
+SET(RESOURCE_FILES
+)
+
+SET(OGRE_LIBRARIES
+OgreMain
+)
+
+#"Sources" and "Headers" are the group names in Visual Studio.
+SOURCE_GROUP("Sources" FILES ${SRC_FILES})
+SOURCE_GROUP("Headers" FILES ${INC_FILES})
+
+FIND_PACKAGE(OGRE)
+FIND_PACKAGE(Qt4)
+SET(QT_USE_QTGUI 1)
+SET(QT_USE_QTXML 1)
+SET(QT_USE_QTNETWORK 1)
+INCLUDE(${QT_USE_FILE})
+
+QT4_WRAP_CPP(MOC_SRCS ${INC_FILES})
+QT4_WRAP_UI(UI_SRCS ${UI_FILES})
+QT4_ADD_RESOURCES(RESOURCE_SRCS ${RESOURCE_FILES})
+
+SET(CMAKE_DEBUG_POSTFIX "_d")
+
+include_directories(/usr/include/QtCore/ /usr/include/QtNetwork/ /usr/include/QtGui/ /usr/include/OGRE/ /usr/include/OIS/ /usr/include ${CMAKE_CURRENT_BINARY_DIR})
+link_directories(${OGRE_LIBRARY_DIRS})
+add_executable(simulator ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
+target_link_libraries(simulator ${QT_LIBRARIES} ${OGRE_LIBRARIES})
+
+ADD_CUSTOM_TARGET(copymedia ALL COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/media ${CMAKE_CURRENT_BINARY_DIR}/media COMMENT "Copying media files to build directory" VERBATIM)
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/plugins.cfg.in ${CMAKE_CURRENT_BINARY_DIR}/plugins.cfg)
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/plugins_d.cfg.in ${CMAKE_CURRENT_BINARY_DIR}/plugins_d.cfg)
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/resources.cfg ${CMAKE_CURRENT_BINARY_DIR}/resources.cfg COPYONLY)

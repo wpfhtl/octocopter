@@ -1,10 +1,10 @@
 #ifndef COORDINATEOGRE_H
 #define COORDINATEOGRE_H
 
-#include <QVector3D>
+#include <Ogre.h>
 #include <QDebug>
 
-class CoordinateOgre : public QVector3D
+class CoordinateOgre : public Ogre::Vector3//QVector3D
 {
 //Q_OBJECT
 
