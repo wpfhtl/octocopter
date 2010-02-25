@@ -4,10 +4,13 @@
 
 Simulator::Simulator(void) :
         QMainWindow(),
-        mTimeFactor(1.0f),
+        mTimeFactor(10.0f),
         mMutex(QMutex::NonRecursive)
 {
+    qDebug() << "Simulator::Simulator()";
     QMutexLocker locker(&mMutex);
+
+    resize(1027, 768);
 
     mLaserScanners = new QList<LaserScanner*>;
 
@@ -19,15 +22,23 @@ Simulator::Simulator(void) :
     mBattery = new Battery(this, 12.0, 4.0);
     mBattery->setDischargeCurrent(20.0);
 
-    mVehicle = new Vehicle(this, mOgreWidget->getVehicleNode());
+    mSimulationControlWidget = new SimulationControlWidget(this, mOgreWidget);
+    addDockWidget(Qt::RightDockWidgetArea, mSimulationControlWidget);
+    connect(mSimulationControlWidget, SIGNAL(start()), SLOT(slotStartSimulation()));
+    connect(mSimulationControlWidget, SIGNAL(timeFactorChanged(double)), SLOT(slotSetTimeFactor(double)));
 
     mStatusWidget = new StatusWidget(this, mBattery);
     addDockWidget(Qt::RightDockWidgetArea, mStatusWidget);
     connect(mOgreWidget, SIGNAL(currentRenderStatistics(QSize,int,float)), mStatusWidget, SLOT(slotUpdateVisualization(QSize, int, float)));
 
-    mSimulationControlWidget = new SimulationControlWidget(this, mOgreWidget);
-    connect(mSimulationControlWidget, SIGNAL(start()), SLOT(slotStartSimulation()));
-    connect(mSimulationControlWidget, SIGNAL(timeFactorChanged(double)), SLOT(slotSetTimeFactor(double)));
+    mVehicle = new Vehicle(this, mOgreWidget);
+
+    qDebug() << "Simulator::Simulator(): starting vehicle thread.";
+//    mVehicle->start();
+
+    // start a trip!
+    CoordinateConverter cc;
+    mVehicle->slotSetNextWayPoint(cc.convert(Ogre::Vector3(200, 200, -1000)));
 }
 
 void Simulator::slotStartSimulation(void)

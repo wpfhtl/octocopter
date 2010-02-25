@@ -2,6 +2,8 @@
 #define SIMULATIONCONTROLWIDGET_H
 
 #include <QDockWidget>
+#include <QSettings>
+#include <QDebug>
 #include "simulator.h"
 #include "laserscanner.h"
 #include "ogrewidget.h"
@@ -30,8 +32,6 @@ private:
     OgreWidget *mOgreWidget;
     QSettings mSettings;
 
-    void createScannersFromConfiguration(void);
-
 private slots:
     // Called when the index-spinbox has a new value. Load that scanner's config into the form
     void slotScannerIndexChanged(void);
@@ -41,6 +41,7 @@ private slots:
 
     void slotScannerCreate(void);
     void slotScannerDelete(void);
+    void slotScannerLoadConfiguration(void);
     void slotScannerSaveConfiguration(void);
 
 signals:

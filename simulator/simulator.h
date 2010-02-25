@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QList>
+#include <QDebug>
 #include <QMutex>
 #include <QMutexLocker>
 

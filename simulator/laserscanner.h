@@ -27,7 +27,10 @@ private:
     // 0 deg is the rear, 180deg is the front. E.g. hokuyo utm30lx goes from 45 to 315 deg.
     int mAngleStart, mAngleStop;
 
-//    RotationDirection mRotationDirection;
+    // members for visualizing the ray in ogre
+    Ogre::ManualObject* mRayObject;
+    Ogre::SceneNode* mRayNode;
+    Ogre::MaterialPtr mRayMaterial;
 
     // how many degrees between two rays?
     float mAngleStep;
@@ -35,7 +38,7 @@ private:
     // current angle/status of the current scan. Valid between mAngleStart and mAngleStop
     float mCurrentScanAngle;
 
-    // a container for collected rays
+    // a container for collected rays, or rather the world coordinates of where they ended
     QList<CoordinateGps> mScanData;
 
     float mTimeFactor;
@@ -50,8 +53,6 @@ private slots:
     void slotDoScanStep(void);
 
 public:
-//    enum RotationDirection {ROTATION_CW, ROTATION_CCW};
-
     // Laser rotation is always CCW, angleStart < angleStop
     LaserScanner(
             Simulator* simulator,
@@ -71,6 +72,8 @@ public:
     int angleStart(void) const;
     int angleStop(void) const;
     float angleStep(void) const;
+    Ogre::Vector3 getPosition(void);
+    Ogre::Quaternion getOrientation(void);
 
     // Setters for the properties
     void setRange(float range);
@@ -78,6 +81,8 @@ public:
     void setAngleStart(int angleStart);
     void setAngleStop(int angleStop);
     void setAngleStep(float angleStep);
+    void setPosition(const Ogre::Vector3 &position);
+    void setOrientation(const Ogre::Quaternion &orientation);
 
     void setTimeFactor(float);
 

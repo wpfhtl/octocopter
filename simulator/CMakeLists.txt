@@ -17,6 +17,7 @@ simulationcontrolwidget
 coordinategps
 vehicle
 coordinateconverter
+BtOgre/BtOgre
 )
 
 SET(INC_FILES
@@ -39,15 +40,15 @@ simulationcontrolwidget.ui
 SET(RESOURCE_FILES
 )
 
-SET(OGRE_LIBRARIES
-OgreMain
-)
+SET(OGRE_LIBRARIES OgreMain)
+SET(BULLET_LIBRARIES BulletCollision BulletDynamics)
 
 #"Sources" and "Headers" are the group names in Visual Studio.
 SOURCE_GROUP("Sources" FILES ${SRC_FILES})
 SOURCE_GROUP("Headers" FILES ${INC_FILES})
 
-FIND_PACKAGE(OGRE)
+# does not (yet) exist FIND_PACKAGE(BULLET)
+#FIND_PACKAGE(OGRE)
 FIND_PACKAGE(Qt4)
 SET(QT_USE_QTGUI 1)
 SET(QT_USE_QTXML 1)
@@ -59,11 +60,13 @@ QT4_WRAP_UI(UI_SRCS ${UI_FILES})
 QT4_ADD_RESOURCES(RESOURCE_SRCS ${RESOURCE_FILES})
 
 SET(CMAKE_DEBUG_POSTFIX "_d")
+SET(CMAKE_BUILD_TYPE "Debug")
 
-include_directories(/usr/include/QtCore/ /usr/include/QtNetwork/ /usr/include/QtGui/ /usr/include/OGRE/ /usr/include/OIS/ /usr/include ${CMAKE_CURRENT_BINARY_DIR})
+#include_directories(/usr/include/QtCore/ /usr/include/QtNetwork/ /usr/include/QtGui/ /usr/include/OGRE/ /usr/include/OIS/ /usr/include ${CMAKE_CURRENT_BINARY_DIR})
+include_directories(/usr/include/OGRE/ /usr/include/BulletCollision /usr/include/BulletDynamics /usr/include ${CMAKE_CURRENT_BINARY_DIR})
 link_directories(${OGRE_LIBRARY_DIRS})
 add_executable(simulator ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-target_link_libraries(simulator ${QT_LIBRARIES} ${OGRE_LIBRARIES})
+target_link_libraries(simulator ${QT_LIBRARIES} ${OGRE_LIBRARIES} ${BULLET_LIBRARIES})
 
 ADD_CUSTOM_TARGET(copymedia ALL COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/media ${CMAKE_CURRENT_BINARY_DIR}/media COMMENT "Copying media files to build directory" VERBATIM)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/plugins.cfg.in ${CMAKE_CURRENT_BINARY_DIR}/plugins.cfg)

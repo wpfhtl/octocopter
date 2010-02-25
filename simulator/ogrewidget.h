@@ -2,8 +2,14 @@
 #define OGREWIDGET_H
 
 #include <QtGui>
+#include <QWidget>
+#include <QDebug>
+#include <QColor>
+#include <QMutex>
+#include <QMutexLocker>
 #include <Ogre.h>
 #include <QX11Info>
+#include <QKeyEvent>
 
 class OgreWidget : public QWidget
 {
@@ -18,12 +24,23 @@ public:
     // Override QWidget::paintEngine to return NULL
     QPaintEngine* paintEngine() const; // Turn off QTs paint engine for the Ogre widget.
 
-    Ogre::SceneNode* getVehicleNode(void);
+//    Ogre::SceneNode* getVehicleNode(void);
 
     Ogre::RaySceneQuery* createRaySceneQuery(void);
 
     // Creates a scannerNode and attaches a mesh to it.
-    Ogre::SceneNode* createScannerNode(void);
+    Ogre::SceneNode* createScannerNode(const QString name, const Ogre::Vector3 &relativePosition = Ogre::Vector3::ZERO, const Ogre::Quaternion &relativeRotation = Ogre::Quaternion::IDENTITY);
+
+    void createManualObject(
+            const QString &name,
+            Ogre::ManualObject** manualObject,
+            Ogre::SceneNode** sceneNode,
+            Ogre::MaterialPtr& material);
+
+    // returns ogre-world-coordinate-vector.
+    Ogre::Vector3 getVehiclePosition(void) const;
+
+    Ogre::SceneManager* sceneManager();
 
 public slots:
     void setBackgroundColor(QColor c);
@@ -61,18 +78,21 @@ private:
     void loadResources();
     void createScene();
 
-private:
     static const Ogre::Real turboModifier;
     static const QPoint invalidMousePoint;
 
 private:
+    mutable QMutex mMutex;
+
     Ogre::Root          *ogreRoot;
     Ogre::SceneManager  *ogreSceneManager;
     Ogre::RenderWindow  *ogreRenderWindow;
     Ogre::Viewport      *ogreViewport;
     Ogre::Camera        *ogreCamera;
 
-    QPoint oldPos;
+    unsigned int mFrameCount;// currently only used to emit statistics not every frame
+    QPoint oldPosL, oldPosR;
+    bool btnL, btnR;
     QList<Ogre::SceneNode*> mScannerNodes;
     Ogre::SceneNode *selectedNode;
     Ogre::SceneNode *mCameraNode;

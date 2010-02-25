@@ -7,7 +7,7 @@
 #include <math.h>
 
 #include "coordinategps.h"
-#include "coordinateogre.h"
+//#include "coordinateogre.h"
 
 class CoordinateConverter : public QObject
 {

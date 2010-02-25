@@ -20,7 +20,7 @@ void StatusWidget::slotUpdateBattery(const int chargeStateInPercent)
 
 void StatusWidget::slotUpdateVisualization(QSize windowSize, int triangles, float fps)
 {
-    mLabelVisualizationSize->setText(windowSize.width() + " x " + windowSize.height());
+    mLabelVisualizationSize->setText(QString::number(windowSize.width()) + " x " + QString::number(windowSize.height()));
     mLabelVisualizationTriangles->setText(QString::number(triangles));
     mLabelVisualizationFramerate->setText(QString::number(fps, 'g', 2));
 }

@@ -7,8 +7,10 @@ LaserScanner::LaserScanner(
         const int speed,
         const int angleStart,
         const int angleStop,
-        const float angleStep)
+        const float angleStep) :
+        mRaySceneQuery(0), mRayObject(0), mRayNode(0)
 {
+    qDebug() << "LaserScanner::LaserScanner()";
     Q_ASSERT(angleStart < angleStop);
 
     mSimulator = simulator;
@@ -20,26 +22,49 @@ LaserScanner::LaserScanner(
     mAngleStep = angleStep;
     mTimeFactor = mSimulator->getTimeFactor();
 
-    // Create a scene node in ogre that is attached to the vehicle. We give
-    // out this node to others when they want to move/rotate us.
-    mScannerNode = mOgreWidget->createScannerNode();
+    // We'll need a unique name, so why not use our own address...
+    char address[50];
+    sprintf(address, "%p", (void*)this);
+    setObjectName("LaserScanner_at_" + QString(address));
+
+    // Create a scene node in ogre that is attached to the vehicle.
+    mScannerNode = mOgreWidget->createScannerNode(objectName());
 
     mCurrentScanAngle = mAngleStart;
 
+    // Get the RaySceneQuery from Ogre
     mRaySceneQuery = mOgreWidget->createRaySceneQuery();
     mRaySceneQuery->setSortByDistance(true, 1); // just return the first 1 intersecting element.
     // Not sure on this, see http://www.ogre3d.org/wiki/index.php/Intermediate_Tutorial_3#Query_Masks
     mRaySceneQuery->setQueryMask(Ogre::SceneManager::WORLD_GEOMETRY_TYPE_MASK | Ogre::SceneManager::ENTITY_TYPE_MASK | Ogre::SceneManager::STATICGEOMETRY_TYPE_MASK);
 
+    // Initialize the beams visualization. The name needs to be unique, so I use a dirty hack.
+    qDebug() << "LaserScanner::LaserScanner(): creating manualObjet for ray, my address is" << this;
+    mOgreWidget->createManualObject("Ray_From_" + objectName(), &mRayObject, &mRayNode, mRayMaterial);
+    mRayObject->setDynamic(true);
+    mRayMaterial->setReceiveShadows(false);
+    mRayMaterial->getTechnique(0)->setLightingEnabled(true);
+    mRayMaterial->getTechnique(0)->getPass(0)->setDiffuse(0,0,1,0);
+    mRayMaterial->getTechnique(0)->getPass(0)->setAmbient(0,0,1);
+    mRayMaterial->getTechnique(0)->getPass(0)->setSelfIllumination(0,0,1);
+    mRayNode->attachObject(mRayObject);
+
     // When we emit a scan, make mSimulator receive it
-    connect(this, SIGNAL(scanFinished(LaserScanner*, QList<long>)), mSimulator, SLOT(slotScanFinished(LaserScanner*, QList<long>)));
+    connect(this, SIGNAL(scanFinished(QList<CoordinateGps>)), mSimulator, SLOT(slotScanFinished(QList<CoordinateGps>)));
+
+
+    qDebug() << "LaserScanner::LaserScanner(): almost done, starting first slotDoScanStep()";
+    slotDoScanStep();
 }
 
 void LaserScanner::slotDoScanStep(void)
 {
+//    qDebug() << "LaserScanner::slotDoScanStep()";
      // Set up scene query.
-//    Feb 10 [23:03:51] <kernelpanic_> Excuse me, even after reading the Quaternion primer, I can't figure out how to create a new Ray(mySceneNode.getPosition(), mySceneNode.getOrientation()). ::getOrientation() returns a Quaternion (I understand that), but Ray wants a Vector3 as direction. Why is that and how do I convert from Quat to Vector3?
-//    Feb 10 [23:04:55] <-- Brendan123 (~asdf@c-24-131-233-38.hsd1.pa.comcast.net) has quit
+//    Feb 10 [23:03:51] <kernelpanic_> Excuse me, even after reading the Quaternion primer, I can't figure out how to create a new
+//                                     Ray(mySceneNode.getPosition(), mySceneNode.getOrientation()). ::getOrientation() returns a
+//                                     Quaternion (I understand that), but Ray wants a Vector3 as direction. Why is that and how do
+//                                     I convert from Quat to Vector3?
 //    Feb 10 [23:06:37] <Tenttu> multiple NEGATIVE_UNIT_Z with the quaternion
 //    Feb 10 [23:06:48] <Landon> kernelpanic_: how about this: http://www.ogre3d.org/forums/viewtopic.php?f=2&t=46750&p=321002&hilit=quaternion
 //    Feb 10 [23:07:22] <kernelpanic_> Landon: yeah, that sounds like my problem. Thank you, I'm reading
@@ -48,10 +73,19 @@ void LaserScanner::slotDoScanStep(void)
 //    Feb 10 [23:18:07] <Tenttu> and when you rotate it with the quaternion you get the direction
 //    Feb 10 [23:18:50] <Tenttu> but camera does have getDirection() though
 //    Feb 10 [23:19:14] <kernelpanic_> I'm afraid I probably haven't really understood quaternions yet :| I guess I'll read the links referenced in that forum thread.
-    Ogre::Ray laserBeam(mScannerNode->getPosition(), mScannerNode->_getDerivedOrientation() * Ogre::Vector3::NEGATIVE_UNIT_Z);
+
+    // Build a quaternion that represents the laserbeam's current rotation
+    Ogre::Quaternion quatBeamRotation(Ogre::Degree(mCurrentScanAngle), Ogre::Vector3::UNIT_Y);
+    Ogre::Ray laserBeam(mScannerNode->_getDerivedPosition(), mScannerNode->_getDerivedOrientation() * quatBeamRotation * Ogre::Vector3::NEGATIVE_UNIT_Z);
     mRaySceneQuery->setRay(laserBeam);
 
-    // TODO: visualize the ray in Ogre? Fuck yeah!
+    // Visualize the ray in Ogre? Fuck yeah!
+    mRayObject->clear();
+    mRayObject->begin(QString("RayFrom_" + objectName() + "_material").toStdString(), Ogre::RenderOperation::OT_LINE_LIST);
+    mRayObject->position(laserBeam.getPoint(0.0));
+    mRayObject->position(laserBeam.getPoint(mRange));
+    mRayObject->end();
+    mOgreWidget->update();
 
     // Perform the scene query
     Ogre::RaySceneQueryResult &result = mRaySceneQuery->execute();
@@ -73,6 +107,8 @@ void LaserScanner::slotDoScanStep(void)
     // smarter to emit every n CoordinateGps, when n marshalled CoordinateGps reach
     // the interface's MTU. But thats for later, we're still simulating right now...
 
+    float degreesToNextScan;
+
     if(mCurrentScanAngle > mAngleStop)
     {
         // This scan is finished, emit it...
@@ -80,23 +116,26 @@ void LaserScanner::slotDoScanStep(void)
 
         // ...and schedule the next scan. The time to next scan is inferred from
         // rotational speed and angle between mCurrentScanAngle and angleStart.
-        const float degreesToNextScan = 360.0 - mCurrentScanAngle + mAngleStart;
-
-        // 6000 == 360.0[degress/round] / 60.0[seconds/minute] * 1000.0[milliseconds/second]
-        const int milliSecsToNextScan = (int)(degreesToNextScan / mSpeed * 6000.0 * mTimeFactor);
+        degreesToNextScan = 360.0 - mAngleStop + mAngleStart;
+        qDebug() << "LaserScanner::slotDoScanStep(): scan done, degrees to next scan:" << degreesToNextScan << "timeFactor is" << mTimeFactor << "speed is" << mSpeed;
 
         // Set mCurrentScanAngle for the next scan to mAngleStart
         mCurrentScanAngle = mAngleStart;
-
-        QTimer::singleShot(milliSecsToNextScan, this, SLOT(slotDoScanStep()));
     }
     else
     {
         // Scan is not finished, schedule the next ray
-        // 6000 == 360.0[degress/round] / 60.0[seconds/minute] * 1000.0[milliseconds/second]
-        const int milliSecsToNextScan = (int)(mAngleStep / mSpeed * 6000.0 * mTimeFactor);
-        QTimer::singleShot(milliSecsToNextScan, this, SLOT(slotDoScanStep()));
+        degreesToNextScan = mAngleStep;
     }
+
+    // 6000 == 360.0[degress/round] / 60.0[seconds/minute] * 1000.0[milliseconds/second]
+    QTimer::singleShot(
+            (int)(degreesToNextScan / mSpeed * 6000.0 * mTimeFactor),
+            this,
+            SLOT(slotDoScanStep())
+            );
+
+//    qDebug() << "LaserScanner::slotDoScanStep(): done.";
 }
 
 Ogre::SceneNode* LaserScanner::getSceneNode(void)
@@ -160,3 +199,24 @@ void LaserScanner::setAngleStep(float angleStep)
 {
     mAngleStep = angleStep;
 }
+
+void LaserScanner::setPosition(const Ogre::Vector3 &position)
+{
+    mScannerNode->setPosition(position);
+}
+
+void LaserScanner::setOrientation(const Ogre::Quaternion &orientation)
+{
+    mScannerNode->setOrientation(orientation);
+}
+
+Ogre::Vector3 LaserScanner::getPosition(void)
+{
+    return mScannerNode->getPosition();
+}
+
+Ogre::Quaternion LaserScanner::getOrientation(void)
+{
+    return mScannerNode->getOrientation();
+}
+

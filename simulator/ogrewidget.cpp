@@ -3,9 +3,23 @@
 const QPoint     OgreWidget::invalidMousePoint(-1,-1);
 const Ogre::Real OgreWidget::turboModifier(10);
 
-OgreWidget::OgreWidget(QWidget *parent) : QWidget(parent), ogreRoot(0), ogreSceneManager(0), ogreRenderWindow(0), ogreViewport(0), ogreCamera(0), oldPos(invalidMousePoint), selectedNode(0)
+OgreWidget::OgreWidget(QWidget *parent) :
+        QWidget(parent),
+        ogreRoot(0),
+        ogreSceneManager(0),
+        ogreRenderWindow(0),
+        ogreViewport(0),
+        ogreCamera(0),
+        oldPosL(invalidMousePoint),
+        oldPosR(invalidMousePoint),
+        btnL(false),
+        btnR(false),
+        selectedNode(0),
+        mFrameCount(0),
+        mMutex(QMutex::NonRecursive)
 {
     qDebug() << "OgreWidget::OgreWidget()";
+    QMutexLocker locker(&mMutex);
     setAttribute(Qt::WA_OpaquePaintEvent);
     setAttribute(Qt::WA_PaintOnScreen);
     setMinimumSize(240,240);
@@ -14,6 +28,8 @@ OgreWidget::OgreWidget(QWidget *parent) : QWidget(parent), ogreRoot(0), ogreScen
 
 OgreWidget::~OgreWidget()
 {
+    QMutexLocker locker(&mMutex);
+
     if(ogreRenderWindow)
     {
         ogreRenderWindow->removeAllViewports();
@@ -34,6 +50,8 @@ OgreWidget::~OgreWidget()
 
 void OgreWidget::setBackgroundColor(QColor c)
 {
+    qDebug() << "OgreWidget::setBackgroundColor()";
+    QMutexLocker locker(&mMutex);
     if(ogreViewport)
     {
         Ogre::ColourValue ogreColour;
@@ -44,7 +62,8 @@ void OgreWidget::setBackgroundColor(QColor c)
 
 void OgreWidget::setCameraPosition(const Ogre::Vector3 &vector, const TranslationMode &mode, const Ogre::Node::TransformSpace &transformSpace, const Ogre::SceneNode* lookAt)
 {
-//    qDebug() << "OgreWidget::setCameraPosition()";
+    qDebug() << "OgreWidget::setCameraPosition()";
+    QMutexLocker locker(&mMutex);
 
     if(mode == OgreWidget::TRANSLATION_RELATIVE)
         mCameraNode->translate(vector, transformSpace);
@@ -58,9 +77,17 @@ void OgreWidget::setCameraPosition(const Ogre::Vector3 &vector, const Translatio
     emit cameraPositionChanged(mCameraNode->getPosition());
 }
 
+Ogre::Vector3 OgreWidget::getVehiclePosition(void) const
+{
+    QMutexLocker locker(&mMutex);
+//    qDebug() << "OgreWidget::getVehiclePosition()";
+    return mVehicleNode->getPosition();
+}
+
 void OgreWidget::setVehiclePosition(const Ogre::Vector3 &vector, const TranslationMode &mode, const Ogre::Node::TransformSpace &transformSpace, const bool reAimCamera)
 {
-//    qDebug() << "OgreWidget::setVehiclePosition()";
+    qDebug() << "OgreWidget::setVehiclePosition()";
+    QMutexLocker locker(&mMutex);
 
     if(mode == OgreWidget::TRANSLATION_RELATIVE)
         mVehicleNode->translate(vector, transformSpace);
@@ -78,18 +105,19 @@ void OgreWidget::setVehiclePosition(const Ogre::Vector3 &vector, const Translati
 
 void OgreWidget::keyPressEvent(QKeyEvent *e)
 {
+    QMutexLocker locker(&mMutex);
     static QMap<int, Ogre::Vector3> keyCoordModificationMapping;
     static bool mappingInitialised = false;
 
     if(!mappingInitialised)
     {
-        keyCoordModificationMapping[Qt::Key_W] = Ogre::Vector3( 0, 0,-5);
-        keyCoordModificationMapping[Qt::Key_S] = Ogre::Vector3( 0, 0, 5);
-        keyCoordModificationMapping[Qt::Key_A] = Ogre::Vector3(-5, 0, 0);
-        keyCoordModificationMapping[Qt::Key_D] = Ogre::Vector3( 5, 0, 0);
+        keyCoordModificationMapping[Qt::Key_W] = Ogre::Vector3( 0, 0,-1);
+        keyCoordModificationMapping[Qt::Key_S] = Ogre::Vector3( 0, 0, 1);
+        keyCoordModificationMapping[Qt::Key_A] = Ogre::Vector3(-1, 0, 0);
+        keyCoordModificationMapping[Qt::Key_D] = Ogre::Vector3( 1, 0, 0);
 
-        keyCoordModificationMapping[Qt::Key_E] = Ogre::Vector3( 0, 5, 0);
-        keyCoordModificationMapping[Qt::Key_Q] = Ogre::Vector3( 0,-5, 0);
+        keyCoordModificationMapping[Qt::Key_E] = Ogre::Vector3( 0, 1, 0);
+        keyCoordModificationMapping[Qt::Key_Q] = Ogre::Vector3( 0,-1, 0);
         mappingInitialised = true;
     }
 
@@ -97,9 +125,11 @@ void OgreWidget::keyPressEvent(QKeyEvent *e)
     if(keyPressed != keyCoordModificationMapping.end() && ogreCamera)
     {
         if(e->modifiers().testFlag(Qt::ControlModifier))
-            setCameraPosition(keyPressed.value() * turboModifier);
+            mCameraNode->translate(keyPressed.value() * turboModifier);
         else
-            setCameraPosition(keyPressed.value());
+            mCameraNode->translate(keyPressed.value());
+
+        update();
 
         e->accept();
     }
@@ -117,6 +147,8 @@ void OgreWidget::keyPressEvent(QKeyEvent *e)
 
 void OgreWidget::mouseDoubleClickEvent(QMouseEvent *e)
 {
+    qDebug() << "OgreWidget::mouseDoubleClickEvent()";
+    QMutexLocker locker(&mMutex);
     if(e->buttons().testFlag(Qt::LeftButton))
     {
         qDebug() << "OgreWidget::mouseDoubleClickEvent(): lmb";
@@ -155,12 +187,14 @@ void OgreWidget::mouseDoubleClickEvent(QMouseEvent *e)
 
 void OgreWidget::mouseMoveEvent(QMouseEvent *e)
 {
-    if(e->buttons().testFlag(Qt::LeftButton) && oldPos != invalidMousePoint)
+//    qDebug() << "OgreWidget::mouseMoveEvent()";
+    QMutexLocker locker(&mMutex);
+    if(e->buttons().testFlag(Qt::LeftButton) && oldPosL != invalidMousePoint && btnL)
     {
         const QPoint &pos = e->pos();
-        Ogre::Real deltaX = pos.x() - oldPos.x();
-        Ogre::Real deltaY = pos.y() - oldPos.y();
-        Ogre::Real deltaZ = pos.y() - oldPos.y();
+        Ogre::Real deltaX = pos.x() - oldPosL.x();
+        Ogre::Real deltaY = pos.y() - oldPosL.y();
+        Ogre::Real deltaZ = pos.y() - oldPosL.y();
 
         // Switch the mouse-y axis between Ogre Y and Z when toggling shift
         if(e->modifiers().testFlag(Qt::ShiftModifier))
@@ -175,20 +209,24 @@ void OgreWidget::mouseMoveEvent(QMouseEvent *e)
             deltaZ *= turboModifier;
         }
 
-        setCameraPosition(Ogre::Vector3(deltaX, -deltaY, deltaZ));
+        mCameraNode->translate(Ogre::Vector3(deltaX/50, -deltaY/50, deltaZ/50), Ogre::Node::TS_LOCAL);
+        update();
 
-        oldPos = pos;
+        oldPosL = pos;
         e->accept();
     }
-    else if(e->buttons().testFlag(Qt::RightButton) && oldPos != invalidMousePoint)
+    else if(e->buttons().testFlag(Qt::RightButton) && oldPosR != invalidMousePoint && btnR)
     {
         // rotate the camera
         const QPoint &pos = e->pos();
-        qDebug() << "OgreWidget::mouseMoveEvent(): rotating camera by" << pos.x() - oldPos.x() / 5.0 << pos.x() - oldPos.x() / 5.0;
-        ogreCamera->yaw(Ogre::Degree(pos.x() - oldPos.x() / 5.0));
-        ogreCamera->pitch(Ogre::Degree(pos.y() - oldPos.y() / 5.0));
+        const float diffX = (pos.x() - oldPosR.x()) / 10.0;
+        const float diffY = (pos.y() - oldPosR.y()) / 10.0;
+        qDebug() << "OgreWidget::mouseMoveEvent(): rotating camera:" << diffX << diffY;
+        ogreCamera->yaw(Ogre::Degree(-diffX));
+        ogreCamera->pitch(Ogre::Degree(-diffY));
+        update();
 
-        oldPos = pos;
+        oldPosR = pos;
         e->accept();
     }
     else
@@ -199,9 +237,19 @@ void OgreWidget::mouseMoveEvent(QMouseEvent *e)
 
 void OgreWidget::mousePressEvent(QMouseEvent *e)
 {
+    qDebug() << "OgreWidget::mousePressEvent()";
+
+    QMutexLocker locker(&mMutex);
     if(e->buttons().testFlag(Qt::LeftButton))
     {
-        oldPos = e->pos();
+        btnL = true;
+        oldPosL = e->pos();
+        e->accept();
+    }
+    else if(e->buttons().testFlag(Qt::RightButton))
+    {
+        btnR = true;
+        oldPosR = e->pos();
         e->accept();
     }
     else
@@ -212,9 +260,19 @@ void OgreWidget::mousePressEvent(QMouseEvent *e)
 
 void OgreWidget::mouseReleaseEvent(QMouseEvent *e)
 {
-    if(!e->buttons().testFlag(Qt::LeftButton))
+    qDebug() << "OgreWidget::mouseReleaseEvent()";
+
+    QMutexLocker locker(&mMutex);
+    if(!e->buttons().testFlag(Qt::LeftButton) && btnL)
     {
-        oldPos = QPoint(invalidMousePoint);
+        oldPosL = QPoint(invalidMousePoint);
+        btnL = false;
+        e->accept();
+    }
+    else if(!e->buttons().testFlag(Qt::RightButton) && btnR)
+    {
+        oldPosR = QPoint(invalidMousePoint);
+        btnR = false;
         e->accept();
     }
     else
@@ -226,6 +284,9 @@ void OgreWidget::mouseReleaseEvent(QMouseEvent *e)
 void OgreWidget::moveEvent(QMoveEvent *e)
 {
     qDebug() << "OgreWidget::moveEvent()";
+
+    QMutexLocker locker(&mMutex);
+
     QWidget::moveEvent(e);
 
     if(e->isAccepted() && ogreRenderWindow)
@@ -237,7 +298,10 @@ void OgreWidget::moveEvent(QMoveEvent *e)
 
 QPaintEngine* OgreWidget::paintEngine() const
 {
-    qDebug() << "OgreWidget::paintEngine()";
+//    qDebug() << "OgreWidget::paintEngine()";
+
+//    QMutexLocker locker(&mMutex);
+
     // We don't want another paint engine to get in the way for our Ogre based paint engine.
     // So we return nothing.
     return NULL;
@@ -245,8 +309,10 @@ QPaintEngine* OgreWidget::paintEngine() const
 
 void OgreWidget::timerEvent( QTimerEvent * e)
 {
+    QMutexLocker locker(&mMutex);
 //    qDebug() << "OgreWidget::timerEvent(): start";
-    ogreRoot->renderOneFrame();
+//    ogreRoot->renderOneFrame();
+    update();
 
     e->accept();
 //    qDebug() << "OgreWidget::timerEvent(): end";
@@ -254,6 +320,7 @@ void OgreWidget::timerEvent( QTimerEvent * e)
 
 void OgreWidget::paintEvent(QPaintEvent *e)
 {
+    QMutexLocker locker(&mMutex);
     if(!ogreRoot)
     {
         initOgreSystem();
@@ -265,7 +332,7 @@ void OgreWidget::paintEvent(QPaintEvent *e)
         ogreRenderWindow->update();
     ogreRoot->_fireFrameEnded();
 
-    emit currentRenderStatistics(size(), ogreRenderWindow->getTriangleCount(), ogreRenderWindow->getLastFPS());
+    if(mFrameCount++ % 25 == 0) emit currentRenderStatistics(size(), ogreRenderWindow->getTriangleCount(), ogreRenderWindow->getLastFPS());
 
     e->accept();
 //    qDebug() << "OgreWidget::paintEvent(): end";
@@ -273,6 +340,7 @@ void OgreWidget::paintEvent(QPaintEvent *e)
 
 void OgreWidget::resizeEvent(QResizeEvent *e)
 {
+    QMutexLocker locker(&mMutex);
     qDebug() << "OgreWidget::resizeEvent()";
     QWidget::resizeEvent(e);
 
@@ -295,6 +363,9 @@ void OgreWidget::resizeEvent(QResizeEvent *e)
 void OgreWidget::showEvent(QShowEvent *e)
 {
     qDebug() << "OgreWidget::showEvent()";
+
+    QMutexLocker locker(&mMutex);
+
 //    if(!ogreRoot)
 //    {
 //        initOgreSystem();
@@ -305,14 +376,18 @@ void OgreWidget::showEvent(QShowEvent *e)
 
 void OgreWidget::wheelEvent(QWheelEvent *e)
 {
-    qDebug() << "OgreWidget::wheelEvent(): " << -e->delta() / 60;
+//    qDebug() << "OgreWidget::wheelEvent(): " << -e->delta() / 60;
+
+    QMutexLocker locker(&mMutex);
 
     Ogre::Vector3 zTranslation(0,0, -e->delta() / 60);
 
     if(e->modifiers().testFlag(Qt::ControlModifier))
-        setCameraPosition(zTranslation * turboModifier);
+        mCameraNode->translate(zTranslation * turboModifier, Ogre::Node::TS_LOCAL);
     else
-        setCameraPosition(zTranslation * turboModifier);
+        mCameraNode->translate(zTranslation * Ogre::Vector3::NEGATIVE_UNIT_Z, Ogre::Node::TS_LOCAL);
+
+    update();
 
     e->accept();
 }
@@ -354,24 +429,26 @@ void OgreWidget::initOgreSystem()
     ogreSceneManager = ogreRoot->createSceneManager("TerrainSceneManager"/*Ogre::ST_EXTERIOR_CLOSE*/);
 
     ogreCamera = ogreSceneManager->createCamera("camera");
-    ogreCamera->setNearClipDistance(5);
+    ogreCamera->setNearClipDistance(2);
 
-    mCameraNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode("CameraNode", Ogre::Vector3(0, 0, 100));
+    mCameraNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode("CameraNode", Ogre::Vector3(0, 2, 2));
     mCameraNode->attachObject(ogreCamera);
-//    ogreCamera->lookAt(0,50,0);
+    ogreCamera->lookAt(0,0,0);
 
     ogreViewport = ogreRenderWindow->addViewport(ogreCamera);
-    ogreViewport->setBackgroundColour(Ogre::ColourValue(0,0,0));
+    ogreViewport->setBackgroundColour(Ogre::ColourValue(0.7, 0.7, 0.7));
     ogreCamera->setAspectRatio(Ogre::Real(width()) / Ogre::Real(height()));
 
     loadResources();
     createScene();
 
-    startTimer(50);
+    //startTimer(50);
+    qDebug() << "OgreWidget::initOgreSystem(): done";
 }
 
 void OgreWidget::loadResources()
 {
+    qDebug() << "OgreWidget::loadResources()";
     // Load resource paths from config file
     Ogre::ConfigFile cf;
     cf.load("resources.cfg");
@@ -402,40 +479,69 @@ void OgreWidget::loadResources()
 
     // Initialise, parse scripts etc
     Ogre::ResourceGroupManager::getSingleton().initialiseAllResourceGroups();
+
+    qDebug() << "OgreWidget::loadResources(): done.";
 }
 
 void OgreWidget::createScene()
 {
     qDebug() << "OgreWidget::createScene()";
-    ogreSceneManager->setAmbientLight(Ogre::ColourValue(1,1,1));
+//    ogreSceneManager->setAmbientLight(Ogre::ColourValue(1,1,1));
 
     ogreSceneManager->setWorldGeometry("media/terrain.cfg");
 
     mVehicleEntity = ogreSceneManager->createEntity("Robot", "quad.mesh");
     mVehicleNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode("VehicleNode");
     mVehicleNode->attachObject(mVehicleEntity);
-    mVehicleNode->setPosition(0.0, 0.0, 0.0);
+//    mVehicleNode->scale(0.33, 0.33, 0.33);
     //mCopterNode->yaw(Ogre::Radian(Ogre::Degree(-90)));
+
+    qDebug() << "OgreWidget::createScene(): done.";
 }
 
-Ogre::SceneNode* OgreWidget::getVehicleNode(void)
-{
-    //fixme: we return an invalid pointer, as initialization is still ahead of us.
-    return mVehicleNode;
-}
+//Ogre::SceneNode* OgreWidget::getVehicleNode(void)
+//{
+//    //fixme: we return an invalid pointer, as initialization is still ahead of us.
+//    return mVehicleNode;
+//}
 
 Ogre::RaySceneQuery* OgreWidget::createRaySceneQuery(void)
 {
+    qDebug() << "OgreWidget::createRaySceneQuery(): returning pointer.";
+
+    QMutexLocker locker(&mMutex);
     return ogreSceneManager->createRayQuery(Ogre::Ray());
 }
 
-Ogre::SceneNode* OgreWidget::createScannerNode()
+Ogre::SceneNode* OgreWidget::createScannerNode(const QString name, const Ogre::Vector3 &relativePosition, const Ogre::Quaternion &relativeRotation)
 {
+    qDebug() << "OgreWidget::createScannerNode()";
+
+    QMutexLocker locker(&mMutex);
+
     // We don't need names, so we just create something random
-    Ogre::Entity *scannerEntity = ogreSceneManager->createEntity(QDateTime::currentDateTime().toString("sszzz").toStdString(), "laserscanner.mesh");
-    Ogre::SceneNode *scannerNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode("VehicleNode");
+    Ogre::Entity *scannerEntity = ogreSceneManager->createEntity(QString(name + "_entity").toStdString(), "hokuyoutm30lx.mesh");
+    Ogre::SceneNode *scannerNode = mVehicleNode->createChildSceneNode(QString(name + "_node").toStdString(), relativePosition, relativeRotation);
+//    scannerNode->scale(0.33, 0.33, 0.33);
     scannerNode->attachObject(scannerEntity);
-    scannerNode->setPosition(0.0, 0.0, 0.0);
+    qDebug() << "OgreWidget::createScannerNode(): done, returning";
 
     return scannerNode;
+}
+
+void OgreWidget::createManualObject(const QString &name, Ogre::ManualObject** manualObject, Ogre::SceneNode** sceneNode, Ogre::MaterialPtr &material)
+{
+    qDebug() << "OgreWidget::createManualObject(), my address is" << this;
+
+    QMutexLocker locker(&mMutex);
+
+    *manualObject =  ogreSceneManager->createManualObject(QString(name+"_manualobject").toStdString());
+    *sceneNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode(QString(name+"_scenenode").toStdString());
+    material = Ogre::MaterialManager::getSingleton().create(QString(name+"_material").toStdString(), "debuggergroup");
+    qDebug() << "OgreWidget::createManualObject(): done, name of SceneNode is" << QString::fromStdString((*sceneNode)->getName());
+}
+
+Ogre::SceneManager* OgreWidget::sceneManager()
+{
+    return ogreSceneManager;
 }
