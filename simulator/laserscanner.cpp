@@ -52,9 +52,18 @@ LaserScanner::LaserScanner(
     // When we emit a scan, make mSimulator receive it
     connect(this, SIGNAL(scanFinished(QList<CoordinateGps>)), mSimulator, SLOT(slotScanFinished(QList<CoordinateGps>)));
 
+    mTimerScanStep = new QTimer(this);
+    mTimerScanStep->setSingleShot(true);
+    connect(mTimerScanStep, SIGNAL(timeout()), SLOT(slotDoScanStep()));
 
-    qDebug() << "LaserScanner::LaserScanner(): almost done, starting first slotDoScanStep()";
-    slotDoScanStep();
+    // make the scanner appear
+    mOgreWidget->update();
+
+    if(! mSimulator->isPaused())
+    {
+        qDebug() << "LaserScanner::LaserScanner(): almost done, starting first slotDoScanStep()";
+        slotDoScanStep();
+    }
 }
 
 void LaserScanner::slotDoScanStep(void)
@@ -129,13 +138,25 @@ void LaserScanner::slotDoScanStep(void)
     }
 
     // 6000 == 360.0[degress/round] / 60.0[seconds/minute] * 1000.0[milliseconds/second]
-    QTimer::singleShot(
-            (int)(degreesToNextScan / mSpeed * 6000.0 * mTimeFactor),
-            this,
-            SLOT(slotDoScanStep())
-            );
+    mTimerScanStep->setInterval((int)(degreesToNextScan / mSpeed * 6000.0 * mTimeFactor));
+    mTimerScanStep->start();
+//    QTimer::singleShot(
+//            (int)(degreesToNextScan / mSpeed * 6000.0 * mTimeFactor),
+//            this,
+//            SLOT(slotDoScanStep())
+//            );
 
 //    qDebug() << "LaserScanner::slotDoScanStep(): done.";
+}
+
+void LaserScanner::slotPause(void)
+{
+    mTimerScanStep->stop();
+}
+
+void LaserScanner::slotStart(void)
+{
+    mTimerScanStep->start();
 }
 
 Ogre::SceneNode* LaserScanner::getSceneNode(void)

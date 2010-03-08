@@ -2,9 +2,11 @@
 #define OGREWIDGET_H
 
 #include <QtGui>
+#include <QApplication>
 #include <QWidget>
 #include <QDebug>
 #include <QColor>
+#include <QTimer>
 #include <QMutex>
 #include <QMutexLocker>
 #include <Ogre.h>
@@ -57,11 +59,13 @@ public slots:
             const bool reAimCamera = false);
 
 signals:
+    void setupFinished();
     void cameraPositionChanged(const Ogre::Vector3 &pos);
     void currentRenderStatistics(QSize windowSize, int triangles, float fps);
 
 protected:
     virtual void keyPressEvent(QKeyEvent *e);
+    virtual void keyReleaseEvent(QKeyEvent *e);
     virtual void moveEvent(QMoveEvent *e);
     virtual void mouseDoubleClickEvent(QMouseEvent *e);
     virtual void mouseMoveEvent(QMouseEvent *e);
@@ -84,6 +88,9 @@ private:
 private:
     mutable QMutex mMutex;
 
+    QMap<int, Ogre::Vector3> mKeyCoordinateMapping;
+    QList<int> mKeysPressed;
+
     Ogre::Root          *ogreRoot;
     Ogre::SceneManager  *ogreSceneManager;
     Ogre::RenderWindow  *ogreRenderWindow;
@@ -93,6 +100,7 @@ private:
     unsigned int mFrameCount;// currently only used to emit statistics not every frame
     QPoint oldPosL, oldPosR;
     bool btnL, btnR;
+    int mUpdateTimerId;
     QList<Ogre::SceneNode*> mScannerNodes;
     Ogre::SceneNode *selectedNode;
     Ogre::SceneNode *mCameraNode;

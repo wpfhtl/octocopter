@@ -26,14 +26,16 @@ class Simulator : public QMainWindow
 public:
     Simulator(void);
     float getTimeFactor(void) const;
-    int getSimulationTime(void) const;
+    bool isPaused(void) const;
+    int getSimulationTime(void) const; // returns milliseconds since start of simulation, scaled by timeFactor
     QList<LaserScanner*>* getLaserScannerList(void);
 
 private:
     mutable QMutex mMutex;
 
     float mTimeFactor;
-    QTime mTimeSimulationStart;
+    QTime mTimeSimulationStart; // when simulation was started
+    QTime mTimeSimulationPause; // when simulation was paused, invalid when it's not currently paused.
     OgreWidget* mOgreWidget;
     Battery* mBattery;
     StatusWidget* mStatusWidget;
@@ -44,7 +46,9 @@ private:
     QList<LaserScanner*> *mLaserScanners;
 
 private slots:
-    void slotStartSimulation();
+    void slotAddVehicle(void);
+    void slotSimulationStart(void);
+    void slotSimulationPause(void);
     void slotSetTimeFactor(double);
 
 public slots:

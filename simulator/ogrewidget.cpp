@@ -16,6 +16,7 @@ OgreWidget::OgreWidget(QWidget *parent) :
         btnR(false),
         selectedNode(0),
         mFrameCount(0),
+        mUpdateTimerId(0),
         mMutex(QMutex::NonRecursive)
 {
     qDebug() << "OgreWidget::OgreWidget()";
@@ -24,6 +25,13 @@ OgreWidget::OgreWidget(QWidget *parent) :
     setAttribute(Qt::WA_PaintOnScreen);
     setMinimumSize(240,240);
     setFocusPolicy(Qt::ClickFocus);
+
+    mKeyCoordinateMapping[Qt::Key_W] = Ogre::Vector3( 0, 0,-1);
+    mKeyCoordinateMapping[Qt::Key_S] = Ogre::Vector3( 0, 0, 1);
+    mKeyCoordinateMapping[Qt::Key_A] = Ogre::Vector3(-1, 0, 0);
+    mKeyCoordinateMapping[Qt::Key_D] = Ogre::Vector3( 1, 0, 0);
+    mKeyCoordinateMapping[Qt::Key_E] = Ogre::Vector3( 0, 1, 0);
+    mKeyCoordinateMapping[Qt::Key_Q] = Ogre::Vector3( 0,-1, 0);
 }
 
 OgreWidget::~OgreWidget()
@@ -79,6 +87,7 @@ void OgreWidget::setCameraPosition(const Ogre::Vector3 &vector, const Translatio
 
 Ogre::Vector3 OgreWidget::getVehiclePosition(void) const
 {
+    Q_ASSERT(false);
     QMutexLocker locker(&mMutex);
 //    qDebug() << "OgreWidget::getVehiclePosition()";
     return mVehicleNode->getPosition();
@@ -86,6 +95,7 @@ Ogre::Vector3 OgreWidget::getVehiclePosition(void) const
 
 void OgreWidget::setVehiclePosition(const Ogre::Vector3 &vector, const TranslationMode &mode, const Ogre::Node::TransformSpace &transformSpace, const bool reAimCamera)
 {
+    Q_ASSERT(false);
     qDebug() << "OgreWidget::setVehiclePosition()";
     QMutexLocker locker(&mMutex);
 
@@ -106,36 +116,27 @@ void OgreWidget::setVehiclePosition(const Ogre::Vector3 &vector, const Translati
 void OgreWidget::keyPressEvent(QKeyEvent *e)
 {
     QMutexLocker locker(&mMutex);
-    static QMap<int, Ogre::Vector3> keyCoordModificationMapping;
-    static bool mappingInitialised = false;
 
-    if(!mappingInitialised)
+    // Only act if the pressed key is a movement key
+    if(mKeyCoordinateMapping.find(e->key()) != mKeyCoordinateMapping.end())
     {
-        keyCoordModificationMapping[Qt::Key_W] = Ogre::Vector3( 0, 0,-1);
-        keyCoordModificationMapping[Qt::Key_S] = Ogre::Vector3( 0, 0, 1);
-        keyCoordModificationMapping[Qt::Key_A] = Ogre::Vector3(-1, 0, 0);
-        keyCoordModificationMapping[Qt::Key_D] = Ogre::Vector3( 1, 0, 0);
-
-        keyCoordModificationMapping[Qt::Key_E] = Ogre::Vector3( 0, 1, 0);
-        keyCoordModificationMapping[Qt::Key_Q] = Ogre::Vector3( 0,-1, 0);
-        mappingInitialised = true;
-    }
-
-    QMap<int, Ogre::Vector3>::iterator keyPressed = keyCoordModificationMapping.find(e->key());
-    if(keyPressed != keyCoordModificationMapping.end() && ogreCamera)
-    {
-        if(e->modifiers().testFlag(Qt::ControlModifier))
-            mCameraNode->translate(keyPressed.value() * turboModifier);
-        else
-            mCameraNode->translate(keyPressed.value());
-
-        update();
-
         e->accept();
+
+        // A movement-key has been pressed, remember that and start the timer if its not already running.
+        // In timerEvent(), the camera will be moved whenever the timer fires.
+        mKeysPressed << e->key();
+        if(! mUpdateTimerId) mUpdateTimerId = startTimer(1000/25);
+    }
+    else if(e->key() == Qt::ControlModifier)
+    {
+        // ControlModifier speeds up movement, but don't activate the timer for it
+        // because by itself, it doesn't cause any movement
+        qDebug() << "OgreWidget::keyPressEvent(): CTRL pressed";
+        mKeysPressed << e->key();
     }
     else if(e->key() == Qt::Key_Space)
     {
-        ogreCamera->lookAt(mVehicleNode->getPosition());
+        ogreCamera->lookAt(ogreSceneManager->getSceneNode("vehicleNode")->getPosition());
         update();
         e->accept();
     }
@@ -143,6 +144,21 @@ void OgreWidget::keyPressEvent(QKeyEvent *e)
     {
         e->ignore();
     }
+}
+
+void OgreWidget::keyReleaseEvent(QKeyEvent *e)
+{
+    QMutexLocker locker(&mMutex);
+
+    mKeysPressed.removeOne(e->key());
+
+    if(mKeysPressed.empty() || (mKeysPressed.size() == 1 && mKeysPressed.contains(Qt::ControlModifier)))
+    {
+        killTimer(mUpdateTimerId);
+        mUpdateTimerId = 0;
+    }
+
+    e->accept();
 }
 
 void OgreWidget::mouseDoubleClickEvent(QMouseEvent *e)
@@ -209,7 +225,7 @@ void OgreWidget::mouseMoveEvent(QMouseEvent *e)
             deltaZ *= turboModifier;
         }
 
-        mCameraNode->translate(Ogre::Vector3(deltaX/50, -deltaY/50, deltaZ/50), Ogre::Node::TS_LOCAL);
+        mCameraNode->translate(ogreCamera->getOrientation() * Ogre::Vector3(deltaX/50, -deltaY/50, deltaZ/50), Ogre::Node::TS_LOCAL);
         update();
 
         oldPosL = pos;
@@ -307,12 +323,26 @@ QPaintEngine* OgreWidget::paintEngine() const
     return NULL;
 }
 
-void OgreWidget::timerEvent( QTimerEvent * e)
+void OgreWidget::timerEvent(QTimerEvent * e)
 {
     QMutexLocker locker(&mMutex);
-//    qDebug() << "OgreWidget::timerEvent(): start";
-//    ogreRoot->renderOneFrame();
-    update();
+    qDebug() << "OgreWidget::timerEvent(): start";
+
+    Q_ASSERT(! mKeysPressed.empty());
+
+    for(int i=0; i < mKeysPressed.size(); ++i)
+    {
+        QMap<int, Ogre::Vector3>::iterator keyPressed = mKeyCoordinateMapping.find(mKeysPressed.at(i));
+        if(keyPressed != mKeyCoordinateMapping.end() && ogreCamera)
+        {
+            if(QApplication::keyboardModifiers().testFlag(Qt::ControlModifier))
+                mCameraNode->translate(keyPressed.value() * turboModifier);
+            else
+                mCameraNode->translate(keyPressed.value());
+
+            update();
+        }
+    }
 
     e->accept();
 //    qDebug() << "OgreWidget::timerEvent(): end";
@@ -431,9 +461,9 @@ void OgreWidget::initOgreSystem()
     ogreCamera = ogreSceneManager->createCamera("camera");
     ogreCamera->setNearClipDistance(2);
 
-    mCameraNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode("CameraNode", Ogre::Vector3(0, 2, 2));
+    mCameraNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode("CameraNode", Ogre::Vector3(0, 12, 15));
     mCameraNode->attachObject(ogreCamera);
-    ogreCamera->lookAt(0,0,0);
+    ogreCamera->lookAt(0,8,0);
 
     ogreViewport = ogreRenderWindow->addViewport(ogreCamera);
     ogreViewport->setBackgroundColour(Ogre::ColourValue(0.7, 0.7, 0.7));
@@ -442,7 +472,8 @@ void OgreWidget::initOgreSystem()
     loadResources();
     createScene();
 
-    //startTimer(50);
+    emit setupFinished();
+
     qDebug() << "OgreWidget::initOgreSystem(): done";
 }
 
@@ -490,9 +521,9 @@ void OgreWidget::createScene()
 
     ogreSceneManager->setWorldGeometry("media/terrain.cfg");
 
-    mVehicleEntity = ogreSceneManager->createEntity("Robot", "quad.mesh");
-    mVehicleNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode("VehicleNode");
-    mVehicleNode->attachObject(mVehicleEntity);
+//    mVehicleEntity = ogreSceneManager->createEntity("Robot", "quad.mesh");
+//    mVehicleNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode("VehicleNode");
+//    mVehicleNode->attachObject(mVehicleEntity);
 //    mVehicleNode->scale(0.33, 0.33, 0.33);
     //mCopterNode->yaw(Ogre::Radian(Ogre::Degree(-90)));
 
@@ -521,7 +552,7 @@ Ogre::SceneNode* OgreWidget::createScannerNode(const QString name, const Ogre::V
 
     // We don't need names, so we just create something random
     Ogre::Entity *scannerEntity = ogreSceneManager->createEntity(QString(name + "_entity").toStdString(), "hokuyoutm30lx.mesh");
-    Ogre::SceneNode *scannerNode = mVehicleNode->createChildSceneNode(QString(name + "_node").toStdString(), relativePosition, relativeRotation);
+    Ogre::SceneNode *scannerNode = ogreSceneManager->getSceneNode("vehicleNode")->createChildSceneNode(QString(name + "_node").toStdString(), relativePosition, relativeRotation);
 //    scannerNode->scale(0.33, 0.33, 0.33);
     scannerNode->attachObject(scannerEntity);
     qDebug() << "OgreWidget::createScannerNode(): done, returning";

@@ -13,8 +13,8 @@ SimulationControlWidget::SimulationControlWidget(Simulator *simulator, OgreWidge
 
     // Wire up the time-box
     connect(mSpinBoxTimeFactor, SIGNAL(valueChanged(double)), SIGNAL(timeFactorChanged(double)));
-    connect(mBtnStart, SIGNAL(clicked()), SIGNAL(start()));
-    connect(mBtnPause, SIGNAL(clicked()), SIGNAL(pause()));
+    connect(mBtnStart, SIGNAL(clicked()), SLOT(slotSimulationStarted()));
+    connect(mBtnPause, SIGNAL(clicked()), SLOT(slotSimulationPaused()));
 
     // Wire up the laserscanner-box
     connect(mSpinBoxScannerIndex, SIGNAL(valueChanged(int)), SLOT(slotScannerIndexChanged()));
@@ -39,6 +39,22 @@ SimulationControlWidget::SimulationControlWidget(Simulator *simulator, OgreWidge
     connect(mBtnLaserScannerConfigurationSave, SIGNAL(clicked()), SLOT(slotScannerSaveConfiguration()));
 
     qDebug() << "SimulationControlWidget::SimulationControlWidget(): done";
+}
+
+void SimulationControlWidget::slotSimulationStarted()
+{
+    mBtnPause->setEnabled(true);
+    mBtnStart->setEnabled(false);
+
+    emit simulationStart();
+}
+
+void SimulationControlWidget::slotSimulationPaused()
+{
+    mBtnPause->setEnabled(false);
+    mBtnStart->setEnabled(true);
+
+    emit simulationPause();
 }
 
 void SimulationControlWidget::slotScannerIndexChanged(void)
@@ -109,7 +125,6 @@ void SimulationControlWidget::slotScannerCreate(void)
 {
     qDebug() << "SimulationControlWidget::slotScannerCreate(): creating new scanner";
 
-    // By default, laserscanners are slooow
     LaserScanner* newLaserScanner = new LaserScanner(
             mSimulator,
             mOgreWidget,
@@ -245,6 +260,11 @@ void SimulationControlWidget::slotScannerLoadConfiguration(void)
     // TODO: Will this load the settings?
     qDebug() << "SimulationControlWidget::slotScannerLoadConfiguration(): done, setting index spinbox to maximum: " << mSpinBoxScannerIndex->maximum();
     mSpinBoxScannerIndex->setValue(mSpinBoxScannerIndex->maximum());
+}
+
+double SimulationControlWidget::getTimeFactor()
+{
+    return mSpinBoxTimeFactor->value();
 }
 
 SimulationControlWidget::~SimulationControlWidget()

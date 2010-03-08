@@ -8,9 +8,10 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     mSimulator = simulator;
     mOgreWidget = ogreWidget;
 
-    mTimerUpdatePosition = new QTimer;
-    mTimerUpdatePosition->setInterval(50);
-    connect(mTimerUpdatePosition, SIGNAL(timeout()), SLOT(slotUpdatePosition()));
+    mTimerUpdatePosition = new QTimer(this);
+    mTimerUpdatePosition->setInterval(1000/25);
+//    connect(mTimerUpdatePosition, SIGNAL(timeout()), SLOT(slotUpdatePosition()));
+    connect(mTimerUpdatePosition, SIGNAL(timeout()), SLOT(slotUpdatePhysics()));
 
     //Bullet initialisation.
     mBtBroadphase = new btAxisSweep3(btVector3(-10000,-10000,-10000), btVector3(10000,10000,10000), 1024);
@@ -36,39 +37,50 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 
     mBtDebugDrawer = new BtOgre::DebugDrawer(mOgreWidget->sceneManager()->getRootSceneNode(), mBtWorld);
     mBtWorld->setDebugDrawer(mBtDebugDrawer);
+    mBtDebugDrawer->setDebugMode(1);
 
     //----------------------------------------------------------
-    // Ninja!
+    // Vehicle!
     //----------------------------------------------------------
-
-    Ogre::Vector3 pos(0,100,0);
-    Ogre::Quaternion rot(Ogre::Quaternion::IDENTITY);
-
-    //Create Ogre stuff.
-    mNinjaEntity = mOgreWidget->sceneManager()->createEntity("ninjaEntity", "ninja.mesh");//"Player.mesh");
-    mNinjaNode = mOgreWidget->sceneManager()->getRootSceneNode()->createChildSceneNode("ninjaSceneNode", pos, rot);
-   mNinjaNode->scale(0.035,0.035,0.035);
-    mNinjaNode->attachObject(mNinjaEntity);
+    qDebug() << "Vehicle::Vehicle(): creating vehicle";
+    mVehicleEntity = mOgreWidget->sceneManager()->createEntity("vehicleEntity", "quad.mesh");
+    // "vehicleNode" is fixed, used in ogrewidget.cpp
+    mVehicleNode = mOgreWidget->sceneManager()->getRootSceneNode()->createChildSceneNode("vehicleNode", Ogre::Vector3(0,10,0), Ogre::Quaternion::IDENTITY);
+//    mVehicleNode->scale(0.035,0.035,0.035);
+    mVehicleNode->attachObject(mVehicleEntity);
 
     //Create shape.
-    BtOgre::AnimatedMeshToShapeConverter converter(mNinjaEntity);
-    mNinjaShape = converter.createConvex();
+    BtOgre::StaticMeshToShapeConverter converter(mVehicleEntity);
+    mVehicleShape = converter.createConvex();
+
+    // Reduce vertices (20k to maybe 100?)
+    btShapeHull* hull = new btShapeHull(mVehicleShape);
+    btScalar margin = mVehicleShape->getMargin();
+    hull->buildHull(margin);
+    /*btConvexHullShape**/ mVehicleShape = new btConvexHullShape((btScalar*)hull->getVertexPointer(), hull->numVertices()/*, sizeof(btVector3)*/);
+
+
+    qDebug() << "Vehicle::Vehicle(): number of points in vehicle shape:" << ((btConvexHullShape*)mVehicleShape)->getNumPoints();
 
     // Scale
-    btVector3 scale(0.035,0.035,0.035);
-    mNinjaShape->setLocalScaling(scale);
+//    btVector3 scale(0.035,0.035,0.035);
+//    mVehicleShape->setLocalScaling(scale);
 
     //Calculate inertia.
-    btScalar mass = 5;
+    btScalar mass = 1.5;
     btVector3 inertia;
-    mNinjaShape->calculateLocalInertia(mass, inertia);
+    mVehicleShape->calculateLocalInertia(mass, inertia);
 
     //Create BtOgre MotionState (connects Ogre and Bullet).
-    BtOgre::RigidBodyState *ninjaState = new BtOgre::RigidBodyState(mNinjaNode);
+    BtOgre::RigidBodyState *vehicleState = new BtOgre::RigidBodyState(mVehicleNode);
 
     //Create the Body.
-    mNinjaBody = new btRigidBody(mass, ninjaState, mNinjaShape, inertia);
-    mBtWorld->addRigidBody(mNinjaBody);
+    mVehicleBody = new btRigidBody(mass, vehicleState, mVehicleShape, inertia);
+//    mVehicleBody->setCollisionFlags(mVehicleBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT | btCollisionObject::CF_CUSTOM_MATERIAL_CALLBACK );
+
+//    mVehicleBody->setActivationState(ISLAND_SLEEPING);
+    mBtWorld->addRigidBody(mVehicleBody, COL_VEHICLE, COL_GROUND);
+//    mVehicleBody->setActivationState(ISLAND_SLEEPING);
 
     //----------------------------------------------------------
     // Load terrain!
@@ -109,6 +121,8 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
    Ogre::Image* heightmap = new Ogre::Image();
    heightmap->load(imgFile, Ogre::ResourceGroupManager::getSingleton().getWorldResourceGroupName());
 
+   qDebug() << "Vehicle::Vehicle(): image buffer size" << heightmap->getSize();
+
    Ogre::String maxHeightStr = config.getSetting("MaxHeight");
    btScalar maxHeight = atof(maxHeightStr.c_str());
    btScalar heightScale = maxHeight / 256;
@@ -135,8 +149,8 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
    // Finally, create your btMotionState, and btRigidBody, and all the rigid body to the physics world.
    BtOgre::RigidBodyState* terrainState = new BtOgre::RigidBodyState(sNode, btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
    mGroundBody = new btRigidBody(0, terrainState, mGroundShape, btVector3(0, 0, 0));
-   mGroundBody->setCollisionFlags(mGroundBody->getCollisionFlags() | btCollisionObject::CF_STATIC_OBJECT);
-   mBtWorld->addRigidBody(mGroundBody);
+//   mGroundBody->setCollisionFlags(mGroundBody->getCollisionFlags() | btCollisionObject::CF_STATIC_OBJECT);
+   mBtWorld->addRigidBody(mGroundBody, COL_GROUND, COL_NOTHING);
 }
 
 Vehicle::~Vehicle()
@@ -150,13 +164,14 @@ Vehicle::~Vehicle()
 
 void Vehicle::run()
 {
-    mTimeOfLastUpdate = mSimulator->getSimulationTime();
-    mTimerUpdatePosition->start();
+//    mTimeOfLastUpdate = mSimulator->getSimulationTime();
+//    mTimerUpdatePosition->start();
 //    QThread::exec();
 }
 
 void Vehicle::slotUpdatePosition(void)
 {
+    Q_ASSERT(false);
     qDebug() << "Vehicle::slotUpdatePosition()";
     QMutexLocker locker(&mMutex);
 
@@ -195,6 +210,36 @@ void Vehicle::slotSetNextWayPoint(const CoordinateGps &wayPoint)
     QMutexLocker locker(&mMutex);
 
     mNextWayPoint = mCoordinateConverter.convert(wayPoint);
+}
+
+void Vehicle::slotUpdatePhysics(void)
+{
+    const int simulationTime = mSimulator->getSimulationTime(); // milliseconds
+    const btScalar deltaS = (simulationTime - mTimeOfLastUpdate) / 1000.0f; // elapsed time since last call in seconds
+    qDebug() << "Vehicle::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
+
+    // FIXME, http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
+    mBtWorld->stepSimulation(
+            deltaS,
+            10,
+            1.0/60.0);
+
+//    mBtDebugDrawer->step();
+
+    mTimeOfLastUpdate = simulationTime;
+    mOgreWidget->update();
+}
+
+void Vehicle::start(void)
+{
+    qDebug() << "Vehicle::start(): starting timer.";
+    mTimerUpdatePosition->start();
+}
+
+void Vehicle::stop(void)
+{
+    qDebug() << "Vehicle::stop(): stopping timer.";
+    mTimerUpdatePosition->stop();
 }
 
 void Vehicle::slotShutDown(void)

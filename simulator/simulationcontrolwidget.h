@@ -26,6 +26,8 @@ public:
     SimulationControlWidget(Simulator *simulator, OgreWidget* ogreWidget);
     ~SimulationControlWidget();
 
+    double getTimeFactor();
+
 private:
 //    Ui::SimulationControlWidget *ui;
     Simulator *mSimulator;
@@ -44,10 +46,13 @@ private slots:
     void slotScannerLoadConfiguration(void);
     void slotScannerSaveConfiguration(void);
 
+    void slotSimulationPaused();
+    void slotSimulationStarted();
+
 signals:
     void timeFactorChanged(double);
-    void start();
-    void pause();
+    void simulationStart();
+    void simulationPause();
 
 };
 

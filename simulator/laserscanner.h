@@ -18,6 +18,9 @@ class LaserScanner : public QObject
 private:
     Simulator *mSimulator;
 
+    // We need singleShot functionality, but we also need to be able to pause when simulation is paused.
+    QTimer* mTimerScanStep;
+
     // the scanner's range in meters. This abstract the function between scan-target's size and range
     float mRange;
 
@@ -91,8 +94,8 @@ signals:
 
 
 public slots:
-
-
+    void slotStart(void);
+    void slotPause(void);
 };
 
 #endif
