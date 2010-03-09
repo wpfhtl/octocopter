@@ -66,6 +66,14 @@ LaserScanner::LaserScanner(
     }
 }
 
+LaserScanner::~LaserScanner()
+{
+    // TODO: delete/unregister scannerNode, mRayMaterial etc.
+    mRayObject->clear();
+    delete mRayObject;
+    mTimerScanStep->deleteLater();
+}
+
 void LaserScanner::slotDoScanStep(void)
 {
 //    qDebug() << "LaserScanner::slotDoScanStep()";

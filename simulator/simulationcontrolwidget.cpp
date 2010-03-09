@@ -151,7 +151,7 @@ void SimulationControlWidget::slotScannerCreate(void)
 
     mSimulator->getLaserScannerList()->append(newLaserScanner);
 
-    mSpinBoxScannerIndex->setMaximum(mSpinBoxScannerIndex->maximum() + 1);
+    mSpinBoxScannerIndex->setMaximum(mSimulator->getLaserScannerList()->size()-1);
     mSpinBoxScannerIndex->setValue(mSpinBoxScannerIndex->maximum());
     // TODO: does setValue emit valueChanged? If not, call slotScannerIndexChanged here.
 
@@ -161,7 +161,8 @@ void SimulationControlWidget::slotScannerCreate(void)
 void SimulationControlWidget::slotScannerDelete(void)
 {
     qDebug() << "SimulationControlWidget::slotScannerDelete(): deleting scanner at" << mSpinBoxScannerIndex->value();
-    mSimulator->getLaserScannerList()->at(mSpinBoxScannerIndex->value())->deleteLater();
+    mSimulator->getLaserScannerList()->takeAt(mSpinBoxScannerIndex->value())->deleteLater();
+
     // I hope that QSpinBox would change its value after value() > maximum...
     mSpinBoxScannerIndex->setMaximum(mSpinBoxScannerIndex->maximum() - 1);
 

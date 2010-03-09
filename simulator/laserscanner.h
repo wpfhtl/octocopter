@@ -67,6 +67,8 @@ public:
             const int angleStop,
             const float angleStep);
 
+    ~LaserScanner();
+
     Ogre::SceneNode* getSceneNode(void);
 
     // Getters for the properties

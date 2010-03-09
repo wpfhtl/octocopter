@@ -47,6 +47,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     // "vehicleNode" is fixed, used in ogrewidget.cpp
     mVehicleNode = mOgreWidget->sceneManager()->getRootSceneNode()->createChildSceneNode("vehicleNode", Ogre::Vector3(0,10,0), Ogre::Quaternion::IDENTITY);
 //    mVehicleNode->scale(0.035,0.035,0.035);
+//    mVehicleNode->rotate(Ogre::Vector3::UNIT_X, Ogre::Degree(90), Ogre::Node::TS_LOCAL);
     mVehicleNode->attachObject(mVehicleEntity);
 
     //Create shape.
@@ -79,7 +80,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 //    mVehicleBody->setCollisionFlags(mVehicleBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT | btCollisionObject::CF_CUSTOM_MATERIAL_CALLBACK );
 
 //    mVehicleBody->setActivationState(ISLAND_SLEEPING);
-    mBtWorld->addRigidBody(mVehicleBody, COL_VEHICLE, COL_GROUND);
+    mBtWorld->addRigidBody(mVehicleBody/*, COL_VEHICLE, COL_GROUND*/);
 //    mVehicleBody->setActivationState(ISLAND_SLEEPING);
 
     //----------------------------------------------------------
@@ -217,6 +218,13 @@ void Vehicle::slotUpdatePhysics(void)
     const int simulationTime = mSimulator->getSimulationTime(); // milliseconds
     const btScalar deltaS = (simulationTime - mTimeOfLastUpdate) / 1000.0f; // elapsed time since last call in seconds
     qDebug() << "Vehicle::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
+
+    mVehicleBody->applyCentralForce(btVector3(0,15.5,0));
+//    mVehicleBody->applyForce(btVector3(0, 5, 0), btVector3(.2, 0, 0));
+//    mVehicleBody->applyForce(btVector3(0, 5, 0), btVector3(-.2, 0, 0));
+//    mVehicleBody->applyForce(btVector3(0, 5, 0), btVector3(0, 0, .2));
+//    mVehicleBody->applyForce(btVector3(0, 5, 0), btVector3(0, 0, -.2));
+//    mVehicleBody->applyTorque(btVector3(10,0,0));
 
     // FIXME, http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
     mBtWorld->stepSimulation(
