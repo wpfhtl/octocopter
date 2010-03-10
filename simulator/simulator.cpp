@@ -10,7 +10,7 @@ Simulator::Simulator(void) :
     qDebug() << "Simulator::Simulator()";
     QMutexLocker locker(&mMutex);
 
-    resize(1027, 768);
+    resize(1027, 900);
 
     mTimeSimulationPause = QTime(); // set invalid;
     mTimeSimulationStart = QTime(); // set invalid;
@@ -24,14 +24,15 @@ Simulator::Simulator(void) :
 
     connect(mOgreWidget, SIGNAL(setupFinished()), SLOT(slotAddVehicle()));
 
-    mBattery = new Battery(this, 12.0, 4.0);
-    mBattery->setDischargeCurrent(20.0);
-
     mSimulationControlWidget = new SimulationControlWidget(this, mOgreWidget);
     addDockWidget(Qt::RightDockWidgetArea, mSimulationControlWidget);
     connect(mSimulationControlWidget, SIGNAL(simulationStart()), SLOT(slotSimulationStart()));
     connect(mSimulationControlWidget, SIGNAL(simulationPause()), SLOT(slotSimulationPause()));
     connect(mSimulationControlWidget, SIGNAL(timeFactorChanged(double)), SLOT(slotSetTimeFactor(double)));
+
+    mBattery = new Battery(this, 12.0, 4.0);
+    mBattery->setDischargeCurrent(20.0);
+    connect(mSimulationControlWidget, SIGNAL(timeFactorChanged(double)), mBattery, SLOT(slotSetTimeFactor(double)));
 
     mTimeFactor = mSimulationControlWidget->getTimeFactor();
 

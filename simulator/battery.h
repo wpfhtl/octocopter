@@ -14,6 +14,7 @@ Q_OBJECT
 
 private:
     QTimer mUpdateTimer;
+    double mTimeFactor;
     double mCapacity; // in AH
     double mDischargeCurrent;  // in A, how much is drawn from the battery right now.
     double mEnergy;   // in AH, the energy left in the battery
@@ -36,6 +37,7 @@ signals:
 
 private slots:
     void slotUpdate();
+    void slotSetTimeFactor(const double &timeFactor);
 
 };
 

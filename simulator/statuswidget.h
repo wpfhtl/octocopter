@@ -5,6 +5,8 @@
 #include "ui_statuswidget.h"
 #include "battery.h"
 
+class Battery;
+
 class StatusWidget : public QDockWidget, public Ui::DockWidget
 {
 Q_OBJECT

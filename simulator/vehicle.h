@@ -10,8 +10,8 @@
 #include "BtOgre/BtOgrePG.h"
 #include "BtOgre/BtOgreGP.h"
 #include "BtOgre/BtOgreExtras.h"
-#include "CollisionShapes/btHeightfieldTerrainShape.h"
-#include <CollisionShapes/btShapeHull.h>
+#include "BulletCollision/CollisionShapes/btHeightfieldTerrainShape.h"
+#include <BulletCollision/CollisionShapes/btShapeHull.h>
 
 #include "simulator.h"
 //#include "physics.h"
@@ -40,6 +40,7 @@ private:
     CoordinateConverter mCoordinateConverter;
     Ogre::Vector3 mNextWayPoint;
     OgreWidget* mOgreWidget;
+    QList<Ogre::Vector3> mMotorPositions;
 
 protected:
     btAxisSweep3 *mBtBroadphase;

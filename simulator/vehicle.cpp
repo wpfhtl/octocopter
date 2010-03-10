@@ -13,6 +13,12 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 //    connect(mTimerUpdatePosition, SIGNAL(timeout()), SLOT(slotUpdatePosition()));
     connect(mTimerUpdatePosition, SIGNAL(timeout()), SLOT(slotUpdatePhysics()));
 
+    // Set up motors
+    mMotorPositions.append(Ogre::Vector3(+0.00, +0.00, -0.20));  // engine 1, front
+    mMotorPositions.append(Ogre::Vector3(+0.20, +0.00, +0.00));  // engine 2, right
+    mMotorPositions.append(Ogre::Vector3(+0.00, +0.00, +0.20));  // engine 3, back
+    mMotorPositions.append(Ogre::Vector3(-0.20, +0.00, +0.00));  // engine 4, left
+
     //Bullet initialisation.
     mBtBroadphase = new btAxisSweep3(btVector3(-10000,-10000,-10000), btVector3(10000,10000,10000), 1024);
     mBtCollisionConfig = new btDefaultCollisionConfiguration();
@@ -152,6 +158,15 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
    mGroundBody = new btRigidBody(0, terrainState, mGroundShape, btVector3(0, 0, 0));
 //   mGroundBody->setCollisionFlags(mGroundBody->getCollisionFlags() | btCollisionObject::CF_STATIC_OBJECT);
    mBtWorld->addRigidBody(mGroundBody, COL_GROUND, COL_NOTHING);
+
+
+   // Debug, add a plane like the tutorial says
+   btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0,1,0),1);
+   btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(0,-1,0)));
+   btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(0,groundMotionState,groundShape,btVector3(0,0,0));
+   btRigidBody* groundRigidBody = new btRigidBody(groundRigidBodyCI);
+   mBtWorld->addRigidBody(groundRigidBody);
+
 }
 
 Vehicle::~Vehicle()
@@ -213,24 +228,48 @@ void Vehicle::slotSetNextWayPoint(const CoordinateGps &wayPoint)
     mNextWayPoint = mCoordinateConverter.convert(wayPoint);
 }
 
+void Vehicle::slotSetFanSpeeds(const QList<int> &speeds)
+{
+
+
+    Q_ASSERT(speeds.size() <= mMotorPositions.size());
+
+    for(int i=0;i<speeds.size();++i)
+        mVehicleBody->applyForce(
+                btVector3( // force
+                        0,
+                        5,
+                        0),
+                btVector3( // offset
+                        mMotorPositions.at(i).x,
+                        mMotorPositions.at(i).y,
+                        mMotorPositions.at(i).z
+                        )
+                );
+
+    //mVehicleBody->applyCentralForce(btVector3(0,5,0));
+    mVehicleBody->applyForce(btVector3(0, 5, 0), btVector3(.2, 0, 0));
+    mVehicleBody->applyForce(btVector3(0, 5, 0), btVector3(-.2, 0, 0));
+    mVehicleBody->applyForce(btVector3(0, 5, 0), btVector3(0, 0, .2));
+    mVehicleBody->applyForce(btVector3(0, 2, 0), btVector3(0, 0, -.2));
+
+    //    mVehicleBody->applyTorque(btVector3(10,0,0));
+
+    const Ogre::Vector3 vectorToTarget = mVehicleNode->_getDerivedPosition() - mNextWayPoint;
+    const float yawToTarget = mVehicleNode->_getDerivedOrientation().getYaw();
+
+}
+
 void Vehicle::slotUpdatePhysics(void)
 {
     const int simulationTime = mSimulator->getSimulationTime(); // milliseconds
     const btScalar deltaS = (simulationTime - mTimeOfLastUpdate) / 1000.0f; // elapsed time since last call in seconds
+    const int maxSubSteps = 100;
+    const btScalar fixedTimeStep = 1.0 / 60.0;
     qDebug() << "Vehicle::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
 
-    mVehicleBody->applyCentralForce(btVector3(0,15.5,0));
-//    mVehicleBody->applyForce(btVector3(0, 5, 0), btVector3(.2, 0, 0));
-//    mVehicleBody->applyForce(btVector3(0, 5, 0), btVector3(-.2, 0, 0));
-//    mVehicleBody->applyForce(btVector3(0, 5, 0), btVector3(0, 0, .2));
-//    mVehicleBody->applyForce(btVector3(0, 5, 0), btVector3(0, 0, -.2));
-//    mVehicleBody->applyTorque(btVector3(10,0,0));
-
-    // FIXME, http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
-    mBtWorld->stepSimulation(
-            deltaS,
-            10,
-            1.0/60.0);
+    Q_ASSERT(deltaS < maxSubSteps * fixedTimeStep); // http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
+    mBtWorld->stepSimulation(deltaS, maxSubSteps, fixedTimeStep);
 
 //    mBtDebugDrawer->step();
 

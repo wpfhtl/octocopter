@@ -146,7 +146,8 @@ void LaserScanner::slotDoScanStep(void)
     }
 
     // 6000 == 360.0[degress/round] / 60.0[seconds/minute] * 1000.0[milliseconds/second]
-    mTimerScanStep->setInterval((int)(degreesToNextScan / mSpeed * 6000.0 * mTimeFactor));
+    // We divide by timeFactor because we set intervals and not speeds
+    mTimerScanStep->setInterval((int)(degreesToNextScan / mSpeed * 6000.0 / mTimeFactor));
     mTimerScanStep->start();
 //    QTimer::singleShot(
 //            (int)(degreesToNextScan / mSpeed * 6000.0 * mTimeFactor),

@@ -41,7 +41,7 @@ SET(RESOURCE_FILES
 )
 
 SET(OGRE_LIBRARIES OgreMain)
-SET(BULLET_LIBRARIES BulletCollision BulletDynamics)
+SET(BULLET_LIBRARIES bulletcollision bulletdynamics bulletmath bulletsoftbody)
 
 #"Sources" and "Headers" are the group names in Visual Studio.
 SOURCE_GROUP("Sources" FILES ${SRC_FILES})
@@ -63,7 +63,7 @@ SET(CMAKE_DEBUG_POSTFIX "_d")
 SET(CMAKE_BUILD_TYPE "Debug")
 
 #include_directories(/usr/include/QtCore/ /usr/include/QtNetwork/ /usr/include/QtGui/ /usr/include/OGRE/ /usr/include/OIS/ /usr/include ${CMAKE_CURRENT_BINARY_DIR})
-include_directories(/usr/include/OGRE/ /usr/include/BulletCollision /usr/include/BulletDynamics /usr/include ${CMAKE_CURRENT_BINARY_DIR})
+include_directories(/usr/include/OGRE/ /usr/include/bullet /usr/include ${CMAKE_CURRENT_BINARY_DIR})
 link_directories(${OGRE_LIBRARY_DIRS})
 add_executable(simulator ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
 target_link_libraries(simulator ${QT_LIBRARIES} ${OGRE_LIBRARIES} ${BULLET_LIBRARIES})

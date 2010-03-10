@@ -10,12 +10,6 @@
 
 #include "ui_simulationcontrolwidget.h"
 
-//
-//namespace Ui
-//{
-//    class SimulationControlWidget;
-//}
-
 class Simulator;
 
 class SimulationControlWidget : public QDockWidget, public Ui::SimulationControlWidget
