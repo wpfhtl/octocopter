@@ -10,8 +10,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 
     mTimerUpdatePosition = new QTimer(this);
     mTimerUpdatePosition->setInterval(1000/25);
-//    connect(mTimerUpdatePosition, SIGNAL(timeout()), SLOT(slotUpdatePosition()));
-    connect(mTimerUpdatePosition, SIGNAL(timeout()), SLOT(slotUpdatePhysics()));
+    connect(mTimerUpdatePosition, SIGNAL(timeout()), SLOT(slotUpdatePosition()));
 
     // Set up motors
     mMotorPositions.append(Ogre::Vector3(+0.00, +0.00, -0.20));  // engine 1, front
@@ -28,15 +27,6 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     mBtWorld = new btDiscreteDynamicsWorld(mBtDispatcher, mBtBroadphase, mBtSolver, mBtCollisionConfig);
     mBtWorld->setGravity(btVector3(0,-9.8,0));
 
-
-    //Some normal stuff.
-//    mOgreWidget->sceneManager()->setAmbientLight(ColourValue(0.7,0.7,0.7));
-//    mCamera->setPosition(Vector3(10,50,10));
-//    mCamera->lookAt(Vector3::ZERO);
-//    mCamera->setNearClipDistance(0.05);
-//    LogManager::getSingleton().setLogDetail(LL_BOREME);
-
-
     //----------------------------------------------------------
     // Debug drawing!
     //----------------------------------------------------------
@@ -52,8 +42,6 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     mVehicleEntity = mOgreWidget->sceneManager()->createEntity("vehicleEntity", "quad.mesh");
     // "vehicleNode" is fixed, used in ogrewidget.cpp
     mVehicleNode = mOgreWidget->sceneManager()->getRootSceneNode()->createChildSceneNode("vehicleNode", Ogre::Vector3(0,10,0), Ogre::Quaternion::IDENTITY);
-//    mVehicleNode->scale(0.035,0.035,0.035);
-//    mVehicleNode->rotate(Ogre::Vector3::UNIT_X, Ogre::Degree(90), Ogre::Node::TS_LOCAL);
     mVehicleNode->attachObject(mVehicleEntity);
 
     //Create shape.
@@ -64,14 +52,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     btShapeHull* hull = new btShapeHull(mVehicleShape);
     btScalar margin = mVehicleShape->getMargin();
     hull->buildHull(margin);
-    /*btConvexHullShape**/ mVehicleShape = new btConvexHullShape((btScalar*)hull->getVertexPointer(), hull->numVertices()/*, sizeof(btVector3)*/);
-
-
-    qDebug() << "Vehicle::Vehicle(): number of points in vehicle shape:" << ((btConvexHullShape*)mVehicleShape)->getNumPoints();
-
-    // Scale
-//    btVector3 scale(0.035,0.035,0.035);
-//    mVehicleShape->setLocalScaling(scale);
+    mVehicleShape = new btConvexHullShape((btScalar*)hull->getVertexPointer(), hull->numVertices()/*, sizeof(btVector3)*/);
 
     //Calculate inertia.
     btScalar mass = 1.5;
@@ -85,6 +66,8 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     mVehicleBody = new btRigidBody(mass, vehicleState, mVehicleShape, inertia);
 //    mVehicleBody->setCollisionFlags(mVehicleBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT | btCollisionObject::CF_CUSTOM_MATERIAL_CALLBACK );
 
+    mVehicleBody->setDamping(.5, .9);
+
 //    mVehicleBody->setActivationState(ISLAND_SLEEPING);
     mBtWorld->addRigidBody(mVehicleBody/*, COL_VEHICLE, COL_GROUND*/);
 //    mVehicleBody->setActivationState(ISLAND_SLEEPING);
@@ -94,32 +77,10 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     //----------------------------------------------------------
    std::string terrainFileStr = "terrain.cfg";
 
-   // ogreWidget does that, back off!
-   //mOgreWidget->sceneManager()->setWorldGeometry( terrainFileStr );
-
-
-   // terrainFileStr is a string, representing the file name of *.cfg file to  be used by TerrainSceneManager
-
-   // Load the *.cfg file into a ConfigFile object
-   //terrainSceneManager->setWorldGeometry(terrainFileStr);
-
    Ogre::DataStreamPtr configStream = Ogre::ResourceGroupManager::getSingleton().openResource(terrainFileStr, Ogre::ResourceGroupManager::getSingleton().getWorldResourceGroupName());
    Ogre::ConfigFile config;
    config.load(configStream);
 
-   /* Load the various settings we need.
-   * These are:
-   * width:  Saved in the terrainFile as PageSize.  We pass width to Bullet twice, as both width and height,
-   *     because heightfields in Ogre are square.
-   * imgFileStr: the string representing the image from which we want to load the heightmap data.
-   * heightmap: an Ogre::Image object, which contains the data itself.  A reference to this needs to be kept
-   *     somewhere, because just keeps a pointer to the data, and the data itself will be deleted when the
-   *     Image is deleted at the end of this block.  I found this out the hard way >.>
-   * maxHeight: the heightmap will be scaled to go from zero to maxHeight
-   * heightScale: this is how much each number in the heightmap (0 - 255) will translate to in Ogre/Bullet units.
-   *    This number is obtained by dividing the maxHeight by 256 which is the total number of different steps in
-   *    the heightmap before interpolation.
-   */
    Ogre::String widthStr = config.getSetting("PageSize");
    int width = atoi(widthStr.c_str());
 
@@ -159,13 +120,12 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 //   mGroundBody->setCollisionFlags(mGroundBody->getCollisionFlags() | btCollisionObject::CF_STATIC_OBJECT);
    mBtWorld->addRigidBody(mGroundBody, COL_GROUND, COL_NOTHING);
 
-
    // Debug, add a plane like the tutorial says
-   btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0,1,0),1);
-   btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(0,-1,0)));
-   btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(0,groundMotionState,groundShape,btVector3(0,0,0));
-   btRigidBody* groundRigidBody = new btRigidBody(groundRigidBodyCI);
-   mBtWorld->addRigidBody(groundRigidBody);
+//   btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0,1,0),1);
+//   btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(0,-1,0)));
+//   btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(0,groundMotionState,groundShape,btVector3(0,0,0));
+//   btRigidBody* groundRigidBody = new btRigidBody(groundRigidBodyCI);
+//   mBtWorld->addRigidBody(groundRigidBody);
 
 }
 
@@ -187,10 +147,11 @@ void Vehicle::run()
 
 void Vehicle::slotUpdatePosition(void)
 {
-    Q_ASSERT(false);
+//    Q_ASSERT(false);
     qDebug() << "Vehicle::slotUpdatePosition()";
     QMutexLocker locker(&mMutex);
 
+    /*
     // Impress by interpolating linearly :)
     // TODO: get busy with ODE/Bullet/PhysX
 
@@ -217,6 +178,19 @@ void Vehicle::slotUpdatePosition(void)
     currentPosition.z += distZ;
 
     mOgreWidget->setVehiclePosition(currentPosition, OgreWidget::TRANSLATION_ABSOLUTE, Ogre::Node::TS_WORLD);
+    */
+
+    const Ogre::Vector3 vectorToTarget = mVehicleNode->_getDerivedPosition() - mNextWayPoint;
+//    const float yawToTarget = mVehicleNode->_getDerivedOrientation().getYaw();
+
+    QList<int> motorSpeeds;
+    motorSpeeds << 15000 << 15000 << 15000 << 15000;
+
+    slotSetMotorSpeeds(motorSpeeds);
+
+    //slotSetWind();
+
+    slotUpdatePhysics();
 
     qDebug() << "Vehicle::slotUpdatePosition(): done";
 }
@@ -228,37 +202,39 @@ void Vehicle::slotSetNextWayPoint(const CoordinateGps &wayPoint)
     mNextWayPoint = mCoordinateConverter.convert(wayPoint);
 }
 
-void Vehicle::slotSetFanSpeeds(const QList<int> &speeds)
+void Vehicle::slotSetMotorSpeeds(const QList<int> &speeds)
 {
-
-
     Q_ASSERT(speeds.size() <= mMotorPositions.size());
 
+    // We apply forces to the vehicle depending on the speeds of
+    // its propellers.
+
+    float totalTorque = 0;
+
     for(int i=0;i<speeds.size();++i)
+    {
+        const Ogre::Vector3 currentMotorPosition = mMotorPositions.at(i);
+
         mVehicleBody->applyForce(
                 btVector3( // force
                         0,
-                        5,
+                        mEngine.calculateThrust(speeds.at(i)),
                         0),
                 btVector3( // offset
-                        mMotorPositions.at(i).x,
-                        mMotorPositions.at(i).y,
-                        mMotorPositions.at(i).z
+                        currentMotorPosition.x,
+                        currentMotorPosition.y,
+                        currentMotorPosition.z
                         )
                 );
 
+        totalTorque += mEngine.calculateTorque(speeds.at(i));
+    }
+
+    mVehicleBody->applyTorque(btVector3(0, totalTorque, 0));
+
     //mVehicleBody->applyCentralForce(btVector3(0,5,0));
-    mVehicleBody->applyForce(btVector3(0, 5, 0), btVector3(.2, 0, 0));
-    mVehicleBody->applyForce(btVector3(0, 5, 0), btVector3(-.2, 0, 0));
-    mVehicleBody->applyForce(btVector3(0, 5, 0), btVector3(0, 0, .2));
-    mVehicleBody->applyForce(btVector3(0, 2, 0), btVector3(0, 0, -.2));
-
-    //    mVehicleBody->applyTorque(btVector3(10,0,0));
-
-    const Ogre::Vector3 vectorToTarget = mVehicleNode->_getDerivedPosition() - mNextWayPoint;
-    const float yawToTarget = mVehicleNode->_getDerivedOrientation().getYaw();
-
 }
+
 
 void Vehicle::slotUpdatePhysics(void)
 {
@@ -268,10 +244,12 @@ void Vehicle::slotUpdatePhysics(void)
     const btScalar fixedTimeStep = 1.0 / 60.0;
     qDebug() << "Vehicle::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
 
+    mVehicleBody->applyDamping(deltaS);
+
     Q_ASSERT(deltaS < maxSubSteps * fixedTimeStep); // http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
     mBtWorld->stepSimulation(deltaS, maxSubSteps, fixedTimeStep);
 
-//    mBtDebugDrawer->step();
+    mBtDebugDrawer->step();
 
     mTimeOfLastUpdate = simulationTime;
     mOgreWidget->update();

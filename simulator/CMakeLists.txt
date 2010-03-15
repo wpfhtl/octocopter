@@ -11,6 +11,7 @@ main
 simulator
 ogrewidget
 battery
+engine
 laserscanner
 statuswidget
 simulationcontrolwidget
@@ -24,6 +25,7 @@ SET(INC_FILES
 simulator.h
 ogrewidget.h
 battery.h
+engine.h
 laserscanner.h
 statuswidget.h
 simulationcontrolwidget.h
