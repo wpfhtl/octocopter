@@ -24,6 +24,8 @@ public:
 
     CoordinateGps convert(const Ogre::Vector3 &coordinate) const;
     Ogre::Vector3 convert(const CoordinateGps &coordinate) const;
+
+    QString formatGpsDegree(const float value);
 };
 
 #endif

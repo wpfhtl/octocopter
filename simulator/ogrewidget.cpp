@@ -237,7 +237,7 @@ void OgreWidget::mouseMoveEvent(QMouseEvent *e)
         const QPoint &pos = e->pos();
         const float diffX = (pos.x() - oldPosR.x()) / 10.0;
         const float diffY = (pos.y() - oldPosR.y()) / 10.0;
-        qDebug() << "OgreWidget::mouseMoveEvent(): rotating camera:" << diffX << diffY;
+//        qDebug() << "OgreWidget::mouseMoveEvent(): rotating camera:" << diffX << diffY;
         ogreCamera->yaw(Ogre::Degree(-diffX));
         ogreCamera->pitch(Ogre::Degree(-diffY));
         update();

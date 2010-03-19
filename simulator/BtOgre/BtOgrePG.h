@@ -3,7 +3,7 @@
  *
  *       Filename:  BtOgrePG.h
  *
- *    Description:  The part of BtOgre that handles information transfer from Bullet to 
+ *    Description:  The part of BtOgre that handles information transfer from Bullet to
  *                  Ogre (like updating graphics object positions).
  *
  *        Version:  1.0
@@ -17,6 +17,8 @@
 #ifndef _BtOgreGP_H_
 #define _BtOgreGP_H_
 
+#include <QObject>
+
 #include "btBulletDynamicsCommon.h"
 #include "OgreSceneNode.h"
 #include "BtOgreExtras.h"
@@ -25,8 +27,10 @@ namespace BtOgre {
 
 //A MotionState is Bullet's way of informing you about updates to an object.
 //Pass this MotionState to a btRigidBody to have your SceneNode updated automaticaly.
-class RigidBodyState : public btMotionState 
+class RigidBodyState : public QObject, public btMotionState
 {
+    Q_OBJECT
+
     protected:
         btTransform mTransform;
         btTransform mCenterOfMassOffset;
@@ -43,18 +47,18 @@ class RigidBodyState : public btMotionState
 
         RigidBodyState(Ogre::SceneNode *node)
             : mNode(node),
-              mTransform(((node != NULL) ? BtOgre::Convert::toBullet(node->getOrientation()) : btQuaternion(0,0,0,1)), 
+              mTransform(((node != NULL) ? BtOgre::Convert::toBullet(node->getOrientation()) : btQuaternion(0,0,0,1)),
                          ((node != NULL) ? BtOgre::Convert::toBullet(node->getPosition())    : btVector3(0,0,0))),
               mCenterOfMassOffset(btTransform::getIdentity())
         {
         }
 
-        virtual void getWorldTransform(btTransform &ret) const 
+        virtual void getWorldTransform(btTransform &ret) const
         {
             ret = mCenterOfMassOffset.inverse() * mTransform;
         }
 
-        virtual void setWorldTransform(const btTransform &in) 
+        virtual void setWorldTransform(const btTransform &in)
         {
             if (mNode == NULL)
                 return;
@@ -66,12 +70,17 @@ class RigidBodyState : public btMotionState
             btVector3 pos = transform.getOrigin();
             mNode->setOrientation(rot.w(), rot.x(), rot.y(), rot.z());
             mNode->setPosition(pos.x(), pos.y(), pos.z());
+
+            emit newPose(mNode->getPosition(), mNode->getOrientation());
         }
 
-        void setNode(Ogre::SceneNode *node) 
+        void setNode(Ogre::SceneNode *node)
         {
             mNode = node;
         }
+
+    signals:
+        void newPose(const Ogre::Vector3 pos, const Ogre::Quaternion rot);
 };
 
 //Softbody-Ogre connection goes here!

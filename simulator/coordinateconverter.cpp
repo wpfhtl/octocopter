@@ -49,3 +49,12 @@ CoordinateGps CoordinateConverter::convert(const Ogre::Vector3 &coordinate) cons
     cg.setLongitude(mOrigin.longitude() + (coordinate.x / 111300.0 * cos(3.14159265 / 180.0 * cg.latitude()))); // east/west is X
     return cg;
 }
+
+QString CoordinateConverter::formatGpsDegree(const float value)
+{
+    QString result;
+    const int deg = value;
+    const float min = (value-deg) * 60;
+    const float sec = (min - ((int)min)) * 60;
+    return result.sprintf("%d%c %d' %.2f\"", deg, 176, (int)min, sec);
+}

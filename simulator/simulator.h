@@ -15,6 +15,12 @@
 #include "simulationcontrolwidget.h"
 #include "coordinateconverter.h"
 
+#include "engine.h"
+
+// probably not the right place to put this
+#define deg2rad(x) (x)*M_PI/180.0
+#define rad2deg(x) (x)*180.0/M_PI
+
 class Vehicle;
 class LaserScanner;
 class SimulationControlWidget;
@@ -37,10 +43,10 @@ private:
     QTime mTimeSimulationStart; // when simulation was started
     QTime mTimeSimulationPause; // when simulation was paused, invalid when it's not currently paused.
     OgreWidget* mOgreWidget;
+    CoordinateConverter *mCoordinateConverter;
     Battery* mBattery;
     StatusWidget* mStatusWidget;
     SimulationControlWidget* mSimulationControlWidget;
-    CoordinateConverter mCoordinateConverter;
     Vehicle *mVehicle;
 
     QList<LaserScanner*> *mLaserScanners;

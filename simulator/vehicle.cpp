@@ -12,14 +12,15 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     mTimerUpdatePosition->setInterval(1000/25);
     connect(mTimerUpdatePosition, SIGNAL(timeout()), SLOT(slotUpdatePosition()));
 
-    // Set up motors
-    mMotorPositions.append(Ogre::Vector3(+0.00, +0.00, -0.20));  // engine 1, front
-    mMotorPositions.append(Ogre::Vector3(+0.20, +0.00, +0.00));  // engine 2, right
-    mMotorPositions.append(Ogre::Vector3(+0.00, +0.00, +0.20));  // engine 3, back
-    mMotorPositions.append(Ogre::Vector3(-0.20, +0.00, +0.00));  // engine 4, left
+    // Set up motors, as seen from the top
+    // http://www.mikrokopter.de/ucwiki/ElektronikVerkabelung#head-4e6a59d9824e114e97488c7fdaa2b1d75025bae9
+    mEngines.append(Engine(btTransform(btQuaternion(000,deg2rad(000),000), btVector3(+0.00, +0.00, -0.20))));  // engine 1, front, CW
+    mEngines.append(Engine(btTransform(btQuaternion(000,deg2rad(000),000), btVector3(+0.00, +0.00, +0.20))));  // engine 2, back,  CW
+    mEngines.append(Engine(btTransform(btQuaternion(000,000,deg2rad(180)), btVector3(+0.20, +0.00, +0.00))));  // engine 3, right, CCW
+    mEngines.append(Engine(btTransform(btQuaternion(000,000,deg2rad(180)), btVector3(-0.20, +0.00, +0.00))));  // engine 4, left,  CCW
 
     //Bullet initialisation.
-    mBtBroadphase = new btAxisSweep3(btVector3(-10000,-10000,-10000), btVector3(10000,10000,10000), 1024);
+    mBtBroadphase = new btAxisSweep3(btVector3(-2000,-2000,-2000), btVector3(2000,2000,2000), 1024);
     mBtCollisionConfig = new btDefaultCollisionConfiguration();
     mBtDispatcher = new btCollisionDispatcher(mBtCollisionConfig);
     mBtSolver = new btSequentialImpulseConstraintSolver();
@@ -60,10 +61,11 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     mVehicleShape->calculateLocalInertia(mass, inertia);
 
     //Create BtOgre MotionState (connects Ogre and Bullet).
-    BtOgre::RigidBodyState *vehicleState = new BtOgre::RigidBodyState(mVehicleNode);
+    mVehicleState = new BtOgre::RigidBodyState(mVehicleNode);
+    connect(mVehicleState, SIGNAL(newPose(const Ogre::Vector3, const Ogre::Quaternion)), SIGNAL(newPose(const Ogre::Vector3, const Ogre::Quaternion)));
 
     //Create the Body.
-    mVehicleBody = new btRigidBody(mass, vehicleState, mVehicleShape, inertia);
+    mVehicleBody = new btRigidBody(mass, mVehicleState, mVehicleShape, inertia);
 //    mVehicleBody->setCollisionFlags(mVehicleBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT | btCollisionObject::CF_CUSTOM_MATERIAL_CALLBACK );
 
     mVehicleBody->setDamping(.5, .9);
@@ -148,7 +150,7 @@ void Vehicle::run()
 void Vehicle::slotUpdatePosition(void)
 {
 //    Q_ASSERT(false);
-    qDebug() << "Vehicle::slotUpdatePosition()";
+//    qDebug() << "Vehicle::slotUpdatePosition()";
     QMutexLocker locker(&mMutex);
 
     /*
@@ -184,7 +186,8 @@ void Vehicle::slotUpdatePosition(void)
 //    const float yawToTarget = mVehicleNode->_getDerivedOrientation().getYaw();
 
     QList<int> motorSpeeds;
-    motorSpeeds << 15000 << 15000 << 15000 << 15000;
+    // motorSpeeds << front << back << left << right
+    motorSpeeds << 16000 << 16000 << -16000 << -16000;
 
     slotSetMotorSpeeds(motorSpeeds);
 
@@ -192,7 +195,7 @@ void Vehicle::slotUpdatePosition(void)
 
     slotUpdatePhysics();
 
-    qDebug() << "Vehicle::slotUpdatePosition(): done";
+//    qDebug() << "Vehicle::slotUpdatePosition(): done";
 }
 
 void Vehicle::slotSetNextWayPoint(const CoordinateGps &wayPoint)
@@ -204,35 +207,23 @@ void Vehicle::slotSetNextWayPoint(const CoordinateGps &wayPoint)
 
 void Vehicle::slotSetMotorSpeeds(const QList<int> &speeds)
 {
-    Q_ASSERT(speeds.size() <= mMotorPositions.size());
+    Q_ASSERT(speeds.size() <= mEngines.size());
 
-    // We apply forces to the vehicle depending on the speeds of
-    // its propellers.
-
-    float totalTorque = 0;
+    // We apply forces to the vehicle depending on the speeds of its propellers.
 
     for(int i=0;i<speeds.size();++i)
     {
-        const Ogre::Vector3 currentMotorPosition = mMotorPositions.at(i);
+        const btVector3 thrust = mEngines.at(i).calculateThrust(speeds.at(i));
+        const btVector3 position = mEngines.at(i).getPosition();
+        mVehicleBody->applyForce(thrust, position);
+//        qDebug() << "Vehicle::slotSetMotorSpeeds(): thrust" << i << thrust.x() << thrust.y() << thrust.z() << "at" << position.x() << position.y() << position.z();
 
-        mVehicleBody->applyForce(
-                btVector3( // force
-                        0,
-                        mEngine.calculateThrust(speeds.at(i)),
-                        0),
-                btVector3( // offset
-                        currentMotorPosition.x,
-                        currentMotorPosition.y,
-                        currentMotorPosition.z
-                        )
-                );
-
-        totalTorque += mEngine.calculateTorque(speeds.at(i));
+        const btVector3 torque = mEngines.at(i).calculateTorque(speeds.at(i));
+        mVehicleBody->applyTorque(torque);
+//        qDebug() << "Vehicle::slotSetMotorSpeeds(): torque" << i << torque.x() << torque.y() << torque.z();
     }
 
-    mVehicleBody->applyTorque(btVector3(0, totalTorque, 0));
-
-    //mVehicleBody->applyCentralForce(btVector3(0,5,0));
+//    qDebug() << "Vehicle::slotSetMotorSpeeds(): total yaw torque is" << mVehicleBody->getTotalTorque().y();
 }
 
 
@@ -240,16 +231,16 @@ void Vehicle::slotUpdatePhysics(void)
 {
     const int simulationTime = mSimulator->getSimulationTime(); // milliseconds
     const btScalar deltaS = (simulationTime - mTimeOfLastUpdate) / 1000.0f; // elapsed time since last call in seconds
-    const int maxSubSteps = 100;
+    const int maxSubSteps = 20;
     const btScalar fixedTimeStep = 1.0 / 60.0;
-    qDebug() << "Vehicle::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
+//    qDebug() << "Vehicle::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
 
-    mVehicleBody->applyDamping(deltaS);
+//    mVehicleBody->applyDamping(deltaS);
 
     Q_ASSERT(deltaS < maxSubSteps * fixedTimeStep); // http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
     mBtWorld->stepSimulation(deltaS, maxSubSteps, fixedTimeStep);
 
-    mBtDebugDrawer->step();
+//    mBtDebugDrawer->step();
 
     mTimeOfLastUpdate = simulationTime;
     mOgreWidget->update();

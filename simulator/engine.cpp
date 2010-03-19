@@ -12,6 +12,22 @@ Engine::Engine(const btTransform &pose, QObject *parent) : QObject(parent)
 //    Q_ASSERT(calculateThrust(12500) > 2.3 && calculateThrust(12500) < 2.4);
 }
 
+Engine::Engine(const Engine &other)
+{
+    mPose = other.mPose;
+    mPropellers = other.mPropellers;
+    mCurrentPropeller = other.mCurrentPropeller;
+}
+
+Engine& Engine::operator=(const Engine &other)
+{
+    mPose = other.mPose;
+    mPropellers = other.mPropellers;
+    mCurrentPropeller = other.mCurrentPropeller;
+
+    return *this;
+}
+
 bool Engine::setPropeller(const QString &propeller)
 {
     if(mPropellers.contains(propeller))
@@ -23,41 +39,52 @@ bool Engine::setPropeller(const QString &propeller)
     return false;
 }
 
-btVector3 Engine::calculateThrust(const int rpm)
+btVector3 Engine::calculateThrust(const int rpm) const
 {
     // This method calculates the thrust caused by rotating the propeller at @rpm in newton.
     // As the engine/rotor-combination doesn't need to be mounted pointing straight up,
-    // we return a vector of thrust, depending on @rpm, @mPose->getRotation()
-    // and @mRotationDirection.
+    // we return a vector of thrust, depending on @rpm and @mPose.
 
     Q_ASSERT(mCurrentPropeller.c1 != 0 && mCurrentPropeller.c2 != 0 && mCurrentPropeller.c3 != 0);
 //    Q_ASSERT(rpm > mCurrentPropeller.rpmMin && rpm < mCurrentPropeller.rpmMax);
 
-    return mPose.getRotation() *
-            (
-                    mCurrentPropeller.c3 * rpm * rpm
-                    + mCurrentPropeller.c2 * rpm
-                    + mCurrentPropeller.c1
-            ) / (1000.0 / 9.81);
+    float thrust = (mCurrentPropeller.c3 * pow(rpm, 2) + mCurrentPropeller.c2 * abs(rpm) + mCurrentPropeller.c1) / (1000.0 / 9.81);
+    if(rpm < 0) thrust *= -1.0; // invert the thrust if we rotate backwards
+
+    const btQuaternion rotation = mPose.getRotation();
+
+    const btVector3 thrustVector = btVector3(0, thrust, 0).rotate(rotation.getAxis(), rotation.getAngle());
+//    qDebug() << "Engine::calculateThrust(): rpm" << rpm << "thrust" << thrust << "vectorized for angle " << rad2deg(rotation.getAngle()) << thrustVector.x() << thrustVector.y() << thrustVector.z();
+
+    return thrustVector;
 }
 
-btVector3 Engine::calculateTorque(const int rpm)
+btVector3 Engine::calculateTorque(const int rpm) const
 {
     // This method returns a vector of torque caused by
     Q_ASSERT(mCurrentPropeller.c1 != 0 && mCurrentPropeller.c2 != 0 && mCurrentPropeller.c3 != 0);
 //    Q_ASSERT(rpm > mCurrentPropeller.rpmMin && rpm < mCurrentPropeller.rpmMax);
 
-    return
-            (
-                    mCurrentPropeller.c3 * rpm * rpm
-                    + mCurrentPropeller.c2 * rpm
-                    + mCurrentPropeller.c1
-            ) / (1000.0 / 9.81);
+    static float torqueCoefficient = 0.000228 * 50000; // FIXME: this factor is made-up
+    static float densityAir = 1.184;
+    const float rotorDiscArea = M_PI * pow(mCurrentPropeller.diameter/2.0, 2);
+    const float radiusPow3 = pow(mCurrentPropeller.diameter/2.0, 3);
+    const float pitch = mCurrentPropeller.pitch; // FIXME: is this e3?
+    const float torque = torqueCoefficient * densityAir * rotorDiscArea * radiusPow3 * rpm * pitch;
+
+//    qDebug() << "Engine::calculateTorque(): rpm" << rpm << "torque" << torque;
+    return btVector3(0, torque, 0);
+}
+
+btVector3 Engine::getPosition(void) const
+{
+    return mPose.getOrigin();
 }
 
 void Engine::initializePropellers(void)
 {
     // http://www.badcock.net/ThrustXL/
+    // The diameter is given in inches, is converted to meters in th ePropeller c'tor
 
     mPropellers.insert("AERO_6050", Propeller(-0.03115116, -0.005362921, 0.000002500332, 11260, 17410, 6, 5));
     mPropellers.insert("AERO_6540", Propeller(0.09004005, -0.003803596, 0.000003055015, 4500, 17080, 6.5, 4));

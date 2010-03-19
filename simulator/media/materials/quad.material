@@ -41,14 +41,28 @@ material quad/07_-_Default
 
 }
 
+material quad/13_-_Default
+{
+	technique
+	{
+		pass
+		{
+			ambient 0 0.870588 1 1
+			diffuse 0 0.870588 1 1
+		}
+
+	}
+
+}
+
 material quad/10_-_Default
 {
 	technique
 	{
 		pass
 		{
-			ambient 0.501961 1 0.501961 1
-			diffuse 0.501961 1 0.501961 1
+			ambient 0.501961 0.694118 0.501961 1
+			diffuse 0.501961 0.694118 0.501961 1
 		}
 
 	}

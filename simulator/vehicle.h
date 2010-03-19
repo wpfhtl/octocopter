@@ -33,7 +33,6 @@ class Vehicle : public QObject//QThread
 
 private:
     mutable QMutex mMutex;
-    Engine mEngine;
     QTimer *mTimerUpdatePosition;
     int mTimeOfLastUpdate; // the last simulationtime from simulator. Needed, as the physics engine needs deltas.
     Simulator *mSimulator;
@@ -55,6 +54,7 @@ protected:
     Ogre::Entity *mVehicleEntity;
     btRigidBody *mVehicleBody;
     btConvexShape *mVehicleShape;
+    BtOgre::RigidBodyState *mVehicleState;
 
     Ogre::Entity *mGroundEntity;
     btRigidBody *mGroundBody;
@@ -65,7 +65,7 @@ public:
     ~Vehicle();
 
 signals:
-    void newVehiclePose(Ogre::Vector3 pos, Ogre::Quaternion rot);
+    void newPose(const Ogre::Vector3 pos, const Ogre::Quaternion rot);
 
 public slots:
     void run(void);

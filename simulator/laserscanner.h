@@ -1,8 +1,9 @@
 #ifndef LASERSCANNER_H
 #define LASERSCANNER_H
 
-#include <QObject>
-#include <QTimer>
+#include <QtCore>
+//#include <QObject>
+//#include <QTimer>
 #include <Ogre.h>
 
 #include "simulator.h"
@@ -52,8 +53,10 @@ private:
 
     CoordinateConverter mCoordinateConverter;
 
+    void testRsqPerformance();
+
 private slots:
-    void slotDoScanStep(void);
+    void slotDoScanStep(bool visualize = true, bool scheduleNextScan = true);
 
 public:
     // Laser rotation is always CCW, angleStart < angleStop

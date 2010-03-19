@@ -18,7 +18,7 @@ simulationcontrolwidget
 coordinategps
 vehicle
 coordinateconverter
-BtOgre/BtOgre
+BtOgre/BtOgre.cpp
 )
 
 SET(INC_FILES
@@ -32,6 +32,9 @@ simulationcontrolwidget.h
 coordinategps.h
 vehicle.h
 coordinateconverter.h
+#BtOgre/BtOgreExtras.h
+#BtOgre/BtOgreGP.h
+BtOgre/BtOgrePG.h
 )
 
 SET(UI_FILES

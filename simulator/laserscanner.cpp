@@ -22,6 +22,9 @@ LaserScanner::LaserScanner(
     mAngleStep = angleStep;
     mTimeFactor = mSimulator->getTimeFactor();
 
+    // We need to register what we want to emit.
+    qRegisterMetaType<QList<CoordinateGps> >("QList<CoordinateGps>");
+
     // We'll need a unique name, so why not use our own address...
     char address[50];
     sprintf(address, "%p", (void*)this);
@@ -64,6 +67,29 @@ LaserScanner::LaserScanner(
         qDebug() << "LaserScanner::LaserScanner(): almost done, starting first slotDoScanStep()";
         slotDoScanStep();
     }
+
+    QtConcurrent::run(this, &LaserScanner::testRsqPerformance);
+}
+
+void LaserScanner::testRsqPerformance()
+{
+    struct timeval timeStart;
+    gettimeofday(&timeStart, NULL);
+
+    const int iterations = 1000000;
+
+    for(int i=0;i<iterations;i++)
+    {
+        slotDoScanStep(false, false);
+    }
+
+    struct timeval timeStop;
+    gettimeofday(&timeStop, NULL);
+
+    const long long timeDiff = (timeStop.tv_sec - timeStart.tv_sec) * 1000000 + (timeStop.tv_usec - timeStart.tv_usec);
+
+    qDebug() << "LaserScanner::testRsqPerformance():" << iterations << "RSQs took" << timeDiff << "ms, giving" << (int)(iterations * (1.0 / ((float)timeDiff / 1000000.0)) / 1000.0) << "kRSQ/s";
+
 }
 
 LaserScanner::~LaserScanner()
@@ -74,7 +100,7 @@ LaserScanner::~LaserScanner()
     mTimerScanStep->deleteLater();
 }
 
-void LaserScanner::slotDoScanStep(void)
+void LaserScanner::slotDoScanStep(bool visualize, bool scheduleNextScan)
 {
 //    qDebug() << "LaserScanner::slotDoScanStep()";
      // Set up scene query.
@@ -97,12 +123,15 @@ void LaserScanner::slotDoScanStep(void)
     mRaySceneQuery->setRay(laserBeam);
 
     // Visualize the ray in Ogre? Fuck yeah!
-    mRayObject->clear();
-    mRayObject->begin(QString("RayFrom_" + objectName() + "_material").toStdString(), Ogre::RenderOperation::OT_LINE_LIST);
-    mRayObject->position(laserBeam.getPoint(0.0));
-    mRayObject->position(laserBeam.getPoint(mRange));
-    mRayObject->end();
-    mOgreWidget->update();
+    if(visualize)
+    {
+        mRayObject->clear();
+        mRayObject->begin(QString("RayFrom_" + objectName() + "_material").toStdString(), Ogre::RenderOperation::OT_LINE_LIST);
+        mRayObject->position(laserBeam.getPoint(0.0));
+        mRayObject->position(laserBeam.getPoint(mRange));
+        mRayObject->end();
+        mOgreWidget->update();
+    }
 
     // Perform the scene query
     Ogre::RaySceneQueryResult &result = mRaySceneQuery->execute();
@@ -131,10 +160,12 @@ void LaserScanner::slotDoScanStep(void)
         // This scan is finished, emit it...
         emit scanFinished(mScanData);
 
+        mScanData.clear();
+
         // ...and schedule the next scan. The time to next scan is inferred from
         // rotational speed and angle between mCurrentScanAngle and angleStart.
         degreesToNextScan = 360.0 - mAngleStop + mAngleStart;
-        qDebug() << "LaserScanner::slotDoScanStep(): scan done, degrees to next scan:" << degreesToNextScan << "timeFactor is" << mTimeFactor << "speed is" << mSpeed;
+//        qDebug() << "LaserScanner::slotDoScanStep(): scan done, degrees to next scan:" << degreesToNextScan << "timeFactor is" << mTimeFactor << "speed is" << mSpeed;
 
         // Set mCurrentScanAngle for the next scan to mAngleStart
         mCurrentScanAngle = mAngleStart;
@@ -145,17 +176,23 @@ void LaserScanner::slotDoScanStep(void)
         degreesToNextScan = mAngleStep;
     }
 
-    // 6000 == 360.0[degress/round] / 60.0[seconds/minute] * 1000.0[milliseconds/second]
-    // We divide by timeFactor because we set intervals and not speeds
-    mTimerScanStep->setInterval((int)(degreesToNextScan / mSpeed * 6000.0 / mTimeFactor));
-    mTimerScanStep->start();
-//    QTimer::singleShot(
-//            (int)(degreesToNextScan / mSpeed * 6000.0 * mTimeFactor),
-//            this,
-//            SLOT(slotDoScanStep())
-//            );
+    if(scheduleNextScan)
+    {
+        // 6000 == 360.0[degress/round] / 60.0[seconds/minute] * 1000.0[milliseconds/second]
+        // We divide by timeFactor because we set intervals and not speeds
 
-//    qDebug() << "LaserScanner::slotDoScanStep(): done.";
+        const float realTimeToNextRayMS = (1000.0 / 6.0 / mSpeed * degreesToNextScan) * (1.0 / mTimeFactor);
+
+        //qDebug() << "LaserScanner::slotDoScanStep(): real time to next ray in ms:" << realTimeToNextRayMS;
+
+        if(realTimeToNextRayMS < 1.0) qDebug() << "LaserScanner::slotDoScanStep(): WARNING: realTimeToNextRayMS is " << realTimeToNextRayMS << "which is" << 1.0 / realTimeToNextRayMS << "times below timing resolution.\nPlease set SpeedFactor to at most" << mTimeFactor * realTimeToNextRayMS;
+
+        mTimerScanStep->setInterval((int)realTimeToNextRayMS);
+        mTimerScanStep->start();
+        //QTimer::singleShot((int)realTimeToNextRayMS, SLOT(slotDoScanStep()));
+
+        //qDebug() << "LaserScanner::slotDoScanStep(): done.";
+    }
 }
 
 void LaserScanner::slotPause(void)

@@ -10,10 +10,23 @@ Simulator::Simulator(void) :
     qDebug() << "Simulator::Simulator()";
     QMutexLocker locker(&mMutex);
 
+    /* testing quats
+    btQuaternion btq(deg2rad(0),deg2rad(10),deg2rad(0));
+    btVector3 btv(0,0,0);
+    Engine e(btTransform(btq, btv), this);
+    btVector3 thrust = e.calculateThrust(10000);
+    qDebug() << "qaxis:" << btq.getAxis().x() << btq.getAxis().y() << btq.getAxis().z();
+    qDebug() << "qangle:" << btq.getAngle();
+    qDebug() << "thrust:" << thrust.x() << thrust.y() << thrust.z();
+    exit(0);
+    */
+
     resize(1027, 900);
 
     mTimeSimulationPause = QTime(); // set invalid;
     mTimeSimulationStart = QTime(); // set invalid;
+
+    mCoordinateConverter = new CoordinateConverter(CoordinateGps(53.5592, 9.83, 0));
 
     mLaserScanners = new QList<LaserScanner*>;
 
@@ -36,7 +49,7 @@ Simulator::Simulator(void) :
 
     mTimeFactor = mSimulationControlWidget->getTimeFactor();
 
-    mStatusWidget = new StatusWidget(this, mBattery);
+    mStatusWidget = new StatusWidget(this, mBattery, mCoordinateConverter);
     addDockWidget(Qt::RightDockWidgetArea, mStatusWidget);
     connect(mOgreWidget, SIGNAL(currentRenderStatistics(QSize,int,float)), mStatusWidget, SLOT(slotUpdateVisualization(QSize, int, float)));
 }
@@ -44,6 +57,8 @@ Simulator::Simulator(void) :
 void Simulator::slotAddVehicle(void)
 {
         mVehicle = new Vehicle(this, mOgreWidget);
+
+        connect(mVehicle, SIGNAL(newPose(const Ogre::Vector3&, const Ogre::Quaternion&)), mStatusWidget, SLOT(slotUpdatePose(const Ogre::Vector3&, const Ogre::Quaternion&)));
 
         qDebug() << "Simulator::Simulator(): starting vehicle thread.";
     //    mVehicle->start();
@@ -101,13 +116,13 @@ int Simulator::getSimulationTime(void) const
     if(mTimeSimulationPause.isValid())
     {
         // simulation is paused.
-        qDebug() << "Simulator::getSimulationTime(): paused, timeFactor " << mTimeFactor << "startElapsed" << mTimeSimulationStart.elapsed() << "pauseElapsed:" << mTimeSimulationPause.elapsed() << "result" << mTimeFactor * (mTimeSimulationStart.elapsed() - mTimeSimulationPause.elapsed());
+//        qDebug() << "Simulator::getSimulationTime(): paused, timeFactor " << mTimeFactor << "startElapsed" << mTimeSimulationStart.elapsed() << "pauseElapsed:" << mTimeSimulationPause.elapsed() << "result" << mTimeFactor * (mTimeSimulationStart.elapsed() - mTimeSimulationPause.elapsed());
         return mTimeFactor * (mTimeSimulationStart.elapsed() - mTimeSimulationPause.elapsed());
     }
     else
     {
         // simulation is running.
-        qDebug() << "Simulator::getSimulationTime(): running, timeFactor " << mTimeFactor << "startElapsed" << mTimeSimulationStart.elapsed() << "result" << mTimeFactor * mTimeSimulationStart.elapsed();
+//        qDebug() << "Simulator::getSimulationTime(): running, timeFactor " << mTimeFactor << "startElapsed" << mTimeSimulationStart.elapsed() << "result" << mTimeFactor * mTimeSimulationStart.elapsed();
         return mTimeFactor * mTimeSimulationStart.elapsed();
     }
 }
@@ -124,7 +139,7 @@ void Simulator::slotSetTimeFactor(double timeFactor)
         return;
     }
 
-    if(fabs(timeFactor) < 0.01)
+    if(fabs(timeFactor) < 0.00001)
     {
         // timeFactor is getting real close to zero, its hopefully just an intermediate state in the spinbox, ignore.
         qDebug() << "Simulator::slotSetTimeFactor(): ignoring value of" << timeFactor;

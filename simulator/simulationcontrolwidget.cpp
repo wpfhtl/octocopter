@@ -17,21 +17,25 @@ SimulationControlWidget::SimulationControlWidget(Simulator *simulator, OgreWidge
     connect(mBtnPause, SIGNAL(clicked()), SLOT(slotSimulationPaused()));
 
     // Wire up the laserscanner-box
-    connect(mSpinBoxScannerIndex, SIGNAL(valueChanged(int)), SLOT(slotScannerIndexChanged()));
+    connect(mScannerSelector, SIGNAL(valueChanged(int)), SLOT(slotScannerIndexChanged()));
 
-    connect(mSpinBoxPropertiesRange, SIGNAL(valueChanged(double)), SLOT(slotScannerSettingsChanged()));
-    connect(mSpinBoxPropertiesSpeed, SIGNAL(valueChanged(int)), SLOT(slotScannerSettingsChanged()));
-    connect(mSpinBoxPropertiesAngleStart, SIGNAL(valueChanged(int)), SLOT(slotScannerSettingsChanged()));
-    connect(mSpinBoxPropertiesAngleStop, SIGNAL(valueChanged(int)), SLOT(slotScannerSettingsChanged()));
-    connect(mSpinBoxPropertiesAngleStep, SIGNAL(valueChanged(double)), SLOT(slotScannerSettingsChanged()));
+    // These connections are queued. If the slider changes the scanner index, we set all spinboxes to new values. If we
+    // set a value to e.g. mSpinBoxPropertiesRange, it will emit valueChanged(), which will call slotScannerSettingsChanged()
+    // which will change the current scanner to values from ALL spinboxes, even those that haven't been updated to new
+    // and correct values. Thus, scanner-properties would be overwritten with values from the previous scanner.
+    connect(mSpinBoxPropertiesRange, SIGNAL(valueChanged(double)), SLOT(slotScannerSettingsChanged()), Qt::QueuedConnection);
+    connect(mSpinBoxPropertiesSpeed, SIGNAL(valueChanged(int)), SLOT(slotScannerSettingsChanged()), Qt::QueuedConnection);
+    connect(mSpinBoxPropertiesAngleStart, SIGNAL(valueChanged(int)), SLOT(slotScannerSettingsChanged()), Qt::QueuedConnection);
+    connect(mSpinBoxPropertiesAngleStop, SIGNAL(valueChanged(int)), SLOT(slotScannerSettingsChanged()), Qt::QueuedConnection);
+    connect(mSpinBoxPropertiesAngleStep, SIGNAL(valueChanged(double)), SLOT(slotScannerSettingsChanged()), Qt::QueuedConnection);
 
-    connect(mSpinBoxScannerPositionX, SIGNAL(valueChanged(double)), SLOT(slotScannerSettingsChanged()));
-    connect(mSpinBoxScannerPositionY, SIGNAL(valueChanged(double)), SLOT(slotScannerSettingsChanged()));
-    connect(mSpinBoxScannerPositionZ, SIGNAL(valueChanged(double)), SLOT(slotScannerSettingsChanged()));
+    connect(mSpinBoxScannerPositionX, SIGNAL(valueChanged(double)), SLOT(slotScannerSettingsChanged()), Qt::QueuedConnection);
+    connect(mSpinBoxScannerPositionY, SIGNAL(valueChanged(double)), SLOT(slotScannerSettingsChanged()), Qt::QueuedConnection);
+    connect(mSpinBoxScannerPositionZ, SIGNAL(valueChanged(double)), SLOT(slotScannerSettingsChanged()), Qt::QueuedConnection);
 
-    connect(mSpinBoxScannerRotationPitch, SIGNAL(valueChanged(double)), SLOT(slotScannerSettingsChanged()));
-    connect(mSpinBoxScannerRotationRoll, SIGNAL(valueChanged(double)), SLOT(slotScannerSettingsChanged()));
-    connect(mSpinBoxScannerRotationYaw, SIGNAL(valueChanged(double)), SLOT(slotScannerSettingsChanged()));
+    connect(mSpinBoxScannerRotationPitch, SIGNAL(valueChanged(double)), SLOT(slotScannerSettingsChanged()), Qt::QueuedConnection);
+    connect(mSpinBoxScannerRotationRoll, SIGNAL(valueChanged(double)), SLOT(slotScannerSettingsChanged()), Qt::QueuedConnection);
+    connect(mSpinBoxScannerRotationYaw, SIGNAL(valueChanged(double)), SLOT(slotScannerSettingsChanged()), Qt::QueuedConnection);
 
     connect(mBtnLaserScannerCreate, SIGNAL(clicked()), SLOT(slotScannerCreate()));
     connect(mBtnLaserScannerDelete, SIGNAL(clicked()), SLOT(slotScannerDelete()));
@@ -62,12 +66,12 @@ void SimulationControlWidget::slotScannerIndexChanged(void)
     qDebug() << "SimulationControlWidget::slotScannerIndexChanged()";
 
     // Load that scanner's data into the widget. If the scanner exists, that is.
-    if(mSimulator->getLaserScannerList()->size() >= mSpinBoxScannerIndex->value()) return;
+    Q_ASSERT(mSimulator->getLaserScannerList()->size() >= mScannerSelector->value());
 
-    qDebug() << "SimulationControlWidget::slotScannerIndexChanged(): scanner" << mSpinBoxScannerIndex->value() << "exists, loading its settigns into form";
+    qDebug() << "SimulationControlWidget::slotScannerIndexChanged(): scanner" << mScannerSelector->value() << "exists, loading its settigns into form";
 
     // Get Scanner and its SceneNode
-    LaserScanner *currentScanner = mSimulator->getLaserScannerList()->at(mSpinBoxScannerIndex->value());
+    LaserScanner *currentScanner = mSimulator->getLaserScannerList()->at(mScannerSelector->value());
 
     mSpinBoxPropertiesRange->setValue(currentScanner->range());
     mSpinBoxPropertiesSpeed->setValue(currentScanner->speed());
@@ -93,8 +97,11 @@ void SimulationControlWidget::slotScannerSettingsChanged(void)
 
     qDebug() << "SimulationControlWidget::slotScannerSettingsChanged(): form changes detected, sending form values to currently selected scanner.";
 
+    // Make sure we havea  scanner to poke on
+    if(mSimulator->getLaserScannerList()->size() <= mScannerSelector->value()) return;
+
     // Get Scanner and its SceneNode
-    LaserScanner *currentScanner = mSimulator->getLaserScannerList()->at(mSpinBoxScannerIndex->value());
+    LaserScanner *currentScanner = mSimulator->getLaserScannerList()->at(mScannerSelector->value());
 
     // set scanner properties from form values
     currentScanner->setRange(mSpinBoxPropertiesRange->value());
@@ -151,8 +158,8 @@ void SimulationControlWidget::slotScannerCreate(void)
 
     mSimulator->getLaserScannerList()->append(newLaserScanner);
 
-    mSpinBoxScannerIndex->setMaximum(mSimulator->getLaserScannerList()->size()-1);
-    mSpinBoxScannerIndex->setValue(mSpinBoxScannerIndex->maximum());
+    mScannerSelector->setMaximum(mSimulator->getLaserScannerList()->size()-1);
+    mScannerSelector->setValue(mScannerSelector->maximum());
     // TODO: does setValue emit valueChanged? If not, call slotScannerIndexChanged here.
 
     qDebug() << "SimulationControlWidget::slotScannerCreate(): done.";
@@ -160,11 +167,11 @@ void SimulationControlWidget::slotScannerCreate(void)
 
 void SimulationControlWidget::slotScannerDelete(void)
 {
-    qDebug() << "SimulationControlWidget::slotScannerDelete(): deleting scanner at" << mSpinBoxScannerIndex->value();
-    mSimulator->getLaserScannerList()->takeAt(mSpinBoxScannerIndex->value())->deleteLater();
+    qDebug() << "SimulationControlWidget::slotScannerDelete(): deleting scanner at" << mScannerSelector->value();
+    mSimulator->getLaserScannerList()->takeAt(mScannerSelector->value())->deleteLater();
 
     // I hope that QSpinBox would change its value after value() > maximum...
-    mSpinBoxScannerIndex->setMaximum(mSpinBoxScannerIndex->maximum() - 1);
+    mScannerSelector->setMaximum(mScannerSelector->maximum() - 1);
 
     // adjust form to a valid scanner
     slotScannerIndexChanged();
@@ -221,7 +228,7 @@ void SimulationControlWidget::slotScannerLoadConfiguration(void)
 
     const int numberOfLaserScanners = mSettings.beginReadArray("scanners");
 
-    mSpinBoxScannerIndex->setMaximum(numberOfLaserScanners - 1);
+    mScannerSelector->setMaximum(numberOfLaserScanners - 1);
 
     for(int i = 0; i < numberOfLaserScanners; ++i)
     {
@@ -259,8 +266,8 @@ void SimulationControlWidget::slotScannerLoadConfiguration(void)
     mSettings.endArray();
 
     // TODO: Will this load the settings?
-    qDebug() << "SimulationControlWidget::slotScannerLoadConfiguration(): done, setting index spinbox to maximum: " << mSpinBoxScannerIndex->maximum();
-    mSpinBoxScannerIndex->setValue(mSpinBoxScannerIndex->maximum());
+    qDebug() << "SimulationControlWidget::slotScannerLoadConfiguration(): done, setting index spinbox to maximum: " << mScannerSelector->maximum();
+    mScannerSelector->setValue(mScannerSelector->maximum());
 }
 
 double SimulationControlWidget::getTimeFactor()
