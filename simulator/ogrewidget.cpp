@@ -3,8 +3,9 @@
 const QPoint     OgreWidget::invalidMousePoint(-1,-1);
 const Ogre::Real OgreWidget::turboModifier(10);
 
-OgreWidget::OgreWidget(QWidget *parent) :
-        QWidget(parent),
+OgreWidget::OgreWidget(Simulator *simulator) :
+        QWidget((QWidget*)simulator),
+        mSimulator(simulator),
         ogreRoot(0),
         ogreSceneManager(0),
         ogreRenderWindow(0),
@@ -184,7 +185,7 @@ void OgreWidget::mouseDoubleClickEvent(QMouseEvent *e)
                 selectedNode->showBoundingBox(true);
             }
         }
-        else
+        else if(selectedNode)
         {
             selectedNode->showBoundingBox(false);
             selectedNode = 0;
@@ -356,16 +357,30 @@ void OgreWidget::paintEvent(QPaintEvent *e)
         initOgreSystem();
     }
 
-//    qDebug() << "OgreWidget::paintEvent(): start";
-    //ogreRoot->renderOneFrame();
+    // Construct all laserscanner rays before rendering
+    QList<LaserScanner*> *laserScanners = mSimulator->getLaserScannerList();
+    for(int i = 0; i < laserScanners->size(); ++i)
+    {
+        LaserScanner* scanner = laserScanners->at(i);
+        Ogre::Ray beam = scanner->getCurrentLaserBeam();
+
+        scanner->mRayObject->clear();
+        scanner->mRayObject->begin(QString("RayFrom_" + scanner->objectName() + "_material").toStdString(), Ogre::RenderOperation::OT_LINE_LIST);
+        scanner->mRayObject->position(beam.getPoint(0.0));
+        scanner->mRayObject->position(beam.getPoint(scanner->range()));
+        scanner->mRayObject->end();
+    }
+
     ogreRoot->_fireFrameStarted();
-        ogreRenderWindow->update();
+
+    ogreRenderWindow->update();
+
     ogreRoot->_fireFrameEnded();
 
-    if(mFrameCount++ % 25 == 0) emit currentRenderStatistics(size(), ogreRenderWindow->getTriangleCount(), ogreRenderWindow->getLastFPS());
+    if(mFrameCount++ % 25 == 0)
+        emit currentRenderStatistics(size(), ogreRenderWindow->getTriangleCount(), ogreRenderWindow->getLastFPS());
 
     e->accept();
-//    qDebug() << "OgreWidget::paintEvent(): end";
 }
 
 void OgreWidget::resizeEvent(QResizeEvent *e)
@@ -396,11 +411,6 @@ void OgreWidget::showEvent(QShowEvent *e)
 
     QMutexLocker locker(&mMutex);
 
-//    if(!ogreRoot)
-//    {
-//        initOgreSystem();
-//    }
-
     QWidget::showEvent(e);
 }
 
@@ -430,7 +440,6 @@ void OgreWidget::initOgreSystem()
     Ogre::RenderSystem *renderSystem = ogreRoot->getRenderSystemByName("OpenGL Rendering Subsystem");
     ogreRoot->setRenderSystem(renderSystem);
     ogreRoot->initialise(false);
-//    ogreRoot->initialise(true, "test");
 
     Ogre::NameValuePairList viewConfig;
     Ogre::String widgetHandle;
@@ -447,7 +456,6 @@ void OgreWidget::initOgreSystem()
     viewConfig["parentWindowHandle"] = widgetHandle;
 
     ogreRenderWindow = ogreRoot->createRenderWindow("Ogre rendering window", width(), height(), false, &viewConfig);
-//    ogreRenderWindow = ogreRoot->getAutoCreatedWindow();
 
     Ogre::SceneManagerEnumerator::MetaDataIterator iter = Ogre::SceneManagerEnumerator::getSingleton().getMetaDataIterator();
     while( iter.hasMoreElements() )
@@ -459,7 +467,7 @@ void OgreWidget::initOgreSystem()
     ogreSceneManager = ogreRoot->createSceneManager("TerrainSceneManager"/*Ogre::ST_EXTERIOR_CLOSE*/);
 
     ogreCamera = ogreSceneManager->createCamera("camera");
-    ogreCamera->setNearClipDistance(2);
+    ogreCamera->setNearClipDistance(.1);
 
     mCameraNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode("CameraNode", Ogre::Vector3(0, 12, 15));
     mCameraNode->attachObject(ogreCamera);
@@ -520,27 +528,16 @@ void OgreWidget::createScene()
 //    ogreSceneManager->setAmbientLight(Ogre::ColourValue(1,1,1));
 
     ogreSceneManager->setWorldGeometry("media/terrain.cfg");
-
-//    mVehicleEntity = ogreSceneManager->createEntity("Robot", "quad.mesh");
-//    mVehicleNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode("VehicleNode");
-//    mVehicleNode->attachObject(mVehicleEntity);
-//    mVehicleNode->scale(0.33, 0.33, 0.33);
-    //mCopterNode->yaw(Ogre::Radian(Ogre::Degree(-90)));
+//    ogreSceneManager->getSceneNode("Terrain")->showBoundingBox(true);
 
     qDebug() << "OgreWidget::createScene(): done.";
 }
-
-//Ogre::SceneNode* OgreWidget::getVehicleNode(void)
-//{
-//    //fixme: we return an invalid pointer, as initialization is still ahead of us.
-//    return mVehicleNode;
-//}
 
 Ogre::RaySceneQuery* OgreWidget::createRaySceneQuery(void)
 {
     qDebug() << "OgreWidget::createRaySceneQuery(): returning pointer.";
 
-    QMutexLocker locker(&mMutex);
+//    QMutexLocker locker(&mMutex);
     return ogreSceneManager->createRayQuery(Ogre::Ray());
 }
 
@@ -553,7 +550,6 @@ Ogre::SceneNode* OgreWidget::createScannerNode(const QString name, const Ogre::V
     // We don't need names, so we just create something random
     Ogre::Entity *scannerEntity = ogreSceneManager->createEntity(QString(name + "_entity").toStdString(), "hokuyoutm30lx.mesh");
     Ogre::SceneNode *scannerNode = ogreSceneManager->getSceneNode("vehicleNode")->createChildSceneNode(QString(name + "_node").toStdString(), relativePosition, relativeRotation);
-//    scannerNode->scale(0.33, 0.33, 0.33);
     scannerNode->attachObject(scannerEntity);
     qDebug() << "OgreWidget::createScannerNode(): done, returning";
 

@@ -15,9 +15,9 @@ engine
 laserscanner
 statuswidget
 simulationcontrolwidget
-coordinategps
+../common/coordinategps
 vehicle
-coordinateconverter
+../common/coordinateconverter
 BtOgre/BtOgre.cpp
 )
 
@@ -29,9 +29,9 @@ engine.h
 laserscanner.h
 statuswidget.h
 simulationcontrolwidget.h
-coordinategps.h
+../common/coordinategps.h
 vehicle.h
-coordinateconverter.h
+../common/coordinateconverter.h
 #BtOgre/BtOgreExtras.h
 #BtOgre/BtOgreGP.h
 BtOgre/BtOgrePG.h
@@ -68,7 +68,7 @@ SET(CMAKE_DEBUG_POSTFIX "_d")
 SET(CMAKE_BUILD_TYPE "Debug")
 
 #include_directories(/usr/include/QtCore/ /usr/include/QtNetwork/ /usr/include/QtGui/ /usr/include/OGRE/ /usr/include/OIS/ /usr/include ${CMAKE_CURRENT_BINARY_DIR})
-include_directories(/usr/include/OGRE/ /usr/include/bullet /usr/include ${CMAKE_CURRENT_BINARY_DIR})
+include_directories(/usr/include/OGRE/ /usr/include/bullet /usr/include ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 link_directories(${OGRE_LIBRARY_DIRS})
 add_executable(simulator ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
 target_link_libraries(simulator ${QT_LIBRARIES} ${OGRE_LIBRARIES} ${BULLET_LIBRARIES})

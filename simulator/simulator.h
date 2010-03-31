@@ -35,6 +35,7 @@ public:
     bool isPaused(void) const;
     int getSimulationTime(void) const; // returns milliseconds since start of simulation, scaled by timeFactor
     QList<LaserScanner*>* getLaserScannerList(void);
+    CoordinateConverter* getCoordinateConverter(void);
 
 private:
     mutable QMutex mMutex;

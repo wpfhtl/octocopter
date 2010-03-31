@@ -11,19 +11,19 @@ class CoordinateGps : public QObject
     Q_OBJECT
 
 private:
-    qreal mLongitude, mLatitude, mElevation;
+    double mLongitude, mLatitude, mElevation;
 
 public:
     CoordinateGps();
     CoordinateGps(const CoordinateGps &coordinate);
-    CoordinateGps(const qreal &longitude, const qreal &latitude, const qreal &elevation);
-    qreal longitude(void) const;
-    qreal latitude(void) const;
-    qreal elevation(void) const;
+    CoordinateGps(const double &longitude, const double &latitude, const double &elevation);
+    double longitude(void) const;
+    double latitude(void) const;
+    double elevation(void) const;
 
-    void setLongitude(const qreal &longitude);
-    void setLatitude(const qreal &latitude);
-    void setElevation(const qreal &elevation);
+    void setLongitude(const double &longitude);
+    void setLatitude(const double &latitude);
+    void setElevation(const double &elevation);
 
     QString toString(void) const;
 

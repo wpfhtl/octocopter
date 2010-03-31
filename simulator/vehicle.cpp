@@ -42,7 +42,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     qDebug() << "Vehicle::Vehicle(): creating vehicle";
     mVehicleEntity = mOgreWidget->sceneManager()->createEntity("vehicleEntity", "quad.mesh");
     // "vehicleNode" is fixed, used in ogrewidget.cpp
-    mVehicleNode = mOgreWidget->sceneManager()->getRootSceneNode()->createChildSceneNode("vehicleNode", Ogre::Vector3(0,10,0), Ogre::Quaternion::IDENTITY);
+    mVehicleNode = mOgreWidget->sceneManager()->getRootSceneNode()->createChildSceneNode("vehicleNode", Ogre::Vector3(2,-3,-2), Ogre::Quaternion::IDENTITY);
     mVehicleNode->attachObject(mVehicleEntity);
 
     //Create shape.
@@ -187,7 +187,7 @@ void Vehicle::slotUpdatePosition(void)
 
     QList<int> motorSpeeds;
     // motorSpeeds << front << back << left << right
-    motorSpeeds << 16000 << 16000 << -16000 << -16000;
+    motorSpeeds << 16000 << 16000 << -15000 << -16000;
 
     slotSetMotorSpeeds(motorSpeeds);
 
@@ -230,19 +230,29 @@ void Vehicle::slotSetMotorSpeeds(const QList<int> &speeds)
 void Vehicle::slotUpdatePhysics(void)
 {
     const int simulationTime = mSimulator->getSimulationTime(); // milliseconds
-    const btScalar deltaS = (simulationTime - mTimeOfLastUpdate) / 1000.0f; // elapsed time since last call in seconds
+    const btScalar deltaS = std::max(0.0f, (simulationTime - mTimeOfLastUpdate) / 1000.0f); // elapsed time since last call in seconds
     const int maxSubSteps = 20;
     const btScalar fixedTimeStep = 1.0 / 60.0;
 //    qDebug() << "Vehicle::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
 
 //    mVehicleBody->applyDamping(deltaS);
 
-    Q_ASSERT(deltaS < maxSubSteps * fixedTimeStep); // http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
+//    Q_ASSERT(deltaS < maxSubSteps * fixedTimeStep); // http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
     mBtWorld->stepSimulation(deltaS, maxSubSteps, fixedTimeStep);
 
 //    mBtDebugDrawer->step();
 
     mTimeOfLastUpdate = simulationTime;
+
+    // Set all laserscanners new position
+    QList<LaserScanner*>* laserScanners = mSimulator->getLaserScannerList();
+    foreach(LaserScanner* ls, *laserScanners)
+    {
+        Ogre::SceneNode* scannerNode = mOgreWidget->sceneManager()->getSceneNode(ls->objectName().append("_node").toStdString());
+        ls->slotSetScannerPose(scannerNode->_getDerivedPosition(), scannerNode->_getDerivedOrientation());
+    }
+
+    // TODO: If we loop with more than 25fps, update more slowly
     mOgreWidget->update();
 }
 

@@ -141,6 +141,8 @@ void SimulationControlWidget::slotScannerCreate(void)
             mSpinBoxPropertiesAngleStop->value(),
             mSpinBoxPropertiesAngleStep->value());
 
+    newLaserScanner->moveToThread(newLaserScanner);
+
     // set scanner position from form values
     newLaserScanner->setPosition(
             Ogre::Vector3(
@@ -161,6 +163,8 @@ void SimulationControlWidget::slotScannerCreate(void)
     mScannerSelector->setMaximum(mSimulator->getLaserScannerList()->size()-1);
     mScannerSelector->setValue(mScannerSelector->maximum());
     // TODO: does setValue emit valueChanged? If not, call slotScannerIndexChanged here.
+
+    newLaserScanner->start();
 
     qDebug() << "SimulationControlWidget::slotScannerCreate(): done.";
 }
@@ -245,6 +249,8 @@ void SimulationControlWidget::slotScannerLoadConfiguration(void)
                 mSettings.value("angleStart", 45).toInt(),
                 mSettings.value("angleStop", 315).toInt(),
                 mSettings.value("angleStep", 0.25).toInt());
+
+        newLaserScanner->moveToThread(newLaserScanner);
 
         // set scanner position from configuration
         newLaserScanner->setPosition(

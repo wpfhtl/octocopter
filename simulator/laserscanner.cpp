@@ -8,7 +8,7 @@ LaserScanner::LaserScanner(
         const int angleStart,
         const int angleStop,
         const float angleStep) :
-        mRaySceneQuery(0), mRayObject(0), mRayNode(0)
+        mRaySceneQuery(0)
 {
     qDebug() << "LaserScanner::LaserScanner()";
     Q_ASSERT(angleStart < angleStop);
@@ -30,21 +30,31 @@ LaserScanner::LaserScanner(
     sprintf(address, "%p", (void*)this);
     setObjectName("LaserScanner_at_" + QString(address));
 
+    // Material name for the ray-visualization
+    mMaterialName = QString("RayFrom_" + objectName() + "_material").toStdString();
+
     // Create a scene node in ogre that is attached to the vehicle.
     mScannerNode = mOgreWidget->createScannerNode(objectName());
+
+    mLaserBeam.setOrigin(mScannerNode->_getDerivedPosition());
+//    mLaserBeam.setDirection(mScannerNode->getOrientation());
 
     mCurrentScanAngle = mAngleStart;
 
     // Get the RaySceneQuery from Ogre
     mRaySceneQuery = mOgreWidget->createRaySceneQuery();
     mRaySceneQuery->setSortByDistance(true, 1); // just return the first 1 intersecting element.
+//    mRaySceneQuery->setWorldFragmentType(Ogre::SceneQuery::WFT_SINGLE_INTERSECTION);
     // Not sure on this, see http://www.ogre3d.org/wiki/index.php/Intermediate_Tutorial_3#Query_Masks
-    mRaySceneQuery->setQueryMask(Ogre::SceneManager::WORLD_GEOMETRY_TYPE_MASK | Ogre::SceneManager::ENTITY_TYPE_MASK | Ogre::SceneManager::STATICGEOMETRY_TYPE_MASK);
+//    mRaySceneQuery->setQueryMask(0);
+//    mRaySceneQuery->setQueryMask(Ogre::SceneManager::WORLD_GEOMETRY_TYPE_MASK | Ogre::SceneManager::ENTITY_TYPE_MASK | Ogre::SceneManager::STATICGEOMETRY_TYPE_MASK);
+    mRaySceneQuery->setQueryTypeMask(Ogre::SceneManager::WORLD_GEOMETRY_TYPE_MASK);
+    mRaySceneQuery->setWorldFragmentType(Ogre::SceneQuery::WFT_SINGLE_INTERSECTION);
 
-    // Initialize the beams visualization. The name needs to be unique, so I use a dirty hack.
-    qDebug() << "LaserScanner::LaserScanner(): creating manualObjet for ray, my address is" << this;
+//    qDebug() << "LaserScanner::LaserScanner(): creating manualObjet for ray, my address is" << this;
     mOgreWidget->createManualObject("Ray_From_" + objectName(), &mRayObject, &mRayNode, mRayMaterial);
     mRayObject->setDynamic(true);
+    mRayObject->setQueryFlags(0);
     mRayMaterial->setReceiveShadows(false);
     mRayMaterial->getTechnique(0)->setLightingEnabled(true);
     mRayMaterial->getTechnique(0)->getPass(0)->setDiffuse(0,0,1,0);
@@ -52,23 +62,8 @@ LaserScanner::LaserScanner(
     mRayMaterial->getTechnique(0)->getPass(0)->setSelfIllumination(0,0,1);
     mRayNode->attachObject(mRayObject);
 
-    // When we emit a scan, make mSimulator receive it
-    connect(this, SIGNAL(scanFinished(QList<CoordinateGps>)), mSimulator, SLOT(slotScanFinished(QList<CoordinateGps>)));
-
-    mTimerScanStep = new QTimer(this);
-    mTimerScanStep->setSingleShot(true);
-    connect(mTimerScanStep, SIGNAL(timeout()), SLOT(slotDoScanStep()));
-
     // make the scanner appear
     mOgreWidget->update();
-
-    if(! mSimulator->isPaused())
-    {
-        qDebug() << "LaserScanner::LaserScanner(): almost done, starting first slotDoScanStep()";
-        slotDoScanStep();
-    }
-
-    QtConcurrent::run(this, &LaserScanner::testRsqPerformance);
 }
 
 void LaserScanner::testRsqPerformance()
@@ -78,10 +73,10 @@ void LaserScanner::testRsqPerformance()
 
     const int iterations = 1000000;
 
-    for(int i=0;i<iterations;i++)
-    {
-        slotDoScanStep(false, false);
-    }
+//    for(int i=0;i<iterations;i++)
+//    {
+//        slotDoScanStep(false);
+//    }
 
     struct timeval timeStop;
     gettimeofday(&timeStop, NULL);
@@ -95,12 +90,99 @@ void LaserScanner::testRsqPerformance()
 LaserScanner::~LaserScanner()
 {
     // TODO: delete/unregister scannerNode, mRayMaterial etc.
-    mRayObject->clear();
-    delete mRayObject;
-    mTimerScanStep->deleteLater();
+//    mRayObject->clear();
+//    delete mRayObject;
+//    mTimerScanStep->deleteLater();
 }
 
-void LaserScanner::slotDoScanStep(bool visualize, bool scheduleNextScan)
+void LaserScanner::slotDoScan()
+{
+    // Theoretically, there is no reason to emit complete scans instead of "streaming"
+    // single world coordinates. I suspect that fewer callbacks, fewer and bigger
+    // network-packets will be more performant, though. It might actually be even
+    // smarter to emit every n CoordinateGps, when n marshalled CoordinateGps reach
+    // the interface's MTU. But thats for later, we're still simulating right now...
+
+    if(mScannerOrientationPrevious == mScannerOrientation && mScannerPositionPrevious == mScannerPosition)
+    {
+        // No need to scan, we'll get the same results as previously. IF THE REST OF
+        // THE WORLD IS STATIC, that is. Sleep for one scan, then try again.
+        qDebug() << "LaserScanner::slotDoScan(): vehicle hasn't moved, sleeping scan";
+        usleep(1000000 / (mSpeed / 60) * (1.0 / mTimeFactor));
+        return;
+    }
+    else
+        qDebug() << "LaserScanner::slotDoScan(): vehicle has moved, scanning";
+
+    const long long realTimeBetweenRaysUS = (1000000.0 / 6.0 / mSpeed * mAngleStep) * (1.0 / mTimeFactor);
+
+    struct timeval timeStart;
+    gettimeofday(&timeStart, NULL);
+
+    struct timeval timeNow;
+
+    int numberOfRays = 0;
+
+    while(mCurrentScanAngle <= mAngleStop)
+    {
+        numberOfRays++;
+        qDebug() << "LaserScanner::slotDoScan(): next ray:" << mCurrentScanAngle;
+        slotDoScanStep();
+
+        gettimeofday(&timeNow, NULL);
+
+        const long long scanTimeElapsed = (timeNow.tv_sec - timeStart.tv_sec) * 1000000 + (timeNow.tv_usec - timeStart.tv_usec);
+        const long long scanTimeAtNextRay = realTimeBetweenRaysUS * (numberOfRays+1);
+
+        usleep(std::max(0, (int)(scanTimeAtNextRay - scanTimeElapsed)));
+    }
+
+    gettimeofday(&timeNow, NULL);
+
+    const long long timeDiff = (timeNow.tv_sec - timeStart.tv_sec) * 1000000 + (timeNow.tv_usec - timeStart.tv_usec);
+    qDebug() << "LaserScanner::slotDoScan(): took" << timeDiff << "us, should have been" << (long long)(realTimeBetweenRaysUS * ((mAngleStop - mAngleStart)/mAngleStep));
+
+    // This scan is finished, emit it...
+//    emit scanFinished(mScanData);
+    QByteArray datagram;
+    QDataStream stream(&datagram, QIODevice::WriteOnly);
+    stream << "test";
+    stream << &mScanData;
+    qDebug() << "LaserScanner::slotDoScan(): List size" << mScanData.size() << "UDP packet size:" << datagram.size();
+//    <aep> kernelpanic: and read the hint in the flush() docs.  if it returns false, you need to wait and flush again
+//    <aep> krunk-: ah waitForBytesWritten() works
+//    <aep> kernelpanic: ^
+//    <kernelpanic> aep: ok. But I send 40 udp packets per second anyway, could I just write() the next packet and flush() again instead of waiting?
+//    <aep> kernelpanic: you could, but you dont get any gurantees when the packet is delivered
+//    <aep> kernelpanic: and if you're unlucky, you're getting out of sync
+//    <kernelpanic> aep: what does that mean? I'm just filling and flushing a buffer, no?
+//    <aep> kernelpanic: flush() does only write as much as the OS accepts.  usually thats plenty, but it may under rare conditions get stuck
+//    <aep> kernelpanic: yes. but you only call flush on write, so there is more data comming
+//    <aep> with an eventloop you get free "unsticking" since the eventloop will interupt YOUR work and make sure stuff is sent when the queue is free
+//    <aep> kernelpanic: very likely it will work just fine, just remember the caveats ;)
+//    <kernelpanic> aep: i don't understand. I'm doing write()/flush() with 40Hz, so the data will get written to the OS eventually. And I prefer high throughput to low latency. Or am I completely missing you?
+//    <aep> yes you are, that was not the point
+//    <aep> flush() only writes a specific amount of data, not ALL of it
+//    <aep> kernelpanic: for(;;){send() flush();}  only works as long as send() is smaller then the OS write buffer. otherwise you build up a backlog
+    mUdpSocket->writeDatagram(datagram, QHostAddress::Broadcast, 45454);
+    mUdpSocket->flush();
+//    mUdpSocket->waitForBytesWritten();
+    mScanData.clear();
+
+    // Set mCurrentScanAngle for the next scan to mAngleStart
+    mCurrentScanAngle = mAngleStart;
+    mScannerOrientationPrevious = mScannerOrientation;
+    mScannerPositionPrevious = mScannerPosition;
+
+    // Sleep for degreesToNextScan = 360.0 - mAngleStop + mAngleStart
+    gettimeofday(&timeNow, NULL);
+    const long long scanTimeElapsed = (timeNow.tv_sec - timeStart.tv_sec) * 1000000 + (timeNow.tv_usec - timeStart.tv_usec);
+    const long long timeRest = (1000000/(mSpeed/60)) * (1.0 / mTimeFactor) - scanTimeElapsed;
+    qDebug() << "LaserScanner::slotDoScan(): emitted results, resting" << timeRest << "us after scan.";
+    usleep(std::max(0, (int)timeRest));
+}
+
+void LaserScanner::slotDoScanStep()
 {
 //    qDebug() << "LaserScanner::slotDoScanStep()";
      // Set up scene query.
@@ -119,90 +201,105 @@ void LaserScanner::slotDoScanStep(bool visualize, bool scheduleNextScan)
 
     // Build a quaternion that represents the laserbeam's current rotation
     Ogre::Quaternion quatBeamRotation(Ogre::Degree(mCurrentScanAngle), Ogre::Vector3::UNIT_Y);
-    Ogre::Ray laserBeam(mScannerNode->_getDerivedPosition(), mScannerNode->_getDerivedOrientation() * quatBeamRotation * Ogre::Vector3::NEGATIVE_UNIT_Z);
-    mRaySceneQuery->setRay(laserBeam);
+    QMutexLocker locker(&mMutex);
+    mLaserBeam.setOrigin(mScannerPosition - Ogre::Vector3(0.0, 0.1, 0.0));
+    mLaserBeam.setDirection(mScannerOrientation * quatBeamRotation * Ogre::Vector3::NEGATIVE_UNIT_Z);
+    locker.unlock();
 
-    // Visualize the ray in Ogre? Fuck yeah!
-    if(visualize)
-    {
-        mRayObject->clear();
-        mRayObject->begin(QString("RayFrom_" + objectName() + "_material").toStdString(), Ogre::RenderOperation::OT_LINE_LIST);
-        mRayObject->position(laserBeam.getPoint(0.0));
-        mRayObject->position(laserBeam.getPoint(mRange));
-        mRayObject->end();
-        mOgreWidget->update();
-    }
+    mRaySceneQuery->setRay(mLaserBeam);
+
+//    mRaySceneQuery->setQueryTypeMask(Ogre::SceneManager::WORLD_GEOMETRY_TYPE_MASK );
+//    mRaySceneQuery->setWorldFragmentType(Ogre::SceneQuery::WFT_SINGLE_INTERSECTION);
 
     // Perform the scene query
-    Ogre::RaySceneQueryResult &result = mRaySceneQuery->execute();
+    mRaySceneQuery->execute(this);
+
+//    Ogre::RaySceneQueryResult &result = mRaySceneQuery->execute();
+//    Ogre::RaySceneQueryResult::iterator itr = result.begin();
+
+//    if(itr != result.end())
+//    {
+//        if(itr->worldFragment)
+//        qDebug() << "ben:" << itr->distance;
+
+//        mCurrentObject->setPosition(itr->worldFragment->singleIntersection);
+//    }
+
+
+    // Increase mCurrentScanAngle by mAngleStep for the next laserBeam
+    mCurrentScanAngle += mAngleStep;
+}
+
+void LaserScanner::run()
+{
+    mUdpSocket = new QUdpSocket;
+    mUdpSocket->bind();
+
+    mTimerScan = new QTimer;
+    mTimerScan->setInterval(0);
+    connect(mTimerScan, SIGNAL(timeout()), SLOT(slotDoScan()));
+
+    if(!mSimulator->isPaused()) mTimerScan->start();
+
+    qDebug() << "LaserScanner::run(): starting LaserScanner eventloop in threadid" << currentThreadId();
+    exec();
+}
+
+void LaserScanner::slotSetScannerPose(const Ogre::Vector3 &position, const Ogre::Quaternion &orientation)
+{
+    // This slot is called whenever the vehicle's position changes. Thus, we
+    // should be called at least 25, at most mSpeed/60 times per second.
+    QMutexLocker locker(&mMutex);
+    mScannerPosition = position;
+    mScannerOrientation = orientation;
+}
+
+bool LaserScanner::queryResult(Ogre::SceneQuery::WorldFragment* /*fragment*/, Ogre::Real distance)
+{
+    // A callback for when the ray hits worldgeometry
 
     // TODO: This only gets the bounding-box. Extend to the polygons by using
     // http://www.ogre3d.org/wiki/index.php/Raycasting_to_the_polygon_level
 
     // Don't save relative coordinates, the scanner's position will change
     // until the very next iteration. Thus, save world (=gps) coordinates.
-    if(result.size())
-        mScanData << mCoordinateConverter.convert(laserBeam.getPoint((result.front().distance)));
+Q_ASSERT(false);
+    qDebug() << "LaserScanner::queryResult(): hit wft at distance of" << distance;
 
-    // Increase mCurrentScanAngle by mAngleStep for the next laserBeam
-    mCurrentScanAngle += mAngleStep;
+    if(distance > 0.1 && distance <= mRange)
+        mScanData << mCoordinateConverter.convert(mLaserBeam.getPoint(distance));
+    else if(distance < 0.0001)
+        printf(".");
 
-    // Theoretically, there is no reason to emit complete scans instead of "streaming"
-    // single world coordinates. I suspect that fewer callbacks, fewer and bigger
-    // network-packets will be more performant, thought. It might actually be even
-    // smarter to emit every n CoordinateGps, when n marshalled CoordinateGps reach
-    // the interface's MTU. But thats for later, we're still simulating right now...
+    return true;
+}
 
-    float degreesToNextScan;
+bool LaserScanner::queryResult(Ogre::MovableObject* obj, Ogre::Real distance)
+{
+    // A callback for when the ray hits movable objects. Behave as for worldgeometry
+    std::string bop = obj->getName();
+    QString foo(bop.c_str());
+    qDebug() << "LaserScanner::queryResult(): hit mov" << foo << "at distance of" << distance;
 
-    if(mCurrentScanAngle > mAngleStop)
-    {
-        // This scan is finished, emit it...
-        emit scanFinished(mScanData);
+    if(distance > 0.1 && distance <= mRange)
+        mScanData << mCoordinateConverter.convert(mLaserBeam.getPoint(distance));
+    else if(distance < 0.0001)
+        printf(":");
 
-        mScanData.clear();
-
-        // ...and schedule the next scan. The time to next scan is inferred from
-        // rotational speed and angle between mCurrentScanAngle and angleStart.
-        degreesToNextScan = 360.0 - mAngleStop + mAngleStart;
-//        qDebug() << "LaserScanner::slotDoScanStep(): scan done, degrees to next scan:" << degreesToNextScan << "timeFactor is" << mTimeFactor << "speed is" << mSpeed;
-
-        // Set mCurrentScanAngle for the next scan to mAngleStart
-        mCurrentScanAngle = mAngleStart;
-    }
-    else
-    {
-        // Scan is not finished, schedule the next ray
-        degreesToNextScan = mAngleStep;
-    }
-
-    if(scheduleNextScan)
-    {
-        // 6000 == 360.0[degress/round] / 60.0[seconds/minute] * 1000.0[milliseconds/second]
-        // We divide by timeFactor because we set intervals and not speeds
-
-        const float realTimeToNextRayMS = (1000.0 / 6.0 / mSpeed * degreesToNextScan) * (1.0 / mTimeFactor);
-
-        //qDebug() << "LaserScanner::slotDoScanStep(): real time to next ray in ms:" << realTimeToNextRayMS;
-
-        if(realTimeToNextRayMS < 1.0) qDebug() << "LaserScanner::slotDoScanStep(): WARNING: realTimeToNextRayMS is " << realTimeToNextRayMS << "which is" << 1.0 / realTimeToNextRayMS << "times below timing resolution.\nPlease set SpeedFactor to at most" << mTimeFactor * realTimeToNextRayMS;
-
-        mTimerScanStep->setInterval((int)realTimeToNextRayMS);
-        mTimerScanStep->start();
-        //QTimer::singleShot((int)realTimeToNextRayMS, SLOT(slotDoScanStep()));
-
-        //qDebug() << "LaserScanner::slotDoScanStep(): done.";
-    }
+    return true;
 }
 
 void LaserScanner::slotPause(void)
 {
-    mTimerScanStep->stop();
+    qDebug() << "LaserScanner::slotPause(): stopping scanner";
+    mTimerScan->stop();
+//    mContinue = false;
 }
 
 void LaserScanner::slotStart(void)
 {
-    mTimerScanStep->start();
+    qDebug() << "LaserScanner::slotStart(): starting scanner timer in thread" << currentThreadId();
+    mTimerScan->start();
 }
 
 Ogre::SceneNode* LaserScanner::getSceneNode(void)
@@ -212,6 +309,7 @@ Ogre::SceneNode* LaserScanner::getSceneNode(void)
 
 void LaserScanner::setTimeFactor(float timeFactor)
 {
+    QMutexLocker locker(&mMutex);
     mTimeFactor = timeFactor;
 }
 
@@ -287,3 +385,8 @@ Ogre::Quaternion LaserScanner::getOrientation(void)
     return mScannerNode->getOrientation();
 }
 
+Ogre::Ray LaserScanner::getCurrentLaserBeam(void)
+{
+    QMutexLocker locker(&mMutex);
+    return mLaserBeam;
+}

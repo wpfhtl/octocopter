@@ -2,8 +2,7 @@
 #define LASERSCANNER_H
 
 #include <QtCore>
-//#include <QObject>
-//#include <QTimer>
+#include <QtNetwork>
 #include <Ogre.h>
 
 #include "simulator.h"
@@ -11,16 +10,24 @@
 #include "coordinateconverter.h"
 
 class Simulator;
+class OgreWidget;
 
-class LaserScanner : public QObject
+class LaserScanner : public QThread, public Ogre::RaySceneQueryListener
 {
     Q_OBJECT
 
 private:
+    // We need to init most members in this thread, not the parent's
+//    bool mInitialized;
+
     Simulator *mSimulator;
 
+    QMutex mMutex;
+
+    QUdpSocket* mUdpSocket;
+
     // We need singleShot functionality, but we also need to be able to pause when simulation is paused.
-    QTimer* mTimerScanStep;
+    QTimer* mTimerScan;
 
     // the scanner's range in meters. This abstract the function between scan-target's size and range
     float mRange;
@@ -31,32 +38,41 @@ private:
     // 0 deg is the rear, 180deg is the front. E.g. hokuyo utm30lx goes from 45 to 315 deg.
     int mAngleStart, mAngleStop;
 
-    // members for visualizing the ray in ogre
-    Ogre::ManualObject* mRayObject;
-    Ogre::SceneNode* mRayNode;
-    Ogre::MaterialPtr mRayMaterial;
-
     // how many degrees between two rays?
     float mAngleStep;
 
     // current angle/status of the current scan. Valid between mAngleStart and mAngleStop
     float mCurrentScanAngle;
 
+    std::string mMaterialName;
+
     // a container for collected rays, or rather the world coordinates of where they ended
     QList<CoordinateGps> mScanData;
 
     float mTimeFactor;
 
+    // We need to be careful with this, as the targets live in other threads
     Ogre::RaySceneQuery *mRaySceneQuery;
     Ogre::SceneNode *mScannerNode;
     OgreWidget *mOgreWidget;
 
+    // This scanner's beam, used for the RSQ
+    Ogre::Ray mLaserBeam;
+
     CoordinateConverter mCoordinateConverter;
+
+    // Cache the scanner position. If it hasn't changed, there's no need to scan again.
+    Ogre::Vector3 mScannerPosition, mScannerPositionPrevious;
+    Ogre::Quaternion mScannerOrientation, mScannerOrientationPrevious;
 
     void testRsqPerformance();
 
+    bool queryResult(Ogre::SceneQuery::WorldFragment *fragment, Ogre::Real distance);
+    bool queryResult(Ogre::MovableObject *obj, Ogre::Real distance);
+
 private slots:
-    void slotDoScanStep(bool visualize = true, bool scheduleNextScan = true);
+    void slotDoScanStep();
+    void slotDoScan(void);
 
 public:
     // Laser rotation is always CCW, angleStart < angleStop
@@ -73,6 +89,13 @@ public:
     ~LaserScanner();
 
     Ogre::SceneNode* getSceneNode(void);
+
+    Ogre::Ray getCurrentLaserBeam(void);
+
+    // Members for visualizing the ray in ogre, used directly by ogrewidget
+    Ogre::ManualObject* mRayObject;
+    Ogre::SceneNode* mRayNode;
+    Ogre::MaterialPtr mRayMaterial;
 
     // Getters for the properties
     float range(void) const;
@@ -94,13 +117,12 @@ public:
 
     void setTimeFactor(float);
 
-signals:
-    void scanFinished(QList<CoordinateGps>);
-
+    void run(void);
 
 public slots:
     void slotStart(void);
     void slotPause(void);
+    void slotSetScannerPose(const Ogre::Vector3 &position, const Ogre::Quaternion &orientation);
 };
 
 #endif

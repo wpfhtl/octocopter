@@ -88,7 +88,11 @@ void Simulator::slotSimulationStart(void)
 
     // Notify all laserscanners
     for(int i=0; i < mLaserScanners->size(); i++)
-        mLaserScanners->at(i)->slotStart();
+    {
+        qDebug() << "Simulator::slotSimulationStart(): queue-starting scanner from thread" << thread()->currentThreadId();
+        Q_ASSERT(QMetaObject::invokeMethod(mLaserScanners->at(i), "slotStart", Qt::QueuedConnection));
+        // mLaserScanners->at(i)->slotStart();
+    }
 }
 
 void Simulator::slotSimulationPause(void)
@@ -100,7 +104,10 @@ void Simulator::slotSimulationPause(void)
 
     // Notify all laserscanners
     for(int i=0; i < mLaserScanners->size(); i++)
-        mLaserScanners->at(i)->slotPause();
+    {
+        Q_ASSERT(QMetaObject::invokeMethod(mLaserScanners->at(i), "slotPause", Qt::QueuedConnection));
+        // mLaserScanners->at(i)->slotPause();
+    }
 }
 
 bool Simulator::isPaused(void) const
@@ -201,4 +208,9 @@ void Simulator::slotScanFinished(QList<CoordinateGps>)
     // TODO: send scanner pose and scanData to network.
     // TODO: no, we need to send a structure holding at least the scanner's position at the beginning and at the end, and the scan itself.
     // TODO: no, we need to send world coordinates instead of simple long ints. Yeah.
+}
+
+CoordinateConverter* Simulator::getCoordinateConverter(void)
+{
+    return mCoordinateConverter;
 }

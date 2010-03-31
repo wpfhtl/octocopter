@@ -13,6 +13,11 @@
 #include <QX11Info>
 #include <QKeyEvent>
 
+#include "simulator.h"
+#include "laserscanner.h"
+
+class Simulator;
+
 class OgreWidget : public QWidget
 {
     Q_OBJECT
@@ -20,7 +25,7 @@ class OgreWidget : public QWidget
 public:
     enum TranslationMode {TRANSLATION_RELATIVE, TRANSLATION_ABSOLUTE};
 
-    OgreWidget(QWidget *parent = 0);
+    OgreWidget(Simulator *simulator);
     ~OgreWidget();
 
     // Override QWidget::paintEngine to return NULL
@@ -33,16 +38,16 @@ public:
     // Creates a scannerNode and attaches a mesh to it.
     Ogre::SceneNode* createScannerNode(const QString name, const Ogre::Vector3 &relativePosition = Ogre::Vector3::ZERO, const Ogre::Quaternion &relativeRotation = Ogre::Quaternion::IDENTITY);
 
+    // returns ogre-world-coordinate-vector.
+    Ogre::Vector3 getVehiclePosition(void) const;
+
+    Ogre::SceneManager* sceneManager();
+
     void createManualObject(
             const QString &name,
             Ogre::ManualObject** manualObject,
             Ogre::SceneNode** sceneNode,
             Ogre::MaterialPtr& material);
-
-    // returns ogre-world-coordinate-vector.
-    Ogre::Vector3 getVehiclePosition(void) const;
-
-    Ogre::SceneManager* sceneManager();
 
 public slots:
     void setBackgroundColor(QColor c);
@@ -57,6 +62,8 @@ public slots:
             const TranslationMode &mode = OgreWidget::TRANSLATION_RELATIVE,
             const Ogre::Node::TransformSpace &transformSpace = Ogre::Node::TS_LOCAL,
             const bool reAimCamera = false);
+
+//    void slotSetLaserScannerRay(const QString &name, const Ogre::Vector3 &start, const Ogre::Vector3 &end);
 
 signals:
     void setupFinished();
@@ -82,10 +89,11 @@ private:
     void loadResources();
     void createScene();
 
+    Simulator* mSimulator;
+
     static const Ogre::Real turboModifier;
     static const QPoint invalidMousePoint;
 
-private:
     mutable QMutex mMutex;
 
     QMap<int, Ogre::Vector3> mKeyCoordinateMapping;
@@ -101,7 +109,13 @@ private:
     QPoint oldPosL, oldPosR;
     bool btnL, btnR;
     int mUpdateTimerId;
+
+//    QHash<QString, QPair<const Ogre::Vector3&, const Ogre::Vector3&> > mRaysCurrent;
     QList<Ogre::SceneNode*> mScannerNodes;
+//    QHash<QString, Ogre::ManualObject*> mRayManualObjects;
+//    QHash<QString, Ogre::SceneNode*> mRayNodes;
+//    QHash<QString, Ogre::MaterialPtr> mRayMaterials;
+
     Ogre::SceneNode *selectedNode;
     Ogre::SceneNode *mCameraNode;
     Ogre::Entity *mVehicleEntity;

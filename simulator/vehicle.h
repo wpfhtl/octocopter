@@ -15,9 +15,11 @@
 
 #include "simulator.h"
 #include "engine.h"
-#include "coordinateconverter.h"
+#include "ogrewidget.h"
+#include <coordinateconverter.h>
 
 class Simulator;
+class OgreWidget;
 
 class Vehicle : public QObject//QThread
 {
