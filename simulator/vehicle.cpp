@@ -42,7 +42,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     qDebug() << "Vehicle::Vehicle(): creating vehicle";
     mVehicleEntity = mOgreWidget->sceneManager()->createEntity("vehicleEntity", "quad.mesh");
     // "vehicleNode" is fixed, used in ogrewidget.cpp
-    mVehicleNode = mOgreWidget->sceneManager()->getRootSceneNode()->createChildSceneNode("vehicleNode", Ogre::Vector3(2,-3,-2), Ogre::Quaternion::IDENTITY);
+    mVehicleNode = mOgreWidget->sceneManager()->getRootSceneNode()->createChildSceneNode("vehicleNode", Ogre::Vector3(150,-10,-150), Ogre::Quaternion::IDENTITY);
     mVehicleNode->attachObject(mVehicleEntity);
 
     //Create shape.

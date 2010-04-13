@@ -10,7 +10,7 @@ OgreWidget::OgreWidget(Simulator *simulator) :
         ogreSceneManager(0),
         ogreRenderWindow(0),
         ogreViewport(0),
-        ogreCamera(0),
+        mCamera(0),
         oldPosL(invalidMousePoint),
         oldPosR(invalidMousePoint),
         btnL(false),
@@ -79,7 +79,7 @@ void OgreWidget::setCameraPosition(const Ogre::Vector3 &vector, const Translatio
     else if(mode == OgreWidget::TRANSLATION_ABSOLUTE)
         mCameraNode->setPosition(vector);
 
-    if(lookAt) ogreCamera->lookAt(lookAt->getPosition());
+    if(lookAt) mCamera->lookAt(lookAt->getPosition());
 
     update();
 
@@ -107,7 +107,7 @@ void OgreWidget::setVehiclePosition(const Ogre::Vector3 &vector, const Translati
 
     if(reAimCamera)
     {
-        ogreCamera->lookAt(mVehicleNode->getPosition());
+        mCamera->lookAt(mVehicleNode->getPosition());
         emit cameraPositionChanged(mCameraNode->getPosition());
     }
 
@@ -137,7 +137,7 @@ void OgreWidget::keyPressEvent(QKeyEvent *e)
     }
     else if(e->key() == Qt::Key_Space)
     {
-        ogreCamera->lookAt(ogreSceneManager->getSceneNode("vehicleNode")->getPosition());
+        mCamera->lookAt(ogreSceneManager->getSceneNode("vehicleNode")->getPosition());
         update();
         e->accept();
     }
@@ -172,7 +172,7 @@ void OgreWidget::mouseDoubleClickEvent(QMouseEvent *e)
         Ogre::Real x = e->pos().x() / (float)width();
         Ogre::Real y = e->pos().y() / (float)height();
 
-        Ogre::Ray ray = ogreCamera->getCameraToViewportRay(x, y);
+        Ogre::Ray ray = mCamera->getCameraToViewportRay(x, y);
         Ogre::RaySceneQuery *query = ogreSceneManager->createRayQuery(ray);
         Ogre::RaySceneQueryResult &queryResult = query->execute();
         Ogre::RaySceneQueryResult::iterator queryResultIterator = queryResult.begin();
@@ -226,7 +226,7 @@ void OgreWidget::mouseMoveEvent(QMouseEvent *e)
             deltaZ *= turboModifier;
         }
 
-        mCameraNode->translate(ogreCamera->getOrientation() * Ogre::Vector3(deltaX/50, -deltaY/50, deltaZ/50), Ogre::Node::TS_LOCAL);
+        mCameraNode->translate(mCamera->getOrientation() * Ogre::Vector3(deltaX/50, -deltaY/50, deltaZ/50), Ogre::Node::TS_LOCAL);
         update();
 
         oldPosL = pos;
@@ -239,8 +239,8 @@ void OgreWidget::mouseMoveEvent(QMouseEvent *e)
         const float diffX = (pos.x() - oldPosR.x()) / 10.0;
         const float diffY = (pos.y() - oldPosR.y()) / 10.0;
 //        qDebug() << "OgreWidget::mouseMoveEvent(): rotating camera:" << diffX << diffY;
-        ogreCamera->yaw(Ogre::Degree(-diffX));
-        ogreCamera->pitch(Ogre::Degree(-diffY));
+        mCamera->yaw(Ogre::Degree(-diffX));
+        mCamera->pitch(Ogre::Degree(-diffY));
         update();
 
         oldPosR = pos;
@@ -334,7 +334,7 @@ void OgreWidget::timerEvent(QTimerEvent * e)
     for(int i=0; i < mKeysPressed.size(); ++i)
     {
         QMap<int, Ogre::Vector3>::iterator keyPressed = mKeyCoordinateMapping.find(mKeysPressed.at(i));
-        if(keyPressed != mKeyCoordinateMapping.end() && ogreCamera)
+        if(keyPressed != mKeyCoordinateMapping.end() && mCamera)
         {
             if(QApplication::keyboardModifiers().testFlag(Qt::ControlModifier))
                 mCameraNode->translate(keyPressed.value() * turboModifier);
@@ -397,10 +397,10 @@ void OgreWidget::resizeEvent(QResizeEvent *e)
             ogreRenderWindow->resize(newSize.width(), newSize.height());
             ogreRenderWindow->windowMovedOrResized();
         }
-        if(ogreCamera)
+        if(mCamera)
         {
             Ogre::Real aspectRatio = Ogre::Real(newSize.width()) / Ogre::Real(newSize.height());
-            ogreCamera->setAspectRatio(aspectRatio);
+            mCamera->setAspectRatio(aspectRatio);
         }
     }
 }
@@ -465,17 +465,21 @@ void OgreWidget::initOgreSystem()
     }
 
     ogreSceneManager = ogreRoot->createSceneManager("TerrainSceneManager"/*Ogre::ST_EXTERIOR_CLOSE*/);
+    ogreSceneManager->showBoundingBoxes(true);
 
-    ogreCamera = ogreSceneManager->createCamera("camera");
-    ogreCamera->setNearClipDistance(.1);
+    mCamera = ogreSceneManager->createCamera("camera");
+    mCamera->setNearClipDistance(.1);
+    mCamera->setPolygonMode(Ogre::PM_WIREFRAME);     /* wireframe */
+    mCamera->setPolygonMode(Ogre::PM_SOLID);         /* solid */
+
 
     mCameraNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode("CameraNode", Ogre::Vector3(0, 12, 15));
-    mCameraNode->attachObject(ogreCamera);
-    ogreCamera->lookAt(0,8,0);
+    mCameraNode->attachObject(mCamera);
+    mCamera->lookAt(0,8,0);
 
-    ogreViewport = ogreRenderWindow->addViewport(ogreCamera);
+    ogreViewport = ogreRenderWindow->addViewport(mCamera);
     ogreViewport->setBackgroundColour(Ogre::ColourValue(0.7, 0.7, 0.7));
-    ogreCamera->setAspectRatio(Ogre::Real(width()) / Ogre::Real(height()));
+    mCamera->setAspectRatio(Ogre::Real(width()) / Ogre::Real(height()));
 
     loadResources();
     createScene();

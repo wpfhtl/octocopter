@@ -67,8 +67,26 @@ private:
 
     void testRsqPerformance();
 
+    // unused for now
     bool queryResult(Ogre::SceneQuery::WorldFragment *fragment, Ogre::Real distance);
     bool queryResult(Ogre::MovableObject *obj, Ogre::Real distance);
+
+    // http://www.ogre3d.org/wiki/index.php/Raycasting_to_the_polygon_level
+    bool raycastFromPoint(const Ogre::Vector3 &point, const Ogre::Vector3 &normal, Ogre::Vector3 &result);
+
+    void getMeshInformation(
+            const Ogre::MeshPtr mesh,
+            size_t &vertex_count,
+            Ogre::Vector3* &vertices,
+            size_t &index_count,
+            unsigned long* &indices,
+            const Ogre::Vector3 &position,
+            const Ogre::Quaternion &orient,
+            const Ogre::Vector3 &scale);
+
+
+
+
 
 private slots:
     void slotDoScanStep();

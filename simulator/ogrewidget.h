@@ -103,7 +103,7 @@ private:
     Ogre::SceneManager  *ogreSceneManager;
     Ogre::RenderWindow  *ogreRenderWindow;
     Ogre::Viewport      *ogreViewport;
-    Ogre::Camera        *ogreCamera;
+    Ogre::Camera        *mCamera;
 
     unsigned int mFrameCount;// currently only used to emit statistics not every frame
     QPoint oldPosL, oldPosR;
