@@ -113,14 +113,14 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
    //      what I can tell, its immovable.
    btVector3 min, max;
    mGroundShape->getAabb(btTransform::getIdentity(), min, max);
-   Ogre::SceneNode *sNode = mOgreWidget->sceneManager()->getSceneNode("Terrain");
-   sNode->setPosition(BtOgre::Convert::toOgre(min));
+//   Ogre::SceneNode *sNode = mOgreWidget->sceneManager()->getSceneNode("Terrain");
+//   sNode->setPosition(BtOgre::Convert::toOgre(min));
 
    // Finally, create your btMotionState, and btRigidBody, and all the rigid body to the physics world.
-   BtOgre::RigidBodyState* terrainState = new BtOgre::RigidBodyState(sNode, btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
-   mGroundBody = new btRigidBody(0, terrainState, mGroundShape, btVector3(0, 0, 0));
+//   BtOgre::RigidBodyState* terrainState = new BtOgre::RigidBodyState(sNode, btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
+//   mGroundBody = new btRigidBody(0, terrainState, mGroundShape, btVector3(0, 0, 0));
 //   mGroundBody->setCollisionFlags(mGroundBody->getCollisionFlags() | btCollisionObject::CF_STATIC_OBJECT);
-   mBtWorld->addRigidBody(mGroundBody, COL_GROUND, COL_NOTHING);
+//   mBtWorld->addRigidBody(mGroundBody, COL_GROUND, COL_NOTHING);
 
    // Debug, add a plane like the tutorial says
 //   btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0,1,0),1);

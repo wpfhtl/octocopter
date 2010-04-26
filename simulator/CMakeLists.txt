@@ -32,8 +32,6 @@ simulationcontrolwidget.h
 ../common/coordinategps.h
 vehicle.h
 ../common/coordinateconverter.h
-#BtOgre/BtOgreExtras.h
-#BtOgre/BtOgreGP.h
 BtOgre/BtOgrePG.h
 )
 
@@ -45,7 +43,6 @@ simulationcontrolwidget.ui
 SET(RESOURCE_FILES
 )
 
-SET(OGRE_LIBRARIES OgreMain)
 SET(BULLET_LIBRARIES bulletcollision bulletdynamics bulletmath bulletsoftbody)
 
 #"Sources" and "Headers" are the group names in Visual Studio.
@@ -53,8 +50,9 @@ SOURCE_GROUP("Sources" FILES ${SRC_FILES})
 SOURCE_GROUP("Headers" FILES ${INC_FILES})
 
 # does not (yet) exist FIND_PACKAGE(BULLET)
-#FIND_PACKAGE(OGRE)
-FIND_PACKAGE(Qt4)
+FIND_PACKAGE(OGRE REQUIRED)
+FIND_PACKAGE(Qt4 REQUIRED)
+
 SET(QT_USE_QTGUI 1)
 SET(QT_USE_QTXML 1)
 SET(QT_USE_QTNETWORK 1)
@@ -67,11 +65,9 @@ QT4_ADD_RESOURCES(RESOURCE_SRCS ${RESOURCE_FILES})
 SET(CMAKE_DEBUG_POSTFIX "_d")
 SET(CMAKE_BUILD_TYPE "Debug")
 
-#include_directories(/usr/include/QtCore/ /usr/include/QtNetwork/ /usr/include/QtGui/ /usr/include/OGRE/ /usr/include/OIS/ /usr/include ${CMAKE_CURRENT_BINARY_DIR})
-include_directories(/usr/include/OGRE/ /usr/include/bullet /usr/include ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
-link_directories(${OGRE_LIBRARY_DIRS})
-add_executable(simulator ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-target_link_libraries(simulator ${QT_LIBRARIES} ${OGRE_LIBRARIES} ${BULLET_LIBRARIES})
+INCLUDE_DIRECTORIES(/usr/include/bullet /usr/include ${OGRE_INCLUDE_DIR} ${OGRE_INCLUDE_DIR}/Paging ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
+ADD_EXECUTABLE(simulator ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
+TARGET_LINK_LIBRARIES(simulator ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${OGRE_Terrain_LIBRARY_NAMES} ${OGRE_RTShaderSystem_LIBRARY_NAMES} ${BULLET_LIBRARIES})
 
 ADD_CUSTOM_TARGET(copymedia ALL COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/media ${CMAKE_CURRENT_BINARY_DIR}/media COMMENT "Copying media files to build directory" VERBATIM)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/plugins.cfg.in ${CMAKE_CURRENT_BINARY_DIR}/plugins.cfg)

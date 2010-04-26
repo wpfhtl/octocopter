@@ -464,8 +464,9 @@ void OgreWidget::initOgreSystem()
         printf("Scene manager type available: %s\n\n",st.c_str());
     }
 
-    ogreSceneManager = ogreRoot->createSceneManager("TerrainSceneManager"/*Ogre::ST_EXTERIOR_CLOSE*/);
-    ogreSceneManager->showBoundingBoxes(true);
+    ogreSceneManager = ogreRoot->createSceneManager(Ogre::ST_GENERIC);
+//    ogreSceneManager = ogreRoot->createSceneManager("TerrainSceneManager"/*Ogre::ST_EXTERIOR_CLOSE*/);
+//    ogreSceneManager->showBoundingBoxes(true);
 
     mCamera = ogreSceneManager->createCamera("camera");
     mCamera->setNearClipDistance(.1);
@@ -482,7 +483,21 @@ void OgreWidget::initOgreSystem()
     mCamera->setAspectRatio(Ogre::Real(width()) / Ogre::Real(height()));
 
     loadResources();
+
+    // Initialize shader generator.
+    // Must be before resource loading in order to allow parsing extended material attributes.
+    bool success = initializeRTShaderSystem(ogreSceneManager);
+    if (!success)
+    {
+        OGRE_EXCEPT(Ogre::Exception::ERR_FILE_NOT_FOUND,
+                    "Shader Generator Initialization failed - Core shader libs path not found",
+                    "SdkSample::_setup");
+    }
+
+
     createScene();
+
+    setupTerrain();
 
     emit setupFinished();
 
@@ -531,7 +546,7 @@ void OgreWidget::createScene()
     qDebug() << "OgreWidget::createScene()";
 //    ogreSceneManager->setAmbientLight(Ogre::ColourValue(1,1,1));
 
-    ogreSceneManager->setWorldGeometry("media/terrain.cfg");
+//    ogreSceneManager->setWorldGeometry("media/terrain.cfg");
 //    ogreSceneManager->getSceneNode("Terrain")->showBoundingBox(true);
 
     qDebug() << "OgreWidget::createScene(): done.";
@@ -575,4 +590,315 @@ void OgreWidget::createManualObject(const QString &name, Ogre::ManualObject** ma
 Ogre::SceneManager* OgreWidget::sceneManager()
 {
     return ogreSceneManager;
+}
+
+
+
+#define TERRAIN_PAGE_MIN_X 0
+#define TERRAIN_PAGE_MIN_Y 0
+#define TERRAIN_PAGE_MAX_X 0
+#define TERRAIN_PAGE_MAX_Y 0
+
+#include "Terrain/OgreTerrain.h"
+#include "Terrain/OgreTerrainGroup.h"
+#include "Terrain/OgreTerrainQuadTreeNode.h"
+#include "Terrain/OgreTerrainMaterialGeneratorA.h"
+#include "Terrain/OgreTerrainPaging.h"
+
+#include "Paging/OgrePagedWorldSection.h"
+#include <RTShaderSystem/OgreShaderGenerator.h>
+
+#define TERRAIN_FILE_PREFIX String("testTerrain")
+#define TERRAIN_FILE_SUFFIX String("dat")
+#define TERRAIN_WORLD_SIZE 12000.0f
+#define TERRAIN_SIZE 513
+
+
+void OgreWidget::setupTerrain()
+{
+        bool blankTerrain = false;
+        //blankTerrain = true;
+
+        mTerrainGlobals = new Ogre::TerrainGlobalOptions();
+
+        mEditMarker = ogreSceneManager->createEntity("editMarker", "sphere.mesh");
+        mEditNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode();
+        mEditNode->attachObject(mEditMarker);
+        mEditNode->setScale(0.05, 0.05, 0.05);
+
+//        setupControls();
+
+//        mCameraMan->setTopSpeed(50);
+
+//        setDragLook(true);
+
+        Ogre::MaterialManager::getSingleton().setDefaultTextureFiltering(Ogre::TFO_ANISOTROPIC);
+        Ogre::MaterialManager::getSingleton().setDefaultAnisotropy(7);
+
+        ogreSceneManager->setFog(Ogre::FOG_LINEAR, Ogre::ColourValue(0.7, 0.7, 0.8), 0, 10000, 25000);
+
+        Ogre::LogManager::getSingleton().setLogDetail(Ogre::LL_BOREME);
+
+        Ogre::Vector3 lightdir(0.55, -0.3, 0.75);
+        lightdir.normalise();
+
+
+        Ogre::Light* l = ogreSceneManager->createLight("tstLight");
+        l->setType(Ogre::Light::LT_DIRECTIONAL);
+        l->setDirection(lightdir);
+        l->setDiffuseColour(Ogre::ColourValue::White);
+        l->setSpecularColour(Ogre::ColourValue(0.4, 0.4, 0.4));
+
+        ogreSceneManager->setAmbientLight(Ogre::ColourValue(0.2, 0.2, 0.2));
+
+
+        mTerrainGroup = new Ogre::TerrainGroup(ogreSceneManager, Ogre::Terrain::ALIGN_X_Z, TERRAIN_SIZE, TERRAIN_WORLD_SIZE);
+        mTerrainGroup->setFilenameConvention(Ogre::TERRAIN_FILE_PREFIX, Ogre::TERRAIN_FILE_SUFFIX);
+        mTerrainGroup->setOrigin(mTerrainPos);
+
+        configureTerrainDefaults(l);
+#ifdef PAGING
+        // Paging setup
+        mPageManager = new PageManager();
+        // Since we're not loading any pages from .page files, we need a way just
+        // to say we've loaded them without them actually being loaded
+        mPageManager->setPageProvider(&mDummyPageProvider);
+        mPageManager->addCamera(mCamera);
+        mTerrainPaging = new Ogre::TerrainPaging(mPageManager);
+        PagedWorld* world = mPageManager->createWorld();
+        mTerrainPaging->createWorldSection(world, mTerrainGroup, 2000, 3000,
+                TERRAIN_PAGE_MIN_X, TERRAIN_PAGE_MIN_Y,
+                TERRAIN_PAGE_MAX_X, TERRAIN_PAGE_MAX_Y);
+#else
+        for (long x = TERRAIN_PAGE_MIN_X; x <= TERRAIN_PAGE_MAX_X; ++x)
+                for (long y = TERRAIN_PAGE_MIN_Y; y <= TERRAIN_PAGE_MAX_Y; ++y)
+                        defineTerrain(x, y, blankTerrain);
+        // sync load since we want everything in place when we start
+        mTerrainGroup->loadAllTerrains(true);
+#endif
+
+        if (mTerrainsImported)
+        {
+                Ogre::TerrainGroup::TerrainIterator ti = mTerrainGroup->getTerrainIterator();
+                while(ti.hasMoreElements())
+                {
+                        Ogre::Terrain* t = ti.getNext()->instance;
+                        initBlendMaps(t);
+                }
+        }
+
+        mTerrainGroup->freeTemporaryResources();
+
+
+
+        // create a few entities on the terrain
+        Ogre::Entity* e = ogreSceneManager->createEntity("tudorhouse.mesh");
+        Ogre::Vector3 entPos(mTerrainPos.x + 2043, 0, mTerrainPos.z + 1715);
+        Ogre::Quaternion rot;
+        entPos.y = mTerrainGroup->getHeightAtWorldPosition(entPos) + 65.5 + mTerrainPos.y;
+        rot.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
+        Ogre::SceneNode* sn = ogreSceneManager->getRootSceneNode()->createChildSceneNode(entPos, rot);
+        sn->setScale(Ogre::Vector3(0.12, 0.12, 0.12));
+        sn->attachObject(e);
+        mHouseList.push_back(e);
+
+        ogreSceneManager->setSkyBox(true, "Examples/CloudyNoonSkyBox");
+
+
+}
+
+void OgreWidget::configureTerrainDefaults(Ogre::Light* l)
+        {
+                // Configure global
+                mTerrainGlobals->setMaxPixelError(8);
+                // testing composite map
+                mTerrainGlobals->setCompositeMapDistance(3000);
+                //mTerrainGlobals->setUseRayBoxDistanceCalculation(true);
+                //mTerrainGlobals->getDefaultMaterialGenerator()->setDebugLevel(1);
+                //mTerrainGlobals->setLightMapSize(256);
+
+                //matProfile->setLightmapEnabled(false);
+                // Important to set these so that the terrain knows what to use for derived (non-realtime) data
+                mTerrainGlobals->setLightMapDirection(l->getDerivedDirection());
+                mTerrainGlobals->setCompositeMapAmbient(ogreSceneManager->getAmbientLight());
+                //mTerrainGlobals->setCompositeMapAmbient(ColourValue::Red);
+                mTerrainGlobals->setCompositeMapDiffuse(l->getDiffuseColour());
+
+                // Configure default import settings for if we use imported image
+                Ogre::Terrain::ImportData& defaultimp = mTerrainGroup->getDefaultImportSettings();
+                defaultimp.terrainSize = TERRAIN_SIZE;
+                defaultimp.worldSize = TERRAIN_WORLD_SIZE;
+                defaultimp.inputScale = 600;
+                defaultimp.minBatchSize = 33;
+                defaultimp.maxBatchSize = 65;
+                // textures
+                defaultimp.layerList.resize(3);
+                defaultimp.layerList[0].worldSize = 100;
+                defaultimp.layerList[0].textureNames.push_back("dirt_grayrocky_diffusespecular.dds");
+                defaultimp.layerList[0].textureNames.push_back("dirt_grayrocky_normalheight.dds");
+                defaultimp.layerList[1].worldSize = 30;
+                defaultimp.layerList[1].textureNames.push_back("grass_green-01_diffusespecular.dds");
+                defaultimp.layerList[1].textureNames.push_back("grass_green-01_normalheight.dds");
+                defaultimp.layerList[2].worldSize = 200;
+                defaultimp.layerList[2].textureNames.push_back("growth_weirdfungus-03_diffusespecular.dds");
+                defaultimp.layerList[2].textureNames.push_back("growth_weirdfungus-03_normalheight.dds");
+
+
+        }
+
+void OgreWidget::defineTerrain(long x, long y, bool flat)
+        {
+                // if a file is available, use it
+                // if not, generate file from import
+
+                // Usually in a real project you'll know whether the compact terrain data is
+                // available or not; I'm doing it this way to save distribution size
+
+                if (flat)
+                {
+                        mTerrainGroup->defineTerrain(x, y, 0.0f);
+                }
+                else
+                {
+                    Ogre::String filename = mTerrainGroup->generateFilename(x, y);
+                        if (Ogre::ResourceGroupManager::getSingleton().resourceExists(mTerrainGroup->getResourceGroup(), filename))
+                        {
+                                mTerrainGroup->defineTerrain(x, y);
+                        }
+                        else
+                        {
+                                Ogre::Image img;
+                                getTerrainImage(x % 2 != 0, y % 2 != 0, img);
+                                mTerrainGroup->defineTerrain(x, y, &img);
+                                mTerrainsImported = true;
+                        }
+
+                }
+        }
+
+void OgreWidget::getTerrainImage(bool flipX, bool flipY, Ogre::Image& img)
+{
+    img.load("terrain.png", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+        if (flipX)
+                img.flipAroundY();
+        if (flipY)
+                img.flipAroundX();
+
+}
+
+void OgreWidget::initBlendMaps(Ogre::Terrain* terrain)
+{
+    Ogre::TerrainLayerBlendMap* blendMap0 = terrain->getLayerBlendMap(1);
+        Ogre::TerrainLayerBlendMap* blendMap1 = terrain->getLayerBlendMap(2);
+        Ogre::Real minHeight0 = 70;
+        Ogre::Real fadeDist0 = 40;
+        Ogre::Real minHeight1 = 70;
+        Ogre::Real fadeDist1 = 15;
+        float* pBlend1 = blendMap1->getBlendPointer();
+        for (Ogre::uint16 y = 0; y < terrain->getLayerBlendMapSize(); ++y)
+        {
+                for (Ogre::uint16 x = 0; x < terrain->getLayerBlendMapSize(); ++x)
+                {
+                        Ogre::Real tx, ty;
+
+                        blendMap0->convertImageToTerrainSpace(x, y, &tx, &ty);
+                        Ogre::Real height = terrain->getHeightAtTerrainPosition(tx, ty);
+                        Ogre::Real val = (height - minHeight0) / fadeDist0;
+                        val = Ogre::Math::Clamp(val, (Ogre::Real)0, (Ogre::Real)1);
+                        //*pBlend0++ = val;
+
+                        val = (height - minHeight1) / fadeDist1;
+                        val = Ogre::Math::Clamp(val, (Ogre::Real)0, (Ogre::Real)1);
+                        *pBlend1++ = val;
+
+
+                }
+        }
+        blendMap0->dirty();
+        blendMap1->dirty();
+        //blendMap0->loadImage("blendmap1.png", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+        blendMap0->update();
+        blendMap1->update();
+
+        // set up a colour map
+        /*
+        if (!terrain->getGlobalColourMapEnabled())
+        {
+                terrain->setGlobalColourMapEnabled(true);
+                Image colourMap;
+                colourMap.load("testcolourmap.jpg", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+                terrain->getGlobalColourMap()->loadImage(colourMap);
+        }
+        */
+
+}
+
+/*-----------------------------------------------------------------------------
+| Initialize the RT Shader system.
+-----------------------------------------------------------------------------*/
+/*virtual*/ bool OgreWidget::initializeRTShaderSystem(Ogre::SceneManager* sceneMgr)
+{
+        if (Ogre::RTShader::ShaderGenerator::initialize())
+        {
+                mShaderGenerator = Ogre::RTShader::ShaderGenerator::getSingletonPtr();
+
+                mShaderGenerator->addSceneManager(sceneMgr);
+
+                // Setup core libraries and shader cache path.
+                qDebug() << "number of resource groups:" << Ogre::ResourceGroupManager::getSingleton().getResourceGroups().size();
+                Ogre::StringVector groupVector = Ogre::ResourceGroupManager::getSingleton().getResourceGroups();
+                Ogre::StringVector::iterator itGroup = groupVector.begin();
+                Ogre::StringVector::iterator itGroupEnd = groupVector.end();
+                Ogre::String shaderCoreLibsPath;
+                Ogre::String shaderCachePath;
+
+                for (; itGroup != itGroupEnd; ++itGroup)
+                {
+                    qDebug() << "now looking in resource group" << QString::fromStdString(*itGroup);
+                        Ogre::ResourceGroupManager::LocationList resLocationsList = Ogre::ResourceGroupManager::getSingleton().getResourceLocationList(*itGroup);
+                        Ogre::ResourceGroupManager::LocationList::iterator it = resLocationsList.begin();
+                        Ogre::ResourceGroupManager::LocationList::iterator itEnd = resLocationsList.end();
+                        bool coreLibsFound = false;
+
+                        // Try to find the location of the core shader lib functions and use it
+                        // as shader cache path as well - this will reduce the number of generated files
+                        // when running from different directories.
+                        for (; it != itEnd; ++it)
+                        {
+                            std::string archiveName = (*it)->archive->getName();
+                            qDebug() << "Now looking for RTShaderLib in" << QString::fromStdString(archiveName);
+                                if ((*it)->archive->getName().find("RTShaderLib") != Ogre::String::npos)
+                                {
+                                        shaderCoreLibsPath = (*it)->archive->getName() + "/";
+                                        shaderCachePath = shaderCoreLibsPath;
+                                        coreLibsFound = true;
+                                        break;
+                                }
+                        }
+                        // Core libs path found in the current group.
+                        if (coreLibsFound)
+                                break;
+                }
+
+                // Core shader libs not found -> shader generating will fail.
+                if (shaderCoreLibsPath.empty())
+                {
+                    qDebug() << "shaderCoreLibsPath.empty()!";
+                    return false;
+                }
+
+#ifdef _RTSS_WRITE_SHADERS_TO_DISK
+                // Set shader cache path.
+                mShaderGenerator->setShaderCachePath(shaderCachePath);
+#endif
+                // Create and register the material manager listener.
+                mMaterialMgrListener = new ShaderGeneratorTechniqueResolverListener(mShaderGenerator);
+                Ogre::MaterialManager::getSingleton().addListener(mMaterialMgrListener);
+        }
+        else
+        {
+            qDebug() << "Ogre::RTShader::ShaderGenerator::initialize() failed.";
+        }
+
+        return true;
 }
