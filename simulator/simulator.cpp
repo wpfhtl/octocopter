@@ -35,7 +35,7 @@ Simulator::Simulator(void) :
     setCentralWidget(mOgreWidget);
     mOgreWidget->show();
 
-    connect(mOgreWidget, SIGNAL(setupFinished()), SLOT(slotAddVehicle()));
+    connect(mOgreWidget, SIGNAL(setupFinished()), SLOT(slotAddVehicle()), Qt::QueuedConnection);
 
     mSimulationControlWidget = new SimulationControlWidget(this, mOgreWidget);
     addDockWidget(Qt::RightDockWidgetArea, mSimulationControlWidget);

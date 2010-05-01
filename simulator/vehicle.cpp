@@ -39,13 +39,27 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     //----------------------------------------------------------
     // Vehicle!
     //----------------------------------------------------------
-    qDebug() << "Vehicle::Vehicle(): creating vehicle";
     mVehicleEntity = mOgreWidget->sceneManager()->createEntity("vehicleEntity", "quad.mesh");
     // "vehicleNode" is fixed, used in ogrewidget.cpp
-    mVehicleNode = mOgreWidget->sceneManager()->getRootSceneNode()->createChildSceneNode("vehicleNode", Ogre::Vector3(150,-10,-150), Ogre::Quaternion::IDENTITY);
+    mVehicleNode = mOgreWidget->sceneManager()->getRootSceneNode()->createChildSceneNode("vehicleNode", Ogre::Vector3(0,0,0), Ogre::Quaternion::IDENTITY);
     mVehicleNode->attachObject(mVehicleEntity);
 
-    //Create shape.
+    // Place the vehicle 10m above the ground
+    Ogre::TerrainGroup::RayResult rayResult = mOgreWidget->mTerrainGroup->rayIntersects(Ogre::Ray(Ogre::Vector3(0,1000,0), Ogre::Vector3::NEGATIVE_UNIT_Y));
+    if(rayResult.hit)
+    {
+        mVehicleNode->setPosition(rayResult.position.x, rayResult.position.y + 10.0, rayResult.position.z);
+        qDebug() << "Vehicle::Vehicle(): creating vehicle, setting to height" << rayResult.position.y + 10.0;
+    }
+
+    // Make camera look at vehicle
+    mOgreWidget->setCameraPosition(
+            mVehicleNode->_getDerivedPosition() + Ogre::Vector3(0,2,10),
+            OgreWidget::TRANSLATION_ABSOLUTE,
+            Ogre::Node::TS_WORLD,
+            mVehicleNode);
+
+    // Create collision shape
     BtOgre::StaticMeshToShapeConverter converter(mVehicleEntity);
     mVehicleShape = converter.createConvex();
 

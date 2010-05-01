@@ -32,4 +32,7 @@ public:
 
 QDebug operator<<(QDebug dbg, const CoordinateGps &c);
 
+QDataStream & operator<<(QDataStream &out, const CoordinateGps &cg); // for writing a cg into a stream
+QDataStream & operator>>(QDataStream &in, CoordinateGps &cg); // for reading from a stream into the cg
+
 #endif

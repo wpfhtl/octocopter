@@ -7,6 +7,8 @@
 #include <QTimer>
 //#include <Ogre.h>
 
+#include <OgreTerrainGroup.h>
+
 #include "BtOgre/BtOgrePG.h"
 #include "BtOgre/BtOgreGP.h"
 #include "BtOgre/BtOgreExtras.h"

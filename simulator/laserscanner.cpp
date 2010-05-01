@@ -8,14 +8,14 @@ LaserScanner::LaserScanner(
         const int angleStart,
         const int angleStop,
         const float angleStep) :
-        mRaySceneQuery(0)
+        mCoordinateConverter(simulator->getCoordinateConverter())
 {
     qDebug() << "LaserScanner::LaserScanner()";
     Q_ASSERT(angleStart < angleStop);
 
     mSimulator = simulator;
     mOgreWidget = ogreWidget;
-    mRange = range;
+    setRange(range); // to also set mRangeSquared
     mSpeed = (float)speed;
     mAngleStart = angleStart;
     mAngleStop = angleStop;
@@ -42,21 +42,21 @@ LaserScanner::LaserScanner(
     mCurrentScanAngle = mAngleStart;
 
     // Get the RaySceneQuery from Ogre
-    mRaySceneQuery = mOgreWidget->createRaySceneQuery();
+//    mRaySceneQuery = mOgreWidget->createRaySceneQuery();
 //    mRaySceneQuery->setSortByDistance(true, 1); // just return the first 1 intersecting element.
-    mRaySceneQuery->setSortByDistance(true);
+//    mRaySceneQuery->setSortByDistance(true);
 //    mRaySceneQuery->setWorldFragmentType(Ogre::SceneQuery::WFT_SINGLE_INTERSECTION);
     // Not sure on this, see http://www.ogre3d.org/wiki/index.php/Intermediate_Tutorial_3#Query_Masks
 //    mRaySceneQuery->setQueryMask(0);
 //    mRaySceneQuery->setQueryMask(Ogre::SceneManager::WORLD_GEOMETRY_TYPE_MASK | Ogre::SceneManager::ENTITY_TYPE_MASK | Ogre::SceneManager::STATICGEOMETRY_TYPE_MASK);
-    mRaySceneQuery->setQueryTypeMask(Ogre::SceneManager::WORLD_GEOMETRY_TYPE_MASK);
-    mRaySceneQuery->setWorldFragmentType(Ogre::SceneQuery::WFT_SINGLE_INTERSECTION);
+//    mRaySceneQuery->setQueryTypeMask(Ogre::SceneManager::WORLD_GEOMETRY_TYPE_MASK);
+//    mRaySceneQuery->setWorldFragmentType(Ogre::SceneQuery::WFT_SINGLE_INTERSECTION);
 
 
-    for(std::set<Ogre::SceneQuery::WorldFragmentType>::const_iterator it=mRaySceneQuery->getSupportedWorldFragmentTypes()->begin();it!=mRaySceneQuery->getSupportedWorldFragmentTypes()->end();it++)
-    {
-        qDebug() << "LaserScanner::LaserScanner(): supported queries:" << *it;
-    }
+//    for(std::set<Ogre::SceneQuery::WorldFragmentType>::const_iterator it=mRaySceneQuery->getSupportedWorldFragmentTypes()->begin();it!=mRaySceneQuery->getSupportedWorldFragmentTypes()->end();it++)
+//    {
+//        qDebug() << "LaserScanner::LaserScanner(): supported queries:" << *it;
+//    }
 
 
 //    qDebug() << "LaserScanner::LaserScanner(): creating manualObjet for ray, my address is" << this;
@@ -135,8 +135,38 @@ void LaserScanner::slotDoScan()
     while(mCurrentScanAngle <= mAngleStop)
     {
         numberOfRays++;
-        qDebug() << "LaserScanner::slotDoScan(): next ray:" << mCurrentScanAngle;
-        slotDoScanStep();
+//        qDebug() << "LaserScanner::slotDoScan(): next ray:" << mCurrentScanAngle;
+        //    Feb 10 [23:03:51] <kernelpanic_> Excuse me, even after reading the Quaternion primer, I can't figure out how to create a new
+        //                                     Ray(mySceneNode.getPosition(), mySceneNode.getOrientation()). ::getOrientation() returns a
+        //                                     Quaternion (I understand that), but Ray wants a Vector3 as direction. Why is that and how do
+        //                                     I convert from Quat to Vector3?
+        //    Feb 10 [23:06:37] <Tenttu> multiple NEGATIVE_UNIT_Z with the quaternion
+        //    Feb 10 [23:06:48] <Landon> kernelpanic_: how about this: http://www.ogre3d.org/forums/viewtopic.php?f=2&t=46750&p=321002&hilit=quaternion
+        //    Feb 10 [23:07:22] <kernelpanic_> Landon: yeah, that sounds like my problem. Thank you, I'm reading
+        //    Feb 10 [23:16:52] <kernelpanic_> Tenttu: why exactly the Z-axis?
+        //    Feb 10 [23:17:44] <Tenttu> it's forward vector
+        //    Feb 10 [23:18:07] <Tenttu> and when you rotate it with the quaternion you get the direction
+        //    Feb 10 [23:18:50] <Tenttu> but camera does have getDirection() though
+        //    Feb 10 [23:19:14] <kernelpanic_> I'm afraid I probably haven't really understood quaternions yet :| I guess I'll read the links referenced in that forum thread.
+
+        // Build a quaternion that represents the laserbeam's current rotation
+        Ogre::Quaternion quatBeamRotation(Ogre::Degree(mCurrentScanAngle), Ogre::Vector3::UNIT_Y);
+        QMutexLocker locker(&mMutex);
+        mLaserBeam.setOrigin(mScannerPosition - Ogre::Vector3(0.0, 0.1, 0.0));
+        mLaserBeam.setDirection(mScannerOrientation * quatBeamRotation * Ogre::Vector3::NEGATIVE_UNIT_Z);
+        locker.unlock();
+
+        Ogre::TerrainGroup::RayResult rayResult = mOgreWidget->mTerrainGroup->rayIntersects(mLaserBeam);
+        if(rayResult.hit && mLaserBeam.getOrigin().squaredDistance(rayResult.position) < mRangeSquared)
+        {
+            mScanData << mCoordinateConverter->convert(rayResult.position);
+
+            // WARNING: distance() IS EXPENSIVE!
+//            qDebug() << "LaserScanner::slotDoScanStep(): I hit a mesh, distance" << mLaserBeam.getOrigin().distance(rayResult.position);
+        }
+
+        // Increase mCurrentScanAngle by mAngleStep for the next laserBeam
+        mCurrentScanAngle += mAngleStep;
 
         gettimeofday(&timeNow, NULL);
 
@@ -155,8 +185,8 @@ void LaserScanner::slotDoScan()
 //    emit scanFinished(mScanData);
     QByteArray datagram;
     QDataStream stream(&datagram, QIODevice::WriteOnly);
-    stream << "test";
-    stream << &mScanData;
+//    stream << "test";
+    stream << mScanData;
     qDebug() << "LaserScanner::slotDoScan(): List size" << mScanData.size() << "UDP packet size:" << datagram.size();
 //    <aep> kernelpanic: and read the hint in the flush() docs.  if it returns false, you need to wait and flush again
 //    <aep> krunk-: ah waitForBytesWritten() works
@@ -191,61 +221,6 @@ void LaserScanner::slotDoScan()
     usleep(std::max(0, (int)timeRest));
 }
 
-void LaserScanner::slotDoScanStep()
-{
-//    qDebug() << "LaserScanner::slotDoScanStep()";
-     // Set up scene query.
-//    Feb 10 [23:03:51] <kernelpanic_> Excuse me, even after reading the Quaternion primer, I can't figure out how to create a new
-//                                     Ray(mySceneNode.getPosition(), mySceneNode.getOrientation()). ::getOrientation() returns a
-//                                     Quaternion (I understand that), but Ray wants a Vector3 as direction. Why is that and how do
-//                                     I convert from Quat to Vector3?
-//    Feb 10 [23:06:37] <Tenttu> multiple NEGATIVE_UNIT_Z with the quaternion
-//    Feb 10 [23:06:48] <Landon> kernelpanic_: how about this: http://www.ogre3d.org/forums/viewtopic.php?f=2&t=46750&p=321002&hilit=quaternion
-//    Feb 10 [23:07:22] <kernelpanic_> Landon: yeah, that sounds like my problem. Thank you, I'm reading
-//    Feb 10 [23:16:52] <kernelpanic_> Tenttu: why exactly the Z-axis?
-//    Feb 10 [23:17:44] <Tenttu> it's forward vector
-//    Feb 10 [23:18:07] <Tenttu> and when you rotate it with the quaternion you get the direction
-//    Feb 10 [23:18:50] <Tenttu> but camera does have getDirection() though
-//    Feb 10 [23:19:14] <kernelpanic_> I'm afraid I probably haven't really understood quaternions yet :| I guess I'll read the links referenced in that forum thread.
-
-    // Build a quaternion that represents the laserbeam's current rotation
-    Ogre::Quaternion quatBeamRotation(Ogre::Degree(mCurrentScanAngle), Ogre::Vector3::UNIT_Y);
-    QMutexLocker locker(&mMutex);
-    mLaserBeam.setOrigin(mScannerPosition - Ogre::Vector3(0.0, 0.1, 0.0));
-    mLaserBeam.setDirection(mScannerOrientation * quatBeamRotation * Ogre::Vector3::NEGATIVE_UNIT_Z);
-    locker.unlock();
-
-    Ogre::Vector3 result;
-    if(raycastFromPoint(mScannerPosition, mLaserBeam.getDirection(), result))
-    {
-        const Ogre::Real distance = mScannerPosition.distance(result);
-        qDebug() << "LaserScanner::slotDoScanStep(): I hit a mesh, distance" << distance;
-    }
-
-//    mRaySceneQuery->setRay(mLaserBeam);
-
-//    mRaySceneQuery->setQueryTypeMask(Ogre::SceneManager::WORLD_GEOMETRY_TYPE_MASK );
-//    mRaySceneQuery->setWorldFragmentType(Ogre::SceneQuery::WFT_SINGLE_INTERSECTION);
-
-    // Perform the scene query
-//    mRaySceneQuery->execute(this);
-
-//    Ogre::RaySceneQueryResult &result = mRaySceneQuery->execute();
-//    Ogre::RaySceneQueryResult::iterator itr = result.begin();
-
-//    if(itr != result.end())
-//    {
-//        if(itr->worldFragment)
-//        qDebug() << "ben:" << itr->distance;
-
-//        mCurrentObject->setPosition(itr->worldFragment->singleIntersection);
-//    }
-
-
-    // Increase mCurrentScanAngle by mAngleStep for the next laserBeam
-    mCurrentScanAngle += mAngleStep;
-}
-
 void LaserScanner::run()
 {
     mUdpSocket = new QUdpSocket;
@@ -268,41 +243,6 @@ void LaserScanner::slotSetScannerPose(const Ogre::Vector3 &position, const Ogre:
     QMutexLocker locker(&mMutex);
     mScannerPosition = position;
     mScannerOrientation = orientation;
-}
-
-bool LaserScanner::queryResult(Ogre::SceneQuery::WorldFragment* /*fragment*/, Ogre::Real distance)
-{
-    // A callback for when the ray hits worldgeometry
-
-    // TODO: This only gets the bounding-box. Extend to the polygons by using
-    // http://www.ogre3d.org/wiki/index.php/Raycasting_to_the_polygon_level
-
-    // Don't save relative coordinates, the scanner's position will change
-    // until the very next iteration. Thus, save world (=gps) coordinates.
-Q_ASSERT(false);
-    qDebug() << "LaserScanner::queryResult(): hit wft at distance of" << distance;
-
-    if(distance > 0.1 && distance <= mRange)
-        mScanData << mCoordinateConverter.convert(mLaserBeam.getPoint(distance));
-    else if(distance < 0.0001)
-        printf(".");
-
-    return true;
-}
-
-bool LaserScanner::queryResult(Ogre::MovableObject* obj, Ogre::Real distance)
-{
-    // A callback for when the ray hits movable objects. Behave as for worldgeometry
-    std::string bop = obj->getName();
-    QString foo(bop.c_str());
-    qDebug() << "LaserScanner::queryResult(): hit mov" << foo << "at distance of" << distance;
-
-    if(distance > 0.1 && distance <= mRange)
-        mScanData << mCoordinateConverter.convert(mLaserBeam.getPoint(distance));
-    else if(distance < 0.0001)
-        printf(":");
-
-    return true;
 }
 
 void LaserScanner::slotPause(void)
@@ -359,6 +299,7 @@ float LaserScanner::angleStep(void) const
 void LaserScanner::setRange(float range)
 {
     mRange = range;
+    mRangeSquared = pow(mRange, 2.0);
 }
 
 void LaserScanner::setSpeed(int speed)
@@ -405,290 +346,5 @@ Ogre::Ray LaserScanner::getCurrentLaserBeam(void)
 {
     QMutexLocker locker(&mMutex);
     return mLaserBeam;
-}
-
-
-
-
-
-
-
-
-
-// Raycasts from a point in to the scene. Returns success or failure.
-// On success the point is returned in the result.
-bool LaserScanner::raycastFromPoint(const Ogre::Vector3 &point, const Ogre::Vector3 &normal, Ogre::Vector3 &result)
-{
-    // create the ray to test
-    Ogre::Ray ray(Ogre::Vector3(point.x, point.y, point.z),
-                  Ogre::Vector3(normal.x, normal.y, normal.z));
-
-//    // check we are initialised
-//    if (mRaySceneQuery != NULL)
-//    {
-//        // create a query object
-        mRaySceneQuery->setRay(ray);
-
-        // execute the query, returns a vector of hits
-        if (mRaySceneQuery->execute().size() <= 0)
-        {
-            // raycast did not hit an objects bounding box
-            qDebug() << "LaserScanner::raycastFromPoint(): RSQ didn't hit anything, not inspecting any meshes.";
-            return (false);
-        }
-//    }
-//    else
-//    {
-//        LOG_ERROR << "Cannot raycast without RaySceneQuery instance" << ENDLOG;
-//        return (false);
-//    }
-
-    // at this point we have raycast to a series of different objects bounding boxes.
-    // we need to test these different objects to see which is the first polygon hit.
-    // there are some minor optimizations (distance based) that mean we wont have to
-    // check all of the objects most of the time, but the worst case scenario is that
-    // we need to test every triangle of every object.
-    Ogre::Real closest_distance = -1.0f;
-    Ogre::Vector3 closest_result;
-    Ogre::RaySceneQueryResult &query_result = mRaySceneQuery->getLastResults();
-    for (size_t qr_idx = 0; qr_idx < query_result.size(); qr_idx++)
-    {
-        qDebug() << "LaserScanner::raycastFromPoint(): Now checking RSQ-result number" << qr_idx;
-        // stop checking if we have found a raycast hit that is closer than all remaining entities
-        if ((closest_distance >= 0.0f) && (closest_distance < query_result[qr_idx].distance))
-        {
-            qDebug() << "LaserScanner::raycastFromPoint(): we have already found the closest hit at" << closest_distance;
-            break;
-        }
-
-        if(query_result[qr_idx].worldFragment)
-        {
-            Ogre::SceneQuery::WorldFragment* wft = query_result[qr_idx].worldFragment;
-            qDebug() << "LaserScanner::raycastFromPoint(): result" << qr_idx << "is a world fragment!";
-
-        }
-
-        Ogre::Entity* ent = static_cast<Ogre::Entity*>(query_result[qr_idx].movable);
-        const Ogre::MeshPtr ptr1 = ent->getMesh();
-        Ogre::String foo = ent->getMovableType();
-        qDebug() << "LaserScanner::raycastFromPoint(): Now checking movable object" << ent->getMovableType().c_str()<< "with name" << ent->getName().c_str() << "parentNode" << query_result[qr_idx].movable->getParentNode()->getName().c_str() << "parentNode" << query_result[qr_idx].movable->getParentNode()->getParent()->getName().c_str() << "parentNode" << query_result[qr_idx].movable->getParentNode()->getParent()->getParent()->getName().c_str() << "parentNode" << query_result[qr_idx].movable->getParentNode()->getParent()->getParent()->getParent()->getName().c_str();
-
-
-        Ogre::SceneNode* scn = mOgreWidget->sceneManager()->getSceneNode(ent->getName());
-        for(int i=0;i<scn->numAttachedObjects();i++)
-        {
-            Ogre::MovableObject* obj1 = scn->getAttachedObject(i);
-            qDebug() << "number"<<i<<"of"<<scn->numAttachedObjects()<<"attached to" << ent->getName().c_str() << "is" << obj1->getName().c_str();
-
-            Ogre::Entity* ent2 = static_cast<Ogre::Entity*>(obj1);
-            qDebug() << "number of subentities" << ent2->getNumSubEntities();
-            const Ogre::MeshPtr ptr = ent2->getMesh();
-            Q_ASSERT(!ptr.isNull());
-
-        }
-        // only check this result if its a hit against an entity
-        if((query_result[qr_idx].movable != NULL) && (query_result[qr_idx].movable->getMovableType().compare("TerrainMipMap") == 17/*0*/))
-        {
-            // get the entity to check
-            Ogre::Entity *pentity = ent;//static_cast<Ogre::Entity*>(query_result[qr_idx].movable);
-
-            // mesh data to retrieve
-            size_t vertex_count;
-            size_t index_count;
-            Ogre::Vector3 *vertices;
-            unsigned long *indices;
-
-            // get the mesh information
-//         getMeshInformation(pentity->getMesh(), vertex_count, vertices, index_count, indices,
-//                              pentity->getParentNode()->getWorldPosition(),
-//                              pentity->getParentNode()->getWorldOrientation(),
-//                              pentity->getParentNode()->_getDerivedScale());
-
-            qDebug() << "LaserScanner::raycastFromPoint(): downloading mesh information";
-            getMeshInformation(pentity->getMesh(), vertex_count, vertices, index_count, indices,
-                              pentity->getParentNode()->_getDerivedPosition(),
-                              pentity->getParentNode()->_getDerivedOrientation(),
-                              pentity->getParentNode()->_getDerivedScale());
-
-            // test for hitting individual triangles on the mesh
-            bool new_closest_found = false;
-            for (int i = 0; i < static_cast<int>(index_count); i += 3)
-            {
-                // check for a hit against this triangle
-                std::pair<bool, Ogre::Real> hit = Ogre::Math::intersects(ray, vertices[indices[i]],
-                    vertices[indices[i+1]], vertices[indices[i+2]], true, false);
-
-                // if it was a hit check if its the closest
-                if (hit.first)
-                {
-                    if ((closest_distance < 0.0f) || (hit.second < closest_distance))
-                    {
-                        // this is the closest so far, save it off
-                        qDebug() << "LaserScanner::raycastFromPoint(): found new closest hit at" << hit.second;
-                        closest_distance = hit.second;
-                        new_closest_found = true;
-                    }
-                }
-            }
-
-         // free the verticies and indicies memory
-            delete[] vertices;
-            delete[] indices;
-
-            // if we found a new closest raycast for this object, update the
-            // closest_result before moving on to the next object.
-            if (new_closest_found)
-            {
-                closest_result = ray.getPoint(closest_distance);
-            }
-        }
-        else
-        {
-            qDebug() << "LaserScanner::raycastFromPoint(): current RSQ result is either not movable or not an entity.";
-        }
-    }
-
-    // return the result
-    if(closest_distance >= 0.0f)
-    {
-        // raycast success
-        result = closest_result;
-        return true;
-    }
-    else
-    {
-        // raycast failed
-        return false;
-    }
-}
-
-
-
-
-// Get the mesh information for the given mesh.
-// Code found in Wiki: www.ogre3d.org/wiki/index.php/RetrieveVertexData
-void LaserScanner::getMeshInformation(
-        const Ogre::MeshPtr mesh,
-        size_t &vertex_count,
-        Ogre::Vector3* &vertices,
-        size_t &index_count,
-        unsigned long* &indices,
-        const Ogre::Vector3 &position,
-        const Ogre::Quaternion &orient,
-        const Ogre::Vector3 &scale)
-{
-    bool added_shared = false;
-    size_t current_offset = 0;
-    size_t shared_offset = 0;
-    size_t next_offset = 0;
-    size_t index_offset = 0;
-
-    vertex_count = index_count = 0;
-
-    // Calculate how many vertices and indices we're going to need
-    for (unsigned short i = 0; i < mesh->getNumSubMeshes(); ++i)
-    {
-        Ogre::SubMesh* submesh = mesh->getSubMesh( i );
-
-        // We only need to add the shared vertices once
-        if(submesh->useSharedVertices)
-        {
-            if( !added_shared )
-            {
-                vertex_count += mesh->sharedVertexData->vertexCount;
-                added_shared = true;
-            }
-        }
-        else
-        {
-            vertex_count += submesh->vertexData->vertexCount;
-        }
-
-        // Add the indices
-        index_count += submesh->indexData->indexCount;
-    }
-
-
-    // Allocate space for the vertices and indices
-    vertices = new Ogre::Vector3[vertex_count];
-    indices = new unsigned long[index_count];
-
-    added_shared = false;
-
-    // Run through the submeshes again, adding the data into the arrays
-    for ( unsigned short i = 0; i < mesh->getNumSubMeshes(); ++i)
-    {
-        Ogre::SubMesh* submesh = mesh->getSubMesh(i);
-
-        Ogre::VertexData* vertex_data = submesh->useSharedVertices ? mesh->sharedVertexData : submesh->vertexData;
-
-        if((!submesh->useSharedVertices)||(submesh->useSharedVertices && !added_shared))
-        {
-            if(submesh->useSharedVertices)
-            {
-                added_shared = true;
-                shared_offset = current_offset;
-            }
-
-            const Ogre::VertexElement* posElem =
-                vertex_data->vertexDeclaration->findElementBySemantic(Ogre::VES_POSITION);
-
-            Ogre::HardwareVertexBufferSharedPtr vbuf =
-                vertex_data->vertexBufferBinding->getBuffer(posElem->getSource());
-
-            unsigned char* vertex =
-                static_cast<unsigned char*>(vbuf->lock(Ogre::HardwareBuffer::HBL_READ_ONLY));
-
-            // There is _no_ baseVertexPointerToElement() which takes an Ogre::Real or a double
-            //  as second argument. So make it float, to avoid trouble when Ogre::Real will
-            //  be comiled/typedefed as double:
-            //      Ogre::Real* pReal;
-            float* pReal;
-
-            for( size_t j = 0; j < vertex_data->vertexCount; ++j, vertex += vbuf->getVertexSize())
-            {
-                posElem->baseVertexPointerToElement(vertex, &pReal);
-
-                Ogre::Vector3 pt(pReal[0], pReal[1], pReal[2]);
-
-                vertices[current_offset + j] = (orient * (pt * scale)) + position;
-            }
-
-            vbuf->unlock();
-            next_offset += vertex_data->vertexCount;
-        }
-
-
-        Ogre::IndexData* index_data = submesh->indexData;
-        size_t numTris = index_data->indexCount / 3;
-        Ogre::HardwareIndexBufferSharedPtr ibuf = index_data->indexBuffer;
-
-        bool use32bitindexes = (ibuf->getType() == Ogre::HardwareIndexBuffer::IT_32BIT);
-
-        unsigned long*  pLong = static_cast<unsigned long*>(ibuf->lock(Ogre::HardwareBuffer::HBL_READ_ONLY));
-        unsigned short* pShort = reinterpret_cast<unsigned short*>(pLong);
-
-
-        size_t offset = (submesh->useSharedVertices)? shared_offset : current_offset;
-
-        // Ogre 1.6 patch (commenting the static_cast...) - index offsets start from 0 for each submesh
-        if ( use32bitindexes )
-        {
-            for ( size_t k = 0; k < numTris*3; ++k)
-            {
-                indices[index_offset++] = pLong[k] /*+ static_cast<unsigned long>(offset)*/;
-            }
-        }
-        else
-        {
-            for ( size_t k = 0; k < numTris*3; ++k)
-            {
-                indices[index_offset++] = static_cast<unsigned long>(pShort[k]) /*+
-                    static_cast<unsigned long>(offset)*/;
-            }
-        }
-
-        ibuf->unlock();
-        current_offset = next_offset;
-    }
+    return Ogre::Ray(mLaserBeam.getOrigin(), mLaserBeam.getDirection());
 }

@@ -4,6 +4,7 @@
 #include <QtCore>
 #include <QtNetwork>
 #include <Ogre.h>
+#include <OgreTerrainGroup.h>
 
 #include "simulator.h"
 #include "ogrewidget.h"
@@ -12,7 +13,7 @@
 class Simulator;
 class OgreWidget;
 
-class LaserScanner : public QThread, public Ogre::RaySceneQueryListener
+class LaserScanner : public QThread//, public Ogre::RaySceneQueryListener
 {
     Q_OBJECT
 
@@ -30,7 +31,7 @@ private:
     QTimer* mTimerScan;
 
     // the scanner's range in meters. This abstract the function between scan-target's size and range
-    float mRange;
+    float mRange, mRangeSquared;
 
     // how fast does the laser rotate in rounds per minute? Storing a float makes following calculations easier.
     float mSpeed;
@@ -52,14 +53,14 @@ private:
     float mTimeFactor;
 
     // We need to be careful with this, as the targets live in other threads
-    Ogre::RaySceneQuery *mRaySceneQuery;
+//    Ogre::RaySceneQuery *mRaySceneQuery;
     Ogre::SceneNode *mScannerNode;
     OgreWidget *mOgreWidget;
 
     // This scanner's beam, used for the RSQ
     Ogre::Ray mLaserBeam;
 
-    CoordinateConverter mCoordinateConverter;
+    CoordinateConverter *mCoordinateConverter;
 
     // Cache the scanner position. If it hasn't changed, there's no need to scan again.
     Ogre::Vector3 mScannerPosition, mScannerPositionPrevious;
@@ -84,12 +85,7 @@ private:
             const Ogre::Quaternion &orient,
             const Ogre::Vector3 &scale);
 
-
-
-
-
 private slots:
-    void slotDoScanStep();
     void slotDoScan(void);
 
 public:
@@ -134,7 +130,6 @@ public:
     void setOrientation(const Ogre::Quaternion &orientation);
 
     void setTimeFactor(float);
-
     void run(void);
 
 public slots:

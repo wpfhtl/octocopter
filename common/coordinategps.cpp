@@ -63,53 +63,53 @@ QString CoordinateGps::toString(void) const
     return QString(
             "Lon " + QString::number(mLongitude, 'f', 0) + "° " +
             QString::number(60.0 * fmod(mLongitude, 1.0), 'f', 0) + "' " +
-            QString::number(3600.0 * fmod(mLongitude, 1.0/60), 'f', 2) + "\" " +
+            QString::number(3600.0 * fmod(mLongitude, 1.0/60), 'f', 5) + "\" " +
 
             "Lat " + QString::number(mLatitude, 'f', 0) + "° " +
             QString::number(60.0 * fmod(mLatitude, 1.0), 'f', 0) + "' " +
-            QString::number(3600.0 * fmod(mLatitude, 1.0/60), 'f', 2) + "\" " +
+            QString::number(3600.0 * fmod(mLatitude, 1.0/60), 'f', 5) + "\" " +
 
-            "Elv " + QString::number(mElevation, 'f', 2) + "m"
+            "Elv " + QString::number(mElevation, 'f', 4) + "m"
             );
 }
 
 QDebug operator<<(QDebug dbg, const CoordinateGps &c)
  {
-     dbg.nospace() << "(" << c.longitude() << ", " << c.latitude() << ", " << c.elevation() << ")";
+//     dbg.nospace() << "CoordinateGps(" << QString::number(c.longitude(), 'f', 8) << ", " << QString::number(c.latitude(), 'f', 8) << ", " << c.elevation() << ")";
+     dbg.nospace() << c.toString();
 
      return dbg.space();
  }
 
-QDataStream& operator>>(QDataStream & stream, CoordinateGps &cg)
+
+// for reading from a stream into the cg
+QDataStream& operator>>(QDataStream &in, CoordinateGps &cg)
 {
+    qDebug() << "QDataStream& operator>>(QDataStream &in, CoordinateGps &cg):" << cg;
     double lon, lat, ele;
-    stream >> lon;
-    stream >> lat;
-    stream >> ele;
-    cg.setLongitude(lon);
-    cg.setLatitude(lat);
-    cg.setElevation(ele);
+    in >> lon;
+    in >> lat;
+    in >> ele;
+//    cg.setLongitude(lon);
+//    cg.setLatitude(lat);
+//    cg.setElevation(ele);
+
+    cg = CoordinateGps(lon, lat, ele);
+
+    return in;
 }
 
-/*
-QDataStream& operator<<(QDataStream& stream, const CoordinateGps &object)
+// for writing a cg into a stream
+QDataStream& operator<<(QDataStream& out, const CoordinateGps &cg)
 {
-    stream << object.longitude();
-    stream << object.latitude();
-    stream << object.elevation();
+    qDebug() << "QDataStream& operator<<(QDataStream &out, const CoordinateGps &cg):" << cg;
+
+    out << cg.longitude() << cg.latitude() << cg.elevation();
+
+    return out;
 }
 
-QDataStream& operator<<(QDataStream& stream, const QList<CoordinateGps> &list)
-{
-    foreach (const CoordinateGps& c, list)
-    {
-        stream << c;
-    }
-//    stream << object.longitude();
-//    stream << object.latitude();
-//    stream << object.elevation();
-}
-*/
+
 
 //<peppe> kernelpanic: like, add these two operators as non-members of your class: QDataStream & operator>> (QDataStream & stream, YourClass & object) , and QDataStream & operator<<(QDataStream& stream, const YourClass & object)
 //<peppe> kernelpanic: then just create a QDataStream operating on a QByteArray and use that to serialize/deserialize your list

@@ -50,7 +50,7 @@ CoordinateGps CoordinateConverter::convert(const Ogre::Vector3 &coordinate) cons
     return cg;
 }
 
-QString CoordinateConverter::formatGpsDegree(const float value)
+QString CoordinateConverter::formatGpsDegree(const float value) const
 {
     QString result;
     const int deg = value;
