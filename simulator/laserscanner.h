@@ -9,6 +9,7 @@
 #include "simulator.h"
 #include "ogrewidget.h"
 #include "coordinateconverter.h"
+#include "lidarpoint.h"
 
 class Simulator;
 class OgreWidget;
@@ -48,7 +49,7 @@ private:
     std::string mMaterialName;
 
     // a container for collected rays, or rather the world coordinates of where they ended
-    QList<CoordinateGps> mScanData;
+    QList<QVector3D> mScanData;
 
     float mTimeFactor;
 

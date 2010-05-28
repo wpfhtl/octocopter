@@ -54,7 +54,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 
     // Make camera look at vehicle
     mOgreWidget->setCameraPosition(
-            mVehicleNode->_getDerivedPosition() + Ogre::Vector3(0,2,10),
+            mVehicleNode->_getDerivedPosition() + Ogre::Vector3(0.0,2.0,-10.0),
             OgreWidget::TRANSLATION_ABSOLUTE,
             Ogre::Node::TS_WORLD,
             mVehicleNode);

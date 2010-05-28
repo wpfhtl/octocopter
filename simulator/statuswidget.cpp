@@ -37,8 +37,8 @@ void StatusWidget::slotUpdatePose(const Ogre::Vector3 &position, const Ogre::Qua
 
     CoordinateGps wgs84 = mCoordinateConverter->convert(position);
 
-    mLabelPoseWgs84Longitude->setText(mCoordinateConverter->formatGpsDegree(wgs84.longitude()));
-    mLabelPoseWgs84Latitude->setText(mCoordinateConverter->formatGpsDegree(wgs84.latitude()));
+    mLabelPoseWgs84Longitude->setText(wgs84.formatGpsDegree(wgs84.longitude()));
+    mLabelPoseWgs84Latitude->setText(wgs84.formatGpsDegree(wgs84.latitude()));
     mLabelPoseWgs84Elevation->setText(QString("%1m").arg(wgs84.elevation(), 3, 'f', 1, QLatin1Char('0')));
 
     const int pitch = rotation.getPitch(true).valueDegrees();

@@ -159,10 +159,16 @@ void LaserScanner::slotDoScan()
         Ogre::TerrainGroup::RayResult rayResult = mOgreWidget->mTerrainGroup->rayIntersects(mLaserBeam);
         if(rayResult.hit && mLaserBeam.getOrigin().squaredDistance(rayResult.position) < mRangeSquared)
         {
-            mScanData << mCoordinateConverter->convert(rayResult.position);
+            // Assuming the laserscanner's position stays pretty much the same within one scan, there's no need
+            // to transmit the direction to the scanner in every hit-packet. So we only send the positions.
+
+            mScanData << QVector3D(rayResult.position.x, rayResult.position.y, rayResult.position.z);
 
             // WARNING: distance() IS EXPENSIVE!
-//            qDebug() << "LaserScanner::slotDoScanStep(): I hit a mesh, distance" << mLaserBeam.getOrigin().distance(rayResult.position);
+            qDebug() << "LaserScanner::slotDoScanStep(): hit @ distance"
+                    << mLaserBeam.getOrigin().distance(rayResult.position)
+                    << "position"
+                    << rayResult.position.x << rayResult.position.y << rayResult.position.z;
         }
 
         // Increase mCurrentScanAngle by mAngleStep for the next laserBeam
@@ -185,9 +191,15 @@ void LaserScanner::slotDoScan()
 //    emit scanFinished(mScanData);
     QByteArray datagram;
     QDataStream stream(&datagram, QIODevice::WriteOnly);
-//    stream << "test";
+
+    // How many hits?
+    stream << (qint32)mScanData.size();
+    // From which position?
+    stream << QVector3D(mScannerPosition.x, mScannerPosition.y, mScannerPosition.z);
+    // Stream the hits
     stream << mScanData;
-    qDebug() << "LaserScanner::slotDoScan(): List size" << mScanData.size() << "UDP packet size:" << datagram.size();
+
+    qDebug() << "LaserScanner::slotDoScan(): List size" << mScanData.size() << "UDP data size:" << datagram.size() << "first 20 bytes:" << datagram.left(20);
 //    <aep> kernelpanic: and read the hint in the flush() docs.  if it returns false, you need to wait and flush again
 //    <aep> krunk-: ah waitForBytesWritten() works
 //    <aep> kernelpanic: ^

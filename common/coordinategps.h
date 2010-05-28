@@ -26,6 +26,7 @@ public:
     void setElevation(const double &elevation);
 
     QString toString(void) const;
+    QString formatGpsDegree(const double value, const int secondPrecision = 2) const;
 
     CoordinateGps& operator=(const CoordinateGps &other);
 };

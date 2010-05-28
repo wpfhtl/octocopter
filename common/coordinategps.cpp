@@ -61,16 +61,20 @@ void CoordinateGps::setElevation(const double &elevation)
 QString CoordinateGps::toString(void) const
 {
     return QString(
-            "Lon " + QString::number(mLongitude, 'f', 0) + "° " +
-            QString::number(60.0 * fmod(mLongitude, 1.0), 'f', 0) + "' " +
-            QString::number(3600.0 * fmod(mLongitude, 1.0/60), 'f', 5) + "\" " +
-
-            "Lat " + QString::number(mLatitude, 'f', 0) + "° " +
-            QString::number(60.0 * fmod(mLatitude, 1.0), 'f', 0) + "' " +
-            QString::number(3600.0 * fmod(mLatitude, 1.0/60), 'f', 5) + "\" " +
-
-            "Elv " + QString::number(mElevation, 'f', 4) + "m"
+            "Lon " + QString::number(mLongitude, 'f', 16) + ", Lat " + QString::number(mLatitude, 'f', 16) + "\n" +
+            "Lon " + formatGpsDegree(mLongitude, 8) + " " +
+            "Lat " + formatGpsDegree(mLatitude, 8) + " " +
+            "Elv " + QString::number(mElevation, 'f', 5) + "m"
             );
+}
+
+QString CoordinateGps::formatGpsDegree(const double value, const int secondPrecision) const
+{
+    QString result;
+//    const int deg = value;
+    const double min = (value-((int)value)) * 60;
+    const double sec = (min - ((int)min)) * 60;
+    return result.sprintf("%d%c %d' %.*f\"", (int)value, 176, (int)min, secondPrecision, sec);
 }
 
 QDebug operator<<(QDebug dbg, const CoordinateGps &c)
@@ -85,7 +89,7 @@ QDebug operator<<(QDebug dbg, const CoordinateGps &c)
 // for reading from a stream into the cg
 QDataStream& operator>>(QDataStream &in, CoordinateGps &cg)
 {
-    qDebug() << "QDataStream& operator>>(QDataStream &in, CoordinateGps &cg):" << cg;
+//    qDebug() << "QDataStream& operator>>(QDataStream &in, CoordinateGps &cg):" << cg;
     double lon, lat, ele;
     in >> lon;
     in >> lat;
@@ -102,9 +106,11 @@ QDataStream& operator>>(QDataStream &in, CoordinateGps &cg)
 // for writing a cg into a stream
 QDataStream& operator<<(QDataStream& out, const CoordinateGps &cg)
 {
-    qDebug() << "QDataStream& operator<<(QDataStream &out, const CoordinateGps &cg):" << cg;
+//    qDebug() << "QDataStream& operator<<(QDataStream &out, const CoordinateGps &cg):" << cg;
 
-    out << cg.longitude() << cg.latitude() << cg.elevation();
+    out << cg.longitude();
+    out << cg.latitude();
+    out << cg.elevation();
 
     return out;
 }

@@ -26,7 +26,7 @@ Simulator::Simulator(void) :
     mTimeSimulationPause = QTime(); // set invalid;
     mTimeSimulationStart = QTime(); // set invalid;
 
-    mCoordinateConverter = new CoordinateConverter(CoordinateGps(53.5592, 9.83, 0));
+    mCoordinateConverter = new CoordinateConverter();
 
     mLaserScanners = new QList<LaserScanner*>;
 
