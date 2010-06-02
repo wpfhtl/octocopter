@@ -4,15 +4,17 @@
 
 Octree* Node::mTree;
 
-unsigned int Node::mMaxItemsPerLeaf = 250;
+unsigned int Node::mMaxItemsPerLeaf = 50;
 unsigned int Node::mNumberOfItems = 0;
 unsigned int Node::mNumberOfNodes = 0;
+
+LidarPoint* Node::mMri1 = 0;
+LidarPoint* Node::mMri2 = 0;
 
 Node::Node(Node* parent, const QVector3D &min, const QVector3D &max) :
         parent(parent),
         min(min),
         max(max)
-//        children(0)
 {
     mNumberOfNodes++;
 
@@ -21,25 +23,16 @@ Node::Node(Node* parent, const QVector3D &min, const QVector3D &max) :
     Q_ASSERT(min.y() < max.y());
     Q_ASSERT(min.z() < max.z());
 //    qDebug() << "Node::Node(): creating Node" << mNumberOfNodes << this << "from" << min << "to" << max;
-
-    // At first, every node is a leaf. Only when it becomes full, it'll convert to a partitioned node.
-//    data = new QList<LidarPoint>;
-
-//    center = min + (max-min)/2.0;
-//    radius = center.d
 }
 
 Node::~Node()
 {
     mNumberOfItems -= data.size();
+    mNumberOfNodes--;
 
     qDeleteAll(data);
-
     qDeleteAll(children);
-
-    mNumberOfNodes--;
 }
-
 
 Node& Node::operator=(const Node &other)
 {
@@ -107,6 +100,62 @@ bool Node::includesData(const LidarPoint &lidarPoint)
     }
 }
 
+bool Node::insertAndReduce(LidarPoint* const lidarPoint)
+{
+    // If there have been to points inserted before, check whether @lidarPoint is close to where
+    // a line from mMri2 to mMri1, extended by the distance from mMri2 to @lidarPoint, would end:
+    //
+    // mMri2 --------------------> mMri1 ----------------------> @lidarPoint
+    //
+    // If it is, delete mMri1, insert lidarPoint and let mMri1 point to lidarPoint.
+    // If not, just insert lidarPoint normally.
+
+    /* the long version:
+        const QVector3D origin = mMri2->position;
+        const QVector3D direction = (mMri1->position - mMri2->position).normalized();
+        const float distanceMri1ToLidarPoint = mMri1->position.distanceToLine(lidarPoint->position, QVector3D());
+        const QVector3D lidarPointAnticipated = origin + (distanceMri1ToLidarPoint * direction.normalized());
+        if((lidarPointAnticipated - lidarPoint->position).lengthSquared() < 0.25)
+            ....
+    */
+
+    if(
+            mMri1
+            &&
+            mMri2
+            &&
+            (mMri2->position + (mMri1->position.distanceToLine(lidarPoint->position, QVector3D()) * (mMri1->position - mMri2->position).normalized()) - lidarPoint->position).lengthSquared() < 3.0
+            )
+    {
+        qDebug() << "Node::insertAndReduce(): sweet, reducing a point." << data.size();
+        // delete mMri1, its on the ray between mMri2 and lidarPoint
+        mMri1->node->deletePoint(mMri1);
+        mMri1 = lidarPoint;
+    }
+    else
+    {
+        qDebug() << "Node::insertAndReduce(): aww, reduction failed, will insert." << data.size();
+        // update the pointers for the next iteration
+        mMri2 = mMri1;
+        mMri1 = lidarPoint;
+    }
+
+    // Probably stupid, but lets start easy: Do not insert if it has N close-by neighbors
+    if(mTree->findNeighborsWithinRadius(lidarPoint->position, 0.1).size() < 3)
+    {
+        data.append(lidarPoint);
+        lidarPoint->node = this;
+        mNumberOfItems++;
+        return true;
+    }
+    else
+    {
+        // We delete the point, as it does not contain much information. Haha.
+        delete lidarPoint;
+        return false;
+    }
+}
+
 Node* Node::insertPoint(LidarPoint* const lidarPoint) // a const pointer to a non-const LidarPoint
 {
     // Insert a lidarPoint. If we are a leaf and we contain the point, go ahead
@@ -115,9 +164,9 @@ Node* Node::insertPoint(LidarPoint* const lidarPoint) // a const pointer to a no
     {
         if(includesPoint(lidarPoint->position))
         {
-            // now insert the lidarPoint
-            data.append(lidarPoint);
-            mNumberOfItems++;
+            // Now insert the lidarPoint. If its found to be of low informational
+            // value, it'll be discarded. In that case, just return.
+            if(!insertAndReduce(lidarPoint)) return 0;
 
             qDebug() << "Node::insertPoint(): point" << lidarPoint->position << "saved, total nodes" << mNumberOfNodes << "items" << mNumberOfItems;
 
@@ -136,7 +185,6 @@ Node* Node::insertPoint(LidarPoint* const lidarPoint) // a const pointer to a no
                     // ... and put it into the correct child. We *could* use that leaf's insertPoint()
                     // here, but that does some unneccessary checks (isLeaf(), includesPoint(), size
                     // check), so we rather move the payload directly.
-
                     //getLeaf(lp->position)->insertPoint(lp);
 
                     // All of the mMaxItemsPerLeaf+1 lidarPoints in this node might have moved down to
@@ -556,68 +604,41 @@ QList<QVector3D> Node::planes(void) const
 void Node::drawGl(void) const
 {
 //    glDisable(GL_LIGHTING);
-    glColor4f(0.1f, 1.0f, 0.9f, 0.2f);
-
-//    unsigned int hops = (uint)*this;
-//GLfloat r = (GLfloat)*(this);
-//GLfloat r = *(float*)this+0;
-//GLfloat g = *(float*)this+1;
-//GLfloat b = *(float*)this+2;
-//    glColor4f(r, g, b, 0.2f);
-    GLint r = (*(int*)(this+4));// % 255;
-    GLint g = (*(int*)(this+2));// % 255;
-    GLint b = (*(int*)(this+3));// % 255;
-//    qDebug() << "rgb is" << r << g << b;
-    glColor4i(r,g,b, 1147483648);
-    glColor4f(0.8, 0.0, 0.0, 0.1);
+//    GLint r = (*(int*)(this+4));// % 255;
+//    GLint g = (*(int*)(this+2));// % 255;
+//    GLint b = (*(int*)(this+3));// % 255;
+//    glColor4i(r,g,b, 1147483648);
+    glColor4f(1,1,1, 0.05);
 
     glBlendFunc(GL_SRC_ALPHA,GL_ONE);
-    glBegin(GL_QUAD_STRIP);
+    glLineWidth(1);
 
-
-
-    // plane 0
+    glBegin(GL_LINE_LOOP);
+    glVertex3f(min.x(), min.y(), min.z()); // 0
+    glVertex3f(max.x(), min.y(), min.z()); // 1
+    glVertex3f(max.x(), min.y(), max.z()); // 2
+    glVertex3f(min.x(), min.y(), max.z()); // 3
     glVertex3f(min.x(), min.y(), min.z()); // 0
     glVertex3f(min.x(), max.y(), min.z()); // 4
-
-    // plane 0/1
-    glVertex3f(max.x(), min.y(), min.z()); // 1
     glVertex3f(max.x(), max.y(), min.z()); // 5
-
-//    glColor4f(0.3f, 0.4f, 0.3f, 0.9f);
-
-    // plane 1/2
-    glVertex3f(max.x(), min.y(), max.z()); // 2
     glVertex3f(max.x(), max.y(), max.z()); // 6
-
-    // plane 2/3
-    glVertex3f(min.x(), min.y(), max.z()); // 3
     glVertex3f(min.x(), max.y(), max.z()); // 7
-
-    // plane 3/0
-    glVertex3f(min.x(), min.y(), min.z()); // 0
     glVertex3f(min.x(), max.y(), min.z()); // 4
     glEnd();
 
-//    glColor4f(0.4f, 0.2f, 0.8f, 0.4f);
-    glBlendFunc(GL_SRC_ALPHA,GL_ONE);
-    glBegin(GL_QUADS);
-
-    // plane 4
-    glVertex3f(min.x(), max.y(), min.z()); // 4
+    glBegin(GL_LINE_LOOP);
+    glVertex3f(max.x(), min.y(), min.z()); // 1
     glVertex3f(max.x(), max.y(), min.z()); // 5
     glVertex3f(max.x(), max.y(), max.z()); // 6
-    glVertex3f(min.x(), max.y(), max.z()); // 7
-
-    // plane 5
-    glVertex3f(min.x(), min.y(), min.z()); // 0
-    glVertex3f(max.x(), min.y(), min.z()); // 1
     glVertex3f(max.x(), min.y(), max.z()); // 2
     glVertex3f(min.x(), min.y(), max.z()); // 3
+    glVertex3f(min.x(), max.y(), max.z()); // 7
+    glVertex3f(max.x(), max.y(), max.z()); // 6
+    glVertex3f(max.x(), max.y(), min.z()); // 5
     glEnd();
 
     glLineWidth(1);
-    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+    glColor4f(1.0f, 1.0f, 0.0f, 1.0f);
     glBegin(GL_POINTS);
 
     foreach(const LidarPoint* const p, data)
@@ -628,4 +649,33 @@ void Node::drawGl(void) const
 
     foreach(const Node* const n, children)
         n->drawGl();
+}
+
+bool Node::deletePoint(LidarPoint* const lidarPoint)
+{
+    for(int i=0;i<data.size();i++)
+    {
+        if(data.at(i) == lidarPoint)
+        {
+            delete data.takeAt(i);
+            mNumberOfItems--;
+            return true;
+        }
+    }
+    return false;
+}
+
+// delete the point at this position
+bool Node::deletePoint(const LidarPoint &lidarPoint)
+{
+    for(int i=0;i<data.size();i++)
+    {
+        if(data.at(i)->position == lidarPoint.position)
+        {
+            delete data.takeAt(i);
+            mNumberOfItems--;
+            return true;
+        }
+    }
+    return false;
 }

@@ -14,6 +14,7 @@ Triangulator::Triangulator() : QMainWindow()
 //    qDebug() << "float:" << sizeof(float);
 //    qDebug() << "double:" << sizeof(double);
 //    qDebug() << "QVector3D:" << sizeof(QVector3D);
+    qDebug() << "pointer:" << sizeof(QVector3D*);
     connect(mUdpSocket, SIGNAL(readyRead()), SLOT(slotReadSocket()));
     connect(mUdpSocket, SIGNAL(error(QAbstractSocket::SocketError)), SLOT(slotSocketError(QAbstractSocket::SocketError)));
 
@@ -77,6 +78,7 @@ void Triangulator::slotReadSocket()
 
         mUdpSocket->readDatagram(datagram.data(), datagram.size());
         mIncomingDataBuffer.append(datagram);
+        qDebug() << "Triangulator::slotReadSocket(): appending" << datagram.size() << "bytes to incoming-buffer, which now has" << mIncomingDataBuffer.size() << "bytes";
     }
 
     processIncomingData();
@@ -121,12 +123,19 @@ void Triangulator::processIncomingData()
     stream >> scannerPosition;
     stream >> pointList;
 
-    Q_ASSERT(numberOfHitsToReceive == pointList.size());
+    // Why does tha data have twice the calculated size?
+    int numberOfBytesToReceive = 2 * (sizeof(qint32) + (numberOfHitsToReceive + 1) * sizeof(QVector3D));
+
+//    Q_ASSERT(numberOfHitsToReceive == pointList.size());
 
     foreach(const QVector3D &p, pointList)
     {
         mOctree->insertPoint(new LidarPoint(p, (p-scannerPosition).normalized(), (p-scannerPosition).lengthSquared()));
     }
+
+    mIncomingDataBuffer.remove(0, numberOfBytesToReceive);
+
+    mGlWidget->update();
 
     qDebug() << "appended" << pointList.size() << "points to octree.";
 }

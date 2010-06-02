@@ -9,7 +9,6 @@
 #include "simulator.h"
 #include "ogrewidget.h"
 #include "coordinateconverter.h"
-#include "lidarpoint.h"
 
 class Simulator;
 class OgreWidget;

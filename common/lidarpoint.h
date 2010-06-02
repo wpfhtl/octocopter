@@ -3,6 +3,10 @@
 
 #include <QVector3D>
 
+#include "node.h"
+
+class Node;
+
 class LidarPoint : public QObject
 {
     Q_OBJECT
@@ -13,6 +17,9 @@ public:
 
     LidarPoint& operator=(const LidarPoint &other);
     bool operator==(const LidarPoint &other) const;
+
+    // The node that we live in. This pointer is set by the node when it swallows us.
+    Node* node;
 
     // Position is position of detectted object, direction is from
     // that object back to the laserscanner. The direction of the

@@ -16,7 +16,6 @@ laserscanner
 statuswidget
 simulationcontrolwidget
 ../common/coordinategps
-../common/lidarpoint
 vehicle
 ../common/coordinateconverter
 BtOgre/BtOgre.cpp
@@ -31,7 +30,6 @@ laserscanner.h
 statuswidget.h
 simulationcontrolwidget.h
 ../common/coordinategps.h
-../common/lidarpoint.h
 vehicle.h
 ../common/coordinateconverter.h
 BtOgre/BtOgrePG.h

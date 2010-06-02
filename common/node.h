@@ -15,7 +15,9 @@ public:
     static unsigned int mMaxItemsPerLeaf;
     static unsigned int mNumberOfItems;
     static unsigned int mNumberOfNodes;
+    static LidarPoint *mMri1, *mMri2; // pointers to the two most-recently inserted lidarPoints.
     static Octree* mTree;
+    QVector<LidarPoint*> mLastInsertedPoint;
 
     // For leaf-nodes, a list of its data. Must be 0 for non-leaf-nodes
     QList<LidarPoint*> data;
@@ -48,6 +50,14 @@ public:
     bool includesData(const LidarPoint &lidarPoint);
     Node* insertPoint(LidarPoint* const lidarPoint);
     bool isLeaf(void) const;
+
+    bool insertAndReduce(LidarPoint* const lidarPoint);
+
+    // delete the point at this memory address
+    bool deletePoint(LidarPoint* const lidarPoint);
+
+    // delete the point at this position
+    bool deletePoint(const LidarPoint &lidarPoint);
 
     // Returns this Node's size
     QVector3D size(void) const;
