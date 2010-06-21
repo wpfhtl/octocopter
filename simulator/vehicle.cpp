@@ -8,6 +8,10 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     mSimulator = simulator;
     mOgreWidget = ogreWidget;
 
+    // create joystick
+    mJoystick = new Joystick();
+    qDebug() << "Vehicle::Vehicle(): initialized joystick, isvalid():" << mJoystick->isValid();
+
     mTimerUpdatePosition = new QTimer(this);
     mTimerUpdatePosition->setInterval(1000/25);
     connect(mTimerUpdatePosition, SIGNAL(timeout()), SLOT(slotUpdatePosition()));
@@ -199,9 +203,40 @@ void Vehicle::slotUpdatePosition(void)
     const Ogre::Vector3 vectorToTarget = mVehicleNode->_getDerivedPosition() - mNextWayPoint;
 //    const float yawToTarget = mVehicleNode->_getDerivedOrientation().getYaw();
 
+    float joyX, joyY, joyZ, joyR;
+    mJoystick->getValues(joyX, joyY, joyZ, joyR);
+
+    // Set motor-base-speed according to thrust between 0 and 40000
+    int f = (joyR + 1.0) * 15000;
+    int b = f;
+    int l = f;
+    int r = f;
+    qDebug() << "joyVals\t\t" << joyX << joyY << joyZ << joyR;
+    qDebug() << "baseSpeed\t" << f << b << l << r;
+
+    const int maxSteeringPitchRoll = 5000;
+    const int maxSteeringYaw = 2500;
+
+    // When stick goes right, joyX goes up => l+ r-
+    l += (maxSteeringPitchRoll * joyX);
+    r -= (maxSteeringPitchRoll * joyX);
+
+    // When stick goes forward, joyY goes up => b+ f-
+    b += (maxSteeringPitchRoll * joyY);
+    f -= (maxSteeringPitchRoll * joyY);
+
+    // When stick is yawed...
+    f += (maxSteeringYaw * -joyZ);
+    b += (maxSteeringYaw * -joyZ);
+    l -= (maxSteeringYaw * -joyZ);
+    r -= (maxSteeringYaw * -joyZ);
+
+//    qDebug() << "endSpeed\t" << f << b << l << r << endl;
+
+
     QList<int> motorSpeeds;
     // motorSpeeds << front << back << left << right
-    motorSpeeds << 16000 << 16000 << -15000 << -16000;
+    motorSpeeds << f << b << -l << -r;
 
     slotSetMotorSpeeds(motorSpeeds);
 
@@ -227,9 +262,11 @@ void Vehicle::slotSetMotorSpeeds(const QList<int> &speeds)
 
     for(int i=0;i<speeds.size();++i)
     {
-        const btVector3 thrust = mEngines.at(i).calculateThrust(speeds.at(i));
+        const btVector3 thrustScalar = mEngines.at(i).calculateThrust(speeds.at(i));
+        const Ogre::Vector3 thrustVectorOgre = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(thrustScalar.x(), thrustScalar.y(), thrustScalar.z());
+        const btVector3 thrustVectorBt(thrustVectorOgre.x, thrustVectorOgre.y, thrustVectorOgre.z);
         const btVector3 position = mEngines.at(i).getPosition();
-        mVehicleBody->applyForce(thrust, position);
+        mVehicleBody->applyForce(thrustVectorBt, position);
 //        qDebug() << "Vehicle::slotSetMotorSpeeds(): thrust" << i << thrust.x() << thrust.y() << thrust.z() << "at" << position.x() << position.y() << position.z();
 
         const btVector3 torque = mEngines.at(i).calculateTorque(speeds.at(i));

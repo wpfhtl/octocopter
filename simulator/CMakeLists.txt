@@ -12,13 +12,14 @@ simulator
 ogrewidget
 battery
 engine
+joystick
 laserscanner
 statuswidget
 simulationcontrolwidget
 ../common/coordinategps
 vehicle
 ../common/coordinateconverter
-BtOgre/BtOgre.cpp
+BtOgre/BtOgre
 )
 
 SET(INC_FILES
@@ -26,6 +27,7 @@ simulator.h
 ogrewidget.h
 battery.h
 engine.h
+joystick.h
 laserscanner.h
 statuswidget.h
 simulationcontrolwidget.h

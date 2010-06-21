@@ -18,6 +18,7 @@
 #include "simulator.h"
 #include "engine.h"
 #include "ogrewidget.h"
+#include "joystick.h"
 #include <coordinateconverter.h>
 
 class Simulator;
@@ -44,6 +45,7 @@ private:
     Ogre::Vector3 mNextWayPoint;
     OgreWidget* mOgreWidget;
     QList<Engine> mEngines;
+    Joystick *mJoystick;
 
 protected:
     btAxisSweep3 *mBtBroadphase;
