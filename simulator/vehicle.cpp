@@ -207,14 +207,14 @@ void Vehicle::slotUpdatePosition(void)
     mJoystick->getValues(joyX, joyY, joyZ, joyR);
 
     // Set motor-base-speed according to thrust between 0 and 40000
-    int f = (joyR + 1.0) * 15000;
+    int f = (-joyR + 1.0) * 15000;
     int b = f;
     int l = f;
     int r = f;
-    qDebug() << "joyVals\t\t" << joyX << joyY << joyZ << joyR;
-    qDebug() << "baseSpeed\t" << f << b << l << r;
+//    qDebug() << "joyVals\t\t" << joyX << joyY << joyZ << joyR;
+//    qDebug() << "baseSpeed\t" << f << b << l << r;
 
-    const int maxSteeringPitchRoll = 5000;
+    const int maxSteeringPitchRoll = 10000;
     const int maxSteeringYaw = 2500;
 
     // When stick goes right, joyX goes up => l+ r-
@@ -231,7 +231,7 @@ void Vehicle::slotUpdatePosition(void)
     l -= (maxSteeringYaw * -joyZ);
     r -= (maxSteeringYaw * -joyZ);
 
-//    qDebug() << "endSpeed\t" << f << b << l << r << endl;
+    qDebug() << "endSpeed\t" << f << b << l << r << endl;
 
 
     QList<int> motorSpeeds;
@@ -267,7 +267,7 @@ void Vehicle::slotSetMotorSpeeds(const QList<int> &speeds)
         const btVector3 thrustVectorBt(thrustVectorOgre.x, thrustVectorOgre.y, thrustVectorOgre.z);
         const btVector3 position = mEngines.at(i).getPosition();
         mVehicleBody->applyForce(thrustVectorBt, position);
-//        qDebug() << "Vehicle::slotSetMotorSpeeds(): thrust" << i << thrust.x() << thrust.y() << thrust.z() << "at" << position.x() << position.y() << position.z();
+        qDebug() << "Vehicle::slotSetMotorSpeeds(): thrust" << i << thrustVectorOgre.x << thrustVectorOgre.y << thrustVectorOgre.z << "at" << position.x() << position.y() << position.z();
 
         const btVector3 torque = mEngines.at(i).calculateTorque(speeds.at(i));
         mVehicleBody->applyTorque(torque);
