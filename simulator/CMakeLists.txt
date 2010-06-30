@@ -14,8 +14,9 @@ battery
 engine
 joystick
 laserscanner
+camera
 statuswidget
-simulationcontrolwidget
+dialogconfiguration
 ../common/coordinategps
 vehicle
 ../common/coordinateconverter
@@ -29,8 +30,9 @@ battery.h
 engine.h
 joystick.h
 laserscanner.h
+camera.h
 statuswidget.h
-simulationcontrolwidget.h
+dialogconfiguration.h
 ../common/coordinategps.h
 vehicle.h
 ../common/coordinateconverter.h
@@ -38,9 +40,8 @@ BtOgre/BtOgrePG.h
 )
 
 SET(UI_FILES
-configuration.ui
+dialogconfiguration.ui
 statuswidget.ui
-simulationcontrolwidget.ui
 )
 
 SET(RESOURCE_FILES

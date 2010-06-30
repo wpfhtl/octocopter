@@ -10,18 +10,7 @@ Simulator::Simulator(void) :
     qDebug() << "Simulator::Simulator()";
     QMutexLocker locker(&mMutex);
 
-    /* testing quats
-    btQuaternion btq(deg2rad(0),deg2rad(10),deg2rad(0));
-    btVector3 btv(0,0,0);
-    Engine e(btTransform(btq, btv), this);
-    btVector3 thrust = e.calculateThrust(10000);
-    qDebug() << "qaxis:" << btq.getAxis().x() << btq.getAxis().y() << btq.getAxis().z();
-    qDebug() << "qangle:" << btq.getAngle();
-    qDebug() << "thrust:" << thrust.x() << thrust.y() << thrust.z();
-    exit(0);
-    */
-
-    resize(1027, 900);
+    resize(1024, 768);
 
     mTimeSimulationPause = QTime(); // set invalid;
     mTimeSimulationStart = QTime(); // set invalid;
@@ -29,43 +18,39 @@ Simulator::Simulator(void) :
     mCoordinateConverter = new CoordinateConverter();
 
     mLaserScanners = new QList<LaserScanner*>;
+    mCameras = new QList<Camera*>;
 
     mOgreWidget = new OgreWidget(this);
     mOgreWidget->setFocus();
     setCentralWidget(mOgreWidget);
     mOgreWidget->show();
 
-    connect(mOgreWidget, SIGNAL(setupFinished()), SLOT(slotAddVehicle()), Qt::QueuedConnection);
-
-    mSimulationControlWidget = new SimulationControlWidget(this, mOgreWidget);
-    addDockWidget(Qt::RightDockWidgetArea, mSimulationControlWidget);
-    connect(mSimulationControlWidget, SIGNAL(simulationStart()), SLOT(slotSimulationStart()));
-    connect(mSimulationControlWidget, SIGNAL(simulationPause()), SLOT(slotSimulationPause()));
-    connect(mSimulationControlWidget, SIGNAL(timeFactorChanged(double)), SLOT(slotSetTimeFactor(double)));
+    connect(mOgreWidget, SIGNAL(setupFinished()), SLOT(slotOgreInitialized()), Qt::QueuedConnection);
 
     mBattery = new Battery(this, 12.0, 4.0);
     mBattery->setDischargeCurrent(20.0);
-    connect(mSimulationControlWidget, SIGNAL(timeFactorChanged(double)), mBattery, SLOT(slotSetTimeFactor(double)));
 
-    mTimeFactor = mSimulationControlWidget->getTimeFactor();
-
-    mStatusWidget = new StatusWidget(this, mBattery, mCoordinateConverter);
+    mStatusWidget = new StatusWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mStatusWidget);
+    connect(mStatusWidget, SIGNAL(simulationStart()), SLOT(slotSimulationStart()));
+    connect(mStatusWidget, SIGNAL(simulationPause()), SLOT(slotSimulationPause()));
+    connect(mStatusWidget, SIGNAL(timeFactorChanged(double)), SLOT(slotSetTimeFactor(double)));
+    connect(mStatusWidget, SIGNAL(timeFactorChanged(double)), mBattery, SLOT(slotSetTimeFactor(double)));
     connect(mOgreWidget, SIGNAL(currentRenderStatistics(QSize,int,float)), mStatusWidget, SLOT(slotUpdateVisualization(QSize, int, float)));
+
+    mTimeFactor = mStatusWidget->getTimeFactor();
 }
 
-void Simulator::slotAddVehicle(void)
+void Simulator::slotOgreInitialized(void)
 {
-        mVehicle = new Vehicle(this, mOgreWidget);
+    // Vehicle creates SceneNode and Entity in OgreWidget. But OgreWidget is not initialized after instatiation, but only when
+    // the window is initialized. Thus, vehicle needs to be created after ogreWidget initialization.
+    mVehicle = new Vehicle(this, mOgreWidget);
+    connect(mVehicle, SIGNAL(newPose(const Ogre::Vector3&, const Ogre::Quaternion&)), mStatusWidget, SLOT(slotUpdatePose(const Ogre::Vector3&, const Ogre::Quaternion&)));
 
-        connect(mVehicle, SIGNAL(newPose(const Ogre::Vector3&, const Ogre::Quaternion&)), mStatusWidget, SLOT(slotUpdatePose(const Ogre::Vector3&, const Ogre::Quaternion&)));
-
-        qDebug() << "Simulator::Simulator(): starting vehicle thread.";
-    //    mVehicle->start();
-
-        // start a trip!
-        CoordinateConverter cc;
-    //    mVehicle->slotSetNextWayPoint(cc.convert(Ogre::Vector3(200, 200, -1000)));
+    // Same thing for StatusWidget, which has the configuration window. Tell it to read the config only after ogre
+    // is initialized, so it can create cameras and laserscanners.
+    mStatusWidget->mDialogConfiguration->slotReadConfiguration();
 }
 
 void Simulator::slotSimulationStart(void)
@@ -90,8 +75,14 @@ void Simulator::slotSimulationStart(void)
     for(int i=0; i < mLaserScanners->size(); i++)
     {
         qDebug() << "Simulator::slotSimulationStart(): queue-starting scanner from thread" << thread()->currentThreadId();
-        Q_ASSERT(QMetaObject::invokeMethod(mLaserScanners->at(i), "slotStart", Qt::QueuedConnection));
-        // mLaserScanners->at(i)->slotStart();
+        QMetaObject::invokeMethod(mLaserScanners->at(i), "slotStart", Qt::QueuedConnection);
+    }
+
+    // Notify all cameras
+    for(int i=0; i < mCameras->size(); i++)
+    {
+        qDebug() << "Simulator::slotSimulationStart(): queue-starting camera from thread" << thread()->currentThreadId();
+        QMetaObject::invokeMethod(mCameras->at(i), "slotStart", Qt::QueuedConnection);
     }
 }
 
@@ -104,10 +95,11 @@ void Simulator::slotSimulationPause(void)
 
     // Notify all laserscanners
     for(int i=0; i < mLaserScanners->size(); i++)
-    {
-        Q_ASSERT(QMetaObject::invokeMethod(mLaserScanners->at(i), "slotPause", Qt::QueuedConnection));
-        // mLaserScanners->at(i)->slotPause();
-    }
+        QMetaObject::invokeMethod(mLaserScanners->at(i), "slotPause", Qt::QueuedConnection);
+
+    // Notify all cameras
+    for(int i=0; i < mCameras->size(); i++)
+        QMetaObject::invokeMethod(mCameras->at(i), "slotPause", Qt::QueuedConnection);
 }
 
 bool Simulator::isPaused(void) const
@@ -210,7 +202,7 @@ void Simulator::slotScanFinished(QList<CoordinateGps>)
     // TODO: no, we need to send world coordinates instead of simple long ints. Yeah.
 }
 
-CoordinateConverter* Simulator::getCoordinateConverter(void)
-{
-    return mCoordinateConverter;
-}
+//CoordinateConverter* Simulator::getCoordinateConverter(void)
+//{
+//    return mCoordinateConverter;
+//}

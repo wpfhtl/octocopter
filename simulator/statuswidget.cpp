@@ -1,12 +1,19 @@
 #include "statuswidget.h"
 
-StatusWidget::StatusWidget(QWidget *parent, Battery* battery, CoordinateConverter* coordinateConverter) : QDockWidget(parent)
+StatusWidget::StatusWidget(Simulator *simulator) : QDockWidget((QWidget*)simulator)
 {
     setupUi(this);
 
-    mCoordinateConverter = coordinateConverter;
+    // Wire up the time-box
+    connect(mSpinBoxTimeFactor, SIGNAL(valueChanged(double)), SIGNAL(timeFactorChanged(double)));
+    connect(mBtnStart, SIGNAL(clicked()), SLOT(slotSimulationStarted()));
+    connect(mBtnPause, SIGNAL(clicked()), SLOT(slotSimulationPaused()));
 
-    mBattery = battery;
+    connect(mBtnConfiguration, SIGNAL(clicked()), SLOT(slotShowConfiguration()));
+
+    mSimulator = simulator;
+    mCoordinateConverter = mSimulator->mCoordinateConverter;
+    mBattery = mSimulator->mBattery;
 
     connect(mBattery, SIGNAL(chargeStatusChanged(int)), SLOT(slotUpdateBattery(int)));
 
@@ -14,6 +21,34 @@ StatusWidget::StatusWidget(QWidget *parent, Battery* battery, CoordinateConverte
     mLabelBatteryEnergy->setText(QString::number(mBattery->capacity(), 'g', 2) + " Ah");
 
     mCompass->setStyle(new QPlastiqueStyle);
+
+    mDialogConfiguration = new DialogConfiguration(mSimulator);
+}
+
+void StatusWidget::slotSimulationStarted()
+{
+    mBtnPause->setEnabled(true);
+    mBtnStart->setEnabled(false);
+
+    emit simulationStart();
+}
+
+void StatusWidget::slotSimulationPaused()
+{
+    mBtnPause->setEnabled(false);
+    mBtnStart->setEnabled(true);
+
+    emit simulationPause();
+}
+
+double StatusWidget::getTimeFactor() const
+{
+    return mSpinBoxTimeFactor->value();
+}
+
+void StatusWidget::slotShowConfiguration()
+{
+    mDialogConfiguration->show();
 }
 
 void StatusWidget::slotUpdateBattery(const int chargeStateInPercent)

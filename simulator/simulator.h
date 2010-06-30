@@ -11,8 +11,8 @@
 #include "battery.h"
 #include "vehicle.h"
 #include "laserscanner.h"
+#include "camera.h"
 #include "statuswidget.h"
-#include "simulationcontrolwidget.h"
 #include "coordinateconverter.h"
 
 #include "engine.h"
@@ -22,8 +22,9 @@
 #define rad2deg(x) (x)*180.0/M_PI
 
 class Vehicle;
+class Camera;
 class LaserScanner;
-class SimulationControlWidget;
+class StatusWidget;
 
 class Simulator : public QMainWindow
 {
@@ -35,7 +36,14 @@ public:
     bool isPaused(void) const;
     int getSimulationTime(void) const; // returns milliseconds since start of simulation, scaled by timeFactor
     QList<LaserScanner*>* getLaserScannerList(void);
-    CoordinateConverter* getCoordinateConverter(void);
+//    CoordinateConverter* getCoordinateConverter(void);
+    CoordinateConverter *mCoordinateConverter;
+    Battery* mBattery;
+    OgreWidget* mOgreWidget;
+    Vehicle *mVehicle;
+
+    QList<LaserScanner*> *mLaserScanners;
+    QList<Camera*> *mCameras;
 
 private:
     mutable QMutex mMutex;
@@ -43,17 +51,11 @@ private:
     float mTimeFactor;
     QTime mTimeSimulationStart; // when simulation was started
     QTime mTimeSimulationPause; // when simulation was paused, invalid when it's not currently paused.
-    OgreWidget* mOgreWidget;
-    CoordinateConverter *mCoordinateConverter;
-    Battery* mBattery;
     StatusWidget* mStatusWidget;
-    SimulationControlWidget* mSimulationControlWidget;
-    Vehicle *mVehicle;
 
-    QList<LaserScanner*> *mLaserScanners;
 
 private slots:
-    void slotAddVehicle(void);
+    void slotOgreInitialized(void);
     void slotSimulationStart(void);
     void slotSimulationPause(void);
     void slotSetTimeFactor(double);

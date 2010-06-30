@@ -24,10 +24,10 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     mEngines.append(Engine(btTransform(btQuaternion(000,000,deg2rad(180)), btVector3(-0.20, +0.00, +0.00))));  // engine 4, left,  CCW
 
     //Bullet initialisation.
-    mBtBroadphase = new btAxisSweep3(btVector3(-2000,-2000,-2000), btVector3(2000,2000,2000), 1024);
-    mBtCollisionConfig = new btDefaultCollisionConfiguration();
+    mBtBroadphase = new btAxisSweep3(btVector3(-20000,-20000,-20000), btVector3(20000,20000,20000), 1024);
+    mBtCollisionConfig = new btDefaultCollisionConfiguration;
     mBtDispatcher = new btCollisionDispatcher(mBtCollisionConfig);
-    mBtSolver = new btSequentialImpulseConstraintSolver();
+    mBtSolver = new btSequentialImpulseConstraintSolver;
 
     mBtWorld = new btDiscreteDynamicsWorld(mBtDispatcher, mBtBroadphase, mBtSolver, mBtCollisionConfig);
     mBtWorld->setGravity(btVector3(0,-9.8,0));
@@ -38,14 +38,14 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 
     mBtDebugDrawer = new BtOgre::DebugDrawer(mOgreWidget->sceneManager()->getRootSceneNode(), mBtWorld);
     mBtWorld->setDebugDrawer(mBtDebugDrawer);
-    mBtDebugDrawer->setDebugMode(1);
+    mBtDebugDrawer->setDebugMode(3);
 
     //----------------------------------------------------------
     // Vehicle!
     //----------------------------------------------------------
     mVehicleEntity = mOgreWidget->sceneManager()->createEntity("vehicleEntity", "quad.mesh");
     // "vehicleNode" is fixed, used in ogrewidget.cpp
-    mVehicleNode = mOgreWidget->sceneManager()->getRootSceneNode()->createChildSceneNode("vehicleNode", Ogre::Vector3(0,0,0), Ogre::Quaternion::IDENTITY);
+    mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", Ogre::Vector3(0,0,0), Ogre::Quaternion::IDENTITY);
     mVehicleNode->attachObject(mVehicleEntity);
 
     // Place the vehicle 10m above the ground
@@ -88,7 +88,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 
     mVehicleBody->setDamping(.5, .9);
 
-//    mVehicleBody->setActivationState(ISLAND_SLEEPING);
+    mVehicleBody->setActivationState(DISABLE_DEACTIVATION); // probably unnecessary
     mBtWorld->addRigidBody(mVehicleBody/*, COL_VEHICLE, COL_GROUND*/);
 //    mVehicleBody->setActivationState(ISLAND_SLEEPING);
 
@@ -128,7 +128,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
    // We have to do it this way because of differences in how Bullet and Ogre orient the shapes.
    // In Ogre, the terrain's top left corner is at (0, 0, 0) in the local TransformSpace
    // In Bullet, not only is the center of the btHeighfield terrrain shape at (0, 0, 0), but from
-   //      what I can tell, its immovable.
+   // what I can tell, its immovable.
    btVector3 min, max;
    mGroundShape->getAabb(btTransform::getIdentity(), min, max);
 //   Ogre::SceneNode *sNode = mOgreWidget->sceneManager()->getSceneNode("Terrain");
@@ -231,7 +231,7 @@ void Vehicle::slotUpdatePosition(void)
     l -= (maxSteeringYaw * -joyZ);
     r -= (maxSteeringYaw * -joyZ);
 
-    qDebug() << "endSpeed\t" << f << b << l << r << endl;
+//    qDebug() << "endSpeed\t" << f << b << l << r << endl;
 
 
     QList<int> motorSpeeds;
@@ -267,7 +267,7 @@ void Vehicle::slotSetMotorSpeeds(const QList<int> &speeds)
         const btVector3 thrustVectorBt(thrustVectorOgre.x, thrustVectorOgre.y, thrustVectorOgre.z);
         const btVector3 position = mEngines.at(i).getPosition();
         mVehicleBody->applyForce(thrustVectorBt, position);
-        qDebug() << "Vehicle::slotSetMotorSpeeds(): thrust" << i << thrustVectorOgre.x << thrustVectorOgre.y << thrustVectorOgre.z << "at" << position.x() << position.y() << position.z();
+//        qDebug() << "Vehicle::slotSetMotorSpeeds(): thrust" << i << thrustVectorOgre.x << thrustVectorOgre.y << thrustVectorOgre.z << "at" << position.x() << position.y() << position.z();
 
         const btVector3 torque = mEngines.at(i).calculateTorque(speeds.at(i));
         mVehicleBody->applyTorque(torque);
@@ -288,7 +288,7 @@ void Vehicle::slotUpdatePhysics(void)
 
 //    mVehicleBody->applyDamping(deltaS);
 
-//    Q_ASSERT(deltaS < maxSubSteps * fixedTimeStep); // http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
+    Q_ASSERT(deltaS < maxSubSteps * fixedTimeStep); // http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
     mBtWorld->stepSimulation(deltaS, maxSubSteps, fixedTimeStep);
 
 //    mBtDebugDrawer->step();
@@ -296,6 +296,9 @@ void Vehicle::slotUpdatePhysics(void)
     mTimeOfLastUpdate = simulationTime;
 
     // Set all laserscanners new position
+    // The lidars are attached to the vehicle's scenenode, so stepSimulation should update the vehicle's sceneNode and
+    // thus also update the laserscanner's position. BUT the lidars do up t 60k RSQ/s, so pushing these changes
+    // should be more efficient than having the LaserScanners poll on every RaySceneQuery.
     QList<LaserScanner*>* laserScanners = mSimulator->getLaserScannerList();
     foreach(LaserScanner* ls, *laserScanners)
     {

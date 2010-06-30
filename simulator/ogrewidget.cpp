@@ -7,7 +7,7 @@ OgreWidget::OgreWidget(Simulator *simulator) :
         QWidget((QWidget*)simulator),
         mSimulator(simulator),
         ogreRoot(0),
-        ogreSceneManager(0),
+        mSceneManager(0),
         ogreRenderWindow(0),
         ogreViewport(0),
         mCamera(0),
@@ -48,9 +48,9 @@ OgreWidget::~OgreWidget()
     {
         ogreRoot->detachRenderTarget(ogreRenderWindow);
 
-        if(ogreSceneManager)
+        if(mSceneManager)
         {
-            ogreRoot->destroySceneManager(ogreSceneManager);
+            ogreRoot->destroySceneManager(mSceneManager);
         }
     }
 
@@ -137,7 +137,7 @@ void OgreWidget::keyPressEvent(QKeyEvent *e)
     }
     else if(e->key() == Qt::Key_Space)
     {
-        mCamera->lookAt(ogreSceneManager->getSceneNode("vehicleNode")->getPosition());
+        mCamera->lookAt(mSceneManager->getSceneNode("vehicleNode")->getPosition());
         update();
         e->accept();
     }
@@ -173,7 +173,7 @@ void OgreWidget::mouseDoubleClickEvent(QMouseEvent *e)
         Ogre::Real y = e->pos().y() / (float)height();
 
         Ogre::Ray ray = mCamera->getCameraToViewportRay(x, y);
-        Ogre::RaySceneQuery *query = ogreSceneManager->createRayQuery(ray);
+        Ogre::RaySceneQuery *query = mSceneManager->createRayQuery(ray);
         Ogre::RaySceneQueryResult &queryResult = query->execute();
         Ogre::RaySceneQueryResult::iterator queryResultIterator = queryResult.begin();
 
@@ -191,7 +191,7 @@ void OgreWidget::mouseDoubleClickEvent(QMouseEvent *e)
             selectedNode = 0;
         }
 
-        ogreSceneManager->destroyQuery(query);
+        mSceneManager->destroyQuery(query);
 
         update();
         e->accept();
@@ -358,7 +358,7 @@ void OgreWidget::paintEvent(QPaintEvent *e)
     }
 
     // Construct all laserscanner rays before rendering
-    QList<LaserScanner*> *laserScanners = mSimulator->getLaserScannerList();
+    QList<LaserScanner*> *laserScanners = mSimulator->mLaserScanners;
     for(int i = 0; i < laserScanners->size(); ++i)
     {
         LaserScanner* scanner = laserScanners->at(i);
@@ -464,17 +464,17 @@ void OgreWidget::initOgreSystem()
         printf("Scene manager type available: %s\n\n",st.c_str());
     }
 
-    ogreSceneManager = ogreRoot->createSceneManager(Ogre::ST_GENERIC);
+    mSceneManager = ogreRoot->createSceneManager(Ogre::ST_GENERIC);
 //    ogreSceneManager = ogreRoot->createSceneManager("TerrainSceneManager"/*Ogre::ST_EXTERIOR_CLOSE*/);
 //    ogreSceneManager->showBoundingBoxes(true);
 
-    mCamera = ogreSceneManager->createCamera("camera");
+    mCamera = mSceneManager->createCamera("camera");
     mCamera->setNearClipDistance(.1);
     mCamera->setPolygonMode(Ogre::PM_WIREFRAME);     /* wireframe */
     mCamera->setPolygonMode(Ogre::PM_SOLID);         /* solid */
 
 
-    mCameraNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode("CameraNode", Ogre::Vector3(0, 12, 15));
+    mCameraNode = mSceneManager->getRootSceneNode()->createChildSceneNode("CameraNode", Ogre::Vector3(0, 12, 15));
     mCameraNode->attachObject(mCamera);
     mCamera->lookAt(0,8,0);
 
@@ -486,7 +486,7 @@ void OgreWidget::initOgreSystem()
 
     // Initialize shader generator.
     // Must be before resource loading in order to allow parsing extended material attributes.
-    bool success = initializeRTShaderSystem(ogreSceneManager);
+    bool success = initializeRTShaderSystem(mSceneManager);
     if (!success)
     {
         OGRE_EXCEPT(Ogre::Exception::ERR_FILE_NOT_FOUND,
@@ -557,22 +557,28 @@ Ogre::RaySceneQuery* OgreWidget::createRaySceneQuery(void)
     qDebug() << "OgreWidget::createRaySceneQuery(): returning pointer.";
 
 //    QMutexLocker locker(&mMutex);
-    return ogreSceneManager->createRayQuery(Ogre::Ray());
+    return mSceneManager->createRayQuery(Ogre::Ray());
 }
 
-Ogre::SceneNode* OgreWidget::createScannerNode(const QString name, const Ogre::Vector3 &relativePosition, const Ogre::Quaternion &relativeRotation)
+Ogre::SceneNode* OgreWidget::createScanner(const QString name, const Ogre::Vector3 &relativePosition, const Ogre::Quaternion &relativeRotation)
 {
     qDebug() << "OgreWidget::createScannerNode()";
 
     QMutexLocker locker(&mMutex);
 
     // We don't need names, so we just create something random
-    Ogre::Entity *scannerEntity = ogreSceneManager->createEntity(QString(name + "_entity").toStdString(), "hokuyoutm30lx.mesh");
-    Ogre::SceneNode *scannerNode = ogreSceneManager->getSceneNode("vehicleNode")->createChildSceneNode(QString(name + "_node").toStdString(), relativePosition, relativeRotation);
+    Ogre::Entity *scannerEntity = mSceneManager->createEntity(QString(name + "_entity").toStdString(), "hokuyoutm30lx.mesh");
+    Ogre::SceneNode *scannerNode = mSceneManager->getSceneNode("vehicleNode")->createChildSceneNode(QString(name + "_node").toStdString(), relativePosition, relativeRotation);
     scannerNode->attachObject(scannerEntity);
     qDebug() << "OgreWidget::createScannerNode(): done, returning";
 
     return scannerNode;
+}
+
+void OgreWidget::destroyScanner(const QString name)
+{
+    mSceneManager->destroyEntity(QString(name + "_entity").toStdString());
+    mSceneManager->destroySceneNode(QString(name + "_node").toStdString());
 }
 
 void OgreWidget::createManualObject(const QString &name, Ogre::ManualObject** manualObject, Ogre::SceneNode** sceneNode, Ogre::MaterialPtr &material)
@@ -581,15 +587,57 @@ void OgreWidget::createManualObject(const QString &name, Ogre::ManualObject** ma
 
     QMutexLocker locker(&mMutex);
 
-    *manualObject =  ogreSceneManager->createManualObject(QString(name+"_manualobject").toStdString());
-    *sceneNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode(QString(name+"_scenenode").toStdString());
-    material = Ogre::MaterialManager::getSingleton().create(QString(name+"_material").toStdString(), "General");
+    *manualObject =  mSceneManager->createManualObject(QString(name+"_manualobject").toStdString());
+    *sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(QString(name+"_scenenode").toStdString());
+    material = Ogre::MaterialManager::getSingleton().createOrRetrieve(QString("LaserScannerMaterial").toStdString(), "General").first;
     qDebug() << "OgreWidget::createManualObject(): done, name of SceneNode is" << QString::fromStdString((*sceneNode)->getName());
+}
+
+void OgreWidget::destroyManualObject(Ogre::ManualObject* manualObject, Ogre::SceneNode* sceneNode)
+{
+    mSceneManager->getRootSceneNode()->removeAndDestroyChild(sceneNode->getName());
+
+    // The ManualObject will automatically detach itself from any nodes on destruction.
+//    FIXME: this crashes.
+//    ogreSceneManager->destroyManualObject(manualObject);
+
+    // Must not destroy material, it is shared between all scanners.
+}
+
+void OgreWidget::createRttCamera(Ogre::Camera** camera, Ogre::RenderTarget** renderTarget, const QString name, const int width, const int height)
+{
+    Ogre::TexturePtr tex = Ogre::TextureManager::getSingleton().createManual(
+            QString(name+"_texture").toStdString(),
+            Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME/*"general"*/,
+            Ogre::TEX_TYPE_2D,
+            width,
+            height,
+            32,
+            0,
+            Ogre::PF_R8G8B8,
+            Ogre::TU_RENDERTARGET);
+
+    *renderTarget = tex->getBuffer()->getRenderTarget();
+    tex.setNull();
+
+    *camera = mSceneManager->createCamera(QString(name+"_camera").toStdString());
+    Ogre::Viewport* viewPort = (*renderTarget)->addViewport(*camera);
+    viewPort->setBackgroundColour(Ogre::ColourValue::Red);
+
+    mVehicleNode->attachObject(*camera);
+
+//    root->renderOneFrame();
+}
+
+void OgreWidget::destroyCamera(Ogre::RenderTarget* renderTarget, Ogre::Camera* camera)
+{
+    mVehicleNode->detachObject(camera);
+    mSceneManager->destroyCamera(camera);
 }
 
 Ogre::SceneManager* OgreWidget::sceneManager()
 {
-    return ogreSceneManager;
+    return mSceneManager;
 }
 
 void OgreWidget::setupTerrain()
@@ -606,7 +654,7 @@ void OgreWidget::setupTerrain()
     Ogre::MaterialManager::getSingleton().setDefaultTextureFiltering(Ogre::TFO_ANISOTROPIC);
     Ogre::MaterialManager::getSingleton().setDefaultAnisotropy(7);
 
-    ogreSceneManager->setFog(Ogre::FOG_LINEAR, Ogre::ColourValue(0.7, 0.7, 0.8), 0, 10000, 25000);
+    mSceneManager->setFog(Ogre::FOG_LINEAR, Ogre::ColourValue(0.7, 0.7, 0.8), 0, 10000, 25000);
 
     Ogre::LogManager::getSingleton().setLogDetail(Ogre::LL_BOREME);
 
@@ -614,16 +662,16 @@ void OgreWidget::setupTerrain()
     lightdir.normalise();
 
 
-    Ogre::Light* l = ogreSceneManager->createLight("tstLight");
+    Ogre::Light* l = mSceneManager->createLight("tstLight");
     l->setType(Ogre::Light::LT_DIRECTIONAL);
     l->setDirection(lightdir);
     l->setDiffuseColour(Ogre::ColourValue::White);
     l->setSpecularColour(Ogre::ColourValue(0.4, 0.4, 0.4));
 
-    ogreSceneManager->setAmbientLight(Ogre::ColourValue(0.2, 0.2, 0.2));
+    mSceneManager->setAmbientLight(Ogre::ColourValue(0.2, 0.2, 0.2));
 
 
-    mTerrainGroup = new Ogre::TerrainGroup(ogreSceneManager, Ogre::Terrain::ALIGN_X_Z, TERRAIN_SIZE, TERRAIN_WORLD_SIZE);
+    mTerrainGroup = new Ogre::TerrainGroup(mSceneManager, Ogre::Terrain::ALIGN_X_Z, TERRAIN_SIZE, TERRAIN_WORLD_SIZE);
     mTerrainGroup->setFilenameConvention(Ogre::String("SimTerrain"), Ogre::String("dat"));
     mTerrainGroup->setOrigin(mTerrainPos);
 
@@ -648,17 +696,17 @@ void OgreWidget::setupTerrain()
     mTerrainGroup->freeTemporaryResources();
 
     // create a few entities on the terrain
-    Ogre::Entity* e = ogreSceneManager->createEntity("tudorhouse.mesh");
+    Ogre::Entity* e = mSceneManager->createEntity("tudorhouse.mesh");
     Ogre::Vector3 entPos(mTerrainPos.x + 2043, 0, mTerrainPos.z + 1715);
     Ogre::Quaternion rot;
     entPos.y = mTerrainGroup->getHeightAtWorldPosition(entPos) + 65.5 + mTerrainPos.y;
     rot.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
-    Ogre::SceneNode* sn = ogreSceneManager->getRootSceneNode()->createChildSceneNode(entPos, rot);
+    Ogre::SceneNode* sn = mSceneManager->getRootSceneNode()->createChildSceneNode(entPos, rot);
     sn->setScale(Ogre::Vector3(0.12, 0.12, 0.12));
     sn->attachObject(e);
 //    mHouseList.push_back(e);
 
-    ogreSceneManager->setSkyBox(true, "Examples/CloudyNoonSkyBox");
+    mSceneManager->setSkyBox(true, "Examples/CloudyNoonSkyBox");
 }
 
 void OgreWidget::configureTerrainDefaults(Ogre::Light* l)
@@ -674,7 +722,7 @@ void OgreWidget::configureTerrainDefaults(Ogre::Light* l)
     //matProfile->setLightmapEnabled(false);
     // Important to set these so that the terrain knows what to use for derived (non-realtime) data
     mTerrainGlobals->setLightMapDirection(l->getDerivedDirection());
-    mTerrainGlobals->setCompositeMapAmbient(ogreSceneManager->getAmbientLight());
+    mTerrainGlobals->setCompositeMapAmbient(mSceneManager->getAmbientLight());
     //mTerrainGlobals->setCompositeMapAmbient(ColourValue::Red);
     mTerrainGlobals->setCompositeMapDiffuse(l->getDiffuseColour());
 
@@ -841,4 +889,10 @@ bool OgreWidget::initializeRTShaderSystem(Ogre::SceneManager* sceneMgr)
     }
 
     return true;
+}
+
+Ogre::SceneNode* OgreWidget::createVehicleNode(const Ogre::String name, const Ogre::Vector3 position, const Ogre::Quaternion orientation)
+{
+    mVehicleNode = mSceneManager->getRootSceneNode()->createChildSceneNode(name, position, orientation);
+    return mVehicleNode;
 }

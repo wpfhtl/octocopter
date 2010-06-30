@@ -32,6 +32,8 @@
 
 class Simulator;
 
+//using namespace Ogre;
+
 /** This class simply demonstrates basic usage of the CRTShader system.
 It sub class the material manager listener class and when a target scheme callback
 is invoked with the shader generator scheme it tries to create an equvialent shader
@@ -102,11 +104,19 @@ public:
 
     Ogre::RaySceneQuery* createRaySceneQuery(void);
 
+    Ogre::SceneNode* createVehicleNode(const Ogre::String name, const Ogre::Vector3 position, const Ogre::Quaternion orientation);
+
     // Creates a scannerNode and attaches a mesh to it.
-    Ogre::SceneNode* createScannerNode(
+    Ogre::SceneNode* createScanner(
             const QString name,
             const Ogre::Vector3 &relativePosition = Ogre::Vector3::ZERO,
             const Ogre::Quaternion &relativeRotation = Ogre::Quaternion::IDENTITY);
+
+    void destroyScanner(const QString name);
+
+    // Creates a camera for rendering to texture
+    void createRttCamera(Ogre::Camera** camera, Ogre::RenderTarget** renderTarget, const QString name, const int width, const int height);
+    void destroyCamera(Ogre::RenderTarget* renderTarget, Ogre::Camera* camera);
 
     // returns ogre-world-coordinate-vector.
     Ogre::Vector3 getVehiclePosition(void) const;
@@ -121,6 +131,8 @@ public:
             Ogre::ManualObject** manualObject,
             Ogre::SceneNode** sceneNode,
             Ogre::MaterialPtr& material);
+
+    void destroyManualObject(Ogre::ManualObject* manualObject, Ogre::SceneNode* sceneNode);
 
 public slots:
     void setBackgroundColor(QColor c);
@@ -189,7 +201,7 @@ private:
     QList<int> mKeysPressed;
 
     Ogre::Root          *ogreRoot;
-    Ogre::SceneManager  *ogreSceneManager;
+    Ogre::SceneManager  *mSceneManager;
     Ogre::RenderWindow  *ogreRenderWindow;
     Ogre::Viewport      *ogreViewport;
     Ogre::Camera        *mCamera;

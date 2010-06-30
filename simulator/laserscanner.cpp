@@ -7,8 +7,7 @@ LaserScanner::LaserScanner(
         const int speed,
         const int angleStart,
         const int angleStop,
-        const float angleStep) :
-        mCoordinateConverter(simulator->getCoordinateConverter())
+        const float angleStep)
 {
     qDebug() << "LaserScanner::LaserScanner()";
     Q_ASSERT(angleStart < angleStop);
@@ -34,7 +33,7 @@ LaserScanner::LaserScanner(
     mMaterialName = QString("RayFrom_" + objectName() + "_material").toStdString();
 
     // Create a scene node in ogre that is attached to the vehicle.
-    mScannerNode = mOgreWidget->createScannerNode(objectName());
+    mScannerNode = mOgreWidget->createScanner(objectName());
 
     mLaserBeam.setOrigin(mScannerNode->_getDerivedPosition());
 //    mLaserBeam.setDirection(mScannerNode->getOrientation());
@@ -97,11 +96,27 @@ void LaserScanner::testRsqPerformance()
 
 LaserScanner::~LaserScanner()
 {
-    // TODO: delete/unregister scannerNode, mRayMaterial etc.
-//    mRayObject->clear();
-//    delete mRayObject;
-//    mTimerScanStep->deleteLater();
-    //mOgreWidget->sceneManager()->destoryQuery();
+    qDebug() << "LaserScanner::~LaserScanner()";
+    mOgreWidget->destroyScanner(objectName());
+    mOgreWidget->destroyManualObject(mRayObject, mRayNode);
+    mUdpSocket->deleteLater();
+    mTimerScan->deleteLater();
+}
+
+void LaserScanner::run()
+{
+    mUdpSocket = new QUdpSocket;
+    mUdpSocket->bind();
+
+    mTimerScan = new QTimer;
+    mTimerScan->setInterval(0);
+    connect(mTimerScan, SIGNAL(timeout()), SLOT(slotDoScan()));
+
+    if(!mSimulator->isPaused()) mTimerScan->start();
+
+    qDebug() << "LaserScanner::run(): starting LaserScanner eventloop in threadid" << currentThreadId();
+    exec();
+    qDebug() << "LaserScanner::run(): eventloop finished in threadid" << currentThreadId();
 }
 
 void LaserScanner::slotDoScan()
@@ -152,7 +167,7 @@ void LaserScanner::slotDoScan()
         // Build a quaternion that represents the laserbeam's current rotation
         Ogre::Quaternion quatBeamRotation(Ogre::Degree(mCurrentScanAngle), Ogre::Vector3::UNIT_Y);
         QMutexLocker locker(&mMutex);
-        mLaserBeam.setOrigin(mScannerPosition - Ogre::Vector3(0.0, 0.1, 0.0));
+        mLaserBeam.setOrigin(mScannerPosition/* - Ogre::Vector3(0.0, 0.1, 0.0)*/);
         mLaserBeam.setDirection(mScannerOrientation * quatBeamRotation * Ogre::Vector3::NEGATIVE_UNIT_Z);
         locker.unlock();
 
@@ -165,10 +180,10 @@ void LaserScanner::slotDoScan()
             mScanData << QVector3D(rayResult.position.x, rayResult.position.y, rayResult.position.z);
 
             // WARNING: distance() IS EXPENSIVE!
-            qDebug() << "LaserScanner::slotDoScanStep(): hit @ distance"
-                    << mLaserBeam.getOrigin().distance(rayResult.position)
-                    << "position"
-                    << rayResult.position.x << rayResult.position.y << rayResult.position.z;
+//            qDebug() << "LaserScanner::slotDoScanStep(): hit @ distance"
+//                    << mLaserBeam.getOrigin().distance(rayResult.position)
+//                    << "position"
+//                    << rayResult.position.x << rayResult.position.y << rayResult.position.z;
         }
 
         // Increase mCurrentScanAngle by mAngleStep for the next laserBeam
@@ -233,20 +248,6 @@ void LaserScanner::slotDoScan()
     usleep(std::max(0, (int)timeRest));
 }
 
-void LaserScanner::run()
-{
-    mUdpSocket = new QUdpSocket;
-    mUdpSocket->bind();
-
-    mTimerScan = new QTimer;
-    mTimerScan->setInterval(0);
-    connect(mTimerScan, SIGNAL(timeout()), SLOT(slotDoScan()));
-
-    if(!mSimulator->isPaused()) mTimerScan->start();
-
-    qDebug() << "LaserScanner::run(): starting LaserScanner eventloop in threadid" << currentThreadId();
-    exec();
-}
 
 void LaserScanner::slotSetScannerPose(const Ogre::Vector3 &position, const Ogre::Quaternion &orientation)
 {
@@ -336,12 +337,23 @@ void LaserScanner::setAngleStep(float angleStep)
 
 void LaserScanner::setPosition(const Ogre::Vector3 &position)
 {
+    QMutexLocker locker(&mMutex);
     mScannerNode->setPosition(position);
+
+    // Configuration widget calls this method, so update the beam too.
+    mLaserBeam.setOrigin(mScannerNode->_getDerivedPosition());
+    locker.unlock();
 }
 
 void LaserScanner::setOrientation(const Ogre::Quaternion &orientation)
 {
+    QMutexLocker locker(&mMutex);
     mScannerNode->setOrientation(orientation);
+
+    // Configuration widget calls this method, so update the beam too.
+    Ogre::Quaternion quatBeamRotation(Ogre::Degree(mCurrentScanAngle), Ogre::Vector3::UNIT_Y);
+    mLaserBeam.setDirection(mScannerNode->_getDerivedOrientation() * quatBeamRotation * Ogre::Vector3::NEGATIVE_UNIT_Z);
+    locker.unlock();
 }
 
 Ogre::Vector3 LaserScanner::getPosition(void)
@@ -358,5 +370,5 @@ Ogre::Ray LaserScanner::getCurrentLaserBeam(void)
 {
     QMutexLocker locker(&mMutex);
     return mLaserBeam;
-    return Ogre::Ray(mLaserBeam.getOrigin(), mLaserBeam.getDirection());
+//    return Ogre::Ray(mLaserBeam.getOrigin(), mLaserBeam.getDirection());
 }

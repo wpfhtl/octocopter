@@ -13,14 +13,11 @@
 class Simulator;
 class OgreWidget;
 
-class LaserScanner : public QThread//, public Ogre::RaySceneQueryListener
+class LaserScanner : public QThread
 {
     Q_OBJECT
 
 private:
-    // We need to init most members in this thread, not the parent's
-//    bool mInitialized;
-
     Simulator *mSimulator;
 
     QMutex mMutex;
@@ -60,7 +57,7 @@ private:
     // This scanner's beam, used for the RSQ
     Ogre::Ray mLaserBeam;
 
-    CoordinateConverter *mCoordinateConverter;
+//    CoordinateConverter *mCoordinateConverter;
 
     // Cache the scanner position. If it hasn't changed, there's no need to scan again.
     Ogre::Vector3 mScannerPosition, mScannerPositionPrevious;
