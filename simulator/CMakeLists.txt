@@ -47,7 +47,7 @@ statuswidget.ui
 SET(RESOURCE_FILES
 )
 
-SET(BULLET_LIBRARIES bulletcollision bulletdynamics bulletmath bulletsoftbody)
+SET(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath BulletSoftBody)
 
 #"Sources" and "Headers" are the group names in Visual Studio.
 SOURCE_GROUP("Sources" FILES ${SRC_FILES})
@@ -69,7 +69,8 @@ QT4_ADD_RESOURCES(RESOURCE_SRCS ${RESOURCE_FILES})
 SET(CMAKE_DEBUG_POSTFIX "_d")
 SET(CMAKE_BUILD_TYPE "Debug")
 
-INCLUDE_DIRECTORIES(/usr/local/include/bullet /usr/include ${OGRE_INCLUDE_DIR} ${OGRE_Terrain_INCLUDE_DIRS} ${OGRE_Paging_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
+#/usr/local/include/bullet
+INCLUDE_DIRECTORIES(/usr/include ${OGRE_INCLUDE_DIR} ${OGRE_Terrain_INCLUDE_DIRS} ${OGRE_Paging_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 ADD_EXECUTABLE(simulator ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
 TARGET_LINK_LIBRARIES(simulator ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${OGRE_Terrain_LIBRARY_NAMES} ${OGRE_RTShaderSystem_LIBRARY_NAMES} ${BULLET_LIBRARIES})
 

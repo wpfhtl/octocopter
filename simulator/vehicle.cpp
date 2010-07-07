@@ -86,7 +86,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     mVehicleBody = new btRigidBody(mass, mVehicleState, mVehicleShape, inertia);
 //    mVehicleBody->setCollisionFlags(mVehicleBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT | btCollisionObject::CF_CUSTOM_MATERIAL_CALLBACK );
 
-    mVehicleBody->setDamping(.5, .9);
+//    mVehicleBody->setDamping(.5, .9);
 
     mVehicleBody->setActivationState(DISABLE_DEACTIVATION); // probably unnecessary
     mBtWorld->addRigidBody(mVehicleBody/*, COL_VEHICLE, COL_GROUND*/);
@@ -95,6 +95,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     //----------------------------------------------------------
     // Load terrain!
     //----------------------------------------------------------
+/*
    std::string terrainFileStr = "terrain.cfg";
 
    Ogre::DataStreamPtr configStream = Ogre::ResourceGroupManager::getSingleton().openResource(terrainFileStr, Ogre::ResourceGroupManager::getSingleton().getWorldResourceGroupName());
@@ -146,6 +147,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 //   btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(0,groundMotionState,groundShape,btVector3(0,0,0));
 //   btRigidBody* groundRigidBody = new btRigidBody(groundRigidBodyCI);
 //   mBtWorld->addRigidBody(groundRigidBody);
+*/
 
 }
 
@@ -231,7 +233,7 @@ void Vehicle::slotUpdatePosition(void)
     l -= (maxSteeringYaw * -joyZ);
     r -= (maxSteeringYaw * -joyZ);
 
-//    qDebug() << "endSpeed\t" << f << b << l << r << endl;
+    qDebug() << "endSpeed\t" << f << b << l << r << endl;
 
 
     QList<int> motorSpeeds;
@@ -267,12 +269,14 @@ void Vehicle::slotSetMotorSpeeds(const QList<int> &speeds)
         const btVector3 thrustVectorBt(thrustVectorOgre.x, thrustVectorOgre.y, thrustVectorOgre.z);
         const btVector3 position = mEngines.at(i).getPosition();
         mVehicleBody->applyForce(thrustVectorBt, position);
-//        qDebug() << "Vehicle::slotSetMotorSpeeds(): thrust" << i << thrustVectorOgre.x << thrustVectorOgre.y << thrustVectorOgre.z << "at" << position.x() << position.y() << position.z();
+        //qDebug() << "Vehicle::slotSetMotorSpeeds(): thrust" << i << thrustVectorOgre.x << thrustVectorOgre.y << thrustVectorOgre.z << "at" << position.x() << position.y() << position.z();
 
         const btVector3 torque = mEngines.at(i).calculateTorque(speeds.at(i));
         mVehicleBody->applyTorque(torque);
-//        qDebug() << "Vehicle::slotSetMotorSpeeds(): torque" << i << torque.x() << torque.y() << torque.z();
+        //qDebug() << "Vehicle::slotSetMotorSpeeds(): torque" << i << torque.x() << torque.y() << torque.z();
     }
+
+//    mVehicleBody->applyForce(btVector3(0, 20, 0), btVector3(0, 0, 0));
 
 //    qDebug() << "Vehicle::slotSetMotorSpeeds(): total yaw torque is" << mVehicleBody->getTotalTorque().y();
 }
@@ -289,7 +293,9 @@ void Vehicle::slotUpdatePhysics(void)
 //    mVehicleBody->applyDamping(deltaS);
 
     Q_ASSERT(deltaS < maxSubSteps * fixedTimeStep); // http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
+//    mVehicleBody->applyForce(btVector3(0, 20, 0), btVector3(0, 0, 0));
     mBtWorld->stepSimulation(deltaS, maxSubSteps, fixedTimeStep);
+//    mVehicleBody->applyForce(btVector3(0, 20, 0), btVector3(0, 0, 0));
 
 //    mBtDebugDrawer->step();
 

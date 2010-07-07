@@ -47,7 +47,7 @@ private:
     // a container for collected rays, or rather the world coordinates of where they ended
     QList<QVector3D> mScanData;
 
-    float mTimeFactor;
+    double mTimeFactor;
 
     // We need to be careful with this, as the targets live in other threads
 //    Ogre::RaySceneQuery *mRaySceneQuery;
@@ -126,12 +126,12 @@ public:
     void setPosition(const Ogre::Vector3 &position);
     void setOrientation(const Ogre::Quaternion &orientation);
 
-    void setTimeFactor(float);
     void run(void);
 
 public slots:
     void slotStart(void);
     void slotPause(void);
+    void slotSetTimeFactor(double);
     void slotSetScannerPose(const Ogre::Vector3 &position, const Ogre::Quaternion &orientation);
 };
 

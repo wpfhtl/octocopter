@@ -132,7 +132,7 @@ void OgreWidget::keyPressEvent(QKeyEvent *e)
     {
         // ControlModifier speeds up movement, but don't activate the timer for it
         // because by itself, it doesn't cause any movement
-        qDebug() << "OgreWidget::keyPressEvent(): CTRL pressed";
+//        qDebug() << "OgreWidget::keyPressEvent(): CTRL pressed";
         mKeysPressed << e->key();
     }
     else if(e->key() == Qt::Key_Space)
@@ -164,11 +164,11 @@ void OgreWidget::keyReleaseEvent(QKeyEvent *e)
 
 void OgreWidget::mouseDoubleClickEvent(QMouseEvent *e)
 {
-    qDebug() << "OgreWidget::mouseDoubleClickEvent()";
+//    qDebug() << "OgreWidget::mouseDoubleClickEvent()";
     QMutexLocker locker(&mMutex);
     if(e->buttons().testFlag(Qt::LeftButton))
     {
-        qDebug() << "OgreWidget::mouseDoubleClickEvent(): lmb";
+//        qDebug() << "OgreWidget::mouseDoubleClickEvent(): lmb";
         Ogre::Real x = e->pos().x() / (float)width();
         Ogre::Real y = e->pos().y() / (float)height();
 
@@ -254,7 +254,7 @@ void OgreWidget::mouseMoveEvent(QMouseEvent *e)
 
 void OgreWidget::mousePressEvent(QMouseEvent *e)
 {
-    qDebug() << "OgreWidget::mousePressEvent()";
+//    qDebug() << "OgreWidget::mousePressEvent()";
 
     QMutexLocker locker(&mMutex);
     if(e->buttons().testFlag(Qt::LeftButton))
@@ -277,7 +277,7 @@ void OgreWidget::mousePressEvent(QMouseEvent *e)
 
 void OgreWidget::mouseReleaseEvent(QMouseEvent *e)
 {
-    qDebug() << "OgreWidget::mouseReleaseEvent()";
+//    qDebug() << "OgreWidget::mouseReleaseEvent()";
 
     QMutexLocker locker(&mMutex);
     if(!e->buttons().testFlag(Qt::LeftButton) && btnL)
@@ -327,7 +327,7 @@ QPaintEngine* OgreWidget::paintEngine() const
 void OgreWidget::timerEvent(QTimerEvent * e)
 {
     QMutexLocker locker(&mMutex);
-    qDebug() << "OgreWidget::timerEvent(): start";
+//    qDebug() << "OgreWidget::timerEvent(): start";
 
     Q_ASSERT(! mKeysPressed.empty());
 
@@ -386,7 +386,7 @@ void OgreWidget::paintEvent(QPaintEvent *e)
 void OgreWidget::resizeEvent(QResizeEvent *e)
 {
     QMutexLocker locker(&mMutex);
-    qDebug() << "OgreWidget::resizeEvent()";
+//    qDebug() << "OgreWidget::resizeEvent()";
     QWidget::resizeEvent(e);
 
     if(e->isAccepted())
@@ -407,7 +407,7 @@ void OgreWidget::resizeEvent(QResizeEvent *e)
 
 void OgreWidget::showEvent(QShowEvent *e)
 {
-    qDebug() << "OgreWidget::showEvent()";
+//    qDebug() << "OgreWidget::showEvent()";
 
     QMutexLocker locker(&mMutex);
 
@@ -566,7 +566,6 @@ Ogre::SceneNode* OgreWidget::createScanner(const QString name, const Ogre::Vecto
 
     QMutexLocker locker(&mMutex);
 
-    // We don't need names, so we just create something random
     Ogre::Entity *scannerEntity = mSceneManager->createEntity(QString(name + "_entity").toStdString(), "hokuyoutm30lx.mesh");
     Ogre::SceneNode *scannerNode = mSceneManager->getSceneNode("vehicleNode")->createChildSceneNode(QString(name + "_node").toStdString(), relativePosition, relativeRotation);
     scannerNode->attachObject(scannerEntity);
@@ -604,14 +603,14 @@ void OgreWidget::destroyManualObject(Ogre::ManualObject* manualObject, Ogre::Sce
     // Must not destroy material, it is shared between all scanners.
 }
 
-void OgreWidget::createRttCamera(Ogre::Camera** camera, Ogre::RenderTarget** renderTarget, const QString name, const int width, const int height)
+void OgreWidget::createRttCamera(Ogre::Camera** camera, Ogre::RenderTarget** renderTarget, Ogre::SceneNode ** sceneNode, const QString name, const QSize size)
 {
     Ogre::TexturePtr tex = Ogre::TextureManager::getSingleton().createManual(
             QString(name+"_texture").toStdString(),
             Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME/*"general"*/,
             Ogre::TEX_TYPE_2D,
-            width,
-            height,
+            size.width(),
+            size.height(),
             32,
             0,
             Ogre::PF_R8G8B8,
@@ -624,15 +623,31 @@ void OgreWidget::createRttCamera(Ogre::Camera** camera, Ogre::RenderTarget** ren
     Ogre::Viewport* viewPort = (*renderTarget)->addViewport(*camera);
     viewPort->setBackgroundColour(Ogre::ColourValue::Red);
 
-    mVehicleNode->attachObject(*camera);
-
-//    root->renderOneFrame();
+    // From: http://www.ogre3d.org/docs/api/html/classOgre_1_1Camera.html:
+    // Note that a Camera can be attached to a SceneNode, using the method SceneNode::attachObject.
+    // If this is done the Camera will combine it's own position/orientation settings with it's parent
+    // SceneNode. This is useful for implementing more complex Camera / object relationships i.e.
+    // having a camera attached to a world object.
+    //
+    // Cameras are attached to the camera-scenenode, which is attached to the vehicle-scenenode
+    Ogre::Entity *cameraEntity = mSceneManager->createEntity(QString(name + "_entity").toStdString(), "camera.mesh");
+    *sceneNode = mSceneManager->getSceneNode("vehicleNode")->createChildSceneNode(QString(name + "_node").toStdString());
+    (*sceneNode)->attachObject(cameraEntity);
+    (*sceneNode)->attachObject(*camera);
 }
 
-void OgreWidget::destroyCamera(Ogre::RenderTarget* renderTarget, Ogre::Camera* camera)
+void OgreWidget::destroyRttCamera(const QString name/*, Ogre::RenderTarget* renderTarget, Ogre::Camera* camera*/)
 {
-    mVehicleNode->detachObject(camera);
-    mSceneManager->destroyCamera(camera);
+    mSceneManager->getEntity(QString(name + "_entity").toStdString())->detachFromParent();
+    mSceneManager->destroyEntity(QString(name + "_entity").toStdString());
+
+    mSceneManager->getCamera(QString(name+"_camera").toStdString())->detachFromParent();
+    mSceneManager->destroyCamera(QString(name+"_camera").toStdString());
+
+    mSceneManager->destroySceneNode(QString(name + "_node").toStdString());
+
+    // We remove the texture, and hopefully that means we'll also remove the renderTarget
+    Ogre::TextureManager::getSingleton().remove(QString(name+"_texture").toStdString());
 }
 
 Ogre::SceneManager* OgreWidget::sceneManager()

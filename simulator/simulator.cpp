@@ -39,6 +39,26 @@ Simulator::Simulator(void) :
     connect(mOgreWidget, SIGNAL(currentRenderStatistics(QSize,int,float)), mStatusWidget, SLOT(slotUpdateVisualization(QSize, int, float)));
 
     mTimeFactor = mStatusWidget->getTimeFactor();
+    qDebug() << "Simulator::Simulator(): setting timeFactor to" << mTimeFactor;
+}
+
+Simulator::~Simulator(void)
+{
+    delete mStatusWidget;
+
+    // Delete all laserscanners
+    while(mLaserScanners->size())
+    {
+        qDebug() << "Simulator::~Simulator(void): shutting down laserscanners, please wait.";
+        LaserScanner* scanner = mLaserScanners->takeFirst();
+        scanner->quit();
+        scanner->wait();
+        delete scanner;
+    }
+    delete mLaserScanners;
+
+    qDeleteAll(*mCameras);
+    delete mCameras;
 }
 
 void Simulator::slotOgreInitialized(void)
@@ -81,6 +101,7 @@ void Simulator::slotSimulationStart(void)
     // Notify all cameras
     for(int i=0; i < mCameras->size(); i++)
     {
+        // Cameras currently don't live in a separate thread.
         qDebug() << "Simulator::slotSimulationStart(): queue-starting camera from thread" << thread()->currentThreadId();
         QMetaObject::invokeMethod(mCameras->at(i), "slotStart", Qt::QueuedConnection);
     }
@@ -98,6 +119,7 @@ void Simulator::slotSimulationPause(void)
         QMetaObject::invokeMethod(mLaserScanners->at(i), "slotPause", Qt::QueuedConnection);
 
     // Notify all cameras
+    // Cameras currently don't live in a separate thread.
     for(int i=0; i < mCameras->size(); i++)
         QMetaObject::invokeMethod(mCameras->at(i), "slotPause", Qt::QueuedConnection);
 }
@@ -135,6 +157,7 @@ void Simulator::slotSetTimeFactor(double timeFactor)
         // The simulation hasn't started yet. Simply adjust the factor and quit
         qDebug() << "Simulator::slotSetTimeFactor(): sim never started, setting timeFactor from" << mTimeFactor << "to" << timeFactor;
         mTimeFactor = timeFactor;
+        slotNotifyDevicesOfNewTimeFactor();
         return;
     }
 
@@ -178,14 +201,20 @@ void Simulator::slotSetTimeFactor(double timeFactor)
     Q_ASSERT(abs(getSimulationTime() - scaledElapsedTime) < 20);
     locker.relock();
 
-    // Notify all laserscanners of the new timeFactor, so they can adjust their speed.
-    for(int i=0; i < mLaserScanners->size(); i++)
-    {
-        mLaserScanners->at(i)->setTimeFactor(mTimeFactor);
-    }
+    slotNotifyDevicesOfNewTimeFactor();
 }
 
-float Simulator::getTimeFactor(void) const
+void Simulator::slotNotifyDevicesOfNewTimeFactor()
+{
+    // Notify all laserscanners of the new timeFactor, so they can adjust their speed.
+    for(int i=0; i < mLaserScanners->size(); i++)
+        mLaserScanners->at(i)->slotSetTimeFactor(mTimeFactor);
+
+    for(int i=0; i < mCameras->size(); i++)
+        mCameras->at(i)->slotSetTimeFactor(mTimeFactor);
+}
+
+double Simulator::getTimeFactor(void) const
 {
     return mTimeFactor;
 }
@@ -201,8 +230,3 @@ void Simulator::slotScanFinished(QList<CoordinateGps>)
     // TODO: no, we need to send a structure holding at least the scanner's position at the beginning and at the end, and the scan itself.
     // TODO: no, we need to send world coordinates instead of simple long ints. Yeah.
 }
-
-//CoordinateConverter* Simulator::getCoordinateConverter(void)
-//{
-//    return mCoordinateConverter;
-//}

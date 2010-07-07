@@ -276,7 +276,7 @@ Ogre::SceneNode* LaserScanner::getSceneNode(void)
     return mScannerNode;
 }
 
-void LaserScanner::setTimeFactor(float timeFactor)
+void LaserScanner::slotSetTimeFactor(double timeFactor)
 {
     QMutexLocker locker(&mMutex);
     mTimeFactor = timeFactor;

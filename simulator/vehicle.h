@@ -1,19 +1,19 @@
 #ifndef VEHICLE_H
 #define VEHICLE_H
 
-#include <QThread>
+//#include <QThread>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QTimer>
-//#include <Ogre.h>
 
 #include <OgreTerrainGroup.h>
 
 #include "BtOgre/BtOgrePG.h"
 #include "BtOgre/BtOgreGP.h"
 #include "BtOgre/BtOgreExtras.h"
-#include "BulletCollision/CollisionShapes/btHeightfieldTerrainShape.h"
+//#include "BulletCollision/CollisionShapes/btHeightfieldTerrainShape.h"
 #include <BulletCollision/CollisionShapes/btShapeHull.h>
+#include <btBulletDynamicsCommon.h>
 
 #include "simulator.h"
 #include "engine.h"

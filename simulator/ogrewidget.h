@@ -115,8 +115,8 @@ public:
     void destroyScanner(const QString name);
 
     // Creates a camera for rendering to texture
-    void createRttCamera(Ogre::Camera** camera, Ogre::RenderTarget** renderTarget, const QString name, const int width, const int height);
-    void destroyCamera(Ogre::RenderTarget* renderTarget, Ogre::Camera* camera);
+    void createRttCamera(Ogre::Camera** camera, Ogre::RenderTarget** renderTarget, Ogre::SceneNode** sceneNode, const QString name, const QSize size);
+    void destroyRttCamera(const QString name/*, Ogre::RenderTarget* renderTarget, Ogre::Camera* camera*/);
 
     // returns ogre-world-coordinate-vector.
     Ogre::Vector3 getVehiclePosition(void) const;

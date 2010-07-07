@@ -32,7 +32,8 @@ class Simulator : public QMainWindow
 
 public:
     Simulator(void);
-    float getTimeFactor(void) const;
+    ~Simulator(void);
+    double getTimeFactor(void) const;
     bool isPaused(void) const;
     int getSimulationTime(void) const; // returns milliseconds since start of simulation, scaled by timeFactor
     QList<LaserScanner*>* getLaserScannerList(void);
@@ -48,7 +49,7 @@ public:
 private:
     mutable QMutex mMutex;
 
-    float mTimeFactor;
+    double mTimeFactor;
     QTime mTimeSimulationStart; // when simulation was started
     QTime mTimeSimulationPause; // when simulation was paused, invalid when it's not currently paused.
     StatusWidget* mStatusWidget;
@@ -59,9 +60,13 @@ private slots:
     void slotSimulationStart(void);
     void slotSimulationPause(void);
     void slotSetTimeFactor(double);
+    void slotNotifyDevicesOfNewTimeFactor();
 
 public slots:
     void slotScanFinished(QList<CoordinateGps>);
+
+signals:
+
 };
 
 #endif

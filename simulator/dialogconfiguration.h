@@ -48,6 +48,8 @@ private slots:
     void slotCameraAdd();
     void slotCameraDel();
 
+    void slotOkPressed();
+
 signals:
     void timeFactorChanged(double);
     void simulationStart();

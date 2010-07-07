@@ -25,7 +25,7 @@ DialogConfiguration::DialogConfiguration(Simulator *simulator) :
     mSimulator = simulator;
     mOgreWidget = mSimulator->mOgreWidget;
 
-    connect(mBtnOk, SIGNAL(clicked()), SLOT(hide()));
+    connect(mBtnOk, SIGNAL(clicked()), SLOT(slotOkPressed()));
 
     qDebug() << "DialogConfiguration::DialogConfiguration(): done";
 }
@@ -36,6 +36,13 @@ DialogConfiguration::~DialogConfiguration()
     qDebug() << "DialogConfiguration::~DialogConfiguration()";
     slotSaveConfiguration();
     qDebug() << "DialogConfiguration::~DialogConfiguration(): done";
+}
+
+void DialogConfiguration::slotOkPressed()
+{
+    qDebug() << "SimulationControlWidget::slotOkPressed(): saving config";
+    slotSaveConfiguration();
+    hide();
 }
 
 void DialogConfiguration::slotReadConfiguration()
@@ -66,7 +73,8 @@ void DialogConfiguration::slotReadConfigurationLaserScanner()
 
     while(mTableWidgetLaserScanners->rowCount()) mTableWidgetLaserScanners->removeRow(0);
 
-    const int numberOfLaserScanners = mSettings.beginReadArray("laserscanners");
+    const int numberOfLaserScanners = mSettings.beginReadArray("scanners");
+    qDebug() << "SimulationControlWidget::slotReadConfigurationLaserScanner(): number of scanners found" << numberOfLaserScanners;
 
     for(int i = 0; i < numberOfLaserScanners; ++i)
     {
@@ -102,6 +110,8 @@ void DialogConfiguration::slotReadConfigurationLaserScanner()
         Ogre::Quaternion yaw(Ogre::Degree(mSettings.value("rotYaw", 0.0).toReal()), Ogre::Vector3::UNIT_Y);
         newLaserScanner->setOrientation(pitch * roll * yaw);
 
+        newLaserScanner->start();
+
         laserScanners->append(newLaserScanner);
 
         // Now create a row in the LaserScannerTable
@@ -126,6 +136,36 @@ void DialogConfiguration::slotReadConfigurationLaserScanner()
     mOgreWidget->update();
 }
 
+void DialogConfiguration::slotCameraAdd()
+{
+    const int row = mTableWidgetCameras->rowCount();
+    mTableWidgetCameras->insertRow(row);
+
+    Camera* newCamera = new Camera(mSimulator, mOgreWidget, QSize(800, 600), 45.0, 2000);
+//    newCamera->moveToThread(newCamera);
+
+    mSimulator->mCameras->append(newCamera);
+
+    // Now create a row in the LaserScannerTable
+    mTableWidgetCameras->blockSignals(true);
+    mTableWidgetCameras->setItem(row, 0, new QTableWidgetItem("0.0"));
+    mTableWidgetCameras->setItem(row, 1, new QTableWidgetItem("0.0"));
+    mTableWidgetCameras->setItem(row, 2, new QTableWidgetItem("0.0"));
+
+    mTableWidgetCameras->setItem(row, 3, new QTableWidgetItem("0.0"));
+    mTableWidgetCameras->setItem(row, 4, new QTableWidgetItem("0.0"));
+    mTableWidgetCameras->setItem(row, 5, new QTableWidgetItem("0.0"));
+
+    mTableWidgetCameras->setItem(row, 6, new QTableWidgetItem("800"));
+    mTableWidgetCameras->setItem(row, 7, new QTableWidgetItem("600"));
+    mTableWidgetCameras->setItem(row, 8, new QTableWidgetItem("45"));
+    mTableWidgetCameras->setItem(row, 9, new QTableWidgetItem("2000"));
+    mTableWidgetCameras->blockSignals(false);
+
+//    newCamera->start();
+    mOgreWidget->update();
+}
+
 void DialogConfiguration::slotReadConfigurationCamera()
 {
     QList<Camera*> *cameras = mSimulator->mCameras;
@@ -134,9 +174,10 @@ void DialogConfiguration::slotReadConfigurationCamera()
     while(cameras->size())
     {
         Camera* camera = cameras->takeFirst();
-        camera->quit();
-        camera->wait();
-        delete camera;
+//        camera->quit();
+//        camera->wait();
+//        delete camera;
+        camera->deleteLater();
     }
 
     while(mTableWidgetCameras->rowCount()) mTableWidgetCameras->removeRow(0);
@@ -150,9 +191,9 @@ void DialogConfiguration::slotReadConfigurationCamera()
 
         qDebug() << "SimulationControlWidget::slotReadConfigurationCamera(): creating camera" << i << "from configuration";
 
-        Camera* newCamera = new Camera(mSimulator, mOgreWidget, mSettings.value("width", 800).toInt(), mSettings.value("height", 600).toInt(), mSettings.value("interval", 2000).toInt());
+        Camera* newCamera = new Camera(mSimulator, mOgreWidget, QSize(mSettings.value("width", 800).toInt(), mSettings.value("height", 600).toInt()), mSettings.value("fovy", 45).toFloat(), mSettings.value("interval", 2000).toInt());
 
-        newCamera->moveToThread(newCamera);
+//        newCamera->moveToThread(newCamera);
 
         // set scanner position from configuration
         newCamera->setPosition(
@@ -164,10 +205,10 @@ void DialogConfiguration::slotReadConfigurationCamera()
                 );
 
         // set scanner orientation from form values
-//        Ogre::Quaternion pitch(Ogre::Degree(mSettings.value("rotPitch", 0.0).toReal()), Ogre::Vector3::UNIT_X);
-//        Ogre::Quaternion roll(Ogre::Degree(mSettings.value("rotRoll", 0.0).toReal()), Ogre::Vector3::UNIT_Z);
-//        Ogre::Quaternion yaw(Ogre::Degree(mSettings.value("rotYaw", 0.0).toReal()), Ogre::Vector3::UNIT_Y);
-        newCamera->setDirection(Ogre::Vector3(mSettings.value("dirX", 0.0).toReal(), mSettings.value("dirY", 0.0).toReal(), mSettings.value("dirZ", 0.0).toReal())); // unsure, see laserscanner.cpp
+        Ogre::Quaternion pitch(Ogre::Degree(mSettings.value("rotPitch", 0.0).toReal()), Ogre::Vector3::UNIT_X);
+        Ogre::Quaternion roll(Ogre::Degree(mSettings.value("rotRoll", 0.0).toReal()), Ogre::Vector3::UNIT_Z);
+        Ogre::Quaternion yaw(Ogre::Degree(mSettings.value("rotYaw", 0.0).toReal()), Ogre::Vector3::UNIT_Y);
+        newCamera->setOrientation(pitch * roll * yaw);
 
         cameras->append(newCamera);
 
@@ -183,8 +224,9 @@ void DialogConfiguration::slotReadConfigurationCamera()
 
         mTableWidgetCameras->setItem(i, 6, new QTableWidgetItem(mSettings.value("width", 800).toString()));
         mTableWidgetCameras->setItem(i, 7, new QTableWidgetItem(mSettings.value("height", 600).toString()));
-        mTableWidgetCameras->setItem(i, 8, new QTableWidgetItem(mSettings.value("interval", 2000).toString()));
-        mTableWidgetLaserScanners->blockSignals(false);
+        mTableWidgetCameras->setItem(i, 8, new QTableWidgetItem(mSettings.value("fovy", 45).toString()));
+        mTableWidgetCameras->setItem(i, 9, new QTableWidgetItem(mSettings.value("interval", 2000).toString()));
+        mTableWidgetCameras->blockSignals(false);
     }
     mSettings.endArray();
 
@@ -213,15 +255,13 @@ void DialogConfiguration::slotSaveConfigurationCamera()
         mSettings.setValue("posY", cameras->at(i)->getPosition().y);
         mSettings.setValue("posZ", cameras->at(i)->getPosition().z);
 
-//        mSettings.setValue("rotPitch", cameras->at(i)->getOrientation().getPitch().valueDegrees());
-//        mSettings.setValue("rotRoll", cameras->at(i)->getOrientation().getRoll().valueDegrees());
-//        mSettings.setValue("rotYaw", cameras->at(i)->getOrientation().getYaw().valueDegrees());
-        mSettings.setValue("dirX", cameras->at(i)->getDirection().x);
-        mSettings.setValue("dirY", cameras->at(i)->getDirection().y);
-        mSettings.setValue("dirZ", cameras->at(i)->getDirection().z);
+        mSettings.setValue("rotPitch", cameras->at(i)->getOrientation().getPitch(false).valueDegrees());
+        mSettings.setValue("rotRoll", cameras->at(i)->getOrientation().getRoll(false).valueDegrees());
+        mSettings.setValue("rotYaw", cameras->at(i)->getOrientation().getYaw(false).valueDegrees());
 
-        mSettings.setValue("width", cameras->at(i)->width());
-        mSettings.setValue("height", cameras->at(i)->height());
+        mSettings.setValue("width", cameras->at(i)->imageSize().width());
+        mSettings.setValue("height", cameras->at(i)->imageSize().height());
+        mSettings.setValue("fovy", cameras->at(i)->fovY());
         mSettings.setValue("interval", cameras->at(i)->interval());
     }
 
@@ -273,11 +313,11 @@ void DialogConfiguration::slotCameraDetailChanged(QTableWidgetItem* item)
     Ogre::Quaternion pitch(Ogre::Degree(mTableWidgetCameras->item(item->row(), 3)->text().toFloat()), Ogre::Vector3::UNIT_X);
     Ogre::Quaternion roll(Ogre::Degree(mTableWidgetCameras->item(item->row(), 4)->text().toFloat()), Ogre::Vector3::UNIT_Z);
     Ogre::Quaternion yaw(Ogre::Degree(mTableWidgetCameras->item(item->row(), 5)->text().toFloat()), Ogre::Vector3::UNIT_Y);
-    camera->setDirection(pitch * roll * yaw * Ogre::Vector3::NEGATIVE_UNIT_Z); // unsure, see laserscanner.cpp
+    camera->setOrientation(pitch * roll * yaw);
 
-    camera->setWidth(mTableWidgetCameras->item(item->row(), 6)->text().toInt());
-    camera->setHeight(mTableWidgetCameras->item(item->row(), 7)->text().toInt());
-    camera->setInterval(mTableWidgetCameras->item(item->row(), 8)->text().toInt());
+    camera->setImageSize(QSize(mTableWidgetCameras->item(item->row(), 6)->text().toInt(), mTableWidgetCameras->item(item->row(), 7)->text().toInt()));
+    camera->setFovY(mTableWidgetCameras->item(item->row(), 8)->text().toFloat());
+    camera->setInterval(mTableWidgetCameras->item(item->row(), 9)->text().toInt());
 
     mOgreWidget->update();
 }
@@ -304,9 +344,9 @@ void DialogConfiguration::slotSaveConfigurationLaserScanner()
         mSettings.setValue("posY", scanners->at(i)->getPosition().y);
         mSettings.setValue("posZ", scanners->at(i)->getPosition().z);
 
-        mSettings.setValue("rotPitch", scanners->at(i)->getOrientation().getPitch().valueDegrees());
-        mSettings.setValue("rotRoll", scanners->at(i)->getOrientation().getRoll().valueDegrees());
-        mSettings.setValue("rotYaw", scanners->at(i)->getOrientation().getYaw().valueDegrees());
+        mSettings.setValue("rotPitch", scanners->at(i)->getOrientation().getPitch(false).valueDegrees());
+        mSettings.setValue("rotRoll", scanners->at(i)->getOrientation().getRoll(false).valueDegrees());
+        mSettings.setValue("rotYaw", scanners->at(i)->getOrientation().getYaw(false).valueDegrees());
 
         mSettings.setValue("range", scanners->at(i)->range());
         mSettings.setValue("speed", scanners->at(i)->speed());
@@ -354,37 +394,6 @@ void DialogConfiguration::slotLaserScannerAdd()
     mOgreWidget->update();
 }
 
-
-void DialogConfiguration::slotCameraAdd()
-{
-    const int row = mTableWidgetCameras->rowCount();
-    mTableWidgetCameras->insertRow(row);
-
-    Camera* newCamera = new Camera(mSimulator, mOgreWidget, 800, 600, 2000);
-    newCamera->moveToThread(newCamera);
-
-    mSimulator->mCameras->append(newCamera);
-
-    // Now create a row in the LaserScannerTable
-    mTableWidgetCameras->blockSignals(true);
-    mTableWidgetCameras->setItem(row, 0, new QTableWidgetItem("0.0"));
-    mTableWidgetCameras->setItem(row, 1, new QTableWidgetItem("0.0"));
-    mTableWidgetCameras->setItem(row, 2, new QTableWidgetItem("0.0"));
-
-    mTableWidgetCameras->setItem(row, 3, new QTableWidgetItem("0.0"));
-    mTableWidgetCameras->setItem(row, 4, new QTableWidgetItem("0.0"));
-    mTableWidgetCameras->setItem(row, 5, new QTableWidgetItem("0.0"));
-
-    mTableWidgetCameras->setItem(row, 6, new QTableWidgetItem("800"));
-    mTableWidgetCameras->setItem(row, 7, new QTableWidgetItem("600"));
-    mTableWidgetCameras->setItem(row, 8, new QTableWidgetItem("2000"));
-    mTableWidgetCameras->blockSignals(false);
-
-    newCamera->start();
-    mOgreWidget->update();
-}
-
-
 void DialogConfiguration::slotLaserScannerDel()
 {
     const int row = mTableWidgetLaserScanners->currentRow() == -1 ? mTableWidgetLaserScanners->rowCount()-1 : mTableWidgetLaserScanners->currentRow();
@@ -405,9 +414,10 @@ void DialogConfiguration::slotCameraDel()
     mTableWidgetCameras->removeRow(row);
 
     Camera* camera = mSimulator->mCameras->takeAt(row);
-    camera->quit();
-    camera->wait();
-    delete camera;
+//    camera->quit();
+//    camera->wait();
+//    delete camera;
+    camera->deleteLater();
 
     mOgreWidget->update();
 }
