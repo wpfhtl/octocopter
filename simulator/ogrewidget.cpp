@@ -11,6 +11,7 @@ OgreWidget::OgreWidget(Simulator *simulator) :
         ogreRenderWindow(0),
         ogreViewport(0),
         mCamera(0),
+        mVehicleNode(0),
         oldPosL(invalidMousePoint),
         oldPosR(invalidMousePoint),
         btnL(false),
@@ -372,8 +373,10 @@ void OgreWidget::paintEvent(QPaintEvent *e)
     }
 
     ogreRoot->_fireFrameStarted();
+//    qDebug() << "now rendering";
 
     ogreRenderWindow->update();
+//    qDebug() << "rendering done";
 
     ogreRoot->_fireFrameEnded();
 
@@ -673,7 +676,8 @@ void OgreWidget::setupTerrain()
 
     Ogre::LogManager::getSingleton().setLogDetail(Ogre::LL_BOREME);
 
-    Ogre::Vector3 lightdir(0.55, -0.3, 0.75);
+//    Ogre::Vector3 lightdir(0.55, -0.3, 0.75);
+    Ogre::Vector3 lightdir(-0.55, -0.3, -0.75);
     lightdir.normalise();
 
 
@@ -712,12 +716,13 @@ void OgreWidget::setupTerrain()
 
     // create a few entities on the terrain
     Ogre::Entity* e = mSceneManager->createEntity("tudorhouse.mesh");
-    Ogre::Vector3 entPos(mTerrainPos.x + 2043, 0, mTerrainPos.z + 1715);
+//    Ogre::Vector3 entPos(mTerrainPos.x + 2043, 0, mTerrainPos.z + 1715);
+    Ogre::Vector3 entPos(0, 0, 0);
     Ogre::Quaternion rot;
     entPos.y = mTerrainGroup->getHeightAtWorldPosition(entPos) + 65.5 + mTerrainPos.y;
     rot.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
     Ogre::SceneNode* sn = mSceneManager->getRootSceneNode()->createChildSceneNode(entPos, rot);
-    sn->setScale(Ogre::Vector3(0.12, 0.12, 0.12));
+    sn->setScale(Ogre::Vector3(0.012, 0.012, 0.012));
     sn->attachObject(e);
 //    mHouseList.push_back(e);
 
@@ -909,5 +914,12 @@ bool OgreWidget::initializeRTShaderSystem(Ogre::SceneManager* sceneMgr)
 Ogre::SceneNode* OgreWidget::createVehicleNode(const Ogre::String name, const Ogre::Vector3 position, const Ogre::Quaternion orientation)
 {
     mVehicleNode = mSceneManager->getRootSceneNode()->createChildSceneNode(name, position, orientation);
+    mSceneManager->getRootSceneNode()->removeChild(mCameraNode);
+    mVehicleNode->addChild(mCameraNode);
+//    mCameraNode->translate(Ogre::Vector3(0, 0, 5));
+    mCameraNode->setPosition(mVehicleNode->_getDerivedPosition() + Ogre::Vector3(0, 1.5, 5));
+    mCamera->lookAt(mVehicleNode->_getDerivedPosition());
+    qDebug() << "OgreWidget::createVehicleNode(): vehicle is at" << mVehicleNode->_getDerivedPosition().x << mVehicleNode->_getDerivedPosition().y << mVehicleNode->_getDerivedPosition().z;
+    qDebug() << "OgreWidget::createVehicleNode(): camera  is at" << mCameraNode->_getDerivedPosition().x << mCameraNode->_getDerivedPosition().y << mCameraNode->_getDerivedPosition().z;
     return mVehicleNode;
 }

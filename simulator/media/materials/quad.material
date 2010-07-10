@@ -1,26 +1,12 @@
 
-material quad/09_-_Default
-{
-	technique
-	{
-		pass
-		{
-			ambient 1 0.752941 0 1
-			diffuse 1 0.752941 0 1
-		}
-
-	}
-
-}
-
 material quad/08_-_Default
 {
 	technique
 	{
 		pass
 		{
-			ambient 0.501961 0.501961 1 1
-			diffuse 0.501961 0.501961 1 1
+			ambient 0.588235 0.745098 0.862745 1
+			diffuse 0.588235 0.745098 0.862745 1
 		}
 
 	}
@@ -33,36 +19,36 @@ material quad/07_-_Default
 	{
 		pass
 		{
-			ambient 1 0.501961 0.501961 1
-			diffuse 1 0.501961 0.501961 1
+			ambient 0.682353 0.368627 0.368627 1
+			diffuse 0.682353 0.368627 0.368627 1
 		}
 
 	}
 
 }
 
-material quad/13_-_Default
+material quad/01_-_Default
 {
 	technique
 	{
 		pass
 		{
-			ambient 0 0.870588 1 1
-			diffuse 0 0.870588 1 1
+			ambient 0.52549 0.682353 0.356863 1
+			diffuse 0.52549 0.682353 0.356863 1
 		}
 
 	}
 
 }
 
-material quad/10_-_Default
+material quad/04_-_Default
 {
 	technique
 	{
 		pass
 		{
-			ambient 0.501961 0.694118 0.501961 1
-			diffuse 0.501961 0.694118 0.501961 1
+			ambient 0.498039 0.52549 0.854902 1
+			diffuse 0.498039 0.52549 0.854902 1
 		}
 
 	}

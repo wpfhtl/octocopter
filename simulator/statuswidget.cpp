@@ -62,6 +62,15 @@ void StatusWidget::slotUpdateVisualization(QSize windowSize, int triangles, floa
     mLabelVisualizationSize->setText(QString::number(windowSize.width()) + " x " + QString::number(windowSize.height()));
     mLabelVisualizationTriangles->setText(QString::number(triangles));
     mLabelVisualizationFramerate->setText(QString::number(fps, 'g', 2));
+
+    const int secsPassed = mSimulator->getSimulationTime() / 1000;
+    const int secs = secsPassed % 60;
+    const int mins = (secsPassed+1) / 60;
+    const int hours = (mins+1) / 60;
+
+    mLabelDuration->setText(
+            QString("%1:%2:%3").arg(QString::number(hours), 2, '0').arg(QString::number(mins), 2, '0').arg(QString::number(secs), 2, '0')
+            );
 }
 
 void StatusWidget::slotUpdatePose(const Ogre::Vector3 &position, const Ogre::Quaternion &rotation)
@@ -89,4 +98,11 @@ void StatusWidget::slotUpdatePose(const Ogre::Vector3 &position, const Ogre::Qua
     mLabelYaw->setText(deg.arg(yaw, 3, 10, QLatin1Char('0')));
 
     mCompass->setValue(yaw+180);
+
+    // flight dynamics
+    QVector3D vL = mSimulator->mVehicle->getLinearVelocity();
+    mLabelSpeed->setText(QString::number(vL.length(), 'f', 4) + " m/s");
+    mLabelSpeedVertical->setText(QString::number(vL.y(), 'f', 4) + " m/s");
+    vL.setY(0.0);
+    mLabelSpeedHorizontal->setText(QString::number(vL.length(), 'f', 4) + " m/s");
 }

@@ -1,40 +1,12 @@
 
-material hokuyoutm30lx/05_-_Default
-{
-	technique
-	{
-		pass
-		{
-			ambient 0.164706 0.164706 0.164706 1
-			diffuse 0.164706 0.164706 0.164706 1
-		}
-
-	}
-
-}
-
 material hokuyoutm30lx/04_-_Default
 {
 	technique
 	{
 		pass
 		{
-			ambient 0.94902 0.603922 0 1
-			diffuse 0.94902 0.603922 0 1
-		}
-
-	}
-
-}
-
-material hokuyoutm30lx/07_-_Default
-{
-	technique
-	{
-		pass
-		{
-			ambient 0.317647 0.317647 0.317647 1
-			diffuse 0.317647 0.317647 0.317647 1
+			ambient 0.498039 0.52549 0.854902 1
+			diffuse 0.498039 0.52549 0.854902 1
 		}
 
 	}

@@ -47,7 +47,10 @@ public:
 
     // Creates an engine with an offset and a rotation. With this, we can
     // calculate both thrust and torque caused on the mount (=vehicle)
-    Engine(const btTransform &pose = btTransform(btQuaternion(0,0,0,1), btVector3(0,0,0)), QObject *parent = 0);
+//    Engine(const btTransform &pose = btTransform(btQuaternion(0,0,0,1), btVector3(0,0,0)), QObject *parent = 0);
+
+    // Construct an engine from which we just want thrust (scalar) and torque (also scalar?)
+    Engine(void);
     Engine(const Engine &other);
 
     Engine& operator=(const Engine &other);
@@ -58,10 +61,12 @@ public:
     bool setPropeller(const QString &propeller);
 
     // returns thrust in newton for a given rpm
-    btVector3 calculateThrust(const int rpm) const;
+//    btVector3 calculateThrust(const int rpm) const;
+    double calculateThrust(const int rpm) const;
 
     // returns torque in Nm.
-    btVector3 calculateTorque(const int rpm) const;
+//    btVector3 calculateTorque(const int rpm) const;
+    double calculateTorque(const int rpm) const;
 
 signals:
 

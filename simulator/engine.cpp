@@ -1,8 +1,21 @@
 #include "engine.h"
 
+/*
 Engine::Engine(const btTransform &pose, QObject *parent) : QObject(parent)
 {
     mPose = pose;
+//    mRotationDirection = rotationDirection;
+
+    initializePropellers();
+
+    Q_ASSERT(setPropeller("GRP_SPD_5543"));
+
+//    Q_ASSERT(calculateThrust(12500) > 2.3 && calculateThrust(12500) < 2.4);
+}*/
+
+Engine::Engine(void) : QObject()
+{
+//    mPose = pose;
 //    mRotationDirection = rotationDirection;
 
     initializePropellers();
@@ -39,6 +52,7 @@ bool Engine::setPropeller(const QString &propeller)
     return false;
 }
 
+/*
 btVector3 Engine::calculateThrust(const int rpm) const
 {
     // This method calculates the thrust caused by rotating the propeller at @rpm in newton.
@@ -58,7 +72,23 @@ btVector3 Engine::calculateThrust(const int rpm) const
 
     return thrustVector;
 }
+*/
 
+double Engine::calculateThrust(const int rpm) const
+{
+    // This method calculates the thrust caused by rotating the propeller at @rpm in newton.
+    // As the engine/rotor-combination doesn't need to be mounted pointing straight up,
+    // we return a vector of thrust, depending on @rpm and @mPose.
+
+    Q_ASSERT(mCurrentPropeller.c1 != 0 && mCurrentPropeller.c2 != 0 && mCurrentPropeller.c3 != 0);
+//    Q_ASSERT(rpm > mCurrentPropeller.rpmMin && rpm < mCurrentPropeller.rpmMax);
+
+    double thrust = (mCurrentPropeller.c3 * pow(rpm, 2) + mCurrentPropeller.c2 * abs(rpm) + mCurrentPropeller.c1) / (1000.0 / 9.81);
+    if(rpm < 0) thrust *= -1.0; // invert the thrust if we rotate backwards
+
+    return thrust;
+}
+/*
 btVector3 Engine::calculateTorque(const int rpm) const
 {
     // This method returns a vector of torque caused by
@@ -74,6 +104,24 @@ btVector3 Engine::calculateTorque(const int rpm) const
 
 //    qDebug() << "Engine::calculateTorque(): rpm" << rpm << "torque" << torque;
     return btVector3(0, torque, 0);
+}
+*/
+
+double Engine::calculateTorque(const int rpm) const
+{
+    // This method returns a vector of torque caused by
+    Q_ASSERT(mCurrentPropeller.c1 != 0 && mCurrentPropeller.c2 != 0 && mCurrentPropeller.c3 != 0);
+//    Q_ASSERT(rpm > mCurrentPropeller.rpmMin && rpm < mCurrentPropeller.rpmMax);
+
+    static float torqueCoefficient = 0.000228 * 50000; // FIXME: this factor is made-up
+    static float densityAir = 1.184;
+    const float rotorDiscArea = M_PI * pow(mCurrentPropeller.diameter/2.0, 2);
+    const float radiusPow3 = pow(mCurrentPropeller.diameter/2.0, 3);
+    const float pitch = mCurrentPropeller.pitch; // FIXME: is this e3?
+    const double torque = torqueCoefficient * densityAir * rotorDiscArea * radiusPow3 * rpm * pitch;
+
+//    qDebug() << "Engine::calculateTorque(): rpm" << rpm << "torque" << torque;
+    return torque;
 }
 
 btVector3 Engine::getPosition(void) const

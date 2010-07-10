@@ -150,7 +150,7 @@ void LaserScanner::slotDoScan()
     while(mCurrentScanAngle <= mAngleStop)
     {
         numberOfRays++;
-//        qDebug() << "LaserScanner::slotDoScan(): next ray:" << mCurrentScanAngle;
+        qDebug() << "LaserScanner::slotDoScan(): next ray:" << mCurrentScanAngle;
         //    Feb 10 [23:03:51] <kernelpanic_> Excuse me, even after reading the Quaternion primer, I can't figure out how to create a new
         //                                     Ray(mySceneNode.getPosition(), mySceneNode.getOrientation()). ::getOrientation() returns a
         //                                     Quaternion (I understand that), but Ray wants a Vector3 as direction. Why is that and how do

@@ -18,12 +18,13 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 
     // Set up motors, as seen from the top
     // http://www.mikrokopter.de/ucwiki/ElektronikVerkabelung#head-4e6a59d9824e114e97488c7fdaa2b1d75025bae9
-    mEngines.append(Engine(btTransform(btQuaternion(000,deg2rad(000),000), btVector3(+0.00, +0.00, -0.20))));  // engine 1, front, CW
-    mEngines.append(Engine(btTransform(btQuaternion(000,deg2rad(000),000), btVector3(+0.00, +0.00, +0.20))));  // engine 2, back,  CW
-    mEngines.append(Engine(btTransform(btQuaternion(000,000,deg2rad(180)), btVector3(+0.20, +0.00, +0.00))));  // engine 3, right, CCW
-    mEngines.append(Engine(btTransform(btQuaternion(000,000,deg2rad(180)), btVector3(-0.20, +0.00, +0.00))));  // engine 4, left,  CCW
+//    mEngines.append(Engine(btTransform(btQuaternion(000,deg2rad(000),000), btVector3(+0.00, +0.00, -0.20))));  // engine 1, forward, CW
+//    mEngines.append(Engine(btTransform(btQuaternion(000,deg2rad(000),000), btVector3(+0.00, +0.00, +0.20))));  // engine 2, backward,  CW
+//    mEngines.append(Engine(btTransform(btQuaternion(000,000,deg2rad(180)), btVector3(+0.20, +0.00, +0.00))));  // engine 3, right, CCW
+//    mEngines.append(Engine(btTransform(btQuaternion(000,000,deg2rad(180)), btVector3(-0.20, +0.00, +0.00))));  // engine 4, left,  CCW
 
-    //Bullet initialisation.
+
+    // Bullet initialisation.
     mBtBroadphase = new btAxisSweep3(btVector3(-20000,-20000,-20000), btVector3(20000,20000,20000), 1024);
     mBtCollisionConfig = new btDefaultCollisionConfiguration;
     mBtDispatcher = new btCollisionDispatcher(mBtCollisionConfig);
@@ -43,10 +44,28 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     //----------------------------------------------------------
     // Vehicle!
     //----------------------------------------------------------
-    mVehicleEntity = mOgreWidget->sceneManager()->createEntity("vehicleEntity", "quad.mesh");
+    mVehicleEntity = mOgreWidget->sceneManager()->createEntity("vehicleEntity", "quadrocopter.mesh");
     // "vehicleNode" is fixed, used in ogrewidget.cpp
     mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", Ogre::Vector3(0,0,0), Ogre::Quaternion::IDENTITY);
     mVehicleNode->attachObject(mVehicleEntity);
+
+    mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(+0.00, +0.00, -0.20), Ogre::Quaternion(Ogre::Degree(000), Ogre::Vector3(1, 0, 0))));  // engine 1, forward, CW
+    mEngineNodes.at(0)->attachObject(mOgreWidget->sceneManager()->createEntity("engineF", "engine.mesh"));
+    mEngineNodes.at(0)->attachObject(mOgreWidget->sceneManager()->createEntity("labelF", "f.mesh"));
+
+    mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(+0.00, +0.00, +0.20), Ogre::Quaternion(Ogre::Degree(000), Ogre::Vector3(1, 0, 0))));  // engine 2, backward,  CW
+    mEngineNodes.at(1)->attachObject(mOgreWidget->sceneManager()->createEntity("engineB", "engine.mesh"));
+    mEngineNodes.at(1)->attachObject(mOgreWidget->sceneManager()->createEntity("labelB", "b.mesh"));
+
+    mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(-0.20, +0.00, +0.00), Ogre::Quaternion(Ogre::Degree(180), Ogre::Vector3(1, 0, 0))));  // engine 3, left,  CCW
+    mEngineNodes.at(2)->attachObject(mOgreWidget->sceneManager()->createEntity("engineL", "engine.mesh"));
+    mEngineNodes.at(2)->attachObject(mOgreWidget->sceneManager()->createEntity("labelL", "l.mesh"));
+
+    mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(+0.20, +0.00, +0.00), Ogre::Quaternion(Ogre::Degree(180), Ogre::Vector3(1, 0, 0))));  // engine 4, right, CCW
+    mEngineNodes.at(3)->attachObject(mOgreWidget->sceneManager()->createEntity("engineR", "engine.mesh"));
+    mEngineNodes.at(3)->attachObject(mOgreWidget->sceneManager()->createEntity("labelR", "r.mesh"));
+
+//    qDebug << "Vehicle::Vehicle: absolute position of right left engine:" << mEngineNodes.at()
 
     // Place the vehicle 10m above the ground
     Ogre::TerrainGroup::RayResult rayResult = mOgreWidget->mTerrainGroup->rayIntersects(Ogre::Ray(Ogre::Vector3(0,1000,0), Ogre::Vector3::NEGATIVE_UNIT_Y));
@@ -57,11 +76,11 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     }
 
     // Make camera look at vehicle
-    mOgreWidget->setCameraPosition(
-            mVehicleNode->_getDerivedPosition() + Ogre::Vector3(0.0,2.0,-10.0),
-            OgreWidget::TRANSLATION_ABSOLUTE,
-            Ogre::Node::TS_WORLD,
-            mVehicleNode);
+//    mOgreWidget->setCameraPosition(
+//            mVehicleNode->_getDerivedPosition() + Ogre::Vector3(0.0,2.0,-10.0),
+//            OgreWidget::TRANSLATION_ABSOLUTE,
+//            Ogre::Node::TS_WORLD,
+//            mVehicleNode);
 
     // Create collision shape
     BtOgre::StaticMeshToShapeConverter converter(mVehicleEntity);
@@ -74,7 +93,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     mVehicleShape = new btConvexHullShape((btScalar*)hull->getVertexPointer(), hull->numVertices()/*, sizeof(btVector3)*/);
 
     //Calculate inertia.
-    btScalar mass = 1.5;
+    btScalar mass = 0.5;
     btVector3 inertia;
     mVehicleShape->calculateLocalInertia(mass, inertia);
 
@@ -86,7 +105,8 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     mVehicleBody = new btRigidBody(mass, mVehicleState, mVehicleShape, inertia);
 //    mVehicleBody->setCollisionFlags(mVehicleBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT | btCollisionObject::CF_CUSTOM_MATERIAL_CALLBACK );
 
-//    mVehicleBody->setDamping(.5, .9);
+    // linear, angular
+    mVehicleBody->setDamping(.5, .7);
 
     mVehicleBody->setActivationState(DISABLE_DEACTIVATION); // probably unnecessary
     mBtWorld->addRigidBody(mVehicleBody/*, COL_VEHICLE, COL_GROUND*/);
@@ -169,63 +189,30 @@ void Vehicle::run()
 
 void Vehicle::slotUpdatePosition(void)
 {
-//    Q_ASSERT(false);
-//    qDebug() << "Vehicle::slotUpdatePosition()";
     QMutexLocker locker(&mMutex);
-
-    /*
-    // Impress by interpolating linearly :)
-    // TODO: get busy with ODE/Bullet/PhysX
-
-    // that'd be meters/second
-    // TODO: use our own time to minimize cross-thread dependiencies
-    const float movementSpeed = 0.1;
-    const float maxDistanceToTravel = movementSpeed * ((mSimulator->getSimulationTime() - mTimeOfLastUpdate) / 1000.0f);
-    mTimeOfLastUpdate = mSimulator->getSimulationTime();
-    Ogre::Vector3 currentPosition = mOgreWidget->getVehiclePosition();
-
-    // how far to the current wayPoint?
-    float distX = mNextWayPoint.x - currentPosition.x;
-    float distY = mNextWayPoint.y - currentPosition.y;
-    float distZ = mNextWayPoint.z - currentPosition.z;
-
-    // cap at maxDistanceToTravel
-    distX > 0.0f ? distX = fmin(distX, maxDistanceToTravel) : distX = fmax(distX, -maxDistanceToTravel);
-    distY > 0.0f ? distY = fmin(distY, maxDistanceToTravel) : distY = fmax(distY, -maxDistanceToTravel);
-    distZ > 0.0f ? distZ = fmin(distZ, maxDistanceToTravel) : distZ = fmax(distZ, -maxDistanceToTravel);
-
-    // update position
-    currentPosition.x += distX;
-    currentPosition.y += distY;
-    currentPosition.z += distZ;
-
-    mOgreWidget->setVehiclePosition(currentPosition, OgreWidget::TRANSLATION_ABSOLUTE, Ogre::Node::TS_WORLD);
-    */
-
-    const Ogre::Vector3 vectorToTarget = mVehicleNode->_getDerivedPosition() - mNextWayPoint;
-//    const float yawToTarget = mVehicleNode->_getDerivedOrientation().getYaw();
 
     float joyX, joyY, joyZ, joyR;
     mJoystick->getValues(joyX, joyY, joyZ, joyR);
 
     // Set motor-base-speed according to thrust between 0 and 40000
-    int f = (-joyR + 1.0) * 15000;
+    int f = (-joyR + 0.5) * 20000;
     int b = f;
     int l = f;
     int r = f;
 //    qDebug() << "joyVals\t\t" << joyX << joyY << joyZ << joyR;
 //    qDebug() << "baseSpeed\t" << f << b << l << r;
 
-    const int maxSteeringPitchRoll = 10000;
-    const int maxSteeringYaw = 2500;
+    // Steering sensitivity is higher in slow motion
+    const int maxSteeringPitchRoll = 500 / mSimulator->getTimeFactor();
+    const int maxSteeringYaw = 150 / mSimulator->getTimeFactor();
 
     // When stick goes right, joyX goes up => l+ r-
     l += (maxSteeringPitchRoll * joyX);
     r -= (maxSteeringPitchRoll * joyX);
 
-    // When stick goes forward, joyY goes up => b+ f-
-    b += (maxSteeringPitchRoll * joyY);
-    f -= (maxSteeringPitchRoll * joyY);
+    // When stick goes forward, joyY goes up => b- f+
+    b -= (maxSteeringPitchRoll * joyY);
+    f += (maxSteeringPitchRoll * joyY);
 
     // When stick is yawed...
     f += (maxSteeringYaw * -joyZ);
@@ -233,11 +220,10 @@ void Vehicle::slotUpdatePosition(void)
     l -= (maxSteeringYaw * -joyZ);
     r -= (maxSteeringYaw * -joyZ);
 
-    qDebug() << "endSpeed\t" << f << b << l << r << endl;
-
+//    qDebug() << "endSpeed\t" << "f" << f << "b" << b << "l" << l << "r" << r;
 
     QList<int> motorSpeeds;
-    // motorSpeeds << front << back << left << right
+    // motorSpeeds << forward << backward << left << right
     motorSpeeds << f << b << -l << -r;
 
     slotSetMotorSpeeds(motorSpeeds);
@@ -258,10 +244,10 @@ void Vehicle::slotSetNextWayPoint(const CoordinateGps &wayPoint)
 
 void Vehicle::slotSetMotorSpeeds(const QList<int> &speeds)
 {
-    Q_ASSERT(speeds.size() <= mEngines.size());
+    Q_ASSERT(speeds.size() <= mEngineNodes.size());
 
     // We apply forces to the vehicle depending on the speeds of its propellers.
-
+/*
     for(int i=0;i<speeds.size();++i)
     {
         const btVector3 thrustScalar = mEngines.at(i).calculateThrust(speeds.at(i));
@@ -275,8 +261,27 @@ void Vehicle::slotSetMotorSpeeds(const QList<int> &speeds)
         mVehicleBody->applyTorque(torque);
         //qDebug() << "Vehicle::slotSetMotorSpeeds(): torque" << i << torque.x() << torque.y() << torque.z();
     }
+*/
 
-//    mVehicleBody->applyForce(btVector3(0, 20, 0), btVector3(0, 0, 0));
+    for(int i=0;i<speeds.size();++i)
+    {
+        const double thrustScalar = mEngine.calculateThrust(speeds.at(i));
+
+        // f b -l -r
+
+        const Ogre::Vector3 thrustVectorOgre = mEngineNodes.at(i)->_getDerivedOrientation() * Ogre::Vector3(0, thrustScalar, 0);
+        const btVector3 thrustVectorBt(thrustVectorOgre.x, thrustVectorOgre.y, thrustVectorOgre.z);
+//        const Ogre::Vector3 pos = mEngineNodes.at(i)->_getDerivedPosition() - mVehicleNode->_getDerivedPosition();
+        const Ogre::Vector3 pos = mVehicleNode->_getDerivedOrientation() * mEngineNodes.at(i)->getPosition();
+        const btVector3 position(pos.x, pos.y, pos.z);
+        mVehicleBody->applyForce(thrustVectorBt, position);
+//        qDebug() << "Vehicle::slotSetMotorSpeeds(): thrust" << i << thrustVectorOgre.x << thrustVectorOgre.y << thrustVectorOgre.z << "at" << position.x() << position.y() << position.z();
+
+        const double torqueScalar = mEngine.calculateTorque(speeds.at(i));
+        Ogre::Vector3 torque = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0.0, torqueScalar, 0.0);
+        mVehicleBody->applyTorque(btVector3(torque.x, torque.y, torque.z));
+//        qDebug() << "Vehicle::slotSetMotorSpeeds(): torque y:" << i << torque;
+    }
 
 //    qDebug() << "Vehicle::slotSetMotorSpeeds(): total yaw torque is" << mVehicleBody->getTotalTorque().y();
 }
@@ -290,7 +295,7 @@ void Vehicle::slotUpdatePhysics(void)
     const btScalar fixedTimeStep = 1.0 / 60.0;
 //    qDebug() << "Vehicle::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
 
-//    mVehicleBody->applyDamping(deltaS);
+    mVehicleBody->applyDamping(deltaS);
 
     Q_ASSERT(deltaS < maxSubSteps * fixedTimeStep); // http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
 //    mVehicleBody->applyForce(btVector3(0, 20, 0), btVector3(0, 0, 0));
@@ -313,6 +318,7 @@ void Vehicle::slotUpdatePhysics(void)
     }
 
     // TODO: If we loop with more than 25fps, update more slowly
+    // TODO: why the fuck does a timer in vehicle drive the gl update?
     mOgreWidget->update();
 }
 
@@ -334,3 +340,16 @@ void Vehicle::slotShutDown(void)
 
 //    quit();
 }
+
+QVector3D Vehicle::getLinearVelocity() const
+{
+    const btVector3 vL = mVehicleBody->getLinearVelocity();
+    return QVector3D(vL.x(), vL.y(), vL.z());
+}
+
+QVector3D Vehicle::getAngularVelocity() const
+{
+    const btVector3 vA = mVehicleBody->getAngularVelocity();
+    return QVector3D(vA.x(), vA.y(), vA.z());
+}
+

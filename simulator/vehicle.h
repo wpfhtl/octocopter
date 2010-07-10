@@ -44,7 +44,9 @@ private:
     CoordinateConverter mCoordinateConverter;
     Ogre::Vector3 mNextWayPoint;
     OgreWidget* mOgreWidget;
-    QList<Engine> mEngines;
+    QList<Engine> mEngines; // probably deprecated for mEngineNodes and mEngine
+    Engine mEngine;
+    QList<Ogre::SceneNode*> mEngineNodes;
     Joystick *mJoystick;
 
 protected:
@@ -69,6 +71,9 @@ protected:
 public:
     Vehicle(Simulator *simulator, OgreWidget *ogreWidget);
     ~Vehicle();
+
+    QVector3D getLinearVelocity() const;
+    QVector3D getAngularVelocity() const;
 
 signals:
     void newPose(const Ogre::Vector3 pos, const Ogre::Quaternion rot);
