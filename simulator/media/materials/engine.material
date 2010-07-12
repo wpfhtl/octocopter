@@ -1,0 +1,42 @@
+
+material engine/07_-_Default
+{
+	technique
+	{
+		pass
+		{
+			ambient 1 0.501961 0.501961 1
+			diffuse 1 0.501961 0.501961 1
+		}
+
+	}
+
+}
+
+material engine/09_-_Default
+{
+	technique
+	{
+		pass
+		{
+			ambient 1 0.752941 0 1
+			diffuse 1 0.752941 0 1
+		}
+
+	}
+
+}
+
+material engine/13_-_Default
+{
+	technique
+	{
+		pass
+		{
+			ambient 0 0.870588 1 1
+			diffuse 0 0.870588 1 1
+		}
+
+	}
+
+}

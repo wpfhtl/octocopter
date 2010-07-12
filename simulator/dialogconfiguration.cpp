@@ -33,7 +33,7 @@ DialogConfiguration::DialogConfiguration(Simulator *simulator) :
 
 DialogConfiguration::~DialogConfiguration()
 {
-    qDebug() << "DialogConfiguration::~DialogConfiguration()";
+    qDebug() << "DialogConfiguration::~DialogConfiguration(): cams and lidars:" << mSimulator->mCameras->size() << mSimulator->mLaserScanners->size();
     slotSaveConfiguration();
     qDebug() << "DialogConfiguration::~DialogConfiguration(): done";
 }

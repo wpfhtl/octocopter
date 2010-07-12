@@ -25,6 +25,11 @@ StatusWidget::StatusWidget(Simulator *simulator) : QDockWidget((QWidget*)simulat
     mDialogConfiguration = new DialogConfiguration(mSimulator);
 }
 
+StatusWidget::~StatusWidget()
+{
+    delete mDialogConfiguration;
+}
+
 void StatusWidget::slotSimulationStarted()
 {
     mBtnPause->setEnabled(true);

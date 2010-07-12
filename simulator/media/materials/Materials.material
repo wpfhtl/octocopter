@@ -1,0 +1,99 @@
+material Examples/CloudyNoonSkyBox
+{
+	technique
+	{
+		pass
+		{
+			lighting off
+			depth_write off
+
+			texture_unit
+			{
+				cubic_texture cloudy_noon.jpg separateUV
+				tex_address_mode clamp
+			}
+		}
+	}
+}
+
+material Examples/StormySkyBox
+{
+	technique
+	{
+		pass
+		{
+			lighting off
+			depth_write off
+
+			texture_unit
+			{
+				cubic_texture stormy.jpg separateUV
+				tex_address_mode clamp
+			}
+		}
+	}
+}
+
+fragment_program Examples/MorningSkyBoxHDRfp cg
+{
+	source hdr.cg
+	entry_point morningskybox_fp
+	profiles ps_2_0 arbfp1
+
+}
+
+fragment_program Examples/MorningCubeMapHDRfp cg
+{
+	source hdr.cg
+	entry_point morningcubemap_fp
+	profiles ps_2_0 arbfp1
+
+}
+
+material Examples/Rockwall
+{
+	technique
+	{
+		pass
+		{
+			texture_unit
+			{
+				texture rockwall.tga
+			}
+		}
+	}
+}
+
+material RustyBarrel
+{
+	technique
+	{
+		pass
+		{
+			ambient 0.5 0.5 0.5 1.0
+			diffuse 1.0 1.0 1.0 1.0
+			specular 0.0 0.0 0.0 1.0 12.5
+			emissive 0.0 0.0 0.0 1.0
+			texture_unit
+			{
+				texture RustyBarrel.png
+				filtering trilinear
+			}
+		}
+	}
+}
+
+material Examples/TudorHouse
+{
+	technique
+	{
+		pass
+		{
+			texture_unit
+			{
+				texture fw12b.jpg
+				tex_address_mode clamp
+			}
+		}
+	}
+}

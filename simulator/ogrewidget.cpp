@@ -664,6 +664,8 @@ void OgreWidget::setupTerrain()
 
     mTerrainGlobals = new Ogre::TerrainGlobalOptions();
 
+    mTerrainPos = Ogre::Vector3(0.0, 0.0, 0.0);
+
 //    mEditMarker = ogreSceneManager->createEntity("editMarker", "sphere.mesh");
 //    mEditNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode();
 //    mEditNode->attachObject(mEditMarker);

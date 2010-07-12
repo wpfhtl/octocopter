@@ -1,0 +1,14 @@
+
+material r/03_-_Default
+{
+	technique
+	{
+		pass
+		{
+			ambient 0 1 0.0705882 1
+			diffuse 0 1 0.0705882 1
+		}
+
+	}
+
+}

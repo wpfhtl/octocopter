@@ -24,6 +24,7 @@ private:
 
 public:
     StatusWidget(Simulator *simulator);
+    ~StatusWidget();
     double getTimeFactor() const;
     DialogConfiguration *mDialogConfiguration;
 
