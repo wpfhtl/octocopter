@@ -115,7 +115,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     //----------------------------------------------------------
     // Load terrain!
     //----------------------------------------------------------
-/*
+
    std::string terrainFileStr = "terrain.cfg";
 
    Ogre::DataStreamPtr configStream = Ogre::ResourceGroupManager::getSingleton().openResource(terrainFileStr, Ogre::ResourceGroupManager::getSingleton().getWorldResourceGroupName());
@@ -138,11 +138,12 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 
    // This code for the localScaling is taken directly from the TerrainSceneManager, adapted to a btVector3
    btVector3 localScaling(1, 1, 1);
-   localScaling.setX(atof(config.getSetting("PageWorldX").c_str()) / (width -1));
-   localScaling.setZ(atof(config.getSetting("PageWorldZ").c_str()) / (width -1));
+//   localScaling.setX(atof(config.getSetting("PageWorldX").c_str()) / (width -1));
+//   localScaling.setZ(atof(config.getSetting("PageWorldZ").c_str()) / (width -1));
 
    // And now, we actually call Bullet. heightmap needs to be on the heap, as bullet does not copy it.
    mGroundShape = new btHeightfieldTerrainShape(width, width, heightmap->getData(), heightScale, 0, maxHeight, 1, PHY_UCHAR, false);
+//   mGroundShape = new btHeightfieldTerrainShape(12000, 12000, heightmap->getData(), heightScale, 0, maxHeight, 1, PHY_UCHAR, false);
    mGroundShape->setLocalScaling(localScaling);
 
    // All thats left is to line up the Ogre::SceneNode with the btHeightfieldTerrainShape.
@@ -152,23 +153,14 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
    // what I can tell, its immovable.
    btVector3 min, max;
    mGroundShape->getAabb(btTransform::getIdentity(), min, max);
-//   Ogre::SceneNode *sNode = mOgreWidget->sceneManager()->getSceneNode("Terrain");
-//   sNode->setPosition(BtOgre::Convert::toOgre(min));
+//   Ogre::SceneNode *sNode;// = mOgreWidget->sceneManager()->getSceneNode("Terrain");
+//   sNode->setPosition();
 
    // Finally, create your btMotionState, and btRigidBody, and all the rigid body to the physics world.
-//   BtOgre::RigidBodyState* terrainState = new BtOgre::RigidBodyState(sNode, btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
-//   mGroundBody = new btRigidBody(0, terrainState, mGroundShape, btVector3(0, 0, 0));
-//   mGroundBody->setCollisionFlags(mGroundBody->getCollisionFlags() | btCollisionObject::CF_STATIC_OBJECT);
-//   mBtWorld->addRigidBody(mGroundBody, COL_GROUND, COL_NOTHING);
-
-   // Debug, add a plane like the tutorial says
-//   btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0,1,0),1);
-//   btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(0,-1,0)));
-//   btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(0,groundMotionState,groundShape,btVector3(0,0,0));
-//   btRigidBody* groundRigidBody = new btRigidBody(groundRigidBodyCI);
-//   mBtWorld->addRigidBody(groundRigidBody);
-*/
-
+   BtOgre::RigidBodyState* terrainState = new BtOgre::RigidBodyState(mOgreWidget->mTerrainGroup);
+   mGroundBody = new btRigidBody(0.0, terrainState, mGroundShape);
+   mBtWorld->addRigidBody(mGroundBody);
+   terrainState->setWorldTransform(btTransform(btQuaternion::getIdentity(), min + BtOgre::Convert::toBullet(Ogre::Vector3(0, -190, 0))));
 }
 
 Vehicle::~Vehicle()
@@ -297,7 +289,7 @@ void Vehicle::slotUpdatePhysics(void)
 
     mVehicleBody->applyDamping(deltaS);
 
-    Q_ASSERT(deltaS < maxSubSteps * fixedTimeStep); // http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
+    //Q_ASSERT(deltaS < maxSubSteps * fixedTimeStep); // http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
 //    mVehicleBody->applyForce(btVector3(0, 20, 0), btVector3(0, 0, 0));
     mBtWorld->stepSimulation(deltaS, maxSubSteps, fixedTimeStep);
 //    mVehicleBody->applyForce(btVector3(0, 20, 0), btVector3(0, 0, 0));

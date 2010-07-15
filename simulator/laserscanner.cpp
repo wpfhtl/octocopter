@@ -171,6 +171,8 @@ void LaserScanner::slotDoScan()
         mLaserBeam.setDirection(mScannerOrientation * quatBeamRotation * Ogre::Vector3::NEGATIVE_UNIT_Z);
         locker.unlock();
 
+        // http://www.ogre3d.org/docs/api/html/classOgre_1_1TerrainGroup.html says about rayIntersects:
+        // This can be called from any thread as long as no parallel write to the terrain data occurs.
         Ogre::TerrainGroup::RayResult rayResult = mOgreWidget->mTerrainGroup->rayIntersects(mLaserBeam);
         if(rayResult.hit && mLaserBeam.getOrigin().squaredDistance(rayResult.position) < mRangeSquared)
         {

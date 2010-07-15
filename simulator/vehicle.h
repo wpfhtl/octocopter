@@ -11,7 +11,7 @@
 #include "BtOgre/BtOgrePG.h"
 #include "BtOgre/BtOgreGP.h"
 #include "BtOgre/BtOgreExtras.h"
-//#include "BulletCollision/CollisionShapes/btHeightfieldTerrainShape.h"
+#include "BulletCollision/CollisionShapes/btHeightfieldTerrainShape.h"
 #include <BulletCollision/CollisionShapes/btShapeHull.h>
 #include <btBulletDynamicsCommon.h>
 

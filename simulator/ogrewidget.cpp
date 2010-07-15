@@ -701,10 +701,11 @@ void OgreWidget::setupTerrain()
     for (long x = TERRAIN_PAGE_MIN_X; x <= TERRAIN_PAGE_MAX_X; ++x)
         for (long y = TERRAIN_PAGE_MIN_Y; y <= TERRAIN_PAGE_MAX_Y; ++y)
             defineTerrain(x, y, blankTerrain);
+
     // sync load since we want everything in place when we start
     mTerrainGroup->loadAllTerrains(true);
 
-    if (mTerrainsImported)
+    if(mTerrainsImported)
     {
         Ogre::TerrainGroup::TerrainIterator ti = mTerrainGroup->getTerrainIterator();
         while(ti.hasMoreElements())
@@ -772,6 +773,7 @@ void OgreWidget::configureTerrainDefaults(Ogre::Light* l)
 
 void OgreWidget::defineTerrain(long x, long y, bool flat)
 {
+//    Q_ASSERT(false);
     // If a file is available, use it. If not, generate file from import
 
     // Usually in a real project you'll know whether the compact terrain data is

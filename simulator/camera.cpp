@@ -67,7 +67,6 @@ void Camera::run()
 void Camera::slotRecordImage()
 {
     qDebug() << "Camera::slotRecordImage(): updating renderTarget from" << mCamera->getDerivedPosition().x << mCamera->getDerivedPosition().y << mCamera->getDerivedPosition().z;
-    qDebug() << "Camera::slotRecordImage(): updating renderTarget from" << mCameraNode->_getDerivedPosition().x << mCameraNode->_getDerivedPosition().y << mCameraNode->_getDerivedPosition().z;
     mRenderTarget->update();
 //    mRenderTarget->writeContentsToFile("rt.png");
     // Copy to PixelBox, which is backed by mImageBuffer, which backs mImage
@@ -88,12 +87,15 @@ void Camera::slotRecordImage()
     QBuffer buffer(&imageArray);
     mImage->save(&buffer, "jpg", 90);
     datagram.append(imageArray);
+    qDebug() << "Camera::slotRecordImage(): number of bytes for image" << imageArray.size();
 
     // Now set the length of the datagram
     QByteArray datagramLengthArray;
     QDataStream streamLength(&datagramLengthArray, QIODevice::WriteOnly);
     streamLength << (qint32)(datagram.length() + sizeof(qint32));
     datagram.prepend(datagramLengthArray);
+
+    qDebug() << "Camera::slotRecordImage(): datagram size:" << datagram.size();
 
     mUdpSocket->writeDatagram(datagram, QHostAddress::Broadcast, 11111);
     mUdpSocket->flush();

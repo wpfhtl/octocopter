@@ -21,12 +21,14 @@
 
 #include "btBulletDynamicsCommon.h"
 #include "OgreSceneNode.h"
+#include <Terrain/OgreTerrainGroup.h>
 #include "BtOgreExtras.h"
 
 namespace BtOgre {
 
-//A MotionState is Bullet's way of informing you about updates to an object.
-//Pass this MotionState to a btRigidBody to have your SceneNode updated automaticaly.
+// A MotionState is Bullet's way of informing you about updates to an object.
+// Pass this MotionState to a btRigidBody to have your SceneNode updated automaticaly.
+// Extended by ben to handle the new Ogre Terrain
 class RigidBodyState : public QObject, public btMotionState
 {
     Q_OBJECT
@@ -36,6 +38,7 @@ class RigidBodyState : public QObject, public btMotionState
         btTransform mCenterOfMassOffset;
 
         Ogre::SceneNode *mNode;
+        Ogre::TerrainGroup *mTerrainGroup;
 
     public:
         RigidBodyState(Ogre::SceneNode *node, const btTransform &transform, const btTransform &offset = btTransform::getIdentity())
@@ -45,11 +48,20 @@ class RigidBodyState : public QObject, public btMotionState
         {
         }
 
-        RigidBodyState(Ogre::SceneNode *node)
-            : mNode(node),
-              mTransform(((node != NULL) ? BtOgre::Convert::toBullet(node->getOrientation()) : btQuaternion(0,0,0,1)),
-                         ((node != NULL) ? BtOgre::Convert::toBullet(node->getPosition())    : btVector3(0,0,0))),
-              mCenterOfMassOffset(btTransform::getIdentity())
+        RigidBodyState(Ogre::SceneNode *node) :
+                mNode(node),
+                mTerrainGroup(0),
+                mTransform(((node != NULL) ? BtOgre::Convert::toBullet(node->getOrientation()) : btQuaternion(0,0,0,1)),
+                           ((node != NULL) ? BtOgre::Convert::toBullet(node->getPosition())    : btVector3(0,0,0))),
+                mCenterOfMassOffset(btTransform::getIdentity())
+        {
+        }
+
+        RigidBodyState(Ogre::TerrainGroup *group) :
+                mNode(0),
+                mTerrainGroup(group),
+                mTransform(btQuaternion(0,0,0,1), ((group != NULL) ? BtOgre::Convert::toBullet(group->getOrigin()) : btVector3(0,0,0))),
+                mCenterOfMassOffset(btTransform::getIdentity())
         {
         }
 
@@ -60,23 +72,38 @@ class RigidBodyState : public QObject, public btMotionState
 
         virtual void setWorldTransform(const btTransform &in)
         {
-            if (mNode == NULL)
-                return;
-
             mTransform = in;
             btTransform transform = in * mCenterOfMassOffset;
 
             btQuaternion rot = transform.getRotation();
             btVector3 pos = transform.getOrigin();
-            mNode->setOrientation(rot.w(), rot.x(), rot.y(), rot.z());
-            mNode->setPosition(pos.x(), pos.y(), pos.z());
 
-            emit newPose(mNode->getPosition(), mNode->getOrientation());
+            if(mNode)
+            {
+                mNode->setOrientation(rot.w(), rot.x(), rot.y(), rot.z());
+                mNode->setPosition(pos.x(), pos.y(), pos.z());
+
+                emit newPose(mNode->getPosition(), mNode->getOrientation());
+            }
+            else if(mTerrainGroup)
+            {
+                mTerrainGroup->setOrigin(BtOgre::Convert::toOgre(pos));
+                emit newPose(mTerrainGroup->getOrigin(), Ogre::Quaternion::IDENTITY);
+            }
+            else
+            {
+                assert(false);
+            }
         }
 
         void setNode(Ogre::SceneNode *node)
         {
             mNode = node;
+        }
+
+        void setTerrainGroup(Ogre::TerrainGroup *group)
+        {
+            mTerrainGroup = group;
         }
 
     signals:
