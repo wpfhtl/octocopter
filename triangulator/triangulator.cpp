@@ -5,43 +5,22 @@ Triangulator::Triangulator() : QMainWindow()
 {
     qDebug() << "Triangulator::Triangulator()";
     mOctree = new Octree(
-            QVector3D(-100, -100, -100),
-            QVector3D(100, 100, 100),
+            QVector3D(-100, -100, -100), // min
+            QVector3D(100, 100, 100),  // max
             10);
 
-    mUdpSocket = new QUdpSocket(this);
-    mUdpSocket->bind(QHostAddress::Broadcast, 45454);
-//    qDebug() << "float:" << sizeof(float);
-//    qDebug() << "double:" << sizeof(double);
-//    qDebug() << "QVector3D:" << sizeof(QVector3D);
-    qDebug() << "pointer:" << sizeof(QVector3D*);
-    connect(mUdpSocket, SIGNAL(readyRead()), SLOT(slotReadSocket()));
-    connect(mUdpSocket, SIGNAL(error(QAbstractSocket::SocketError)), SLOT(slotSocketError(QAbstractSocket::SocketError)));
+    mUdpSocketPoints = new QUdpSocket(this);
+    mUdpSocketPoints->bind(QHostAddress::Broadcast, 45454);
+    connect(mUdpSocketPoints, SIGNAL(readyRead()), SLOT(slotReadSocketPoints()));
+    connect(mUdpSocketPoints, SIGNAL(error(QAbstractSocket::SocketError)), SLOT(slotSocketPointsError(QAbstractSocket::SocketError)));
+
+    mUdpSocketImages = new QUdpSocket(this);
+    mUdpSocketImages->bind(QHostAddress::Broadcast, 11111);
+    connect(mUdpSocketImages, SIGNAL(readyRead()), SLOT(slotReadSocketImages()));
+    connect(mUdpSocketImages, SIGNAL(error(QAbstractSocket::SocketError)), SLOT(slotSocketImagesError(QAbstractSocket::SocketError)));
 
     mGlWidget = new GlWidget(this, mOctree);
     setCentralWidget(mGlWidget);
-
-    // testing coordinate conversion
-//    Ogre::Vector3 a(10, 10, 10);
-//    Ogre::Vector3 b = mCoordinateConverter.convert(mCoordinateConverter.convert(a));
-//    qDebug() << a.x << a.y << a.z;
-//    qDebug() << b.x << b.y << b.z;
-//    exit(0);
-    srand(65423321);
-    /*
-    QVector3D scannerPosition(0, 0, 0);
-    for(int i=0;i<10;i++)
-    {
-        QVector3D point(rand()%199 - 100, rand()%199 - 100, rand()%199 - 100);
-        mOctree->insertPoint(
-                new LidarPoint(
-                        point,
-                        (point-scannerPosition).normalized(),
-                        (rand()%20+1)
-                        )
-                );
-    }
-    */
 }
 
 Triangulator::~Triangulator()
@@ -67,55 +46,27 @@ void Triangulator::keyPressEvent(QKeyEvent* event)
         addRandomPoint();
 }
 
-void Triangulator::slotReadSocket()
+void Triangulator::slotReadSocketPoints()
 {
-    qDebug() << "Triangulator::slotReadSocket()";
+    qDebug() << "Triangulator::slotReadSocketPoints()";
 
-    while(mUdpSocket->hasPendingDatagrams())
+    while(mUdpSocketPoints->hasPendingDatagrams())
     {
         QByteArray datagram;
-        datagram.resize(mUdpSocket->pendingDatagramSize());
+        datagram.resize(mUdpSocketPoints->pendingDatagramSize());
 
-        mUdpSocket->readDatagram(datagram.data(), datagram.size());
-        mIncomingDataBuffer.append(datagram);
-        qDebug() << "Triangulator::slotReadSocket(): appending" << datagram.size() << "bytes to incoming-buffer, which now has" << mIncomingDataBuffer.size() << "bytes";
+        mUdpSocketPoints->readDatagram(datagram.data(), datagram.size());
+        mIncomingDataBufferPoints.append(datagram);
+        qDebug() << "Triangulator::slotReadSocketPoints(): appending" << datagram.size() << "bytes to incoming-buffer, which now has" << mIncomingDataBufferPoints.size() << "bytes";
     }
 
-    processIncomingData();
+    processIncomingPoints();
 }
 
 
-void Triangulator::processIncomingData()
+void Triangulator::processIncomingPoints()
 {
-/*
-    // Packet format: stream << (qint32)numberOfHits << QVector3D(ScannerPositionForAllHits) << mScanData (lots of QVector3D);
-    bool conversionSucceeded;
-    qint32 numberOfHitsToReceive = (qint32)mIncomingDataBuffer.left(sizeof(qint32)).toInt(&conversionSucceeded);
-    int numberOfBytesToReceive = sizeof(qint32) + (numberOfHitsToReceive + 1) * sizeof(QVector3D);
-
-    qDebug() << "Triangulator::slotReadSocket(): numberOfHitsToReceive" << numberOfHitsToReceive << "numberOfBytesToReceive" << numberOfBytesToReceive;
-
-    if(mUdpSocket->bytesAvailable() < numberOfBytesToReceive || !conversionSucceeded)
-    {
-        // Not enough data ready.
-        qDebug() << "Triangulator::slotReadSocket(): only" << mUdpSocket->bytesAvailable() << "bytes ready, but we need" << numberOfBytesToReceive;
-        return;
-    }
-
-    // If we readDatagram() with a size restriction smaller than whats pending, the rest will be lost!!!
-    Q_ASSERT(mUdpSocket->pendingDatagramSize() == numberOfBytesToReceive);
-
-    QByteArray datagram(numberOfBytesToReceive, 0);
-    mUdpSocket->readDatagram(datagram.data(), numberOfBytesToReceive);
-
-    qDebug() << "Triangulator::slotReadSocket():" << datagram.size() << "content:" << datagram;
-
-    QList<QVector3D> pointList;
-    QVector3D scannerPosition;
-    QDataStream stream(datagram);
-    */
-
-    QDataStream stream(mIncomingDataBuffer);
+    QDataStream stream(mIncomingDataBufferPoints);
     QVector3D scannerPosition;
     QList<QVector3D> pointList;
     qint32 numberOfHitsToReceive;
@@ -133,14 +84,98 @@ void Triangulator::processIncomingData()
         mOctree->insertPoint(new LidarPoint(p, (p-scannerPosition).normalized(), (p-scannerPosition).lengthSquared()));
     }
 
-    mIncomingDataBuffer.remove(0, numberOfBytesToReceive);
+    mIncomingDataBufferPoints.remove(0, numberOfBytesToReceive);
 
     mGlWidget->update();
 
     qDebug() << "appended" << pointList.size() << "points to octree.";
 }
 
-void Triangulator::slotSocketError(QAbstractSocket::SocketError socketError)
+
+void Triangulator::slotReadSocketImages()
 {
-    qDebug() << "Triangulator::slotSocketError():" << socketError;
+    qDebug() << "Triangulator::slotReadSocketImages()";
+
+    while(mUdpSocketImages->hasPendingDatagrams())
+    {
+        QByteArray datagram;
+        datagram.resize(mUdpSocketImages->pendingDatagramSize());
+
+        mUdpSocketImages->readDatagram(datagram.data(), datagram.size());
+        mIncomingDataBufferImages.append(datagram);
+        qDebug() << "Triangulator::slotReadSocketImages(): appending" << datagram.size() << "bytes to incoming-buffer, which now has" << mIncomingDataBufferImages.size() << "bytes";
+    }
+
+    processIncomingImages();
+}
+
+void Triangulator::processIncomingImages()
+{
+
+    qDebug() << "ScanReceiver::processIncomingImages()";
+    // Start streaming!
+    QDataStream stream(mIncomingDataBufferImages);
+
+    qint32 packetLength;
+    QString cameraName;
+    QVector3D cameraPosition;
+    QQuaternion cameraOrientation;
+    QByteArray image;
+
+    stream >> packetLength;
+    stream >> cameraName;
+    stream >> cameraPosition;
+    stream >> cameraOrientation;
+    stream >> image;
+
+    qDebug() << "image bytearray size is" << image.size();
+
+    if(!mCameraWindows.contains(cameraName))
+        mCameraWindows.insert(cameraName, new CameraWindow(this));
+
+    CameraWindow* win = mCameraWindows.value(cameraName);
+
+    win->slotSetPixmapData(image);
+    win->show();
+
+    // clear the image buffer array?
+
+//    slotReadSocketImages();
+
+/*  This is how we write into the stream
+    QByteArray datagram;
+    QDataStream stream(&datagram, QIODevice::WriteOnly);
+
+    // Stream camera name
+    stream << objectName();
+
+    // Stream the pose
+    stream << QVector3D(mCameraNode->_getDerivedPosition().x, mCameraNode->_getDerivedPosition().y, mCameraNode->_getDerivedPosition().z);
+    stream << QQuaternion(mCameraNode->_getDerivedOrientation().w, mCameraNode->_getDerivedOrientation().x, mCameraNode->_getDerivedOrientation().y, mCameraNode->_getDerivedOrientation().z);
+
+    // Stream the image
+    QByteArray imageArray;
+    QBuffer buffer(&imageArray);
+    mImage->save(&buffer, "jpg", 90);
+    datagram.append(imageArray);
+
+    // Now set the length of the datagram
+    QByteArray datagramLengthArray;
+    QDataStream streamLength(&datagramLengthArray, QIODevice::WriteOnly);
+    streamLength << (qint32)(datagram.length() + sizeof(qint32));
+    datagram.prepend(datagramLengthArray);
+
+    mUdpSocket->writeDatagram(datagram, QHostAddress::Broadcast, 11111);
+    mUdpSocket->flush();
+*/
+}
+
+void Triangulator::slotSocketPointsError(QAbstractSocket::SocketError socketError)
+{
+    qDebug() << "Triangulator::slotSocketPointsError():" << socketError;
+}
+
+void Triangulator::slotSocketImagesError(QAbstractSocket::SocketError socketError)
+{
+    qDebug() << "Triangulator::slotSocketImagesError():" << socketError;
 }

@@ -273,6 +273,12 @@ QList<LidarPoint*> Octree::findNeighborsWithinRadius(const QVector3D &point, con
     return neighbors;
 }
 
+bool Octree::foo(const QList<LidarPoint*> &list) const
+{
+//    qDebug() << "Now checking while condition, size" << list.size();
+    return true;
+}
+
 // Returns AT LEAST the @count nearest neighbors of @point, sorted by ascending distance
 QList<LidarPoint*> Octree::findNearestNeighbors(const QVector3D &point, const unsigned int count) const
 {
@@ -289,12 +295,18 @@ QList<LidarPoint*> Octree::findNearestNeighbors(const QVector3D &point, const un
 
     // As long as we don't have enough neighbors OR there might be better neighbors in parentnodes, ...
     while(
+            foo(neighbors)
+            &&
+            (
             neighbors.size() < count
             ||
             (
                     neighbors.size() >= count
                     &&
+                    // ganze zeile falsch, iSC wahr
+                    // there could be better neighbors in other nodes
                     !containingNode->isSphereContained(point, neighbors.at(count-1)->distanceTo(point))
+            )
             )
     )
     {
@@ -314,7 +326,15 @@ QList<LidarPoint*> Octree::findNearestNeighbors(const QVector3D &point, const un
             Node* ln = childLeafs.at(i);
             if(!leafsTested.contains(ln))
             {
-                if(ln->overlapsSphere(point, neighbors.at(count-1)->distanceTo(point)))
+                // Test this leafnode if
+                // - it overlaps the sphere created by centerpoint @point and the furthest neighbor
+                //  or
+                // - if we haven't found any neighbors yet
+                //  errata: that is, if we haven't found enough yet.
+
+                qDebug() << "size of neighbors list:" << neighbors.size();
+                //if(neighbors.empty() || ln->overlapsSphere(point, neighbors.at(count-1)->distanceTo(point)))
+                if(neighbors.size() < count || ln->overlapsSphere(point, neighbors.at(count-1)->distanceTo(point)))
                 {
                     leafsTested << ln;
                     neighbors << ln->findNearestNeighbors(point, count);
@@ -323,15 +343,30 @@ QList<LidarPoint*> Octree::findNearestNeighbors(const QVector3D &point, const un
             }
         }
 
+//        qDebug() << "Now checking whether we have enough points AND there cannot be any closer ones.";
         if(neighbors.size() >= count && containingNode->isSphereContained(point, neighbors.at(count-1)->distanceTo(point)))
         {
             // We have enough nodes and there cannot be closer neighbors in parent-nodes, so our search has ended.
             return neighbors;
         }
+        else
+        {
+            if(neighbors.size() < count)
+                qDebug() << "NOT returning, count is too small" << neighbors.size();
+
+            if(!containingNode->isSphereContained(point, neighbors.at(count-1)->distanceTo(point)))
+                qDebug() << "NOT returning, sphere around furthest neighbor is not contained";
+        }
     }
+
+//    qDebug() << "neighborsize:" << neighbors.size();
 
     // We should never end up here. If there's not enough neighbors, we advance to the top of the tree and
     // then return the most recent resultset. If we have enough neighbors, and there cannot be closer ones,
     // we return above.
-    Q_ASSERT(false);
+//    Q_ASSERT(false);
+
+    // The comment above is NOT true if the very first call to findNearestNeighbors() yields the required
+    // neighbors. The fix is easy, just return the list.
+    return neighbors;
 }

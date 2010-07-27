@@ -12,6 +12,8 @@ Simulator::Simulator(void) :
 
     resize(1024, 768);
 
+    statusBar()->showMessage("Starting up...");
+
     mTimeSimulationPause = QTime(); // set invalid;
     mTimeSimulationStart = QTime(); // set invalid;
 
@@ -40,6 +42,7 @@ Simulator::Simulator(void) :
 
     mTimeFactor = mStatusWidget->getTimeFactor();
     qDebug() << "Simulator::Simulator(): setting timeFactor to" << mTimeFactor;
+
 }
 
 Simulator::~Simulator(void)

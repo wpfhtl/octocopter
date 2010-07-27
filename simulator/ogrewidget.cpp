@@ -1,7 +1,7 @@
 #include "ogrewidget.h"
 
 const QPoint     OgreWidget::invalidMousePoint(-1,-1);
-const Ogre::Real OgreWidget::turboModifier(10);
+const Ogre::Real OgreWidget::turboModifier(80);
 
 OgreWidget::OgreWidget(Simulator *simulator) :
         QWidget((QWidget*)simulator),
@@ -18,6 +18,7 @@ OgreWidget::OgreWidget(Simulator *simulator) :
         btnR(false),
         selectedNode(0),
         mFrameCount(0),
+        mTerrainsImported(false),
         mUpdateTimerId(0),
         mMutex(QMutex::NonRecursive)
 {
@@ -44,6 +45,9 @@ OgreWidget::~OgreWidget()
     {
         ogreRenderWindow->removeAllViewports();
     }
+
+    delete mTerrainGroup;
+    delete mTerrainGlobals;
 
     if(ogreRoot)
     {
@@ -358,6 +362,33 @@ void OgreWidget::paintEvent(QPaintEvent *e)
         initOgreSystem();
     }
 
+    if(mTerrainGroup->isDerivedDataUpdateInProgress())
+    {
+        if(mTerrainsImported)
+        {
+            qDebug() << "OgreWidget::paintEvent(): Building terrain, please wait";
+            mSimulator->statusBar()->showMessage("Building terrain, please wait...");
+        }
+        else
+        {
+            qDebug() << "OgreWidget::paintEvent(): Updating textures, please wait";
+            mSimulator->statusBar()->showMessage("Updating textures, patience...");
+        }
+    }
+    else
+    {
+        qDebug() << "OgreWidget::paintEvent(): updateInProgress";
+        if(mTerrainsImported)
+        {
+            qDebug() << "OgreWidget::paintEvent(): saving terrains    ";
+            mSimulator->statusBar()->showMessage("Saving all terrains.");
+            mTerrainGroup->saveAllTerrains(true);
+            mTerrainsImported = false;
+            //mSimulator->statusBar()->hide();
+        }
+    }
+
+
     // Construct all laserscanner rays before rendering
     QList<LaserScanner*> *laserScanners = mSimulator->mLaserScanners;
     for(int i = 0; i < laserScanners->size(); ++i)
@@ -484,6 +515,11 @@ void OgreWidget::initOgreSystem()
     ogreViewport = ogreRenderWindow->addViewport(mCamera);
     ogreViewport->setBackgroundColour(Ogre::ColourValue(0.7, 0.7, 0.7));
     mCamera->setAspectRatio(Ogre::Real(width()) / Ogre::Real(height()));
+
+    if(ogreRoot->getRenderSystem()->getCapabilities()->hasCapability(Ogre::RSC_INFINITE_FAR_PLANE))
+    {
+        mCamera->setFarClipDistance(0);   // enable infinite far clip distance if we can
+    }
 
 //    loadResources();
 
@@ -660,9 +696,8 @@ Ogre::SceneManager* OgreWidget::sceneManager()
 
 void OgreWidget::setupTerrain()
 {
-    bool blankTerrain = false;
+//    bool blankTerrain = false;
 
-    mTerrainGlobals = new Ogre::TerrainGlobalOptions();
 
     mTerrainPos = Ogre::Vector3(0.0, 0.0, 0.0);
 
@@ -671,6 +706,7 @@ void OgreWidget::setupTerrain()
 //    mEditNode->attachObject(mEditMarker);
 //    mEditNode->setScale(0.05, 0.05, 0.05);
 
+    // These two lines makes the terrain textures look nicer:
     Ogre::MaterialManager::getSingleton().setDefaultTextureFiltering(Ogre::TFO_ANISOTROPIC);
     Ogre::MaterialManager::getSingleton().setDefaultAnisotropy(7);
 
@@ -678,17 +714,15 @@ void OgreWidget::setupTerrain()
 
     Ogre::LogManager::getSingleton().setLogDetail(Ogre::LL_BOREME);
 
+    // Set up directional and ambient lights
 //    Ogre::Vector3 lightdir(0.55, -0.3, 0.75);
     Ogre::Vector3 lightdir(-0.55, -0.3, -0.75);
     lightdir.normalise();
-
-
-    Ogre::Light* l = mSceneManager->createLight("tstLight");
-    l->setType(Ogre::Light::LT_DIRECTIONAL);
-    l->setDirection(lightdir);
-    l->setDiffuseColour(Ogre::ColourValue::White);
-    l->setSpecularColour(Ogre::ColourValue(0.4, 0.4, 0.4));
-
+    Ogre::Light* light = mSceneManager->createLight("tstLight");
+    light->setType(Ogre::Light::LT_DIRECTIONAL);
+    light->setDirection(lightdir);
+    light->setDiffuseColour(Ogre::ColourValue::White);
+    light->setSpecularColour(Ogre::ColourValue(0.4, 0.4, 0.4));
     mSceneManager->setAmbientLight(Ogre::ColourValue(0.2, 0.2, 0.2));
 
 
@@ -696,15 +730,17 @@ void OgreWidget::setupTerrain()
     mTerrainGroup->setFilenameConvention(Ogre::String("SimTerrain"), Ogre::String("dat"));
     mTerrainGroup->setOrigin(mTerrainPos);
 
-    configureTerrainDefaults(l);
+    mTerrainGlobals = new Ogre::TerrainGlobalOptions();
+    configureTerrainDefaults(light);
 
-    for (long x = TERRAIN_PAGE_MIN_X; x <= TERRAIN_PAGE_MAX_X; ++x)
+    for(long x = TERRAIN_PAGE_MIN_X; x <= TERRAIN_PAGE_MAX_X; ++x)
         for (long y = TERRAIN_PAGE_MIN_Y; y <= TERRAIN_PAGE_MAX_Y; ++y)
-            defineTerrain(x, y, blankTerrain);
+            defineTerrain(x, y/*, blankTerrain*/);
 
     // sync load since we want everything in place when we start
     mTerrainGroup->loadAllTerrains(true);
 
+    // calculate the blend maps of all terrains
     if(mTerrainsImported)
     {
         Ogre::TerrainGroup::TerrainIterator ti = mTerrainGroup->getTerrainIterator();
@@ -720,43 +756,48 @@ void OgreWidget::setupTerrain()
     // create a few entities on the terrain
     Ogre::Entity* e = mSceneManager->createEntity("tudorhouse.mesh");
 //    Ogre::Vector3 entPos(mTerrainPos.x + 2043, 0, mTerrainPos.z + 1715);
-    Ogre::Vector3 entPos(0, 0, 0);
+    Ogre::Vector3 entPos(6000, 0, 6000);
     Ogre::Quaternion rot;
     entPos.y = mTerrainGroup->getHeightAtWorldPosition(entPos) + 65.5 + mTerrainPos.y;
     rot.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
     Ogre::SceneNode* sn = mSceneManager->getRootSceneNode()->createChildSceneNode(entPos, rot);
-    sn->setScale(Ogre::Vector3(0.012, 0.012, 0.012));
+    //sn->setScale(Ogre::Vector3(0.012, 0.012, 0.012));
+
     sn->attachObject(e);
 //    mHouseList.push_back(e);
 
     mSceneManager->setSkyBox(true, "Examples/CloudyNoonSkyBox");
 }
 
-void OgreWidget::configureTerrainDefaults(Ogre::Light* l)
+void OgreWidget::configureTerrainDefaults(Ogre::Light* light)
 {
     // Configure global
+    // MaxPixelError decides how precise our terrain is going to be. A lower number will mean
+    // a more accurate terrain, at the cost of performance (because of more vertices).
     mTerrainGlobals->setMaxPixelError(8);
-    // testing composite map
+
+    // CompositeMapDistance decides how far the Ogre terrain will render the lightmapped terrain.
     mTerrainGlobals->setCompositeMapDistance(3000);
+
     //mTerrainGlobals->setUseRayBoxDistanceCalculation(true);
     //mTerrainGlobals->getDefaultMaterialGenerator()->setDebugLevel(1);
     //mTerrainGlobals->setLightMapSize(256);
 
     //matProfile->setLightmapEnabled(false);
     // Important to set these so that the terrain knows what to use for derived (non-realtime) data
-    mTerrainGlobals->setLightMapDirection(l->getDerivedDirection());
+    mTerrainGlobals->setLightMapDirection(light->getDerivedDirection());
     mTerrainGlobals->setCompositeMapAmbient(mSceneManager->getAmbientLight());
-    //mTerrainGlobals->setCompositeMapAmbient(ColourValue::Red);
-    mTerrainGlobals->setCompositeMapDiffuse(l->getDiffuseColour());
+    mTerrainGlobals->setCompositeMapDiffuse(light->getDiffuseColour());
 
     // Configure default import settings for if we use imported image
     Ogre::Terrain::ImportData& defaultimp = mTerrainGroup->getDefaultImportSettings();
     defaultimp.terrainSize = TERRAIN_SIZE;
     defaultimp.worldSize = TERRAIN_WORLD_SIZE;
-    defaultimp.inputScale = 600;
+    defaultimp.inputScale = 1; // 600
     defaultimp.minBatchSize = 33;
     defaultimp.maxBatchSize = 65;
-    // textures
+
+    // Set up the textures
     defaultimp.layerList.resize(3);
     defaultimp.layerList[0].worldSize = 100;
     defaultimp.layerList[0].textureNames.push_back("dirt_grayrocky_diffusespecular.dds");
@@ -773,11 +814,11 @@ void OgreWidget::configureTerrainDefaults(Ogre::Light* l)
 
 void OgreWidget::defineTerrain(long x, long y, bool flat)
 {
-//    Q_ASSERT(false);
-    // If a file is available, use it. If not, generate file from import
+    // First, we ask our TerrainGroup what file name it would use to generate the terrain. Then we check if
+    // there is a file by that name in our resource group. If there is, it means that we generated a binary
+    // terrain data file already, and thus there is no need to import it from an image. If there isn't a data
+    // file present, it means we have to generate our terrain, and we load the image and uses that to define it.
 
-    // Usually in a real project you'll know whether the compact terrain data is
-    // available or not; I'm doing it this way to save distribution size
     if(flat)
     {
         mTerrainGroup->defineTerrain(x, y, 0.0f);
@@ -811,6 +852,8 @@ void OgreWidget::getTerrainImage(bool flipX, bool flipY, Ogre::Image& img)
 
 void OgreWidget::initBlendMaps(Ogre::Terrain* terrain)
 {
+    // Let's just say that it uses the terrain height to splat the three layers
+    // on the terrain. Notice the use of getLayerBlendMap and getBlendPointer.
     Ogre::TerrainLayerBlendMap* blendMap0 = terrain->getLayerBlendMap(1);
     Ogre::TerrainLayerBlendMap* blendMap1 = terrain->getLayerBlendMap(2);
     Ogre::Real minHeight0 = 70;
@@ -833,13 +876,10 @@ void OgreWidget::initBlendMaps(Ogre::Terrain* terrain)
             val = (height - minHeight1) / fadeDist1;
             val = Ogre::Math::Clamp(val, (Ogre::Real)0, (Ogre::Real)1);
             *pBlend1++ = val;
-
-
         }
     }
     blendMap0->dirty();
     blendMap1->dirty();
-    //blendMap0->loadImage("blendmap1.png", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
     blendMap0->update();
     blendMap1->update();
 }

@@ -131,18 +131,7 @@ bool Node::insertAndReduce(LidarPoint* const lidarPoint)
         // delete mMri1, its on the ray between mMri2 and lidarPoint
         mMri1->node->deletePoint(mMri1);
         mMri1 = lidarPoint;
-    }
-    else
-    {
-        qDebug() << "Node::insertAndReduce(): aww, reduction failed, will insert." << data.size();
-        // update the pointers for the next iteration
-        mMri2 = mMri1;
-        mMri1 = lidarPoint;
-    }
 
-    // Probably stupid, but lets start easy: Do not insert if it has N close-by neighbors
-    if(mTree->findNeighborsWithinRadius(lidarPoint->position, 0.1).size() < 3)
-    {
         data.append(lidarPoint);
         lidarPoint->node = this;
         mNumberOfItems++;
@@ -150,10 +139,29 @@ bool Node::insertAndReduce(LidarPoint* const lidarPoint)
     }
     else
     {
-        // We delete the point, as it does not contain much information. Haha.
-        delete lidarPoint;
-        return false;
+//        qDebug() << "Node::insertAndReduce(): aww, reduction failed, will insert." << data.size();
+
+
+        // Probably stupid, but lets start easy: Do not insert if it has N close-by neighbors
+        if(mTree->findNeighborsWithinRadius(lidarPoint->position, 0.8).size() < 1)
+        {
+            data.append(lidarPoint);
+            lidarPoint->node = this;
+            mNumberOfItems++;
+
+            // update the pointers for the next iteration
+            mMri2 = mMri1;
+            mMri1 = lidarPoint;
+            return true;
+        }
+        else
+        {
+            // We delete the point, as it does not contain much information. Haha.
+            delete lidarPoint;
+            return false;
+        }
     }
+
 }
 
 Node* Node::insertPoint(LidarPoint* const lidarPoint) // a const pointer to a non-const LidarPoint
@@ -273,25 +281,35 @@ QList<LidarPoint*> Node::findNearestNeighbors(const QVector3D &point, const unsi
         QList<LidarPoint*> result;
 
         QMap<double, LidarPoint*>::const_iterator i = distanceMap.constBegin();
-        while(i != distanceMap.constEnd())
+        while(i != distanceMap.constEnd() && result.size() < count)
         {
             result << i.value();
-            if(result.size() == count) break;
             ++i;
         }
 
         return result;
 
     }
+
+    Q_ASSERT(false);
 }
 
 // Returns true if the given sphere fits completely inside this Node.
 bool Node::isSphereContained(const QVector3D point, const double radius)
 {
-    return isBoxContained(
+    if(isBoxContained(
             QVector3D(point.x()-radius, point.y()-radius, point.z()-radius),
             QVector3D(point.x()+radius, point.y()+radius, point.z()+radius)
-            );
+            ))
+    {
+//        qDebug() << "Node::isSphereContained() point" << point << "radius" << radius << "IS contained";
+        return true;
+    }
+    else
+    {
+//        qDebug() << "Node::isSphereContained() point" << point << "radius" << radius << "IS NOT contained";
+        return false;
+    }
 
     /*
     QList<QVector3D> planes = this->planes();
@@ -640,12 +658,29 @@ void Node::drawGl(void) const
     glLineWidth(1);
     glColor4f(1.0f, 1.0f, 0.0f, 1.0f);
     glBegin(GL_POINTS);
-
     foreach(const LidarPoint* const p, data)
         glVertex3f(p->position.x(), p->position.y(), p->position.z());
     glEnd();
 
+    /*
     glEnable(GL_LIGHTING);
+    glBegin(GL_TRIANGLE_FAN);
+    foreach(const LidarPoint* const p, data)
+    {
+        QList<LidarPoint*> neighbors = mTree->findNearestNeighbors(p->position, 3);
+        if(neighbors.size() < 3) continue;
+
+        glVertex3f(p->position.x(), p->position.y(), p->position.z());
+
+        foreach(const LidarPoint* const q, neighbors)
+            glVertex3f(q->position.x(), q->position.y(), q->position.z());
+
+        glVertex3f(neighbors.first()->position.x(), neighbors.first()->position.y(), neighbors.first()->position.z());
+    }
+    glEnd();
+    */
+
+//    glEnable(GL_LIGHTING);
 
     foreach(const Node* const n, children)
         n->drawGl();

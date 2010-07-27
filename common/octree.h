@@ -17,7 +17,7 @@ class Octree
 {
 private:
     unsigned int mMaxItemsPerLeaf;
-    QVector3D mMin, mMax;
+//    QVector3D mMin, mMax;
     Node* mRootNode;
 
 public:
@@ -32,6 +32,8 @@ public:
 
     Node* insertPoint(LidarPoint* const point);
     Node* root();
+
+    bool foo(const QList<LidarPoint*> &list) const;
 
     void drawGl(void) const;
 

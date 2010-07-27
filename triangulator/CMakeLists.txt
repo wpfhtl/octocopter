@@ -10,6 +10,8 @@ SET(SRC_FILES
 main
 triangulator
 glwidget
+camerawindow
+cloudexporter
 ../common/lidarpoint
 ../common/octree
 ../common/node
@@ -19,6 +21,8 @@ glwidget
 SET(INC_FILES
 triangulator.h
 glwidget.h
+camerawindow.h
+cloudexporter.h
 ../common/lidarpoint.h
 ../common/octree.h
 ../common/node.h

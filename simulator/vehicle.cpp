@@ -122,27 +122,27 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
    Ogre::ConfigFile config;
    config.load(configStream);
 
-   Ogre::String widthStr = config.getSetting("PageSize");
-   int width = atoi(widthStr.c_str());
+//   Ogre::String widthStr = config.getSetting("PageSize");
+//   int width = atoi(widthStr.c_str());
 
-   Ogre::String imgFile = config.getSetting("Heightmap.image");
+//   Ogre::String imgFile = config.getSetting("Heightmap.image");
 
    Ogre::Image* heightmap = new Ogre::Image();
-   heightmap->load(imgFile, Ogre::ResourceGroupManager::getSingleton().getWorldResourceGroupName());
+   heightmap->load(Ogre::String("terrain.png"), Ogre::ResourceGroupManager::getSingleton().getWorldResourceGroupName());
 
-   qDebug() << "Vehicle::Vehicle(): image buffer size" << heightmap->getSize();
+//   qDebug() << "Vehicle::Vehicle(): image buffer size" << heightmap->getSize() << "btHeightfieldTerrain width" << width;
 
    Ogre::String maxHeightStr = config.getSetting("MaxHeight");
    btScalar maxHeight = atof(maxHeightStr.c_str());
    btScalar heightScale = maxHeight / 256;
 
    // This code for the localScaling is taken directly from the TerrainSceneManager, adapted to a btVector3
-   btVector3 localScaling(1, 1, 1);
+   btVector3 localScaling(23.43, 23.43, 23.43);
 //   localScaling.setX(atof(config.getSetting("PageWorldX").c_str()) / (width -1));
 //   localScaling.setZ(atof(config.getSetting("PageWorldZ").c_str()) / (width -1));
 
    // And now, we actually call Bullet. heightmap needs to be on the heap, as bullet does not copy it.
-   mGroundShape = new btHeightfieldTerrainShape(width, width, heightmap->getData(), heightScale, 0, maxHeight, 1, PHY_UCHAR, false);
+   mGroundShape = new btHeightfieldTerrainShape(512, 512, heightmap->getData(), heightScale, 0, maxHeight, 1, PHY_UCHAR, false);
 //   mGroundShape = new btHeightfieldTerrainShape(12000, 12000, heightmap->getData(), heightScale, 0, maxHeight, 1, PHY_UCHAR, false);
    mGroundShape->setLocalScaling(localScaling);
 
@@ -155,6 +155,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
    mGroundShape->getAabb(btTransform::getIdentity(), min, max);
 //   Ogre::SceneNode *sNode;// = mOgreWidget->sceneManager()->getSceneNode("Terrain");
 //   sNode->setPosition();
+   mOgreWidget->mTerrainGroup->setOrigin(BtOgre::Convert::toOgre(min));
 
    // Finally, create your btMotionState, and btRigidBody, and all the rigid body to the physics world.
    BtOgre::RigidBodyState* terrainState = new BtOgre::RigidBodyState(mOgreWidget->mTerrainGroup);
