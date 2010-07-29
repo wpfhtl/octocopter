@@ -19,12 +19,26 @@ Triangulator::Triangulator() : QMainWindow()
     connect(mUdpSocketImages, SIGNAL(readyRead()), SLOT(slotReadSocketImages()));
     connect(mUdpSocketImages, SIGNAL(error(QAbstractSocket::SocketError)), SLOT(slotSocketImagesError(QAbstractSocket::SocketError)));
 
+    menuBar()->addAction("Save Cloud", this, SLOT(slotExportCloud()));
+
     mGlWidget = new GlWidget(this, mOctree);
     setCentralWidget(mGlWidget);
 }
 
 Triangulator::~Triangulator()
 {
+}
+
+void Triangulator::slotExportCloud()
+{
+    const QString fileName = QFileDialog::getSaveFileName(this, "Save oloud to", QString(), "PLY files (*.ply)");
+
+    if(fileName.isNull()) return;
+
+    if(CloudExporter::savePly(mOctree, fileName))
+      QMessageBox::information(this, "Cloud export", "", "Export successful");
+    else
+      QMessageBox::information(this, "Cloud export", "", "Export failed, couldn't write to " + fileName);
 }
 
 void Triangulator::addRandomPoint()

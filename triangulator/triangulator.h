@@ -13,6 +13,7 @@
 #include "octree.h"
 #include "lidarpoint.h"
 #include "camerawindow.h"
+#include "cloudexporter.h"
 
 class Triangulator : public QMainWindow
 {
@@ -42,6 +43,8 @@ private slots:
     void slotReadSocketImages();
     void slotSocketPointsError(QAbstractSocket::SocketError socketError);
     void slotSocketImagesError(QAbstractSocket::SocketError socketError);
+
+    void slotExportCloud();
 
 public:
     // Laser rotation is always CCW, angleStart < angleStop

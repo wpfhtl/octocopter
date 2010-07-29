@@ -9,28 +9,21 @@
 #include <QUdpSocket>
 #include <QMutex>
 
-#include "octree.h"
+#include <octree.h>
+#include <lidarpoint.h>
 
 class CloudExporter : public QObject
 {
     Q_OBJECT
 
 private:
-    Octree* mOctree;
-
-private slots:
-    void slotReadSocketPoints();
-    void slotReadSocketImages();
-    void slotSocketPointsError(QAbstractSocket::SocketError socketError);
-    void slotSocketImagesError(QAbstractSocket::SocketError socketError);
 
 public:
-    CloudExporter(const Octree* octree);
+    CloudExporter();
     ~CloudExporter();
 
-public slots:
-    savePly(const QString &fileName);
-
+    static bool savePly(const Octree* tree, const QString &fileName);
+    static void savePly(const Node* node, QTextStream* stream);
 
 };
 
