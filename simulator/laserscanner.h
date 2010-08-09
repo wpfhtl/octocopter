@@ -50,7 +50,7 @@ private:
     double mTimeFactor;
 
     // We need to be careful with this, as the targets live in other threads
-//    Ogre::RaySceneQuery *mRaySceneQuery;
+    Ogre::RaySceneQuery *mRaySceneQuery;
     Ogre::SceneNode *mScannerNode;
     OgreWidget *mOgreWidget;
 
@@ -81,6 +81,16 @@ private:
             const Ogre::Vector3 &position,
             const Ogre::Quaternion &orient,
             const Ogre::Vector3 &scale);
+
+    // for the raycasting against entities (not ground)
+    void getMeshInformation(const Ogre::MeshPtr mesh,
+                                    size_t &vertex_count,
+                                    Ogre::Vector3* &vertices,
+                                    size_t &index_count,
+                                    Ogre::uint32* &indices,
+                                    const Ogre::Vector3 &position,
+                                    const Ogre::Quaternion &orient,
+                                    const Ogre::Vector3 &scale);
 
 private slots:
     void slotDoScan(void);
