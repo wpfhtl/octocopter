@@ -1,7 +1,7 @@
 #include "ogrewidget.h"
 
 const QPoint     OgreWidget::invalidMousePoint(-1,-1);
-const Ogre::Real OgreWidget::turboModifier(80);
+const Ogre::Real OgreWidget::turboModifier(200);
 
 OgreWidget::OgreWidget(Simulator *simulator) :
         QWidget((QWidget*)simulator),
@@ -756,15 +756,15 @@ void OgreWidget::setupTerrain()
     // create a few entities on the terrain
     Ogre::Entity* e = mSceneManager->createEntity("tudorhouse.mesh");
 //    Ogre::Vector3 entPos(mTerrainPos.x + 2043, 0, mTerrainPos.z + 1715);
-    Ogre::Vector3 entPos(6000, 0, 6000);
+    Ogre::Vector3 entPos(1900, 0, 1575);
     Ogre::Quaternion rot;
-    entPos.y = mTerrainGroup->getHeightAtWorldPosition(entPos) + 65.5 + mTerrainPos.y;
+    entPos.y = mTerrainGroup->getHeightAtWorldPosition(entPos) + mTerrainPos.y + 6.5;
     rot.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
     Ogre::SceneNode* sn = mSceneManager->getRootSceneNode()->createChildSceneNode(entPos, rot);
-    //sn->setScale(Ogre::Vector3(0.012, 0.012, 0.012));
+    sn->setScale(Ogre::Vector3(0.012, 0.012, 0.012));
 
     sn->attachObject(e);
-//    mHouseList.push_back(e);
+    mCollisionEntities.insert(e,sn);
 
     mSceneManager->setSkyBox(true, "Examples/CloudyNoonSkyBox");
 }
@@ -961,7 +961,7 @@ Ogre::SceneNode* OgreWidget::createVehicleNode(const Ogre::String name, const Og
     mSceneManager->getRootSceneNode()->removeChild(mCameraNode);
     mVehicleNode->addChild(mCameraNode);
 //    mCameraNode->translate(Ogre::Vector3(0, 0, 5));
-    mCameraNode->setPosition(mVehicleNode->_getDerivedPosition() + Ogre::Vector3(0, 1.5, 5));
+    mCameraNode->setPosition(/*mVehicleNode->_getDerivedPosition() +*/ Ogre::Vector3(0, 1.5, 5));
     mCamera->lookAt(mVehicleNode->_getDerivedPosition());
     qDebug() << "OgreWidget::createVehicleNode(): vehicle is at" << mVehicleNode->_getDerivedPosition().x << mVehicleNode->_getDerivedPosition().y << mVehicleNode->_getDerivedPosition().z;
     qDebug() << "OgreWidget::createVehicleNode(): camera  is at" << mCameraNode->_getDerivedPosition().x << mCameraNode->_getDerivedPosition().y << mCameraNode->_getDerivedPosition().z;

@@ -27,7 +27,7 @@
 #define TERRAIN_PAGE_MIN_Y 0
 #define TERRAIN_PAGE_MAX_X 0
 #define TERRAIN_PAGE_MAX_Y 0
-#define TERRAIN_WORLD_SIZE 12000.0f
+#define TERRAIN_WORLD_SIZE 2000.0f
 #define TERRAIN_SIZE 513
 
 class Simulator;
@@ -133,6 +133,8 @@ public:
             Ogre::MaterialPtr& material);
 
     void destroyManualObject(Ogre::ManualObject* manualObject, Ogre::SceneNode* sceneNode);
+
+    QMap<Ogre::Entity*, Ogre::SceneNode*> mCollisionEntities;
 
 public slots:
     void setBackgroundColor(QColor c);

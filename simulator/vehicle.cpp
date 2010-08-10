@@ -25,7 +25,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 
 
     // Bullet initialisation.
-    mBtBroadphase = new btAxisSweep3(btVector3(-20000,-20000,-20000), btVector3(20000,20000,20000), 1024);
+    mBtBroadphase = new btAxisSweep3(btVector3(-10000,-10000,-10000), btVector3(10000,10000,10000), 1024);
     mBtCollisionConfig = new btDefaultCollisionConfiguration;
     mBtDispatcher = new btCollisionDispatcher(mBtCollisionConfig);
     mBtSolver = new btSequentialImpulseConstraintSolver;
@@ -46,7 +46,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     //----------------------------------------------------------
     mVehicleEntity = mOgreWidget->sceneManager()->createEntity("vehicleEntity", "quadrocopter.mesh");
     // "vehicleNode" is fixed, used in ogrewidget.cpp
-    mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", Ogre::Vector3(0,0,0), Ogre::Quaternion::IDENTITY);
+    mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", Ogre::Vector3(1900,10,1585), Ogre::Quaternion::IDENTITY);
     mVehicleNode->attachObject(mVehicleEntity);
 
     mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(+0.00, +0.00, -0.20), Ogre::Quaternion(Ogre::Degree(000), Ogre::Vector3(1, 0, 0))));  // engine 1, forward, CW
@@ -67,8 +67,8 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 
 //    qDebug << "Vehicle::Vehicle: absolute position of right left engine:" << mEngineNodes.at()
 
-    // Place the vehicle 10m above the ground
-    Ogre::TerrainGroup::RayResult rayResult = mOgreWidget->mTerrainGroup->rayIntersects(Ogre::Ray(Ogre::Vector3(0,1000,0), Ogre::Vector3::NEGATIVE_UNIT_Y));
+    // Place the vehicle 10m above the ground - does not seem to work.
+    Ogre::TerrainGroup::RayResult rayResult = mOgreWidget->mTerrainGroup->rayIntersects(Ogre::Ray(mVehicleNode->_getDerivedPosition() + Ogre::Vector3(0,1000,0), Ogre::Vector3::NEGATIVE_UNIT_Y));
     if(rayResult.hit)
     {
         mVehicleNode->setPosition(rayResult.position.x, rayResult.position.y + 10.0, rayResult.position.z);
@@ -90,7 +90,19 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     btShapeHull* hull = new btShapeHull(mVehicleShape);
     btScalar margin = mVehicleShape->getMargin();
     hull->buildHull(margin);
-    mVehicleShape = new btConvexHullShape((btScalar*)hull->getVertexPointer(), hull->numVertices()/*, sizeof(btVector3)*/);
+    //mVehicleShape = new btConvexHullShape((btScalar*)hull->getVertexPointer(), hull->numVertices()/*, sizeof(btVector3)*/);
+    mVehicleShape = new btConvexHullShape;
+    mVehicleShape->addPoint(btVector3(0.4, 0.1, 0.0));
+    mVehicleShape->addPoint(btVector3(0.0, 0.1, 0.4));
+    mVehicleShape->addPoint(btVector3(-0.4, 0.1, 0.0));
+    mVehicleShape->addPoint(btVector3(0.0, 0.1, -0.4));
+
+    mVehicleShape->addPoint(btVector3(0.4, -0.1, 0.0));
+    mVehicleShape->addPoint(btVector3(0.0, -0.1, 0.4));
+    mVehicleShape->addPoint(btVector3(-0.4, -0.1, 0.0));
+    mVehicleShape->addPoint(btVector3(0.0, -0.1, -0.4));
+
+//    mVehicleShape->setLocalScaling(btVector3(2,1,2));
 
     //Calculate inertia.
     btScalar mass = 0.5;
@@ -112,56 +124,182 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     mBtWorld->addRigidBody(mVehicleBody/*, COL_VEHICLE, COL_GROUND*/);
 //    mVehicleBody->setActivationState(ISLAND_SLEEPING);
 
-    //----------------------------------------------------------
-    // Load terrain!
-    //----------------------------------------------------------
+    QMapIterator<Ogre::Entity*, Ogre::SceneNode*> i(mOgreWidget->mCollisionEntities);
+    while(i.hasNext())
+    {
+        i.next();
+        Ogre::Entity* e = i.key();
+        const Ogre::SceneNode* s = i.value();
 
-   std::string terrainFileStr = "terrain.cfg";
+        // Get the mesh from the entity
+        Ogre::MeshPtr myMesh = e->getMesh();
 
-   Ogre::DataStreamPtr configStream = Ogre::ResourceGroupManager::getSingleton().openResource(terrainFileStr, Ogre::ResourceGroupManager::getSingleton().getWorldResourceGroupName());
-   Ogre::ConfigFile config;
-   config.load(configStream);
+        // Get the submesh and associated data
+        Ogre::SubMesh* subMesh = myMesh->getSubMesh(0);
 
-//   Ogre::String widthStr = config.getSetting("PageSize");
-//   int width = atoi(widthStr.c_str());
+        Ogre::IndexData*  indexData = subMesh->indexData;
+        Ogre::VertexData* vertexData = subMesh->vertexData;
 
-//   Ogre::String imgFile = config.getSetting("Heightmap.image");
+        // Get the position element
+        const Ogre::VertexElement* posElem = vertexData->vertexDeclaration->findElementBySemantic(Ogre::VES_POSITION);
 
-   Ogre::Image* heightmap = new Ogre::Image();
-   heightmap->load(Ogre::String("terrain.png"), Ogre::ResourceGroupManager::getSingleton().getWorldResourceGroupName());
+        // Get a pointer to the vertex buffer
+        Ogre::HardwareVertexBufferSharedPtr vBuffer = vertexData->vertexBufferBinding->getBuffer(posElem->getSource());
 
-//   qDebug() << "Vehicle::Vehicle(): image buffer size" << heightmap->getSize() << "btHeightfieldTerrain width" << width;
+        // Get a pointer to the index buffer
+        Ogre::HardwareIndexBufferSharedPtr iBuffer = indexData->indexBuffer;
 
-   Ogre::String maxHeightStr = config.getSetting("MaxHeight");
-   btScalar maxHeight = atof(maxHeightStr.c_str());
-   btScalar heightScale = maxHeight / 256;
+        // The vertices and indices used to create the triangle mesh
+        std::vector<Ogre::Vector3> vertices;
+        vertices.reserve(vertexData->vertexCount);
 
-   // This code for the localScaling is taken directly from the TerrainSceneManager, adapted to a btVector3
-   btVector3 localScaling(23.43, 23.43, 23.43);
-//   localScaling.setX(atof(config.getSetting("PageWorldX").c_str()) / (width -1));
-//   localScaling.setZ(atof(config.getSetting("PageWorldZ").c_str()) / (width -1));
+        std::vector<unsigned long> indices;
+        indices.reserve(indexData->indexCount);
 
-   // And now, we actually call Bullet. heightmap needs to be on the heap, as bullet does not copy it.
-   mGroundShape = new btHeightfieldTerrainShape(512, 512, heightmap->getData(), heightScale, 0, maxHeight, 1, PHY_UCHAR, false);
-//   mGroundShape = new btHeightfieldTerrainShape(12000, 12000, heightmap->getData(), heightScale, 0, maxHeight, 1, PHY_UCHAR, false);
-   mGroundShape->setLocalScaling(localScaling);
+        // Lock the Vertex Buffer (READ ONLY)
+        unsigned char* vertex = static_cast<unsigned char*>(vBuffer->lock(Ogre::HardwareBuffer::HBL_READ_ONLY));
+        float* pReal = NULL;
 
-   // All thats left is to line up the Ogre::SceneNode with the btHeightfieldTerrainShape.
-   // We have to do it this way because of differences in how Bullet and Ogre orient the shapes.
-   // In Ogre, the terrain's top left corner is at (0, 0, 0) in the local TransformSpace
-   // In Bullet, not only is the center of the btHeighfield terrrain shape at (0, 0, 0), but from
-   // what I can tell, its immovable.
-   btVector3 min, max;
-   mGroundShape->getAabb(btTransform::getIdentity(), min, max);
-//   Ogre::SceneNode *sNode;// = mOgreWidget->sceneManager()->getSceneNode("Terrain");
-//   sNode->setPosition();
-   mOgreWidget->mTerrainGroup->setOrigin(BtOgre::Convert::toOgre(min));
+        for(size_t j = 0; j < vertexData->vertexCount; ++j, vertex += vBuffer->getVertexSize())
+        {
+            posElem->baseVertexPointerToElement(vertex, &pReal);
+            Ogre::Vector3 pt(pReal[0], pReal[1], pReal[2]);
 
-   // Finally, create your btMotionState, and btRigidBody, and all the rigid body to the physics world.
-   BtOgre::RigidBodyState* terrainState = new BtOgre::RigidBodyState(mOgreWidget->mTerrainGroup);
-   mGroundBody = new btRigidBody(0.0, terrainState, mGroundShape);
-   mBtWorld->addRigidBody(mGroundBody);
-   terrainState->setWorldTransform(btTransform(btQuaternion::getIdentity(), min + BtOgre::Convert::toBullet(Ogre::Vector3(0, -190, 0))));
+            vertices.push_back(pt);
+        }
+
+        vBuffer->unlock();
+
+        bool use32bitindexes = (iBuffer->getType() == Ogre::HardwareIndexBuffer::IT_32BIT);
+
+        // Lock the Index Buffer (READ ONLY)
+        unsigned long* pLong = static_cast<unsigned long*>(iBuffer->lock(Ogre::HardwareBuffer::HBL_READ_ONLY));
+        unsigned short* pShort = reinterpret_cast<unsigned short*>(pLong);
+
+        if(use32bitindexes)
+        {
+            for(size_t k = 0; k < indexData->indexCount; ++k)
+            {
+                indices.push_back(pLong[k]);
+            }
+        }
+        else
+        {
+            for(size_t k = 0; k < indexData->indexCount; ++k)
+            {
+                indices.push_back(static_cast<unsigned long>(pShort[k]) );
+            }
+        }
+
+        iBuffer->unlock();
+
+        // We now have vertices and indices ready to go
+
+        // Create the triangle mesh
+        btTriangleMesh* triMesh = new btTriangleMesh(use32bitindexes);
+        btVector3 vert0, vert1, vert2;
+        int i=0;
+
+        // For every triangle
+        for (size_t y=0; y<indexData->indexCount/3; y++)
+        {
+            // Set each vertex
+            vert0.setValue(vertices[indices[i]].x, vertices[indices[i]].y, vertices[indices[i]].z);
+            vert1.setValue(vertices[indices[i+1]].x, vertices[indices[i+1]].y, vertices[indices[i+1]].z);
+            vert2.setValue(vertices[indices[i+2]].x, vertices[indices[i+2]].y, vertices[indices[i+2]].z);
+
+            // Add the triangle into the triangle mesh
+            float scale = s->_getDerivedScale().x;
+            triMesh->addTriangle(vert0 * scale, vert1 * scale, vert2 * scale);
+
+            // Increase index count
+            i += 3;
+        }
+
+        // Add the triangle mesh into the Bullet world
+        btTransform startTransform;
+        startTransform.setIdentity();
+        startTransform.setOrigin(btVector3(0,0,0) );
+
+        // Create the collision shape from the triangle mesh
+        btBvhTriangleMeshShape* triMeshShape = new btBvhTriangleMeshShape(triMesh, true);
+
+        btScalar mass(0.0f);
+        btVector3 localInertia(0,0,0);
+
+        // Use the default motion state
+        btDefaultMotionState* triMotionState = new btDefaultMotionState(startTransform);
+
+        // Create the rigid body
+        btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, triMotionState, triMeshShape, localInertia);
+        btRigidBody* triBody = new btRigidBody(rbInfo);
+
+        triBody->getWorldTransform().setOrigin(btVector3(s->_getDerivedPosition().x, s->_getDerivedPosition().y, s->_getDerivedPosition().z));
+        triBody->getWorldTransform().setRotation(btQuaternion(s->_getDerivedOrientation().x, s->_getDerivedOrientation().y, s->_getDerivedOrientation().z, s->_getDerivedOrientation().w) );
+
+        // Set additional collision flags
+        // triBody->setCollisionFlags(triBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+
+        // Add the body to the dynamics world
+        mBtWorld->addRigidBody(triBody);
+    }
+
+    // Create terrain collision shape - http://www.ogre3d.org/forums/viewtopic.php?t=58756
+
+     Ogre::TerrainGroup::TerrainIterator ti = mOgreWidget->mTerrainGroup->getTerrainIterator();
+     Ogre::Terrain* pTerrain;
+     while(ti.hasMoreElements())
+     {
+         // ugly hack, use last terrain, there should only be one.
+         pTerrain = ti.getNext()->instance;
+     }
+
+     float* terrainHeightData = pTerrain->getHeightData();
+     Ogre::Vector3 terrainPosition = pTerrain->getPosition();
+
+     float * pDataConvert= new float[pTerrain->getSize() *pTerrain->getSize()];
+     for(int i=0;i<pTerrain->getSize();i++)
+        memcpy(
+                    pDataConvert+pTerrain->getSize() * i, // source
+                    terrainHeightData + pTerrain->getSize() * (pTerrain->getSize()-i-1), // target
+                    sizeof(float)*(pTerrain->getSize()) // size
+                    );
+
+     float metersBetweenVertices = pTerrain->getWorldSize()/(pTerrain->getSize()-0);
+     btVector3 localScaling(metersBetweenVertices, 1, metersBetweenVertices);
+
+     btHeightfieldTerrainShape* groundShape = new btHeightfieldTerrainShape(
+                 pTerrain->getSize(),
+                 pTerrain->getSize(),
+                 pDataConvert,
+                 1/*ignore*/,
+                 pTerrain->getMinHeight(),
+                 pTerrain->getMaxHeight(),
+                 1,
+                 PHY_FLOAT,
+                 true);
+
+     groundShape->setUseDiamondSubdivision(false);
+     groundShape->setLocalScaling(localScaling);
+
+     mGroundBody = new btRigidBody(0, new btDefaultMotionState(), groundShape);
+
+     mGroundBody->getWorldTransform().setOrigin(
+                 btVector3(
+                     terrainPosition.x,
+                     terrainPosition.y + (pTerrain->getMaxHeight()-pTerrain->getMinHeight())/2,
+                     terrainPosition.z));
+
+     mGroundBody->getWorldTransform().setRotation(
+                 btQuaternion(
+                     Ogre::Quaternion::IDENTITY.x,
+                     Ogre::Quaternion::IDENTITY.y,
+                     Ogre::Quaternion::IDENTITY.z,
+                     Ogre::Quaternion::IDENTITY.w));
+
+     mBtWorld->addRigidBody(mGroundBody);
+
+     //mBtDebugDrawer->step();
 }
 
 Vehicle::~Vehicle()
@@ -295,7 +433,7 @@ void Vehicle::slotUpdatePhysics(void)
     mBtWorld->stepSimulation(deltaS, maxSubSteps, fixedTimeStep);
 //    mVehicleBody->applyForce(btVector3(0, 20, 0), btVector3(0, 0, 0));
 
-//    mBtDebugDrawer->step();
+//  mBtDebugDrawer->step();
 
     mTimeOfLastUpdate = simulationTime;
 

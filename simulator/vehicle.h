@@ -61,7 +61,7 @@ protected:
     Ogre::SceneNode *mVehicleNode;
     Ogre::Entity *mVehicleEntity;
     btRigidBody *mVehicleBody;
-    btConvexShape *mVehicleShape;
+    btConvexHullShape *mVehicleShape;
     BtOgre::RigidBodyState *mVehicleState;
 
     Ogre::Entity *mGroundEntity;
