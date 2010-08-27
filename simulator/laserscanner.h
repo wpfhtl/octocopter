@@ -10,6 +10,8 @@
 #include "ogrewidget.h"
 #include "coordinateconverter.h"
 
+#include "profiler.h"
+
 class Simulator;
 class OgreWidget;
 

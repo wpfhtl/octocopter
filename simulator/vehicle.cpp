@@ -13,7 +13,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     qDebug() << "Vehicle::Vehicle(): initialized joystick, isvalid():" << mJoystick->isValid();
 
     mTimerUpdatePosition = new QTimer(this);
-    mTimerUpdatePosition->setInterval(1000/25);
+    mTimerUpdatePosition->setInterval(1000/60);
     connect(mTimerUpdatePosition, SIGNAL(timeout()), SLOT(slotUpdatePosition()));
 
     // Set up motors, as seen from the top
@@ -46,7 +46,9 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     //----------------------------------------------------------
     mVehicleEntity = mOgreWidget->sceneManager()->createEntity("vehicleEntity", "quadrocopter.mesh");
     // "vehicleNode" is fixed, used in ogrewidget.cpp
-    mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", Ogre::Vector3(1900,10,1585), Ogre::Quaternion::IDENTITY);
+
+    // Place the vehicle somewhere above some building
+    mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", mOgreWidget->mCollisionEntities.values().first()->_getDerivedPosition(), Ogre::Quaternion::IDENTITY);
     mVehicleNode->attachObject(mVehicleEntity);
 
     mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(+0.00, +0.00, -0.20), Ogre::Quaternion(Ogre::Degree(000), Ogre::Vector3(1, 0, 0))));  // engine 1, forward, CW
@@ -71,8 +73,8 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     Ogre::TerrainGroup::RayResult rayResult = mOgreWidget->mTerrainGroup->rayIntersects(Ogre::Ray(mVehicleNode->_getDerivedPosition() + Ogre::Vector3(0,1000,0), Ogre::Vector3::NEGATIVE_UNIT_Y));
     if(rayResult.hit)
     {
-        mVehicleNode->setPosition(rayResult.position.x, rayResult.position.y + 10.0, rayResult.position.z);
-        qDebug() << "Vehicle::Vehicle(): creating vehicle, setting to height" << rayResult.position.y + 10.0;
+        mVehicleNode->setPosition(rayResult.position.x, rayResult.position.y + 20.0, rayResult.position.z);
+        qDebug() << "Vehicle::Vehicle(): creating vehicle, setting to height" << rayResult.position.y + 20.0;
     }
 
     // Make camera look at vehicle
@@ -83,19 +85,22 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 //            mVehicleNode);
 
     // Create collision shape
-    BtOgre::StaticMeshToShapeConverter converter(mVehicleEntity);
-    mVehicleShape = converter.createConvex();
+//    BtOgre::StaticMeshToShapeConverter converter(mVehicleEntity);
+//    mVehicleShape = converter.createConvex();
 
     // Reduce vertices (20k to maybe 100?)
-    btShapeHull* hull = new btShapeHull(mVehicleShape);
-    btScalar margin = mVehicleShape->getMargin();
-    hull->buildHull(margin);
-    //mVehicleShape = new btConvexHullShape((btScalar*)hull->getVertexPointer(), hull->numVertices()/*, sizeof(btVector3)*/);
+//    btShapeHull* hull = new btShapeHull(mVehicleShape);
+//    btScalar margin = mVehicleShape->getMargin();
+//    hull->buildHull(margin);
+//    mVehicleShape = new btConvexHullShape((btScalar*)hull->getVertexPointer(), hull->numVertices()/*, sizeof(btVector3)*/);
+
+    // We set the collision-shape manually. Note the higher height of the device, it'll hopfully help
+    // us to catch high-speed collisions better
     mVehicleShape = new btConvexHullShape;
-    mVehicleShape->addPoint(btVector3(0.4, 0.1, 0.0));
-    mVehicleShape->addPoint(btVector3(0.0, 0.1, 0.4));
-    mVehicleShape->addPoint(btVector3(-0.4, 0.1, 0.0));
-    mVehicleShape->addPoint(btVector3(0.0, 0.1, -0.4));
+    mVehicleShape->addPoint(btVector3(0.4, 0.2, 0.0));
+    mVehicleShape->addPoint(btVector3(0.0, 0.2, 0.4));
+    mVehicleShape->addPoint(btVector3(-0.4, 0.2, 0.0));
+    mVehicleShape->addPoint(btVector3(0.0, 0.2, -0.4));
 
     mVehicleShape->addPoint(btVector3(0.4, -0.1, 0.0));
     mVehicleShape->addPoint(btVector3(0.0, -0.1, 0.4));
@@ -257,7 +262,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
      float* terrainHeightData = pTerrain->getHeightData();
      Ogre::Vector3 terrainPosition = pTerrain->getPosition();
 
-     float * pDataConvert= new float[pTerrain->getSize() *pTerrain->getSize()];
+     float * pDataConvert= new float[pTerrain->getSize() * pTerrain->getSize()];
      for(int i=0;i<pTerrain->getSize();i++)
         memcpy(
                     pDataConvert+pTerrain->getSize() * i, // source
@@ -265,7 +270,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
                     sizeof(float)*(pTerrain->getSize()) // size
                     );
 
-     float metersBetweenVertices = pTerrain->getWorldSize()/(pTerrain->getSize()-0);
+     float metersBetweenVertices = pTerrain->getWorldSize()/(pTerrain->getSize()-1);
      btVector3 localScaling(metersBetweenVertices, 1, metersBetweenVertices);
 
      btHeightfieldTerrainShape* groundShape = new btHeightfieldTerrainShape(
@@ -279,7 +284,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
                  PHY_FLOAT,
                  true);
 
-     groundShape->setUseDiamondSubdivision(false);
+     groundShape->setUseDiamondSubdivision(true);
      groundShape->setLocalScaling(localScaling);
 
      mGroundBody = new btRigidBody(0, new btDefaultMotionState(), groundShape);
@@ -299,7 +304,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 
      mBtWorld->addRigidBody(mGroundBody);
 
-     //mBtDebugDrawer->step();
+//     mBtDebugDrawer->step();
 }
 
 Vehicle::~Vehicle()
@@ -439,7 +444,7 @@ void Vehicle::slotUpdatePhysics(void)
 
     // Set all laserscanners new position
     // The lidars are attached to the vehicle's scenenode, so stepSimulation should update the vehicle's sceneNode and
-    // thus also update the laserscanner's position. BUT the lidars do up t 60k RSQ/s, so pushing these changes
+    // thus also update the laserscanner's position. BUT the lidars do up to 60k RSQ/s, so pushing these changes
     // should be more efficient than having the LaserScanners poll on every RaySceneQuery.
     QList<LaserScanner*>* laserScanners = mSimulator->getLaserScannerList();
     foreach(LaserScanner* ls, *laserScanners)
@@ -450,7 +455,7 @@ void Vehicle::slotUpdatePhysics(void)
 
     // TODO: If we loop with more than 25fps, update more slowly
     // TODO: why the fuck does a timer in vehicle drive the gl update?
-    mOgreWidget->update();
+    //mOgreWidget->update();
 }
 
 void Vehicle::start(void)

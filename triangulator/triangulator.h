@@ -23,6 +23,9 @@ private:
     QUdpSocket* mUdpSocketPoints;
     QUdpSocket* mUdpSocketImages;
 
+    QTcpServer* mTcpServer;
+    QTcpSocket *mConnection;
+
     QByteArray mIncomingDataBufferPoints, mIncomingDataBufferImages;
 
     // a container for collected rays, or rather the world coordinates of where they ended
@@ -39,8 +42,9 @@ private:
     QMap<QString, CameraWindow*> mCameraWindows;
 
 private slots:
-    void slotReadSocketPoints();
-    void slotReadSocketImages();
+    void slotNewConnection(void);
+    void slotReadSocketPoints(void);
+    void slotReadSocketImages(void);
     void slotSocketPointsError(QAbstractSocket::SocketError socketError);
     void slotSocketImagesError(QAbstractSocket::SocketError socketError);
 

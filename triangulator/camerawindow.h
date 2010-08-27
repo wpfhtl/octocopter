@@ -11,7 +11,7 @@ class CameraWindow : public QDialog
     QPixmap* mPixmap;
 
 public:
-    CameraWindow(QWidget *parent = 0);
+    CameraWindow(QWidget *parent = 0, const QString &title = QString());
 
 private slots:
     void slotSetDimensions(const QSize size);

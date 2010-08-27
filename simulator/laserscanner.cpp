@@ -51,7 +51,6 @@ LaserScanner::LaserScanner(
 //    mRaySceneQuery->setQueryMask(0);
 //    mRaySceneQuery->setQueryMask(Ogre::SceneManager::WORLD_GEOMETRY_TYPE_MASK | Ogre::SceneManager::ENTITY_TYPE_MASK | Ogre::SceneManager::STATICGEOMETRY_TYPE_MASK);
 //    mRaySceneQuery->setQueryTypeMask(Ogre::SceneManager::WORLD_GEOMETRY_TYPE_MASK);
-//    mRaySceneQuery->setWorldFragmentType(Ogre::SceneQuery::WFT_SINGLE_INTERSECTION);
 
 
 //    for(std::set<Ogre::SceneQuery::WorldFragmentType>::const_iterator it=mRaySceneQuery->getSupportedWorldFragmentTypes()->begin();it!=mRaySceneQuery->getSupportedWorldFragmentTypes()->end();it++)
@@ -151,6 +150,9 @@ void LaserScanner::slotDoScan()
 
     while(mCurrentScanAngle <= mAngleStop)
     {
+        Profiler p1, p2, p3, p4, p5;
+        p1.start();
+
         numberOfRays++;
         //qDebug() << "LaserScanner::slotDoScan(): next ray:" << mCurrentScanAngle;
         //    Feb 10 [23:03:51] <kernelpanic_> Excuse me, even after reading the Quaternion primer, I can't figure out how to create a new
@@ -173,28 +175,32 @@ void LaserScanner::slotDoScan()
         mLaserBeam.setDirection(mScannerOrientation * quatBeamRotation * Ogre::Vector3::NEGATIVE_UNIT_Z);
         locker.unlock();
 
+        p2.start();
+
         // Do a RSQ against the entities/meshes.
         mRaySceneQuery->setRay(mLaserBeam);
 
         float closestDistanceToEntity = -1.0f;
-//        Ogre::Vector3 closestPointOnEntity;
 
+        p5.start();
         if(mRaySceneQuery->execute().size() > 0)
         {
+            p5.stop("p5 rsq mesh bboxes");
+
             // At this point we have raycast to a series of different objects bounding boxes.
-            // we need to test these different objects to see which is the first polygon hit.
+            // We need to test these different objects to see which is the first polygon hit.
             // there are some minor optimizations (distance based) that mean we wont have to
             // check all of the objects most of the time, but the worst case scenario is that
             // we need to test every triangle of every object.
-            //Ogre::Ogre::Real closest_distance = -1.0f;
+
             Ogre::RaySceneQueryResult &rayResultEntities = mRaySceneQuery->getLastResults();
             for(size_t qr_idx = 0; qr_idx < rayResultEntities.size(); qr_idx++)
             {
                 // stop checking if we have found a raycast hit that is closer than all remaining entities
-                if(closestDistanceToEntity >= 0.0f && closestDistanceToEntity < rayResultEntities[qr_idx].distance)
-                {
-                    break;
-                }
+                if(closestDistanceToEntity >= 0.0f && closestDistanceToEntity < rayResultEntities[qr_idx].distance) break;
+
+                // also stop checking if the distance to this object's bbox is out of this lidar's range
+                if(mRange < rayResultEntities[qr_idx].distance) break;
 
                 // only check this result if it is a hit against an entity
                 if(rayResultEntities[qr_idx].movable != NULL && rayResultEntities[qr_idx].movable->getMovableType().compare("Entity") == 0)
@@ -208,6 +214,7 @@ void LaserScanner::slotDoScan()
                     Ogre::Vector3 *vertices;
                     Ogre::uint32 *indices;
 
+                    p4.start();
                     // get the mesh information
                     getMeshInformation(((Ogre::Entity*)pentity)->getMesh(), vertex_count, vertices, index_count, indices,
                                       pentity->getParentNode()->_getDerivedPosition(),
@@ -215,7 +222,6 @@ void LaserScanner::slotDoScan()
                                       pentity->getParentNode()->_getDerivedScale());
 
                     // test for hitting individual triangles on the mesh
-//                    bool new_closest_found = false;
                     for(size_t i = 0; i < index_count; i += 3)
                     {
                         // check for a hit against this triangle
@@ -228,25 +234,21 @@ void LaserScanner::slotDoScan()
                             {
                                 // this is the closest so far, save it off
                                 closestDistanceToEntity = hit.second;
-//                                new_closest_found = true;
                             }
                         }
                     }
+                    p4.stop("p4 single ray - single mesh");
 
                     // free the verticies and indicies memory
                     delete[] vertices;
                     delete[] indices;
-
-                    // if we found a new closest raycast for this object, update the
-                    // closest_result before moving on to the next object.
-//                    if(new_closest_found)
-//                    {
-                        //target = pentity; // record the entity that was hit.
-//                        closestPointOnEntity = mLaserBeam.getPoint(closestDistanceToEntity);
-//                    }
                 }
             }
         }
+
+        p2.stop("p2 single ray - mesh");
+
+        p3.start();
 
         // Do a RSQ against the terrain.
         // http://www.ogre3d.org/docs/api/html/classOgre_1_1TerrainGroup.html says about rayIntersects:
@@ -270,6 +272,8 @@ void LaserScanner::slotDoScan()
             mScanData << QVector3D(point.x, point.y, point.z);
         }
 
+        p3.stop("p3 single ray - terrain");
+
         // Increase mCurrentScanAngle by mAngleStep for the next laserBeam
         mCurrentScanAngle += mAngleStep;
 
@@ -277,6 +281,8 @@ void LaserScanner::slotDoScan()
 
         const long long scanTimeElapsed = (timeNow.tv_sec - timeStart.tv_sec) * 1000000 + (timeNow.tv_usec - timeStart.tv_usec);
         const long long scanTimeAtNextRay = realTimeBetweenRaysUS * (numberOfRays+1);
+
+        p1.stop("p1 single ray");
 
         usleep(std::max(0, (int)(scanTimeAtNextRay - scanTimeElapsed)));
     }
@@ -332,6 +338,8 @@ void LaserScanner::slotDoScan()
     const long long timeRest = (1000000/(mSpeed/60)) * (1.0 / mTimeFactor) - scanTimeElapsed;
     qDebug() << "LaserScanner::slotDoScan(): emitted results, resting" << timeRest << "us after scan.";
     usleep(std::max(0, (int)timeRest));
+
+
 }
 
 

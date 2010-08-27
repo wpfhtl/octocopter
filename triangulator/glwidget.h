@@ -4,6 +4,7 @@
 #include <QtGui>
 #include <QtOpenGL>
 #include <QGLWidget>
+#include <QVector3D>
 
 #include "octree.h"
 
@@ -22,6 +23,7 @@ class GlWidget : public QGLWidget
 
     //Mouse Rotations
     QPoint      lastPos;
+    QVector3D   camPos;
     GLfloat     rotX, rotY, rotZ;
 
     //Wheel Scaling
@@ -39,6 +41,7 @@ class GlWidget : public QGLWidget
 public:
     GlWidget(QWidget *parent, Octree* octree);
     void addPoints(QList<QVector3D>);
+    void moveCamera(const QVector3D &pos);
     void clear(void);
 
 protected:

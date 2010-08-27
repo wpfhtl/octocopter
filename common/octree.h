@@ -32,10 +32,11 @@ public:
 
     Node* insertPoint(LidarPoint* const point);
     Node* root();
-
-    bool foo(const QList<LidarPoint*> &list) const;
+    const Node* root() const;
 
     void drawGl(void) const;
+
+    unsigned int numberOfItems(void) const;
 
     Node* getNodeForPoint(const QVector3D &point);
 };

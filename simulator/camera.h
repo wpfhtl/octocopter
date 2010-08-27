@@ -22,9 +22,9 @@ private:
 
     QMutex mMutex;
 
-    QUdpSocket* mUdpSocket;
+    QTcpSocket* mTcpSocket;
     QImage* mImage;
-    QByteArray mImageBuffer;
+    QByteArray mImageBuffer, mNetworkPayload;
 
     QSize mSize;
     int mInterval; // the interval in realtime-milliseconds. mTimerShutter will be set to respect simulators current timeFactor
@@ -44,7 +44,10 @@ private:
     Ogre::RenderTarget *mRenderTarget;
 
 private slots:
-    void slotRecordImage(void);
+    void slotConnectToServer(void);
+    void slotSendImage(void);
+    void slotBytesWritten(qint64 bytes);
+    void slotNetworkError(QAbstractSocket::SocketError socketError);
 
 public:
     // Laser rotation is always CCW, angleStart < angleStop

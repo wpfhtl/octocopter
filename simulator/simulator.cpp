@@ -40,6 +40,10 @@ Simulator::Simulator(void) :
     connect(mStatusWidget, SIGNAL(timeFactorChanged(double)), mBattery, SLOT(slotSetTimeFactor(double)));
     connect(mOgreWidget, SIGNAL(currentRenderStatistics(QSize,int,float)), mStatusWidget, SLOT(slotUpdateVisualization(QSize, int, float)));
 
+    mViewUpdateTimer = new QTimer(this);
+    mViewUpdateTimer->setInterval(1000/60);
+    connect(mViewUpdateTimer, SIGNAL(timeout()), mOgreWidget, SLOT(update()));
+
     mTimeFactor = mStatusWidget->getTimeFactor();
     qDebug() << "Simulator::Simulator(): setting timeFactor to" << mTimeFactor;
 
@@ -108,6 +112,9 @@ void Simulator::slotSimulationStart(void)
         qDebug() << "Simulator::slotSimulationStart(): queue-starting camera from thread" << thread()->currentThreadId();
         QMetaObject::invokeMethod(mCameras->at(i), "slotStart", Qt::QueuedConnection);
     }
+
+    // Set the timer to update mOgreWidget every 25th of a second.
+    mViewUpdateTimer->start();
 }
 
 void Simulator::slotSimulationPause(void)
@@ -125,6 +132,9 @@ void Simulator::slotSimulationPause(void)
     // Cameras currently don't live in a separate thread.
     for(int i=0; i < mCameras->size(); i++)
         QMetaObject::invokeMethod(mCameras->at(i), "slotPause", Qt::QueuedConnection);
+
+    // Stop the update timer for the GL view
+    mViewUpdateTimer->stop();
 }
 
 bool Simulator::isPaused(void) const

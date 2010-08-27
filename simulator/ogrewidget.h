@@ -27,7 +27,7 @@
 #define TERRAIN_PAGE_MIN_Y 0
 #define TERRAIN_PAGE_MAX_X 0
 #define TERRAIN_PAGE_MAX_Y 0
-#define TERRAIN_WORLD_SIZE 2000.0f
+#define TERRAIN_WORLD_SIZE 1000.0f
 #define TERRAIN_SIZE 513
 
 class Simulator;
@@ -35,7 +35,7 @@ class Simulator;
 //using namespace Ogre;
 
 /** This class simply demonstrates basic usage of the CRTShader system.
-It sub class the material manager listener class and when a target scheme callback
+It subclasses the material manager listener class and when a target scheme callback
 is invoked with the shader generator scheme it tries to create an equvialent shader
 based technique based on the default technique of the given material.
 */

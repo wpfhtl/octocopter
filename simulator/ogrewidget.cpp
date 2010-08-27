@@ -366,18 +366,17 @@ void OgreWidget::paintEvent(QPaintEvent *e)
     {
         if(mTerrainsImported)
         {
-            qDebug() << "OgreWidget::paintEvent(): Building terrain, please wait";
+            qDebug() << "OgreWidget::paintEvent(): DerivedDataUpdateInProgress, building terrain, please wait";
             mSimulator->statusBar()->showMessage("Building terrain, please wait...");
         }
         else
         {
-            qDebug() << "OgreWidget::paintEvent(): Updating textures, please wait";
+            qDebug() << "OgreWidget::paintEvent(): DerivedDataUpdateInProgress, updating textures, please wait";
             mSimulator->statusBar()->showMessage("Updating textures, patience...");
         }
     }
     else
     {
-        qDebug() << "OgreWidget::paintEvent(): updateInProgress";
         if(mTerrainsImported)
         {
             qDebug() << "OgreWidget::paintEvent(): saving terrains    ";
@@ -502,9 +501,14 @@ void OgreWidget::initOgreSystem()
 //    ogreSceneManager = ogreRoot->createSceneManager("TerrainSceneManager"/*Ogre::ST_EXTERIOR_CLOSE*/);
 //    ogreSceneManager->showBoundingBoxes(true);
 
+    // By default, entities cannot be found using a RSQ. This is to make sure that the
+    // Lidar's don't catch the rotors, cameras etc. It also means we'll have to set the
+    // flags to nonzero for any mesh that should be scannable.
+    Ogre::MovableObject::setDefaultQueryFlags(0x00000000);
+
     mCamera = mSceneManager->createCamera("camera");
     mCamera->setNearClipDistance(.1);
-    mCamera->setPolygonMode(Ogre::PM_WIREFRAME);     /* wireframe */
+    //mCamera->setPolygonMode(Ogre::PM_WIREFRAME);     /* wireframe */
     mCamera->setPolygonMode(Ogre::PM_SOLID);         /* solid */
 
 
@@ -710,24 +714,49 @@ void OgreWidget::setupTerrain()
     Ogre::MaterialManager::getSingleton().setDefaultTextureFiltering(Ogre::TFO_ANISOTROPIC);
     Ogre::MaterialManager::getSingleton().setDefaultAnisotropy(7);
 
-    mSceneManager->setFog(Ogre::FOG_LINEAR, Ogre::ColourValue(0.7, 0.7, 0.8), 0, 10000, 25000);
+    //mSceneManager->setFog(Ogre::FOG_EXP, Ogre::ColourValue(0.1, 0.1, 0.1), 0.01, 500, 1000);
 
     Ogre::LogManager::getSingleton().setLogDetail(Ogre::LL_BOREME);
 
     // Set up directional and ambient lights
-//    Ogre::Vector3 lightdir(0.55, -0.3, 0.75);
-    Ogre::Vector3 lightdir(-0.55, -0.3, -0.75);
+    // THis first light is used for terrain shadows
+    Ogre::Vector3 lightdir(0.55, -0.3, 0.75);
     lightdir.normalise();
     Ogre::Light* light = mSceneManager->createLight("tstLight");
     light->setType(Ogre::Light::LT_DIRECTIONAL);
     light->setDirection(lightdir);
-    light->setDiffuseColour(Ogre::ColourValue::White);
+    light->setDiffuseColour(Ogre::ColourValue(1.0, 1.0, 1.0));
     light->setSpecularColour(Ogre::ColourValue(0.4, 0.4, 0.4));
-    mSceneManager->setAmbientLight(Ogre::ColourValue(0.2, 0.2, 0.2));
+
+    mSceneManager->setAmbientLight(Ogre::ColourValue(0.3, 0.3, 0.3));
+
+    Ogre::Vector3 lightdir2(-0.55, -0.3, -0.75);
+    lightdir2.normalise();
+    Ogre::Light* light2 = mSceneManager->createLight("tstLight2");
+    light2->setType(Ogre::Light::LT_DIRECTIONAL);
+    light2->setDirection(lightdir2);
+    light2->setDiffuseColour(Ogre::ColourValue(0.4, 0.4, 0.4));
+    light2->setSpecularColour(Ogre::ColourValue(0.2, 0.2, 0.2));
+
+    Ogre::Vector3 lightdir3(0.55, -0.2, -0.75);
+    lightdir3.normalise();
+    Ogre::Light* light3 = mSceneManager->createLight("tstLight3");
+    light3->setType(Ogre::Light::LT_DIRECTIONAL);
+    light3->setDirection(lightdir3);
+    light3->setDiffuseColour(Ogre::ColourValue(0.5, 0.5, 0.5));
+    light3->setSpecularColour(Ogre::ColourValue(0.1, 0.1, 0.1));
+
+    Ogre::Vector3 lightdir4(-0.55, -0.2, 0.75);
+    lightdir4.normalise();
+    Ogre::Light* light4 = mSceneManager->createLight("tstLight4");
+    light4->setType(Ogre::Light::LT_DIRECTIONAL);
+    light4->setDirection(lightdir4);
+    light4->setDiffuseColour(Ogre::ColourValue(0.3, 0.3, 0.3));
+    light4->setSpecularColour(Ogre::ColourValue(0.2, 0.2, 0.2));
 
 
     mTerrainGroup = new Ogre::TerrainGroup(mSceneManager, Ogre::Terrain::ALIGN_X_Z, TERRAIN_SIZE, TERRAIN_WORLD_SIZE);
-    mTerrainGroup->setFilenameConvention(Ogre::String("SimTerrain"), Ogre::String("dat"));
+    mTerrainGroup->setFilenameConvention(Ogre::String("cachedterrain"), Ogre::String("dat"));
     mTerrainGroup->setOrigin(mTerrainPos);
 
     mTerrainGlobals = new Ogre::TerrainGlobalOptions();
@@ -737,7 +766,7 @@ void OgreWidget::setupTerrain()
         for (long y = TERRAIN_PAGE_MIN_Y; y <= TERRAIN_PAGE_MAX_Y; ++y)
             defineTerrain(x, y/*, blankTerrain*/);
 
-    // sync load since we want everything in place when we start
+    // sync load since we NEED everything in place when we start
     mTerrainGroup->loadAllTerrains(true);
 
     // calculate the blend maps of all terrains
@@ -754,17 +783,57 @@ void OgreWidget::setupTerrain()
     mTerrainGroup->freeTemporaryResources();
 
     // create a few entities on the terrain
-    Ogre::Entity* e = mSceneManager->createEntity("tudorhouse.mesh");
-//    Ogre::Vector3 entPos(mTerrainPos.x + 2043, 0, mTerrainPos.z + 1715);
-    Ogre::Vector3 entPos(1900, 0, 1575);
-    Ogre::Quaternion rot;
-    entPos.y = mTerrainGroup->getHeightAtWorldPosition(entPos) + mTerrainPos.y + 6.5;
-    rot.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
-    Ogre::SceneNode* sn = mSceneManager->getRootSceneNode()->createChildSceneNode(entPos, rot);
-    sn->setScale(Ogre::Vector3(0.012, 0.012, 0.012));
+    Ogre::Entity* entity;
+    Ogre::SceneNode* sceneNode;
+    Ogre::Quaternion rotation;
+    Ogre::Vector3 position(175, 0, 125);
 
-    sn->attachObject(e);
-    mCollisionEntities.insert(e,sn);
+    entity = mSceneManager->createEntity("tudorhouse.mesh");
+    entity->setQueryFlags(0xFFFFFFFF);
+    rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
+    sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
+                position + Ogre::Vector3(0, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 6.5, -13),
+                rotation);
+    sceneNode->setScale(Ogre::Vector3(0.012, 0.012, 0.012));
+    sceneNode->attachObject(entity);
+    mCollisionEntities.insert(entity,sceneNode);
+
+
+    entity = mSceneManager->createEntity("church.mesh");
+    entity->setQueryFlags(0xFFFFFFFF);
+    rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
+    sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
+                position + Ogre::Vector3(-5, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 0.0, 55),
+                rotation);
+    sceneNode->attachObject(entity);
+    mCollisionEntities.insert(entity,sceneNode);
+
+    entity = mSceneManager->createEntity("house1.mesh");
+    entity->setQueryFlags(0xFFFFFFFF);
+    rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
+    sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
+                position + Ogre::Vector3(-23, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 0.0, -10),
+                rotation);
+    sceneNode->attachObject(entity);
+    mCollisionEntities.insert(entity,sceneNode);
+
+    entity = mSceneManager->createEntity("house2.mesh");
+    entity->setQueryFlags(0xFFFFFFFF);
+    rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
+    sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
+                position + Ogre::Vector3(20, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 3.0, 25),
+                rotation);
+    sceneNode->attachObject(entity);
+    mCollisionEntities.insert(entity,sceneNode);
+
+    entity = mSceneManager->createEntity("windmill.mesh");
+    entity->setQueryFlags(0xFFFFFFFF);
+    rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
+    sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
+                position + Ogre::Vector3(-35, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 0.0, 30),
+                rotation);
+    sceneNode->attachObject(entity);
+    mCollisionEntities.insert(entity,sceneNode);
 
     mSceneManager->setSkyBox(true, "Examples/CloudyNoonSkyBox");
 }
@@ -786,14 +855,15 @@ void OgreWidget::configureTerrainDefaults(Ogre::Light* light)
     //matProfile->setLightmapEnabled(false);
     // Important to set these so that the terrain knows what to use for derived (non-realtime) data
     mTerrainGlobals->setLightMapDirection(light->getDerivedDirection());
-    mTerrainGlobals->setCompositeMapAmbient(mSceneManager->getAmbientLight());
+//    mTerrainGlobals->setCompositeMapAmbient(mSceneManager->getAmbientLight());
     mTerrainGlobals->setCompositeMapDiffuse(light->getDiffuseColour());
 
     // Configure default import settings for if we use imported image
     Ogre::Terrain::ImportData& defaultimp = mTerrainGroup->getDefaultImportSettings();
     defaultimp.terrainSize = TERRAIN_SIZE;
     defaultimp.worldSize = TERRAIN_WORLD_SIZE;
-    defaultimp.inputScale = 1; // 600
+    defaultimp.inputBias = 75; // tune for world-size!
+    defaultimp.inputScale = 60; // tune for world-size!
     defaultimp.minBatchSize = 33;
     defaultimp.maxBatchSize = 65;
 
@@ -805,7 +875,7 @@ void OgreWidget::configureTerrainDefaults(Ogre::Light* light)
     defaultimp.layerList[1].worldSize = 30;
     defaultimp.layerList[1].textureNames.push_back("grass_green-01_diffusespecular.dds");
     defaultimp.layerList[1].textureNames.push_back("grass_green-01_normalheight.dds");
-    defaultimp.layerList[2].worldSize = 200;
+    defaultimp.layerList[2].worldSize = 100;
     defaultimp.layerList[2].textureNames.push_back("growth_weirdfungus-03_diffusespecular.dds");
     defaultimp.layerList[2].textureNames.push_back("growth_weirdfungus-03_normalheight.dds");
 
@@ -821,20 +891,27 @@ void OgreWidget::defineTerrain(long x, long y, bool flat)
 
     if(flat)
     {
+        qDebug() << "OgreWidget::defineTerrain(): flat";
         mTerrainGroup->defineTerrain(x, y, 0.0f);
     }
     else
     {
         Ogre::String filename = mTerrainGroup->generateFilename(x, y);
-        if (Ogre::ResourceGroupManager::getSingleton().resourceExists(mTerrainGroup->getResourceGroup(), filename))
+        qDebug() << "OgreWidget::defineTerrain(): filename" << QString::fromStdString((std::string)filename) << "resourceGroup" << QString::fromStdString((std::string)mTerrainGroup->getResourceGroup());
+        if(Ogre::ResourceGroupManager::getSingleton().resourceExists(mTerrainGroup->getResourceGroup(), filename))
         {
+            qDebug() << "OgreWidget::defineTerrain(): resource exists, calling TerrainGroup::defineTerrain with x y" << x << y;
             mTerrainGroup->defineTerrain(x, y);
         }
         else
         {
+            qDebug() << "OgreWidget::defineTerrain(): resource absent, calling TerrainGroup::defineTerrain with image for x y" << x << y;
             Ogre::Image img;
             getTerrainImage(x % 2 != 0, y % 2 != 0, img);
+            img.save("test2.png");
             mTerrainGroup->defineTerrain(x, y, &img);
+            mTerrainGroup->getTerrainDefinition(x, y)->importData->inputImage->save("test3.png");
+
             mTerrainsImported = true;
         }
     }
@@ -843,6 +920,7 @@ void OgreWidget::defineTerrain(long x, long y, bool flat)
 void OgreWidget::getTerrainImage(bool flipX, bool flipY, Ogre::Image& img)
 {
     img.load("terrain.png", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+    qDebug() << "OgreWidget::getTerrainImage(): loaded terrain heightmap, width is" << img.getWidth();
     if (flipX)
         img.flipAroundY();
     if (flipY)

@@ -17,7 +17,7 @@ GlWidget::GlWidget(QWidget *parent, Octree* octree) :
 
     //Wheel Scaling
     currentScaling = 2.0;
-    ZoomFactor = 0.7;
+    ZoomFactor = 0.3;
 
     //Mouse Move Rotations
     rotX = 0;
@@ -27,6 +27,8 @@ GlWidget::GlWidget(QWidget *parent, Octree* octree) :
     //Timer Animation
     timerId = 0;
     t = 0.0;
+
+    camPos = QVector3D(0, 0, -100);
 
     setMinimumSize(640, 480);
 }
@@ -75,8 +77,20 @@ void GlWidget::resizeGL(int w, int h)
     glViewport(0, 0, w, h);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(130.0, (GLfloat)w/(GLfloat)h, 0.25, +800.0);
-    glTranslatef(0.0,0.0,-100.4);
+    gluPerspective(130.0, (GLfloat)w/(GLfloat)h, 0.25, +80000.0);
+    glTranslatef(camPos.x(), camPos.y(), camPos.z());
+    glMatrixMode(GL_MODELVIEW);
+}
+
+void GlWidget::moveCamera(const QVector3D &pos)
+{
+    qDebug() << "moveCamera to " << pos;
+    camPos = pos;
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(130.0, (GLfloat)width()/(GLfloat)height(), 0.25, +80000.0);
+    glTranslatef(camPos.x(), camPos.y(), camPos.z());
     glMatrixMode(GL_MODELVIEW);
 }
 
@@ -99,21 +113,16 @@ void GlWidget::paintGL()
 //    glTranslatef(0.0f, 0.0f, -7.0f);
 //    glRotatef(rotQuad, 0.0f, 1.0f, 0.0f);
 
-
-
-
-
-
-
-
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     resizeGL(width(),height());
     glLoadIdentity();
 
-    //Mouse Move Rotations
+    // Mouse Move Rotations
     glRotatef(rotX,1.0,0.0,0.0);
     glRotatef(rotY,0.0,1.0,0.0);
     glRotatef(rotZ,0.0,0.0,1.0);
+
+    glTranslatef(camPos.x(), camPos.y(), camPos.z());
 
     axes(1.25, 1.1, 1.25, 0.0, 1.0, 0.0);
 
@@ -125,7 +134,7 @@ void GlWidget::paintGL()
     glScalef(timerScaling,timerScaling,timerScaling);
     glRotatef(t,1,1,1);
 
-    axes(0.7, 0.7, 0.7, 1.0, 1.0, 0.0);
+    axes(10, 10, 10, 1.0, 1.0, 0.0);
 
     glTranslatef(-0.5, -0.5, -0.5);
 
@@ -205,13 +214,28 @@ void GlWidget::mouseMoveEvent(QMouseEvent *event)
         updateGL();
     }
     lastPos = event->pos();
+
+    rotX = fmod(rotX, 360.0);
+    rotY = fmod(rotY, 360.0);
+    rotZ = fmod(rotZ, 360.0);
+
+    qDebug() << rotX << rotY << rotZ;
 }
 
 void GlWidget::wheelEvent(QWheelEvent *event)
 {
     int numDegrees = event->delta()/32;
     double numSteps = numDegrees/30.0;
-    zoom(pow(ZoomFactor, numSteps));
+//    qDebug() << numDegrees << numSteps;
+    double factor = event->delta()/93.0;
+    if(factor > 0)
+        moveCamera(camPos * factor);
+    else
+        moveCamera(camPos / (-factor));
+    //moveCamera(camPos + 100);
+    //zoom(pow(ZoomFactor, numSteps));
+    //paintGL();
+    zoom(1);
 }
 
 void GlWidget::zoom(double zoomFactor)

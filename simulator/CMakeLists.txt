@@ -17,6 +17,7 @@ laserscanner
 camera
 statuswidget
 dialogconfiguration
+../common/profiler
 ../common/coordinategps
 vehicle
 ../common/coordinateconverter
@@ -33,6 +34,7 @@ laserscanner.h
 camera.h
 statuswidget.h
 dialogconfiguration.h
+../common/profiler.h
 ../common/coordinategps.h
 vehicle.h
 ../common/coordinateconverter.h

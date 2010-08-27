@@ -44,6 +44,7 @@ public:
     bool operator==(const Node &other);
 
     QList<Node*> getAllChildLeafs(void);
+    const QList<const Node*> getAllChildLeafs(void) const;
 
     bool overlapsSphere(const QVector3D &point, const double radius) const;
     bool includesPoint(const QVector3D &point) const;

@@ -102,7 +102,8 @@ bool Node::includesData(const LidarPoint &lidarPoint)
 
 bool Node::insertAndReduce(LidarPoint* const lidarPoint)
 {
-    // If there have been to points inserted before, check whether @lidarPoint is close to where
+    // Linear reduction:
+    // If there have been two points inserted before, check whether @lidarPoint is close to where
     // a line from mMri2 to mMri1, extended by the distance from mMri2 to @lidarPoint, would end:
     //
     // mMri2 --------------------> mMri1 ----------------------> @lidarPoint
@@ -120,6 +121,7 @@ bool Node::insertAndReduce(LidarPoint* const lidarPoint)
     */
 
     if(
+            false && // FIXME, disabled for testing
             mMri1
             &&
             mMri2
@@ -143,7 +145,7 @@ bool Node::insertAndReduce(LidarPoint* const lidarPoint)
 
 
         // Probably stupid, but lets start easy: Do not insert if it has N close-by neighbors
-        if(mTree->findNeighborsWithinRadius(lidarPoint->position, 0.8).size() < 1)
+        if(mTree->findNeighborsWithinRadius(lidarPoint->position, 0.1).size() < 1)
         {
             data.append(lidarPoint);
             lidarPoint->node = this;
@@ -566,6 +568,24 @@ QList<Node*> Node::getAllChildLeafs(void)
 
     return result;
 }
+
+const QList<const Node*> Node::getAllChildLeafs(void) const
+{
+    QList<const Node*> result;
+
+    if(isLeaf())
+    {
+        result << this;
+        return result;
+    }
+
+    foreach(const Node* const currentNode, children)
+    {
+        result << currentNode->getAllChildLeafs();
+    }
+
+    return result;
+}
 /*
 // Returns this Node's octants' extremes, in the same order as the octants
 QList<QVector3D> Node::corners(void) const
@@ -626,7 +646,7 @@ void Node::drawGl(void) const
 //    GLint g = (*(int*)(this+2));// % 255;
 //    GLint b = (*(int*)(this+3));// % 255;
 //    glColor4i(r,g,b, 1147483648);
-    glColor4f(1,1,1, 0.05);
+    glColor4f(1,1,1, 0.03);
 
     glBlendFunc(GL_SRC_ALPHA,GL_ONE);
     glLineWidth(1);

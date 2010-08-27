@@ -49,6 +49,7 @@ public:
 private:
     mutable QMutex mMutex;
 
+    QTimer* mViewUpdateTimer;
     double mTimeFactor;
     QTime mTimeSimulationStart; // when simulation was started
     QTime mTimeSimulationPause; // when simulation was paused, invalid when it's not currently paused.

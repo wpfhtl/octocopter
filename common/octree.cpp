@@ -184,6 +184,11 @@ Node* Octree::root()
     return mRootNode;
 }
 
+const Node* Octree::root() const
+{
+    return mRootNode;
+}
+
 void Octree::drawGl(void) const
 {
     // set transparent material?
@@ -273,12 +278,6 @@ QList<LidarPoint*> Octree::findNeighborsWithinRadius(const QVector3D &point, con
     return neighbors;
 }
 
-bool Octree::foo(const QList<LidarPoint*> &list) const
-{
-//    qDebug() << "Now checking while condition, size" << list.size();
-    return true;
-}
-
 // Returns AT LEAST the @count nearest neighbors of @point, sorted by ascending distance
 QList<LidarPoint*> Octree::findNearestNeighbors(const QVector3D &point, const unsigned int count) const
 {
@@ -295,8 +294,6 @@ QList<LidarPoint*> Octree::findNearestNeighbors(const QVector3D &point, const un
 
     // As long as we don't have enough neighbors OR there might be better neighbors in parentnodes, ...
     while(
-            foo(neighbors)
-            &&
             (
             neighbors.size() < count
             ||
@@ -369,4 +366,10 @@ QList<LidarPoint*> Octree::findNearestNeighbors(const QVector3D &point, const un
     // The comment above is NOT true if the very first call to findNearestNeighbors() yields the required
     // neighbors. The fix is easy, just return the list.
     return neighbors;
+}
+
+
+unsigned int Octree::numberOfItems(void) const
+{
+    return root()->mNumberOfItems;
 }
