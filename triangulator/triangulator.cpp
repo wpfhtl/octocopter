@@ -35,6 +35,23 @@ Triangulator::~Triangulator()
 {
 }
 
+void Triangulator::slotConnectionEnded()
+{
+    QMapIterator<QTcpSocket*, QByteArray*> i(mSocketBuffers);
+    while(i.hasNext())
+    {
+        i.next();
+        if(i.key()->state() != QAbstractSocket::ConnectedState)
+        {
+            // The socket is closing. Clean up.
+            i.key()->deleteLater();
+            i.value()->clear();
+            delete i.value();
+            mSocketBuffers.remove(i.key());
+        }
+    }
+}
+
 void Triangulator::slotExportCloud()
 {
     const QString fileName = QFileDialog::getSaveFileName(this, "Save cloud to", QString(), "PLY files (*.ply)");
@@ -49,12 +66,14 @@ void Triangulator::slotExportCloud()
 
 void Triangulator::slotNewConnection()
 {
-    mConnection = mTcpServer->nextPendingConnection();
-    connect(mConnection, SIGNAL(disconnected()), mConnection, SLOT(deleteLater()));
+    QTcpSocket* mConnection = mTcpServer->nextPendingConnection();
+//    connect(mConnection, SIGNAL(disconnected()), mConnection, SLOT(deleteLater()));
+    connect(mConnection, SIGNAL(disconnected()), SLOT(slotConnectionEnded()));
+    connect(mConnection, SIGNAL(error(QAbstractSocket::SocketError)), SLOT(slotConnectionEnded()));
+
     connect(mConnection, SIGNAL(readyRead()), SLOT(slotReadSocketImages()));
 
-//    mConnection->write(block);
-//    mConnection->disconnectFromHost();
+    mSocketBuffers.insert(mConnection, new QByteArray);
 }
 
 void Triangulator::addRandomPoint()
@@ -128,58 +147,68 @@ void Triangulator::slotReadSocketImages()
 {
     qDebug() << "Triangulator::slotReadSocketImages()";
 
-    mIncomingDataBufferImages.append(mConnection->readAll());
-    qDebug() << "Triangulator::slotReadSocketImages(): incoming-buffer now has" << mIncomingDataBufferImages.size() << "bytes";
+    QMapIterator<QTcpSocket*, QByteArray*> i(mSocketBuffers);
+    while(i.hasNext())
+    {
+        i.next();
+        i.value()->append(i.key()->readAll());
+        qDebug() << "Triangulator::slotReadSocketImages(): incoming-buffer now has" << i.value()->size() << "bytes";
+    }
 
-    if(mIncomingDataBufferImages.size())
-        processIncomingImages();
+    processIncomingImages();
 }
 
 void Triangulator::processIncomingImages()
 {
-    QDataStream stream(mIncomingDataBufferImages); // byteArray is const!
-    quint32 packetLength;
-    stream >> packetLength;
-
-    qDebug() << "ScanReceiver::processIncomingImages(): packetLength is" << packetLength << "buffersize is" << mIncomingDataBufferImages.size();
-
-    if(mIncomingDataBufferImages.size() < packetLength)
+    QMapIterator<QTcpSocket*, QByteArray*> i(mSocketBuffers);
+    while(i.hasNext())
     {
-        qDebug() << "buffersize is" << mIncomingDataBufferImages.size() << "thats not enough.";
-        return;
+        i.next();
+//        QTcpSocket* socket = i.key();
+        QByteArray* incomingData = i.value();
+        QDataStream stream(*incomingData); // byteArray is const!
+        quint32 packetLength;
+        stream >> packetLength;
+
+        qDebug() << "ScanReceiver::processIncomingImages(): packetLength is" << packetLength << "buffersize is" << incomingData->size();
+
+        if(incomingData->size() < packetLength)
+        {
+            qDebug() << "buffersize is" << incomingData->size() << "thats not enough.";
+            return;
+        }
+
+        QString cameraName;
+        QVector3D cameraPosition;
+        QQuaternion cameraOrientation;
+        quint32 imageSize;
+        QByteArray image;
+
+        stream >> cameraName;
+        stream >> cameraPosition;
+        stream >> cameraOrientation;
+        stream >> imageSize;
+
+        image.resize(imageSize);
+
+        qDebug() << "imageSize is" << imageSize << "actually read" << stream.readRawData(image.data(), imageSize) << "ba size" << image.size();
+
+        qDebug() << "camera" << cameraName << "pos" << cameraPosition << "orientation" << cameraOrientation << "image bytearray size is" << image.size();
+
+        if(!mCameraWindows.contains(cameraName))
+            mCameraWindows.insert(cameraName, new CameraWindow(this, cameraName));
+
+        CameraWindow* win = mCameraWindows.value(cameraName);
+
+        win->slotSetPixmapData(image);
+        win->show();
+
+        // remove the first packetLength bytes from the incoming buffer
+        incomingData->remove(0, packetLength);
     }
 
-    QString cameraName;
-    QVector3D cameraPosition;
-    QQuaternion cameraOrientation;
-    quint32 imageSize;
-    QByteArray image;
-
-    stream >> cameraName;
-    stream >> cameraPosition;
-    stream >> cameraOrientation;
-    stream >> imageSize;
-
-    image.resize(imageSize);
-
-    qDebug() << "imageSize is" << imageSize << "actually read" << stream.readRawData(image.data(), imageSize) << "ba size" << image.size();
-
-    qDebug() << "camera" << cameraName << "pos" << cameraPosition << "orientation" << cameraOrientation << "image bytearray size is" << image.size();
-
-    if(!mCameraWindows.contains(cameraName))
-        mCameraWindows.insert(cameraName, new CameraWindow(this, cameraName));
-
-    CameraWindow* win = mCameraWindows.value(cameraName);
-
-    win->slotSetPixmapData(image);
-    win->show();
-
-    // remove the first packetLength bytes from the incoming buffer
-    mIncomingDataBufferImages.remove(0, packetLength);
-
     // clear the image buffer array?
-
-    slotReadSocketImages();
+//    slotReadSocketImages();
 }
 
 void Triangulator::slotSocketPointsError(QAbstractSocket::SocketError socketError)

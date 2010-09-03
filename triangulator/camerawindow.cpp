@@ -17,7 +17,8 @@ CameraWindow::CameraWindow(QWidget *parent, const QString &windowTitle) :
 
 void CameraWindow::slotSetPixmapData(const QByteArray &data)
 {
-//    if(!mPixmap) mPixmap = new QPixmap;
+    delete mPixmap;
+    mPixmap = new QPixmap;
     mPixmap->loadFromData(data);
 //    mPixmap->save("/tmp/target.jpg", "JPG", 100);
     slotSetDimensions(mPixmap->size());

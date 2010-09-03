@@ -24,9 +24,10 @@ private:
     QUdpSocket* mUdpSocketImages;
 
     QTcpServer* mTcpServer;
-    QTcpSocket *mConnection;
+//    QTcpSocket *mConnection;
 
     QByteArray mIncomingDataBufferPoints, mIncomingDataBufferImages;
+    QMap<QTcpSocket*, QByteArray*> mSocketBuffers;
 
     // a container for collected rays, or rather the world coordinates of where they ended
     Octree* mOctree;
@@ -43,6 +44,7 @@ private:
 
 private slots:
     void slotNewConnection(void);
+    void slotConnectionEnded(void);
     void slotReadSocketPoints(void);
     void slotReadSocketImages(void);
     void slotSocketPointsError(QAbstractSocket::SocketError socketError);

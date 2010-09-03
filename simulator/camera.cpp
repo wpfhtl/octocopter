@@ -106,6 +106,7 @@ void Camera::slotSendImage()
     mRenderTarget->copyContentsToMemory(*mPixelBox, Ogre::RenderTarget::FB_AUTO);
 
     mNetworkPayload.clear();
+    mNetworkPayload.resize(0);
     QDataStream stream(&mNetworkPayload, QIODevice::WriteOnly);
 
     // Stream camera name
