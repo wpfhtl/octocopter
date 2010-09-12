@@ -53,11 +53,11 @@ private:
     double mTimeFactor;
 
     // We need to be careful with this, as the targets live in other threads
-    Ogre::RaySceneQuery *mRaySceneQuery;
+//    Ogre::RaySceneQuery *mRaySceneQuery; haha, no more thread-trouble. screw you, rsq!
     Ogre::SceneNode *mScannerNode;
     OgreWidget *mOgreWidget;
 
-    // This scanner's beam, used for the RSQ
+    // This scanner's beam, used for the RSQ against terrain and our own custom rsq against meshes.
     Ogre::Ray mLaserBeam;
 
 //    CoordinateConverter *mCoordinateConverter;
@@ -65,6 +65,8 @@ private:
     // Cache the scanner position. If it hasn't changed, there's no need to scan again.
     Ogre::Vector3 mScannerPosition, mScannerPositionPrevious;
     Ogre::Quaternion mScannerOrientation, mScannerOrientationPrevious;
+
+    unsigned int mNumberOfRaySceneQueries;
 
     void testRsqPerformance();
 
@@ -74,26 +76,6 @@ private:
 
     // http://www.ogre3d.org/wiki/index.php/Raycasting_to_the_polygon_level
     bool raycastFromPoint(const Ogre::Vector3 &point, const Ogre::Vector3 &normal, Ogre::Vector3 &result);
-
-    void getMeshInformation(
-            const Ogre::MeshPtr mesh,
-            size_t &vertex_count,
-            Ogre::Vector3* &vertices,
-            size_t &index_count,
-            unsigned long* &indices,
-            const Ogre::Vector3 &position,
-            const Ogre::Quaternion &orient,
-            const Ogre::Vector3 &scale);
-
-    // for the raycasting against entities (not ground)
-    void getMeshInformation(const Ogre::MeshPtr mesh,
-                                    size_t &vertex_count,
-                                    Ogre::Vector3* &vertices,
-                                    size_t &index_count,
-                                    Ogre::uint32* &indices,
-                                    const Ogre::Vector3 &position,
-                                    const Ogre::Quaternion &orient,
-                                    const Ogre::Vector3 &scale);
 
 private slots:
     void slotDoScan(void);

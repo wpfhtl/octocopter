@@ -41,6 +41,18 @@ OgreWidget::~OgreWidget()
 {
     QMutexLocker locker(&mMutex);
 
+    // free the verticies and indicies memory
+    QMapIterator<Ogre::Entity*, MeshInformation*> i(mEntities);
+    while(i.hasNext())
+    {
+        i.next();
+        MeshInformation* currentMeshInformation = i.value();
+//        delete[] currentMeshInformation->vertices;
+//        delete[] currentMeshInformation->indices;
+
+        delete currentMeshInformation;
+    }
+
     if(ogreRenderWindow)
     {
         ogreRenderWindow->removeAllViewports();
@@ -595,13 +607,13 @@ void OgreWidget::createScene()
     qDebug() << "OgreWidget::createScene(): done.";
 }
 
-Ogre::RaySceneQuery* OgreWidget::createRaySceneQuery(void)
-{
-    qDebug() << "OgreWidget::createRaySceneQuery(): returning pointer.";
+//Ogre::RaySceneQuery* OgreWidget::createRaySceneQuery(void)
+//{
+//    qDebug() << "OgreWidget::createRaySceneQuery(): returning pointer.";
 
-//    QMutexLocker locker(&mMutex);
-    return mSceneManager->createRayQuery(Ogre::Ray());
-}
+////    QMutexLocker locker(&mMutex);
+//    return mSceneManager->createRayQuery(Ogre::Ray());
+//}
 
 Ogre::SceneNode* OgreWidget::createScanner(const QString name, const Ogre::Vector3 &relativePosition, const Ogre::Quaternion &relativeRotation)
 {
@@ -788,7 +800,7 @@ void OgreWidget::setupTerrain()
     Ogre::Quaternion rotation;
     Ogre::Vector3 position(175, 0, 125);
 
-    entity = mSceneManager->createEntity("tudorhouse.mesh");
+    entity = mSceneManager->createEntity("tudorHouse", "tudorhouse.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
     rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
     sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
@@ -796,46 +808,72 @@ void OgreWidget::setupTerrain()
                 rotation);
     sceneNode->setScale(Ogre::Vector3(0.012, 0.012, 0.012));
     sceneNode->attachObject(entity);
-    mEntities.insert(entity,sceneNode);
+    addMeshInformation(entity,sceneNode);
 
-
-    entity = mSceneManager->createEntity("church.mesh");
+    entity = mSceneManager->createEntity("church", "church.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
     rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
     sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
                 position + Ogre::Vector3(-5, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 0.0, 55),
                 rotation);
     sceneNode->attachObject(entity);
-    mEntities.insert(entity,sceneNode);
+    addMeshInformation(entity,sceneNode);
 
-    entity = mSceneManager->createEntity("house1.mesh");
+    entity = mSceneManager->createEntity("house1", "house1.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
     rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
     sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
                 position + Ogre::Vector3(-23, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 0.0, -10),
                 rotation);
     sceneNode->attachObject(entity);
-    mEntities.insert(entity,sceneNode);
+    addMeshInformation(entity,sceneNode);
 
-    entity = mSceneManager->createEntity("house2.mesh");
+    entity = mSceneManager->createEntity("house2", "house2.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
     rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
     sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
                 position + Ogre::Vector3(20, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 3.0, 25),
                 rotation);
     sceneNode->attachObject(entity);
-    mEntities.insert(entity,sceneNode);
+    addMeshInformation(entity,sceneNode);
 
-    entity = mSceneManager->createEntity("windmill.mesh");
+    entity = mSceneManager->createEntity("windmill", "windmill.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
     rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
     sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
                 position + Ogre::Vector3(-35, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 0.0, 30),
                 rotation);
     sceneNode->attachObject(entity);
-    mEntities.insert(entity,sceneNode);
+    addMeshInformation(entity,sceneNode);
+
+//    qDebug() << "number of entities:" << mEntities.size();
 
     mSceneManager->setSkyBox(true, "Examples/CloudyNoonSkyBox");
+}
+
+void OgreWidget::addMeshInformation(Ogre::Entity* entity, Ogre::SceneNode* node)
+{
+    MeshInformation* mi = new MeshInformation;
+
+    mi->sceneNode = node;
+
+    getMeshInformation(
+                entity->getMesh(),
+                mi->vertex_count,
+                mi->vertices,
+                mi->index_count,
+                mi->indices,
+                node->_getDerivedPosition(),
+                node->_getDerivedOrientation(),
+                node->_getDerivedScale()
+                );
+
+    mi->aabb = entity->getBoundingBox();
+    mi->aabb.transform(node->_getFullTransform());
+
+    mi->valid = true;
+
+    mEntities.insert(entity, mi);
 }
 
 void OgreWidget::configureTerrainDefaults(Ogre::Light* light)
@@ -1044,4 +1082,126 @@ Ogre::SceneNode* OgreWidget::createVehicleNode(const Ogre::String name, const Og
     qDebug() << "OgreWidget::createVehicleNode(): vehicle is at" << mVehicleNode->_getDerivedPosition().x << mVehicleNode->_getDerivedPosition().y << mVehicleNode->_getDerivedPosition().z;
     qDebug() << "OgreWidget::createVehicleNode(): camera  is at" << mCameraNode->_getDerivedPosition().x << mCameraNode->_getDerivedPosition().y << mCameraNode->_getDerivedPosition().z;
     return mVehicleNode;
+}
+
+
+// Get the mesh information for the given mesh.
+// Code found on this forum link: http://www.ogre3d.org/wiki/index.php/RetrieveVertexData
+void OgreWidget::getMeshInformation(const Ogre::MeshPtr mesh,
+                                size_t &vertex_count,
+                                Ogre::Vector3* &vertices,
+                                size_t &index_count,
+                                Ogre::uint32* &indices,
+                                const Ogre::Vector3 &position,
+                                const Ogre::Quaternion &orient,
+                                const Ogre::Vector3 &scale)
+{
+    bool added_shared = false;
+    size_t current_offset = 0;
+    size_t shared_offset = 0;
+    size_t next_offset = 0;
+    size_t index_offset = 0;
+
+    vertex_count = index_count = 0;
+
+    // Calculate how many vertices and indices we're going to need
+    for (unsigned short i = 0; i < mesh->getNumSubMeshes(); ++i)
+    {
+        Ogre::SubMesh* submesh = mesh->getSubMesh( i );
+
+        // We only need to add the shared vertices once
+        if(submesh->useSharedVertices)
+        {
+            if(!added_shared)
+            {
+                vertex_count += mesh->sharedVertexData->vertexCount;
+                added_shared = true;
+            }
+        }
+        else
+        {
+            vertex_count += submesh->vertexData->vertexCount;
+        }
+
+        // Add the indices
+        index_count += submesh->indexData->indexCount;
+    }
+
+    // Allocate space for the vertices and indices
+    vertices = new Ogre::Vector3[vertex_count];
+    indices = new Ogre::uint32[index_count];
+
+    added_shared = false;
+
+    // Run through the submeshes again, adding the data into the arrays
+    for ( unsigned short i = 0; i < mesh->getNumSubMeshes(); ++i)
+    {
+        Ogre::SubMesh* submesh = mesh->getSubMesh(i);
+
+        Ogre::VertexData* vertex_data = submesh->useSharedVertices ? mesh->sharedVertexData : submesh->vertexData;
+
+        if((!submesh->useSharedVertices)||(submesh->useSharedVertices && !added_shared))
+        {
+            if(submesh->useSharedVertices)
+            {
+                added_shared = true;
+                shared_offset = current_offset;
+            }
+
+            const Ogre::VertexElement* posElem =
+                vertex_data->vertexDeclaration->findElementBySemantic(Ogre::VES_POSITION);
+
+            Ogre::HardwareVertexBufferSharedPtr vbuf =
+                vertex_data->vertexBufferBinding->getBuffer(posElem->getSource());
+
+            unsigned char* vertex =
+                static_cast<unsigned char*>(vbuf->lock(Ogre::HardwareBuffer::HBL_READ_ONLY));
+
+            // There is _no_ baseVertexPointerToElement() which takes an Ogre::Ogre::Real or a double
+            //  as second argument. So make it float, to avoid trouble when Ogre::Ogre::Real will
+            //  be comiled/typedefed as double:
+            //      Ogre::Ogre::Real* pOgre::Real;
+            float* pReal;
+
+            for( size_t j = 0; j < vertex_data->vertexCount; ++j, vertex += vbuf->getVertexSize())
+            {
+                posElem->baseVertexPointerToElement(vertex, &pReal);
+                Ogre::Vector3 pt(pReal[0], pReal[1], pReal[2]);
+                vertices[current_offset + j] = (orient * (pt * scale)) + position;
+            }
+
+            vbuf->unlock();
+            next_offset += vertex_data->vertexCount;
+        }
+
+
+        Ogre::IndexData* index_data = submesh->indexData;
+        size_t numTris = index_data->indexCount / 3;
+        Ogre::HardwareIndexBufferSharedPtr ibuf = index_data->indexBuffer;
+
+        bool use32bitindexes = (ibuf->getType() == Ogre::HardwareIndexBuffer::IT_32BIT);
+
+        Ogre::uint32*  pLong = static_cast<Ogre::uint32*>(ibuf->lock(Ogre::HardwareBuffer::HBL_READ_ONLY));
+        unsigned short* pShort = reinterpret_cast<unsigned short*>(pLong);
+
+        size_t offset = (submesh->useSharedVertices)? shared_offset : current_offset;
+
+        if ( use32bitindexes )
+        {
+            for ( size_t k = 0; k < numTris*3; ++k)
+            {
+                indices[index_offset++] = pLong[k] + static_cast<Ogre::uint32>(offset);
+            }
+        }
+        else
+        {
+            for ( size_t k = 0; k < numTris*3; ++k)
+            {
+                indices[index_offset++] = static_cast<Ogre::uint32>(pShort[k]) + static_cast<Ogre::uint32>(offset);
+            }
+        }
+
+        ibuf->unlock();
+        current_offset = next_offset;
+    }
 }

@@ -45,7 +45,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     // "vehicleNode" is fixed, used in ogrewidget.cpp
 
     // Place the vehicle somewhere above some building
-    mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", mOgreWidget->mEntities.values().first()->_getDerivedPosition() + Ogre::Vector3(10, 0, 10), Ogre::Quaternion::IDENTITY);
+    mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", mOgreWidget->mEntities.values().first()->sceneNode->_getDerivedPosition() + Ogre::Vector3(10, 0, 10), Ogre::Quaternion::IDENTITY);
     mVehicleNode->attachObject(mVehicleEntity);
 
     mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(+0.00, +0.00, -0.20), Ogre::Quaternion(Ogre::Degree(000), Ogre::Vector3(1, 0, 0))));  // engine 1, forward, CW
@@ -128,12 +128,13 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     mBtWorld->addRigidBody(mVehicleBody);
 //    mVehicleBody->setActivationState(ISLAND_SLEEPING);
 
-    QMapIterator<Ogre::Entity*, Ogre::SceneNode*> i(mOgreWidget->mEntities);
+    // Construct the bullet collision shapes.
+    QMapIterator<Ogre::Entity*, OgreWidget::MeshInformation*> i(mOgreWidget->mEntities);
     while(i.hasNext())
     {
         i.next();
         Ogre::Entity* e = i.key();
-        const Ogre::SceneNode* s = i.value();
+        const Ogre::SceneNode* s = i.value()->sceneNode;
 
         // Get the mesh from the entity
         Ogre::MeshPtr myMesh = e->getMesh();

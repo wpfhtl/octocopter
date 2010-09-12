@@ -650,7 +650,7 @@ void Node::drawGl(void) const
 
     glBlendFunc(GL_SRC_ALPHA,GL_ONE);
     glLineWidth(1);
-
+/*
     glBegin(GL_LINE_LOOP);
     glVertex3f(min.x(), min.y(), min.z()); // 0
     glVertex3f(max.x(), min.y(), min.z()); // 1
@@ -674,6 +674,7 @@ void Node::drawGl(void) const
     glVertex3f(max.x(), max.y(), max.z()); // 6
     glVertex3f(max.x(), max.y(), min.z()); // 5
     glEnd();
+    */
 
     glLineWidth(1);
     glColor4f(1.0f, 1.0f, 0.0f, 1.0f);

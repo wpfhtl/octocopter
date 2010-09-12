@@ -7,7 +7,7 @@ FlightController::FlightController(Simulator* simulator, Vehicle* vehicle, BtOgr
     mMotionState = motionState;
 
     mNextWayPoint = Ogre::Vector3(0, 0, 0);
-    mNextWayPoint = Ogre::Vector3(164, 10, 115);
+    mNextWayPoint = Ogre::Vector3(158, 8, 115);
 
     // create joystick
     mJoystick = new Joystick();
