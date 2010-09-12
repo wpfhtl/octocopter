@@ -153,11 +153,17 @@ int Simulator::getSimulationTime(void) const
 //        qDebug() << "Simulator::getSimulationTime(): paused, timeFactor " << mTimeFactor << "startElapsed" << mTimeSimulationStart.elapsed() << "pauseElapsed:" << mTimeSimulationPause.elapsed() << "result" << mTimeFactor * (mTimeSimulationStart.elapsed() - mTimeSimulationPause.elapsed());
         return mTimeFactor * (mTimeSimulationStart.elapsed() - mTimeSimulationPause.elapsed());
     }
-    else
+    else if(mTimeSimulationStart.isValid())
     {
         // simulation is running.
 //        qDebug() << "Simulator::getSimulationTime(): running, timeFactor " << mTimeFactor << "startElapsed" << mTimeSimulationStart.elapsed() << "result" << mTimeFactor * mTimeSimulationStart.elapsed();
         return mTimeFactor * mTimeSimulationStart.elapsed();
+    }
+    else
+    {
+        // both invalid, has never run before
+        qDebug() << "Simulator::getSimulationTime(): never started, returning 0";
+        return 0;
     }
 }
 

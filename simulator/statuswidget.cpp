@@ -90,9 +90,9 @@ void StatusWidget::slotUpdatePose(const Ogre::Vector3 &position, const Ogre::Qua
     mLabelPoseWgs84Latitude->setText(wgs84.formatGpsDegree(wgs84.latitude()));
     mLabelPoseWgs84Elevation->setText(QString("%1m").arg(wgs84.elevation(), 3, 'f', 1, QLatin1Char('0')));
 
-    const int pitch = rotation.getPitch(true).valueDegrees();
-    const int roll = rotation.getRoll(true).valueDegrees();
-    const int yaw = rotation.getYaw(true).valueDegrees();
+    const int pitch = rotation.getPitch(false).valueDegrees();
+    const int roll = rotation.getRoll(false).valueDegrees();
+    const int yaw = rotation.getYaw(false).valueDegrees();
 
     QString deg;
     deg.sprintf("%c", 176);

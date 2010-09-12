@@ -132,12 +132,12 @@ void LaserScanner::slotDoScan()
     {
         // No need to scan, we'll get the same results as previously. IF THE REST OF
         // THE WORLD IS STATIC, that is. Sleep for one scan, then try again.
-        qDebug() << "LaserScanner::slotDoScan(): vehicle hasn't moved, sleeping scan";
+//        qDebug() << "LaserScanner::slotDoScan(): vehicle hasn't moved, sleeping scan";
         usleep(1000000 / (mSpeed / 60) * (1.0 / mTimeFactor));
         return;
     }
-    else
-        qDebug() << "LaserScanner::slotDoScan(): vehicle has moved, scanning";
+//    else
+//        qDebug() << "LaserScanner::slotDoScan(): vehicle has moved, scanning";
 
     const long long realTimeBetweenRaysUS = (1000000.0 / 6.0 / mSpeed * mAngleStep) * (1.0 / mTimeFactor);
 
@@ -148,10 +148,12 @@ void LaserScanner::slotDoScan()
 
     int numberOfRays = 0;
 
+    CALLGRIND_START_INSTRUMENTATION;
+
     while(mCurrentScanAngle <= mAngleStop)
     {
-        Profiler p1, p2, p3, p4, p5;
-        p1.start();
+//        Profiler p1, p2, p3, p4, p5;
+//        p1.start();
 
         numberOfRays++;
         //qDebug() << "LaserScanner::slotDoScan(): next ray:" << mCurrentScanAngle;
@@ -175,17 +177,20 @@ void LaserScanner::slotDoScan()
         mLaserBeam.setDirection(mScannerOrientation * quatBeamRotation * Ogre::Vector3::NEGATIVE_UNIT_Z);
         locker.unlock();
 
-        p2.start();
+//        p2.start();
 
         // Do a RSQ against the entities/meshes.
         mRaySceneQuery->setRay(mLaserBeam);
 
         float closestDistanceToEntity = -1.0f;
 
-        p5.start();
+//        p5.start();
+        // lets try to implement a faster, crash-free approach
+
+
         if(mRaySceneQuery->execute().size() > 0)
         {
-            p5.stop("p5 rsq mesh bboxes");
+//            p5.stop("p5 rsq mesh bboxes");
 
             // At this point we have raycast to a series of different objects bounding boxes.
             // We need to test these different objects to see which is the first polygon hit.
@@ -214,7 +219,7 @@ void LaserScanner::slotDoScan()
                     Ogre::Vector3 *vertices;
                     Ogre::uint32 *indices;
 
-                    p4.start();
+//                    p4.start();
                     // get the mesh information
                     getMeshInformation(((Ogre::Entity*)pentity)->getMesh(), vertex_count, vertices, index_count, indices,
                                       pentity->getParentNode()->_getDerivedPosition(),
@@ -237,7 +242,7 @@ void LaserScanner::slotDoScan()
                             }
                         }
                     }
-                    p4.stop("p4 single ray - single mesh");
+//                    p4.stop("p4 single ray - single mesh");
 
                     // free the verticies and indicies memory
                     delete[] vertices;
@@ -246,9 +251,9 @@ void LaserScanner::slotDoScan()
             }
         }
 
-        p2.stop("p2 single ray - mesh");
+//        p2.stop("p2 single ray - mesh");
 
-        p3.start();
+//        p3.start();
 
         // Do a RSQ against the terrain.
         // http://www.ogre3d.org/docs/api/html/classOgre_1_1TerrainGroup.html says about rayIntersects:
@@ -272,7 +277,7 @@ void LaserScanner::slotDoScan()
             mScanData << QVector3D(point.x, point.y, point.z);
         }
 
-        p3.stop("p3 single ray - terrain");
+//        p3.stop("p3 single ray - terrain");
 
         // Increase mCurrentScanAngle by mAngleStep for the next laserBeam
         mCurrentScanAngle += mAngleStep;
@@ -282,15 +287,19 @@ void LaserScanner::slotDoScan()
         const long long scanTimeElapsed = (timeNow.tv_sec - timeStart.tv_sec) * 1000000 + (timeNow.tv_usec - timeStart.tv_usec);
         const long long scanTimeAtNextRay = realTimeBetweenRaysUS * (numberOfRays+1);
 
-        p1.stop("p1 single ray");
+//        p1.stop("p1 single ray");
 
         usleep(std::max(0, (int)(scanTimeAtNextRay - scanTimeElapsed)));
     }
 
+    CALLGRIND_STOP_INSTRUMENTATION;
+     CALLGRIND_DUMP_STATS;
+
+
     gettimeofday(&timeNow, NULL);
 
     const long long timeDiff = (timeNow.tv_sec - timeStart.tv_sec) * 1000000 + (timeNow.tv_usec - timeStart.tv_usec);
-    qDebug() << "LaserScanner::slotDoScan(): took" << timeDiff << "us, should have been" << (long long)(realTimeBetweenRaysUS * ((mAngleStop - mAngleStart)/mAngleStep));
+//    qDebug() << "LaserScanner::slotDoScan(): took" << timeDiff << "us, should have been" << (long long)(realTimeBetweenRaysUS * ((mAngleStop - mAngleStart)/mAngleStep));
 
     // This scan is finished, emit it...
 //    emit scanFinished(mScanData);
@@ -306,7 +315,7 @@ void LaserScanner::slotDoScan()
     // Stream the hits
     stream << mScanData;
 
-    qDebug() << "LaserScanner::slotDoScan(): List size" << mScanData.size() << "UDP data size:" << datagram.size() << "first 20 bytes:" << datagram.left(20);
+//    qDebug() << "LaserScanner::slotDoScan(): List size" << mScanData.size() << "UDP data size:" << datagram.size() << "first 20 bytes:" << datagram.left(20);
 //    <aep> kernelpanic: and read the hint in the flush() docs.  if it returns false, you need to wait and flush again
 //    <aep> krunk-: ah waitForBytesWritten() works
 //    <aep> kernelpanic: ^
@@ -336,7 +345,7 @@ void LaserScanner::slotDoScan()
     gettimeofday(&timeNow, NULL);
     const long long scanTimeElapsed = (timeNow.tv_sec - timeStart.tv_sec) * 1000000 + (timeNow.tv_usec - timeStart.tv_usec);
     const long long timeRest = (1000000/(mSpeed/60)) * (1.0 / mTimeFactor) - scanTimeElapsed;
-    qDebug() << "LaserScanner::slotDoScan(): emitted results, resting" << timeRest << "us after scan.";
+//    qDebug() << "LaserScanner::slotDoScan(): emitted results, resting" << timeRest << "us after scan.";
     usleep(std::max(0, (int)timeRest));
 
 

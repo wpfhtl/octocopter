@@ -11,6 +11,7 @@ main
 simulator
 ogrewidget
 battery
+flightcontroller
 engine
 joystick
 laserscanner
@@ -28,6 +29,7 @@ SET(INC_FILES
 simulator.h
 ogrewidget.h
 battery.h
+flightcontroller.h
 engine.h
 joystick.h
 laserscanner.h

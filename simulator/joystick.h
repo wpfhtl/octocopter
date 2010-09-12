@@ -33,6 +33,9 @@ private:
     int fd, deviceNum, numAxis, numButtons;
     QString deviceFile;
     char joystickName[255];
+    char* mButtons;
+
+    bool updateValues();
 
 public:
     Joystick();
@@ -41,7 +44,9 @@ public:
     QString getJoystickName(void);
     bool isValid(void) const;
 
-    bool getValues(float &axisX, float &axisY, float &axisZ, float &axisR);
+
+    void getAxisValues(float &axisX, float &axisY, float &axisZ, float &axisR);
+    bool isButtonPressed(const unsigned short number);
 };
 
 #endif

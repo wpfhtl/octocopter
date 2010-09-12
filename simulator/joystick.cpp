@@ -32,6 +32,8 @@ Joystick::Joystick() : QObject()
 
     qDebug() << "Joystick detected:" << joystickName << numAxis << "axis and" << numButtons << "buttons.";
 
+    mButtons = (char *) calloc( numButtons, sizeof( char ) );
+
     // use non-blocking mode
     fcntl(fd, F_SETFL, O_NONBLOCK);
 }
@@ -46,7 +48,7 @@ bool Joystick::isValid(void) const
     return valid;
 }
 
-bool Joystick::getValues(float &axisX, float &axisY, float &axisZ, float &axisR)
+bool Joystick::updateValues()
 {
     if(!valid) return false;
 
@@ -71,24 +73,22 @@ bool Joystick::getValues(float &axisX, float &axisY, float &axisZ, float &axisR)
             case 3:
                 r = event.value;
                 break;
+            case 4:
+                qDebug() << "coolie l/r!";
+                break;
+            case 5:
+                qDebug() << "coolie u/d!";
+                break;
             }
             break;
 
         case JS_EVENT_BUTTON:
-            // do nothing for now, we don't use buttons yet
-            //button [ js.number ] = js.value;
+            // button pressed is 1, released 0
+            mButtons[event.number] = event.value;
+//            qDebug() << "button" << event.number << "is now" << event.value;
             break;
         }
-
-
-//        for(x=0; x < numButtons; ++x)
-//            printf("B%d: %d  ", x, button[x] );
     }
-
-    axisX = ((float)x)/32768.0;
-    axisY = ((float)y)/32768.0;
-    axisZ = ((float)z)/32768.0;
-    axisR = ((float)r)/32768.0;
 
     // print the results
 //    qDebug() << "xyzr:" << axisX << axisY << axisZ << axisR;
@@ -100,4 +100,22 @@ bool Joystick::getValues(float &axisX, float &axisY, float &axisZ, float &axisR)
     }
 
     return true;
+}
+
+void Joystick::getAxisValues(float &axisX, float &axisY, float &axisZ, float &axisR)
+{
+    updateValues();
+
+    axisX = ((float)x)/32768.0;
+    axisY = ((float)y)/32768.0;
+    axisZ = ((float)z)/32768.0;
+    axisR = ((float)r)/32768.0;
+}
+
+bool Joystick::isButtonPressed(const unsigned short number)
+{
+    Q_ASSERT(number < numButtons);
+
+    updateValues();
+    return mButtons[number] == 1;
 }

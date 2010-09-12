@@ -796,7 +796,7 @@ void OgreWidget::setupTerrain()
                 rotation);
     sceneNode->setScale(Ogre::Vector3(0.012, 0.012, 0.012));
     sceneNode->attachObject(entity);
-    mCollisionEntities.insert(entity,sceneNode);
+    mEntities.insert(entity,sceneNode);
 
 
     entity = mSceneManager->createEntity("church.mesh");
@@ -806,7 +806,7 @@ void OgreWidget::setupTerrain()
                 position + Ogre::Vector3(-5, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 0.0, 55),
                 rotation);
     sceneNode->attachObject(entity);
-    mCollisionEntities.insert(entity,sceneNode);
+    mEntities.insert(entity,sceneNode);
 
     entity = mSceneManager->createEntity("house1.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
@@ -815,7 +815,7 @@ void OgreWidget::setupTerrain()
                 position + Ogre::Vector3(-23, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 0.0, -10),
                 rotation);
     sceneNode->attachObject(entity);
-    mCollisionEntities.insert(entity,sceneNode);
+    mEntities.insert(entity,sceneNode);
 
     entity = mSceneManager->createEntity("house2.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
@@ -824,7 +824,7 @@ void OgreWidget::setupTerrain()
                 position + Ogre::Vector3(20, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 3.0, 25),
                 rotation);
     sceneNode->attachObject(entity);
-    mCollisionEntities.insert(entity,sceneNode);
+    mEntities.insert(entity,sceneNode);
 
     entity = mSceneManager->createEntity("windmill.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
@@ -833,7 +833,7 @@ void OgreWidget::setupTerrain()
                 position + Ogre::Vector3(-35, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 0.0, 30),
                 rotation);
     sceneNode->attachObject(entity);
-    mCollisionEntities.insert(entity,sceneNode);
+    mEntities.insert(entity,sceneNode);
 
     mSceneManager->setSkyBox(true, "Examples/CloudyNoonSkyBox");
 }

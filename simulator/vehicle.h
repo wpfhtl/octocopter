@@ -18,23 +18,16 @@
 #include "simulator.h"
 #include "engine.h"
 #include "ogrewidget.h"
-#include "joystick.h"
+#include "flightcontroller.h"
 #include <coordinateconverter.h>
 
 class Simulator;
 class OgreWidget;
+class FlightController;
 
 class Vehicle : public QObject//QThread
 {
     Q_OBJECT
-
-    enum collisiontypes {
-        COL_NOTHING = 0, //<Collide with nothing
-        COL_VEHICLE = 1<<1, //<Collide with vehicles
-        COL_GROUND = 1<<2, //<Collide with ground
-        COL_POWERUP = 1<<3 //<Collide with powerups
-    };
-
 
 private:
     mutable QMutex mMutex;
@@ -47,7 +40,8 @@ private:
     QList<Engine> mEngines; // probably deprecated for mEngineNodes and mEngine
     Engine mEngine;
     QList<Ogre::SceneNode*> mEngineNodes;
-    Joystick *mJoystick;
+    FlightController* mFlightController;
+
 
 protected:
     btAxisSweep3 *mBtBroadphase;
@@ -74,6 +68,7 @@ public:
 
     QVector3D getLinearVelocity() const;
     QVector3D getAngularVelocity() const;
+    float getHeightAboveGround();
 
 signals:
     void newPose(const Ogre::Vector3 pos, const Ogre::Quaternion rot);

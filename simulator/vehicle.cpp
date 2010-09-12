@@ -8,9 +8,6 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     mSimulator = simulator;
     mOgreWidget = ogreWidget;
 
-    // create joystick
-    mJoystick = new Joystick();
-    qDebug() << "Vehicle::Vehicle(): initialized joystick, isvalid():" << mJoystick->isValid();
 
     mTimerUpdatePosition = new QTimer(this);
     mTimerUpdatePosition->setInterval(1000/60);
@@ -48,7 +45,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     // "vehicleNode" is fixed, used in ogrewidget.cpp
 
     // Place the vehicle somewhere above some building
-    mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", mOgreWidget->mCollisionEntities.values().first()->_getDerivedPosition(), Ogre::Quaternion::IDENTITY);
+    mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", mOgreWidget->mEntities.values().first()->_getDerivedPosition() + Ogre::Vector3(10, 0, 10), Ogre::Quaternion::IDENTITY);
     mVehicleNode->attachObject(mVehicleEntity);
 
     mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(+0.00, +0.00, -0.20), Ogre::Quaternion(Ogre::Degree(000), Ogre::Vector3(1, 0, 0))));  // engine 1, forward, CW
@@ -73,7 +70,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     Ogre::TerrainGroup::RayResult rayResult = mOgreWidget->mTerrainGroup->rayIntersects(Ogre::Ray(mVehicleNode->_getDerivedPosition() + Ogre::Vector3(0,1000,0), Ogre::Vector3::NEGATIVE_UNIT_Y));
     if(rayResult.hit)
     {
-        mVehicleNode->setPosition(rayResult.position.x, rayResult.position.y + 20.0, rayResult.position.z);
+        mVehicleNode->setPosition(rayResult.position.x, rayResult.position.y + 0.2, rayResult.position.z);
         qDebug() << "Vehicle::Vehicle(): creating vehicle, setting to height" << rayResult.position.y + 20.0;
     }
 
@@ -125,11 +122,13 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     // linear, angular
     mVehicleBody->setDamping(.5, .7);
 
+    mFlightController = new FlightController(simulator, this, mVehicleState);
+
     mVehicleBody->setActivationState(DISABLE_DEACTIVATION); // probably unnecessary
-    mBtWorld->addRigidBody(mVehicleBody/*, COL_VEHICLE, COL_GROUND*/);
+    mBtWorld->addRigidBody(mVehicleBody);
 //    mVehicleBody->setActivationState(ISLAND_SLEEPING);
 
-    QMapIterator<Ogre::Entity*, Ogre::SceneNode*> i(mOgreWidget->mCollisionEntities);
+    QMapIterator<Ogre::Entity*, Ogre::SceneNode*> i(mOgreWidget->mEntities);
     while(i.hasNext())
     {
         i.next();
@@ -327,40 +326,15 @@ void Vehicle::slotUpdatePosition(void)
 {
     QMutexLocker locker(&mMutex);
 
-    float joyX, joyY, joyZ, joyR;
-    mJoystick->getValues(joyX, joyY, joyZ, joyR);
+    int f,b,l,r;
 
-    // Set motor-base-speed according to thrust between 0 and 40000
-    int f = (-joyR + 0.5) * 20000;
-    int b = f;
-    int l = f;
-    int r = f;
-//    qDebug() << "joyVals\t\t" << joyX << joyY << joyZ << joyR;
-//    qDebug() << "baseSpeed\t" << f << b << l << r;
-
-    // Steering sensitivity is higher in slow motion
-    const int maxSteeringPitchRoll = 500 / mSimulator->getTimeFactor();
-    const int maxSteeringYaw = 150 / mSimulator->getTimeFactor();
-
-    // When stick goes right, joyX goes up => l+ r-
-    l += (maxSteeringPitchRoll * joyX);
-    r -= (maxSteeringPitchRoll * joyX);
-
-    // When stick goes forward, joyY goes up => b- f+
-    b -= (maxSteeringPitchRoll * joyY);
-    f += (maxSteeringPitchRoll * joyY);
-
-    // When stick is yawed...
-    f += (maxSteeringYaw * -joyZ);
-    b += (maxSteeringYaw * -joyZ);
-    l -= (maxSteeringYaw * -joyZ);
-    r -= (maxSteeringYaw * -joyZ);
-
-//    qDebug() << "endSpeed\t" << "f" << f << "b" << b << "l" << l << "r" << r;
+    mFlightController->getEngineSpeeds(f, b, l, r);
 
     QList<int> motorSpeeds;
-    // motorSpeeds << forward << backward << left << right
+
     motorSpeeds << f << b << -l << -r;
+
+//    qDebug() << "Vehicle::slotUpdatePosition():\t\t" << "f" << f << "b" << b << "l" << l << "r" << r;
 
     slotSetMotorSpeeds(motorSpeeds);
 
@@ -380,25 +354,9 @@ void Vehicle::slotSetNextWayPoint(const CoordinateGps &wayPoint)
 
 void Vehicle::slotSetMotorSpeeds(const QList<int> &speeds)
 {
-    Q_ASSERT(speeds.size() <= mEngineNodes.size());
+    Q_ASSERT(speeds.size() == mEngineNodes.size());
 
     // We apply forces to the vehicle depending on the speeds of its propellers.
-/*
-    for(int i=0;i<speeds.size();++i)
-    {
-        const btVector3 thrustScalar = mEngines.at(i).calculateThrust(speeds.at(i));
-        const Ogre::Vector3 thrustVectorOgre = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(thrustScalar.x(), thrustScalar.y(), thrustScalar.z());
-        const btVector3 thrustVectorBt(thrustVectorOgre.x, thrustVectorOgre.y, thrustVectorOgre.z);
-        const btVector3 position = mEngines.at(i).getPosition();
-        mVehicleBody->applyForce(thrustVectorBt, position);
-        //qDebug() << "Vehicle::slotSetMotorSpeeds(): thrust" << i << thrustVectorOgre.x << thrustVectorOgre.y << thrustVectorOgre.z << "at" << position.x() << position.y() << position.z();
-
-        const btVector3 torque = mEngines.at(i).calculateTorque(speeds.at(i));
-        mVehicleBody->applyTorque(torque);
-        //qDebug() << "Vehicle::slotSetMotorSpeeds(): torque" << i << torque.x() << torque.y() << torque.z();
-    }
-*/
-
     for(int i=0;i<speeds.size();++i)
     {
         const double thrustScalar = mEngine.calculateThrust(speeds.at(i));
@@ -411,17 +369,27 @@ void Vehicle::slotSetMotorSpeeds(const QList<int> &speeds)
         const Ogre::Vector3 pos = mVehicleNode->_getDerivedOrientation() * mEngineNodes.at(i)->getPosition();
         const btVector3 position(pos.x, pos.y, pos.z);
         mVehicleBody->applyForce(thrustVectorBt, position);
-//        qDebug() << "Vehicle::slotSetMotorSpeeds(): thrust" << i << thrustVectorOgre.x << thrustVectorOgre.y << thrustVectorOgre.z << "at" << position.x() << position.y() << position.z();
+//        qDebug() << "Vehicle::slotSetMotorSpeeds(): thrust" << i << thrustScalar << thrustVectorOgre.x << thrustVectorOgre.y << thrustVectorOgre.z << "at" << position.x() << position.y() << position.z();
 
         const double torqueScalar = mEngine.calculateTorque(speeds.at(i));
         Ogre::Vector3 torque = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0.0, torqueScalar, 0.0);
         mVehicleBody->applyTorque(btVector3(torque.x, torque.y, torque.z));
-//        qDebug() << "Vehicle::slotSetMotorSpeeds(): torque y:" << i << torque;
+//        qDebug() << "Vehicle::slotSetMotorSpeeds(): torque y:" << i << torqueScalar << torque.y;
     }
 
 //    qDebug() << "Vehicle::slotSetMotorSpeeds(): total yaw torque is" << mVehicleBody->getTotalTorque().y();
 }
 
+float Vehicle::getHeightAboveGround()
+{
+    Ogre::TerrainGroup::RayResult rayResult = mOgreWidget->mTerrainGroup->rayIntersects(Ogre::Ray(mVehicleNode->_getDerivedPosition() + Ogre::Vector3(0,1000,0), Ogre::Vector3::NEGATIVE_UNIT_Y));
+    if(rayResult.hit)
+    {
+        return mVehicleNode->_getDerivedPosition().y - rayResult.position.y;
+    }
+
+    return -1.0;
+}
 
 void Vehicle::slotUpdatePhysics(void)
 {

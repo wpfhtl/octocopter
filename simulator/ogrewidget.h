@@ -134,7 +134,7 @@ public:
 
     void destroyManualObject(Ogre::ManualObject* manualObject, Ogre::SceneNode* sceneNode);
 
-    QMap<Ogre::Entity*, Ogre::SceneNode*> mCollisionEntities;
+    QMap<Ogre::Entity*, Ogre::SceneNode*> mEntities;
 
 public slots:
     void setBackgroundColor(QColor c);
