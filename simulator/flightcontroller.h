@@ -3,6 +3,14 @@
 
 #include <QVector3D>
 
+//#include <qwt_plot.h>
+//#include <qwt_plot_marker.h>
+//#include <qwt_plot_curve.h>
+//#include <qwt_legend.h>
+//#include <qwt_data.h>
+//#include <qwt_text.h>
+//#include <qwt_math.h>
+
 #include "simulator.h"
 #include "joystick.h"
 #include "vehicle.h"
@@ -19,12 +27,19 @@ private:
     Vehicle* mVehicle;
     Simulator* mSimulator;
     BtOgre::RigidBodyState* mMotionState;
-    Ogre::Vector3 mNextWayPoint;
+    QList<QVector3D> mWayPoints;
 
+//    QwtPlot* mPlot;
+//    QwtPlotCurve *curvePitch, *curveRoll, *curveYaw;
+
+    bool mAutoPilot;
     int mTimeOfLastUpdate;
 
     float mPrevErrorPitch, mPrevErrorRoll, mPrevErrorYaw, mPrevErrorHeight;
     float mErrorIntegralPitch, mErrorIntegralRoll, mErrorIntegralYaw, mErrorIntegralHeight;
+
+    // Upon reaching a waypoint, we rotate. This helps to keep track of that rotation
+    float mDesiredYaw;
 
 protected:
 
@@ -34,26 +49,23 @@ public:
 
     void getEngineSpeeds(int &f, int &b, int &l, int &r);
 
+    QVector3D getPosition();
+    QQuaternion getOrientation();
+    QList<QVector3D> getWayPoints();
+    void clearWayPoints();
+
+signals:
+        void wayPointReached(QVector3D);
+        void message(const QString);
+
 private:
     void getJoystickValues(int &f, int &b, int &l, int &r);
 
-public slots:
-    void slotSetNextWayPoint(const Ogre::Vector3 &wayPoint);
-
-    /*
-signals:
-    void newPose(const Ogre::Vector3 pos, const Ogre::Quaternion rot);
-
-    void run(void);
-    void start(void);
-    void stop(void);
-    void slotSetMotorSpeeds(const QList<int> &speeds);
-    void slotShutDown(void);
-
 private slots:
-    void slotUpdatePosition(void);
-    void slotUpdatePhysics(void);
-    */
+    void slotJoystickButtonStateChanged(unsigned char, bool);
+
+public slots:
+    void slotSetNextWayPoint(const QVector3D &wayPoint);
 };
 
 #endif

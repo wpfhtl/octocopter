@@ -117,6 +117,8 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 
     //Create the Body.
     mVehicleBody = new btRigidBody(mass, mVehicleState, mVehicleShape, inertia);
+    mVehicleBody->setFriction(0.8);
+    mVehicleBody->setRestitution(0.6);
 //    mVehicleBody->setCollisionFlags(mVehicleBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT | btCollisionObject::CF_CUSTOM_MATERIAL_CALLBACK );
 
     // linear, angular
@@ -244,6 +246,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 
         // Set additional collision flags
         // triBody->setCollisionFlags(triBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+        triBody->setFriction(0.4);
 
         // Add the body to the dynamics world
         mBtWorld->addRigidBody(triBody);
@@ -257,6 +260,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
      {
          // ugly hack, use last terrain, there should only be one.
          pTerrain = ti.getNext()->instance;
+         qDebug() << "one terrain.";
      }
 
      float* terrainHeightData = pTerrain->getHeightData();
@@ -273,12 +277,18 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
      float metersBetweenVertices = pTerrain->getWorldSize()/(pTerrain->getSize()-1);
      btVector3 localScaling(metersBetweenVertices, 1, metersBetweenVertices);
 
+//     qDebug() << "terrainposition y is" << terrainPosition.y;
+//     qDebug() << "terrainpos or old" << terrainPosition.y + (pTerrain->getMaxHeight()-pTerrain->getMinHeight())/2;
+//     qDebug() << "terrainpos or new" << terrainPosition.y + (pTerrain->getMaxHeight())/2;
+//     qDebug() << "terrainheight min" << pTerrain->getMinHeight();
+//     qDebug() << "terrainheight max" << pTerrain->getMaxHeight();
+
      btHeightfieldTerrainShape* groundShape = new btHeightfieldTerrainShape(
                  pTerrain->getSize(),
                  pTerrain->getSize(),
                  pDataConvert,
                  1/*ignore*/,
-                 pTerrain->getMinHeight(),
+                 0.0,// WAS: pTerrain->getMinHeight(), but that yields 0 on first run, 75 when loading cached terrain. So this is a nice hack.
                  pTerrain->getMaxHeight(),
                  1,
                  PHY_FLOAT,
@@ -289,10 +299,13 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 
      mGroundBody = new btRigidBody(0, new btDefaultMotionState(), groundShape);
 
+     mGroundBody->setFriction(0.4);
+     mGroundBody->setRestitution(0.6);
+
      mGroundBody->getWorldTransform().setOrigin(
                  btVector3(
                      terrainPosition.x,
-                     terrainPosition.y + (pTerrain->getMaxHeight()-pTerrain->getMinHeight())/2,
+                     terrainPosition.y + (pTerrain->getMaxHeight()/2),
                      terrainPosition.z));
 
      mGroundBody->getWorldTransform().setRotation(
@@ -346,12 +359,12 @@ void Vehicle::slotUpdatePosition(void)
 //    qDebug() << "Vehicle::slotUpdatePosition(): done";
 }
 
-void Vehicle::slotSetNextWayPoint(const CoordinateGps &wayPoint)
-{
-    QMutexLocker locker(&mMutex);
+//void Vehicle::slotSetNextWayPoint(const CoordinateGps &wayPoint)
+//{
+//    QMutexLocker locker(&mMutex);
 
-    mNextWayPoint = mCoordinateConverter.convert(wayPoint);
-}
+//    mNextWayPoint = mCoordinateConverter.convert(wayPoint);
+//}
 
 void Vehicle::slotSetMotorSpeeds(const QList<int> &speeds)
 {

@@ -34,14 +34,12 @@ private:
     QTimer *mTimerUpdatePosition;
     int mTimeOfLastUpdate; // the last simulationtime from simulator. Needed, as the physics engine needs deltas.
     Simulator *mSimulator;
-    CoordinateConverter mCoordinateConverter;
-    Ogre::Vector3 mNextWayPoint;
+//    CoordinateConverter mCoordinateConverter;
+//    Ogre::Vector3 mNextWayPoint;
     OgreWidget* mOgreWidget;
     QList<Engine> mEngines; // probably deprecated for mEngineNodes and mEngine
     Engine mEngine;
     QList<Ogre::SceneNode*> mEngineNodes;
-    FlightController* mFlightController;
-
 
 protected:
     btAxisSweep3 *mBtBroadphase;
@@ -70,6 +68,8 @@ public:
     QVector3D getAngularVelocity() const;
     float getHeightAboveGround();
 
+    FlightController* mFlightController;
+
 signals:
     void newPose(const Ogre::Vector3 pos, const Ogre::Quaternion rot);
 
@@ -77,7 +77,7 @@ public slots:
     void run(void);
     void start(void);
     void stop(void);
-    void slotSetNextWayPoint(const CoordinateGps &wayPoint);
+//    void slotSetNextWayPoint(const CoordinateGps &wayPoint);
     void slotSetMotorSpeeds(const QList<int> &speeds);
     void slotShutDown(void);
 

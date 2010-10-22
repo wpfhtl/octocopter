@@ -1,10 +1,21 @@
 #include "octree.h"
 
 Octree::Octree(const QVector3D &min, const QVector3D &max, const unsigned int maxItemsPerLeaf) :
-        mMaxItemsPerLeaf(maxItemsPerLeaf)
+    mMaxItemsPerLeaf(maxItemsPerLeaf),
+    mNumberOfItems(0),
+    mNumberOfNodes(0),
+    mLastInsertionNode(0),
+    mMinimumPointDistance(0),
+    mMri1(0),
+    mMri2(0)
 {
-    mRootNode = new Node(0, min, max);
-    mRootNode->mTree = this;
+    mRootNode = new Node(this, 0, min, max);
+    //mRootNode->mTree = this;
+}
+
+void Octree::setMinimumPointDistance(const float &distance)
+{
+    mMinimumPointDistance = distance;
 }
 
 Node* Octree::insertPoint(LidarPoint* const point)
@@ -170,13 +181,38 @@ Node* Octree::insertPoint(LidarPoint* const point)
         // Now we have a new root-node. Insert it and reparent the old one.
         qDebug() << "Octree::insertPoint(): mRootNode goes from" << mRootNode->min << "to" << mRootNode->max << "supernode swallows us at position" << positionOfOldRootInNewRoot;
         Node* const oldRootNode = mRootNode;
-        mRootNode = new Node(0, newMin, newMax);
+        mRootNode = new Node(this, 0, newMin, newMax);
         mRootNode->partition();
         delete mRootNode->children.at(positionOfOldRootInNewRoot);
         mRootNode->children[positionOfOldRootInNewRoot] = oldRootNode;
         oldRootNode->parent = mRootNode;
     }
-    return mRootNode->insertPoint(point);
+
+//    if(mLastInsertionNode == 0)
+//        qDebug() << "uh, mLastInsertionNode is null!";
+//    else
+//        qDebug() << "uh, mLastInsertionNode is" << mLastInsertionNode;
+
+    // Insert the LidarPoint into the right Node. First, try to insert into the mLastInsertion-Node. If
+    // that doesn't work, go the old route of traversing down from the root-node.
+    if(mLastInsertionNode == 0 || ! mLastInsertionNode->includesPoint(point->position))
+    {
+//        qDebug() << "old cached node" << mLastInsertionNode << "is invalid, updating.";
+//        qDebug() << "inserting point" << point << "with position" << point->position << "into tree after updating.";
+
+        // If the point does NOT get saved, 0 is returned. In that case, don't update the node-poointer.
+        Node* insertionNode = mRootNode->insertPoint(point);
+        if(insertionNode != 0) mLastInsertionNode = insertionNode;
+    }
+    else
+    {
+//        qDebug() << "inserting point" << point << "into old node.";
+        mLastInsertionNode->insertPoint(point);
+    }
+
+
+
+    return mLastInsertionNode;
 }
 
 Node* Octree::root()
@@ -189,16 +225,16 @@ const Node* Octree::root() const
     return mRootNode;
 }
 
-void Octree::drawGl(void) const
-{
+//void Octree::drawGl(void) const
+//{
     // set transparent material?
 
-    mRootNode->drawGl();
-}
+//    mRootNode->drawGl();
+//}
 
-Node* Octree::getNodeForPoint(const QVector3D &point)
-{
-}
+//Node* Octree::getNodeForPoint(const QVector3D &point)
+//{
+//}
 
 /* UNUSED
 // Returns a list of leaf-nodes that overlap the given sphere.
@@ -256,6 +292,59 @@ void Octree::sortPointList(const QVector3D &point, QList<LidarPoint*>* list) con
         list->append(i.value());
         ++i;
     }
+}
+
+// FindNeighborsWithinRadius is used very often, without actually using the nodes returned, just checking their number
+// Creating, passing and destroying QLists might not be the cheapest thing to do, so this could be more performant
+uint32_t Octree::numberOfNeighborsWithinRadius(const QVector3D &point, const double radius) const
+{
+    uint32_t numberOfPointsFound = 0;
+    Node* currentNode = mRootNode->getLeaf(point);
+
+    // Go up the tree as long as our searchradius leaks from the node
+    // If we reach the rootnode, use him.
+    while(currentNode->parent && !currentNode->isSphereContained(point, radius))
+        currentNode = currentNode->parent;
+
+    QList<Node*> nodeList = currentNode->getAllChildLeafs();
+    for(int i=0;i<nodeList.size();i++)
+    {
+        Node* currentNode = nodeList.at(i);
+        if(currentNode->overlapsSphere(point, radius))
+        {
+            //neighbors << currentNode->findNeighborsWithinRadius(point, radius);
+            numberOfPointsFound += currentNode->numberOfNeighborsWithinRadius(point, radius);
+        }
+    }
+
+    return numberOfPointsFound;
+}
+
+bool Octree::isNeighborWithinRadius(const QVector3D &point, const double radius) const
+{
+    Node* currentNode = mRootNode->getLeaf(point);
+
+    // For performance reasons, check the same leaf first. This should work in 99% of cases.
+    if(currentNode->neighborsWithinRadius(point, radius) > 0)
+        return true;
+
+    // Go up the tree as long as our searchradius leaks from the node
+    // If we reach the rootnode, use him.
+    while(currentNode->parent && !currentNode->isSphereContained(point, radius))
+        currentNode = currentNode->parent;
+
+    QList<Node*> nodeList = currentNode->getAllChildLeafs();
+    for(int i=0;i<nodeList.size();i++)
+    {
+        Node* currentNode = nodeList.at(i);
+        if(currentNode->overlapsSphere(point, radius))
+        {
+            if(currentNode->numberOfNeighborsWithinRadius(point, radius) > 0)
+                return true;
+        }
+    }
+
+    return false;
 }
 
 // Returns all neighbors of the given point within @radius
@@ -368,8 +457,22 @@ QList<LidarPoint*> Octree::findNearestNeighbors(const QVector3D &point, const un
     return neighbors;
 }
 
-
-unsigned int Octree::numberOfItems(void) const
+void Octree::setPointHandler(void (*pointHandler)(const QVector3D&))
 {
-    return root()->mNumberOfItems;
+    mPointHandler = pointHandler;
+}
+
+void Octree::handlePoints() const
+{
+    mRootNode->handlePoints();
+}
+
+unsigned int Octree::getNumberOfItems(void) const
+{
+    return mNumberOfItems;
+}
+
+unsigned int Octree::getNumberOfNodes(void) const
+{
+    return mNumberOfNodes;
 }

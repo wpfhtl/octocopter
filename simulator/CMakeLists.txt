@@ -9,6 +9,7 @@ SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} /usr/lib64/OGRE/cmake/)
 SET(SRC_FILES
 main
 simulator
+baseconnection
 ogrewidget
 battery
 flightcontroller
@@ -27,6 +28,7 @@ BtOgre/BtOgre
 
 SET(INC_FILES
 simulator.h
+baseconnection.h
 ogrewidget.h
 battery.h
 flightcontroller.h
@@ -74,9 +76,9 @@ SET(CMAKE_DEBUG_POSTFIX "_d")
 SET(CMAKE_BUILD_TYPE "Debug")
 
 #/usr/local/include/bullet
-INCLUDE_DIRECTORIES(/usr/include ${OGRE_INCLUDE_DIR} ${OGRE_Terrain_INCLUDE_DIRS} ${OGRE_Paging_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
+INCLUDE_DIRECTORIES(/usr/include /usr/include/qwt5/ ${OGRE_INCLUDE_DIR} ${OGRE_Terrain_INCLUDE_DIRS} ${OGRE_Paging_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 ADD_EXECUTABLE(simulator ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-TARGET_LINK_LIBRARIES(simulator ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${OGRE_Terrain_LIBRARY_NAMES} ${OGRE_RTShaderSystem_LIBRARY_NAMES} ${BULLET_LIBRARIES})
+TARGET_LINK_LIBRARIES(simulator ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${OGRE_Terrain_LIBRARY_NAMES} ${OGRE_RTShaderSystem_LIBRARY_NAMES} ${BULLET_LIBRARIES} qwt)
 
 ADD_CUSTOM_TARGET(copymedia ALL COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/media ${CMAKE_CURRENT_BINARY_DIR}/media COMMENT "Copying media files to build directory" VERBATIM)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/plugins.cfg.in ${CMAKE_CURRENT_BINARY_DIR}/plugins.cfg)

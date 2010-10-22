@@ -7,6 +7,9 @@
 #include <QVector3D>
 
 #include "octree.h"
+#include "flightplanner.h"
+
+class FlightPlanner;
 
 class GlWidget : public QGLWidget
 {
@@ -14,19 +17,19 @@ class GlWidget : public QGLWidget
 
 //    GLfloat rotQuad;
     Octree *mOctree;
+    FlightPlanner *mFlightPlanner;
     void setShaders();
-//    QList<QVector3D> mPoints;
 
-    //Timer
+    // Timer
     GLint timerId;
     GLfloat t;
 
-    //Mouse Rotations
+    // Mouse Rotations
     QPoint      lastPos;
     QVector3D   camPos;
     GLfloat     rotX, rotY, rotZ;
 
-    //Wheel Scaling
+    // Wheel Scaling
     GLdouble    currentScaling;
     GLdouble    ZoomFactor;
 
@@ -35,14 +38,16 @@ class GlWidget : public QGLWidget
     void mouseMoveEvent(QMouseEvent *event);
     void wheelEvent(QWheelEvent *event);
     void zoom(double zoomFactor);
-
-    void axes(const GLfloat& x, const GLfloat& y, const GLfloat& z, const GLfloat& red, const GLfloat& green, const GLfloat& blue) const;
+    void drawAxes(const GLfloat& x, const GLfloat& y, const GLfloat& z, const GLfloat& red, const GLfloat& green, const GLfloat& blue) const;
 
 public:
-    GlWidget(QWidget *parent, Octree* octree);
-    void addPoints(QList<QVector3D>);
+    GlWidget(QWidget *parent, Octree* octree, FlightPlanner* flightPlanner);
     void moveCamera(const QVector3D &pos);
-    void clear(void);
+
+    // Being called by the octree (as a callback) to visualize contents
+    static void drawPoint(const QVector3D &point);
+    static void drawSphere(const QVector3D &point);
+    static void drawSphere(const QVector3D &point, const float radius = 5.0, const int subdivisions = 10);
 
 protected:
     void initializeGL();

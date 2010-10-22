@@ -22,8 +22,8 @@ public:
     CloudExporter();
     ~CloudExporter();
 
-    static bool savePly(const Octree* tree, const QString &fileName);
-    static void savePly(const Node* node, QTextStream* stream);
+    static bool savePly(QWidget* widget, const Octree* tree, const QString &fileName);
+    static bool savePly(const Node* node, QTextStream* stream, QProgressDialog* progress);
 
 };
 

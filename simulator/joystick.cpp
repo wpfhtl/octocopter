@@ -34,14 +34,25 @@ Joystick::Joystick() : QObject()
 
     mButtons = (char *) calloc( numButtons, sizeof( char ) );
 
+    mPollTimer = new QTimer;
+    connect(mPollTimer, SIGNAL(timeout()), SLOT(updateValues()));
+    mPollTimer->setInterval(200);
+    mPollTimer->start();
+
     // use non-blocking mode
     fcntl(fd, F_SETFL, O_NONBLOCK);
 }
 
 Joystick::~Joystick()
 {
+    mPollTimer->stop();
+    mPollTimer->deleteLater();
     close(fd);
 }
+
+//void Joystick::slotPollButtons()
+//{
+//}
 
 bool Joystick::isValid(void) const
 {
@@ -85,13 +96,14 @@ bool Joystick::updateValues()
         case JS_EVENT_BUTTON:
             // button pressed is 1, released 0
             mButtons[event.number] = event.value;
-//            qDebug() << "button" << event.number << "is now" << event.value;
+            emit buttonStateChanged(event.number, event.value == 1);
+//            qDebug() << "button" << event.number << "is now" << (event.value == 1);
             break;
         }
     }
 
     // print the results
-//    qDebug() << "xyzr:" << axisX << axisY << axisZ << axisR;
+//    qDebug() << "xyzr:" << x << y << z << r;
 
     if(errno != EAGAIN)
     {

@@ -25,7 +25,7 @@ private:
 
     QMutex mMutex;
 
-    QUdpSocket* mUdpSocket;
+//    QUdpSocket* mUdpSocket;
 
     // We need singleShot functionality, but we also need to be able to pause when simulation is paused.
     QTimer* mTimerScan;
@@ -46,9 +46,6 @@ private:
     float mCurrentScanAngle;
 
     std::string mMaterialName;
-
-    // a container for collected rays, or rather the world coordinates of where they ended
-    QList<QVector3D> mScanData;
 
     double mTimeFactor;
 

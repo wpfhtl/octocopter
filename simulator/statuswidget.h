@@ -28,7 +28,9 @@ public:
     double getTimeFactor() const;
     DialogConfiguration *mDialogConfiguration;
 
-signals:
+public slots:
+    void slotSetButtonStartEnabled(bool);
+    void slotSetButtonPauseEnabled(bool);
 
 private slots:
     void slotUpdateBattery(const int chargeStateInPercent);

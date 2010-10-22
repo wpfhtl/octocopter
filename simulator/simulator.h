@@ -11,6 +11,7 @@
 #include "battery.h"
 #include "vehicle.h"
 #include "laserscanner.h"
+#include "baseconnection.h"
 #include "camera.h"
 #include "statuswidget.h"
 #include "coordinateconverter.h"
@@ -25,6 +26,7 @@ class Vehicle;
 class Camera;
 class LaserScanner;
 class StatusWidget;
+class BaseConnection;
 
 class Simulator : public QMainWindow
 {
@@ -42,6 +44,7 @@ public:
     Battery* mBattery;
     OgreWidget* mOgreWidget;
     Vehicle *mVehicle;
+    BaseConnection* mBaseConnection;
 
     QList<LaserScanner*> *mLaserScanners;
     QList<Camera*> *mCameras;
@@ -58,13 +61,15 @@ private:
 
 private slots:
     void slotOgreInitialized(void);
-    void slotSimulationStart(void);
-    void slotSimulationPause(void);
     void slotSetTimeFactor(double);
     void slotNotifyDevicesOfNewTimeFactor();
 
 public slots:
     void slotScanFinished(QList<CoordinateGps>);
+    void slotSimulationStart(void);
+    void slotSimulationPause(void);
+
+    void slotShowMessage(const QString);
 
 signals:
 

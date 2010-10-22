@@ -40,10 +40,20 @@ void StatusWidget::slotSimulationStarted()
 
 void StatusWidget::slotSimulationPaused()
 {
-    mBtnPause->setEnabled(false);
-    mBtnStart->setEnabled(true);
+//    mBtnPause->setEnabled(false);
+//    mBtnStart->setEnabled(true);
 
     emit simulationPause();
+}
+
+void StatusWidget::slotSetButtonStartEnabled(bool status)
+{
+    mBtnStart->setEnabled(status);
+}
+
+void StatusWidget::slotSetButtonPauseEnabled(bool status)
+{
+        mBtnPause->setEnabled(status);
 }
 
 double StatusWidget::getTimeFactor() const

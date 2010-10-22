@@ -10,7 +10,10 @@ SET(SRC_FILES
 main
 triangulator
 glwidget
+logwidget
+flightplanner
 camerawindow
+controlwidget
 cloudexporter
 ../common/lidarpoint
 ../common/octree
@@ -21,7 +24,10 @@ cloudexporter
 SET(INC_FILES
 triangulator.h
 glwidget.h
+logwidget.h
+flightplanner.h
 camerawindow.h
+controlwidget.h
 cloudexporter.h
 ../common/lidarpoint.h
 ../common/octree.h
@@ -30,13 +36,15 @@ cloudexporter.h
 )
 
 SET(UI_FILES
+controlwidget.ui
+logwidget.ui
 )
 
 SET(RESOURCE_FILES
 )
 
 SET(OGRE_LIBRARIES OgreMain)
-SET(BULLET_LIBRARIES bulletcollision bulletdynamics bulletmath bulletsoftbody)
+SET(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath BulletSoftBody)
 
 #"Sources" and "Headers" are the group names in Visual Studio.
 SOURCE_GROUP("Sources" FILES ${SRC_FILES})
@@ -60,7 +68,7 @@ SET(CMAKE_BUILD_TYPE "Debug")
 
 INCLUDE_DIRECTORIES(/usr/include ${OGRE_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 ADD_EXECUTABLE(triangulator ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-TARGET_LINK_LIBRARIES(triangulator ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} GLEW)
+TARGET_LINK_LIBRARIES(triangulator ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${BULLET_LIBRARIES} GLEW)
 
 #include_directories(/usr/include/OGRE/ /usr/include/bullet /usr/include ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 LINK_DIRECTORIES(/usr/lib/)

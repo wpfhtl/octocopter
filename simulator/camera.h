@@ -22,7 +22,7 @@ private:
 
     QMutex mMutex;
 
-    QTcpSocket* mTcpSocket;
+//    QTcpSocket* mTcpSocket;
     QImage* mImage;
     QByteArray mImageBuffer, mNetworkPayload;
 
@@ -44,10 +44,10 @@ private:
     Ogre::RenderTarget *mRenderTarget;
 
 private slots:
-    void slotConnectToServer(void);
+//    void slotConnectToServer(void);
     void slotSendImage(void);
-    void slotBytesWritten(qint64 bytes);
-    void slotNetworkError(QAbstractSocket::SocketError socketError);
+//    void slotBytesWritten(qint64 bytes);
+//    void slotNetworkError(QAbstractSocket::SocketError socketError);
 
 public:
     // Laser rotation is always CCW, angleStart < angleStop

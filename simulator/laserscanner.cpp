@@ -64,11 +64,6 @@ void LaserScanner::testRsqPerformance()
 
     const int iterations = 1000000;
 
-//    for(int i=0;i<iterations;i++)
-//    {
-//        slotDoScanStep(false);
-//    }
-
     struct timeval timeStop;
     gettimeofday(&timeStop, NULL);
 
@@ -83,15 +78,11 @@ LaserScanner::~LaserScanner()
     qDebug() << "LaserScanner::~LaserScanner()";
     mOgreWidget->destroyScanner(objectName());
     mOgreWidget->destroyManualObject(mRayObject, mRayNode);
-    mUdpSocket->deleteLater();
     mTimerScan->deleteLater();
 }
 
 void LaserScanner::run()
 {
-    mUdpSocket = new QUdpSocket;
-    mUdpSocket->bind();
-
     mTimerScan = new QTimer;
     mTimerScan->setInterval(0);
     connect(mTimerScan, SIGNAL(timeout()), SLOT(slotDoScan()));
@@ -115,12 +106,10 @@ void LaserScanner::slotDoScan()
     {
         // No need to scan, we'll get the same results as previously. IF THE REST OF
         // THE WORLD IS STATIC, that is. Sleep for one scan, then try again.
-        qDebug() << "LaserScanner::slotDoScan(): vehicle hasn't moved, sleeping scan";
+//        qDebug() << "LaserScanner::slotDoScan(): vehicle hasn't moved, sleeping scan";
         usleep(1000000 / (mSpeed / 60) * (1.0 / mTimeFactor));
         return;
     }
-    else
-        qDebug() << "LaserScanner::slotDoScan(): vehicle has moved, scanning";
 
     const long long realTimeBetweenRaysUS = (1000000.0 / 6.0 / mSpeed * mAngleStep) * (1.0 / mTimeFactor);
 
@@ -131,25 +120,14 @@ void LaserScanner::slotDoScan()
 
     int numberOfRays = 0;
 
+    // a container for collected rays, or rather the world coordinates of where they ended
+    QList<QVector3D> scanData;
+
     while(mCurrentScanAngle <= mAngleStop)
     {
         numberOfRays++;
 
         mNumberOfRaySceneQueries++;
-
-        //qDebug() << "LaserScanner::slotDoScan(): next ray:" << mCurrentScanAngle;
-        //    Feb 10 [23:03:51] <kernelpanic_> Excuse me, even after reading the Quaternion primer, I can't figure out how to create a new
-        //                                     Ray(mySceneNode.getPosition(), mySceneNode.getOrientation()). ::getOrientation() returns a
-        //                                     Quaternion (I understand that), but Ray wants a Vector3 as direction. Why is that and how do
-        //                                     I convert from Quat to Vector3?
-        //    Feb 10 [23:06:37] <Tenttu> multiple NEGATIVE_UNIT_Z with the quaternion
-        //    Feb 10 [23:06:48] <Landon> kernelpanic_: how about this: http://www.ogre3d.org/forums/viewtopic.php?f=2&t=46750&p=321002&hilit=quaternion
-        //    Feb 10 [23:07:22] <kernelpanic_> Landon: yeah, that sounds like my problem. Thank you, I'm reading
-        //    Feb 10 [23:16:52] <kernelpanic_> Tenttu: why exactly the Z-axis?
-        //    Feb 10 [23:17:44] <Tenttu> it's forward vector
-        //    Feb 10 [23:18:07] <Tenttu> and when you rotate it with the quaternion you get the direction
-        //    Feb 10 [23:18:50] <Tenttu> but camera does have getDirection() though
-        //    Feb 10 [23:19:14] <kernelpanic_> I'm afraid I probably haven't really understood quaternions yet :| I guess I'll read the links referenced in that forum thread.
 
         // Build a quaternion that represents the laserbeam's current rotation
         Ogre::Quaternion quatBeamRotation(Ogre::Degree(mCurrentScanAngle), Ogre::Vector3::UNIT_Y);
@@ -168,7 +146,6 @@ void LaserScanner::slotDoScan()
         while(i.hasNext())
         {
             i.next();
-            Ogre::Entity* currentEntity = i.key();
             OgreWidget::MeshInformation* currentMeshInformation = i.value();
 
             std::pair<bool,Ogre::Real> result = mLaserBeam.intersects(currentMeshInformation->aabb);
@@ -204,7 +181,6 @@ void LaserScanner::slotDoScan()
                         }
                     }
                 }
-                qDebug() << objectName() << QString::fromStdString(currentEntity->getName()) << "at" << closestDistanceToEntity;
             }
         }
 
@@ -224,12 +200,10 @@ void LaserScanner::slotDoScan()
 
         const float distanceFinal = std::min(distanceValidEntity, distanceValidTerrain);
 
-        qDebug() << objectName() << distanceValidEntity << distanceValidTerrain << distanceFinal;
-
         if(distanceFinal < mRange)
         {
             const Ogre::Vector3 point = mLaserBeam.getPoint(distanceFinal);
-            mScanData << QVector3D(point.x, point.y, point.z);
+            scanData << QVector3D(point.x-180, point.y, point.z-120);
         }
 
         // Increase mCurrentScanAngle by mAngleStep for the next laserBeam
@@ -250,40 +224,27 @@ void LaserScanner::slotDoScan()
 //    const long long timeDiff = (timeNow.tv_sec - timeStart.tv_sec) * 1000000 + (timeNow.tv_usec - timeStart.tv_usec);
 //    qDebug() << "LaserScanner::slotDoScan(): took" << timeDiff << "us, should have been" << (long long)(realTimeBetweenRaysUS * ((mAngleStop - mAngleStart)/mAngleStep));
 
-    // This scan is finished, emit it...
-//    emit scanFinished(mScanData);
-    QByteArray datagram;
-    QDataStream stream(&datagram, QIODevice::WriteOnly);
+    // This scan is finished, send it to our baseconnection
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    // set packet type.
+    stream << QString("points");
 
     // How many hits?
-    stream << (qint32)mScanData.size();
+    stream << (quint32)scanData.size();
+
     // From which position?
     // Assuming the laserscanner's position stays pretty much the same within one scan, there's no need
     // to transmit the direction to the scanner in every hit-packet. So we only send the positions.
-    stream << QVector3D(mScannerPosition.x-180, mScannerPosition.y, mScannerPosition.z-120);
-    // Stream the hits
-    stream << mScanData;
+    stream << QVector3D(mScannerPosition.x, mScannerPosition.y, mScannerPosition.z);
 
-//    qDebug() << "LaserScanner::slotDoScan(): List size" << mScanData.size() << "UDP data size:" << datagram.size() << "first 20 bytes:" << datagram.left(20);
-//    <aep> kernelpanic: and read the hint in the flush() docs.  if it returns false, you need to wait and flush again
-//    <aep> krunk-: ah waitForBytesWritten() works
-//    <aep> kernelpanic: ^
-//    <kernelpanic> aep: ok. But I send 40 udp packets per second anyway, could I just write() the next packet and flush() again instead of waiting?
-//    <aep> kernelpanic: you could, but you dont get any gurantees when the packet is delivered
-//    <aep> kernelpanic: and if you're unlucky, you're getting out of sync
-//    <kernelpanic> aep: what does that mean? I'm just filling and flushing a buffer, no?
-//    <aep> kernelpanic: flush() does only write as much as the OS accepts.  usually thats plenty, but it may under rare conditions get stuck
-//    <aep> kernelpanic: yes. but you only call flush on write, so there is more data comming
-//    <aep> with an eventloop you get free "unsticking" since the eventloop will interupt YOUR work and make sure stuff is sent when the queue is free
-//    <aep> kernelpanic: very likely it will work just fine, just remember the caveats ;)
-//    <kernelpanic> aep: i don't understand. I'm doing write()/flush() with 40Hz, so the data will get written to the OS eventually. And I prefer high throughput to low latency. Or am I completely missing you?
-//    <aep> yes you are, that was not the point
-//    <aep> flush() only writes a specific amount of data, not ALL of it
-//    <aep> kernelpanic: for(;;){send() flush();}  only works as long as send() is smaller then the OS write buffer. otherwise you build up a backlog
-    mUdpSocket->writeDatagram(datagram, QHostAddress::Broadcast, 45454);
-    mUdpSocket->flush();
-//    mUdpSocket->waitForBytesWritten();
-    mScanData.clear();
+    // Stream the hits
+    stream << scanData;
+
+//    qDebug() << "lidar sending bytes:" << data.length();
+
+    mSimulator->mBaseConnection->slotSendData(data);
 
     // Set mCurrentScanAngle for the next scan to mAngleStart
     mCurrentScanAngle = mAngleStart;
@@ -296,8 +257,6 @@ void LaserScanner::slotDoScan()
     const long long timeRest = (1000000/(mSpeed/60)) * (1.0 / mTimeFactor) - scanTimeElapsed;
 //    qDebug() << "LaserScanner::slotDoScan(): emitted results, resting" << timeRest << "us after scan.";
     usleep(std::max(0, (int)timeRest));
-
-
 }
 
 
@@ -314,7 +273,6 @@ void LaserScanner::slotPause(void)
 {
     qDebug() << "LaserScanner::slotPause(): stopping scanner";
     mTimerScan->stop();
-//    mContinue = false;
 }
 
 void LaserScanner::slotStart(void)
@@ -422,5 +380,4 @@ Ogre::Ray LaserScanner::getCurrentLaserBeam(void)
 {
     QMutexLocker locker(&mMutex);
     return mLaserBeam;
-//    return Ogre::Ray(mLaserBeam.getOrigin(), mLaserBeam.getDirection());
 }

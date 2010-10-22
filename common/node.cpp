@@ -2,33 +2,27 @@
 
 #define SQR(x) (x)*(x)
 
-Octree* Node::mTree;
 
-unsigned int Node::mMaxItemsPerLeaf = 50;
-unsigned int Node::mNumberOfItems = 0;
-unsigned int Node::mNumberOfNodes = 0;
 
-LidarPoint* Node::mMri1 = 0;
-LidarPoint* Node::mMri2 = 0;
-
-Node::Node(Node* parent, const QVector3D &min, const QVector3D &max) :
-        parent(parent),
-        min(min),
-        max(max)
+Node::Node(Octree* tree, Node* parent, const QVector3D &min, const QVector3D &max) :
+    mTree(tree),
+    parent(parent),
+    min(min),
+    max(max)
 {
-    mNumberOfNodes++;
+    mTree->mNumberOfNodes++;
 
     // I *think* this is necessary for Node::isSpereContained()
-    Q_ASSERT(min.x() < max.x());
-    Q_ASSERT(min.y() < max.y());
-    Q_ASSERT(min.z() < max.z());
+//    Q_ASSERT(min.x() < max.x());
+//    Q_ASSERT(min.y() < max.y());
+//    Q_ASSERT(min.z() < max.z());
 //    qDebug() << "Node::Node(): creating Node" << mNumberOfNodes << this << "from" << min << "to" << max;
 }
 
 Node::~Node()
 {
-    mNumberOfItems -= data.size();
-    mNumberOfNodes--;
+    mTree->mNumberOfItems -= data.size();
+    mTree->mNumberOfNodes--;
 
     qDeleteAll(data);
     qDeleteAll(children);
@@ -37,6 +31,7 @@ Node::~Node()
 Node& Node::operator=(const Node &other)
 {
     // We create a shallow copy.
+    mTree = other.mTree;
     parent = other.parent;
     min = other.min;
     max = other.max;
@@ -49,6 +44,7 @@ Node& Node::operator=(const Node &other)
 bool Node::operator==(const Node &other)
 {
     return
+            mTree == other.mTree &&
             parent == other.parent &&
             min == other.min &&
             max == other.max &&
@@ -105,6 +101,7 @@ bool Node::insertAndReduce(LidarPoint* const lidarPoint)
     // Linear reduction:
     // If there have been two points inserted before, check whether @lidarPoint is close to where
     // a line from mMri2 to mMri1, extended by the distance from mMri2 to @lidarPoint, would end:
+    // (mMri1 is mMostRecentlyInserted1)
     //
     // mMri2 --------------------> mMri1 ----------------------> @lidarPoint
     //
@@ -122,38 +119,37 @@ bool Node::insertAndReduce(LidarPoint* const lidarPoint)
 
     if(
             false && // FIXME, disabled for testing
-            mMri1
+            mTree->mMri1
             &&
-            mMri2
+            mTree->mMri2
             &&
-            (mMri2->position + (mMri1->position.distanceToLine(lidarPoint->position, QVector3D()) * (mMri1->position - mMri2->position).normalized()) - lidarPoint->position).lengthSquared() < 3.0
+            (mTree->mMri2->position + (mTree->mMri1->position.distanceToLine(lidarPoint->position, QVector3D()) * (mTree->mMri1->position - mTree->mMri2->position).normalized()) - lidarPoint->position).lengthSquared() < 3.0
             )
     {
         qDebug() << "Node::insertAndReduce(): sweet, reducing a point." << data.size();
         // delete mMri1, its on the ray between mMri2 and lidarPoint
-        mMri1->node->deletePoint(mMri1);
-        mMri1 = lidarPoint;
+        mTree->mMri1->node->deletePoint(mTree->mMri1);
+        mTree->mMri1 = lidarPoint;
 
         data.append(lidarPoint);
         lidarPoint->node = this;
-        mNumberOfItems++;
+        mTree->mNumberOfItems++;
         return true;
     }
     else
     {
 //        qDebug() << "Node::insertAndReduce(): aww, reduction failed, will insert." << data.size();
 
-
         // Probably stupid, but lets start easy: Do not insert if it has N close-by neighbors
-        if(mTree->findNeighborsWithinRadius(lidarPoint->position, 0.1).size() < 1)
+        if(! mTree->isNeighborWithinRadius(lidarPoint->position, mTree->mMinimumPointDistance))
         {
             data.append(lidarPoint);
             lidarPoint->node = this;
-            mNumberOfItems++;
+            mTree->mNumberOfItems++;
 
             // update the pointers for the next iteration
-            mMri2 = mMri1;
-            mMri1 = lidarPoint;
+            mTree->mMri2 = mTree->mMri1;
+            mTree->mMri1 = lidarPoint;
             return true;
         }
         else
@@ -172,20 +168,21 @@ Node* Node::insertPoint(LidarPoint* const lidarPoint) // a const pointer to a no
 //    qDebug() << "Node::insertPoint(): inserting point to node" << this << "at" << lidarPoint->position;
     if(isLeaf())
     {
-        if(includesPoint(lidarPoint->position))
-        {
+//        if(includesPoint(lidarPoint->position))
+//        {
             // Now insert the lidarPoint. If its found to be of low informational
             // value, it'll be discarded. In that case, just return.
             if(!insertAndReduce(lidarPoint)) return 0;
 
-            qDebug() << "Node::insertPoint(): point" << lidarPoint->position << "saved, total nodes" << mNumberOfNodes << "items" << mNumberOfItems;
+//            qDebug() << "Node::insertPoint(): point" << lidarPoint->position << "saved, total nodes" << mNumberOfNodes << "items" << mNumberOfItems;
 
             // TODO: don't just append, merge with neighbors and weigh the LPs distances/normals
 
             // if this leaf is full, create children and partition all our guests into new nodes
-            if(data.size() > mMaxItemsPerLeaf)
+            if(data.size() > mTree->mMaxItemsPerLeaf)
             {
                 // create childnodes
+                qDebug() << "more than mMaxItemsPerLeaf in node, partitioning...";
                 partition();
 
                 // take every point we curently host...
@@ -205,21 +202,21 @@ Node* Node::insertPoint(LidarPoint* const lidarPoint) // a const pointer to a no
             }
 
             return this;
-        }
-        else
-        {
+//        }
+//        else
+//        {
             // We're supposed to save a lidarPoint that this node cannot contain.
             // Thats a pretty grave error.
-            qDebug() << "Node::insertPoint(): I'm a leaf, but I don't include the point" << lidarPoint->position;
-            Q_ASSERT(false);
-        }
+//            qDebug() << "Node::insertPoint(): I'm a leaf, but I don't include the point" << lidarPoint->position;
+//            Q_ASSERT(false);
+//        }
     }
     else
     {
         // This is not a leaf. Into which subNode should we insert lidarPoint?
 //        qDebug() << "Node::insertPoint(): I'm not leaf, forwarding insertion request to correct octant";
         Node* subNode = getLeaf(lidarPoint->position);
-        subNode->insertPoint(lidarPoint);
+        return subNode->insertPoint(lidarPoint);
     }
 }
 
@@ -251,12 +248,8 @@ bool Node::overlapsSphere(const QVector3D &point, const double radius) const
         return false;
 }
 
-
-// Returns all neighbors FROM THIS LEAF-NODE ONLY within @radius of the given @point
 QList<LidarPoint*> Node::findNeighborsWithinRadius(const QVector3D &point, const double radius) const
 {
-    Q_ASSERT(isLeaf());
-
     const double radiusSquared = SQR(radius);
 
     QList<LidarPoint*> result;
@@ -268,8 +261,19 @@ QList<LidarPoint*> Node::findNeighborsWithinRadius(const QVector3D &point, const
     return result;
 }
 
-// TODO: sort, really?
-// Returns the @count nearest neighbors FROM THIS LEAF-NODE ONLY of the given point, sorted by ascending distance
+uint32_t Node::numberOfNeighborsWithinRadius(const QVector3D &point, const double radius) const
+{
+    const double radiusSquared = SQR(radius);
+
+    uint32_t number = 0;
+
+    foreach(LidarPoint* const p, data)
+        if(p->squaredDistanceTo(point) <= radiusSquared)
+            number++;
+
+    return number;
+}
+
 QList<LidarPoint*> Node::findNearestNeighbors(const QVector3D &point, const unsigned int count) const
 {
     // This node includes the given point.
@@ -294,6 +298,17 @@ QList<LidarPoint*> Node::findNearestNeighbors(const QVector3D &point, const unsi
     }
 
     Q_ASSERT(false);
+}
+
+bool Node::neighborsWithinRadius(const QVector3D &point, const double radius) const
+{
+    const double radiusSquared = SQR(radius);
+
+    foreach(LidarPoint* const p, data)
+        if(p->squaredDistanceTo(point) <= radiusSquared)
+            return true;
+
+    return false;
 }
 
 // Returns true if the given sphere fits completely inside this Node.
@@ -346,6 +361,7 @@ void Node::partition()
     children.append(
             new Node
             (
+                    mTree,
                     this,
                     min,
                     ctr
@@ -356,6 +372,7 @@ void Node::partition()
     children.append(
             new Node
             (
+                    mTree,
                     this,
                     QVector3D
                     (
@@ -376,6 +393,7 @@ void Node::partition()
     children.append(
             new Node
             (
+                    mTree,
                     this,
                     QVector3D
                     (
@@ -396,6 +414,7 @@ void Node::partition()
     children.append(
             new Node
             (
+                    mTree,
                     this,
                     QVector3D
                     (
@@ -416,6 +435,7 @@ void Node::partition()
     children.append(
             new Node
             (
+                    mTree,
                     this,
                     QVector3D
                     (
@@ -436,6 +456,7 @@ void Node::partition()
     children.append(
             new Node
             (
+                    mTree,
                     this,
                     QVector3D
                     (
@@ -456,6 +477,7 @@ void Node::partition()
     children.append(
             new Node
             (
+                    mTree,
                     this,
                     ctr,
                     max
@@ -466,6 +488,7 @@ void Node::partition()
     children.append(
             new Node
             (
+                    mTree,
                     this,
                     QVector3D
                     (
@@ -639,17 +662,27 @@ QList<QVector3D> Node::planes(void) const
 }
 */
 
-void Node::drawGl(void) const
+void Node::handlePoints() const
 {
+    foreach(const LidarPoint* const p, data)
+        mTree->mPointHandler(p->position);
+
+    foreach(const Node* const n, children)
+        n->handlePoints();
+}
+
+//void Node::drawGl(void) const
+//{
 //    glDisable(GL_LIGHTING);
 //    GLint r = (*(int*)(this+4));// % 255;
 //    GLint g = (*(int*)(this+2));// % 255;
 //    GLint b = (*(int*)(this+3));// % 255;
 //    glColor4i(r,g,b, 1147483648);
-    glColor4f(1,1,1, 0.03);
 
-    glBlendFunc(GL_SRC_ALPHA,GL_ONE);
-    glLineWidth(1);
+//    glColor4f(1,1,1, 0.03);
+//    glBlendFunc(GL_SRC_ALPHA,GL_ONE);
+//    glLineWidth(1);
+
 /*
     glBegin(GL_LINE_LOOP);
     glVertex3f(min.x(), min.y(), min.z()); // 0
@@ -676,12 +709,12 @@ void Node::drawGl(void) const
     glEnd();
     */
 
-    glLineWidth(1);
-    glColor4f(1.0f, 1.0f, 0.0f, 1.0f);
-    glBegin(GL_POINTS);
-    foreach(const LidarPoint* const p, data)
-        glVertex3f(p->position.x(), p->position.y(), p->position.z());
-    glEnd();
+//    glLineWidth(1);
+//    glColor4f(1.0f, 1.0f, 0.0f, 1.0f);
+//    glBegin(GL_POINTS);
+//    foreach(const LidarPoint* const p, data)
+//        glVertex3f(p->position.x(), p->position.y(), p->position.z());
+//    glEnd();
 
     /*
     glEnable(GL_LIGHTING);
@@ -703,9 +736,9 @@ void Node::drawGl(void) const
 
 //    glEnable(GL_LIGHTING);
 
-    foreach(const Node* const n, children)
-        n->drawGl();
-}
+//    foreach(const Node* const n, children)
+//        n->drawGl();
+//}
 
 bool Node::deletePoint(LidarPoint* const lidarPoint)
 {
@@ -714,7 +747,7 @@ bool Node::deletePoint(LidarPoint* const lidarPoint)
         if(data.at(i) == lidarPoint)
         {
             delete data.takeAt(i);
-            mNumberOfItems--;
+            mTree->mNumberOfItems--;
             return true;
         }
     }
@@ -729,7 +762,7 @@ bool Node::deletePoint(const LidarPoint &lidarPoint)
         if(data.at(i)->position == lidarPoint.position)
         {
             delete data.takeAt(i);
-            mNumberOfItems--;
+            mTree->mNumberOfItems--;
             return true;
         }
     }

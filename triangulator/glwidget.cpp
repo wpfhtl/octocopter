@@ -8,9 +8,10 @@
 //}
 
 
-GlWidget::GlWidget(QWidget *parent, Octree* octree) :
-        QGLWidget(parent),
-        mOctree(octree)
+GlWidget::GlWidget(QWidget *parent, Octree* octree, FlightPlanner* flightPlanner) :
+    QGLWidget(parent),
+    mOctree(octree),
+    mFlightPlanner(flightPlanner)
 {
 //    rotQuad = 0.0f;
 //    startTimer(25);
@@ -94,15 +95,6 @@ void GlWidget::moveCamera(const QVector3D &pos)
     glMatrixMode(GL_MODELVIEW);
 }
 
-void GlWidget::clear(void)
-{
-//    mPoints.clear();
-}
-
-void GlWidget::addPoints(QList<QVector3D> points)
-{
-//    mPoints.append(points);
-}
 
 void GlWidget::paintGL()
 {
@@ -124,7 +116,7 @@ void GlWidget::paintGL()
 
     glTranslatef(camPos.x(), camPos.y(), camPos.z());
 
-    axes(1.25, 1.1, 1.25, 0.0, 1.0, 0.0);
+    drawAxes(1.25, 1.1, 1.25, 0.0, 1.0, 0.0);
 
     //Wheel Scaling
     glScalef(currentScaling,currentScaling,currentScaling);
@@ -134,7 +126,7 @@ void GlWidget::paintGL()
     glScalef(timerScaling,timerScaling,timerScaling);
     glRotatef(t,1,1,1);
 
-    axes(10, 10, 10, 1.0, 1.0, 0.0);
+    drawAxes(10, 10, 10, 1.0, 1.0, 0.0);
 
     glTranslatef(-0.5, -0.5, -0.5);
 
@@ -153,13 +145,20 @@ void GlWidget::paintGL()
     */
 
 
-    mOctree->drawGl();
+//    mOctree->drawGl();
+    glLineWidth(1);
+    glColor4f(1.0f, 1.0f, 0.0f, 1.0f);
+    glBegin(GL_POINTS);
+    mOctree->handlePoints();
+    glEnd();
 
-
+    // draw
+    mFlightPlanner->visualize();
 
 }
 
-void GlWidget::axes(
+
+void GlWidget::drawAxes(
         const GLfloat& x, const GLfloat& y, const GLfloat& z,
         const GLfloat& red, const GLfloat& green, const GLfloat& blue) const
 {
@@ -320,4 +319,27 @@ void GlWidget::setShaders()
                 glLinkProgram(p);
                 glUseProgram(p);
                 */
+}
+
+void GlWidget::drawSphere(const QVector3D &pos, const float radius, const int subdivisions)
+{
+    GLUquadricObj *quadric = gluNewQuadric();
+    gluQuadricNormals(quadric, GLU_SMOOTH);
+
+    glPushMatrix();
+    glTranslatef(pos.x(), pos.y(), pos.z());
+    gluSphere(quadric, radius, subdivisions, subdivisions);
+    glPopMatrix();
+
+    gluDeleteQuadric(quadric);
+}
+
+void GlWidget::drawSphere(const QVector3D &pos)
+{
+    drawSphere(pos, 5.0, 10);
+}
+
+void GlWidget::drawPoint(const QVector3D &point)
+{
+    glVertex3f(point.x(), point.y(), point.z());
 }

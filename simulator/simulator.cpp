@@ -12,7 +12,7 @@ Simulator::Simulator(void) :
 
     resize(1024, 768);
 
-    statusBar()->showMessage("Starting up...");
+    slotShowMessage("Starting up...");
 
     mTimeSimulationPause = QTime(); // set invalid;
     mTimeSimulationStart = QTime(); // set invalid;
@@ -47,6 +47,8 @@ Simulator::Simulator(void) :
     mTimeFactor = mStatusWidget->getTimeFactor();
     qDebug() << "Simulator::Simulator(): setting timeFactor to" << mTimeFactor;
 
+    mBaseConnection = new BaseConnection(this);
+
 }
 
 Simulator::~Simulator(void)
@@ -68,12 +70,19 @@ Simulator::~Simulator(void)
     delete mCameras;
 }
 
+void Simulator::slotShowMessage(const QString message)
+{
+    statusBar()->showMessage(message);
+}
+
 void Simulator::slotOgreInitialized(void)
 {
     // Vehicle creates SceneNode and Entity in OgreWidget. But OgreWidget is not initialized after instatiation, but only when
     // the window is initialized. Thus, vehicle needs to be created after ogreWidget initialization.
     mVehicle = new Vehicle(this, mOgreWidget);
     connect(mVehicle, SIGNAL(newPose(const Ogre::Vector3&, const Ogre::Quaternion&)), mStatusWidget, SLOT(slotUpdatePose(const Ogre::Vector3&, const Ogre::Quaternion&)));
+
+    mBaseConnection->setVehicle(mVehicle);
 
     // Same thing for StatusWidget, which has the configuration window. Tell it to read the config only after ogre
     // is initialized, so it can create cameras and laserscanners.
@@ -83,6 +92,9 @@ void Simulator::slotOgreInitialized(void)
 void Simulator::slotSimulationStart(void)
 {
     QMutexLocker locker(&mMutex);
+
+    mStatusWidget->slotSetButtonPauseEnabled(true);
+    mStatusWidget->slotSetButtonStartEnabled(false);
 
     if(mTimeSimulationPause.isValid())
     {
@@ -120,6 +132,9 @@ void Simulator::slotSimulationStart(void)
 void Simulator::slotSimulationPause(void)
 {
     QMutexLocker locker(&mMutex);
+
+    mStatusWidget->slotSetButtonPauseEnabled(false);
+    mStatusWidget->slotSetButtonStartEnabled(true);
 
     mTimeSimulationPause.start();
     mVehicle->stop();

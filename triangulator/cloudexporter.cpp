@@ -9,7 +9,7 @@ CloudExporter::~CloudExporter()
 {
 }
 
-bool CloudExporter::savePly(const Octree* tree, const QString &fileName)
+bool CloudExporter::savePly(QWidget* widget, const Octree* tree, const QString &fileName)
 {
         QFile file(fileName);
         if(!file.open(QFile::WriteOnly | QFile::Truncate))
@@ -19,11 +19,14 @@ bool CloudExporter::savePly(const Octree* tree, const QString &fileName)
         stream.setRealNumberPrecision(6);
         stream.setRealNumberNotation(QTextStream::FixedNotation);
 
+        QProgressDialog progress("Saving cloud...", "Cancel", 0, tree->getNumberOfItems(), widget);
+        progress.setWindowModality(Qt::WindowModal);
+
         // write header
         stream << QString("ply") << endl;
         stream << QString("format ascii 1.0") << endl;
-        stream << QString("comment written by traingulator / ben adler on ").append(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")) << endl;
-        stream << QString("element vertex ").append(QString::number(tree->numberOfItems())) << endl;
+        stream << QString("comment written by triangulator / ben adler on ").append(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")) << endl;
+        stream << QString("element vertex ").append(QString::number(tree->getNumberOfItems())) << endl;
         stream << QString("comment the coordinates of the point") << endl;
         stream << QString("property float x") << endl;
         stream << QString("property float y") << endl;
@@ -36,15 +39,24 @@ bool CloudExporter::savePly(const Octree* tree, const QString &fileName)
         stream << QString("property float sqdist") << endl;
         stream << QString("end_header") << endl;
 
-        savePly(tree->root(), &stream);
+        if(savePly(tree->root(), &stream, &progress))
+        {
+            file.close();
+            return true;
+        }
+        else
+        {
+            file.close();
+            file.remove();
+            return false;
+        }
 
-        file.close();
-
-        return true;
 }
 
-void CloudExporter::savePly(const Node* node, QTextStream* stream)
+bool CloudExporter::savePly(const Node* node, QTextStream* stream, QProgressDialog* progress)
 {
+    if(progress->wasCanceled()) return false;
+
     if(node->isLeaf())
     {
         // save the points into @stream
@@ -57,13 +69,18 @@ void CloudExporter::savePly(const Node* node, QTextStream* stream)
             (*stream) << point->squaredDistance;
             (*stream) << endl;
         }
+
+        progress->setValue(progress->value()+node->data.size());
     }
     else
     {
         // invoke recursively for childnodes/leafs
         const QList<const Node*> childNodes = node->getAllChildLeafs();
         foreach(const Node* childNode, childNodes)
-            savePly(childNode, stream);
+            if(!savePly(childNode, stream, progress))
+                return false;
     }
+
+    return true;
 }
 

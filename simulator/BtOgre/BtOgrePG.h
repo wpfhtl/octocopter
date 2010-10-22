@@ -77,6 +77,10 @@ class RigidBodyState : public QObject, public btMotionState
             mNode = node;
         }
 
+        Ogre::SceneNode* getNode(void)
+        {
+            return mNode;
+        }
 
     signals:
         void newPose(const Ogre::Vector3 pos, const Ogre::Quaternion rot);

@@ -12,22 +12,29 @@
 #include "glwidget.h"
 #include "octree.h"
 #include "lidarpoint.h"
+#include "flightplanner.h"
 #include "camerawindow.h"
+#include "controlwidget.h"
+#include "logwidget.h"
 #include "cloudexporter.h"
+
+class ControlWidget;
 
 class Triangulator : public QMainWindow
 {
     Q_OBJECT
 
 private:
-    QUdpSocket* mUdpSocketPoints;
-    QUdpSocket* mUdpSocketImages;
+    QTcpSocket* mTcpSocket;
 
-    QTcpServer* mTcpServer;
-//    QTcpSocket *mConnection;
+    QByteArray mIncomingDataBuffer;
 
-    QByteArray mIncomingDataBufferPoints, mIncomingDataBufferImages;
-    QMap<QTcpSocket*, QByteArray*> mSocketBuffers;
+    FlightPlanner* mFlightPlanner;
+
+    ControlWidget* mControlWidget;
+    LogWidget* mLogWidget;
+
+    QTimer* mTimerUpdateStatus;
 
     // a container for collected rays, or rather the world coordinates of where they ended
     Octree* mOctree;
@@ -42,18 +49,20 @@ private:
 
     QMap<QString, CameraWindow*> mCameraWindows;
 
-private slots:
-    void slotNewConnection(void);
-    void slotConnectionEnded(void);
-    void slotReadSocketPoints(void);
-    void slotReadSocketImages(void);
-    void slotSocketPointsError(QAbstractSocket::SocketError socketError);
-    void slotSocketImagesError(QAbstractSocket::SocketError socketError);
+    void processPacket(QByteArray data);
 
-    void slotExportCloud();
+private slots:
+    void slotSocketConnected(void);
+    void slotSocketDisconnected(void);
+    void slotReadSocket(void);
+    void slotSocketError(QAbstractSocket::SocketError socketError);
+    void slotConnect(void);
+    void slotExportCloud(void);
+    void slotAddWayPoint(QVector3D);
+    void slotSendData(const QByteArray &data);
+    void slotGetStatus(void);
 
 public:
-    // Laser rotation is always CCW, angleStart < angleStop
     Triangulator(void);
     ~Triangulator();
 

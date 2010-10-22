@@ -3,7 +3,6 @@
 Camera::Camera(Simulator* simulator, OgreWidget* ogreWidget, const QSize size, const float fovY, const int interval) :
         mFovY(fovY), mPixelBox(0), mImage(0)
 {
-
     mSimulator = simulator;
     mOgreWidget = ogreWidget;
 
@@ -14,16 +13,8 @@ Camera::Camera(Simulator* simulator, OgreWidget* ogreWidget, const QSize size, c
     sprintf(address, "%p", (void*)this);
     setObjectName("Camera_at_" + QString(address));
 
-//    mUdpSocket = new QUdpSocket;
-//    mUdpSocket->bind(); // If you just want to send datagrams, you don't need to call bind().
-//    connect(mUdpSocket, SIGNAL(bytesWritten(qint64)), SLOT(slotBytesWritten(qint64)));
-
-    mTcpSocket = new QTcpSocket(this);
-    connect(mTcpSocket, SIGNAL(connected()), SLOT(slotSendImage()));
-    connect(mTcpSocket, SIGNAL(error(QAbstractSocket::SocketError)), SLOT(slotNetworkError(QAbstractSocket::SocketError)));
-
     mTimerShutter = new QTimer;
-    connect(mTimerShutter, SIGNAL(timeout()), SLOT(slotConnectToServer()));
+    connect(mTimerShutter, SIGNAL(timeout()), SLOT(slotSendImage()));
 
     mOgreWidget->createRttCamera(&mCamera, &mRenderTarget, &mCameraNode, objectName(), size);
     setFovY(mFovY);
@@ -44,57 +35,9 @@ Camera::~Camera()
     qDebug() << "Camera::~Camera()";
     mOgreWidget->destroyRttCamera(objectName()); // are we leaking the rendertarget?
 
-    mTcpSocket->deleteLater();
     mTimerShutter->deleteLater();
     delete mImage;
     delete mPixelBox;
-}
-/*
-void Camera::run()
-{
-    mUdpSocket = new QUdpSocket;
-    mUdpSocket->bind();
-
-    mTimerShutter = new QTimer;
-    mTimerShutter->setInterval(mInterval);
-    connect(mTimerShutter, SIGNAL(timeout()), SLOT(slotRecordImage()));
-
-//    mOgreWidget->createRttCamera(&mCamera, &mRenderTarget, objectName(), 800, 600);
-
-    if(!mSimulator->isPaused()) mTimerShutter->start();
-
-//    qDebug() << "Camera::run(): starting Camera eventloop in threadid" << currentThreadId();
-//    exec();
-//    qDebug() << "Camera::run(): eventloop finished in threadid" << currentThreadId();
-}
-*/
-
-void Camera::slotNetworkError(QAbstractSocket::SocketError socketError)
-{
-    switch (socketError)
-    {
-    case QAbstractSocket::RemoteHostClosedError:
-        break;
-    case QAbstractSocket::HostNotFoundError:
-        qDebug() << "Camera::slotNetworkError(): host not found";
-        break;
-    case QAbstractSocket::ConnectionRefusedError:
-        qDebug() << "Camera::slotNetworkError(): connection refused";
-        break;
-    default:
-        qDebug() << "Camera::slotNetworkError():" << mTcpSocket->errorString();
-    }
-}
-
-void Camera::slotBytesWritten(qint64 bytes)
-{
-    qDebug() << "Camera::slotBytesWritten(): bytes written:" << bytes;
-}
-
-void Camera::slotConnectToServer()
-{
-    mTcpSocket->abort();
-    mTcpSocket->connectToHost("localhost", 11111);
 }
 
 void Camera::slotSendImage()
@@ -102,12 +45,16 @@ void Camera::slotSendImage()
     qDebug() << "Camera::slotRecordImage(): updating renderTarget from" << mCamera->getDerivedPosition().x << mCamera->getDerivedPosition().y << mCamera->getDerivedPosition().z;
     mRenderTarget->update();
 //    mRenderTarget->writeContentsToFile("/tmp/rt.png");
+
     // Copy to PixelBox, which is backed by mImageBuffer, which backs mImage
     mRenderTarget->copyContentsToMemory(*mPixelBox, Ogre::RenderTarget::FB_AUTO);
 
     mNetworkPayload.clear();
     mNetworkPayload.resize(0);
     QDataStream stream(&mNetworkPayload, QIODevice::WriteOnly);
+
+    // set packet type.
+    stream << "images";
 
     // Stream camera name
     stream << objectName();
@@ -126,31 +73,15 @@ void Camera::slotSendImage()
     stream << (quint32)imageArray.size();
     mNetworkPayload.append(imageArray);
 
-    // Now set the length of the datagram
-    QByteArray datagramLengthArray;
-    QDataStream streamLength(&datagramLengthArray, QIODevice::WriteOnly);
-    streamLength << (quint32)(mNetworkPayload.length() + sizeof(qint32));
-    mNetworkPayload.prepend(datagramLengthArray);
-
     qDebug() << "Camera::slotRecordImage(): datagram size:" << mNetworkPayload.size();
 
-    mTcpSocket->write(mNetworkPayload);
-    mTcpSocket->disconnectFromHost(); // Aug 27 [14:02:17] <peppe> and yes, it'll wait for pending data to be written
-
-//    if(mTcpSocket->flush())
-//        qDebug() << "Camera::slotRecordImage(): flushed, data written";
-//    else
-//        qDebug() << "Camera::slotRecordImage(): flushed, data NOT written";
-
-//    QApplication::processEvents();
-//    mUdpSocket->waitForBytesWritten();
+    mSimulator->mBaseConnection->slotSendData(mNetworkPayload);
 }
 
 void Camera::slotPause(void)
 {
     qDebug() << "Camera::slotPause(): stopping Camera";
     mTimerShutter->stop();
-//    mContinue = false;
 }
 
 void Camera::slotStart(void)
@@ -158,11 +89,6 @@ void Camera::slotStart(void)
     qDebug() << "Camera::slotStart(): starting Camera timer";// in thread" << currentThreadId();
     mTimerShutter->start();
 }
-
-//Ogre::SceneNode* Camera::getSceneNode(void)
-//{
-//    return mCameraNode;
-//}
 
 void Camera::slotSetTimeFactor(double timeFactor)
 {
@@ -211,6 +137,7 @@ void Camera::setImageSize(const QSize size)
     mSize = size;
     mImageBuffer.resize(size.width() * size.height() * 3); // 3 bytes per pixel, see format below
     if(mPixelBox) delete mPixelBox;
+
     // Construct a new PixelBox, and let it write into our mImageBuffer QByteArray
     mPixelBox = new Ogre::PixelBox(size.width(), size.height(), 1, Ogre::PF_BYTE_RGB, mImageBuffer.data());
     if(mImage) delete mImage;

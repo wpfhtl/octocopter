@@ -3,6 +3,7 @@
 
 #include <QDebug>
 #include <QString>
+#include <QTimer>
 #include <QObject>
 
 #include <stdio.h>
@@ -26,6 +27,7 @@ class Joystick : public QObject
     Q_OBJECT
 
 private:
+    QTimer* mPollTimer;
     struct js_event event;
     struct timespec timeout;
     bool valid;
@@ -35,7 +37,13 @@ private:
     char joystickName[255];
     char* mButtons;
 
+
+private slots:
     bool updateValues();
+//    void slotPollButtons();
+
+signals:
+    void buttonStateChanged(unsigned char, bool);
 
 public:
     Joystick();
