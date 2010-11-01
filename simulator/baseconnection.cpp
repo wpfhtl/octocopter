@@ -1,8 +1,10 @@
 #include "baseconnection.h"
 
-BaseConnection::BaseConnection(Simulator* simulator) : QObject()
+BaseConnection::BaseConnection(Simulator* simulator) :
+    QObject(),
+    mMutex(QMutex::NonRecursive)
 {
-    QMutexLocker locker(mMutex);
+    QMutexLocker locker(&mMutex);
 
     qDebug() << "BaseConnection::BaseConnection()";
     mSimulator = simulator;
@@ -34,13 +36,13 @@ void BaseConnection::setVehicle(Vehicle* vehicle)
 
 void BaseConnection::slotConnectionEnded()
 {
-    QMutexLocker locker(mMutex);
+    QMutexLocker locker(&mMutex);
     mTcpSocket = 0;
 }
 
 void BaseConnection::slotNewConnection()
 {
-    QMutexLocker locker(mMutex);
+    QMutexLocker locker(&mMutex);
     mTcpSocket = mTcpServer->nextPendingConnection();
 //    connect(mTcpSocket, SIGNAL(disconnected()), mTcpSocket, SLOT(deleteLater()));
     connect(mTcpSocket, SIGNAL(disconnected()), SLOT(slotConnectionEnded()));
@@ -55,7 +57,7 @@ void BaseConnection::slotNewConnection()
 
 void BaseConnection::slotReadSocket()
 {
-    QMutexLocker locker(mMutex);
+    QMutexLocker locker(&mMutex);
 
     mIncomingDataBuffer.append(mTcpSocket->readAll());
 //    qDebug() << "BaseConnection::slotReadSocket(): incoming-buffer now has" << mIncomingDataBuffer.size() << "bytes";
@@ -86,7 +88,7 @@ void BaseConnection::slotReadSocket()
 
 void BaseConnection::processPacket(QByteArray packet)
 {
-    QMutexLocker locker(mMutex);
+    QMutexLocker locker(&mMutex);
 
 //    qDebug() << "BaseConnection::processPacket(): packetLength is" << packet.size();
 
@@ -133,13 +135,13 @@ void BaseConnection::slotWayPointReached(QVector3D wpt)
 
 void BaseConnection::slotSocketError(QAbstractSocket::SocketError socketError)
 {
-    QMutexLocker locker(mMutex);
+    QMutexLocker locker(&mMutex);
     qDebug() << "BaseConnection::slotSocketImagesError():" << socketError;
 }
 
 void BaseConnection::slotSendData(const QByteArray &data)
 {
-    QMutexLocker locker(mMutex);
+    QMutexLocker locker(&mMutex);
 
     // Prepend the length of the datagram
     QByteArray datagramLengthArray;
@@ -154,7 +156,7 @@ void BaseConnection::slotSendData(const QByteArray &data)
 
 void BaseConnection::slotFlushWriteQueue()
 {
-    QMutexLocker locker(mMutex);
+    QMutexLocker locker(&mMutex);
 
     if(mTcpSocket)
     {

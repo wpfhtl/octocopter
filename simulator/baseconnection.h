@@ -16,7 +16,7 @@ class BaseConnection : public QObject
     Q_OBJECT
 
 private:
-    QMutex* mMutex;
+    mutable QMutex mMutex;
     QTcpSocket* mTcpSocket;
     QTcpServer* mTcpServer;
     QByteArray mIncomingDataBuffer, mOutgoingDataBuffer;
