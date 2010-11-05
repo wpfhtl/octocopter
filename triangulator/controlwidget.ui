@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>235</width>
+    <width>239</width>
     <height>905</height>
    </rect>
   </property>
@@ -426,7 +426,13 @@
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
-        <widget class="QTableWidget" name="mWayPoints">
+        <widget class="QTableWidget" name="mWayPointTable">
+         <property name="editTriggers">
+          <set>QAbstractItemView::DoubleClicked</set>
+         </property>
+         <property name="alternatingRowColors">
+          <bool>true</bool>
+         </property>
          <property name="textElideMode">
           <enum>Qt::ElideRight</enum>
          </property>
@@ -453,6 +459,13 @@
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_4">
          <item>
+          <widget class="QLabel" name="label_14">
+           <property name="text">
+            <string>X</string>
+           </property>
+          </widget>
+         </item>
+         <item>
           <widget class="QDoubleSpinBox" name="mSpinBoxWptX">
            <property name="maximumSize">
             <size>
@@ -474,6 +487,13 @@
            </property>
            <property name="value">
             <double>0.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_15">
+           <property name="text">
+            <string>Y</string>
            </property>
           </widget>
          </item>
@@ -505,6 +525,13 @@
            </property>
            <property name="value">
             <double>0.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_16">
+           <property name="text">
+            <string>Z</string>
            </property>
           </widget>
          </item>
@@ -548,11 +575,29 @@
         </layout>
        </item>
        <item>
-        <widget class="QPushButton" name="mBtnWptAdd">
-         <property name="text">
-          <string>Add</string>
-         </property>
-        </widget>
+        <layout class="QHBoxLayout" name="horizontalLayout_5">
+         <item>
+          <widget class="QPushButton" name="mBtnWptAppend">
+           <property name="text">
+            <string>Apnd</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="mBtnWptPrepend">
+           <property name="text">
+            <string>Ppnd</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="mBtnWptDelete">
+           <property name="text">
+            <string>Del</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
       </layout>
      </widget>

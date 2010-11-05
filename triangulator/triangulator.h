@@ -58,7 +58,11 @@ private slots:
     void slotSocketError(QAbstractSocket::SocketError socketError);
     void slotConnect(void);
     void slotExportCloud(void);
-    void slotAddWayPoint(QVector3D);
+
+    void slotWayPointPrepend(QVector3D);
+    void slotWayPointAppend(QVector3D);
+    void slotWayPointDelete(int, QVector3D);
+
     void slotSendData(const QByteArray &data);
     void slotGetStatus(void);
 

@@ -93,7 +93,7 @@ void MyNearCallback(btBroadphasePair& collisionPair,
     dispatcher.defaultNearCallback(collisionPair, dispatcher, dispatchInfo);
 }
 
-mDispatcher->setNearCallback(MyNearCallback);
+//mDispatcher->setNearCallback(MyNearCallback);
 
 
 

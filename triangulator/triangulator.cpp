@@ -22,7 +22,9 @@ Triangulator::Triangulator() : QMainWindow()
 
     mControlWidget = new ControlWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mControlWidget);
-    connect(mControlWidget, SIGNAL(addWayPoint(QVector3D)), SLOT(slotAddWayPoint(QVector3D)));
+    connect(mControlWidget, SIGNAL(wayPointPrepend(QVector3D)), SLOT(slotWayPointPrepend(QVector3D)));
+    connect(mControlWidget, SIGNAL(wayPointAppend(QVector3D)), SLOT(slotWayPointAppend(QVector3D)));
+    connect(mControlWidget, SIGNAL(wayPointDelete(int, QVector3D)), SLOT(slotWayPointDelete(int, QVector3D)));
 
     mLogWidget = new LogWidget(this);
     addDockWidget(Qt::BottomDockWidgetArea, mLogWidget);
@@ -36,7 +38,7 @@ Triangulator::Triangulator() : QMainWindow()
     setCentralWidget(mGlWidget);
 
     mTimerUpdateStatus = new QTimer();
-    mTimerUpdateStatus->setInterval(1000);
+    mTimerUpdateStatus->setInterval(100000);
     connect(mTimerUpdateStatus, SIGNAL(timeout()), SLOT(slotGetStatus()));
 
     mLogWidget->log("startup finished, ready.");
@@ -198,15 +200,20 @@ void Triangulator::processPacket(QByteArray data)
     {
         QVector3D pos, linearVelocity;
         QQuaternion rot;
-        QList<QVector3D> wayPoints;
 
         stream >> pos;
         stream >> rot;
         stream >> linearVelocity;
-        stream >> wayPoints;
 
         mControlWidget->slotUpdatePose(pos, rot);
         mControlWidget->slotUpdateDynamics(linearVelocity);
+    }
+    else if(packetType == "waypoints")
+    {
+        QList<QVector3D> wayPoints;
+
+        stream >> wayPoints;
+
         mControlWidget->slotUpdateWayPoints(wayPoints);
     }
     else if(packetType == "waypointreached")
@@ -242,15 +249,42 @@ void Triangulator::slotGetStatus()
     slotSendData(data);
 }
 
-void Triangulator::slotAddWayPoint(QVector3D wpt)
+void Triangulator::slotWayPointPrepend(QVector3D wpt)
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
-    stream << QString("setwaypoint");
+    stream << QString("waypointprepend");
     stream << wpt;
 
-    mLogWidget->log(QString("adding waypoint %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
+    mLogWidget->log(QString("prepending waypoint %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
+
+    slotSendData(data);
+}
+
+void Triangulator::slotWayPointAppend(QVector3D wpt)
+{
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    stream << QString("waypointappend");
+    stream << wpt;
+
+    mLogWidget->log(QString("appending waypoint %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
+
+    slotSendData(data);
+}
+
+void Triangulator::slotWayPointDelete(int index, QVector3D wpt)
+{
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    stream << QString("waypointdelete");
+    stream << (quint32)index;
+    stream << wpt;
+
+    mLogWidget->log(QString("deleting waypoint %1 %2 %3 with index %4").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()).arg(index));
 
     slotSendData(data);
 }

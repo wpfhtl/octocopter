@@ -33,14 +33,19 @@ private slots:
     void slotUpdateBattery(const int chargeStateInPercent);
     void slotSimulationStarted();
     void slotSimulationPaused();
-    void slotAddWaypoint();
+
+    void slotWayPointPrepend();
+    void slotWayPointAppend();
+    void slotWayPointDelete(int row, int column);
 
 signals:
     void timeFactorChanged(double);
     void simulationStart();
     void simulationPause();
 
-    void addWayPoint(QVector3D);
+    void wayPointPrepend(QVector3D);
+    void wayPointAppend(QVector3D);
+    void wayPointDelete(int row, QVector3D);
 };
 
 #endif // ControlWidget_H

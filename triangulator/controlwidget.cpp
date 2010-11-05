@@ -9,8 +9,12 @@ ControlWidget::ControlWidget(Triangulator* triangulator) : QDockWidget((QWidget*
 //    connect(mBtnStart, SIGNAL(clicked()), SLOT(slotSimulationStarted()));
 //    connect(mBtnPause, SIGNAL(clicked()), SLOT(slotSimulationPaused()));
 
-    connect(mBtnWptAdd, SIGNAL(clicked()), SLOT(slotAddWaypoint()));
-    connect(mWayPoints, SIGNAL(itemChanged(QTableWidgetItem*)), SLOT(slotWayPointChanged(QTableWidgetItem*)));
+    connect(mBtnWptPrepend, SIGNAL(clicked()), SLOT(slotWayPointPrepend()));
+    connect(mBtnWptAppend, SIGNAL(clicked()), SLOT(slotWayPointAppend()));
+    connect(mWayPointTable, SIGNAL(cellDoubleClicked(int,int)), SLOT(slotWayPointDelete(int, int)));
+    connect(mWayPointTable, SIGNAL(cellChanged(int,int)), SLOT(slotWayPointChanged(QTableWidgetItem*)));
+
+    mWayPointTable->resizeColumnsToContents();
 
     mTriangulator = triangulator;
 //    mCoordinateConverter = mSimulator->mCoordinateConverter;
@@ -48,10 +52,26 @@ void ControlWidget::slotSimulationPaused()
 }
 
 
-void ControlWidget::slotAddWaypoint()
+void ControlWidget::slotWayPointPrepend()
 {
     QVector3D wpt(mSpinBoxWptX->value(), mSpinBoxWptY->value(), mSpinBoxWptZ->value());
-    emit addWayPoint(wpt);
+    emit wayPointPrepend(wpt);
+}
+
+void ControlWidget::slotWayPointAppend()
+{
+    QVector3D wpt(mSpinBoxWptX->value(), mSpinBoxWptY->value(), mSpinBoxWptZ->value());
+    emit wayPointAppend(wpt);
+}
+
+void ControlWidget::slotWayPointDelete(int row, int column)
+{
+    QVector3D wpt(
+                mWayPointTable->item(row, 0)->text().toFloat(),
+                mWayPointTable->item(row, 1)->text().toFloat(),
+                mWayPointTable->item(row, 2)->text().toFloat());
+
+    emit wayPointDelete(row, wpt);
 }
 
 void ControlWidget::slotUpdateBattery(const int chargeStateInPercent)
@@ -100,15 +120,19 @@ void ControlWidget::slotUpdateDynamics(QVector3D linearVelocity)
 
 void ControlWidget::slotUpdateWayPoints(QList<QVector3D> waypoints)
 {
-    mWayPoints->clear();
-    mWayPoints->setRowCount(waypoints.size());
+    mWayPointTable->clear();
+    mWayPointTable->setRowCount(waypoints.size());
 
     for(int i=0;i<waypoints.size();i++)
     {
-        mWayPoints->setItem(0, 0, new QTableWidgetItem(QString::number(waypoints.at(i).x())));
-        mWayPoints->setItem(0, 0, new QTableWidgetItem(QString::number(waypoints.at(i).y())));
-        mWayPoints->setItem(0, 0, new QTableWidgetItem(QString::number(waypoints.at(i).z())));
+        QVector3D wpt = waypoints.at(i);
+        qDebug() << "now adding waypoint" << wpt << "to table";
+        mWayPointTable->setItem(i, 0, new QTableWidgetItem(QString::number(waypoints.at(i).x())));
+        mWayPointTable->setItem(i, 1, new QTableWidgetItem(QString::number(waypoints.at(i).y())));
+        mWayPointTable->setItem(i, 2, new QTableWidgetItem(QString::number(waypoints.at(i).z())));
     }
+
+    mWayPointTable->resizeColumnsToContents();
 }
 
 //void ControlWidget::slotWayPointChanged(QTableWidgetItem* item)
