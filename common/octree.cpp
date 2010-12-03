@@ -6,6 +6,7 @@ Octree::Octree(const QVector3D &min, const QVector3D &max, const unsigned int ma
     mNumberOfNodes(0),
     mLastInsertionNode(0),
     mMinimumPointDistance(0),
+    mPointHandler(0),
     mMri1(0),
     mMri2(0)
 {
@@ -460,6 +461,11 @@ QList<LidarPoint*> Octree::findNearestNeighbors(const QVector3D &point, const un
 void Octree::setPointHandler(void (*pointHandler)(const QVector3D&))
 {
     mPointHandler = pointHandler;
+}
+
+void Octree::pointInsertedByNode(const LidarPoint* lp)
+{
+    emit pointInserted(lp);
 }
 
 void Octree::handlePoints() const

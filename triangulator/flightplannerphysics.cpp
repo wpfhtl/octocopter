@@ -1,8 +1,7 @@
-#include "flightplanner.h"
+#include "flightplannerphysics.h"
 
-FlightPlanner::FlightPlanner(const QVector3D * const position, const QQuaternion * const orientation, Octree* pointCloud) : QObject()
+FlightPlannerPhysics::FlightPlannerPhysics(const QVector3D * const position, const QQuaternion * const orientation, Octree* pointCloud) : FlightPlanner(position, orientation, pointCloud)
 {
-    /*
     // The octree is initialized on arrival of the first point, with this point at its center.
     // We do this so we can drop spheres only within the octree's XZ plane.
     mOctree = 0;
@@ -37,19 +36,56 @@ FlightPlanner::FlightPlanner(const QVector3D * const position, const QQuaternion
 
     // Add the body to the dynamics world
     mBtWorld->addRigidBody(body);
-    */
 }
 
-FlightPlanner::~FlightPlanner()
+FlightPlannerPhysics::~FlightPlannerPhysics()
 {
+    // Cleanup in the reverse order of creation/initialization
+
+    // Remove the rigidbodies from the dynamics world and delete them
+    int i;
+    for(i=mBtWorld->getNumCollisionObjects()-1; i>=0 ;i--)
+    {
+            btCollisionObject* obj = mBtWorld->getCollisionObjectArray()[i];
+            btRigidBody* body = btRigidBody::upcast(obj);
+            if(body && body->getMotionState())
+            {
+                    delete body->getMotionState();
+            }
+            mBtWorld->removeCollisionObject(obj);
+            delete obj;
+    }
+
+    //delete collision shapes
+//    for (int j=0;j<m_collisionShapes.size();j++)
+//    {
+//            btCollisionShape* shape = m_collisionShapes[j];
+//            delete shape;
+//    }
+
+    delete mShapeLidarPoint;
+
+    delete mShapeSampleSphere;
+
+    delete mBtWorld;
+
+    delete mBtSolver;
+
+    delete mBtBroadphase;
+
+    delete mBtDispatcher;
+
+    delete mBtCollisionConfig;
+
+    if(mOctree) delete mOctree;
 }
 
-/*
 
 
-void MyNearCallback(btBroadphasePair& collisionPair,
-  btCollisionDispatcher& dispatcher, btDispatcherInfo& dispatchInfo) {
 
+
+void MyNearCallback(btBroadphasePair& collisionPair, btCollisionDispatcher& dispatcher, btDispatcherInfo& dispatchInfo)
+{
     // Do your collision logic here
     // Only dispatch the Bullet collision information if you want the physics to continue
     dispatcher.defaultNearCallback(collisionPair, dispatcher, dispatchInfo);
@@ -66,7 +102,7 @@ void MyNearCallback(btBroadphasePair& collisionPair,
 
 
 
-Node* FlightPlanner::insertPoint(LidarPoint* const point)
+Node* FlightPlannerPhysics::insertPoint(LidarPoint* const point)
 {
     if(mOctree == 0)
     {
@@ -106,8 +142,8 @@ Node* FlightPlanner::insertPoint(LidarPoint* const point)
     return insertionNode;
 }
 
-QVector<QVector3D> FlightPlanner::getNextRoute()
-{
+//QVector<QVector3D> FlightPlannerPhysics::getNextRoute()
+//{
     // Now the hard work:
     //
     // 1. Drop small spheres (big enough for the quad to fit in). Delete them if they sleep on other spheres.
@@ -116,21 +152,18 @@ QVector<QVector3D> FlightPlanner::getNextRoute()
     // 4. Let it dry until everyone is sleeping and falling spheres are deleted
     // 5. Freeze the spheres to let them remain for future iterations.
     // 6. Find a nice path through the remaining spheres.
+//}
 
-}
-
-void FlightPlanner::slotPointInserted(const LidarPoint* lp)
+void FlightPlannerPhysics::slotPointInserted(const LidarPoint* lp)
 {
     LidarPoint wayPoint(*lp);
 
     wayPoint.position.setY(wayPoint.position.y()+15.0);
 
-    emit newWayPoint(wayPoint);
+    emit newWayPoint(wayPoint.position);
 }
 
-void FlightPlanner::visualize() const
+void FlightPlannerPhysics::visualize() const
 {
     if(mOctree) mOctree->handlePoints();
 }
-
-*/

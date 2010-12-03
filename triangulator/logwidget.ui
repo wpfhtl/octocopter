@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>LogWidget</class>
+ <widget class="QDockWidget" name="LogWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>235</width>
+    <height>905</height>
+   </rect>
+  </property>
+  <property name="allowedAreas">
+   <set>Qt::BottomDockWidgetArea|Qt::TopDockWidgetArea</set>
+  </property>
+  <property name="windowTitle">
+   <string>Logger</string>
+  </property>
+  <widget class="QWidget" name="dockWidgetContents">
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QTextEdit" name="mTextEdit">
+      <property name="verticalScrollBarPolicy">
+       <enum>Qt::ScrollBarAlwaysOn</enum>
+      </property>
+      <property name="undoRedoEnabled">
+       <bool>false</bool>
+      </property>
+      <property name="lineWrapMode">
+       <enum>QTextEdit::NoWrap</enum>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+      <property name="acceptRichText">
+       <bool>false</bool>
+      </property>
+      <property name="textInteractionFlags">
+       <set>Qt::TextSelectableByMouse</set>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

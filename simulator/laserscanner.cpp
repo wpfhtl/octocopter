@@ -21,6 +21,8 @@ LaserScanner::LaserScanner(
     mAngleStep = angleStep;
     mTimeFactor = mSimulator->getTimeFactor();
 
+    mTimerScan = 0;
+
     // We need to register what we want to emit.
     qRegisterMetaType<QList<CoordinateGps> >("QList<CoordinateGps>");
 
@@ -203,7 +205,7 @@ void LaserScanner::slotDoScan()
         if(distanceFinal < mRange)
         {
             const Ogre::Vector3 point = mLaserBeam.getPoint(distanceFinal);
-            scanData << QVector3D(point.x-180, point.y, point.z-120);
+            scanData << QVector3D(point.x, point.y, point.z);
         }
 
         // Increase mCurrentScanAngle by mAngleStep for the next laserBeam
@@ -256,6 +258,7 @@ void LaserScanner::slotDoScan()
     const long long scanTimeElapsed = (timeNow.tv_sec - timeStart.tv_sec) * 1000000 + (timeNow.tv_usec - timeStart.tv_usec);
     const long long timeRest = (1000000/(mSpeed/60)) * (1.0 / mTimeFactor) - scanTimeElapsed;
 //    qDebug() << "LaserScanner::slotDoScan(): emitted results, resting" << timeRest << "us after scan.";
+    scanData.clear();
     usleep(std::max(0, (int)timeRest));
 }
 
@@ -380,4 +383,9 @@ Ogre::Ray LaserScanner::getCurrentLaserBeam(void)
 {
     QMutexLocker locker(&mMutex);
     return mLaserBeam;
+}
+
+bool LaserScanner::isScanning(void) const
+{
+    return mTimerScan && mTimerScan->isActive() && mCurrentScanAngle <= mAngleStop && mCurrentScanAngle > mAngleStart;
 }

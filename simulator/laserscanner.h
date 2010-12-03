@@ -93,6 +93,8 @@ public:
 
     Ogre::SceneNode* getSceneNode(void);
 
+    bool isScanning(void) const;
+
     Ogre::Ray getCurrentLaserBeam(void);
 
     // Members for visualizing the ray in ogre, used directly by ogrewidget

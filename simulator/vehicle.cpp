@@ -411,7 +411,7 @@ void Vehicle::slotUpdatePhysics(void)
     const btScalar deltaS = std::max(0.0f, (simulationTime - mTimeOfLastUpdate) / 1000.0f); // elapsed time since last call in seconds
     const int maxSubSteps = 20;
     const btScalar fixedTimeStep = 1.0 / 60.0;
-//    qDebug() << "Vehicle::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
+    qDebug() << "Vehicle::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
 
     mVehicleBody->applyDamping(deltaS);
 
@@ -431,7 +431,9 @@ void Vehicle::slotUpdatePhysics(void)
     QList<LaserScanner*>* laserScanners = mSimulator->getLaserScannerList();
     foreach(LaserScanner* ls, *laserScanners)
     {
-        Ogre::SceneNode* scannerNode = mOgreWidget->sceneManager()->getSceneNode(ls->objectName().append("_node").toStdString());
+//        Ogre::SceneNode* scannerNode = mOgreWidget->sceneManager()->getSceneNode(ls->objectName().append("_node").toStdString());
+        Ogre::SceneNode* scannerNode = ls->getSceneNode();
+            scannerNode->_update(false, true);
         ls->slotSetScannerPose(scannerNode->_getDerivedPosition(), scannerNode->_getDerivedOrientation());
     }
 

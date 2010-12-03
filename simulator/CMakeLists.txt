@@ -23,6 +23,7 @@ dialogconfiguration
 ../common/coordinategps
 vehicle
 ../common/coordinateconverter
+../common/common
 BtOgre/BtOgre
 )
 
@@ -42,6 +43,7 @@ dialogconfiguration.h
 ../common/coordinategps.h
 vehicle.h
 ../common/coordinateconverter.h
+../common/common.h
 BtOgre/BtOgrePG.h
 )
 

@@ -48,7 +48,6 @@ Simulator::Simulator(void) :
     qDebug() << "Simulator::Simulator(): setting timeFactor to" << mTimeFactor;
 
     mBaseConnection = new BaseConnection(this);
-
 }
 
 Simulator::~Simulator(void)

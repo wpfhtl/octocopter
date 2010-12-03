@@ -16,7 +16,7 @@ BaseConnection::BaseConnection(Simulator* simulator) :
     connect(mTcpServer, SIGNAL(newConnection()), SLOT(slotNewConnection()));
     mTcpServer->listen(QHostAddress::Any, 12345);
 
-    connect(mFlightController, SIGNAL(wayPointReached(QVector3D)), SLOT(slotWayPointReached(QVector3D)));
+    //connect(mFlightController, SIGNAL(wayPointReached(QVector3D)), SLOT(slotWayPointReached(QVector3D)));
 
     mIncomingDataBuffer.clear();
     mOutgoingDataBuffer.clear();
@@ -32,6 +32,7 @@ void BaseConnection::setVehicle(Vehicle* vehicle)
     mVehicle = vehicle;
     mFlightController = vehicle->mFlightController;
     connect(mFlightController, SIGNAL(wayPointReached(QVector3D)), SLOT(slotWayPointReached(QVector3D)));
+    connect(mFlightController, SIGNAL(currentWayPoints(QList<QVector3D>)), SLOT(slotCurrentWayPointsChanged(QList<QVector3D>)));
 }
 
 void BaseConnection::slotConnectionEnded()
@@ -55,9 +56,9 @@ void BaseConnection::slotNewConnection()
     qDebug() << "BaseConnection::slotNewConnection(): incoming connection accepted";
 }
 
-void BaseConnection::slotReadSocket()
+void BaseConnection::slotReadSocket(bool lockMutex)
 {
-    QMutexLocker locker(&mMutex);
+    if(lockMutex) QMutexLocker locker(&mMutex);
 
     mIncomingDataBuffer.append(mTcpSocket->readAll());
 //    qDebug() << "BaseConnection::slotReadSocket(): incoming-buffer now has" << mIncomingDataBuffer.size() << "bytes";
@@ -82,13 +83,13 @@ void BaseConnection::slotReadSocket()
         mIncomingDataBuffer.remove(0, packetLength - sizeof(quint32));
 
         // see whether there's another packet lurking around in the array...
-        slotReadSocket();
+        slotReadSocket(false);
     }
 }
 
 void BaseConnection::processPacket(QByteArray packet)
 {
-    QMutexLocker locker(&mMutex);
+//    QMutexLocker locker(&mMutex);
 
 //    qDebug() << "BaseConnection::processPacket(): packetLength is" << packet.size();
 
@@ -96,12 +97,25 @@ void BaseConnection::processPacket(QByteArray packet)
     QString command;
     stream >> command;
 
-    if(command == "setwaypoint")
+    if(command == "waypointinsert")
     {
+        QString hash;
+        quint32 index;
         QVector3D wayPoint;
+        stream >> hash;
+        stream >> index;
         stream >> wayPoint;
-        mFlightController->slotSetNextWayPoint(wayPoint);
-        qDebug() << "BaseConnection::processPacket(): setting waypoint from base.";
+        mFlightController->slotWayPointInsert(hash, index, wayPoint);
+        qDebug() << "BaseConnection::processPacket(): inserting waypoint from base to index" << index << wayPoint;
+    }
+    else if(command == "waypointdelete")
+    {
+        QString hash;
+        quint32 index;
+        stream >> hash;
+        stream >> index;
+        mFlightController->slotWayPointDelete(hash, index);
+        qDebug() << "BaseConnection::processPacket(): deleting waypoint" << index << "from base.";
     }
     else if(command == "getstatus")
     {
@@ -114,24 +128,43 @@ void BaseConnection::processPacket(QByteArray packet)
         stream << mFlightController->getOrientation();
 
         stream << mVehicle->getLinearVelocity();
-        stream << mFlightController->getWayPoints();
 
 //        qDebug() << "BaseConnection::processPacket(): getstatus done, sending reply.";
 
-        slotSendData(data);
+        slotSendData(data, false);
+    }
+    else
+    {
+        qDebug() << "UNKNOWN COMMAND" << command;
+        Q_ASSERT(false);
     }
 }
 
 void BaseConnection::slotWayPointReached(QVector3D wpt)
 {
+    QMutexLocker locker(&mMutex);
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
     stream << QString("waypointreached");
     stream << wpt;
 
-    slotSendData(data);
+    slotSendData(data, false);
 }
+
+
+void BaseConnection::slotCurrentWayPointsChanged(QList<QVector3D> wayPoints)
+{
+    qDebug() << "sending new waypoints to base:" << wayPoints;
+    QMutexLocker locker(&mMutex);
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    stream << QString("waypoints");
+    stream << wayPoints;
+    slotSendData(data, false);
+}
+
 
 void BaseConnection::slotSocketError(QAbstractSocket::SocketError socketError)
 {
@@ -139,9 +172,9 @@ void BaseConnection::slotSocketError(QAbstractSocket::SocketError socketError)
     qDebug() << "BaseConnection::slotSocketImagesError():" << socketError;
 }
 
-void BaseConnection::slotSendData(const QByteArray &data)
+void BaseConnection::slotSendData(const QByteArray &data, bool lockMutex)
 {
-    QMutexLocker locker(&mMutex);
+    if(lockMutex) QMutexLocker locker(&mMutex);
 
     // Prepend the length of the datagram
     QByteArray datagramLengthArray;

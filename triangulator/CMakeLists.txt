@@ -12,12 +12,15 @@ triangulator
 glwidget
 logwidget
 flightplanner
+flightplannerbasic
+flightplannerphysics
 camerawindow
 controlwidget
 cloudexporter
 ../common/lidarpoint
 ../common/octree
 ../common/node
+../common/common
 #../common/coordinateconverter
 )
 
@@ -26,12 +29,15 @@ triangulator.h
 glwidget.h
 logwidget.h
 flightplanner.h
+flightplannerbasic.h
+flightplannerphysics.h
 camerawindow.h
 controlwidget.h
 cloudexporter.h
 ../common/lidarpoint.h
 ../common/octree.h
 ../common/node.h
+../common/common.h
 #../common/coordinateconverter.h
 )
 

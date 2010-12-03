@@ -8,17 +8,19 @@
 //}
 
 
-GlWidget::GlWidget(QWidget *parent, Octree* octree, FlightPlanner* flightPlanner) :
-    QGLWidget(parent),
+GlWidget::GlWidget(Triangulator *triangulator, Octree* octree, FlightPlanner* flightPlanner) :
+    QGLWidget((QWidget*)triangulator),
     mOctree(octree),
     mFlightPlanner(flightPlanner)
 {
 //    rotQuad = 0.0f;
 //    startTimer(25);
 
+    mTriangulator = triangulator;
+
     //Wheel Scaling
     currentScaling = 2.0;
-    ZoomFactor = 0.3;
+    mZoomFactor = 1.0;
 
     //Mouse Move Rotations
     rotX = 0;
@@ -29,7 +31,7 @@ GlWidget::GlWidget(QWidget *parent, Octree* octree, FlightPlanner* flightPlanner
     timerId = 0;
     t = 0.0;
 
-    camPos = QVector3D(0, 0, -100);
+//    camPos = QVector3D(0, 500, -500);
 
     setMinimumSize(640, 480);
 }
@@ -43,14 +45,14 @@ void GlWidget::initializeGL()
     glShadeModel(GL_SMOOTH);
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
-    glEnable(GL_MULTISAMPLE);
+//    glEnable(GL_MULTISAMPLE);
     glEnable(GL_COLOR_MATERIAL);
 
     // http://nehe.gamedev.net/data/lessons/lesson.asp?lesson=08
     glEnable(GL_BLEND);		// Turn Blending On
-    glDisable(GL_DEPTH_TEST); // ..and dt off, also for blend.
+//    glDisable(GL_DEPTH_TEST); // ..and dt off, also for blend.
 
-    static GLfloat lightPosition[4] = { 0.5, 5.0, 7.0, 1.0 };
+    static GLfloat lightPosition[4] = { -0.5, -5.0, -7.0, -1.0 };
     glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
 
 
@@ -61,7 +63,7 @@ void GlWidget::initializeGL()
 //    glClearDepth(1.0f);
 //    glEnable(GL_DEPTH_TEST);
 //    glDepthFunc(GL_LEQUAL);
-//    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
     /* we use resizeGL once to set up our initial perspective */
 //    resizeGL(width, height);
     /* Reset the rotation angle of our object */
@@ -78,8 +80,8 @@ void GlWidget::resizeGL(int w, int h)
     glViewport(0, 0, w, h);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(130.0, (GLfloat)w/(GLfloat)h, 0.25, +80000.0);
-    glTranslatef(camPos.x(), camPos.y(), camPos.z());
+    gluPerspective(50.0*mZoomFactor, (GLfloat)w/(GLfloat)h, 10, +8000.0);
+//    glTranslatef(camPos.x(), camPos.y(), camPos.z());
     glMatrixMode(GL_MODELVIEW);
 }
 
@@ -90,7 +92,7 @@ void GlWidget::moveCamera(const QVector3D &pos)
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(130.0, (GLfloat)width()/(GLfloat)height(), 0.25, +80000.0);
+    gluPerspective(130.0, (GLfloat)width()/(GLfloat)height(), 10, +8000.0);
     glTranslatef(camPos.x(), camPos.y(), camPos.z());
     glMatrixMode(GL_MODELVIEW);
 }
@@ -109,40 +111,76 @@ void GlWidget::paintGL()
     resizeGL(width(),height());
     glLoadIdentity();
 
+
+
+//    glTranslatef(camPos.x(), camPos.y(), camPos.z());
+
+//    drawAxes(1.25, 1.1, 1.25, 0.0, 1.0, 0.0);
+
+    //Wheel Scaling
+//    glScalef(currentScaling,currentScaling,currentScaling);
+
+    //Timer Animation
+//    GLfloat timerScaling = 0.5+pow(cos(0.025*t),2);
+//    glScalef(timerScaling,timerScaling,timerScaling);
+//    glRotatef(t,1,1,1);
+
+    static bool aimedAtOctreeCenter = false;
+//    QVector3D otc;
+//    if(mFlightPlanner->mOctree && !aimedAtOctreeCenter)
+//    {
+//        mCamLookAt = mFlightPlanner->mOctree->root()->center();
+//        mCamLookAt = QVector3D(180,80,120);
+//        aimedAtOctreeCenter = true;
+//        qDebug() << "centering around cloud center" << otc;
+//    }
+//    else
+//    {
+//        otc = mOctree->root()->center();
+//        otc = mCamLookAt;
+//        qDebug() << "centering around 0/0/0" << otc;
+//    }
+
+    mCamLookAt = mTriangulator->getCurrentVehiclePosition();
+
+    gluLookAt(0.0, 500.0, 500.0,
+              mCamLookAt.x(), mCamLookAt.y(), mCamLookAt.z(),
+              0.0, 1.0, 0.0);
+
+    glTranslatef(mCamLookAt.x(), mCamLookAt.y(), mCamLookAt.z());
+
     // Mouse Move Rotations
     glRotatef(rotX,1.0,0.0,0.0);
     glRotatef(rotY,0.0,1.0,0.0);
     glRotatef(rotZ,0.0,0.0,1.0);
 
-    glTranslatef(camPos.x(), camPos.y(), camPos.z());
+    glTranslatef(-mCamLookAt.x(), -mCamLookAt.y(), -mCamLookAt.z());
 
-    drawAxes(1.25, 1.1, 1.25, 0.0, 1.0, 0.0);
 
-    //Wheel Scaling
-    glScalef(currentScaling,currentScaling,currentScaling);
+//    glTranslatef(-0.0, -100.0, -0.0);
 
-    //Timer Animation
-    GLfloat timerScaling = 0.5+pow(cos(0.025*t),2);
-    glScalef(timerScaling,timerScaling,timerScaling);
-    glRotatef(t,1,1,1);
+
+    // Draw vehicle position
+    drawSphere(mTriangulator->getCurrentVehiclePosition(), 1.0, 20.0, QColor(20,255,20,100));
+
+    // Draw next waypoint
+    drawSphere(mTriangulator->getNextWayPoint(), 1.0, 20.0, QColor(255,255,255,100));
+
+//    glTranslatef(+0.0, +100.0, +0.0);
+
 
     drawAxes(10, 10, 10, 1.0, 1.0, 0.0);
-
-    glTranslatef(-0.5, -0.5, -0.5);
-
     // Draw base plate
-    /*
-    glDisable(GL_LIGHTING);
+//        glDisable(GL_LIGHTING);
     glBlendFunc(GL_SRC_ALPHA,GL_ONE);
-    glColor3f(1.0f, 1.0f, 1.0f);
+    glColor4f(1.0f, 1.0f, 1.0f, 0.2f);
     glBegin(GL_QUADS);
     glVertex3f(1000, 0, -1000);
     glVertex3f(1000, 0, 1000);
     glVertex3f(-1000, 0, 1000);
     glVertex3f(-1000, 0, -1000);
     glEnd();
-    glEnable(GL_LIGHTING);
-    */
+//    glEnable(GL_LIGHTING);
 
 
 //    mOctree->drawGl();
@@ -154,7 +192,6 @@ void GlWidget::paintGL()
 
     // draw
     mFlightPlanner->visualize();
-
 }
 
 
@@ -162,7 +199,7 @@ void GlWidget::drawAxes(
         const GLfloat& x, const GLfloat& y, const GLfloat& z,
         const GLfloat& red, const GLfloat& green, const GLfloat& blue) const
 {
-    glDisable(GL_LIGHTING);
+//    glDisable(GL_LIGHTING);
     glColor3f(red,green,blue);
     glLineWidth(1);
     glBegin(GL_LINES);
@@ -170,7 +207,7 @@ void GlWidget::drawAxes(
     glVertex3f(0.0,-y,0.0); glVertex3f(0.0, y,0.0);
     glVertex3f(0.0,0.0,-z); glVertex3f(0.0,0.0, z);
     glEnd();
-    glEnable(GL_LIGHTING);
+//    glEnable(GL_LIGHTING);
 }
 
 //Mouse Handlers
@@ -212,6 +249,13 @@ void GlWidget::mouseMoveEvent(QMouseEvent *event)
         rotZ += 180*DX;
         updateGL();
     }
+    else if(event->buttons() & Qt::MiddleButton)
+    {
+        mCamLookAt.setZ(mCamLookAt.z() + 180*DY);
+        mCamLookAt.setX(mCamLookAt.x() + 180*DX);
+        updateGL();
+    }
+
     lastPos = event->pos();
 
     rotX = fmod(rotX, 360.0);
@@ -225,23 +269,28 @@ void GlWidget::wheelEvent(QWheelEvent *event)
 {
     int numDegrees = event->delta()/32;
     double numSteps = numDegrees/30.0;
-//    qDebug() << numDegrees << numSteps;
     double factor = event->delta()/93.0;
-    if(factor > 0)
-        moveCamera(camPos * factor);
-    else
-        moveCamera(camPos / (-factor));
+//    mZoomFactor *= factor;
+    qDebug() << factor << mZoomFactor;
+
+    factor>0? mZoomFactor += 0.05 : mZoomFactor -= 0.05;
+
+//    if(factor > 0)
+//        moveCamera(camPos * factor);
+//    else
+//        moveCamera(camPos / (-factor));
     //moveCamera(camPos + 100);
     //zoom(pow(ZoomFactor, numSteps));
     //paintGL();
-    zoom(1);
+    update();
+//    zoom(1);
 }
 
-void GlWidget::zoom(double zoomFactor)
-{
-    currentScaling *= zoomFactor;
-    updateGL();
-}
+//void GlWidget::zoom(double zoomFactor)
+//{
+//    currentScaling *= zoomFactor;
+//    updateGL();
+//}
 
 void GlWidget::timerEvent ( QTimerEvent * event )
 {
@@ -251,83 +300,14 @@ void GlWidget::timerEvent ( QTimerEvent * event )
     }
 }
 
-#include <sys/file.h>
-#include <stdlib.h>
-#include <stdio.h>
-
-char *textFileRead(char *fn) {
-
-
-        FILE *fp;
-        char *content = NULL;
-
-        int f,count;
-        f = open(fn, O_RDONLY);
-
-        count = lseek(f, 0, SEEK_END);
-
-        close(f);
-
-        if (fn != NULL) {
-                fp = fopen(fn,"rt");
-
-                if (fp != NULL) {
-
-
-                        if (count > 0) {
-                                content = (char *)malloc(sizeof(char) * (count+1));
-                                count = fread(content,sizeof(char),count,fp);
-                                content[count] = '\0';
-                        }
-                        fclose(fp);
-                }
-        }
-        return content;
-}
-
-                GLuint v,f,p;
-
-void GlWidget::setShaders()
-{
-/*
-    char *vs,*fs;
-
-
-                v = glCreateShader(GL_VERTEX_SHADER);
-//		f = glCreateShader(GL_FRAGMENT_SHADER);
-
-                vs = textFileRead("shader_vertex.c");
-//		fs = textFileRead("toon.frag");
-
-                const char * vv = vs;
-//		const char * ff = fs;
-
-                glShaderSource(v, 1, &vv,NULL);
-//		glShaderSource(f, 1, &ff,NULL);
-
-                free(vs);
-//                free(fs);
-
-                glCompileShader(v);
-//		glCompileShader(f);
-
-                p = glCreateProgram();
-
-                glAttachShader(p,v);
-//		glAttachShader(p,f);
-
-                glLinkProgram(p);
-                glUseProgram(p);
-                */
-}
-
-void GlWidget::drawSphere(const QVector3D &pos, const float radius, const int subdivisions)
+void GlWidget::drawSphere(const QVector3D &pos, const float radius, const int subdivisions, const QColor color)
 {
     GLUquadricObj *quadric = gluNewQuadric();
     gluQuadricNormals(quadric, GLU_SMOOTH);
 
     glPushMatrix();
     glTranslatef(pos.x(), pos.y(), pos.z());
+    glColor4f(color.redF(), color.greenF(), color.blueF(), color.alphaF());
     gluSphere(quadric, radius, subdivisions, subdivisions);
     glPopMatrix();
 
@@ -336,7 +316,7 @@ void GlWidget::drawSphere(const QVector3D &pos, const float radius, const int su
 
 void GlWidget::drawSphere(const QVector3D &pos)
 {
-    drawSphere(pos, 5.0, 10);
+    drawSphere(pos, 1.0, 15, QColor(255,0,0));
 }
 
 void GlWidget::drawPoint(const QVector3D &point)

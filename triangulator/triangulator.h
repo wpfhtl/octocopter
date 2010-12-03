@@ -19,6 +19,8 @@
 #include "cloudexporter.h"
 
 class ControlWidget;
+class FlightPlanner;
+class GlWidget;
 
 class Triangulator : public QMainWindow
 {
@@ -26,6 +28,7 @@ class Triangulator : public QMainWindow
 
 private:
     QTcpSocket* mTcpSocket;
+    QVector3D mCurrentVehiclePosition;
 
     QByteArray mIncomingDataBuffer;
 
@@ -59,9 +62,8 @@ private slots:
     void slotConnect(void);
     void slotExportCloud(void);
 
-    void slotWayPointPrepend(QVector3D);
-    void slotWayPointAppend(QVector3D);
-    void slotWayPointDelete(int, QVector3D);
+    void slotWayPointInsert(QString, int, QVector3D);
+    void slotWayPointDelete(QString, int);
 
     void slotSendData(const QByteArray &data);
     void slotGetStatus(void);
@@ -69,6 +71,9 @@ private slots:
 public:
     Triangulator(void);
     ~Triangulator();
+
+    const QVector3D& getCurrentVehiclePosition(void) const;
+    const QVector3D getNextWayPoint(void) const;
 
 
 signals:

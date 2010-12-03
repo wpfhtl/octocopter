@@ -3,44 +3,30 @@
 
 #include <QObject>
 #include "octree.h"
-#include "node.h"
-#include "lidarpoint.h"
 #include "glwidget.h"
 
-#include <btBulletDynamicsCommon.h>
+class FlightPlannerBasic;
 
 class FlightPlanner : public QObject
 {
     Q_OBJECT
 public:
-    FlightPlanner(QObject *parent = 0);
-    ~FlightPlanner();
+    FlightPlanner(const QVector3D * const position, const QQuaternion * const orientation, Octree* pointCloud);
+    virtual ~FlightPlanner();
 
-    Node* insertPoint(LidarPoint* const point);
+    // Insert points from the laserscanners. Note that the points might also be inserted
+    // into Octree* pointCloud, this might be independent from the flightplanner.
+    virtual Node* insertPoint(LidarPoint* const point) = 0;
 
-    QVector<QVector3D> getNextRoute();
-
-    void visualize() const;
-
-private:
-
-    Octree* mOctree;
-    btTransform mLidarPointTransform;
-    btCollisionShape *mShapeLidarPoint, *mShapeSampleSphere, *mShapeFloor;
-
-
-//    btAxisSweep3 *mBtBroadphase;
-    btDbvtBroadphase *mBtBroadphase;
-
-    btDefaultCollisionConfiguration *mBtCollisionConfig;
-    btCollisionDispatcher *mBtDispatcher;
-    btSequentialImpulseConstraintSolver *mBtSolver;
-    btDiscreteDynamicsWorld *mBtWorld;
-
-signals:
+    // Issues opengl-commands to visualize the flightplanning
+    virtual void visualize() const = 0;
 
 public slots:
+    virtual void slotWayPointReached(const QVector3D) = 0;
 
+signals:
+    void newWayPoint(const QVector3D);
+    void clearWayPoints();
 };
 
 #endif // FLIGHTPLANNER_H

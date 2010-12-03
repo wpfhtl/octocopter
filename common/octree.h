@@ -13,9 +13,11 @@
 class LidarPoint;
 class Node;
 
-class Octree
+class Octree : public QObject
 {
-    friend class Node;  // So that Node can access mPointHandler
+    Q_OBJECT
+
+    friend class Node;  // So that Node can access mPointHandler and mInsertionHandler
 
 private:
     unsigned int mMaxItemsPerLeaf;
@@ -35,6 +37,10 @@ private:
     // A function-pointer. Will be called to handle (=visualize?) points. When Octree::handlePoints()
     // is called, this function will be called for every point stored.
     void (*mPointHandler)(const QVector3D&);
+
+    // This method is called by nodes when they inserted a point. It will simply emit pointInserted(),
+    // so that someone else can just connect to the tree instead of connecting with every node.
+    void pointInsertedByNode(const LidarPoint*);
 
 public:
     Octree(const QVector3D &min, const QVector3D &max, const unsigned int maxItemsPerLeaf);
@@ -71,6 +77,9 @@ public:
     const Node* root() const;
 
     void handlePoints() const;
+
+signals:
+    void pointInserted(const LidarPoint*);
 };
 
 #endif

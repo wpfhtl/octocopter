@@ -399,6 +399,8 @@ void OgreWidget::paintEvent(QPaintEvent *e)
         }
     }
 
+    ogreRoot->_fireFrameStarted();
+    qDebug() << "now rendering";
 
     // Construct all laserscanner rays before rendering
     QList<LaserScanner*> *laserScanners = mSimulator->mLaserScanners;
@@ -407,15 +409,22 @@ void OgreWidget::paintEvent(QPaintEvent *e)
         LaserScanner* scanner = laserScanners->at(i);
         Ogre::Ray beam = scanner->getCurrentLaserBeam();
 
-        scanner->mRayObject->clear();
-        scanner->mRayObject->begin(QString("RayFrom_" + scanner->objectName() + "_material").toStdString(), Ogre::RenderOperation::OT_LINE_LIST);
-        scanner->mRayObject->position(beam.getPoint(0.0));
-        scanner->mRayObject->position(beam.getPoint(scanner->range()));
-        scanner->mRayObject->end();
-    }
+        Q_ASSERT(scanner->getSceneNode()->getParent() == mVehicleNode);
 
-    ogreRoot->_fireFrameStarted();
-//    qDebug() << "now rendering";
+//        scanner->getSceneNode()->_update(false, true);
+
+        scanner->mRayObject->clear();
+
+        if(scanner->isScanning())
+        {
+            scanner->mRayObject->begin(QString("RayFrom_" + scanner->objectName() + "_material").toStdString(), Ogre::RenderOperation::OT_LINE_LIST);
+            //        scanner->mRayObject->position(mVehicleNode->_getDerivedPosition() + mVehicleNode->getOrientation() * scanner->getSceneNode()->getPosition());
+            scanner->mRayObject->position(scanner->getSceneNode()->_getDerivedPosition());
+            //        scanner->mRayObject->position(beam.getPoint(0.0));
+            scanner->mRayObject->position(beam.getPoint(scanner->range()));
+            scanner->mRayObject->end();
+        }
+    }
 
     ogreRenderWindow->update();
 //    qDebug() << "rendering done";
@@ -622,7 +631,7 @@ Ogre::SceneNode* OgreWidget::createScanner(const QString name, const Ogre::Vecto
     QMutexLocker locker(&mMutex);
 
     Ogre::Entity *scannerEntity = mSceneManager->createEntity(QString(name + "_entity").toStdString(), "hokuyoutm30lx.mesh");
-    Ogre::SceneNode *scannerNode = mSceneManager->getSceneNode("vehicleNode")->createChildSceneNode(QString(name + "_node").toStdString(), relativePosition, relativeRotation);
+    Ogre::SceneNode *scannerNode = mVehicleNode/*mSceneManager->getSceneNode("vehicleNode")*/->createChildSceneNode(QString(name + "_node").toStdString(), relativePosition, relativeRotation);
     scannerNode->attachObject(scannerEntity);
     qDebug() << "OgreWidget::createScannerNode(): done, returning";
 

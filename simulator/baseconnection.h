@@ -30,8 +30,11 @@ private:
 private slots:
     void slotNewConnection(void);
     void slotConnectionEnded(void);
-    void slotReadSocket(void);
+    void slotReadSocket(bool lockMutex = true);
     void slotSocketError(QAbstractSocket::SocketError socketError);
+
+    // FlightController emits a signal calling this slot.
+    void slotCurrentWayPointsChanged(QList<QVector3D> wayPoints);
 
 public:
     BaseConnection(Simulator* simulator);
@@ -42,7 +45,9 @@ public:
 signals:
 
 public slots:
-    void slotSendData(const QByteArray &data);
+    // the internalCall parameter skips locking of the mutex, which would lead to a deadlock if
+    // slotSendData was called from a class-internal method that already locked the mutex.
+    void slotSendData(const QByteArray &data, bool lockMutex = true);
     void slotFlushWriteQueue(void);
 
     // called when a waypoint has been reached, notifies basestation

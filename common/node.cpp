@@ -174,6 +174,8 @@ Node* Node::insertPoint(LidarPoint* const lidarPoint) // a const pointer to a no
             // value, it'll be discarded. In that case, just return.
             if(!insertAndReduce(lidarPoint)) return 0;
 
+            mTree->pointInsertedByNode(lidarPoint);
+
 //            qDebug() << "Node::insertPoint(): point" << lidarPoint->position << "saved, total nodes" << mNumberOfNodes << "items" << mNumberOfItems;
 
             // TODO: don't just append, merge with neighbors and weigh the LPs distances/normals

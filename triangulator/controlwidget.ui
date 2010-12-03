@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>239</width>
+    <width>245</width>
     <height>905</height>
    </rect>
   </property>
@@ -14,7 +14,7 @@
    <string>Status</string>
   </property>
   <widget class="QWidget" name="dockWidgetContents">
-   <layout class="QVBoxLayout" name="verticalLayout_3">
+   <layout class="QVBoxLayout" name="verticalLayout_4">
     <item>
      <widget class="QGroupBox" name="groupBox_5">
       <property name="title">
@@ -424,37 +424,80 @@
       <property name="title">
        <string>Waypoints</string>
       </property>
-      <layout class="QVBoxLayout" name="verticalLayout_2">
+      <layout class="QVBoxLayout" name="verticalLayout_3">
        <item>
-        <widget class="QTableWidget" name="mWayPointTable">
-         <property name="editTriggers">
-          <set>QAbstractItemView::DoubleClicked</set>
-         </property>
-         <property name="alternatingRowColors">
-          <bool>true</bool>
-         </property>
-         <property name="textElideMode">
-          <enum>Qt::ElideRight</enum>
-         </property>
-         <property name="verticalScrollMode">
-          <enum>QAbstractItemView::ScrollPerPixel</enum>
-         </property>
-         <property name="horizontalScrollMode">
-          <enum>QAbstractItemView::ScrollPerPixel</enum>
-         </property>
-         <property name="columnCount">
-          <number>3</number>
-         </property>
-         <attribute name="horizontalHeaderVisible">
-          <bool>false</bool>
-         </attribute>
-         <attribute name="verticalHeaderVisible">
-          <bool>false</bool>
-         </attribute>
-         <column/>
-         <column/>
-         <column/>
-        </widget>
+        <layout class="QHBoxLayout" name="horizontalLayout_6">
+         <item>
+          <widget class="QTableWidget" name="mWayPointTable">
+           <property name="editTriggers">
+            <set>QAbstractItemView::DoubleClicked</set>
+           </property>
+           <property name="showDropIndicator" stdset="0">
+            <bool>false</bool>
+           </property>
+           <property name="alternatingRowColors">
+            <bool>true</bool>
+           </property>
+           <property name="selectionMode">
+            <enum>QAbstractItemView::SingleSelection</enum>
+           </property>
+           <property name="textElideMode">
+            <enum>Qt::ElideRight</enum>
+           </property>
+           <property name="verticalScrollMode">
+            <enum>QAbstractItemView::ScrollPerPixel</enum>
+           </property>
+           <property name="horizontalScrollMode">
+            <enum>QAbstractItemView::ScrollPerPixel</enum>
+           </property>
+           <property name="gridStyle">
+            <enum>Qt::DotLine</enum>
+           </property>
+           <property name="wordWrap">
+            <bool>false</bool>
+           </property>
+           <property name="columnCount">
+            <number>3</number>
+           </property>
+           <attribute name="horizontalHeaderVisible">
+            <bool>true</bool>
+           </attribute>
+           <attribute name="horizontalHeaderDefaultSectionSize">
+            <number>50</number>
+           </attribute>
+           <attribute name="horizontalHeaderHighlightSections">
+            <bool>false</bool>
+           </attribute>
+           <attribute name="horizontalHeaderStretchLastSection">
+            <bool>false</bool>
+           </attribute>
+           <attribute name="verticalHeaderVisible">
+            <bool>false</bool>
+           </attribute>
+           <column/>
+           <column/>
+           <column/>
+          </widget>
+         </item>
+         <item>
+          <layout class="QVBoxLayout" name="verticalLayout_2">
+           <item>
+            <widget class="QPushButton" name="mBtnWptUp">
+             <property name="text">
+              <string>U</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="mBtnWptDown">
+             <property name="text">
+              <string>D</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
        </item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_4">
@@ -489,6 +532,19 @@
             <double>0.000000000000000</double>
            </property>
           </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_7">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
          </item>
          <item>
           <widget class="QLabel" name="label_15">
@@ -527,6 +583,19 @@
             <double>0.000000000000000</double>
            </property>
           </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_8">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
          </item>
          <item>
           <widget class="QLabel" name="label_16">
@@ -577,16 +646,16 @@
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_5">
          <item>
-          <widget class="QPushButton" name="mBtnWptAppend">
+          <widget class="QPushButton" name="mBtnWptPrepend">
            <property name="text">
-            <string>Apnd</string>
+            <string>Ppnd</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="mBtnWptPrepend">
+          <widget class="QPushButton" name="mBtnWptAppend">
            <property name="text">
-            <string>Ppnd</string>
+            <string>Apnd</string>
            </property>
           </widget>
          </item>
