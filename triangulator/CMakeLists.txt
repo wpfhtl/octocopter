@@ -11,7 +11,7 @@ main
 triangulator
 glwidget
 logwidget
-flightplanner
+flightplannerinterface
 flightplannerbasic
 flightplannerphysics
 camerawindow
@@ -28,7 +28,7 @@ SET(INC_FILES
 triangulator.h
 glwidget.h
 logwidget.h
-flightplanner.h
+flightplannerinterface.h
 flightplannerbasic.h
 flightplannerphysics.h
 camerawindow.h

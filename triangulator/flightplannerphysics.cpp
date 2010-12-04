@@ -22,6 +22,7 @@ FlightPlannerPhysics::FlightPlannerPhysics(const QVector3D * const position, con
     // Construct spheres for lidarPoints and sample baloons
     mShapeLidarPoint = new btSphereShape(0.1);
 
+    // The sphere that'll be dropped from the sky.
     mShapeSampleSphere = new btSphereShape(5);
 
     // Create the floor below the scenery. Spheres that hit the floor get deleted.
@@ -80,10 +81,6 @@ FlightPlannerPhysics::~FlightPlannerPhysics()
     if(mOctree) delete mOctree;
 }
 
-
-
-
-
 void MyNearCallback(btBroadphasePair& collisionPair, btCollisionDispatcher& dispatcher, btDispatcherInfo& dispatchInfo)
 {
     // Do your collision logic here
@@ -93,16 +90,7 @@ void MyNearCallback(btBroadphasePair& collisionPair, btCollisionDispatcher& disp
 
 //mDispatcher->setNearCallback(MyNearCallback);
 
-
-
-
-
-
-
-
-
-
-Node* FlightPlannerPhysics::insertPoint(LidarPoint* const point)
+void FlightPlannerPhysics::insertPoint(LidarPoint* const point)
 {
     if(mOctree == 0)
     {
@@ -112,38 +100,18 @@ Node* FlightPlannerPhysics::insertPoint(LidarPoint* const point)
                 point->position + QVector3D(10, 10, 10),  // max
                 10);
 
-        mOctree->setMinimumPointDistance(20);
+        mOctree->setMinimumPointDistance(1);
 
         mOctree->setPointHandler(GlWidget::drawSphere);
 
         connect(mOctree, SIGNAL(pointInserted(const LidarPoint*)), SLOT(slotPointInserted(const LidarPoint*)));
     }
 
-    Node* insertionNode = mOctree->insertPoint(point);
-
-    if(insertionNode != 0)
-    {
-        // The point was inserted and saved. Create a physics-point in space representing this.
-
-        // Set the points position
-        mLidarPointTransform.setOrigin(btVector3(point->position.x(), point->position.y(), point->position.z()));
-
-        // We don't need any inertia, mass etc,. as this body is static.
-        btDefaultMotionState* lidarPointMotionState = new btDefaultMotionState(mLidarPointTransform);
-        btRigidBody::btRigidBodyConstructionInfo rbInfo(0.0f, lidarPointMotionState, mShapeLidarPoint, btVector3(0,0,0));
-        btRigidBody* body = new btRigidBody(rbInfo);
-
-        // Add the body to the dynamics world
-        mBtWorld->addRigidBody(body);
-
-//        emit newWayPoint(point->position + QVector3D(0.0, 10.0, 0.0));
-    }
-
-    return insertionNode;
+    mOctree->insertPoint(point);
 }
 
-//QVector<QVector3D> FlightPlannerPhysics::getNextRoute()
-//{
+QVector<QVector3D> FlightPlannerPhysics::getNextRoute()
+{
     // Now the hard work:
     //
     // 1. Drop small spheres (big enough for the quad to fit in). Delete them if they sleep on other spheres.
@@ -152,15 +120,48 @@ Node* FlightPlannerPhysics::insertPoint(LidarPoint* const point)
     // 4. Let it dry until everyone is sleeping and falling spheres are deleted
     // 5. Freeze the spheres to let them remain for future iterations.
     // 6. Find a nice path through the remaining spheres.
-//}
 
+    btTransform sphereTransform;
+
+    // Fill the sky with spheres
+    for(
+        float x = mScanVolumeMin.x() + mShapeSampleSphere->getRadius()/2.0;
+        x <= mScanVolumeMax.x() - mShapeSampleSphere->getRadius()/2.0;
+        x += mShapeSampleSphere->getRadius() + 0.1 /*Margin to prevent unnecessary collisions*/)
+    {
+        for(
+            float z = mScanVolumeMin.z() + mShapeSampleSphere->getRadius()/2.0;
+            z <= mScanVolumeMax.z() - mShapeSampleSphere->getRadius()/2.0;
+            z += mShapeSampleSphere->getRadius() + 0.1 /*Margin to prevent unnecessary collisions*/)
+        {
+            sphereTransform.setOrigin(btVector3(x, mScanVolumeMax.y(), z));
+
+            // We don't need any inertia, mass etc,. as this body is static.
+            btDefaultMotionState* lidarPointMotionState = new btDefaultMotionState(mLidarPointTransform);
+            btRigidBody::btRigidBodyConstructionInfo rbInfo(1.0f, lidarPointMotionState, mShapeLidarPoint, btVector3(0,0,0));
+            btRigidBody* body = new btRigidBody(rbInfo);
+
+            // Add the body to the dynamics world
+            mBtWorld->addRigidBody(body);
+        }
+
+    }
+
+    return QVector<QVector3D>();
+}
+
+// A point was inserted ito our octree. Create a corresponding point in our physics world.
 void FlightPlannerPhysics::slotPointInserted(const LidarPoint* lp)
 {
-    LidarPoint wayPoint(*lp);
+    mLidarPointTransform.setOrigin(btVector3(lp->position.x(), lp->position.y(), lp->position.z()));
 
-    wayPoint.position.setY(wayPoint.position.y()+15.0);
+    // We don't need any inertia, mass etc,. as this body is static.
+    btDefaultMotionState* lidarPointMotionState = new btDefaultMotionState(mLidarPointTransform);
+    btRigidBody::btRigidBodyConstructionInfo rbInfo(0.0f, lidarPointMotionState, mShapeLidarPoint, btVector3(0,0,0));
+    btRigidBody* body = new btRigidBody(rbInfo);
 
-    emit newWayPoint(wayPoint.position);
+    // Add the body to the dynamics world
+    mBtWorld->addRigidBody(body);
 }
 
 void FlightPlannerPhysics::visualize() const

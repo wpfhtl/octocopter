@@ -14,7 +14,7 @@ public:
     FlightPlannerPhysics(const QVector3D * const position, const QQuaternion * const orientation, Octree* pointCloud);
     ~FlightPlannerPhysics();
 
-    Node* insertPoint(LidarPoint* const point);
+    void insertPoint(LidarPoint* const point);
 
     void visualize() const;
 
@@ -22,8 +22,8 @@ private:
     Octree* mOctree;
 
     btTransform mLidarPointTransform;
-    btCollisionShape *mShapeLidarPoint, *mShapeSampleSphere, *mShapeFloor;
-
+    btCollisionShape *mShapeLidarPoint, *mShapeFloor;
+    btSphereShape *mShapeSampleSphere;
 
 //    btAxisSweep3 *mBtBroadphase;
     btDbvtBroadphase *mBtBroadphase;
@@ -32,6 +32,8 @@ private:
     btCollisionDispatcher *mBtDispatcher;
     btSequentialImpulseConstraintSolver *mBtSolver;
     btDiscreteDynamicsWorld *mBtWorld;
+
+    QVector<QVector3D> getNextRoute();
 
 signals:
     void newWayPoint(const QVector3D);

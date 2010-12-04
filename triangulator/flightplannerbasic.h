@@ -20,7 +20,7 @@ public:
     FlightPlannerBasic(const QVector3D * const position, const QQuaternion * const orientation, Octree* pointCloud);
     ~FlightPlannerBasic();
 
-    Node* insertPoint(LidarPoint* const point);
+    void insertPoint(LidarPoint* const point);
 
     void visualize() const;
 

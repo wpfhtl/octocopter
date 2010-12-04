@@ -17,7 +17,7 @@ void FlightPlannerBasic::slotWayPointReached(const QVector3D /*wayPoint*/)
 }
 
 
-Node* FlightPlannerBasic::insertPoint(LidarPoint* const point)
+void FlightPlannerBasic::insertPoint(LidarPoint* const point)
 {
     if(mOctree == 0)
     {
@@ -34,9 +34,7 @@ Node* FlightPlannerBasic::insertPoint(LidarPoint* const point)
         connect(mOctree, SIGNAL(pointInserted(const LidarPoint*)), SLOT(slotPointInserted(const LidarPoint*)));
     }
 
-    Node* insertionNode = mOctree->insertPoint(point);
-
-    return insertionNode;
+    mOctree->insertPoint(point);
 }
 
 void FlightPlannerBasic::slotPointInserted(const LidarPoint* lp)
