@@ -8,7 +8,7 @@
 //}
 
 
-GlWidget::GlWidget(Triangulator *triangulator, Octree* octree, FlightPlanner* flightPlanner) :
+GlWidget::GlWidget(Triangulator *triangulator, Octree* octree, FlightPlannerInterface* flightPlanner) :
     QGLWidget((QWidget*)triangulator),
     mOctree(octree),
     mFlightPlanner(flightPlanner)
@@ -161,10 +161,10 @@ void GlWidget::paintGL()
 
 
     // Draw vehicle position
-    drawSphere(mTriangulator->getCurrentVehiclePosition(), 1.0, 20.0, QColor(20,255,20,100));
+    OpenGlUtilities::drawSphere(mTriangulator->getCurrentVehiclePosition(), 1.0, 20.0, QColor(20,255,20,100));
 
     // Draw next waypoint
-    drawSphere(mTriangulator->getNextWayPoint(), 1.0, 20.0, QColor(255,255,255,100));
+    OpenGlUtilities::drawSphere(mTriangulator->getNextWayPoint(), 1.0, 20.0, QColor(255,255,255,100));
 
 //    glTranslatef(+0.0, +100.0, +0.0);
 
@@ -300,26 +300,9 @@ void GlWidget::timerEvent ( QTimerEvent * event )
     }
 }
 
-void GlWidget::drawSphere(const QVector3D &pos, const float radius, const int subdivisions, const QColor color)
-{
-    GLUquadricObj *quadric = gluNewQuadric();
-    gluQuadricNormals(quadric, GLU_SMOOTH);
-
-    glPushMatrix();
-    glTranslatef(pos.x(), pos.y(), pos.z());
-    glColor4f(color.redF(), color.greenF(), color.blueF(), color.alphaF());
-    gluSphere(quadric, radius, subdivisions, subdivisions);
-    glPopMatrix();
-
-    gluDeleteQuadric(quadric);
-}
-
-void GlWidget::drawSphere(const QVector3D &pos)
-{
-    drawSphere(pos, 1.0, 15, QColor(255,0,0));
-}
-
 void GlWidget::drawPoint(const QVector3D &point)
 {
+//    glPointSize(1.0);
+
     glVertex3f(point.x(), point.y(), point.z());
 }

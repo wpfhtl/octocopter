@@ -1,7 +1,7 @@
 #ifndef FLIGHTPLANNERBASIC_H
 #define FLIGHTPLANNERBASIC_H
 
-#include "flightplanner.h"
+#include "flightplannerinterface.h"
 #include "node.h"
 #include "lidarpoint.h"
 
@@ -12,7 +12,7 @@
   ground.
 */
 
-class FlightPlannerBasic : public FlightPlanner
+class FlightPlannerBasic : public FlightPlannerInterface
 {
     Q_OBJECT
 

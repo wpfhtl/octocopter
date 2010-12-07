@@ -14,9 +14,12 @@ logwidget
 flightplannerinterface
 flightplannerbasic
 flightplannerphysics
+physicssphere
 camerawindow
 controlwidget
+bulletdebugdrawergl
 cloudexporter
+../common/openglutilities
 ../common/lidarpoint
 ../common/octree
 ../common/node
@@ -31,9 +34,12 @@ logwidget.h
 flightplannerinterface.h
 flightplannerbasic.h
 flightplannerphysics.h
+physicssphere.h
 camerawindow.h
 controlwidget.h
+bulletdebugdrawergl.h
 cloudexporter.h
+../common/openglutilities.h
 ../common/lidarpoint.h
 ../common/octree.h
 ../common/node.h

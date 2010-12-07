@@ -12,14 +12,14 @@
 #include "glwidget.h"
 #include "octree.h"
 #include "lidarpoint.h"
-#include "flightplanner.h"
+#include "flightplannerinterface.h"
 #include "camerawindow.h"
 #include "controlwidget.h"
 #include "logwidget.h"
 #include "cloudexporter.h"
 
 class ControlWidget;
-class FlightPlanner;
+class FlightPlannerInterface;
 class GlWidget;
 
 class Triangulator : public QMainWindow
@@ -32,7 +32,7 @@ private:
 
     QByteArray mIncomingDataBuffer;
 
-    FlightPlanner* mFlightPlanner;
+    FlightPlannerInterface* mFlightPlanner;
 
     ControlWidget* mControlWidget;
     LogWidget* mLogWidget;

@@ -1,13 +1,15 @@
 #ifndef FLIGHTPLANNERPHYSICS_H
 #define FLIGHTPLANNERPHYSICS_H
 
-#include "flightplanner.h"
+#include "flightplannerinterface.h"
+#include "physicssphere.h"
 #include "node.h"
 #include "lidarpoint.h"
+#include "openglutilities.h"
 
 #include <btBulletDynamicsCommon.h>
 
-class FlightPlannerPhysics : public FlightPlanner
+class FlightPlannerPhysics : public FlightPlannerInterface
 {
     Q_OBJECT
 public:
@@ -24,6 +26,10 @@ private:
     btTransform mLidarPointTransform;
     btCollisionShape *mShapeLidarPoint, *mShapeFloor;
     btSphereShape *mShapeSampleSphere;
+
+    btGhostObject *mFloorGhostObject;
+
+    QList<PhysicsSphere*> mDroppingSpheres;
 
 //    btAxisSweep3 *mBtBroadphase;
     btDbvtBroadphase *mBtBroadphase;

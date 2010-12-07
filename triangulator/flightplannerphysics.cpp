@@ -1,6 +1,6 @@
 #include "flightplannerphysics.h"
 
-FlightPlannerPhysics::FlightPlannerPhysics(const QVector3D * const position, const QQuaternion * const orientation, Octree* pointCloud) : FlightPlanner(position, orientation, pointCloud)
+FlightPlannerPhysics::FlightPlannerPhysics(const QVector3D * const position, const QQuaternion * const orientation, Octree* pointCloud) : FlightPlannerInterface(position, orientation, pointCloud)
 {
     // The octree is initialized on arrival of the first point, with this point at its center.
     // We do this so we can drop spheres only within the octree's XZ plane.
@@ -22,21 +22,34 @@ FlightPlannerPhysics::FlightPlannerPhysics(const QVector3D * const position, con
     // Construct spheres for lidarPoints and sample baloons
     mShapeLidarPoint = new btSphereShape(0.1);
 
-    // The sphere that'll be dropped from the sky.
     mShapeSampleSphere = new btSphereShape(5);
 
+
+    //btStaticPlaneShape - As the name suggests, the btStaticPlaneShape can represent an infinite plane or half space. This shape can only be used for static, non-moving objects. This shape has been introduced mainly for demo purposes.
     // Create the floor below the scenery. Spheres that hit the floor get deleted.
-    mShapeFloor = new btBoxShape(btVector3(10000, 1, 10000));
+    mShapeFloor = new btBoxShape(btVector3(10000, 10, 10000));
     btTransform floorTransform;
     floorTransform.setOrigin(btVector3(0,-100,0));
-    btDefaultMotionState* floorMotionState = new btDefaultMotionState(floorTransform);
-    btRigidBody::btRigidBodyConstructionInfo rbInfo(0.0f, floorMotionState, mShapeFloor, btVector3(0,0,0));
-    btRigidBody* body = new btRigidBody(rbInfo);
+//    btDefaultMotionState* floorMotionState = new btDefaultMotionState(floorTransform);
+//    btRigidBody::btRigidBodyConstructionInfo floorInfo(0.0f, floorMotionState, mShapeFloor, btVector3(0,0,0));
+//    btRigidBody* floorBody = new btRigidBody(floorInfo);
+//    floorBody->setCollisionFlags(floorBody->getCollisionFlags() | btCollisionObject::CF_NO_CONTACT_RESPONSE);
+
+    // Add the body to the dynamics world
+//    mBtWorld->addRigidBody(floorBody);
+
     // TODO: use a ghost object instead, we don't need collision response
     // http://www.bulletphysics.org/Bullet/phpBB3/viewtopic.php?p=&f=9&t=3026
 
-    // Add the body to the dynamics world
-    mBtWorld->addRigidBody(body);
+    mFloorGhostObject = new btmFloorGhostObject();
+    mFloorGhostObject->setWorldTransform(floorTransform);
+    mFloorGhostObject->setCollisionShape(mShapeFloor);
+    mFloorGhostObject->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
+
+    // register a ghost pair callback to activate the world's ghost functionality
+    mBtBroadphase->getOverlappingPairCache()->setInternalGhostPairCallback(new btGhostPairCallback());
+
+    mBtWorld->addCollisionObject(mFloorGhostObject,btBroadphaseProxy::SensorTrigger,btBroadphaseProxy::AllFilter & ~btBroadphaseProxy::SensorTrigger);
 }
 
 FlightPlannerPhysics::~FlightPlannerPhysics()
@@ -81,15 +94,6 @@ FlightPlannerPhysics::~FlightPlannerPhysics()
     if(mOctree) delete mOctree;
 }
 
-void MyNearCallback(btBroadphasePair& collisionPair, btCollisionDispatcher& dispatcher, btDispatcherInfo& dispatchInfo)
-{
-    // Do your collision logic here
-    // Only dispatch the Bullet collision information if you want the physics to continue
-    dispatcher.defaultNearCallback(collisionPair, dispatcher, dispatchInfo);
-}
-
-//mDispatcher->setNearCallback(MyNearCallback);
-
 void FlightPlannerPhysics::insertPoint(LidarPoint* const point)
 {
     if(mOctree == 0)
@@ -102,7 +106,7 @@ void FlightPlannerPhysics::insertPoint(LidarPoint* const point)
 
         mOctree->setMinimumPointDistance(1);
 
-        mOctree->setPointHandler(GlWidget::drawSphere);
+        mOctree->setPointHandler(OpenGlUtilities::drawSphere);
 
         connect(mOctree, SIGNAL(pointInserted(const LidarPoint*)), SLOT(slotPointInserted(const LidarPoint*)));
     }
@@ -121,7 +125,9 @@ QVector<QVector3D> FlightPlannerPhysics::getNextRoute()
     // 5. Freeze the spheres to let them remain for future iterations.
     // 6. Find a nice path through the remaining spheres.
 
-    btTransform sphereTransform;
+    // The sphere that'll be dropped from the sky.
+
+    btTransform sampleSphereTransform;
 
     // Fill the sky with spheres
     for(
@@ -134,17 +140,31 @@ QVector<QVector3D> FlightPlannerPhysics::getNextRoute()
             z <= mScanVolumeMax.z() - mShapeSampleSphere->getRadius()/2.0;
             z += mShapeSampleSphere->getRadius() + 0.1 /*Margin to prevent unnecessary collisions*/)
         {
-            sphereTransform.setOrigin(btVector3(x, mScanVolumeMax.y(), z));
+//            PhysicsSphere* ps = new PhysicsSphere(mBtWorld, 1.0f, btVector3(x, mScanVolumeMax.y(), z), this);
 
+            sampleSphereTransform.setOrigin(btVector3(x, mScanVolumeMax.y()+5.0, z));
             // We don't need any inertia, mass etc,. as this body is static.
             btDefaultMotionState* lidarPointMotionState = new btDefaultMotionState(mLidarPointTransform);
-            btRigidBody::btRigidBodyConstructionInfo rbInfo(1.0f, lidarPointMotionState, mShapeLidarPoint, btVector3(0,0,0));
+            btRigidBody::btRigidBodyConstructionInfo rbInfo(1.0f, lidarPointMotionState, mShapeSampleSphere, btVector3(0,0,0));
             btRigidBody* body = new btRigidBody(rbInfo);
 
             // Add the body to the dynamics world
             mBtWorld->addRigidBody(body);
         }
+    }
 
+    // And now let them fall from the sky...
+
+    // We iterate through all rigidBodies touching our floor and remove/delete them.
+    for(int i = 0; i < mFloorGhostObject->getNumOverlappingObjects(); i++)
+    {
+       // Dynamic cast to make sure its a rigid body
+       btRigidBody *pRigidBody = dynamic_cast<btRigidBody *>(mFloorGhostObject->getOverlappingObject(i));
+       if(pRigidBody)
+       {
+          pRigidBody->activate(true);
+          pRigidBody->applyCentralImpulse(rayTo);
+       }
     }
 
     return QVector<QVector3D>();

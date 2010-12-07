@@ -1,6 +1,6 @@
 #include "flightplannerbasic.h"
 
-FlightPlannerBasic::FlightPlannerBasic(const QVector3D * const position, const QQuaternion * const orientation, Octree* pointCloud) : FlightPlanner(position, orientation, pointCloud)
+FlightPlannerBasic::FlightPlannerBasic(const QVector3D * const position, const QQuaternion * const orientation, Octree* pointCloud) : FlightPlannerInterface(position, orientation, pointCloud)
 {
     // The octree is initialized on arrival of the first point, with this point at its center.
     // We do this so we can drop spheres only within the octree's XZ plane.
@@ -29,7 +29,7 @@ void FlightPlannerBasic::insertPoint(LidarPoint* const point)
 
         mOctree->setMinimumPointDistance(20);
 
-        mOctree->setPointHandler(GlWidget::drawSphere);
+        mOctree->setPointHandler(OpenGlUtilities::drawSphere);
 
         connect(mOctree, SIGNAL(pointInserted(const LidarPoint*)), SLOT(slotPointInserted(const LidarPoint*)));
     }
