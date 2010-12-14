@@ -8,7 +8,7 @@ FlightPlannerInterface::~FlightPlannerInterface()
 {
 }
 
-void FlightPlannerInterface::setScanVolume(const QVector3D min, const QVector3D max)
+void FlightPlannerInterface::slotSetScanVolume(const QVector3D min, const QVector3D max)
 {
     mScanVolumeMin = min;
     mScanVolumeMax = max;

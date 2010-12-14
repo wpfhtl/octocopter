@@ -130,16 +130,16 @@ void BulletDebugDrawerGl::draw3dText(const btVector3& location,const char* textS
 }
 
 //0 for off, anything else for on.
-/*void BulletDebugDrawerGl::setDebugMode(int isOn)
+void BulletDebugDrawerGl::setDebugMode(int isOn)
 {
     mDebugOn = (isOn == 0) ? false : true;
 
-    if (!mDebugOn)
-        mLineDrawer->clear();
+//    if (!mDebugOn)
+//        mLineDrawer->clear();
 }
 
 //0 for off, anything else for on.
 int BulletDebugDrawerGl::getDebugMode() const
 {
     return mDebugOn;
-}*/
+}

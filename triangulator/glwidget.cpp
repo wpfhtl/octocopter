@@ -87,7 +87,7 @@ void GlWidget::resizeGL(int w, int h)
 
 void GlWidget::moveCamera(const QVector3D &pos)
 {
-    qDebug() << "moveCamera to " << pos;
+//    qDebug() << "moveCamera to " << pos;
     camPos = pos;
 
     glMatrixMode(GL_PROJECTION);
@@ -171,20 +171,20 @@ void GlWidget::paintGL()
 
     drawAxes(10, 10, 10, 1.0, 1.0, 0.0);
     // Draw base plate
-//        glDisable(GL_LIGHTING);
+        glDisable(GL_LIGHTING);
     glBlendFunc(GL_SRC_ALPHA,GL_ONE);
-    glColor4f(1.0f, 1.0f, 1.0f, 0.2f);
+    glColor4f(1.0f, 1.0f, 1.0f, 0.1f);
     glBegin(GL_QUADS);
     glVertex3f(1000, 0, -1000);
     glVertex3f(1000, 0, 1000);
     glVertex3f(-1000, 0, 1000);
     glVertex3f(-1000, 0, -1000);
     glEnd();
-//    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHTING);
 
 
 //    mOctree->drawGl();
-    glLineWidth(1);
+    glPointSize(1);
     glColor4f(1.0f, 1.0f, 0.0f, 1.0f);
     glBegin(GL_POINTS);
     mOctree->handlePoints();
@@ -262,7 +262,7 @@ void GlWidget::mouseMoveEvent(QMouseEvent *event)
     rotY = fmod(rotY, 360.0);
     rotZ = fmod(rotZ, 360.0);
 
-    qDebug() << rotX << rotY << rotZ;
+//    qDebug() << rotX << rotY << rotZ;
 }
 
 void GlWidget::wheelEvent(QWheelEvent *event)
@@ -271,7 +271,7 @@ void GlWidget::wheelEvent(QWheelEvent *event)
     double numSteps = numDegrees/30.0;
     double factor = event->delta()/93.0;
 //    mZoomFactor *= factor;
-    qDebug() << factor << mZoomFactor;
+//    qDebug() << factor << mZoomFactor;
 
     factor>0? mZoomFactor += 0.05 : mZoomFactor -= 0.05;
 
@@ -299,10 +299,11 @@ void GlWidget::timerEvent ( QTimerEvent * event )
         t += 0.25; updateGL();
     }
 }
-
+/*
 void GlWidget::drawPoint(const QVector3D &point)
 {
 //    glPointSize(1.0);
 
     glVertex3f(point.x(), point.y(), point.z());
 }
+*/

@@ -29,10 +29,10 @@ public:
     void drawBox(const btVector3 &min, const btVector3 &max, const btVector3 &color);
 
     //0 for off, anything else for on.
-//    void setDebugMode(int isOn);
+    void setDebugMode(int isOn);
 
     //0 for off, anything else for on.
-//    int getDebugMode() const;
+    int getDebugMode() const;
 };
 
 #endif // BULLETDEBUGDRAWERGL_H

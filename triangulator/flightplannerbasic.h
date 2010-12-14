@@ -32,6 +32,7 @@ signals:
 
 private slots:
     void slotPointInserted(const LidarPoint*);
+    void slotGenerateWaypoints();
 
 public slots:
     void slotWayPointReached(const QVector3D);

@@ -52,7 +52,7 @@ public:
     void moveCamera(const QVector3D &pos);
 
     // Being called by the octree (as a callback) to visualize contents
-    static void drawPoint(const QVector3D &point);
+//    static void drawPoint(const QVector3D &point);
 
 protected:
     void initializeGL();

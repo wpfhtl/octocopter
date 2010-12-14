@@ -51,10 +51,16 @@ private slots:
     void slotWayPointUp();
     void slotWayPointDown();
 
+    void slotSetScanVolume();
+
 signals:
     void timeFactorChanged(double);
     void simulationStart();
     void simulationPause();
+
+    void setScanVolume(QVector3D, QVector3D);
+
+    void generateWaypoints();
 
     void wayPointInsert(QString, int index, QVector3D);
     void wayPointDelete(QString, int index);

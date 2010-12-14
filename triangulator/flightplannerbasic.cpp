@@ -50,3 +50,8 @@ void FlightPlannerBasic::visualize() const
 {
     if(mOctree) mOctree->handlePoints();
 }
+
+void FlightPlannerBasic::slotGenerateWaypoints()
+{
+    // this is useless, waypoints are generated above.
+}

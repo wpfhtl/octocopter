@@ -1,6 +1,7 @@
 #include "triangulator.h"
 
 #include "flightplannerbasic.h"
+#include "flightplannerphysics.h"
 
 Triangulator::Triangulator() : QMainWindow()
 
@@ -12,7 +13,7 @@ Triangulator::Triangulator() : QMainWindow()
             1000);
 
     mOctree->setMinimumPointDistance(0.1);
-    mOctree->setPointHandler(GlWidget::drawPoint);
+    mOctree->setPointHandler(OpenGlUtilities::drawPoint);
 
     mIncomingDataBuffer.clear();
 
@@ -31,13 +32,19 @@ Triangulator::Triangulator() : QMainWindow()
     addDockWidget(Qt::BottomDockWidgetArea, mLogWidget);
     menuBar()->addAction("Save Log", mLogWidget, SLOT(save()));
 
-    mFlightPlanner = new FlightPlannerBasic(new QVector3D, new QQuaternion, mOctree);
+    mFlightPlanner = new FlightPlannerPhysics(new QVector3D, new QQuaternion, mOctree);
+    mFlightPlanner->slotSetScanVolume(QVector3D(80, 30, 20), QVector3D(280, 150, 220));
     connect(mFlightPlanner, SIGNAL(newWayPoint(const QVector3D)), mControlWidget, SLOT(slotNewWayPoint(const QVector3D)));
+    connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
+    connect(mControlWidget, SIGNAL(generateWaypoints()), mFlightPlanner, SLOT(slotGenerateWaypoints()));
 
     menuBar()->addAction("Save Cloud", this, SLOT(slotExportCloud()));
 
     mGlWidget = new GlWidget(this, mOctree, mFlightPlanner);
+    connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(update()));
     setCentralWidget(mGlWidget);
+
+    connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWidget, SLOT(updateGL()));
 
     mTimerUpdateStatus = new QTimer();
     mTimerUpdateStatus->setInterval(500);

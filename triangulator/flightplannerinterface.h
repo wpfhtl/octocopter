@@ -22,14 +22,16 @@ public:
     // Issues opengl-commands to visualize the flightplanning
     virtual void visualize() const = 0;
 
-    void setScanVolume(const QVector3D min, const QVector3D max);
 
 public slots:
+    void slotSetScanVolume(const QVector3D min, const QVector3D max);
     virtual void slotWayPointReached(const QVector3D) = 0;
+    virtual void slotGenerateWaypoints() = 0;
 
 signals:
     void newWayPoint(const QVector3D);
     void clearWayPoints();
+    void suggestVisualization();
 };
 
 #endif // FLIGHTPLANNERINTERFACE_H

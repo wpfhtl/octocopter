@@ -400,7 +400,7 @@ void OgreWidget::paintEvent(QPaintEvent *e)
     }
 
     ogreRoot->_fireFrameStarted();
-    qDebug() << "now rendering";
+//    qDebug() << "now rendering";
 
     // Construct all laserscanner rays before rendering
     QList<LaserScanner*> *laserScanners = mSimulator->mLaserScanners;
@@ -1086,7 +1086,7 @@ Ogre::SceneNode* OgreWidget::createVehicleNode(const Ogre::String name, const Og
     mSceneManager->getRootSceneNode()->removeChild(mCameraNode);
     mVehicleNode->addChild(mCameraNode);
 //    mCameraNode->translate(Ogre::Vector3(0, 0, 5));
-    mCameraNode->setPosition(/*mVehicleNode->_getDerivedPosition() +*/ Ogre::Vector3(0, 1.5, 5));
+    mCameraNode->setPosition(/*mVehicleNode->_getDerivedPosition() +*/ Ogre::Vector3(0, 5, 15));
     mCamera->lookAt(mVehicleNode->_getDerivedPosition());
     qDebug() << "OgreWidget::createVehicleNode(): vehicle is at" << mVehicleNode->_getDerivedPosition().x << mVehicleNode->_getDerivedPosition().y << mVehicleNode->_getDerivedPosition().z;
     qDebug() << "OgreWidget::createVehicleNode(): camera  is at" << mCameraNode->_getDerivedPosition().x << mCameraNode->_getDerivedPosition().y << mCameraNode->_getDerivedPosition().z;

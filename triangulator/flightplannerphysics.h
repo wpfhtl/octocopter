@@ -2,12 +2,15 @@
 #define FLIGHTPLANNERPHYSICS_H
 
 #include "flightplannerinterface.h"
-#include "physicssphere.h"
+//#include "physicssphere.h"
 #include "node.h"
 #include "lidarpoint.h"
 #include "openglutilities.h"
 
+#include "bulletdebugdrawergl.h"
+
 #include <btBulletDynamicsCommon.h>
+#include <btGhostObject.h>
 
 class FlightPlannerPhysics : public FlightPlannerInterface
 {
@@ -23,13 +26,28 @@ public:
 private:
     Octree* mOctree;
 
+    BulletDebugDrawerGl* mDbgDrawer;
+
+    // testing
+//    btTransform mDeletionTriggerTransform;
+
     btTransform mLidarPointTransform;
-    btCollisionShape *mShapeLidarPoint, *mShapeFloor;
+    btCollisionShape *mLidarPointShape;
+
+    btCollisionShape *mDeletionTriggerShape;
+    btGhostObject *mDeletionTriggerGhostObject;
+
+    btCompoundShape *mLidarFloorShape;
+    btGhostObject *mLidarFloorGhostObject;
+
     btSphereShape *mShapeSampleSphere;
+    QList<btRigidBody*> mSampleSpheres;
 
-    btGhostObject *mFloorGhostObject;
+    // In this QMap, we associate SampleSphere* -> QVector3D_Last_LidarPoint_Hit
+    QMap<btRigidBody*, QVector3D> mLastSampleSphereHitPositions;
 
-    QList<PhysicsSphere*> mDroppingSpheres;
+    // This list contains waypoints. They are never deleted, only added.
+    QList<btRigidBody*> mWayPoints;
 
 //    btAxisSweep3 *mBtBroadphase;
     btDbvtBroadphase *mBtBroadphase;
@@ -39,13 +57,17 @@ private:
     btSequentialImpulseConstraintSolver *mBtSolver;
     btDiscreteDynamicsWorld *mBtWorld;
 
-    QVector<QVector3D> getNextRoute();
+    QList<btRigidBody*> mSampleSphereList;
 
 signals:
     void newWayPoint(const QVector3D);
 
 private slots:
     void slotPointInserted(const LidarPoint*);
+    void slotGenerateWaypoints();
+
+public slots:
+    void slotWayPointReached(const QVector3D);
 
 };
 

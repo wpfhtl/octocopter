@@ -14,7 +14,8 @@ logwidget
 flightplannerinterface
 flightplannerbasic
 flightplannerphysics
-physicssphere
+#physicssphere
+#contactsensorcallback
 camerawindow
 controlwidget
 bulletdebugdrawergl
@@ -34,7 +35,8 @@ logwidget.h
 flightplannerinterface.h
 flightplannerbasic.h
 flightplannerphysics.h
-physicssphere.h
+#physicssphere.h
+#contactsensorcallback.h
 camerawindow.h
 controlwidget.h
 bulletdebugdrawergl.h
@@ -57,6 +59,7 @@ SET(RESOURCE_FILES
 
 SET(OGRE_LIBRARIES OgreMain)
 SET(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath BulletSoftBody)
+SET(BULLET_INCLUDES /usr/include/ /usr/include/BulletCollision/CollisionDispatch)
 
 #"Sources" and "Headers" are the group names in Visual Studio.
 SOURCE_GROUP("Sources" FILES ${SRC_FILES})
@@ -78,7 +81,7 @@ QT4_ADD_RESOURCES(RESOURCE_SRCS ${RESOURCE_FILES})
 SET(CMAKE_DEBUG_POSTFIX "_d")
 SET(CMAKE_BUILD_TYPE "Debug")
 
-INCLUDE_DIRECTORIES(/usr/include ${OGRE_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
+INCLUDE_DIRECTORIES(/usr/include ${BULLET_INCLUDES} ${OGRE_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 ADD_EXECUTABLE(triangulator ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
 TARGET_LINK_LIBRARIES(triangulator ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${BULLET_LIBRARIES} GLEW)
 

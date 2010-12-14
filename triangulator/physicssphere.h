@@ -2,6 +2,7 @@
 #define PHYSICSSPHERE_H
 
 #include <QObject>
+#include <QVector3D>
 #include <btBulletDynamicsCommon.h>
 
 // A single collision shape can be shared among multiple collision objects.
@@ -12,11 +13,12 @@ class PhysicsSphere : public QObject
 
     btDiscreteDynamicsWorld* mBtWorld;
     btRigidBody mRigidBody;
-    btMotionState mMotionState;
+    btDefaultMotionState mMotionState;
 
 
 public:
     PhysicsSphere(btDiscreteDynamicsWorld* world, QObject *parent = 0);
+    QVector3D getPosition(void) const;
 
 signals:
 

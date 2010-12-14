@@ -20,6 +20,10 @@ ControlWidget::ControlWidget(Triangulator* triangulator) : QDockWidget((QWidget*
 
     connect(mWayPointTable, SIGNAL(cellChanged(int,int)), SLOT(slotWayPointChange(int,int)));
 
+    connect(mBtnGenerateWaypoints, SIGNAL(clicked()), SIGNAL(generateWaypoints()));
+
+    connect(mBtnSetScanVolume, SIGNAL(clicked()), SLOT(slotSetScanVolume()));
+
     mTriangulator = triangulator;
 //    mCoordinateConverter = mSimulator->mCoordinateConverter;
 //    mBattery = mSimulator->mBattery;
@@ -183,6 +187,8 @@ void ControlWidget::slotNewWayPoint(const QVector3D point)
     mWayPointTable->setItem(mWayPointTable->rowCount()-1, 1, new QTableWidgetItem(QString::number(point.y())));
     mWayPointTable->setItem(mWayPointTable->rowCount()-1, 2, new QTableWidgetItem(QString::number(point.z())));
     mWayPointTable->blockSignals(false);
+
+    mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
 }
 
 void ControlWidget::slotUpdateBattery(const int chargeStateInPercent)
@@ -248,8 +254,17 @@ void ControlWidget::slotUpdateWayPoints(QList<QVector3D> waypoints)
 
     initWayPointTable();
     mWayPointTable->blockSignals(false);
+
+    mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
 }
 
+void ControlWidget::slotSetScanVolume()
+{
+    emit setScanVolume(
+                QVector3D(mSpinBoxScanVolumeMinX->value(), mSpinBoxScanVolumeMinY->value(), mSpinBoxScanVolumeMinZ->value()),
+                QVector3D(mSpinBoxScanVolumeMaxX->value(), mSpinBoxScanVolumeMaxY->value(), mSpinBoxScanVolumeMaxZ->value())
+                );
+}
 
 const QVector3D ControlWidget::getNextWayPoint() const
 {

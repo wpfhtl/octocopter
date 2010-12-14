@@ -411,7 +411,7 @@ void Vehicle::slotUpdatePhysics(void)
     const btScalar deltaS = std::max(0.0f, (simulationTime - mTimeOfLastUpdate) / 1000.0f); // elapsed time since last call in seconds
     const int maxSubSteps = 20;
     const btScalar fixedTimeStep = 1.0 / 60.0;
-    qDebug() << "Vehicle::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
+//    qDebug() << "Vehicle::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
 
     mVehicleBody->applyDamping(deltaS);
 

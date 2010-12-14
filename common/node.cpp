@@ -184,7 +184,7 @@ Node* Node::insertPoint(LidarPoint* const lidarPoint) // a const pointer to a no
             if(data.size() > mTree->mMaxItemsPerLeaf)
             {
                 // create childnodes
-                qDebug() << "more than mMaxItemsPerLeaf in node, partitioning...";
+//                qDebug() << "more than mMaxItemsPerLeaf in node, partitioning...";
                 partition();
 
                 // take every point we curently host...

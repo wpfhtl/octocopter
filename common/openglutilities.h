@@ -8,8 +8,10 @@
 class OpenGlUtilities
 {
 public:
-    inline static void drawSphere(const QVector3D &point, const float radius = 5.0, const int subdivisions = 10, const QColor color = QColor(255,0,0));
-    inline static void drawSphere(const QVector3D &point);
+    static void drawSphere(const QVector3D &point, const float radius = 5.0, const int subdivisions = 10, const QColor color = QColor(255,0,0));
+    static void drawSphere(const QVector3D &point);
+    static void drawPoint(const QVector3D &point);
+    static void drawAabb(const QVector3D &min, const QVector3D &max, const QVector3D &color);
 };
 
 #endif // OPENGLUTILITIES_H
