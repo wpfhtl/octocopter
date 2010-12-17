@@ -87,19 +87,19 @@ void FlightController::getEngineSpeeds(int &f, int &b, int &l, int &r)
         {
             if(mMotionState->getPosition().x > nextWayPoint.x())
             {
-                desiredRoll = fmin((mMotionState->getPosition().x - nextWayPoint.x())*2, 35.0);
+                desiredRoll = fmin((mMotionState->getPosition().x - nextWayPoint.x())*3, 45.0);
             }
             else
             {
-                desiredRoll = -fmin((nextWayPoint.x() - mMotionState->getPosition().x)*2, 35.0);
+                desiredRoll = -fmin((nextWayPoint.x() - mMotionState->getPosition().x)*3, 45.0);
             }
             if(mMotionState->getPosition().z > nextWayPoint.z())
             {
-                desiredPitch = -fmin((mMotionState->getPosition().z - nextWayPoint.z())*2, 35.0);
+                desiredPitch = -fmin((mMotionState->getPosition().z - nextWayPoint.z())*3, 45.0);
             }
             else
             {
-                desiredPitch = fmin((nextWayPoint.z() - mMotionState->getPosition().z)*2, 35.0);
+                desiredPitch = fmin((nextWayPoint.z() - mMotionState->getPosition().z)*3, 45.0);
             }
         }
 
@@ -202,7 +202,7 @@ void FlightController::getEngineSpeeds(int &f, int &b, int &l, int &r)
 */
         // See whether we're close at th waypoint and moving slowly
         if(
-                getPosition().distanceToLine(nextWayPoint, QVector3D()) < 1.5 // half-close to wp
+                getPosition().distanceToLine(nextWayPoint, QVector3D()) < 2.0 // half-close to wp
                 &&
                 // slow, if no further wps present, so we can go land and switch to idle
                 (

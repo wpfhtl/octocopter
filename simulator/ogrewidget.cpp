@@ -1087,6 +1087,7 @@ Ogre::SceneNode* OgreWidget::createVehicleNode(const Ogre::String name, const Og
     mVehicleNode->addChild(mCameraNode);
 //    mCameraNode->translate(Ogre::Vector3(0, 0, 5));
     mCameraNode->setPosition(/*mVehicleNode->_getDerivedPosition() +*/ Ogre::Vector3(0, 5, 15));
+    mCameraNode->setInheritOrientation(false);
     mCamera->lookAt(mVehicleNode->_getDerivedPosition());
     qDebug() << "OgreWidget::createVehicleNode(): vehicle is at" << mVehicleNode->_getDerivedPosition().x << mVehicleNode->_getDerivedPosition().y << mVehicleNode->_getDerivedPosition().z;
     qDebug() << "OgreWidget::createVehicleNode(): camera  is at" << mCameraNode->_getDerivedPosition().x << mCameraNode->_getDerivedPosition().y << mCameraNode->_getDerivedPosition().z;
