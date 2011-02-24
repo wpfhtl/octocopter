@@ -10,7 +10,7 @@
 #include "bulletdebugdrawergl.h"
 
 #include <btBulletDynamicsCommon.h>
-#include <btGhostObject.h>
+#include <BulletCollision/CollisionDispatch/btGhostObject.h>
 
 class FlightPlannerPhysics : public FlightPlannerInterface
 {

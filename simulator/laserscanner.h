@@ -11,7 +11,7 @@
 #include "coordinateconverter.h"
 
 #include "profiler.h"
-#include <valgrind/callgrind.h>
+//#include <valgrind/callgrind.h>
 
 class Simulator;
 class OgreWidget;

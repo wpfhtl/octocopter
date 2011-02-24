@@ -4,7 +4,7 @@
 CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
 PROJECT(simulator)
 
-SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} /usr/lib64/OGRE/cmake/)
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} /usr/lib64/OGRE/cmake/ /usr/local/lib/OGRE/cmake/)
 
 SET(SRC_FILES
 main
@@ -55,7 +55,10 @@ statuswidget.ui
 SET(RESOURCE_FILES
 )
 
-SET(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath BulletSoftBody)
+# use this if bullet is also compiled with double precision
+ADD_DEFINITIONS(-DBT_USE_DOUBLE_PRECISION)
+SET(BULLET_LIBRARIES BulletDynamics BulletSoftBody BulletCollision LinearMath)
+SET(BULLET_INCLUDE_DIRS /usr/local/include/bullet/)
 
 #"Sources" and "Headers" are the group names in Visual Studio.
 SOURCE_GROUP("Sources" FILES ${SRC_FILES})
@@ -78,9 +81,10 @@ SET(CMAKE_DEBUG_POSTFIX "_d")
 SET(CMAKE_BUILD_TYPE "Debug")
 
 #/usr/local/include/bullet
-INCLUDE_DIRECTORIES(/usr/include /usr/include/qwt5/ ${OGRE_INCLUDE_DIR} ${OGRE_Terrain_INCLUDE_DIRS} ${OGRE_Paging_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
+INCLUDE_DIRECTORIES(/usr/include ${BULLET_INCLUDE_DIRS}  ${OGRE_INCLUDE_DIR} ${OGRE_Terrain_INCLUDE_DIRS} ${OGRE_Paging_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
+#LINK_DIRECTORIES(/informatik/isr/tams/software/ogre64/lib64/)
 ADD_EXECUTABLE(simulator ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-TARGET_LINK_LIBRARIES(simulator ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${OGRE_Terrain_LIBRARY_NAMES} ${OGRE_RTShaderSystem_LIBRARY_NAMES} ${BULLET_LIBRARIES} qwt)
+TARGET_LINK_LIBRARIES(simulator ${BULLET_LIBRARIES} ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${OGRE_Terrain_LIBRARY_NAMES} ${OGRE_RTShaderSystem_LIBRARY_NAMES} ${OGRE_Paging_LIBRARIES})
 
 ADD_CUSTOM_TARGET(copymedia ALL COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/media ${CMAKE_CURRENT_BINARY_DIR}/media COMMENT "Copying media files to build directory" VERBATIM)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/plugins.cfg.in ${CMAKE_CURRENT_BINARY_DIR}/plugins.cfg)

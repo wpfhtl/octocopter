@@ -59,7 +59,7 @@ SET(RESOURCE_FILES
 
 SET(OGRE_LIBRARIES OgreMain)
 SET(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath BulletSoftBody)
-SET(BULLET_INCLUDES /usr/include/ /usr/include/BulletCollision/CollisionDispatch)
+SET(BULLET_INCLUDES /usr/include/ /usr/include/BulletCollision/CollisionDispatch /usr/local/include/bullet/)
 
 #"Sources" and "Headers" are the group names in Visual Studio.
 SOURCE_GROUP("Sources" FILES ${SRC_FILES})
@@ -80,10 +80,12 @@ QT4_ADD_RESOURCES(RESOURCE_SRCS ${RESOURCE_FILES})
 
 SET(CMAKE_DEBUG_POSTFIX "_d")
 SET(CMAKE_BUILD_TYPE "Debug")
+# use this if bullet is also compiled with double precision
+ADD_DEFINITIONS(-DBT_USE_DOUBLE_PRECISION)
 
 INCLUDE_DIRECTORIES(/usr/include ${BULLET_INCLUDES} ${OGRE_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 ADD_EXECUTABLE(triangulator ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-TARGET_LINK_LIBRARIES(triangulator ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${BULLET_LIBRARIES} GLEW)
+TARGET_LINK_LIBRARIES(triangulator ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${BULLET_LIBRARIES} GLU)
 
 #include_directories(/usr/include/OGRE/ /usr/include/bullet /usr/include ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 LINK_DIRECTORIES(/usr/lib/)
