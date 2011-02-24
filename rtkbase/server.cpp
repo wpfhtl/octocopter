@@ -39,6 +39,7 @@ void Server::slotSocketDisconnected()
 	if(socket->state() != QTcpSocket::ConnectedState)
 	{
 	    qDebug() << "Server::slotSocketDisconnected(): client disconnected:" << socket->peerAddress();
+	    mTcpSockets.removeOne(socket);
 	    socket->deleteLater();
 	}
     }

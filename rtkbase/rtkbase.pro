@@ -17,13 +17,12 @@ win32:DEFINES  = _TTY_WIN_
 HEADERS +=  server.h \
 	    rtkbase.h \
 	    qextserialport/src/qextserialport.h \
-	    qextserialport/src/posix_qextserialport.h \
-    gpsdevice.h
+	    gpsdevice.h
 #	    qextserialport/src/qextserialbase.h
 
 SOURCES +=  server.cpp \
 	    rtkbase.cpp \
 	    qextserialport/src/qextserialport.cpp \
 	    qextserialport/src/posix_qextserialport.cpp \
-    gpsdevice.cpp
+	    gpsdevice.cpp
 #	    qextserialport/src/qextserialbase.cpp
