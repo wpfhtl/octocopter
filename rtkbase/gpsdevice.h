@@ -2,7 +2,7 @@
 #define GPSDEVICE_H
 
 #include <QCoreApplication>
-#include <QObject>
+#include <QFile>
 #include <QDebug>
 
 #include "qextserialport/src/qextserialport.h"

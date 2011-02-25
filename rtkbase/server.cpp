@@ -19,7 +19,16 @@ Server::Server(QObject *parent, uint port) :
 
 Server::~Server()
 {
-	mServer->close();
+    qDebug() << "Server::~Server()";
+    mServer->close();
+
+    foreach(QTcpSocket* socket, mTcpSockets)
+    {
+	socket->close();
+	socket->deleteLater();
+    }
+
+    mServer->deleteLater();
 }
 
 void Server::slotNewConnection()
@@ -51,43 +60,6 @@ void Server::slotIncomingPacket()
 	{
 	    if(socket->bytesAvailable()) qDebug() << "Server::slotIncomingPacket(): ignoring client" << socket->peerAddress()<< "message:" << socket->readAll();
 	}
-
-/*
-	QDataStream in(mTcpSocket);
-	in.setVersion(QDataStream::Qt_4_0);
-
-	QString numberOfBytesAvailable = QString::number(mTcpSocket->bytesAvailable());
-
-	// Set the blocksize of the incoming packet
-	if(packetLength == 0)
-	{
-		//printf("bytes of incoming packet available: %d.\n", (int)tcpSocket->bytesAvailable());
-
-		if (mTcpSocket->bytesAvailable() < (int)sizeof(quint16))
-			return;
-
-		in >> packetLength;
-		//printf("wrote packetLength: %d.\n", packetLength);
-	}
-
-	if(mTcpSocket->bytesAvailable() < packetLength)
-	{
-		printf("packetLength is %d, but only %s bytes available. returning.\n", packetLength, qPrintable(numberOfBytesAvailable));
-		return;
-	}
-
-	// reset packetLength for the next incoming packet
-	packetLength = 0;
-
-//	QList<QPointF> startAndEnd;
-//	in >> startAndEnd;
-
-//	handleRequest(startAndEnd);
-
-	mTcpSocket->close();
-
-	startTcpServer();
-	*/
 }
 
 void Server::slotSendCorrectionData(QByteArray data)
@@ -103,8 +75,4 @@ void Server::slotSendCorrectionData(QByteArray data)
 	socket->write(data);
     }
 
-}
-
-void Server::close()
-{
 }

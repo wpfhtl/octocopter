@@ -37,8 +37,6 @@ class Server : public QObject
 	public:
 		Server(QObject *parent, uint port);
 		~Server(void);
-
-		void close();
 };
 
 #endif

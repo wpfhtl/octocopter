@@ -101,8 +101,25 @@ void GpsDevice::rtkOutputInitialize()
     // Have a look at the Septentrio Firmware User Manual.pdf. These commands
     // are necessary to set the device into RTK-Base-Mode
 
-    qDebug() << "GpsDevice::rtkOutputInitialize(): sending rtk output init commands";
+    qDebug() << "GpsDevice::rtkOutputInitialize(): sending rtk output init commands from rtk-init.txt";
 
+    QFile file("rtk-init.txt");
+    if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+	qDebug() << "GpsDevice::rtkOutputInitialize(): couldn't read rtk-init.txt to initialize gps device";
+	QCoreApplication::quit();
+    }
+
+    while(!file.atEnd())
+    {
+	QByteArray line = file.readLine();
+	line.replace("$PORT", mSerialPortOnDevice.toAscii());
+	sendAsciiCommand(line.trimmed());
+    }
+
+    qDebug() << "GpsDevice::rtkOutputInitialize(): done sending rtk-init.txt";
+
+/* old, we read the commands from a file now
     sendAsciiCommand("setPVTMode,Static,,auto");
     sendAsciiCommand("setRAIMLevels,on,-2,-2,-3");
     sendAsciiCommand("setAntennaOffset,Main,,,,\"antennadescriptor\", \"12345\""); // for RTCMv3
@@ -116,22 +133,60 @@ void GpsDevice::rtkOutputInitialize()
     sendAsciiCommand("setClockSyncThreshold,usec500");
 //    sendAsciiCommand("setRTCMv2Output," + mSerialPortOnDevice + ",RTCM1+RTCM3+RTCM9+RTCM16+RTCM18+RTCM19+RTCM20+RTCM21+RTCM22+RTCM31+RTCM32"); anythign above 16 seems broken
     sendAsciiCommand("setRTCMv2Output," + mSerialPortOnDevice + ",RTCM1+RTCM3+RTCM9+RTCM16");
+*/
 
-    qDebug() << "GpsDevice::rtkOutputInitialize(): initializing rtk output done.";
 }
 
 void GpsDevice::rtkOutputStart()
 {
-    sendAsciiCommand("setDataInOut," + mSerialPortOnDevice + ",,RTCMv2");
+    qDebug() << "GpsDevice::rtkOutputInitialize(): sending rtk output init commands from rtk-start.txt";
+
+    QFile file("rtk-start.txt");
+    if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+	qDebug() << "GpsDevice::rtkOutputInitialize(): couldn't read rtk-start.txt to start rtk output";
+	QCoreApplication::quit();
+    }
+
+    while(!file.atEnd())
+    {
+	QByteArray line = file.readLine();
+	line.replace("$PORT", mSerialPortOnDevice.toAscii());
+	sendAsciiCommand(line.trimmed());
+    }
+
+    qDebug() << "GpsDevice::rtkOutputInitialize(): done sending rtk-start.txt";
+
+//    sendAsciiCommand("setDataInOut," + mSerialPortOnDevice + ",,RTCMv2");
 }
 
 void GpsDevice::rtkOutputStop()
 {
     usleep(100000);
-    mSerialPort->write("SSSSSSSSSS");
+//    mSerialPort->write("SSSSSSSSSS");
     QCoreApplication::processEvents();
-    sleep(11);
-    sendAsciiCommand("setDataInOut,all,CMD,none");
+//    sleep(11);
+
+    qDebug() << "GpsDevice::rtkOutputInitialize(): sending rtk output init commands from rtk-stop.txt";
+
+    QFile file("rtk-stop.txt");
+    if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+	qDebug() << "GpsDevice::rtkOutputInitialize(): couldn't read rtk-stop.txt to stop rtk output";
+	QCoreApplication::quit();
+    }
+
+    while(!file.atEnd())
+    {
+	QByteArray line = file.readLine();
+	line.replace("$PORT", mSerialPortOnDevice.toAscii());
+	sendAsciiCommand(line.trimmed());
+    }
+
+    qDebug() << "GpsDevice::rtkOutputInitialize(): done sending rtk-stop.txt";
+
+
+//    sendAsciiCommand("setDataInOut,all,CMD,none");
 }
 
 void GpsDevice::slotSerialPortDataReady()
@@ -159,7 +214,7 @@ void GpsDevice::slotSerialPortDataReady()
     else
     {
 	// We're not waiting for a reply to a command, this must be correction data!
-	qDebug() << "correction data:" << mReceiveBuffer;
+	qDebug() << "GpsDevice::slotSerialPortDataReady(): emitting" << mReceiveBuffer.size() << "bytes of correction data.";
 	emit correctionDataReady(mReceiveBuffer);
 	mReceiveBuffer.clear();
     }

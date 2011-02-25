@@ -1,0 +1,8 @@
+setPVTMode,Static,,auto
+setRAIMLevels,on,-2,-2,-3
+setAntennaOffset,Main,,,,"antennadescriptor", "12345"
+setSmoothingInterval,all,900
+setClockSyncThreshold,usec500
+setRTCMv3Interval,all,1
+setRTCMv3Formatting,0
+setRTCMv3Output,$PORT,all

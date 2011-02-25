@@ -1,0 +1,1 @@
+setDataInOut,$PORT,,RTCMv2

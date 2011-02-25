@@ -1,6 +1,9 @@
 #ifndef RTKBASE_H
 #define RTKBASE_H
 
+#include <sys/socket.h>
+#include <signal.h>
+
 #include <QCoreApplication>
 #include <QList>
 #include <QTimer>
@@ -23,9 +26,20 @@ class RtkBase : public QCoreApplication
 	RtkBase(int argc, char **argv);
 	~RtkBase(void);
 
+	// Unix signal handler
+	static void signalHandler(int unused);
+
+    public slots:
+	void slotHandleSignal();
+
     private:
+	// We use this pipe for all signals.
+	static int signalFd[2];
 	Server *mServer;
 	GpsDevice *mGpsDevice;
+
+
+	QSocketNotifier *snSignalPipe;
 };
 
 #endif
