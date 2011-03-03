@@ -27,8 +27,6 @@ void OpenGlUtilities::drawPoint(const QVector3D &pos)
 //    glEnd();
 }
 
-
-
 void OpenGlUtilities::drawAabb(const QVector3D &min, const QVector3D &max, const QVector3D &color)
 {
     glLineWidth(1);

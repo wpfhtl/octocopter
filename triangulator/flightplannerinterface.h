@@ -10,6 +10,10 @@ class FlightPlannerInterface : public QObject
     Q_OBJECT
 protected:
     QVector3D mScanVolumeMin, mScanVolumeMax;
+    const QVector3D *mVehiclePosition;
+    const QQuaternion *mVehicleOrientation;
+
+    static void sortToShortestPath(QVector<QVector3D> &wayPoints, const QVector3D &currentVehiclePosition);
 
 public:
     FlightPlannerInterface(const QVector3D * const position, const QQuaternion * const orientation, Octree* pointCloud);
@@ -24,7 +28,7 @@ public:
 
 
 public slots:
-    void slotSetScanVolume(const QVector3D min, const QVector3D max);
+    virtual void slotSetScanVolume(const QVector3D min, const QVector3D max);
     virtual void slotWayPointReached(const QVector3D) = 0;
     virtual void slotGenerateWaypoints() = 0;
 

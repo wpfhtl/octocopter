@@ -4,6 +4,8 @@
 #include <btBulletDynamicsCommon.h>
 #include "openglutilities.h"
 
+#include <QDebug>
+
 class BulletDebugDrawerGl : public btIDebugDraw
 {
 protected:

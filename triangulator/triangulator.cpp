@@ -32,8 +32,8 @@ Triangulator::Triangulator() : QMainWindow()
     addDockWidget(Qt::BottomDockWidgetArea, mLogWidget);
     menuBar()->addAction("Save Log", mLogWidget, SLOT(save()));
 
-    mFlightPlanner = new FlightPlannerPhysics(new QVector3D, new QQuaternion, mOctree);
-    mFlightPlanner->slotSetScanVolume(QVector3D(80, 30, 20), QVector3D(280, 150, 220));
+    mFlightPlanner = new FlightPlannerPhysics(&mVehiclePosition, &mVehicleOrientation, mOctree);
+    mFlightPlanner->slotSetScanVolume(QVector3D(140, 60, 80), QVector3D(240, 120, 150));
     connect(mFlightPlanner, SIGNAL(newWayPoint(const QVector3D)), mControlWidget, SLOT(slotNewWayPoint(const QVector3D)));
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
     connect(mControlWidget, SIGNAL(generateWaypoints()), mFlightPlanner, SLOT(slotGenerateWaypoints()));
@@ -209,13 +209,12 @@ void Triangulator::processPacket(QByteArray data)
     else if(packetType == "status")
     {
         QVector3D linearVelocity;
-        QQuaternion rot;
 
-        stream >> mCurrentVehiclePosition;
-        stream >> rot;
+        stream >> mVehiclePosition;
+        stream >> mVehicleOrientation;
         stream >> linearVelocity;
 
-        mControlWidget->slotUpdatePose(mCurrentVehiclePosition, rot);
+        mControlWidget->slotUpdatePose(mVehiclePosition, mVehicleOrientation);
         mControlWidget->slotUpdateDynamics(linearVelocity);
     }
     else if(packetType == "waypoints")
@@ -317,7 +316,7 @@ void Triangulator::slotSocketError(QAbstractSocket::SocketError socketError)
 
 const QVector3D& Triangulator::getCurrentVehiclePosition(void) const
 {
-    return mCurrentVehiclePosition;
+    return mVehiclePosition;
 }
 
 const QVector3D Triangulator::getNextWayPoint(void) const

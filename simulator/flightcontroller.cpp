@@ -8,8 +8,15 @@ FlightController::FlightController(Simulator* simulator, Vehicle* vehicle, BtOgr
 
     mFlightState = Idle;
 
-//    mWayPoints.append(QVector3D(0, 0, 0));
-//    mWayPoints.append(QVector3D(160, 85, 115));
+    for(int i=0;i<4;i++) {
+        mFlightState = ApproachingNextWayPoint;
+        mWayPoints.append(QVector3D(140, 100, 80));
+        mWayPoints.append(QVector3D(240, 100, 80));
+        mWayPoints.append(QVector3D(140, 100, 160));
+        mWayPoints.append(QVector3D(240, 100, 160));
+    }
+
+
 
     // create joystick
     mJoystick = new Joystick();
@@ -254,7 +261,7 @@ void FlightController::wayPointReached()
     else
     {
         mWayPoints.append(getLandingWayPoint());
-        emit message("ManualControl disabled, now wayPoints, HeightAboveGround high, now landing.");
+        emit message("ManualControl disabled, no further wayPoints, HeightAboveGround high (" + QString::number(mVehicle->getHeightAboveGround()) + "m), now landing.");
     }
 
     emit wayPointReached(mWayPointsPassed.last());
@@ -367,7 +374,7 @@ QList<QVector3D> FlightController::getWayPoints()
 QVector3D FlightController::getLandingWayPoint() const
 {
     // naive implementation
-    return getPosition() - QVector3D(0.0, mVehicle->getHeightAboveGround(), 0.0);
+    return getPosition() - QVector3D(0.0, mVehicle->getHeightAboveGround() * 0.9 , 0.0);
 }
 
 void FlightController::slotJoystickButtonStateChanged(unsigned char button, bool pressed)

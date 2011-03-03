@@ -30,6 +30,7 @@ BulletDebugDrawerGl::~BulletDebugDrawerGl()
 
 void BulletDebugDrawerGl::drawLine(const btVector3& from,const btVector3& to,const btVector3& color)
 {
+    qDebug() << "BulletDebugDrawerGl::drawLine";
     glLineWidth(1);
     glColor4f(color.x(), color.y(), color.z(), 0.9);
 

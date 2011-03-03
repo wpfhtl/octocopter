@@ -59,7 +59,7 @@ SET(RESOURCE_FILES
 
 SET(OGRE_LIBRARIES OgreMain)
 SET(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath BulletSoftBody)
-SET(BULLET_INCLUDES /usr/include/ /usr/include/BulletCollision/CollisionDispatch /usr/local/include/bullet/)
+SET(BULLET_INCLUDES /usr/include/ /usr/include/BulletCollision/BroadphaseCollision/ /usr/include/BulletCollision/CollisionDispatch)
 
 #"Sources" and "Headers" are the group names in Visual Studio.
 SOURCE_GROUP("Sources" FILES ${SRC_FILES})

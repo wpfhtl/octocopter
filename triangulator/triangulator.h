@@ -28,7 +28,8 @@ class Triangulator : public QMainWindow
 
 private:
     QTcpSocket* mTcpSocket;
-    QVector3D mCurrentVehiclePosition;
+    QVector3D mVehiclePosition;
+    QQuaternion mVehicleOrientation;
 
     QByteArray mIncomingDataBuffer;
 

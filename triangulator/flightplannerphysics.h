@@ -11,6 +11,7 @@
 
 #include <btBulletDynamicsCommon.h>
 #include <BulletCollision/CollisionDispatch/btGhostObject.h>
+#include <btBroadphaseProxy.h>
 
 class FlightPlannerPhysics : public FlightPlannerInterface
 {
@@ -34,11 +35,12 @@ private:
     btTransform mLidarPointTransform;
     btCollisionShape *mLidarPointShape;
 
+    btTransform mDeletionTriggerTransform;
     btCollisionShape *mDeletionTriggerShape;
     btGhostObject *mDeletionTriggerGhostObject;
 
     btCompoundShape *mLidarFloorShape;
-    btGhostObject *mLidarFloorGhostObject;
+    btPairCachingGhostObject *mLidarFloorGhostObject;
 
     btSphereShape *mShapeSampleSphere;
     QList<btRigidBody*> mSampleSpheres;
@@ -68,6 +70,7 @@ private slots:
 
 public slots:
     void slotWayPointReached(const QVector3D);
+    void slotSetScanVolume(const QVector3D min, const QVector3D max);
 
 };
 
