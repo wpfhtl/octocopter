@@ -37,18 +37,46 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     snSignalPipe = new QSocketNotifier(signalFd[1], QSocketNotifier::Read, this);
     connect(snSignalPipe, SIGNAL(activated(int)), SLOT(slotHandleSignal()));
 
-    QString portSerial = "/dev/ttyUSB0";
+    QString portSerialKopter = "/dev/ttyUSB1";
+    QString portSerialGpsUsb = "/dev/ttyACM0";
+    QString portSerialGpsCom = "/dev/ttyUSB0";
+
+    QString rtkBaseHostName = "134.100.13.202";
+    int rtkBasePort = 1234;
 
         QStringList commandLine = arguments();
 
-        if(commandLine.lastIndexOf("-s") != -1 && commandLine.size() > commandLine.lastIndexOf("-s") + 1)
+        if(commandLine.lastIndexOf("-sk") != -1 && commandLine.size() > commandLine.lastIndexOf("-sk") + 1)
         {
-            portSerial = commandLine.at(commandLine.lastIndexOf("-s") + 1);
+            portSerialKopter = commandLine.at(commandLine.lastIndexOf("-sk") + 1);
         }
 
-        qDebug() << "using serial port" << portSerial;
+        if(commandLine.lastIndexOf("-sgu") != -1 && commandLine.size() > commandLine.lastIndexOf("-sgu") + 1)
+        {
+            portSerialGpsUsb = commandLine.at(commandLine.lastIndexOf("-sgu") + 1);
+        }
 
-        mKopter = new Kopter(portSerial, this);
+        if(commandLine.lastIndexOf("-sgc") != -1 && commandLine.size() > commandLine.lastIndexOf("-sgc") + 1)
+        {
+            portSerialGpsCom = commandLine.at(commandLine.lastIndexOf("-sgc") + 1);
+        }
+
+        if(commandLine.lastIndexOf("-rtkhostname") != -1 && commandLine.size() > commandLine.lastIndexOf("-rtkhostname") + 1)
+        {
+            rtkBaseHostName = commandLine.at(commandLine.lastIndexOf("-rtkhostname") + 1);
+        }
+
+        if(commandLine.lastIndexOf("-rtkhostport") != -1 && commandLine.size() > commandLine.lastIndexOf("-rtkhostport") + 1)
+        {
+            rtkBasePort = commandLine.at(commandLine.lastIndexOf("-rtkhostport") + 1).toInt();
+        }
+
+        qDebug() << "KopterControl::KopterControl(): using serial ports: kopter" << portSerialKopter << "gps com" << portSerialGpsCom << "gps usb" << portSerialGpsUsb;
+        qDebug() << "KopterControl::KopterControl(): using rtk base at" << rtkBaseHostName << rtkBasePort;
+
+        mKopter = new Kopter(portSerialKopter, this);
+        mGpsDevice = new GpsDevice(portSerialGpsUsb, portSerialGpsCom, this);
+        mRtkFetcher = new RtkFetcher(rtkBaseHostName, rtkBasePort, this);
 
         QTimer *ben = new QTimer(this);
         ben->setInterval(50);
@@ -67,7 +95,6 @@ KopterControl::~KopterControl()
     delete mKopter;
     delete snSignalPipe;
 }
-
 
 void KopterControl::slotDoSomething()
 {

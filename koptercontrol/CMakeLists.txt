@@ -10,17 +10,21 @@ SET(SRC_FILES
 koptercontrol
 koptermessage
 kopter
+rtkfetcher
 gpsdevice
 laserscanner
+qextserialport/src/qextserialport
+qextserialport/src/posix_qextserialport
 )
 
 SET(INC_FILES
 koptercontrol.h
 koptermessage.h
 kopter.h
+rtkfetcher.h
 gpsdevice.h
 laserscanner.h
-urg/usr/include/urg/UrgCtrl.h
+qextserialport/src/qextserialport.h
 )
 
 SET(RESOURCE_FILES
@@ -33,14 +37,14 @@ SET(URG_LIBRARIES
     urg_geometry
     #urg_monitor
     urg_system
-    urg)
+    urg
+)
 
 #"Sources" and "Headers" are the group names in Visual Studio.
 SOURCE_GROUP("Sources" FILES ${SRC_FILES})
 SOURCE_GROUP("Headers" FILES ${INC_FILES})
 
 FIND_PACKAGE(SDL REQUIRED)
-
 FIND_PACKAGE(Qt4 REQUIRED)
 SET(QT_USE_QTGUI 1)
 SET(QT_USE_QTXML 1)
@@ -59,8 +63,9 @@ INCLUDE_DIRECTORIES(
     urg/usr/include/urg/
     ${SDL_INCLUDE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/
+)
 
-LINK_DIRECTORIES(urg/usr/lib/)
+LINK_DIRECTORIES(/usr/local/lib/)
 ADD_EXECUTABLE(koptercontrol ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
 TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES})

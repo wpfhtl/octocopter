@@ -12,27 +12,32 @@ class GpsDevice : public QObject
     Q_OBJECT
 
 public:
-    GpsDevice(QString &serialDeviceFile, QObject *parent = 0);
+    GpsDevice(QString &serialDeviceUsb, QString &serialDeviceCom, QObject *parent = 0);
     ~GpsDevice();
 
 private:
-    int mNumberOfRemainingReplies;
-    QByteArray mLastCommandToDevice;
-    QextSerialPort *mSerialPort;
-    QString mSerialPortOnDevice;
-    QByteArray mReceiveBuffer;
-    QList<QByteArray> mCommandQueue;
+    int mNumberOfRemainingRepliesUsb;
+    QByteArray mLastCommandToDeviceUsb;
+    QextSerialPort *mSerialPortUsb, *mSerialPortCom;
 
-    void determineSerialPortOnDevice();
-    void rtkOutputInitialize();
-    void rtkOutputStart();
-    void rtkOutputStop();
+    // The ports we use to talk to the receiver have a name on the receiver-side, e.g. COM1 or USB2
+    QString mSerialPortOnDeviceUsb, mSerialPortOnDeviceCom;
+
+    QByteArray mReceiveBufferUsb;
+    QList<QByteArray> mCommandQueueUsb;
+
+    void determineSerialPortsOnDevice();
+    void communicationSetup();
+    void communicationStop();
 
     void sendAsciiCommand(QString command);
 
-public slots:
+private slots:
     void slotFlushCommandQueue();
     void slotSerialPortDataReady();
+
+public slots:
+    void slotSetRtkData(const QByteArray &data);
 
 signals:
     void correctionDataReady(QByteArray);
