@@ -12,6 +12,7 @@
 #include "kopter.h"
 #include "gpsdevice.h"
 #include "rtkfetcher.h"
+#include "laserscanner.h"
 
 class KopterControl : public QCoreApplication
 {
@@ -31,8 +32,9 @@ class KopterControl : public QCoreApplication
         // We use this pipe for all signals.
         static int signalFd[2];
         Kopter *mKopter;
-	GpsDevice *mGpsDevice;
-	RtkFetcher *mRtkFetcher;
+        GpsDevice *mGpsDevice;
+        RtkFetcher *mRtkFetcher;
+        LaserScanner *mLaserScanner;
 
         QSocketNotifier *snSignalPipe;
 

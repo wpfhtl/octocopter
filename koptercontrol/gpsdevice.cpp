@@ -5,6 +5,7 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
     qDebug() << "GpsDevice::GpsDevice(): Using usb port" << serialDeviceFileUsb << "and com port" << serialDeviceFileCom;
 
     mNumberOfRemainingRepliesUsb = 0;
+    mRtkDataCounter = 0;
     mSerialPortOnDeviceUsb = "";
 
     // We use the USB port to talk to the GPS receiver and receive poses
@@ -155,7 +156,7 @@ void GpsDevice::communicationSetup()
     // reset communications
     sendAsciiCommand("setDataInOut,all,CMD,none");
 
-    // make the receiver output SBF on our USB connection
+    // make the receiver output SBF blocks on our USB connection
     sendAsciiCommand("setDataInOut,"+mSerialPortOnDeviceUsb+",,+SBF");
 
     // make the receiver listen to RTK data on specified port
@@ -183,27 +184,40 @@ void GpsDevice::communicationSetup()
     sendAsciiCommand("setPVTMode,,,,loosely");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
-    sendAsciiCommand("setEventParameters,...");
+    sendAsciiCommand("setEventParameters,EventA,High2Low");
 
     // output IntPVCart, IntAttEuler, and Event-position. ExtSensorMeas is direct IMU measurements
     // We want to know the pose 25 times a second
-    sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVCart+IntAttEuler,msec40");
+    sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec40");
 
     // We want to know pose whenever a scan is finished.
-    sendAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",ExtEvent+IntPVCart+IntAttEuler,OnChange");
+    sendAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",ExtEvent+IntPVAAGeod,OnChange");
 
     qDebug() << "GpsDevice::setupCommunication(): done setting up communication";
 }
 
 void GpsDevice::communicationStop()
 {
+    // For some reason, resetting this port with the SDIO command below doesn't work.
+    // We need to get it to accept CMDs by sending 10 Ss to it.
+    mSerialPortCom->write("SSSSSSSSSS");
     usleep(100000);
-//    mSerialPort->write("SSSSSSSSSS");
     QCoreApplication::processEvents();
 
     qDebug() << "GpsDevice::communicationStop(): setting datainout to all,cmd,none";
 
-    sendAsciiCommand("setDataInOut,all,CMD,none");
+    mSerialPortUsb->write(QString("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",none\n").toAscii());
+    usleep(100000);
+    mSerialPortUsb->write(QString("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",none\n").toAscii());
+    usleep(100000);
+    mSerialPortUsb->write("setDataInOut,all,CMD,none\n");
+    usleep(100000);
+    mSerialPortUsb->write("setDataInOut,all,CMD,none\n");
+    usleep(100000);
+
+    slotFlushCommandQueue();
+
+    QCoreApplication::processEvents();
 }
 
 void GpsDevice::slotSerialPortDataReady()
@@ -230,17 +244,180 @@ void GpsDevice::slotSerialPortDataReady()
     }
     else
     {
-        // We're not waiting for a reply to a command, this must be correction data!
-        qDebug() << "GpsDevice::slotSerialPortDataReady(): emitting" << mReceiveBufferUsb.size() << "bytes of correction data.";
-        emit correctionDataReady(mReceiveBufferUsb);
-        mReceiveBufferUsb.clear();
+        // We're not waiting for a reply to a command, this must be SBF data!
+        qDebug() << "GpsDevice::slotSerialPortDataReady(): received" << mReceiveBufferUsb.size() << "bytes of SBF data.";
+        processSbfData();
     }
+
+}
+
+quint16 GpsDevice::getCrc(const void *buf, unsigned int length)
+{
+  quint32  i;
+  quint16  crc = 0;
+  const quint8  *buf8 = (quint8*)buf; /* Convert the type to access by byte. */
+
+  /* see for example the BINEX web site */
+  for (i=0; i < length; i++)
+  {
+    crc = (crc << 8) ^ CRC_16CCIT_LookUp[ (crc >> 8) ^ buf8[i] ];
+  }
+
+  return crc;
+}
+
+void GpsDevice::processSbfData()
+{
+    qDebug() << "GpsDevice::processSbfData():" << mReceiveBufferUsb.size() << "bytes present.";
+
+    while(mReceiveBufferUsb.size() > 8)
+    {
+        qDebug() << "GpsDevice::processSbfData(): more than 8 data bytes present, processing.";
+        const int indexOfSyncMarker = mReceiveBufferUsb.indexOf("$@");
+
+        if(indexOfSyncMarker != 0)
+        {
+            qWarning() << "GpsDevice::processSbfData(): WARNING: SBF Sync Marker $@ was not at byte 0!";
+            mReceiveBufferUsb.remove(0, indexOfSyncMarker);
+        }
+
+        const quint16 msgCrc = *(quint16*)(mReceiveBufferUsb.data() + 2);
+        const quint16 msgId = *(quint16*)(mReceiveBufferUsb.data() + 4);
+        const quint16 msgIdBlock = msgId & 0x1fff;
+        const quint16 msgIdRev = msgId >> 13;
+        const quint16 msgLength = *(quint16*)(mReceiveBufferUsb.data() + 6);
+
+        if(mReceiveBufferUsb.size() < msgLength)
+        {
+            qDebug() << "GpsDevice::processSbfData(): message incomplete, we only have" << mReceiveBufferUsb.size() << "of" << msgLength << "bytes";
+            return;
+        }
+
+        if(getCrc(mReceiveBufferUsb.data()+4, msgLength-4) != msgCrc)
+        {
+            qWarning() << "GpsDevice::processSbfData(): WARNING: CRC in msg" << msgCrc << "computed" << getCrc(mReceiveBufferUsb.data()+4, msgLength-4) << "msgIdBlock" << msgIdBlock;
+            continue;
+        }
+
+        // We've evaluated the header, delete it from the incoming buffer
+        mReceiveBufferUsb.remove(0, 8);
+
+        // Create a copy of the SBF Blocks body for further processing
+        QByteArray sbfMessageBody = mReceiveBufferUsb.left(msgLength-8);
+
+        // Remove the SBF block body from our incoming USB buffer, so it contains either nothing or the next SBF message
+        mReceiveBufferUsb.remove(0, msgLength-8);
+
+//        const quint32 timeInWeek = *(sbfMessageBody.data());
+//        const quint16 timeWeekNumber = *(sbfMessageBody.data()+4);
+//        printf("time in week: %8.8f\n\nv", ((float)timeInWeek)/1000.0);
+//        fflush(stdout);
+//        qDebug() << "GpsDevice::processSbfData(): gps time is" << timeInWeek/1000.0 << "seconds into week" << timeWeekNumber;
+
+        // Process the message if we're interested.
+        switch(msgIdBlock)
+        {
+        case 4006:
+        {
+            // PVTCartesian
+            if(msgIdRev != 2)
+            {
+                qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock;
+                break;
+            }
+            // process
+            qDebug() << "SBF: PVTCartesian";
+        }
+            break;
+        case 4043:
+        {
+            // BaseVectorCart
+            if(msgIdRev != 1)
+            {
+                qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock;
+                break;
+            }
+            // process
+            qDebug() << "SBF: BaseVectorCart";
+        }
+            break;
+        case 4045:
+        {
+            // IntPVAAGeod
+            if(msgIdRev != 1)
+            {
+                qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock;
+//                break;
+            }
+            // process
+            const Sbf_PVAAGeod *block = (Sbf_PVAAGeod*)sbfMessageBody.data();
+
+            qDebug() << "SBF: IntPVAAGeod: Info" << block->Info << "TOW" << block->TOW << "WNc" << block->WNc << "HPR:" << block->Heading << block->Pitch << block->Roll;
+        }
+            break;
+        case 4070:
+        {
+            // IntAttEuler
+            if(msgIdRev != 1)
+            {
+                qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock;
+                break;
+            }
+            // process
+            qDebug() << "SBF: IntAttEuler";
+        }
+            break;
+        case 5924:
+        {
+            // ExtEvent
+            if(msgIdRev != 1)
+            {
+                qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock;
+                break;
+            }
+            // process
+            qDebug() << "SBF: ExtEvent";
+        }
+            break;
+        case 4037:
+        {
+            // ExtEventPvtCartesian
+            if(msgIdRev != 1)
+            {
+                qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock;
+                break;
+            }
+            // process
+            qDebug() << "SBF: ExtEventPvtCartesian";
+        }
+            break;
+        case 4050:
+        {
+            // ExtSensorMeas
+            if(msgIdRev != 1)
+            {
+                qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock;
+                break;
+            }
+            // process
+            qDebug() << "SBF: ExtSensorMeas";
+        }
+            break;
+        default:
+        {
+            qDebug() << "GpsDevice::processSbfData(): ignoring block id" << msgIdBlock;
+        }
+        }
+    }
+
+    qDebug() << "GpsDevice::processSbfData(): done processing SBF data, bytes left in buffer:" << mReceiveBufferUsb.size();
 
 }
 
 void GpsDevice::slotSetRtkData(const QByteArray &data)
 {
     // simply write the RTK data into the com-port
-    qDebug() << "GpsDevice::slotSetRtkData(): forwarding" << data.size() << "bytes of correction data to gps device.";
+    mRtkDataCounter += data.size();
+    qDebug() << "GpsDevice::slotSetRtkData(): forwarding" << data.size() << "bytes of rtk-data to gps device, total is" << mRtkDataCounter;
     mSerialPortCom->write(data);
 }

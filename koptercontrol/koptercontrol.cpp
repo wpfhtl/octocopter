@@ -38,8 +38,9 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(snSignalPipe, SIGNAL(activated(int)), SLOT(slotHandleSignal()));
 
     QString portSerialKopter = "/dev/ttyUSB1";
-    QString portSerialGpsUsb = "/dev/ttyACM0";
     QString portSerialGpsCom = "/dev/ttyUSB0";
+    QString portSerialGpsUsb = "/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device-if00"; //"/dev/ttyACM0";
+    QString portSerialLaserScanner = "/dev/serial/by-id/usb-Hokuyo_Data_Flex_for_USB_URG-Series_USB_Driver-if00"; // "/dev/ttyACM1";
 
     QString rtkBaseHostName = "134.100.13.202";
     int rtkBasePort = 1234;
@@ -49,6 +50,11 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
         if(commandLine.lastIndexOf("-sk") != -1 && commandLine.size() > commandLine.lastIndexOf("-sk") + 1)
         {
             portSerialKopter = commandLine.at(commandLine.lastIndexOf("-sk") + 1);
+        }
+
+        if(commandLine.lastIndexOf("-sl") != -1 && commandLine.size() > commandLine.lastIndexOf("-sl") + 1)
+        {
+            portSerialLaserScanner = commandLine.at(commandLine.lastIndexOf("-sl") + 1);
         }
 
         if(commandLine.lastIndexOf("-sgu") != -1 && commandLine.size() > commandLine.lastIndexOf("-sgu") + 1)
@@ -73,10 +79,12 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
         qDebug() << "KopterControl::KopterControl(): using serial ports: kopter" << portSerialKopter << "gps com" << portSerialGpsCom << "gps usb" << portSerialGpsUsb;
         qDebug() << "KopterControl::KopterControl(): using rtk base at" << rtkBaseHostName << rtkBasePort;
+        qDebug() << "KopterControl::KopterControl(): using laserscanner at" << portSerialLaserScanner;
 
         mKopter = new Kopter(portSerialKopter, this);
         mGpsDevice = new GpsDevice(portSerialGpsUsb, portSerialGpsCom, this);
         mRtkFetcher = new RtkFetcher(rtkBaseHostName, rtkBasePort, this);
+        mLaserScanner = new LaserScanner(portSerialLaserScanner, Pose());
 
         QTimer *ben = new QTimer(this);
         ben->setInterval(50);

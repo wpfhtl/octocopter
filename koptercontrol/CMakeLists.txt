@@ -10,6 +10,7 @@ SET(SRC_FILES
 koptercontrol
 koptermessage
 kopter
+../common/pose
 rtkfetcher
 gpsdevice
 laserscanner
@@ -21,6 +22,7 @@ SET(INC_FILES
 koptercontrol.h
 koptermessage.h
 kopter.h
+../common/pose.h
 rtkfetcher.h
 gpsdevice.h
 laserscanner.h

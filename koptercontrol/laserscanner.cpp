@@ -1,19 +1,17 @@
 #include "laserscanner.h"
 
-LaserScanner::LaserScanner(const QString &deviceFileName)
+LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &pose)
 {
     qDebug() << "LaserScanner::LaserScanner()";
 
     mDeviceFileName = deviceFileName;
+    mRelativePose = pose;
 
-    mSpeed = 2400.0f;
-    mAngleStart = 45.0f;
-    mAngleStop = 315.0f;
-    mAngleStep = 0.25f;
+    mScannerPoseFirst = mScannerPoseBefore = mScannerPoseAfter = mScannerPoseLast = 0;
 
-    mTimerScan = 0;
-
-    mCurrentScanAngle = mAngleStart;
+    mScanDistancesPrevious = new vector<long>;
+    mScanDistancesCurrent = new vector<long>;
+    mScanDistancesNext = new vector<long>;
 
     if (! mScanner.connect(mDeviceFileName.toAscii().constData()))
     {
@@ -21,16 +19,7 @@ LaserScanner::LaserScanner(const QString &deviceFileName)
       exit(1);
     }
 
-    int scan_msec = mScanner.scanMsec();
-    mScanner.setCaptureMode(IntensityCapture);
-
-
-
-
-
-
-
-
+    mScanner.setCaptureMode(AutoCapture); // use IntensityCapture for high distance?
 }
 
 LaserScanner::~LaserScanner()
@@ -41,27 +30,12 @@ LaserScanner::~LaserScanner()
 
 void LaserScanner::run()
 {
-    //    enum {
-    //      CaptureTimes = 10,
-    //    };
 
-    forever/*(int i = 0; i < CaptureTimes; ++i)*/{
-      long timestamp = 0;
+    // We don't want to loop and retrieve scans all the time. Instead, we want to retrieve a scan
+    // only after GpsDevice tells us that a scan has finished. This will be handled in a slot below,
+    // called by a queued connection from GpsDevice.
 
-      // Get data with intensity information
-      int data_n = mScanner.captureWithIntensity(mScanDistances, mScanIntensities, &timestamp);
-
-      if(data_n > 0)
-      {
-	int front_index = mScanner.rad2index(0.0);
-
-	// Display
-	// The distance data that are less than urg_minDistance() are shown as invalid value.
-	printf("%d: %ld [mm] (%ld), %ld [msec]\n", front_index, mScanDistances[front_index], mScanIntensities[front_index], timestamp);
-      }
-//      delay(scan_msec);
-      usleep(1250);
-    }
+    exec();
 }
 
 void LaserScanner::slotDoScan()
@@ -69,104 +43,83 @@ void LaserScanner::slotDoScan()
 }
 
 
-void LaserScanner::slotSetScannerPose(const QVector3D &position, const QQuaternion &orientation)
+Pose LaserScanner::getPose(void) const
 {
-    // This slot is called whenever the vehicle's position changes. Thus, we
-    // should be called at least 25, at most mSpeed/60 times per second.
-    QMutexLocker locker(&mMutex);
-    mPosition = position;
-    mOrientation = orientation;
+    return mRelativePose;
 }
 
-void LaserScanner::slotPause(void)
+void LaserScanner::setPose(const Pose &pose)
 {
-    qDebug() << "LaserScanner::slotPause(): stopping scanner";
-    mTimerScan->stop();
+    mRelativePose = pose;
 }
 
-void LaserScanner::slotStart(void)
-{
-    qDebug() << "LaserScanner::slotStart(): starting scanner timer in thread" << currentThreadId();
-    mTimerScan->start();
-}
-
-// Getters for the properties
-float LaserScanner::range(void) const
-{
-    return mRange;
-}
-
-int LaserScanner::speed(void) const
-{
-    return (int)mSpeed;
-}
-
-int LaserScanner::angleStart(void) const
-{
-    return mAngleStart;
-}
-
-int LaserScanner::angleStop(void) const
-{
-    return mAngleStop;
-}
-
-float LaserScanner::angleStep(void) const
-{
-    return mAngleStep;
-}
-
-// Setters for the properties
-void LaserScanner::setRange(float range)
-{
-    mRange = range;
-    mRangeSquared = pow(mRange, 2.0);
-}
-
-void LaserScanner::setSpeed(int speed)
-{
-    mSpeed = speed;
-}
-
-void LaserScanner::setAngleStart(int angleStart)
-{
-    mAngleStart = angleStart;
-}
-
-void LaserScanner::setAngleStop(int angleStop)
-{
-    mAngleStop = angleStop;
-}
-
-void LaserScanner::setAngleStep(float angleStep)
-{
-    mAngleStep = angleStep;
-}
-
-void LaserScanner::setPosition(const QVector3D &position)
-{
-    QMutexLocker locker(&mMutex);
-    mPosition = position;
-
-}
-
-void LaserScanner::setOrientation(const QQuaternion &orientation)
-{
-    QMutexLocker locker(&mMutex);
-    mOrientation = orientation;
-}
-
-QVector3D LaserScanner::getPosition(void)
-{
-    return mPosition;
-}
-
-QQuaternion LaserScanner::getOrientation(void)
-{
-    return mOrientation;
-}
 
 bool LaserScanner::isScanning(void) const
 {
-    return true;
+    return mScannerPoseFirst !=0;
+}
+
+void LaserScanner::slotScanFinished(Pose* pose)
+{
+    QMutexLocker locker(&mMutex);
+    qDebug() << "LaserScanner::slotScanFinished(): received a scan-pose from gps-device!";
+
+    // The hokuyo finished a scan and sent a falling edge to the GpsDevice, which now notifies us of
+    // this scan together with the pose in which scanning finished.
+
+    delete mScannerPoseFirst;
+
+    mScannerPoseFirst = mScannerPoseBefore;
+    mScannerPoseBefore = mScannerPoseAfter;
+    mScannerPoseAfter = mScannerPoseLast;
+    mScannerPoseLast = *pose + mRelativePose;
+
+    // We now have a problem: The hokuyo expects us to retrieve the data within 2ms. So, lets retrieve it quickly:
+    // (only if we have enough poses to interpolate that scan, true after 4 scans)
+    if(mScannerPoseBefore != 0)
+    {
+        mScanDistancesNext = mScanDistancesPrevious;
+        mScanDistancesPrevious = mScanDistancesCurrent;
+        mScanDistancesCurrent = mScanDistancesNext;
+
+        long timestamp = 0;
+        if(mScanner.capture(*mScanDistancesNext, &timestamp) <= 0)
+            qWarning() << "LaserScanner::slotScanFinished(): weird, less than 1 samples sent by lidar";
+
+        if(mScannerPoseFirst != 0)
+        {
+            // Now we have scan data from the previous scan in mScanDistancesPrevious and enough
+            // poses around it to interpolate. Go ahead and convert this data to 3d cloud points.
+            for(int i=0; i < mScanDistancesCurrent->size(); i++)
+            {
+                // Skip reflections on vehicle (=closer than 50cm)
+                if((*mScanDistancesCurrent)[i] < 500) continue;
+
+                // Interpolate using the last 4 poses. Do NOT interpolate between 0.0 and 1.0, as
+                // the scan actually only takes place between 0.125 and 0.875 (the scanner only
+                // scans the central 270 degrees of the 360 degree-circle).
+                Pose p = Pose::interpolateCubic(
+                            mScannerPoseFirst,
+                            mScannerPoseBefore,
+                            mScannerPoseAfter,
+                            mScannerPoseLast,
+                            0.125 + (0.75 * i / mScanDistancesCurrent->size())
+                            );
+
+                // position of the point relative to the physical laserscanner
+                // x is -left/+right, y is -back/+front and z i always 0.
+                const QVector3D rayPos(
+                            tan(mScanner.index2rad(i)) * (float)((*mScanDistancesCurrent)[i]),
+                            (*mScanDistancesCurrent)[i],
+                            0.0);
+
+                QVector3D point = p.orientation.rotatedVector(rayPos) + p.position;
+                qDebug() << "scanned point from" << p << "is" << point;
+
+                mPoints.append(point);
+            }
+        }
+    }
+
+//    sendPointsToBase();
 }
