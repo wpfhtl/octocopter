@@ -58,8 +58,8 @@ private:
 
     QMap<quint8, QString> mAnalogValueLabels;
     struct ExternControl mStructExternControl;
-    struct VersionInfo mStructVersionInfo;
-    struct DebugOut mStructDebugOut;
+//    struct VersionInfo mStructVersionInfo;
+//    struct DebugOut mStructDebugOut;
 
     QMap<QChar,QTime> mPendingReplies;
 

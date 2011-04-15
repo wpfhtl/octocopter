@@ -154,12 +154,12 @@ void Kopter::slotSerialPortDataReady()
             {
                 // Remove the record of the pending reply
                 QTime timeOfRequest = mPendingReplies.take(message.getId().toLower());
-                if(timeOfRequest.isNull()) qWarning() << "Kopter::slotSerialPortDataReady(): got a reply to an unsent message:" << message.toString();
+//                if(timeOfRequest.isNull()) qWarning() << "Kopter::slotSerialPortDataReady(): got a reply to an unsent message:" << message.toString();
                 if(mPendingReplies.contains(message.getId().toLower()))  qWarning() << "Kopter::slotSerialPortDataReady(): there's another pending message of type" << message.getId().toLower();
 
                 if(message.getId() == 'B') maxreplytime = std::max(maxreplytime, timeOfRequest.msecsTo(QTime::currentTime()));
 
-                qDebug() << "Kopter::slotSerialPortDataReady(): received reply to" << message.getId().toLower() << "after ms:" << timeOfRequest.msecsTo(QTime::currentTime()) << "worst" << maxreplytime;
+//                qDebug() << "Kopter::slotSerialPortDataReady(): received reply to" << message.getId().toLower() << "after ms:" << timeOfRequest.msecsTo(QTime::currentTime()) << "worst" << maxreplytime;
 
                 if(message.getId() == 'A')
                 {
@@ -171,28 +171,28 @@ void Kopter::slotSerialPortDataReady()
                 }
                 else if(message.getId() == 'B')
                 {
-                    qDebug() << "Kopter::slotSerialPortDataReady(): received confirmation for externalControl frame:" << (quint8)message.getPayload()[0];
+//                    qDebug() << "Kopter::slotSerialPortDataReady(): received confirmation for externalControl frame:" << (quint8)message.getPayload()[0];
                     Q_ASSERT(!mPendingReplies.contains('b'));
                     emit externControlReplyReceived();
                 }
                 else if(message.getId() == 'D')
                 {
                     QByteArray payload = message.getPayload();
-                    memcpy(&mStructDebugOut, payload.data(), sizeof(mStructDebugOut));
+                    const DebugOut* debugOut = (DebugOut*)payload.data();
 
                     for(int i=0;i<32;i++)
                     {
-//                        qDebug() << QTime::currentTime() << "Kopter::slotSerialPortDataReady(): value" << i<< mAnalogValueLabels.value(i) << "is" << mStructDebugOut.Analog[i];
+//                        qDebug() << QTime::currentTime() << "Kopter::slotSerialPortDataReady(): value" << i<< mAnalogValueLabels.value(i) << "is" << debugOut->Analog[i];
 
                         switch(i)
                         {
                         // Here you can emit values you're interested in.
                         case 5:
-                            qDebug() << "kopter height is" << mStructDebugOut.Analog[i];
-                            emit height(mStructDebugOut.Analog[i]);
+//                            qDebug() << "kopter height is" << debugOut->Analog[i];
+                            emit height(debugOut->Analog[i]);
                             break;
                         case 9:
-                            emit voltage((float)(mStructDebugOut.Analog[i])/10);
+                            emit voltage((float)(debugOut->Analog[i])/10);
                             break;
                         }
                     }
@@ -203,12 +203,13 @@ void Kopter::slotSerialPortDataReady()
                 else if(message.getId() == 'V')
                 {
                     QByteArray payload = message.getPayload();
-                    memcpy(&mStructVersionInfo, payload.data(), sizeof(mStructVersionInfo));
-                    qDebug() << "Kopter::slotSerialPortDataReady(): MK protocol version is" << mStructVersionInfo.ProtoMajor << mStructVersionInfo.ProtoMinor;
-                    qDebug() << "Kopter::slotSerialPortDataReady(): MK software version is" << mStructVersionInfo.SWMajor << mStructVersionInfo.SWMinor << mStructVersionInfo.SWPatch;
+                    const VersionInfo* versionInfo = (VersionInfo*)payload.data();
+//                    memcpy(&mStructVersionInfo, payload.data(), sizeof(mStructVersionInfo));
+                    qDebug() << "Kopter::slotSerialPortDataReady(): MK protocol version is" << versionInfo->ProtoMajor << versionInfo->ProtoMinor;
+                    qDebug() << "Kopter::slotSerialPortDataReady(): MK software version is" << versionInfo->SWMajor << versionInfo->SWMinor << versionInfo->SWPatch;
 
-                    if(mStructVersionInfo.ProtoMajor != 11 || mStructVersionInfo.ProtoMinor != 0) qFatal("Kopter::slotSerialPortDataReady(): MK protocol version mismatch, exiting.");
-                    if(mStructVersionInfo.SWMajor != 0 || mStructVersionInfo.SWMinor != 82 || mStructVersionInfo.SWPatch != 1) qFatal("Kopter::slotSerialPortDataReady(): MK software version mismatch, exiting.");
+                    if(versionInfo->ProtoMajor != 11 || versionInfo->ProtoMinor != 0) qFatal("Kopter::slotSerialPortDataReady(): MK protocol version mismatch, exiting.");
+                    if(versionInfo->SWMajor != 0 || versionInfo->SWMinor != 82 || versionInfo->SWPatch != 1) qFatal("Kopter::slotSerialPortDataReady(): MK software version mismatch, exiting.");
                 }
             }
             else

@@ -32,7 +32,7 @@ KopterMessage::KopterMessage(QByteArray* receiveBuffer) : QObject()
         mId = mData.at(2);
         mPayload = mData.right(mData.size()-3).left(mData.size()-6);
 
-        qDebug() << "KopterMessage::KopterMessage(): from stream:" << toString();
+//        qDebug() << "KopterMessage::KopterMessage(): from stream:" << toString();
 
         Q_ASSERT(isValid());
     }
@@ -73,7 +73,7 @@ int KopterMessage::send(QextSerialPort* port, QMap<QChar, QTime>* pendingReplies
     foreach(const QChar& reply, pendingReplies->keys())
         stringPendingReplies.append(reply);
 
-    qDebug() << "KopterMessage::send(): waiting for replies:" << stringPendingReplies;
+//    qDebug() << "KopterMessage::send(): waiting for replies:" << stringPendingReplies;
 
     if(pendingReplies->count(mId)) qWarning() << "KopterMessage::send():" << pendingReplies->count(mId) << "messages of type" << mId << "is still underway, should not resend!";
 
@@ -97,7 +97,7 @@ int KopterMessage::send(QextSerialPort* port, QMap<QChar, QTime>* pendingReplies
 
     while(mLastSentTimeStamp.msecsTo(QDateTime::currentDateTime()) < 3)
     {
-        qDebug() << "KopterMessage::send(): waiting for serial port to clear send-queue...";
+//        qDebug() << "KopterMessage::send(): waiting for serial port to clear send-queue...";
         usleep(10000);
     }
 

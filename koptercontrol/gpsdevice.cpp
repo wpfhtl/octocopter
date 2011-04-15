@@ -42,17 +42,14 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
         exit(1);
     }
 
-    determineSerialPortsOnDevice();
-
-    connect(mSerialPortUsb, SIGNAL(readyRead()), SLOT(slotSerialPortDataReady()));
-
-    communicationSetup();
+    // initialize the device whenever we get time to do this. By doing it asynchronously, we can give our creator time to connect our signals and fetch them.
+    QTimer::singleShot(0, this, SLOT(slotDetermineSerialPortsOnDevice()));
 }
 
 GpsDevice::~GpsDevice()
 {
     qDebug() << "GpsDevice::~GpsDevice(): stopping output, closing serial ports";
-    communicationStop();
+    slotCommunicationStop();
     mSerialPortUsb->close();
     mSerialPortCom->close();
 }
@@ -85,17 +82,19 @@ void GpsDevice::slotFlushCommandQueue()
     }
 }
 
-void GpsDevice::determineSerialPortsOnDevice()
+void GpsDevice::slotDetermineSerialPortsOnDevice()
 {
     // This method finds the name of the used communication-port on the GPS-device.
     // For example, we might connect using /dev/ttyUSB1, which is a usb2serial adapter
     // and connects to the devices COM2. This method will chat with the device, analyze
     // the prompt in its replies and set mSerialPortOnDevice to COM2. This can be used
     // lateron to tell the device to output useful info on COM2.
+    emit stateChanged(GpsDevice::Initializing);
 
     // We use two connections to the board, the other one is just for feeding the RTK
     // data that we received from rtkfetcher. But we also need to know that ports name,
     // as we need to tell the receiver to accept RTK data on that port.
+    if(!mSerialPortUsb->isOpen() || !mSerialPortCom->isOpen()) emit stateChanged(GpsDevice::Error);
     Q_ASSERT(mSerialPortUsb->isOpen());
     Q_ASSERT(mSerialPortCom->isOpen());
 
@@ -121,8 +120,8 @@ void GpsDevice::determineSerialPortsOnDevice()
     }
     else
     {
-        qDebug() << "GpsDevice::determineSerialPortOnDevice(): couldn't get serialUsbPortOnDevice, data is:" << dataUsb;
-        exit(1);
+        qWarning() << "GpsDevice::determineSerialPortOnDevice(): couldn't get serialUsbPortOnDevice, data is:" << dataUsb;
+        emit stateChanged(GpsDevice::Error);
     }
 
     // After waiting for the reply, read and analyze.
@@ -138,12 +137,18 @@ void GpsDevice::determineSerialPortsOnDevice()
     }
     else
     {
-        qDebug() << "GpsDevice::determineSerialPortOnDevice(): couldn't get serialComPortOnDevice, data is:" << dataCom;
-        exit(1);
+        qWarning() << "GpsDevice::determineSerialPortOnDevice(): couldn't get serialComPortOnDevice, data is:" << dataCom;
+        emit stateChanged(GpsDevice::Error);
     }
+
+    // Now that we know what the ports are named, we can setup the board.
+    // We connect this signal not in the c'tor but here, because we don't want the slot
+    // to be called for answers to requests made in this method.
+    connect(mSerialPortUsb, SIGNAL(readyRead()), SLOT(slotSerialPortDataReady()));
+    slotCommunicationSetup();
 }
 
-void GpsDevice::communicationSetup()
+void GpsDevice::slotCommunicationSetup()
 {
     Q_ASSERT(mSerialPortOnDeviceUsb.size() == 4);
     Q_ASSERT(mSerialPortOnDeviceCom.size() == 4);
@@ -152,6 +157,7 @@ void GpsDevice::communicationSetup()
     // are necessary to set the device into RTK-Base-Mode
 
     qDebug() << "GpsDevice::setupCommunication(): setting up communication";
+
 
     // reset communications
     sendAsciiCommand("setDataInOut,all,CMD,none");
@@ -188,7 +194,7 @@ void GpsDevice::communicationSetup()
 
     // output IntPVCart, IntAttEuler, and Event-position. ExtSensorMeas is direct IMU measurements
     // We want to know the pose 25 times a second
-    sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec40");
+    sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntAttEuler,msec40");
 
     // We want to know pose whenever a scan is finished.
     sendAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",ExtEvent+IntPVAAGeod,OnChange");
@@ -196,7 +202,7 @@ void GpsDevice::communicationSetup()
     qDebug() << "GpsDevice::setupCommunication(): done setting up communication";
 }
 
-void GpsDevice::communicationStop()
+void GpsDevice::slotCommunicationStop()
 {
     // For some reason, resetting this port with the SDIO command below doesn't work.
     // We need to get it to accept CMDs by sending 10 Ss to it.
@@ -217,6 +223,8 @@ void GpsDevice::communicationStop()
 
     slotFlushCommandQueue();
 
+    emit stateChanged(GpsDevice::Stopped);
+
     QCoreApplication::processEvents();
 }
 
@@ -225,7 +233,7 @@ void GpsDevice::slotSerialPortDataReady()
     usleep(100000); // wait for the later bytes of this message to come on in...
     mReceiveBufferUsb.append(mSerialPortUsb->readAll());
 
-    qDebug() << "GpsDevice::slotSerialPortDataReady():" << mReceiveBufferUsb;
+//    qDebug() << "GpsDevice::slotSerialPortDataReady():" << mReceiveBufferUsb;
 
     if(mNumberOfRemainingRepliesUsb != 0)
     {
@@ -235,17 +243,22 @@ void GpsDevice::slotSerialPortDataReady()
             qDebug() << "GpsDevice::slotSerialPortDataReady(): received reply to" << mLastCommandToDeviceUsb.trimmed() << ":" << mReceiveBufferUsb.left(position).trimmed();
             qDebug() << "GpsDevice::slotSerialPortDataReady(): now sending next command, if any";
 
-            if(mReceiveBufferUsb.left(position).contains("$R? ASCII commands between prompts were discarded!")) qDebug() << "GpsDevice::slotSerialPortDataReady(): it seems we were talking too fast?!";
+            if(mReceiveBufferUsb.left(position).contains("$R? ASCII commands between prompts were discarded!"))
+                qDebug() << "GpsDevice::slotSerialPortDataReady(): it seems we were talking too fast?!";
 
             mReceiveBufferUsb.remove(0, position+5);
             mNumberOfRemainingRepliesUsb--;
             slotFlushCommandQueue();
         }
+        else
+        {
+            Q_ASSERT(false && "Expected a GPS command reply from USB port, but didn't find a prompt at the end");
+        }
     }
     else
     {
         // We're not waiting for a reply to a command, this must be SBF data!
-        qDebug() << "GpsDevice::slotSerialPortDataReady(): received" << mReceiveBufferUsb.size() << "bytes of SBF data.";
+//        qDebug() << "GpsDevice::slotSerialPortDataReady(): received" << mReceiveBufferUsb.size() << "bytes of SBF data.";
         processSbfData();
     }
 
@@ -268,11 +281,11 @@ quint16 GpsDevice::getCrc(const void *buf, unsigned int length)
 
 void GpsDevice::processSbfData()
 {
-    qDebug() << "GpsDevice::processSbfData():" << mReceiveBufferUsb.size() << "bytes present.";
+//    qDebug() << "GpsDevice::processSbfData():" << mReceiveBufferUsb.size() << "bytes present.";
 
     while(mReceiveBufferUsb.size() > 8)
     {
-        qDebug() << "GpsDevice::processSbfData(): more than 8 data bytes present, processing.";
+//        qDebug() << "GpsDevice::processSbfData(): more than 8 data bytes present, processing.";
         const int indexOfSyncMarker = mReceiveBufferUsb.indexOf("$@");
 
         if(indexOfSyncMarker != 0)
@@ -299,15 +312,6 @@ void GpsDevice::processSbfData()
             continue;
         }
 
-        // We've evaluated the header, delete it from the incoming buffer
-        mReceiveBufferUsb.remove(0, 8);
-
-        // Create a copy of the SBF Blocks body for further processing
-        QByteArray sbfMessageBody = mReceiveBufferUsb.left(msgLength-8);
-
-        // Remove the SBF block body from our incoming USB buffer, so it contains either nothing or the next SBF message
-        mReceiveBufferUsb.remove(0, msgLength-8);
-
 //        const quint32 timeInWeek = *(sbfMessageBody.data());
 //        const quint16 timeWeekNumber = *(sbfMessageBody.data()+4);
 //        printf("time in week: %8.8f\n\nv", ((float)timeInWeek)/1000.0);
@@ -331,75 +335,39 @@ void GpsDevice::processSbfData()
             break;
         case 4043:
         {
-            // BaseVectorCart
-            if(msgIdRev != 1)
-            {
-                qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock;
-                break;
-            }
-            // process
             qDebug() << "SBF: BaseVectorCart";
         }
             break;
         case 4045:
         {
             // IntPVAAGeod
-            if(msgIdRev != 1)
-            {
-                qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock;
-//                break;
-            }
-            // process
-            const Sbf_PVAAGeod *block = (Sbf_PVAAGeod*)sbfMessageBody.data();
+            const Sbf_PVAAGeod *block = (Sbf_PVAAGeod*)mReceiveBufferUsb.data();
 
-            qDebug() << "SBF: IntPVAAGeod: Info" << block->Info << "TOW" << block->TOW << "WNc" << block->WNc << "HPR:" << block->Heading << block->Pitch << block->Roll;
+//            qDebug() << "SBF: IntPVAAGeod: Info" << block->Info << "TOW" << block->TOW << "WNc" << block->WNc << "HPR:" << block->Heading << block->Pitch << block->Roll;
         }
             break;
         case 4070:
         {
             // IntAttEuler
-            if(msgIdRev != 1)
-            {
-                qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock;
-                break;
-            }
-            // process
-            qDebug() << "SBF: IntAttEuler";
+            const Sbf_IntAttEuler *block = (Sbf_IntAttEuler*)mReceiveBufferUsb.data();
+            qDebug() << "SBF: IntAttEuler: Info" << block->Info << "Mode" << block->Mode << "Error" << block->Error << "TOW" << block->TOW << "WNc" << block->WNc << "HPR:" << block->Heading << block->Pitch << block->Roll;;
         }
             break;
         case 5924:
         {
             // ExtEvent
-            if(msgIdRev != 1)
-            {
-                qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock;
-                break;
-            }
-            // process
             qDebug() << "SBF: ExtEvent";
         }
             break;
         case 4037:
         {
             // ExtEventPvtCartesian
-            if(msgIdRev != 1)
-            {
-                qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock;
-                break;
-            }
-            // process
             qDebug() << "SBF: ExtEventPvtCartesian";
         }
             break;
         case 4050:
         {
             // ExtSensorMeas
-            if(msgIdRev != 1)
-            {
-                qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock;
-                break;
-            }
-            // process
             qDebug() << "SBF: ExtSensorMeas";
         }
             break;
@@ -408,9 +376,13 @@ void GpsDevice::processSbfData()
             qDebug() << "GpsDevice::processSbfData(): ignoring block id" << msgIdBlock;
         }
         }
+
+        // Remove the SBF block body from our incoming USB buffer, so it contains either nothing or the next SBF message
+        mReceiveBufferUsb.remove(0, msgLength);
     }
 
-    qDebug() << "GpsDevice::processSbfData(): done processing SBF data, bytes left in buffer:" << mReceiveBufferUsb.size();
+    if(mReceiveBufferUsb.size())
+        qDebug() << "GpsDevice::processSbfData(): done processing SBF data, bytes left in buffer:" << mReceiveBufferUsb.size();
 
 }
 

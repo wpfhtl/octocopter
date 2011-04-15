@@ -4,6 +4,7 @@
 #include <QCoreApplication>
 #include <QFile>
 #include <QDebug>
+#include <QTimer>
 
 #include "pose.h"
 
@@ -53,43 +54,6 @@ public:
     GpsDevice(QString &serialDeviceUsb, QString &serialDeviceCom, QObject *parent = 0);
     ~GpsDevice();
 
-    struct Sbf_PVAAGeod
-    {
-//      HeaderBlock_t  Header;
-
-      quint32       TOW;
-      quint16       WNc;
-
-      quint8        Mode;
-      quint8        Error;
-
-      quint16       Info;
-
-      quint8        GNSSPVTMode;
-      quint8        Datum;
-      quint8        GNSSage;
-
-      quint8        NrSVAnt;
-      quint8        Reserved;
-
-      quint8        PosFine;
-      int32_t        Lat;
-      int32_t        Lon;
-      int32_t        Alt;
-
-      int32_t        Vnorth;
-      int32_t        Veast;
-      int32_t        Vup;
-
-      qint16        Ax;
-      qint16        Ay;
-      qint16        Az;
-
-      quint16       Heading;
-      qint16        Pitch;
-      qint16        Roll;
-    };
-
 private:
     int mNumberOfRemainingRepliesUsb;
     unsigned int mRtkDataCounter;
@@ -102,19 +66,100 @@ private:
     QByteArray mReceiveBufferUsb;
     QList<QByteArray> mCommandQueueUsb;
 
-    void determineSerialPortsOnDevice();
-    void communicationSetup();
-    void communicationStop();
+
 
     void sendAsciiCommand(QString command);
 
     void processSbfData();
     quint16 getCrc(const void *buf, unsigned int length);
 
+    enum Status
+    {
+        Initializing,
+        Ready,
+        Error,
+        Stopped,
+        WaitingForSatellites
+    };
+
+    struct Sbf_Header
+    {
+      quint16       Sync;
+      quint16       CRC;
+      quint16       ID;
+      quint16       Length;
+    };
+
+    struct Sbf_PVAAGeod
+    {
+        Sbf_Header  Header;
+
+        quint32       TOW;
+        quint16       WNc;
+
+        quint8        Mode;
+        quint8        Error;
+
+        quint16       Info;
+
+        quint8        GNSSPVTMode;
+        quint8        Datum;
+        quint8        GNSSage;
+
+        quint8        NrSVAnt;
+        quint8        Reserved;
+
+        quint8        PosFine;
+        int32_t        Lat;
+        int32_t        Lon;
+        int32_t        Alt;
+
+        int32_t        Vnorth;
+        int32_t        Veast;
+        int32_t        Vup;
+
+        qint16        Ax;
+        qint16        Ay;
+        qint16        Az;
+
+        quint16       Heading;
+        qint16        Pitch;
+        qint16        Roll;
+    };
+
+    struct Sbf_IntAttEuler
+    {
+        Sbf_Header Header;
+
+        quint32       TOW;
+        quint16       WNc;
+
+        quint8        Mode;
+        quint8        Error;
+
+        quint16       Info;
+        quint8        NrSV;
+        quint8        NrAnt;
+
+        quint8        Reserved;
+        quint8        Datum;
+        quint16       GNSSage;
+
+        float          Heading;
+        float          Pitch;
+        float          Roll;
+
+        float          PitchDot;
+        float          RollDot;
+        float          HeadingDot;
+    };
+
 private slots:
+    void slotCommunicationSetup();
+    void slotCommunicationStop();
     void slotFlushCommandQueue();
     void slotSerialPortDataReady();
-
+    void slotDetermineSerialPortsOnDevice();
 
 public slots:
     void slotSetRtkData(const QByteArray &data);
@@ -122,6 +167,7 @@ public slots:
 signals:
     void scanFinished(const Pose&);
     void correctionDataReady(QByteArray);
+    void stateChanged(GpsDevice::Status);
 
 };
 

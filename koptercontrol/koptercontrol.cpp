@@ -37,8 +37,8 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     snSignalPipe = new QSocketNotifier(signalFd[1], QSocketNotifier::Read, this);
     connect(snSignalPipe, SIGNAL(activated(int)), SLOT(slotHandleSignal()));
 
-    QString portSerialKopter = "/dev/ttyUSB1";
-    QString portSerialGpsCom = "/dev/ttyUSB0";
+    QString portSerialKopter = "/dev/ttyUSB0";
+    QString portSerialGpsCom = "/dev/ttyUSB1";
     QString portSerialGpsUsb = "/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device-if00"; //"/dev/ttyACM0";
     QString portSerialLaserScanner = "/dev/serial/by-id/usb-Hokuyo_Data_Flex_for_USB_URG-Series_USB_Driver-if00"; // "/dev/ttyACM1";
 
