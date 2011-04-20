@@ -21,6 +21,7 @@ private:
     QString mDeviceFileName;
 
     UrgCtrl mScanner;
+    int mMilliSecondsPerScan;
 
     vector<long> *mScanDistancesPrevious, *mScanDistancesCurrent, *mScanDistancesNext;
 
@@ -36,7 +37,6 @@ private:
 
 
 private slots:
-    void slotDoScan(void);
 
 public:
     // Laser rotation is always CCW, angleStart < angleStop

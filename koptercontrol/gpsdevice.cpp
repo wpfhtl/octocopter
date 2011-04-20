@@ -8,6 +8,13 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
     mRtkDataCounter = 0;
     mSerialPortOnDeviceUsb = "";
 
+    mLastErrorFromDevice = 255;
+    mLastModeFromDevice = 255;
+    mLastInfoFromDevice = 65535;
+    mLastGnssPvtModeFromDevice = 255;
+    mLastNumberOfSatellitesUsed = 255;
+    mLastGnssAgeFromDevice = 0;
+
     // We use the USB port to talk to the GPS receiver and receive poses
     mSerialPortUsb = new QextSerialPort(serialDeviceFileUsb, QextSerialPort::EventDriven);
     mSerialPortUsb->setBaudRate(BAUD115200);
@@ -89,12 +96,12 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
     // and connects to the devices COM2. This method will chat with the device, analyze
     // the prompt in its replies and set mSerialPortOnDevice to COM2. This can be used
     // lateron to tell the device to output useful info on COM2.
-    emit stateChanged(GpsDevice::Initializing);
+    emit stateChanged(GpsDevice::Initializing, "Setting up communication");
 
     // We use two connections to the board, the other one is just for feeding the RTK
     // data that we received from rtkfetcher. But we also need to know that ports name,
     // as we need to tell the receiver to accept RTK data on that port.
-    if(!mSerialPortUsb->isOpen() || !mSerialPortCom->isOpen()) emit stateChanged(GpsDevice::Error);
+    if(!mSerialPortUsb->isOpen() || !mSerialPortCom->isOpen()) emit stateChanged(GpsDevice::Error, "Cannot open GPS serial port(s)");
     Q_ASSERT(mSerialPortUsb->isOpen());
     Q_ASSERT(mSerialPortCom->isOpen());
 
@@ -121,7 +128,7 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
     else
     {
         qWarning() << "GpsDevice::determineSerialPortOnDevice(): couldn't get serialUsbPortOnDevice, data is:" << dataUsb;
-        emit stateChanged(GpsDevice::Error);
+        emit stateChanged(GpsDevice::Error, "Couldn't get serialUsbPortOnDevice");
     }
 
     // After waiting for the reply, read and analyze.
@@ -138,7 +145,7 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
     else
     {
         qWarning() << "GpsDevice::determineSerialPortOnDevice(): couldn't get serialComPortOnDevice, data is:" << dataCom;
-        emit stateChanged(GpsDevice::Error);
+        emit stateChanged(GpsDevice::Error, "Couldn't get serialComPortOnDevice");
     }
 
     // Now that we know what the ports are named, we can setup the board.
@@ -194,10 +201,10 @@ void GpsDevice::slotCommunicationSetup()
 
     // output IntPVCart, IntAttEuler, and Event-position. ExtSensorMeas is direct IMU measurements
     // We want to know the pose 25 times a second
-    sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntAttEuler,msec40");
+    sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec40");
 
-    // We want to know pose whenever a scan is finished.
-    sendAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",ExtEvent+IntPVAAGeod,OnChange");
+    // We want to know whenever a scan is finished.
+    sendAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",ExtEvent,OnChange");
 
     qDebug() << "GpsDevice::setupCommunication(): done setting up communication";
 }
@@ -223,7 +230,7 @@ void GpsDevice::slotCommunicationStop()
 
     slotFlushCommandQueue();
 
-    emit stateChanged(GpsDevice::Stopped);
+    emit stateChanged(GpsDevice::Stopped, "Orderly shutdown finished");
 
     QCoreApplication::processEvents();
 }
@@ -233,7 +240,7 @@ void GpsDevice::slotSerialPortDataReady()
     usleep(100000); // wait for the later bytes of this message to come on in...
     mReceiveBufferUsb.append(mSerialPortUsb->readAll());
 
-//    qDebug() << "GpsDevice::slotSerialPortDataReady():" << mReceiveBufferUsb;
+    qDebug() << "GpsDevice::slotSerialPortDataReady():" << mReceiveBufferUsb;
 
     if(mNumberOfRemainingRepliesUsb != 0)
     {
@@ -333,23 +340,231 @@ void GpsDevice::processSbfData()
             qDebug() << "SBF: PVTCartesian";
         }
             break;
-        case 4043:
-        {
-            qDebug() << "SBF: BaseVectorCart";
-        }
-            break;
         case 4045:
         {
             // IntPVAAGeod
             const Sbf_PVAAGeod *block = (Sbf_PVAAGeod*)mReceiveBufferUsb.data();
 
-//            qDebug() << "SBF: IntPVAAGeod: Info" << block->Info << "TOW" << block->TOW << "WNc" << block->WNc << "HPR:" << block->Heading << block->Pitch << block->Roll;
-        }
-            break;
-        case 4070:
-        {
-            // IntAttEuler
-            const Sbf_IntAttEuler *block = (Sbf_IntAttEuler*)mReceiveBufferUsb.data();
+            Q_ASSERT() check TOW?!
+
+            // Check the Info-field and emit states if it changes
+            if(mLastInfoFromDevice != block->Info)
+            {
+                // If accelerometers or gyros fail, emit error
+                if(block->Info & 1 == 1 || block->Info & 2 == 2)
+                    mStatus = Error;
+
+                if(mLastInfoFromDevice & 1 != block->Info & 1)
+                    emit stateChanged(mStatus, QString("ACLR measurements used: %1").arg(block->Info & 1 == 1 ? "true" : "false"));
+
+                if(mLastInfoFromDevice & 2 != block->Info & 2)
+                    emit stateChanged(mStatus, QString("GYRO measurements used: %1").arg(block->Info & 2 == 2 ? "true" : "false"));
+
+                if(mLastInfoFromDevice & 2048 != block->Info & 2048)
+                    emit stateChanged(mStatus, QString("Heading ambiguity fixed: %1").arg(block->Info & 2048 == 2048 ? "true" : "false"));
+
+                if(mLastInfoFromDevice & 4096 != block->Info & 4096)
+                    emit stateChanged(mStatus, QString("Zero constraint used: %1").arg(block->Info & 2048 == 2048 ? "true" : "false"));
+
+                if(mLastInfoFromDevice & 8192 != block->Info & 8192)
+                    emit stateChanged(mStatus, QString("GNSS position used: %1").arg(block->Info & 8192 == 8192 ? "true" : "false"));
+
+                if(mLastInfoFromDevice & 16384 != block->Info & 16384)
+                    emit stateChanged(mStatus, QString("GNSS velocity used: %1").arg(block->Info & 16384 == 16384 ? "true" : "false"));
+
+                if(mLastInfoFromDevice & 32768 != block->Info & 32768)
+                    emit stateChanged(mStatus, QString("GNSS attitude used: %1").arg(block->Info & 32768 == 32768 ? "true" : "false"));
+
+                mLastInfoFromDevice = block->Info;
+            }
+
+            // Check the Mode-field and emit states if it changes
+            if(mLastModeFromDevice != block->Mode)
+            {
+                switch(block->Mode)
+                {
+                case 0:
+                    mStatus = Error;
+                    emit stateChanged(mStatus, "Mode changed, no integrated solution available");
+                    break;
+
+                case 1:
+                    emit stateChanged(mStatus, "Mode changed, using only external sensor");
+                    break;
+
+                case 2:
+                    mStatus = Running;
+                    emit stateChanged(mStatus, "Mode changed, using integrated solution");
+                    break;
+
+                default:
+                    qWarning() << "GpsDevice::processSbfData(): WARNING: unknown mode code" << block->Mode;
+                    mStatus = Error;
+                    emit stateChanged(mStatus, QString("Unknown Mode %1").arg(block->Mode));
+                    break;
+                }
+
+                mLastModeFromDevice = block->Mode;
+            }
+
+            // Check the Error-field and emit states if it changes
+            if(mLastErrorFromDevice != block->Error)
+            {
+                switch(block->Error)
+                {
+                case 0:
+                    mStatus = Running;
+                    emit stateChanged(mStatus, "OK");
+                    break;
+
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                case 20:
+                case 21:
+                    mStatus = Error;
+                    emit stateChanged(mStatus, QString("Error %1").arg(block->Error));
+                    break;
+
+                case 22:
+                    mStatus = WaitingForCalibration;
+                    emit stateChanged(mStatus, "Waiting for calibration");
+                    break;
+
+                case 23:
+                    mStatus = WaitingForAlignment;
+                    emit stateChanged(mStatus, "Waiting for alignment");
+                    break;
+                case 24:
+                    mStatus = WaitingForSatellites;
+                    emit stateChanged(mStatus, "Waiting for satellites");
+                    break;
+                default:
+                    qWarning() << "GpsDevice::processSbfData(): WARNING: unknown error code" << block->Error;
+                    mStatus = Error;
+                    emit stateChanged(mStatus, QString("Unknown Error %1").arg(block->Error));
+                    break;
+                }
+
+                mLastErrorFromDevice = block->Error;
+            }
+
+
+            // Check the GnssPvtMode-field and emit states if it changes
+            if(mLastGnssPvtModeFromDevice != block->GNSSPVTMode)
+            {
+
+                // If accelerometers or gyros fail, emit error
+                if(block->GNSSPVTMode & 64 == 64)
+                {
+                    mStatus = Error;
+                    emit stateChanged(mStatus, QString("GPS device configured as base, acquiring position"));
+                }
+
+                if(block->GNSSPVTMode & 128 == 128)
+                {
+                    mStatus = Error;
+                    emit stateChanged(mStatus, QString("GPS device running in 2D mode"));
+                }
+
+                const quint8 gnssPvtMode = block->GNSSPVTMode & 15;
+
+                switch(gnssPvtMode)
+                {
+                case 0:
+                    mStatus = Error;
+                    emit stateChanged(mStatus, "GNSSPVTMode is 0, see error field.");
+                    break;
+
+                case 1:
+                    emit stateChanged(mStatus, "PVT stand-alone");
+                    break;
+
+                case 2:
+                    emit stateChanged(mStatus, "PVT differential");
+                    break;
+
+                case 3:
+                    mStatus = Error;
+                    emit stateChanged(mStatus, "PVT fixed location");
+                    break;
+
+                case 4:
+                    emit stateChanged(mStatus, "PVT RTK fixed ambiguities");
+                    break;
+
+                case 5:
+                    emit stateChanged(mStatus, "PVT RTK float ambiguities");
+                    break;
+
+                case 6:
+                    emit stateChanged(mStatus, "PVT SBAS aided");
+                    break;
+
+                case 7:
+                    emit stateChanged(mStatus, "PVT RTK moving base fixed ambiguities");
+                    break;
+
+                case 8:
+                    emit stateChanged(mStatus, "PVT RTK moving base float ambiguities");
+                    break;
+
+                case 9:
+                    emit stateChanged(mStatus, "PVT PPP fixed ambiguities");
+                    break;
+
+                case 10:
+                    emit stateChanged(mStatus, "PVT PPP float ambiguities");
+                    break;
+
+                default:
+                    qWarning() << "GpsDevice::processSbfData(): WARNING: unknown GNSSPVTMode code" << gnssPvtMode;
+                    mStatus = Error;
+                    emit stateChanged(mStatus, QString("Unknown GNSSPVTMode %1").arg(gnssPvtMode));
+                    break;
+                }
+
+                mLastGnssPvtModeFromDevice = block->GNSSPVTMode;
+            }
+
+            if(mLastGnssAgeFromDevice != block->GNSSage)
+            {
+                emit stateChanged(mStatus, QString("No GNSS-PVT for %1 seconds").arg(block->GNSSage));
+                mLastGnssAgeFromDevice = block->GNSSage;
+            }
+
+            const quint8 numberOfSatellitesUsed = block->NrSVAnt & 31;
+            if(numberOfSatellitesUsed != mLastNumberOfSatellitesUsed)
+            {
+                emit numberOfSatellitesChanged(numberOfSatellitesUsed);
+                mLastNumberOfSatellitesUsed = numberOfSatellitesUsed;
+            }
+
+            // Only emit a pose if the values are not set to the do-not-use values.
+            if(
+                    block->Error == 0
+                    && block->Lat != -2147483648
+                    && block->Lon != -2147483648
+                    && block->Alt != -2147483648
+                    && block->Heading != 65536
+                    && block->Pitch != -32768
+                    && block->Roll != -32768
+                    && block->TOW != 4294967295
+                    )
+            {
+                emit newPose(
+                            Pose(
+                                // TODO: use PosFine, see SBF reference guide, page 80?
+                                convertGeodeticToCartesian(block->Lon, block->Lat, block->Alt),
+                                QQuaternion::fromAxisAndAngle(0,1,0, ((float)block->Heading) * 0.001) *
+                                QQuaternion::fromAxisAndAngle(1,0,0, ((float)block->Pitch) * 0.001) *
+                                QQuaternion::fromAxisAndAngle(0,0,1, ((float)block->Roll) * 0.001)
+                                ),
+                            block->TOW // receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
+                            );
+            }
+
             qDebug() << "SBF: IntAttEuler: Info" << block->Info << "Mode" << block->Mode << "Error" << block->Error << "TOW" << block->TOW << "WNc" << block->WNc << "HPR:" << block->Heading << block->Pitch << block->Roll;;
         }
             break;
@@ -392,4 +607,19 @@ void GpsDevice::slotSetRtkData(const QByteArray &data)
     mRtkDataCounter += data.size();
     qDebug() << "GpsDevice::slotSetRtkData(): forwarding" << data.size() << "bytes of rtk-data to gps device, total is" << mRtkDataCounter;
     mSerialPortCom->write(data);
+}
+
+GpsDevice::Status GpsDevice::getStatus(void) const
+{
+    return mStatus;
+}
+
+QVector3D GpsDevice::convertGeodeticToCartesian(const double &lon, const double &lat, const float &elevation) const
+{
+    QVector3D co;
+    co.setY(elevation);
+    co.z = (-(lat - 53.600669l) * 111300.0l);
+    co.x = ((lon - 9.933817l) * 111300.0l * cos(M_PI / 180.0 * 53.600669l));
+
+    return co;
 }

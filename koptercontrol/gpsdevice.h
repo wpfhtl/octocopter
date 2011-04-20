@@ -51,10 +51,30 @@ class GpsDevice : public QObject
     Q_OBJECT
 
 public:
+    enum Status
+    {
+        Initializing,
+        Running,
+        Error,
+        Stopped,
+        WaitingForCalibration,
+        WaitingForAlignment,
+        WaitingForSatellites
+    };
+
     GpsDevice(QString &serialDeviceUsb, QString &serialDeviceCom, QObject *parent = 0);
     ~GpsDevice();
 
+    GpsDevice::Status getStatus(void) const;
+
 private:
+    GpsDevice::Status mStatus;
+    quint8 mLastErrorFromDevice;
+    quint8 mLastGnssAgeFromDevice; // seconds since last GNSS PVT solution
+    quint8 mLastModeFromDevice;
+    quint8 mLastGnssPvtModeFromDevice;
+    quint8 mLastNumberOfSatellitesUsed;
+    quint16 mLastInfoFromDevice;
     int mNumberOfRemainingRepliesUsb;
     unsigned int mRtkDataCounter;
     QByteArray mLastCommandToDeviceUsb;
@@ -66,21 +86,13 @@ private:
     QByteArray mReceiveBufferUsb;
     QList<QByteArray> mCommandQueueUsb;
 
-
+    static inline QVector3D convertGeodeticToCartesian(const double &lon, const double &lat, const float &elevation) const;
 
     void sendAsciiCommand(QString command);
 
     void processSbfData();
     quint16 getCrc(const void *buf, unsigned int length);
 
-    enum Status
-    {
-        Initializing,
-        Ready,
-        Error,
-        Stopped,
-        WaitingForSatellites
-    };
 
     struct Sbf_Header
     {
@@ -165,9 +177,11 @@ public slots:
     void slotSetRtkData(const QByteArray &data);
 
 signals:
+    void newPose(const Pose&, quint32 receiverTime);
     void scanFinished(const Pose&);
-    void correctionDataReady(QByteArray);
-    void stateChanged(GpsDevice::Status);
+    void numberOfSatellitesChanged(const quint8 & number);
+//    void correctionDataReady(QByteArray);
+    void stateChanged(const GpsDevice::Status&, const QString&);
 
 };
 

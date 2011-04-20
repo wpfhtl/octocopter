@@ -19,6 +19,7 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &pose)
       exit(1);
     }
 
+    mMilliSecondsPerScan = mScanner.scanMsec();
     mScanner.setCaptureMode(AutoCapture); // use IntensityCapture for high distance?
 }
 
@@ -37,11 +38,6 @@ void LaserScanner::run()
 
     exec();
 }
-
-void LaserScanner::slotDoScan()
-{
-}
-
 
 Pose LaserScanner::getPose(void) const
 {
