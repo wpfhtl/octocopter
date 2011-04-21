@@ -1,5 +1,5 @@
-#ifndef TRIANGULATOR_H
-#define TRIANGULATOR_H
+#ifndef BASESTATION_H
+#define BASESTATION_H
 
 #include <QtCore>
 #include <QtGui>
@@ -22,7 +22,7 @@ class ControlWidget;
 class FlightPlannerInterface;
 class GlWidget;
 
-class Triangulator : public QMainWindow
+class BaseStation : public QMainWindow
 {
     Q_OBJECT
 
@@ -70,8 +70,8 @@ private slots:
     void slotGetStatus(void);
 
 public:
-    Triangulator(void);
-    ~Triangulator();
+    BaseStation(void);
+    ~BaseStation();
 
     const QVector3D& getCurrentVehiclePosition(void) const;
     const QVector3D getNextWayPoint(void) const;

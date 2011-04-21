@@ -8,15 +8,15 @@
 //}
 
 
-GlWidget::GlWidget(Triangulator *triangulator, Octree* octree, FlightPlannerInterface* flightPlanner) :
-    QGLWidget((QWidget*)triangulator),
+GlWidget::GlWidget(BaseStation *baseStation, Octree* octree, FlightPlannerInterface* flightPlanner) :
+    QGLWidget((QWidget*)baseStation),
     mOctree(octree),
     mFlightPlanner(flightPlanner)
 {
 //    rotQuad = 0.0f;
 //    startTimer(25);
 
-    mTriangulator = triangulator;
+    mBaseStation = baseStation;
 
     //Wheel Scaling
     currentScaling = 2.0;
@@ -141,7 +141,7 @@ void GlWidget::paintGL()
 //        qDebug() << "centering around 0/0/0" << otc;
 //    }
 
-    mCamLookAt = mTriangulator->getCurrentVehiclePosition();
+    mCamLookAt = mBaseStation->getCurrentVehiclePosition();
 
     gluLookAt(0.0, 500.0, 500.0,
               mCamLookAt.x(), mCamLookAt.y(), mCamLookAt.z(),
@@ -161,10 +161,10 @@ void GlWidget::paintGL()
 
 
     // Draw vehicle position
-    OpenGlUtilities::drawSphere(mTriangulator->getCurrentVehiclePosition(), 1.0, 20.0, QColor(20,255,20,100));
+    OpenGlUtilities::drawSphere(mBaseStation->getCurrentVehiclePosition(), 1.0, 20.0, QColor(20,255,20,100));
 
     // Draw next waypoint
-    OpenGlUtilities::drawSphere(mTriangulator->getNextWayPoint(), 1.0, 20.0, QColor(255,255,255,100));
+    OpenGlUtilities::drawSphere(mBaseStation->getNextWayPoint(), 1.0, 20.0, QColor(255,255,255,100));
 
 //    glTranslatef(+0.0, +100.0, +0.0);
 

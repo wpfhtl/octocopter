@@ -10,10 +10,10 @@
 #include "openglutilities.h"
 #include "octree.h"
 #include "flightplannerinterface.h"
-#include "triangulator.h"
+#include "basestation.h"
 
 class FlightPlannerInterface;
-class Triangulator;
+class BaseStation;
 
 class GlWidget : public QGLWidget
 {
@@ -22,7 +22,7 @@ class GlWidget : public QGLWidget
 //    GLfloat rotQuad;
     Octree *mOctree;
     FlightPlannerInterface *mFlightPlanner;
-    Triangulator *mTriangulator;
+    BaseStation *mBaseStation;
 //    void setShaders();
 
     QVector3D mCamLookAt;
@@ -48,7 +48,7 @@ class GlWidget : public QGLWidget
     void drawAxes(const GLfloat& x, const GLfloat& y, const GLfloat& z, const GLfloat& red, const GLfloat& green, const GLfloat& blue) const;
 
 public:
-    GlWidget(Triangulator *triangulator, Octree* octree, FlightPlannerInterface* flightPlanner);
+    GlWidget(BaseStation *baseStation, Octree* octree, FlightPlannerInterface* flightPlanner);
     void moveCamera(const QVector3D &pos);
 
     // Being called by the octree (as a callback) to visualize contents

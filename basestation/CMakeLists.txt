@@ -2,20 +2,18 @@
 # refer to the root source directory of the project as ${SIMULATOR_SOURCE_DIR} and
 # to the root binary directory of the project as ${SIMULATOR_BINARY_DIR}.
 CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
-PROJECT (triangulator)
+PROJECT (basestation)
 
-SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} /usr/lib64/OGRE/cmake/)
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} /usr/lib64/OGRE/cmake/ /usr/local/lib/OGRE/cmake/ /usr/share/cmake/Modules/)
 
 SET(SRC_FILES
 main
-triangulator
+basestation
 glwidget
 logwidget
 flightplannerinterface
 flightplannerbasic
 flightplannerphysics
-#physicssphere
-#contactsensorcallback
 camerawindow
 controlwidget
 bulletdebugdrawergl
@@ -25,18 +23,15 @@ cloudexporter
 ../common/octree
 ../common/node
 ../common/common
-#../common/coordinateconverter
 )
 
 SET(INC_FILES
-triangulator.h
+basestation.h
 glwidget.h
 logwidget.h
 flightplannerinterface.h
 flightplannerbasic.h
 flightplannerphysics.h
-#physicssphere.h
-#contactsensorcallback.h
 camerawindow.h
 controlwidget.h
 bulletdebugdrawergl.h
@@ -46,7 +41,6 @@ cloudexporter.h
 ../common/octree.h
 ../common/node.h
 ../common/common.h
-#../common/coordinateconverter.h
 )
 
 SET(UI_FILES
@@ -57,16 +51,15 @@ logwidget.ui
 SET(RESOURCE_FILES
 )
 
-SET(OGRE_LIBRARIES OgreMain)
 SET(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath BulletSoftBody)
-SET(BULLET_INCLUDES /usr/include/ /usr/include/BulletCollision/BroadphaseCollision/ /usr/include/BulletCollision/CollisionDispatch)
+SET(BULLET_INCLUDES /usr/local/include/bullet/ /usr/include/ /usr/include/BulletCollision/BroadphaseCollision/ /usr/include/BulletCollision/CollisionDispatch)
 
 #"Sources" and "Headers" are the group names in Visual Studio.
 SOURCE_GROUP("Sources" FILES ${SRC_FILES})
 SOURCE_GROUP("Headers" FILES ${INC_FILES})
 
 # does not (yet) exist FIND_PACKAGE(BULLET)
-FIND_PACKAGE(OGRE)
+FIND_PACKAGE(OGRE REQUIRED)
 FIND_PACKAGE(Qt4)
 SET(QT_USE_QTGUI 1)
 SET(QT_USE_QTXML 1)
@@ -84,10 +77,6 @@ SET(CMAKE_BUILD_TYPE "Debug")
 ADD_DEFINITIONS(-DBT_USE_DOUBLE_PRECISION)
 
 INCLUDE_DIRECTORIES(/usr/include ${BULLET_INCLUDES} ${OGRE_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
-ADD_EXECUTABLE(triangulator ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-TARGET_LINK_LIBRARIES(triangulator ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${BULLET_LIBRARIES} GLU)
-
-#include_directories(/usr/include/OGRE/ /usr/include/bullet /usr/include ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
+ADD_EXECUTABLE(basestation ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
+TARGET_LINK_LIBRARIES(basestation ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${BULLET_LIBRARIES} GLU)
 LINK_DIRECTORIES(/usr/lib/)
-#add_executable(triangulator ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-#target_link_libraries(triangulator ${QT_LIBRARIES})

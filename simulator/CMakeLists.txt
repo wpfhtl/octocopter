@@ -9,7 +9,7 @@ SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} /usr/lib64/OGRE/cmake/ /usr/local/lib
 SET(SRC_FILES
 main
 simulator
-baseconnection
+../common/baseconnection
 ogrewidget
 battery
 flightcontroller
@@ -29,7 +29,7 @@ BtOgre/BtOgre
 
 SET(INC_FILES
 simulator.h
-baseconnection.h
+../common/baseconnection.h
 ogrewidget.h
 battery.h
 flightcontroller.h

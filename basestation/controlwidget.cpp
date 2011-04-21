@@ -1,6 +1,6 @@
 #include "controlwidget.h"
 
-ControlWidget::ControlWidget(Triangulator* triangulator) : QDockWidget((QWidget*)triangulator)
+ControlWidget::ControlWidget(BaseStation* baseStation) : QDockWidget((QWidget*)baseStation)
 {
     setupUi(this);
 
@@ -24,7 +24,7 @@ ControlWidget::ControlWidget(Triangulator* triangulator) : QDockWidget((QWidget*
 
     connect(mBtnSetScanVolume, SIGNAL(clicked()), SLOT(slotSetScanVolume()));
 
-    mTriangulator = triangulator;
+    mBaseStation = baseStation;
 //    mCoordinateConverter = mSimulator->mCoordinateConverter;
 //    mBattery = mSimulator->mBattery;
 

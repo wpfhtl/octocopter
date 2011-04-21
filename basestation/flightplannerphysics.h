@@ -9,9 +9,9 @@
 
 #include "bulletdebugdrawergl.h"
 
-#include <btBulletDynamicsCommon.h>
-#include <BulletCollision/CollisionDispatch/btGhostObject.h>
-#include <btBroadphaseProxy.h>
+#include <bullet/btBulletDynamicsCommon.h>
+#include <bullet/BulletCollision/CollisionDispatch/btGhostObject.h>
+#include <bullet/BulletCollision/BroadphaseCollision/btBroadphaseProxy.h>
 
 class FlightPlannerPhysics : public FlightPlannerInterface
 {

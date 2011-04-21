@@ -4,20 +4,20 @@
 #include <QtGui>
 #include <Ogre.h>
 #include "ui_controlwidget.h"
-#include "triangulator.h"
+#include "basestation.h"
 #include "common.h" // for hash()
 
 #define QT_USE_FAST_CONCATENATION
 #define QT_USE_FAST_OPERATOR_PLUS
 
-class Triangulator;
+class BaseStation;
 //class DialogConfiguration;
 
 class ControlWidget : public QDockWidget, public Ui::ControlWidget
 {
 Q_OBJECT
 private:
-    Triangulator *mTriangulator;
+    BaseStation *mBaseStation;
 //    Battery* mBattery;
 //    CoordinateConverter *mCoordinateConverter;
     QList<QVector3D> mWayPoints;
@@ -25,7 +25,7 @@ private:
     void initWayPointTable();
 
 public:
-    ControlWidget(Triangulator *triangulator);
+    ControlWidget(BaseStation *baseStation);
     ~ControlWidget();
 
     const QVector3D getNextWayPoint() const;

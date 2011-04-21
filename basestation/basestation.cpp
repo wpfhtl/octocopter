@@ -1,12 +1,12 @@
-#include "triangulator.h"
+#include "basestation.h"
 
 #include "flightplannerbasic.h"
 #include "flightplannerphysics.h"
 
-Triangulator::Triangulator() : QMainWindow()
+BaseStation::BaseStation() : QMainWindow()
 
 {
-    qDebug() << "Triangulator::Triangulator()";
+    qDebug() << "BaseStation::BaseStation()";
     mOctree = new Octree(
             QVector3D(-100, -100, -100), // min
             QVector3D(100, 100, 100),  // max
@@ -55,13 +55,13 @@ Triangulator::Triangulator() : QMainWindow()
     slotConnect();
 }
 
-Triangulator::~Triangulator()
+BaseStation::~BaseStation()
 {
 }
 
-void Triangulator::slotSocketDisconnected()
+void BaseStation::slotSocketDisconnected()
 {
-    qDebug() << "Triangulator::slotConnectionEnded()";
+    qDebug() << "BaseStation::slotConnectionEnded()";
 
     mLogWidget->log("connection closed, retrying...");
 
@@ -70,16 +70,16 @@ void Triangulator::slotSocketDisconnected()
     mTcpSocket->connectToHost("localhost", 12345);
 }
 
-void Triangulator::slotSocketConnected()
+void BaseStation::slotSocketConnected()
 {
-    qDebug() << "Triangulator::slotSocketConnected()";
+    qDebug() << "BaseStation::slotSocketConnected()";
 
     mLogWidget->log("connection established.");
 
     mTimerUpdateStatus->start();
 }
 
-void Triangulator::slotExportCloud()
+void BaseStation::slotExportCloud()
 {
     const QString fileName = QFileDialog::getSaveFileName(this, "Save cloud to", QString(), "PLY files (*.ply)");
 
@@ -91,7 +91,7 @@ void Triangulator::slotExportCloud()
         QMessageBox::information(this, "Cloud export", "Failed saving cloud to file\n\n" + fileName, "OK");
 }
 
-void Triangulator::addRandomPoint()
+void BaseStation::addRandomPoint()
 {
     QVector3D scannerPosition(0, 0, 0);
     QVector3D point(rand()%199 - 100, rand()%199 - 100, rand()%199 - 100);
@@ -106,15 +106,15 @@ void Triangulator::addRandomPoint()
     mLogWidget->log("added random point.");
 }
 
-void Triangulator::keyPressEvent(QKeyEvent* event)
+void BaseStation::keyPressEvent(QKeyEvent* event)
 {
     if(event->key() == Qt::Key_Space)
         addRandomPoint();
 }
 
-void Triangulator::slotReadSocket()
+void BaseStation::slotReadSocket()
 {
-//    qDebug() << "Triangulator::slotReadSocket()";
+//    qDebug() << "BaseStation::slotReadSocket()";
 
     mIncomingDataBuffer.append(mTcpSocket->readAll());
 
@@ -124,7 +124,7 @@ void Triangulator::slotReadSocket()
     quint32 packetLength;
     stream >> packetLength;
 
-//    qDebug() << "Triangulator::slotReadSocket(): packetLength is" << packetLength << "buffersize is" << mIncomingDataBuffer.size();
+//    qDebug() << "BaseStation::slotReadSocket(): packetLength is" << packetLength << "buffersize is" << mIncomingDataBuffer.size();
 
     if(mIncomingDataBuffer.size() >= packetLength)
     {
@@ -143,9 +143,9 @@ void Triangulator::slotReadSocket()
 }
 
 
-void Triangulator::processPacket(QByteArray data)
+void BaseStation::processPacket(QByteArray data)
 {
-//    qDebug() << "Triangulator::processPacket(): processing bytes:" << data.size();
+//    qDebug() << "BaseStation::processPacket(): processing bytes:" << data.size();
 
     QDataStream stream(data);
 
@@ -241,13 +241,13 @@ void Triangulator::processPacket(QByteArray data)
     }
     else
     {
-        qDebug() << "Triangulator::processPacket(): unknown packetType" << packetType;
+        qDebug() << "BaseStation::processPacket(): unknown packetType" << packetType;
         mLogWidget->log("unknown packetType: " + packetType);
         mIncomingDataBuffer.clear();
     }
 }
 
-void Triangulator::slotGetStatus()
+void BaseStation::slotGetStatus()
 {
 //    mLogWidget->log("asking rover for status.");
 
@@ -259,7 +259,7 @@ void Triangulator::slotGetStatus()
     slotSendData(data);
 }
 
-void Triangulator::slotWayPointInsert(QString hash, int index, QVector3D wpt)
+void BaseStation::slotWayPointInsert(QString hash, int index, QVector3D wpt)
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
@@ -274,7 +274,7 @@ void Triangulator::slotWayPointInsert(QString hash, int index, QVector3D wpt)
     slotSendData(data);
 }
 
-void Triangulator::slotWayPointDelete(QString hash, int index)
+void BaseStation::slotWayPointDelete(QString hash, int index)
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
@@ -288,10 +288,10 @@ void Triangulator::slotWayPointDelete(QString hash, int index)
     slotSendData(data);
 }
 
-void Triangulator::slotSendData(const QByteArray &data)
+void BaseStation::slotSendData(const QByteArray &data)
 {
-//    qDebug() << "Triangulator::slotSendData():" << data << mTcpSocket->state();
-//    qDebug() << "Triangulator::slotSendData():" << mTcpSocket->errorString();
+//    qDebug() << "BaseStation::slotSendData():" << data << mTcpSocket->state();
+//    qDebug() << "BaseStation::slotSendData():" << mTcpSocket->errorString();
 
     QByteArray lengthArray;
     QDataStream streamLength(&lengthArray, QIODevice::WriteOnly);
@@ -301,25 +301,25 @@ void Triangulator::slotSendData(const QByteArray &data)
     mTcpSocket->write(data);
 }
 
-void Triangulator::slotConnect()
+void BaseStation::slotConnect()
 {
     mTcpSocket->connectToHost("localhost", 12345);
 }
 
-void Triangulator::slotSocketError(QAbstractSocket::SocketError socketError)
+void BaseStation::slotSocketError(QAbstractSocket::SocketError socketError)
 {
-    qDebug() << "Triangulator::slotSocketError():" << socketError;
+    qDebug() << "BaseStation::slotSocketError():" << socketError;
 
     if(socketError == QAbstractSocket::ConnectionRefusedError)
         QTimer::singleShot(2000, this, SLOT(slotConnect()));
 }
 
-const QVector3D& Triangulator::getCurrentVehiclePosition(void) const
+const QVector3D& BaseStation::getCurrentVehiclePosition(void) const
 {
     return mVehiclePosition;
 }
 
-const QVector3D Triangulator::getNextWayPoint(void) const
+const QVector3D BaseStation::getNextWayPoint(void) const
 {
     return mControlWidget->getNextWayPoint();
 }
