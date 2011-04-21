@@ -40,6 +40,7 @@ class KopterControl : public QCoreApplication
 
        private slots:
         void slotDoSomething();
+void slotNewPose(const Pose&, quint32);
 };
 
 #endif

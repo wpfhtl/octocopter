@@ -83,8 +83,10 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
         mKopter = new Kopter(portSerialKopter, this);
         mGpsDevice = new GpsDevice(portSerialGpsUsb, portSerialGpsCom, this);
-        mRtkFetcher = new RtkFetcher(rtkBaseHostName, rtkBasePort, this);
+//        mRtkFetcher = new RtkFetcher(rtkBaseHostName, rtkBasePort, this);
         mLaserScanner = new LaserScanner(portSerialLaserScanner, Pose());
+
+connect(mGpsDevice, SIGNAL(newPose(const Pose&, quint32)), SLOT(slotNewPose(const Pose&, quint32)));
 
         QTimer *ben = new QTimer(this);
         ben->setInterval(50);
@@ -104,6 +106,12 @@ KopterControl::~KopterControl()
     delete snSignalPipe;
 }
 
+void KopterControl::slotNewPose(const Pose& pose, quint32 time)
+{
+	qDebug() << time << pose;
+}
+
+
 void KopterControl::slotDoSomething()
 {
 //    QList<unsigned char> speeds;
@@ -114,7 +122,7 @@ void KopterControl::slotDoSomething()
     wert += 0.02;
 
 //    mKopter->slotSetMotion(100, 0, 20, 0, 10);
-    qDebug() << "setting thrust to" << fabs(sin(wert)*40);
+    //qDebug() << "setting thrust to" << fabs(sin(wert)*40);
     mKopter->slotSetMotion(fabs(sin(wert))*40, 0, 0, 0, 0);
 }
 

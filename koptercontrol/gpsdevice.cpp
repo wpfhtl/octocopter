@@ -96,12 +96,17 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
     // and connects to the devices COM2. This method will chat with the device, analyze
     // the prompt in its replies and set mSerialPortOnDevice to COM2. This can be used
     // lateron to tell the device to output useful info on COM2.
-    emit stateChanged(GpsDevice::Initializing, "Setting up communication");
+    mStatus = Initializing;
+    emit stateChanged(mStatus, "Setting up communication");
 
     // We use two connections to the board, the other one is just for feeding the RTK
     // data that we received from rtkfetcher. But we also need to know that ports name,
     // as we need to tell the receiver to accept RTK data on that port.
-    if(!mSerialPortUsb->isOpen() || !mSerialPortCom->isOpen()) emit stateChanged(GpsDevice::Error, "Cannot open GPS serial port(s)");
+    if(!mSerialPortUsb->isOpen() || !mSerialPortCom->isOpen())
+    {
+        mStatus = Error;
+        emit stateChanged(mStatus, "Cannot open GPS serial port(s)");
+    }
     Q_ASSERT(mSerialPortUsb->isOpen());
     Q_ASSERT(mSerialPortCom->isOpen());
 
@@ -128,7 +133,8 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
     else
     {
         qWarning() << "GpsDevice::determineSerialPortOnDevice(): couldn't get serialUsbPortOnDevice, data is:" << dataUsb;
-        emit stateChanged(GpsDevice::Error, "Couldn't get serialUsbPortOnDevice");
+        mStatus = Error;
+        emit stateChanged(mStatus, "Couldn't get serialUsbPortOnDevice");
     }
 
     // After waiting for the reply, read and analyze.
@@ -145,14 +151,50 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
     else
     {
         qWarning() << "GpsDevice::determineSerialPortOnDevice(): couldn't get serialComPortOnDevice, data is:" << dataCom;
-        emit stateChanged(GpsDevice::Error, "Couldn't get serialComPortOnDevice");
+        mStatus = Error;
+        emit stateChanged(mStatus, "Couldn't get serialComPortOnDevice");
     }
+
+    // Do not start if receiver-time will rollover soon. Should only fail on weekends?!
+    const quint32 secondsToRollOver = getTimeToTowRollOver();
+    if(secondsToRollOver < 80000) qFatal("ReceiverTime will rollover soon (in %d seconds), quitting.", secondsToRollOver);
 
     // Now that we know what the ports are named, we can setup the board.
     // We connect this signal not in the c'tor but here, because we don't want the slot
     // to be called for answers to requests made in this method.
     connect(mSerialPortUsb, SIGNAL(readyRead()), SLOT(slotSerialPortDataReady()));
     slotCommunicationSetup();
+}
+
+quint32 GpsDevice::getTimeToTowRollOver()
+{
+    Q_ASSERT(mSerialPortOnDeviceUsb.size() == 4);
+
+    qDebug() << "GpsDevice::getTimeToTowRollOver(): requesting receiver time using USB port:" << mSerialPortOnDeviceUsb;
+    mSerialPortUsb->write(QString("setDataInOut,"+mSerialPortOnDeviceUsb+",,+SBF\n").toAscii());
+    usleep(1000000);
+    QCoreApplication::processEvents();
+    mSerialPortUsb->readAll();
+
+    mSerialPortUsb->write(QString("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime\n").toAscii());
+    usleep(1000000);
+    QCoreApplication::processEvents();
+
+    // After waiting for the reply, read and analyze.
+    QByteArray dataUsb = mSerialPortUsb->readAll();
+
+    dataUsb.remove(0, dataUsb.indexOf("$@"));
+
+    const Sbf_ReceiverTime *block = (Sbf_ReceiverTime*)dataUsb.data();
+
+    Q_ASSERT(block->TOW != 4294967295 && "GPS Receiver TOW is at its do-not-use-value, give it time to initialize.");
+
+    // SecondsPerWeek - CurrentSecondInWeek is number of seconds till rollover
+    const int secondsToRollOver = (7 * 86400) - (block->TOW / 1000);
+
+    qDebug() << "GpsDevice::getTimeToTowRollOver(): TOW" << block->TOW << "will roll over in" << secondsToRollOver << "s =" << ((float)secondsToRollOver)/86400.0 << "d";
+
+    return secondsToRollOver;
 }
 
 void GpsDevice::slotCommunicationSetup()
@@ -240,7 +282,7 @@ void GpsDevice::slotSerialPortDataReady()
     usleep(100000); // wait for the later bytes of this message to come on in...
     mReceiveBufferUsb.append(mSerialPortUsb->readAll());
 
-    qDebug() << "GpsDevice::slotSerialPortDataReady():" << mReceiveBufferUsb;
+//    qDebug() << "GpsDevice::slotSerialPortDataReady():" << mReceiveBufferUsb;
 
     if(mNumberOfRemainingRepliesUsb != 0)
     {
@@ -344,8 +386,6 @@ void GpsDevice::processSbfData()
         {
             // IntPVAAGeod
             const Sbf_PVAAGeod *block = (Sbf_PVAAGeod*)mReceiveBufferUsb.data();
-
-            Q_ASSERT() check TOW?!
 
             // Check the Info-field and emit states if it changes
             if(mLastInfoFromDevice != block->Info)
@@ -553,19 +593,26 @@ void GpsDevice::processSbfData()
                     && block->TOW != 4294967295
                     )
             {
+                // TODO: we COULD read the sub-cm part, too...
+                const float  lon = ((float)block->Lon) / 10000000.0;
+                const float  lat = ((float)block->Lat) / 10000000.0;
+                const float  alt = ((float)block->Alt) / 1000.0;
                 emit newPose(
                             Pose(
                                 // TODO: use PosFine, see SBF reference guide, page 80?
-                                convertGeodeticToCartesian(block->Lon, block->Lat, block->Alt),
+                                convertGeodeticToCartesian(lon, lat, alt),
                                 QQuaternion::fromAxisAndAngle(0,1,0, ((float)block->Heading) * 0.001) *
                                 QQuaternion::fromAxisAndAngle(1,0,0, ((float)block->Pitch) * 0.001) *
                                 QQuaternion::fromAxisAndAngle(0,0,1, ((float)block->Roll) * 0.001)
                                 ),
                             block->TOW // receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
                             );
+
+                qDebug() << "position is" << lon << lat << alt;
             }
 
-            qDebug() << "SBF: IntAttEuler: Info" << block->Info << "Mode" << block->Mode << "Error" << block->Error << "TOW" << block->TOW << "WNc" << block->WNc << "HPR:" << block->Heading << block->Pitch << block->Roll;;
+//            qDebug() << "SBF: IntAttEuler: Info" << block->Info << "Mode" << block->Mode << "Error" << block->Error << "TOW" << block->TOW << "WNc" << block->WNc << "HPR:" << block->Heading << block->Pitch << block->Roll;;
+            qDebug() << "Info" << block->Info << "Mode" << block->Mode << "Error" << block->Error << "HPR:" << block->Heading << block->Pitch << block->Roll;;
         }
             break;
         case 5924:
@@ -614,12 +661,12 @@ GpsDevice::Status GpsDevice::getStatus(void) const
     return mStatus;
 }
 
-QVector3D GpsDevice::convertGeodeticToCartesian(const double &lon, const double &lat, const float &elevation) const
+QVector3D GpsDevice::convertGeodeticToCartesian(const double &lon, const double &lat, const float &elevation)
 {
     QVector3D co;
     co.setY(elevation);
-    co.z = (-(lat - 53.600669l) * 111300.0l);
-    co.x = ((lon - 9.933817l) * 111300.0l * cos(M_PI / 180.0 * 53.600669l));
+    co.setZ(-(lat - 53.600669) * 111300.0);
+    co.setX((lon - 9.933817l) * 111300.0l * cos(M_PI / 180.0 * 53.600669l));
 
     return co;
 }

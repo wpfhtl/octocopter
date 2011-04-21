@@ -10,6 +10,10 @@
 
 #include "qextserialport/src/qextserialport.h"
 
+#include <math.h>
+
+//#define M_PI 3.14159265
+
 static const quint16 CRC_16CCIT_LookUp[256] = {
 
   0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7,
@@ -86,12 +90,16 @@ private:
     QByteArray mReceiveBufferUsb;
     QList<QByteArray> mCommandQueueUsb;
 
-    static inline QVector3D convertGeodeticToCartesian(const double &lon, const double &lat, const float &elevation) const;
+    static inline QVector3D convertGeodeticToCartesian(const double &lon, const double &lat, const float &elevation);
 
     void sendAsciiCommand(QString command);
 
     void processSbfData();
     quint16 getCrc(const void *buf, unsigned int length);
+
+    // This method finds out how many seconds are left before the TOW (time-of-week)
+    // value in the receiver rolls over, potentially screwing up our calculcations.
+    quint32 getTimeToTowRollOver();
 
 
     struct Sbf_Header
@@ -100,6 +108,24 @@ private:
       quint16       CRC;
       quint16       ID;
       quint16       Length;
+    };
+
+    struct Sbf_ReceiverTime
+    {
+      Sbf_Header  Header;
+
+      quint32       TOW;
+      quint16       WNc;
+
+      qint8         UTCYear;
+      qint8         UTCMonth;
+      qint8         UTCDay;
+      qint8         UTCHour;
+      qint8         UTCMin;
+      qint8         UTCSec;
+      qint8         DeltaLS;
+      quint8        SyncLevel;
+      quint8        Reserved[2];
     };
 
     struct Sbf_PVAAGeod
@@ -122,13 +148,13 @@ private:
         quint8        Reserved;
 
         quint8        PosFine;
-        int32_t        Lat;
-        int32_t        Lon;
-        int32_t        Alt;
+        qint32        Lat;
+        qint32        Lon;
+        qint32        Alt;
 
-        int32_t        Vnorth;
-        int32_t        Veast;
-        int32_t        Vup;
+        qint32        Vnorth;
+        qint32        Veast;
+        qint32        Vup;
 
         qint16        Ax;
         qint16        Ay;

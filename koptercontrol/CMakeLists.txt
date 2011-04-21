@@ -11,6 +11,9 @@ koptercontrol
 koptermessage
 kopter
 ../common/pose
+../common/waypoint
+../common/lidarpoint
+../common/baseconnection
 rtkfetcher
 gpsdevice
 laserscanner
@@ -23,6 +26,9 @@ koptercontrol.h
 koptermessage.h
 kopter.h
 ../common/pose.h
+../common/waypoint.h
+../common/lidarpoint.h
+../common/baseconnection.h
 rtkfetcher.h
 gpsdevice.h
 laserscanner.h

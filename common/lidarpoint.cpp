@@ -6,7 +6,7 @@ LidarPoint::LidarPoint(const QVector3D &position, const QVector3D &direction, co
         direction(direction),
         squaredDistance(squaredDistance)
 {
-    node = 0;
+//    node = 0;
 }
 
 LidarPoint::LidarPoint(const LidarPoint &other)
@@ -14,7 +14,7 @@ LidarPoint::LidarPoint(const LidarPoint &other)
     position = other.position;
     direction = other.direction;
     squaredDistance = other.squaredDistance;
-    node = other.node;
+//    node = other.node;
 }
 
 LidarPoint& LidarPoint::operator=(const LidarPoint &other)
@@ -22,7 +22,7 @@ LidarPoint& LidarPoint::operator=(const LidarPoint &other)
     position = other.position;
     direction = other.direction;
     squaredDistance = other.squaredDistance;
-    node = other.node;
+//    node = other.node;
 
     return *this;
 }
