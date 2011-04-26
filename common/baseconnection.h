@@ -17,11 +17,14 @@ class BaseConnection : public QObject
 
 private:
     mutable QMutex mMutex;
+    QString mInterface; // used only for RSSI reading in case of WLAN connection
     QTcpSocket* mTcpSocket;
     QTcpServer* mTcpServer;
     QByteArray mIncomingDataBuffer, mOutgoingDataBuffer;
 
     void processPacket(QByteArray packet);
+
+    int getRssi();
 
 private slots:
     void slotNewConnection(void);
@@ -35,7 +38,7 @@ private slots:
     void slotFlushWriteQueue(void);
 
 public:
-    BaseConnection(QObject* parent);
+    BaseConnection(const QString& interface, QObject* parent);
     ~BaseConnection();
 
     enum Importance
@@ -54,6 +57,10 @@ signals:
     // (i.e. hold the position, not stop the motors)
     void holdPosition();
 
+    // emitted to indicate saturation of connection. Idea is to send less
+    // lidar-data when link is saturated. TODO: combine with RSSI?
+    void networkSaturationChanged(const quint8& percentage);
+
 public slots:
     // called when the rover has changed the waypoints list, will be sent to base
     void slotNewWayPointsFromRover(const QVector<WayPoint>& wayPoints);
@@ -62,7 +69,7 @@ public slots:
     void slotWayPointReached(const WayPoint&wpt);
 
     // called by rover to send updated pose to basestation (called frequently)
-    void slotPoseChanged(const Pose& pose);
+    void slotPoseChanged(const Pose& pose, const quint32 receiverTime);
 
     // called by rover to send lidarpoints to the basestation
     void slotNewLidarPoints(const QVector<LidarPoint>& points);
@@ -70,8 +77,7 @@ public slots:
     // called by rover to send new vehicle status to basestation
     void slotNewVehicleStatus(
         const float& batteryVoltage,
-        const float& barometricHeight,
-        const float& wirelessRssi
+        const float& barometricHeight
         );
 
     // called by rover to send new gps status to basestation
@@ -80,6 +86,7 @@ public slots:
         const quint8& info,
         const quint8& error,
         const quint8& numSatellitesTracked,
+        const quint8& lastPvtAge,
         const QString& status
         );
 

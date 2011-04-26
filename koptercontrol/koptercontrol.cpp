@@ -37,6 +37,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     snSignalPipe = new QSocketNotifier(signalFd[1], QSocketNotifier::Read, this);
     connect(snSignalPipe, SIGNAL(activated(int)), SLOT(slotHandleSignal()));
 
+    QString networkInterface = "wlan0";
     QString portSerialKopter = "/dev/ttyUSB0";
     QString portSerialGpsCom = "/dev/ttyUSB1";
     QString portSerialGpsUsb = "/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device-if00"; //"/dev/ttyACM0";
@@ -67,6 +68,11 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
             portSerialGpsCom = commandLine.at(commandLine.lastIndexOf("-sgc") + 1);
         }
 
+        if(commandLine.lastIndexOf("-netiface") != -1 && commandLine.size() > commandLine.lastIndexOf("-netiface") + 1)
+        {
+            networkInterface = commandLine.at(commandLine.lastIndexOf("-netiface") + 1).toLower();
+        }
+
         if(commandLine.lastIndexOf("-rtkhostname") != -1 && commandLine.size() > commandLine.lastIndexOf("-rtkhostname") + 1)
         {
             rtkBaseHostName = commandLine.at(commandLine.lastIndexOf("-rtkhostname") + 1);
@@ -80,13 +86,29 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
         qDebug() << "KopterControl::KopterControl(): using serial ports: kopter" << portSerialKopter << "gps com" << portSerialGpsCom << "gps usb" << portSerialGpsUsb;
         qDebug() << "KopterControl::KopterControl(): using rtk base at" << rtkBaseHostName << rtkBasePort;
         qDebug() << "KopterControl::KopterControl(): using laserscanner at" << portSerialLaserScanner;
+        qDebug() << "KopterControl::KopterControl(): reading RSSI at interface" << networkInterface;
 
         mKopter = new Kopter(portSerialKopter, this);
         mGpsDevice = new GpsDevice(portSerialGpsUsb, portSerialGpsCom, this);
 //        mRtkFetcher = new RtkFetcher(rtkBaseHostName, rtkBasePort, this);
         mLaserScanner = new LaserScanner(portSerialLaserScanner, Pose());
+        mBaseConnection = new BaseConnection(networkInterface, this);
+        mFlightController = new FlightController();
 
-connect(mGpsDevice, SIGNAL(newPose(const Pose&, quint32)), SLOT(slotNewPose(const Pose&, quint32)));
+        connect(mKopter, SIGNAL(kopterStatus(const float&, const float&)), mBaseConnection, SLOT(slotNewVehicleStatus(const float&, const float&)));
+
+        connect(mGpsDevice, SIGNAL(newPose(const Pose&, const quint32)), SLOT(slotNewPose(const Pose&, const quint32)));
+
+        connect(mGpsDevice, SIGNAL(newPose(const Pose&, const quint32)), mFlightController, SLOT(slotNewPose(const Pose&, const quint32)));
+
+        connect(mFlightController, SIGNAL(speeds(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
+
+        connect(
+                    mGpsDevice,
+                    SIGNAL(gpsStatus(const quint8&, const quint8&, const quint8&, const quint8&, const quint8&, const QString&)),
+                    mBaseConnection,
+                    SLOT(slotNewGpsStatus(const quint8&, const quint8&, const quint8&, const quint8&, const quint8&, const QString&))
+                );
 
         QTimer *ben = new QTimer(this);
         ben->setInterval(50);
@@ -108,7 +130,7 @@ KopterControl::~KopterControl()
 
 void KopterControl::slotNewPose(const Pose& pose, quint32 time)
 {
-	qDebug() << time << pose;
+        qDebug() << time << pose;
 }
 
 

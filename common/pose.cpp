@@ -89,3 +89,16 @@ QVector3D Pose::getPosition(void) const
 {
     return position;
 }*/
+
+QDataStream& operator<<(QDataStream &out, const Pose &pose)
+{
+    out << pose.position << pose.orientation;
+    return out;
+}
+
+QDataStream& operator>>(QDataStream &in, Pose &pose)
+{
+    in >> pose.position;
+    in >> pose.orientation;
+    return in;
+}

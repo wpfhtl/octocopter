@@ -35,3 +35,24 @@ bool LidarPoint::operator==(const LidarPoint &other) const
             this->direction == other.direction &&
             this->squaredDistance == other.squaredDistance;
 }
+
+
+QDebug operator<<(QDebug dbg, const LidarPoint &lidarPoint)
+{
+    dbg.nospace() << "LidarPoint: Position:" << lidarPoint.position << "Direction:" << lidarPoint.direction << "squaredDistance:" << lidarPoint.squaredDistance;
+    return dbg.maybeSpace();
+}
+
+QDataStream& operator<<(QDataStream &out, const LidarPoint &lidarPoint)
+{
+    out << lidarPoint.position << lidarPoint.direction << lidarPoint.squaredDistance;
+    return out;
+}
+
+QDataStream& operator>>(QDataStream &in, LidarPoint &lidarPoint)
+{
+    in >> lidarPoint.position;
+    in >> lidarPoint.direction;
+    in >> lidarPoint.squaredDistance;
+    return in;
+}

@@ -180,6 +180,9 @@ void Kopter::slotSerialPortDataReady()
                     QByteArray payload = message.getPayload();
                     const DebugOut* debugOut = (DebugOut*)payload.data();
 
+                    emit kopterStatus(debugOut->Analog[5], (float)(debugOut->Analog[9])/10.0);
+
+                    /*
                     for(int i=0;i<32;i++)
                     {
 //                        qDebug() << QTime::currentTime() << "Kopter::slotSerialPortDataReady(): value" << i<< mAnalogValueLabels.value(i) << "is" << debugOut->Analog[i];
@@ -196,6 +199,7 @@ void Kopter::slotSerialPortDataReady()
                             break;
                         }
                     }
+                    */
                 }
                 else if(message.getId() == 'T')
                 {

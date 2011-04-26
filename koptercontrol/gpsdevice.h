@@ -55,24 +55,24 @@ class GpsDevice : public QObject
     Q_OBJECT
 
 public:
-    enum Status
-    {
-        Initializing,
-        Running,
-        Error,
-        Stopped,
-        WaitingForCalibration,
-        WaitingForAlignment,
-        WaitingForSatellites
-    };
+//    enum Status
+//    {
+//        Initializing,
+//        Running,
+//        Error,
+//        Stopped,
+//        WaitingForCalibration,
+//        WaitingForAlignment,
+//        WaitingForSatellites
+//    };
 
     GpsDevice(QString &serialDeviceUsb, QString &serialDeviceCom, QObject *parent = 0);
     ~GpsDevice();
 
-    GpsDevice::Status getStatus(void) const;
+//    GpsDevice::Status getStatus(void) const;
 
 private:
-    GpsDevice::Status mStatus;
+//    GpsDevice::Status mStatus;
     quint8 mLastErrorFromDevice;
     quint8 mLastGnssAgeFromDevice; // seconds since last GNSS PVT solution
     quint8 mLastModeFromDevice;
@@ -86,6 +86,9 @@ private:
 
     // The ports we use to talk to the receiver have a name on the receiver-side, e.g. COM1 or USB2
     QString mSerialPortOnDeviceUsb, mSerialPortOnDeviceCom;
+
+    // To emit status in regular intervals
+    QTimer* mStatusTimer;
 
     QByteArray mReceiveBufferUsb;
     QList<QByteArray> mCommandQueueUsb;
@@ -199,15 +202,25 @@ private slots:
     void slotSerialPortDataReady();
     void slotDetermineSerialPortsOnDevice();
 
+    void slotEmitCurrentGpsStatus(const QString& text = QString());
+
 public slots:
     void slotSetRtkData(const QByteArray &data);
 
 signals:
-    void newPose(const Pose&, quint32 receiverTime);
+    void newPose(const Pose&, const quint32 receiverTime);
     void scanFinished(const Pose&);
-    void numberOfSatellitesChanged(const quint8 & number);
-//    void correctionDataReady(QByteArray);
-    void stateChanged(const GpsDevice::Status&, const QString&);
+
+//    void stateChanged(const GpsDevice::Status&, const QString&);
+
+    void gpsStatus(
+        const quint8& mode,
+        const quint8& info,
+        const quint8& error,
+        const quint8& numSatellitesTracked,
+        const quint8& lastPvtAge,
+        const QString& status = QString()
+        );
 
 };
 

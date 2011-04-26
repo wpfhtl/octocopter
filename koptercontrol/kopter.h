@@ -85,8 +85,9 @@ public slots:
     void slotSubscribeDebugValues(int interval = -1);
 
 signals:
-    void voltage(float);
-    void height(qint16);
+//    void voltage(float);
+//    void height(qint16);
+    void kopterStatus(const qint16&, const float&);
     void externControlReplyReceived();
 
 };

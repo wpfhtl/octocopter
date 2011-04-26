@@ -7,6 +7,7 @@ PROJECT(koptercontrol)
 cmake_policy(SET CMP0015 NEW)
 
 SET(SRC_FILES
+flightcontroller
 koptercontrol
 koptermessage
 kopter
@@ -22,6 +23,7 @@ qextserialport/src/posix_qextserialport
 )
 
 SET(INC_FILES
+flightcontroller.h
 koptercontrol.h
 koptermessage.h
 kopter.h

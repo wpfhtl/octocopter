@@ -2,6 +2,7 @@
 #define LIDARPOINT_H
 
 #include <QVector3D>
+#include <QDebug>
 
 //#include "node.h"
 
@@ -21,7 +22,7 @@ public:
     // The node that we live in. This pointer is set by the node when it swallows us.
 //    Node* node;
 
-    // Position is position of detectted object, direction is from
+    // Position is position of detected object, direction is from
     // that object back to the laserscanner. The direction of the
     // ray might come in handy when we need to find better next-best-
     // shot poses.
@@ -42,5 +43,12 @@ public:
     inline double distanceTo(const LidarPoint &other) const { return (position-other.position).length(); }
     inline double squaredDistanceTo(const LidarPoint &other) const { return (position-other.position).lengthSquared(); }
 };
+
+// for using qDebug() << ldp;
+QDebug operator<<(QDebug dbg, const LidarPoint &lidarPoint);
+
+// for streaming
+QDataStream& operator<<(QDataStream &out, const LidarPoint &lidarPoint);
+QDataStream& operator>>(QDataStream &in, LidarPoint &lidarPoint);
 
 #endif

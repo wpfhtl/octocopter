@@ -15,8 +15,8 @@ public:
     Pose();
 
 
-    QQuaternion orientation;
     QVector3D position;
+    QQuaternion orientation;
 
     static Pose interpolateLinear(const Pose &before, const Pose &after, const float &mu);
 
@@ -33,6 +33,7 @@ public:
 //    QQuaternion getOrientation(void) const;
 //    QVector3D getPosition(void) const;
 
+
 signals:
 
 public slots:
@@ -41,5 +42,9 @@ public slots:
 
 // for using qDebug() << myPose;
 QDebug operator<<(QDebug dbg, const Pose &pose);
+
+// for streaming
+QDataStream& operator<<(QDataStream &out, const Pose &pose);
+QDataStream& operator>>(QDataStream &in, Pose &pose);
 
 #endif // POSE_H

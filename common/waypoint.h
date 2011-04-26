@@ -6,15 +6,19 @@
 // For now, this class is just a QVector3D, but it might
 // be extended to include orientation, timestamps etc.
 
-class WayPoint : public QVector3D
+class WayPoint : /*public QObject, */public QVector3D
 {
-    Q_OBJECT
+//    Q_OBJECT
 public:
     WayPoint();
+    WayPoint(const WayPoint& other);
+    WayPoint(const QVector3D& vector);
 
-signals:
+    WayPoint &operator=(const WayPoint& other);
 
-public slots:
+//signals:
+
+//public slots:
 
 };
 

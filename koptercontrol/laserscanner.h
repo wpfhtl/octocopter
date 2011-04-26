@@ -1,7 +1,7 @@
 #ifndef LASERSCANNER_H
 #define LASERSCANNER_H
 
-#include <urg/UrgCtrl.h>
+#include <UrgCtrl.h>
 #include "pose.h"
 #include <stdlib.h>
 
