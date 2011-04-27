@@ -42,9 +42,10 @@ class KopterControl : public QCoreApplication
 
         QSocketNotifier *snSignalPipe;
 
+        QTimer *mTimerComputeMotion;
+
        private slots:
         void slotDoSomething();
-void slotNewPose(const Pose&, quint32);
 };
 
 #endif

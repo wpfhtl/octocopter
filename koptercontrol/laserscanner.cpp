@@ -7,6 +7,8 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &pose)
     mDeviceFileName = deviceFileName;
     mRelativePose = pose;
 
+    mIsEnabled = false;
+
     mScannerPoseFirst = mScannerPoseBefore = mScannerPoseAfter = mScannerPoseLast = 0;
 
     mScanDistancesPrevious = new vector<long>;
@@ -29,6 +31,7 @@ LaserScanner::~LaserScanner()
 
 }
 
+/*
 void LaserScanner::run()
 {
 
@@ -38,37 +41,34 @@ void LaserScanner::run()
 
     exec();
 }
+*/
 
-Pose LaserScanner::getPose(void) const
-{
-    return mRelativePose;
-}
+//Pose LaserScanner::getRelativePose(void) const
+//{
+//    return mRelativePose;
+//}
 
-void LaserScanner::setPose(const Pose &pose)
+void LaserScanner::slotSetPose(const Pose &pose)
 {
     mRelativePose = pose;
 }
 
-
 bool LaserScanner::isScanning(void) const
 {
     return mScannerPoseFirst !=0;
+    return mIsEnabled;
 }
 
-void LaserScanner::slotScanFinished(Pose* pose)
+float LaserScanner::getHeightAboveGround() const
+{
+    // WARNING: the index and offset can be calculated from the pose.
+    return (float)((*mScanDistancesCurrent)[mScanner.deg2index(90)]) - 0.22;
+}
+
+void LaserScanner::slotScanFinished(const quint32 &timestamp)
 {
     QMutexLocker locker(&mMutex);
-    qDebug() << "LaserScanner::slotScanFinished(): received a scan-pose from gps-device!";
-
-    // The hokuyo finished a scan and sent a falling edge to the GpsDevice, which now notifies us of
-    // this scan together with the pose in which scanning finished.
-
-    delete mScannerPoseFirst;
-
-    mScannerPoseFirst = mScannerPoseBefore;
-    mScannerPoseBefore = mScannerPoseAfter;
-    mScannerPoseAfter = mScannerPoseLast;
-    mScannerPoseLast = *pose + mRelativePose;
+    qDebug() << "LaserScanner::slotScanFinished(): scanner finished a scan at time" << timestamp;
 
     // We now have a problem: The hokuyo expects us to retrieve the data within 2ms. So, lets retrieve it quickly:
     // (only if we have enough poses to interpolate that scan, true after 4 scans)
@@ -82,7 +82,7 @@ void LaserScanner::slotScanFinished(Pose* pose)
         if(mScanner.capture(*mScanDistancesNext, &timestamp) <= 0)
             qWarning() << "LaserScanner::slotScanFinished(): weird, less than 1 samples sent by lidar";
 
-        if(mScannerPoseFirst != 0)
+        if(mScannerPoseFirst != 0 && mIsEnabled)
         {
             // Now we have scan data from the previous scan in mScanDistancesPrevious and enough
             // poses around it to interpolate. Go ahead and convert this data to 3d cloud points.
@@ -118,4 +118,25 @@ void LaserScanner::slotScanFinished(Pose* pose)
     }
 
 //    sendPointsToBase();
+}
+
+void LaserScanner::slotNewVehiclePose(Pose* pose)
+{
+    QMutexLocker locker(&mMutex);
+    qDebug() << "LaserScanner::slotNewPose(): received a scan-pose from gps-device at time" << pose->timestamp;
+
+    // The hokuyo finished a scan and sent a falling edge to the GpsDevice, which now notifies us of
+    // this scan together with the pose in which scanning finished.
+
+    delete mScannerPoseFirst;
+
+    mScannerPoseFirst = mScannerPoseBefore;
+    mScannerPoseBefore = mScannerPoseAfter;
+    mScannerPoseAfter = mScannerPoseLast;
+    mScannerPoseLast = *pose + mRelativePose;
+}
+
+void LaserScanner::slotEnableScanning(const bool& enabled)
+{
+    mIsEnabled = enabled;
 }

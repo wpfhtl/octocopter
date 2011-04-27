@@ -1,13 +1,16 @@
 #include "pose.h"
 
-Pose::Pose(const QVector3D &position, const QQuaternion &orientation)// : QObject(parent)
+Pose::Pose(const QVector3D &position, const QQuaternion &orientation, const quint32& timestamp)
 {
     this->orientation = orientation;
     this->position = position;
+
+    this->timestamp = timestamp;
 }
 
 Pose::Pose()
 {
+    this->timestamp = 0;
 }
 
 Pose Pose::interpolateLinear(const Pose &before, const Pose &after, const float &mu)
@@ -92,7 +95,7 @@ QVector3D Pose::getPosition(void) const
 
 QDataStream& operator<<(QDataStream &out, const Pose &pose)
 {
-    out << pose.position << pose.orientation;
+    out << pose.position << pose.orientation << pose.timestamp;
     return out;
 }
 
@@ -100,5 +103,6 @@ QDataStream& operator>>(QDataStream &in, Pose &pose)
 {
     in >> pose.position;
     in >> pose.orientation;
+    in >> pose.timestamp;
     return in;
 }

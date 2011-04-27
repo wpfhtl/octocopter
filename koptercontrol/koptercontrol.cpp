@@ -90,18 +90,24 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
         mKopter = new Kopter(portSerialKopter, this);
         mGpsDevice = new GpsDevice(portSerialGpsUsb, portSerialGpsCom, this);
-//        mRtkFetcher = new RtkFetcher(rtkBaseHostName, rtkBasePort, this);
+        mRtkFetcher = new RtkFetcher(rtkBaseHostName, rtkBasePort, this);
         mLaserScanner = new LaserScanner(portSerialLaserScanner, Pose());
         mBaseConnection = new BaseConnection(networkInterface, this);
         mFlightController = new FlightController();
 
         connect(mKopter, SIGNAL(kopterStatus(const float&, const float&)), mBaseConnection, SLOT(slotNewVehicleStatus(const float&, const float&)));
 
-        connect(mGpsDevice, SIGNAL(newPose(const Pose&, const quint32)), SLOT(slotNewPose(const Pose&, const quint32)));
+        connect(mRtkFetcher, SIGNAL(rtkData(const QByteArray&)), mGpsDevice, SLOT(slotSetRtkData(const QByteArray&)));
 
-        connect(mGpsDevice, SIGNAL(newPose(const Pose&, const quint32)), mFlightController, SLOT(slotNewPose(const Pose&, const quint32)));
+        connect(mBaseConnection, SIGNAL(enableScanning(const bool&)), mLaserScanner, SLOT(slotEnableScanning(const bool&)));
 
-        connect(mFlightController, SIGNAL(speeds(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
+        // WARNING: The pose is created on the heap by GpsDevice and destroyed by mLaserScanner. There
+        // is NO guarantee concerning its lifetime after the pose has been passed to mLaserScanner, so
+        // either use it immediately or copy it for yourself.
+        connect(mGpsDevice, SIGNAL(newVehiclePose(Pose*)), mFlightController, SLOT(slotSetVehiclePose(Pose*)));
+        connect(mGpsDevice, SIGNAL(newVehiclePose(Pose*)), mLaserScanner, SLOT(slotNewVehiclePose(Pose*)));
+
+        connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
 
         connect(
                     mGpsDevice,
@@ -110,10 +116,10 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
                     SLOT(slotNewGpsStatus(const quint8&, const quint8&, const quint8&, const quint8&, const quint8&, const QString&))
                 );
 
-        QTimer *ben = new QTimer(this);
-        ben->setInterval(50);
-//        ben->start();
-        connect(ben, SIGNAL(timeout()), SLOT(slotDoSomething()));
+        mTimerComputeMotion = new QTimer(this);
+        mTimerComputeMotion->setInterval(100);
+        mTimerComputeMotion->start();
+        connect(mTimerComputeMotion, SIGNAL(timeout()), mFlightController, SLOT(slotComputeMotionCommands()));
 
         mKopter->slotSubscribeDebugValues(100);
 
@@ -128,12 +134,6 @@ KopterControl::~KopterControl()
     delete snSignalPipe;
 }
 
-void KopterControl::slotNewPose(const Pose& pose, quint32 time)
-{
-        qDebug() << time << pose;
-}
-
-
 void KopterControl::slotDoSomething()
 {
 //    QList<unsigned char> speeds;
@@ -145,7 +145,8 @@ void KopterControl::slotDoSomething()
 
 //    mKopter->slotSetMotion(100, 0, 20, 0, 10);
     //qDebug() << "setting thrust to" << fabs(sin(wert)*40);
-    mKopter->slotSetMotion(fabs(sin(wert))*40, 0, 0, 0, 0);
+    qDebug() << "extern control reply received.";
+//    mKopter->slotSetMotion(fabs(sin(wert))*40, 0, 0, 0, 0);
 }
 
 void KopterControl::signalHandler(int signal)

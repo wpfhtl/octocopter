@@ -1,11 +1,13 @@
 #include "flightcontroller.h"
 
-FlightController::FlightController() : QObject()
+FlightController::FlightController(LaserScanner* const laserScanner) : QObject()
 {
-    mFlightState = Idle;
+    setFlightState(Idle);
+
+    mLaserScanner = laserScanner;
 
     for(int i=0;i<4;i++) {
-        mFlightState = ApproachingNextWayPoint;
+//        setFlightState(ApproachingNextWayPoint);
         mWayPoints.append(QVector3D(140, 100, 80));
         mWayPoints.append(QVector3D(240, 100, 80));
         mWayPoints.append(QVector3D(140, 100, 160));
@@ -15,7 +17,7 @@ FlightController::FlightController() : QObject()
     mPrevErrorPitch = mPrevErrorRoll = mPrevErrorYaw = mPrevErrorHeight = 0.1;
     mErrorIntegralPitch = mErrorIntegralRoll = mErrorIntegralYaw = mErrorIntegralHeight = 0.1;
 
-    mDesiredYaw = 180.0;
+    mDesiredYaw = 0.0;
 
     mTimeOfLastUpdate = QTime::currentTime();
 
@@ -27,11 +29,14 @@ FlightController::~FlightController()
 
 }
 
-void FlightController::getEngineSpeeds(int &f, int &b, int &l, int &r)
+void FlightController::slotComputeMotionCommands()
 {
-    const double timeDiff = std::max(0.0f, (mTimeOfLastUpdate.msecsTo(QTime::currentTime()) / 1000.0)); // elapsed time since last call in seconds
+    const double timeDiff = std::max(0.0f, (float)(mTimeOfLastUpdate.msecsTo(QTime::currentTime()) / 1000.0)); // elapsed time since last call in seconds
 
-    if(mFlightState == ManualControl)
+    // deprecated
+    int f,b,l,r;
+
+    if(getFlightState() == ManualControl)
     {
 //        qDebug() << "FlightController::getEngineSpeeds(): joystick";
 
@@ -51,7 +56,7 @@ void FlightController::getEngineSpeeds(int &f, int &b, int &l, int &r)
         // It should not matter, but just emit some halfway-safe value;
         emit motion(100, 0, 0, 0, 0);
     }
-    else if(mFlightState == ApproachingNextWayPoint)
+    else if(getFlightState() == ApproachingNextWayPoint)
     {
 //        qDebug() << "FlightController::getEngineSpeeds(): autopilot";
 
@@ -174,7 +179,7 @@ void FlightController::getEngineSpeeds(int &f, int &b, int &l, int &r)
                 (
                     mWayPoints.size()
                     ||
-                    getPosition().distanceToLine(mLastPosition, QVector3D()) < 0.01 // slow
+                    getPosition().distanceToLine(mLastKnownVehiclePose.position, QVector3D()) < 0.01 // slow
                     &&
                     getPosition().distanceToLine(nextWayPoint, QVector3D()) < 0.10 // )
                 ))
@@ -194,7 +199,7 @@ void FlightController::getEngineSpeeds(int &f, int &b, int &l, int &r)
     }
 
     mTimeOfLastUpdate = QTime::currentTime();
-    mLastPosition = getPosition();
+//    mLastPosition = getPosition();
 
 //    qDebug() << "engine spds:" << "f" << f << "\tb" << b << "\tl" << l << "\tr" << r << endl;
 }
@@ -206,34 +211,32 @@ void FlightController::wayPointReached()
     // The current waypoint has been reached.
     mWayPointsPassed.append(mWayPoints.takeFirst());
 
-    Q_ASSERT(mFlightState = ApproachingNextWayPoint);
+    Q_ASSERT(getFlightState() == ApproachingNextWayPoint);
 
     if(mWayPoints.size())
     {
         emit message("waypoint reached, more waypoints present, approaching.");
     }
-    else if(mVehicle->getHeightAboveGround() < 0.2)
+    else if(mLaserScanner->getHeightAboveGround() < 0.2)
     {
-        mFlightState = Idle;
+        setFlightState(Idle);
         // TODO: slow down first. Not necessary, we ARE slow when reaching a waypoint. Hopefully.
         emit message("waypoint reached, no more wayPoints, HeightAboveGround low, idling.");
     }
     else
     {
         mWayPoints.append(getLandingWayPoint());
-        emit message("ManualControl disabled, no further wayPoints, HeightAboveGround high (" + QString::number(mVehicle->getHeightAboveGround()) + "m), now landing.");
+        emit message("ManualControl disabled, no further wayPoints, HeightAboveGround high (" + QString::number(mLaserScanner->getHeightAboveGround()) + "m), now landing.");
     }
 
     emit wayPointReached(mWayPointsPassed.last());
     emit currentWayPoints(mWayPoints);
 }
 
-
-
-
 void FlightController::clearWayPoints()
 {
     mWayPoints.clear();
+    emit currentWayPoints(mWayPoints);
 }
 
 void FlightController::slotWayPointInsert(const QString &hashValue, const int index, const QVector3D &wayPoint)
@@ -245,7 +248,7 @@ void FlightController::slotWayPointInsert(const QString &hashValue, const int in
         emit currentWayPoints(mWayPoints);
 
         // Just in case we were idle (or landing, which is the same) before...
-        if(mFlightState == Idle) mFlightState = ApproachingNextWayPoint;
+        if(mFlightState == Idle) setFlightState(ApproachingNextWayPoint);
     }
     //else Q_ASSERT(false && "hashfailure in slotWayPointInsert");
 //    qDebug() <<  "FlightController::slotWayPointInsert():" << hashValue << index << wayPoint << "hash failure";
@@ -260,11 +263,10 @@ void FlightController::slotWayPointDelete(const QString &hashValue, const int in
         mWayPoints.removeAt(index);
 
         // The list might now be empty, so me might have to land.
-        if(mWayPoints.size() == 0 && mFlightState == ApproachingNextWayPoint)
+        if(mWayPoints.size() == 0 && getFlightState() == ApproachingNextWayPoint)
         {
             // The list is now empty and we are flying. Insert a landing-waypoint if we're not close to the ground;
-            const float heightAboveGround = mVehicle->getHeightAboveGround();
-            if(heightAboveGround > 0.2)
+            if(mLaserScanner->getHeightAboveGround() > 0.2)
             {
                 // Insert landing-waypoint, keep approaching
                 mWayPoints.append(getLandingWayPoint());
@@ -272,7 +274,7 @@ void FlightController::slotWayPointDelete(const QString &hashValue, const int in
             else
             {
                 // We're low anyway, just got to idle mode.
-                mFlightState = Idle;
+                setFlightState(Idle);
             }
         }
     }
@@ -283,7 +285,7 @@ void FlightController::slotWayPointDelete(const QString &hashValue, const int in
 //    }
 }
 
-QVector3D FlightController::getPosition() const
+/*QVector3D FlightController::getPosition() const
 {
     const Ogre::Vector3 pos = mMotionState->getPosition();
     return QVector3D(pos.x, pos.y, pos.z);
@@ -293,17 +295,17 @@ QQuaternion FlightController::getOrientation()
 {
     const Ogre::Quaternion rot = mMotionState->getOrientation();
     return QQuaternion(rot.w, rot.x, rot.y, rot.z);
-}
+}*/
 
-QList<QVector3D> FlightController::getWayPoints()
+QList<WayPoint> FlightController::getWayPoints()
 {
     return mWayPoints;
 }
 
-QVector3D FlightController::getLandingWayPoint() const
+WayPoint FlightController::getLandingWayPoint() const
 {
     // naive implementation
-    return getPosition() - QVector3D(0.0, mVehicle->getHeightAboveGround() * 0.9 , 0.0);
+    return WayPoint(mLastKnownVehiclePose.position - QVector3D(0.0, mLaserScanner->getHeightAboveGround(), 0.0));
 }
 
 FlightController::FlightState FlightController::getFlightState(void) const { return mFlightState; }
@@ -315,19 +317,35 @@ QString FlightController::getFlightStateString(void) const
     case ManualControl: return "ManualControl"; break;
     case ApproachingNextWayPoint: return "ApproachingNextWayPoint"; break;
 //    case Landing: return "Landing"; break;
+    case Freezing: return "Freezing"; break;
     case Idle: return "Idle"; break;
     }
 
     Q_ASSERT(false && "FLIGHTSTATE UNDEFINED!");
 }
 
-int FlightController::wayPointComponentsEqual(const QVector3D &wpt1, const QVector3D &wpt2)
+void FlightController::slotSetVehiclePose(Pose* pose)
 {
-    const int compEqualX = fabs(wpt1.x()-wpt2.x()) < 0.1?1:0;
-    const int compEqualY = fabs(wpt1.y()-wpt2.y()) < 0.1?1:0;
-    const int compEqualZ = fabs(wpt1.z()-wpt2.z()) < 0.1?1:0;
+    mLastKnownVehiclePose = *pose;
+}
 
-//    qDebug() << "FlightController::wayPointComponentsEqual()" << wpt1 << wpt2 << compEqualX << compEqualY << compEqualZ;
+void FlightController::slotFreeze()
+{
+    setFlightState(Freezing);
+    mWayPoints.clear();
+    emit currentWayPoints(mWayPoints);
+}
 
-    return compEqualX + compEqualY + compEqualZ;
+void FlightController::setFlightState(const FlightState& flightState)
+{
+    if(mFlightState != flightState)
+    {
+        mFlightState = flightState;
+        emit flightStateChanged(flightState);
+    }
+}
+
+void FlightController::slotScanningInProgress(const quint32& timestamp)
+{
+    mGpsTimeOfLastScan = timestamp;
 }

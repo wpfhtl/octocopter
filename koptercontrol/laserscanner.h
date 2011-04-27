@@ -13,12 +13,14 @@
 using namespace std;
 using namespace qrk;
 
-class LaserScanner : public QThread
+class LaserScanner : public QObject//QThread
 {
     Q_OBJECT
 
 private:
     QString mDeviceFileName;
+
+    bool mIsEnabled;
 
     UrgCtrl mScanner;
     int mMilliSecondsPerScan;
@@ -46,21 +48,26 @@ public:
 
     bool isScanning(void) const;
 
-    void setPose(const Pose &pose);
-    Pose getPose(void) const;
+    float getHeightAboveGround() const;
 
-    void run(void);
+//    Pose getRelativePose(void) const;
+
+//    void run(void);
 
 public slots:
-//    void slotSetScannerPose(const QVector3D &position, const QQuaternion &orientation);
+    void slotSetPose(const Pose &pose);
+
+    void slotEnableScanning(const bool&);
 
     // When a laserscan is finished, the lidar changes the electircal level on the
     // event-pin of the gps-receiver-board, which then notifies the PC together with
-    // its current pose. This pose is emitted by GpsDevice. That signal is connected
-    // to this slot, so we can combine this pose with our measured data into a 3d cloud.
-    //
+    // the receiver-time (TOW) when this event happened.
+    void slotScanFinished(const quint32& timestamp);
+
     // The @pose is created by GpsDevice and then ownership is passed to LaserScanner.
-    void slotScanFinished(Pose* pose);
+    // Pose also contains a timestamp which is set to the receiver-time of when that pose
+    // was recorded.
+    void slotNewVehiclePose(Pose* pose);
 };
 
 #endif

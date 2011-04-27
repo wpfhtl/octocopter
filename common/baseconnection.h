@@ -57,6 +57,8 @@ signals:
     // (i.e. hold the position, not stop the motors)
     void holdPosition();
 
+    void enableScanning(const bool& enable);
+
     // emitted to indicate saturation of connection. Idea is to send less
     // lidar-data when link is saturated. TODO: combine with RSSI?
     void networkSaturationChanged(const quint8& percentage);

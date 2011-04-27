@@ -163,9 +163,9 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
         slotEmitCurrentGpsStatus("Couldn't get serialComPortOnDevice");
     }
 
-    // Do not start if receiver-time will rollover soon. Should only fail on weekends?!
+    // Do not start if receiver-time will rollover soon. Should only fail on saturdays, as it will roll over at the end of saturday.
     const quint32 secondsToRollOver = getTimeToTowRollOver();
-    if(secondsToRollOver < 80000) qFatal("ReceiverTime will rollover soon (in %d seconds), quitting.", secondsToRollOver);
+    if(secondsToRollOver < 86400) qFatal("ReceiverTime will rollover soon (in %d seconds), quitting.", secondsToRollOver);
 
     // Now that we know what the ports are named, we can setup the board.
     // We connect this signal not in the c'tor but here, because we don't want the slot
@@ -622,15 +622,15 @@ void GpsDevice::processSbfData()
                 const float  lon = ((float)block->Lon) / 10000000.0;
                 const float  lat = ((float)block->Lat) / 10000000.0;
                 const float  alt = ((float)block->Alt) / 1000.0;
-                emit newPose(
-                            Pose(
+                emit newVehiclePose(
+                            new Pose(
                                 // TODO: use PosFine, see SBF reference guide, page 80?
                                 convertGeodeticToCartesian(lon, lat, alt),
                                 QQuaternion::fromAxisAndAngle(0,1,0, ((float)block->Heading) * 0.001) *
                                 QQuaternion::fromAxisAndAngle(1,0,0, ((float)block->Pitch) * 0.001) *
-                                QQuaternion::fromAxisAndAngle(0,0,1, ((float)block->Roll) * 0.001)
-                                ),
-                            block->TOW // receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
+                                QQuaternion::fromAxisAndAngle(0,0,1, ((float)block->Roll) * 0.001),
+                                block->TOW // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
+                                )
                             );
 
                 qDebug() << "position is" << lon << lat << alt;
@@ -644,6 +644,18 @@ void GpsDevice::processSbfData()
         {
             // ExtEvent
             qDebug() << "SBF: ExtEvent";
+            if(msgIdRev != 2)
+            {
+                qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock;
+                break;
+            }
+            // process
+            const Sbf_ExtEvent *block = (Sbf_ExtEvent*)mReceiveBufferUsb.data();
+
+            if(block->TOW != 4294967295)
+                emit scanFinished(block->TOW);
+            else
+                qDebug() << "GpsDevice::processSbfData(): WARNING: scan finished, but TOW is set to do-not-use!";
         }
             break;
         case 4037:

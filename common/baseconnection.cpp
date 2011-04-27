@@ -128,6 +128,12 @@ void BaseConnection::processPacket(QByteArray packet)
 
         slotSendData(data, false);
     }
+    else if(command == "enablescanning")
+    {
+        bool enable = false;
+        stream >> enable;
+        emit enableScanning(enable);
+    }
     else
     {
         qDebug() << "UNKNOWN COMMAND" << command;

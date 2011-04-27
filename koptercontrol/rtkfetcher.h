@@ -42,7 +42,7 @@ public:
     bool isReceiving(void) const;
 
 signals:
-    void rtkData(QByteArray data);
+    void rtkData(const QByteArray& data);
 };
 
 #endif

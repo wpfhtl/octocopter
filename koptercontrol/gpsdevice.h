@@ -131,6 +131,18 @@ private:
       quint8        Reserved[2];
     };
 
+    struct Sbf_ExtEvent
+    {
+        Sbf_Header  Header;
+        quint32       TOW;
+        quint16       WNc;
+        quint8        Source;
+        quint8        Polarity;
+        float          Offset;
+        double         RxClkBias;
+        quint16       PVTAge;
+    };
+
     struct Sbf_PVAAGeod
     {
         Sbf_Header  Header;
@@ -202,14 +214,21 @@ private slots:
     void slotSerialPortDataReady();
     void slotDetermineSerialPortsOnDevice();
 
+    // For timestamp from the GPS device to work with timestamp from the
+    // system, we need to sync the system clock (and rtc?) with the gps
+    // clock.
+    void setSystemTimeToGpsTime();
+
     void slotEmitCurrentGpsStatus(const QString& text = QString());
 
 public slots:
     void slotSetRtkData(const QByteArray &data);
 
 signals:
-    void newPose(const Pose&, const quint32 receiverTime);
-    void scanFinished(const Pose&);
+    void newVehiclePose(Pose*);
+
+    // Again, timestamp is number of milliseconds since last sunday 00:00:00 AM (midnight)
+    void scanFinished(const quint32& timestamp);
 
 //    void stateChanged(const GpsDevice::Status&, const QString&);
 
