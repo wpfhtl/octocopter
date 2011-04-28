@@ -701,6 +701,11 @@ void GpsDevice::slotSetRtkData(const QByteArray &data)
 void GpsDevice::slotEmitCurrentGpsStatus(const QString& text)
 {
     emit gpsStatus(mLastModeFromDevice, mLastInfoFromDevice, mLastErrorFromDevice, mLastNumberOfSatellitesUsed, mLastGnssAgeFromDevice, text);
+    emit message(
+                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
+                Information,
+                QString("Mode %1, Info %2, Error %3, NumSats %4, GnssAge %5").arg(mLastModeFromDevice).arg(mLastInfoFromDevice).arg(mLastErrorFromDevice).arg(mLastNumberOfSatellitesUsed).arg(mLastGnssAgeFromDevice)
+                );
 }
 
 QVector3D GpsDevice::convertGeodeticToCartesian(const double &lon, const double &lat, const float &elevation)

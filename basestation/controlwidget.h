@@ -5,6 +5,7 @@
 #include <Ogre.h>
 #include "ui_controlwidget.h"
 #include "basestation.h"
+#include "waypoint.h"
 #include "common.h" // for hash()
 
 #define QT_USE_FAST_CONCATENATION
@@ -20,7 +21,7 @@ private:
     BaseStation *mBaseStation;
 //    Battery* mBattery;
 //    CoordinateConverter *mCoordinateConverter;
-    QList<QVector3D> mWayPoints;
+    QList<WayPoint> mWayPoints;
 
     void initWayPointTable();
 
@@ -28,15 +29,15 @@ public:
     ControlWidget(BaseStation *baseStation);
     ~ControlWidget();
 
-    const QVector3D getNextWayPoint() const;
+    const WayPoint getNextWayPoint() const;
 
 public slots:
     void slotUpdatePose(const QVector3D &position, const QQuaternion &rot);
     void slotUpdateDynamics(QVector3D linearVelocity);
-    void slotUpdateWayPoints(QList<QVector3D> waypoints);
+    void slotUpdateWayPoints(const QList<WayPoint>& waypoints);
 
     // Called my FlightPlanner to add a new waypoint.
-    void slotNewWayPoint(const QVector3D);
+    void slotNewWayPoint(const WayPoint&);
 
 private slots:
     void slotUpdateBattery(const int chargeStateInPercent);
@@ -62,7 +63,7 @@ signals:
 
     void generateWaypoints();
 
-    void wayPointInsert(QString, int index, QVector3D);
+    void wayPointInsert(QString, int index, const WayPoint&);
     void wayPointDelete(QString, int index);
 };
 

@@ -106,3 +106,75 @@ QDataStream& operator>>(QDataStream &in, Pose &pose)
     in >> pose.timestamp;
     return in;
 }
+
+float Pose::getRollRadians(bool reprojectAxis) const
+{
+    if (reprojectAxis)
+    {
+        // ben: this was Real in ogre, so it might be better to use double
+        // roll = atan2(localx.y, localx.x)
+        // pick parts of xAxis() implementation that we need
+        float fTx  = 2.0 * orientation.x();
+        float fTy  = 2.0 * orientation.y();
+        float fTz  = 2.0 * orientation.z();
+        float fTwz = fTz * orientation.scalar();
+        float fTxy = fTy * orientation.x();
+        float fTyy = fTy * orientation.y();
+        float fTzz = fTz * orientation.z();
+
+        // Vector3(1.0-(fTyy+fTzz), fTxy+fTwz, fTxz-fTwy);
+        return atan2(fTxy+fTwz, 1.0-(fTyy+fTzz));
+    }
+    else
+    {
+        return atan2(2*(orientation.x() * orientation.y() + orientation.scalar() * orientation.z() ), orientation.scalar() * orientation.scalar() + orientation.x() * orientation.x() - orientation.y() * orientation.y() - orientation.z() * orientation.z());
+    }
+}
+
+float Pose::getPitchRadians(bool reprojectAxis) const
+{
+    if (reprojectAxis)
+    {
+        // pitch = atan2(localy.z, localy.y)
+        // pick parts of yAxis() implementation that we need
+        float fTx  = 2.0 * orientation.x();
+        float fTy  = 2.0 * orientation.y();
+        float fTz  = 2.0 * orientation.z();
+        float fTwx = fTx * orientation.scalar();
+        float fTxx = fTx * orientation.x();
+        float fTyz = fTz * orientation.y();
+        float fTzz = fTz * orientation.z();
+
+        // Vector3(fTxy-fTwz, 1.0-(fTxx+fTzz), fTyz+fTwx);
+        return atan2(fTyz+fTwx, 1.0-(fTxx+fTzz));
+    }
+    else
+    {
+        // internal version
+        return atan2(2*(orientation.y() * orientation.z() + orientation.scalar() * orientation.x() ), orientation.scalar() * orientation.scalar() - orientation.x() * orientation.x() - orientation.y() * orientation.y() + orientation.z() * orientation.z());
+    }
+}
+
+float Pose::getYawRadians(bool reprojectAxis) const
+{
+    if (reprojectAxis)
+    {
+        // yaw = atan2(localz.x, localz.z)
+        // pick parts of zAxis() implementation that we need
+        float fTx  = 2.0 * orientation.x();
+        float fTy  = 2.0 * orientation.y();
+        float fTz  = 2.0 * orientation.z();
+        float fTwy = fTy * orientation.scalar();
+        float fTxx = fTx * orientation.x();
+        float fTxz = fTz * orientation.x();
+        float fTyy = fTy * orientation.y();
+
+        // Vector3(fTxz+fTwy, fTyz-fTwx, 1.0-(fTxx+fTyy));
+        return atan2(fTxz+fTwy, 1.0-(fTxx+fTyy));
+    }
+    else
+    {
+        // internal version
+        return asin(-2*(orientation.x() * orientation.z() - orientation.scalar() * orientation.y()));
+    }
+}

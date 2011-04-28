@@ -40,8 +40,9 @@ void FlightController::slotComputeMotionCommands()
     {
 //        qDebug() << "FlightController::getEngineSpeeds(): joystick";
 
-        mPrevErrorPitch = 0 - mMotionState->getOrientation().getPitch(false).valueDegrees();
-        mPrevErrorRoll = 0 - mMotionState->getOrientation().getRoll(false).valueDegrees();
+
+        mPrevErrorPitch = 0 - mLastKnownVehiclePose.getPitchDegrees(false); //mMotionState->getOrientation().getPitch(false).valueDegrees();
+        mPrevErrorRoll = 0 - mLastKnownVehiclePose.getRollDegrees(false); //mMotionState->getOrientation().getRoll(false).valueDegrees();
 
         // clear the error integrals, so we don't get spikes after releasing the joystick
         mErrorIntegralPitch = mErrorIntegralRoll = mErrorIntegralYaw = mErrorIntegralHeight = 0.1;
@@ -72,10 +73,10 @@ void FlightController::slotComputeMotionCommands()
 //        const float currentPitch = mMotionState->getOrientation().getPitch(true).valueDegrees();
 //        const float currentRoll = mMotionState->getOrientation().getRoll(true).valueDegrees();
 //        const float currentYaw = 180.0 + mMotionState->getNode()->_getDerivedOrientation().get/*Pitch*/(true).valueDegrees();
-        const float currentPitch = mMotionState->getNode()->_getDerivedOrientation().getPitch(true).valueDegrees();
-        const float currentRoll = mMotionState->getNode()->_getDerivedOrientation().getRoll(true).valueDegrees();
-        const float currentYaw = 180.0 + mMotionState->getNode()->_getDerivedOrientation().getYaw(true).valueDegrees();
-        const float currentHeight = mMotionState->getPosition().y;//mVehicle->getHeightAboveGround();
+        const float currentPitch = mLastKnownVehiclePose.getPitchDegrees(true); //mMotionState->getNode()->_getDerivedOrientation().getPitch(true).valueDegrees();
+        const float currentRoll = mLastKnownVehiclePose.getRollDegrees(false); //mMotionState->getNode()->_getDerivedOrientation().getRoll(true).valueDegrees();
+        const float currentYaw = 180.0 + mLastKnownVehiclePose.getYawDegrees(false); //mMotionState->getNode()->_getDerivedOrientation().getYaw(true).valueDegrees();
+        const float currentHeight = mLaserScanner->getHeightAboveGround(); //mLastKnownVehiclePose.position.y(); //mMotionState->getPosition().y;//mVehicle->getHeightAboveGround();
 
         double errorYaw = mDesiredYaw - currentYaw;
         mErrorIntegralYaw += errorYaw*timeDiff;
@@ -87,21 +88,21 @@ void FlightController::slotComputeMotionCommands()
         double desiredRoll, desiredPitch = 0.0;
         if(fabs(errorYaw) < 5.0)
         {
-            if(mMotionState->getPosition().x > nextWayPoint.x())
+            if(mLastKnownVehiclePose.position.x() > nextWayPoint.x())
             {
-                desiredRoll = fmin((mMotionState->getPosition().x - nextWayPoint.x())*3, 45.0);
+                desiredRoll = fmin((mLastKnownVehiclePose.position.x() - nextWayPoint.x())*3, 45.0);
             }
             else
             {
-                desiredRoll = -fmin((nextWayPoint.x() - mMotionState->getPosition().x)*3, 45.0);
+                desiredRoll = -fmin((nextWayPoint.x() - mLastKnownVehiclePose.position.x())*3, 45.0);
             }
-            if(mMotionState->getPosition().z > nextWayPoint.z())
+            if(mLastKnownVehiclePose.position.z() > nextWayPoint.z())
             {
-                desiredPitch = -fmin((mMotionState->getPosition().z - nextWayPoint.z())*3, 45.0);
+                desiredPitch = -fmin((mLastKnownVehiclePose.position.z() - nextWayPoint.z())*3, 45.0);
             }
             else
             {
-                desiredPitch = fmin((nextWayPoint.z() - mMotionState->getPosition().z)*3, 45.0);
+                desiredPitch = fmin((nextWayPoint.z() - mLastKnownVehiclePose.position.z())*3, 45.0);
             }
         }
 
@@ -173,15 +174,15 @@ void FlightController::slotComputeMotionCommands()
 
         // See whether we're close at the waypoint and moving slowly
         if(
-                getPosition().distanceToLine(nextWayPoint, QVector3D()) < 2.0 // half-close to wp
+                mLastKnownVehiclePose.position.distanceToLine(nextWayPoint, QVector3D()) < 2.0 // half-close to wp
                 &&
                 // slow, if no further wps present, so we can go land and switch to idle
                 (
                     mWayPoints.size()
                     ||
-                    getPosition().distanceToLine(mLastKnownVehiclePose.position, QVector3D()) < 0.01 // slow
+                    mLastKnownVehiclePose.position.distanceToLine(mLastKnownVehiclePose.position, QVector3D()) < 0.01 // slow
                     &&
-                    getPosition().distanceToLine(nextWayPoint, QVector3D()) < 0.10 // )
+                    mLastKnownVehiclePose.position.distanceToLine(nextWayPoint, QVector3D()) < 0.10 // )
                 ))
         {
             wayPointReached();
@@ -215,18 +216,18 @@ void FlightController::wayPointReached()
 
     if(mWayPoints.size())
     {
-        emit message("waypoint reached, more waypoints present, approaching.");
+        emit message(QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), Information, "waypoint reached, more waypoints present, approaching");
     }
     else if(mLaserScanner->getHeightAboveGround() < 0.2)
     {
         setFlightState(Idle);
         // TODO: slow down first. Not necessary, we ARE slow when reaching a waypoint. Hopefully.
-        emit message("waypoint reached, no more wayPoints, HeightAboveGround low, idling.");
+        emit message(QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), Information, "waypoint reached, no more wayPoints, HeightAboveGround low, idling");
     }
     else
     {
         mWayPoints.append(getLandingWayPoint());
-        emit message("ManualControl disabled, no further wayPoints, HeightAboveGround high (" + QString::number(mLaserScanner->getHeightAboveGround()) + "m), now landing.");
+        emit message(QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), Information, QString("ManualControl disabled, no further wayPoints, HeightAboveGround high (" + QString::number(mLaserScanner->getHeightAboveGround()) + "m), now landing"));
     }
 
     emit wayPointReached(mWayPointsPassed.last());

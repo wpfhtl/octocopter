@@ -7,6 +7,7 @@
 #include <QDebug>
 #include <QMutex>
 
+#include <common.h>
 #include <waypoint.h>
 #include <lidarpoint.h>
 #include <pose.h>
@@ -40,14 +41,6 @@ private slots:
 public:
     BaseConnection(const QString& interface, QObject* parent);
     ~BaseConnection();
-
-    enum Importance
-    {
-        Log,
-        Warning,
-        Error,
-        Desaster
-    };
 
 signals:
     // emitted when a new list of waypoints has arrived from the basestation
@@ -93,7 +86,7 @@ public slots:
         );
 
     // called by rover to send new log message to basestation
-    void slotNewLogMessage(const QString& source, const BaseConnection::Importance& importance, const QString& text);
+    void slotNewLogMessage(const QString& source, const LogImportance& importance, const QString& text);
 };
 
 #endif

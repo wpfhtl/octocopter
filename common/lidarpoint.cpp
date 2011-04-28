@@ -6,7 +6,9 @@ LidarPoint::LidarPoint(const QVector3D &position, const QVector3D &direction, co
         direction(direction),
         squaredDistance(squaredDistance)
 {
-//    node = 0;
+#ifdef LIDARPOINT_KEEPS_PARENTNODE
+        node = 0;
+#endif
 }
 
 LidarPoint::LidarPoint(const LidarPoint &other)
@@ -14,7 +16,10 @@ LidarPoint::LidarPoint(const LidarPoint &other)
     position = other.position;
     direction = other.direction;
     squaredDistance = other.squaredDistance;
-//    node = other.node;
+
+#ifdef LIDARPOINT_KEEPS_PARENTNODE
+    node = other.node;
+#endif
 }
 
 LidarPoint& LidarPoint::operator=(const LidarPoint &other)
@@ -22,7 +27,10 @@ LidarPoint& LidarPoint::operator=(const LidarPoint &other)
     position = other.position;
     direction = other.direction;
     squaredDistance = other.squaredDistance;
-//    node = other.node;
+
+#ifdef LIDARPOINT_KEEPS_PARENTNODE
+    node = other.node;
+#endif
 
     return *this;
 }

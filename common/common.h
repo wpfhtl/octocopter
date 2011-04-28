@@ -6,6 +6,16 @@
 #include <QString>
 #include <QCryptographicHash>
 
-QString hash(QList<QVector3D> list);
+#include <waypoint.h>
+
+QString hash(QList<WayPoint> list);
+
+enum LogImportance
+{
+    Information,
+    Warning,
+    Error,
+    Desaster
+};
 
 #endif // COMMON_H

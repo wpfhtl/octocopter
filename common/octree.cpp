@@ -359,7 +359,7 @@ QList<LidarPoint*> Octree::findNeighborsWithinRadius(const QVector3D &point, con
     while(currentNode->parent && !currentNode->isSphereContained(point, radius))
         currentNode = currentNode->parent;
 
-    foreach(Node* const n, currentNode->getAllChildLeafs())
+    foreach(const Node* const n, currentNode->getAllChildLeafs())
     {
         if(n->overlapsSphere(point, radius))
             neighbors << n->findNeighborsWithinRadius(point, radius);

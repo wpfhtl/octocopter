@@ -176,7 +176,7 @@ void ControlWidget::slotWayPointDown()
     mWayPointTable->setCurrentCell(rowLower, 1);
 }
 
-void ControlWidget::slotNewWayPoint(const QVector3D point)
+void ControlWidget::slotNewWayPoint(const WayPoint& point)
 {
     emit wayPointInsert(hash(mWayPoints), mWayPoints.size(), point);
     mWayPoints.append(point);
@@ -235,7 +235,7 @@ void ControlWidget::slotUpdateDynamics(QVector3D linearVelocity)
     mLabelSpeedHorizontal->setText(QString::number(linearVelocity.length(), 'f', 4) + " m/s");
 }
 
-void ControlWidget::slotUpdateWayPoints(QList<QVector3D> waypoints)
+void ControlWidget::slotUpdateWayPoints(const QList<WayPoint>& waypoints)
 {
     mWayPoints = waypoints;
 
@@ -266,10 +266,10 @@ void ControlWidget::slotSetScanVolume()
                 );
 }
 
-const QVector3D ControlWidget::getNextWayPoint() const
+const WayPoint ControlWidget::getNextWayPoint() const
 {
     if(mWayPoints.empty())
-        return QVector3D();
+        return WayPoint();
     else
         return mWayPoints.first();
 }

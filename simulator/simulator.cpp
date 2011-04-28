@@ -47,7 +47,7 @@ Simulator::Simulator(void) :
     mTimeFactor = mStatusWidget->getTimeFactor();
     qDebug() << "Simulator::Simulator(): setting timeFactor to" << mTimeFactor;
 
-    mBaseConnection = new BaseConnection(this);
+    mBaseConnection = new BaseConnection("eth0", this);
 }
 
 Simulator::~Simulator(void)
@@ -81,7 +81,7 @@ void Simulator::slotOgreInitialized(void)
     mVehicle = new Vehicle(this, mOgreWidget);
     connect(mVehicle, SIGNAL(newPose(const Ogre::Vector3&, const Ogre::Quaternion&)), mStatusWidget, SLOT(slotUpdatePose(const Ogre::Vector3&, const Ogre::Quaternion&)));
 
-    mBaseConnection->setVehicle(mVehicle);
+//    mBaseConnection->setVehicle(mVehicle);
 
     // Same thing for StatusWidget, which has the configuration window. Tell it to read the config only after ogre
     // is initialized, so it can create cameras and laserscanners.

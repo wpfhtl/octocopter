@@ -4,9 +4,11 @@
 #include <QVector3D>
 #include <QDebug>
 
-//#include "node.h"
+#ifdef LIDARPOINT_KEEPS_PARENTNODE
+#include "node.h"
+class Node;
+#endif
 
-//class Node;
 
 class LidarPoint : public QObject
 {
@@ -19,8 +21,10 @@ public:
     LidarPoint& operator=(const LidarPoint &other);
     bool operator==(const LidarPoint &other) const;
 
+#ifdef LIDARPOINT_KEEPS_PARENTNODE
     // The node that we live in. This pointer is set by the node when it swallows us.
-//    Node* node;
+    Node* node;
+#endif
 
     // Position is position of detected object, direction is from
     // that object back to the laserscanner. The direction of the

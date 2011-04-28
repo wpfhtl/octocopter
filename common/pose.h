@@ -6,6 +6,8 @@
 #include <QTime>
 #include <QDebug>
 
+#include <math.h>
+
 class Pose// : public QObject
 {
 //    Q_OBJECT
@@ -37,6 +39,13 @@ public:
 //    QQuaternion getOrientation(void) const;
 //    QVector3D getPosition(void) const;
 
+    float getRollRadians(bool reprojectAxis) const;
+    float getPitchRadians(bool reprojectAxis) const;
+    float getYawRadians(bool reprojectAxis) const;
+
+    float getRollDegrees(bool reprojectAxis) const {return 180.0 * getRollRadians(reprojectAxis) / M_PI;};
+    float getPitchDegrees(bool reprojectAxis) const {return 180.0 * getPitchRadians(reprojectAxis) / M_PI;};
+    float getYawDegrees(bool reprojectAxis) const {return 180.0 * getYawRadians(reprojectAxis) / M_PI;};
 
 signals:
 

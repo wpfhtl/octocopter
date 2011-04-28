@@ -62,7 +62,16 @@ bool LaserScanner::isScanning(void) const
 float LaserScanner::getHeightAboveGround() const
 {
     // WARNING: the index and offset can be calculated from the pose.
-    return (float)((*mScanDistancesCurrent)[mScanner.deg2index(90)]) - 0.22;
+    const int index = mScanner.deg2index(90);
+    if(mScanDistancesCurrent->size() > index)
+    {
+        return (float)((*mScanDistancesCurrent)[index]) - 0.22;
+    }
+    else
+    {
+        // WARNING: this might cause trouble.
+        return -1.0;
+    }
 }
 
 void LaserScanner::slotScanFinished(const quint32 &timestamp)

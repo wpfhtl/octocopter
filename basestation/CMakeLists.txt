@@ -20,6 +20,7 @@ bulletdebugdrawergl
 cloudexporter
 ../common/openglutilities
 ../common/lidarpoint
+../common/waypoint
 ../common/octree
 ../common/node
 ../common/common
@@ -38,6 +39,7 @@ bulletdebugdrawergl.h
 cloudexporter.h
 ../common/openglutilities.h
 ../common/lidarpoint.h
+../common/waypoint.h
 ../common/octree.h
 ../common/node.h
 ../common/common.h
@@ -76,6 +78,9 @@ SET(CMAKE_BUILD_TYPE "Debug")
 # use this if bullet is also compiled with double precision
 ADD_DEFINITIONS(-DBT_USE_DOUBLE_PRECISION)
 
+# Enable the Node LidarPoint::node member, in which a lidarpoint remembers in which node it is stored. Increases octree efficiency,
+# but also creates a dependency on "Node", which is otherwise unused in koptercontrol project
+ADD_DEFINITIONS(-DLIDARPOINT_KEEPS_PARENTNODE)
 INCLUDE_DIRECTORIES(/usr/include ${BULLET_INCLUDES} ${OGRE_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 ADD_EXECUTABLE(basestation ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
 TARGET_LINK_LIBRARIES(basestation ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${BULLET_LIBRARIES} GLU)

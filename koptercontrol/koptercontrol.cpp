@@ -93,7 +93,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
         mRtkFetcher = new RtkFetcher(rtkBaseHostName, rtkBasePort, this);
         mLaserScanner = new LaserScanner(portSerialLaserScanner, Pose());
         mBaseConnection = new BaseConnection(networkInterface, this);
-        mFlightController = new FlightController();
+        mFlightController = new FlightController(mLaserScanner);
 
         connect(mKopter, SIGNAL(kopterStatus(const float&, const float&)), mBaseConnection, SLOT(slotNewVehicleStatus(const float&, const float&)));
 
@@ -173,6 +173,24 @@ void KopterControl::slotHandleSignal()
 int main(int argc, char **argv)
 {
     setupUnixSignalHandlers();
+
+    Pose p2(
+                QVector3D(0,0,0),
+                QQuaternion::fromAxisAndAngle(0,1,0, 40) * // Heading
+                QQuaternion::fromAxisAndAngle(1,0,0, 50) * // Pitch
+                QQuaternion::fromAxisAndAngle(0,0,1, 60), // Roll
+                0);
+
+    Pose p(
+                QVector3D(0,0,0),
+                QQuaternion::fromAxisAndAngle(0,0,1, 60) * // Roll
+                QQuaternion::fromAxisAndAngle(1,0,0, 50) * // Pitch
+                QQuaternion::fromAxisAndAngle(0,1,0, 40), // Heading
+                0);
+
+    qDebug() << "pose is" << p.getYawDegrees(true) << p.getPitchDegrees(true) << p.getRollDegrees(true);
+    exit(0);
+
 
     KopterControl KopterControl(argc, argv);
 

@@ -5,7 +5,7 @@
 #include <QVector3D>
 #include <QTime>
 
-//#include "common.h"
+#include <common.h>
 #include "waypoint.h"
 #include "laserscanner.h"
 #include "pose.h"
@@ -86,7 +86,7 @@ signals:
     void currentWayPoints(QList<WayPoint>);
 
     // log/status messages
-    void message(const QString&, int importance, const QString& message);
+    void message(const QString&, const LogImportance& importance, const QString& message);
 
 public slots:
     void slotSetVehiclePose(Pose*);

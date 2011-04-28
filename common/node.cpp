@@ -269,7 +269,7 @@ uint32_t Node::numberOfNeighborsWithinRadius(const QVector3D &point, const doubl
 
     uint32_t number = 0;
 
-    foreach(LidarPoint* const p, data)
+    foreach(const LidarPoint* const p, data)
         if(p->squaredDistanceTo(point) <= radiusSquared)
             number++;
 

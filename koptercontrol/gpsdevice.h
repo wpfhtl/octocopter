@@ -6,6 +6,8 @@
 #include <QDebug>
 #include <QTimer>
 
+#include <common.h>
+
 #include "pose.h"
 
 #include "qextserialport/src/qextserialport.h"
@@ -217,7 +219,7 @@ private slots:
     // For timestamp from the GPS device to work with timestamp from the
     // system, we need to sync the system clock (and rtc?) with the gps
     // clock.
-    void setSystemTimeToGpsTime();
+//    void setSystemTimeToGpsTime();
 
     void slotEmitCurrentGpsStatus(const QString& text = QString());
 
@@ -225,6 +227,9 @@ public slots:
     void slotSetRtkData(const QByteArray &data);
 
 signals:
+    // log/status messages
+    void message(const QString&, const LogImportance& importance, const QString& message);
+
     void newVehiclePose(Pose*);
 
     // Again, timestamp is number of milliseconds since last sunday 00:00:00 AM (midnight)

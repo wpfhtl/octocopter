@@ -1,9 +1,9 @@
 #include "common.h"
 
-QString hash(QList<QVector3D> list)
+QString hash(QList<WayPoint> list)
 {
     QCryptographicHash hash(QCryptographicHash::Md4);
-    foreach(const QVector3D v, list)
+    foreach(const WayPoint v, list)
     {
         hash.addData(QByteArray::number(v.x()));
         hash.addData(QByteArray::number(v.y()));

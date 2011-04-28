@@ -11,6 +11,7 @@ flightcontroller
 koptercontrol
 koptermessage
 kopter
+../common/common
 ../common/pose
 ../common/waypoint
 ../common/lidarpoint
@@ -27,6 +28,7 @@ flightcontroller.h
 koptercontrol.h
 koptermessage.h
 kopter.h
+../common/common.h
 ../common/pose.h
 ../common/waypoint.h
 ../common/lidarpoint.h

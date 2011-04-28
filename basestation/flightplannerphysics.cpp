@@ -255,7 +255,7 @@ void FlightPlannerPhysics::slotGenerateWaypoints()
 
     sortToShortestPath(newWaypoints, *mVehiclePosition);
 
-    foreach(QVector3D wpt, newWaypoints)
+    foreach(const QVector3D& wpt, newWaypoints)
         emit newWayPoint(wpt);
 
 
@@ -300,14 +300,14 @@ void FlightPlannerPhysics::visualize() const
 
     // Draw waypoints
     const float radius = mShapeSampleSphere->getRadius();
-    foreach(btRigidBody* body, mWayPoints)
+    foreach(const btRigidBody* body, mWayPoints)
     {
         btTransform t;
         body->getMotionState()->getWorldTransform(t);
         OpenGlUtilities::drawSphere(QVector3D(t.getOrigin().x(), t.getOrigin().y(), t.getOrigin().z()), radius, 20, QColor(255,255,0, 64));
     }
     // Draw sampleSpheres
-    foreach(btRigidBody* body, mSampleSpheres)
+    foreach(const btRigidBody* body, mSampleSpheres)
     {
         btTransform t;
         body->getMotionState()->getWorldTransform(t);

@@ -2,7 +2,7 @@
 
 // for getRssi()
 #include <sys/ioctl.h>
-#include <sys/types.h>
+//#include <sys/types.h>
 #include <sys/socket.h>
 #include <linux/wireless.h>
 
@@ -201,7 +201,7 @@ int BaseConnection::getRssi()
 
     int signalQuality = iws.qual.level;
 
-    if(signalQuality == 0 || iws.qual.updated & IW_QUAL_INVALID || iws.qual.updated & IW_QUAL_ALL_INVALID)
+    if(signalQuality == 0 || iws.qual.updated & IW_QUAL_QUAL_INVALID || iws.qual.updated & IW_QUAL_ALL_INVALID)
     {
         slotNewLogMessage(QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), Error, "link quality reading invalid");
         return -1;
@@ -285,7 +285,7 @@ void BaseConnection::slotNewVehicleStatus(
 
     slotNewLogMessage(
                 QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                Log,
+                Information,
                 QString("sending vehicle status to base: voltage: %1, baro-height: %2, rssi %3.").arg(batteryVoltage).arg(barometricHeight).arg(wirelessRssi)
                 );
 
@@ -325,7 +325,7 @@ void BaseConnection::slotNewGpsStatus(
 }
 
 // called by rover to send new log message to basestation
-void BaseConnection::slotNewLogMessage(const QString& source, const BaseConnection::Importance& importance, const QString& text)
+void BaseConnection::slotNewLogMessage(const QString& source, const LogImportance& importance, const QString& text)
 {
     QMutexLocker locker(&mMutex);
 

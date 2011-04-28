@@ -219,7 +219,7 @@ void BaseStation::processPacket(QByteArray data)
     }
     else if(packetType == "waypoints")
     {
-        QList<QVector3D> wayPoints;
+        QList<WayPoint> wayPoints;
 
         stream >> wayPoints;
 
