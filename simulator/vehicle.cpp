@@ -2,12 +2,14 @@
 
 Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 //        QThread(simulator),
-	QObject(simulator),
-	mMutex(QMutex::NonRecursive)
+        QObject(simulator),
+        mMutex(QMutex::NonRecursive)
 {
     mSimulator = simulator;
     mOgreWidget = ogreWidget;
 
+    mBattery = new Battery(this, 14.8, 5.0);
+    mBattery->charge();
 
     mTimerUpdatePosition = new QTimer(this);
     mTimerUpdatePosition->setInterval(1000/60);
@@ -46,9 +48,9 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 
     // Place the vehicle somewhere above some building
     if(mOgreWidget->mEntities.size())
-	mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", mOgreWidget->mEntities.values().first()->sceneNode->_getDerivedPosition() + Ogre::Vector3(10, 0, 10), Ogre::Quaternion::IDENTITY);
+        mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", mOgreWidget->mEntities.values().first()->sceneNode->_getDerivedPosition() + Ogre::Vector3(10, 0, 10), Ogre::Quaternion::IDENTITY);
     else
-	mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", Ogre::Vector3(10, 100, 10), Ogre::Quaternion::IDENTITY);
+        mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", Ogre::Vector3(10, 100, 10), Ogre::Quaternion::IDENTITY);
 
     mVehicleNode->attachObject(mVehicleEntity);
 
@@ -74,8 +76,8 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     Ogre::TerrainGroup::RayResult rayResult = mOgreWidget->mTerrainGroup->rayIntersects(Ogre::Ray(mVehicleNode->_getDerivedPosition() + Ogre::Vector3(0,1000,0), Ogre::Vector3::NEGATIVE_UNIT_Y));
     if(rayResult.hit)
     {
-	mVehicleNode->setPosition(rayResult.position.x, rayResult.position.y + 0.2, rayResult.position.z);
-	qDebug() << "Vehicle::Vehicle(): creating vehicle, setting to height" << rayResult.position.y + 20.0;
+        mVehicleNode->setPosition(rayResult.position.x, rayResult.position.y + 0.2, rayResult.position.z);
+        qDebug() << "Vehicle::Vehicle(): creating vehicle, setting to height" << rayResult.position.y + 20.0;
     }
 
     // Make camera look at vehicle
@@ -128,7 +130,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     // linear, angular
     mVehicleBody->setDamping(.5, .7);
 
-    mFlightController = new FlightController(simulator, this, mVehicleState);
+    mFlightController = new FlightController;
 
     mVehicleBody->setActivationState(DISABLE_DEACTIVATION); // probably unnecessary
     mBtWorld->addRigidBody(mVehicleBody);
@@ -138,122 +140,122 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     QMapIterator<Ogre::Entity*, OgreWidget::MeshInformation*> i(mOgreWidget->mEntities);
     while(i.hasNext())
     {
-	i.next();
-	Ogre::Entity* e = i.key();
-	const Ogre::SceneNode* s = i.value()->sceneNode;
+        i.next();
+        Ogre::Entity* e = i.key();
+        const Ogre::SceneNode* s = i.value()->sceneNode;
 
-	// Get the mesh from the entity
-	Ogre::MeshPtr myMesh = e->getMesh();
+        // Get the mesh from the entity
+        Ogre::MeshPtr myMesh = e->getMesh();
 
-	// Get the submesh and associated data
-	Ogre::SubMesh* subMesh = myMesh->getSubMesh(0);
+        // Get the submesh and associated data
+        Ogre::SubMesh* subMesh = myMesh->getSubMesh(0);
 
-	Ogre::IndexData*  indexData = subMesh->indexData;
-	Ogre::VertexData* vertexData = subMesh->vertexData;
+        Ogre::IndexData*  indexData = subMesh->indexData;
+        Ogre::VertexData* vertexData = subMesh->vertexData;
 
-	// Get the position element
-	const Ogre::VertexElement* posElem = vertexData->vertexDeclaration->findElementBySemantic(Ogre::VES_POSITION);
+        // Get the position element
+        const Ogre::VertexElement* posElem = vertexData->vertexDeclaration->findElementBySemantic(Ogre::VES_POSITION);
 
-	// Get a pointer to the vertex buffer
-	Ogre::HardwareVertexBufferSharedPtr vBuffer = vertexData->vertexBufferBinding->getBuffer(posElem->getSource());
+        // Get a pointer to the vertex buffer
+        Ogre::HardwareVertexBufferSharedPtr vBuffer = vertexData->vertexBufferBinding->getBuffer(posElem->getSource());
 
-	// Get a pointer to the index buffer
-	Ogre::HardwareIndexBufferSharedPtr iBuffer = indexData->indexBuffer;
+        // Get a pointer to the index buffer
+        Ogre::HardwareIndexBufferSharedPtr iBuffer = indexData->indexBuffer;
 
-	// The vertices and indices used to create the triangle mesh
-	std::vector<Ogre::Vector3> vertices;
-	vertices.reserve(vertexData->vertexCount);
+        // The vertices and indices used to create the triangle mesh
+        std::vector<Ogre::Vector3> vertices;
+        vertices.reserve(vertexData->vertexCount);
 
-	std::vector<unsigned long> indices;
-	indices.reserve(indexData->indexCount);
+        std::vector<unsigned long> indices;
+        indices.reserve(indexData->indexCount);
 
-	// Lock the Vertex Buffer (READ ONLY)
-	unsigned char* vertex = static_cast<unsigned char*>(vBuffer->lock(Ogre::HardwareBuffer::HBL_READ_ONLY));
-	float* pReal = NULL;
+        // Lock the Vertex Buffer (READ ONLY)
+        unsigned char* vertex = static_cast<unsigned char*>(vBuffer->lock(Ogre::HardwareBuffer::HBL_READ_ONLY));
+        float* pReal = NULL;
 
-	for(size_t j = 0; j < vertexData->vertexCount; ++j, vertex += vBuffer->getVertexSize())
-	{
-	    posElem->baseVertexPointerToElement(vertex, &pReal);
-	    Ogre::Vector3 pt(pReal[0], pReal[1], pReal[2]);
+        for(size_t j = 0; j < vertexData->vertexCount; ++j, vertex += vBuffer->getVertexSize())
+        {
+            posElem->baseVertexPointerToElement(vertex, &pReal);
+            Ogre::Vector3 pt(pReal[0], pReal[1], pReal[2]);
 
-	    vertices.push_back(pt);
-	}
+            vertices.push_back(pt);
+        }
 
-	vBuffer->unlock();
+        vBuffer->unlock();
 
-	bool use32bitindexes = (iBuffer->getType() == Ogre::HardwareIndexBuffer::IT_32BIT);
+        bool use32bitindexes = (iBuffer->getType() == Ogre::HardwareIndexBuffer::IT_32BIT);
 
-	// Lock the Index Buffer (READ ONLY)
-	unsigned long* pLong = static_cast<unsigned long*>(iBuffer->lock(Ogre::HardwareBuffer::HBL_READ_ONLY));
-	unsigned short* pShort = reinterpret_cast<unsigned short*>(pLong);
+        // Lock the Index Buffer (READ ONLY)
+        unsigned long* pLong = static_cast<unsigned long*>(iBuffer->lock(Ogre::HardwareBuffer::HBL_READ_ONLY));
+        unsigned short* pShort = reinterpret_cast<unsigned short*>(pLong);
 
-	if(use32bitindexes)
-	{
-	    for(size_t k = 0; k < indexData->indexCount; ++k)
-	    {
-		indices.push_back(pLong[k]);
-	    }
-	}
-	else
-	{
-	    for(size_t k = 0; k < indexData->indexCount; ++k)
-	    {
-		indices.push_back(static_cast<unsigned long>(pShort[k]) );
-	    }
-	}
+        if(use32bitindexes)
+        {
+            for(size_t k = 0; k < indexData->indexCount; ++k)
+            {
+                indices.push_back(pLong[k]);
+            }
+        }
+        else
+        {
+            for(size_t k = 0; k < indexData->indexCount; ++k)
+            {
+                indices.push_back(static_cast<unsigned long>(pShort[k]) );
+            }
+        }
 
-	iBuffer->unlock();
+        iBuffer->unlock();
 
-	// We now have vertices and indices ready to go
+        // We now have vertices and indices ready to go
 
-	// Create the triangle mesh
-	btTriangleMesh* triMesh = new btTriangleMesh(use32bitindexes);
-	btVector3 vert0, vert1, vert2;
-	int i=0;
+        // Create the triangle mesh
+        btTriangleMesh* triMesh = new btTriangleMesh(use32bitindexes);
+        btVector3 vert0, vert1, vert2;
+        int i=0;
 
-	// For every triangle
-	for (size_t y=0; y<indexData->indexCount/3; y++)
-	{
-	    // Set each vertex
-	    vert0.setValue(vertices[indices[i]].x, vertices[indices[i]].y, vertices[indices[i]].z);
-	    vert1.setValue(vertices[indices[i+1]].x, vertices[indices[i+1]].y, vertices[indices[i+1]].z);
-	    vert2.setValue(vertices[indices[i+2]].x, vertices[indices[i+2]].y, vertices[indices[i+2]].z);
+        // For every triangle
+        for (size_t y=0; y<indexData->indexCount/3; y++)
+        {
+            // Set each vertex
+            vert0.setValue(vertices[indices[i]].x, vertices[indices[i]].y, vertices[indices[i]].z);
+            vert1.setValue(vertices[indices[i+1]].x, vertices[indices[i+1]].y, vertices[indices[i+1]].z);
+            vert2.setValue(vertices[indices[i+2]].x, vertices[indices[i+2]].y, vertices[indices[i+2]].z);
 
-	    // Add the triangle into the triangle mesh
-	    float scale = s->_getDerivedScale().x;
-	    triMesh->addTriangle(vert0 * scale, vert1 * scale, vert2 * scale);
+            // Add the triangle into the triangle mesh
+            float scale = s->_getDerivedScale().x;
+            triMesh->addTriangle(vert0 * scale, vert1 * scale, vert2 * scale);
 
-	    // Increase index count
-	    i += 3;
-	}
+            // Increase index count
+            i += 3;
+        }
 
-	// Add the triangle mesh into the Bullet world
-	btTransform startTransform;
-	startTransform.setIdentity();
-	startTransform.setOrigin(btVector3(0,0,0) );
+        // Add the triangle mesh into the Bullet world
+        btTransform startTransform;
+        startTransform.setIdentity();
+        startTransform.setOrigin(btVector3(0,0,0) );
 
-	// Create the collision shape from the triangle mesh
-	btBvhTriangleMeshShape* triMeshShape = new btBvhTriangleMeshShape(triMesh, true);
+        // Create the collision shape from the triangle mesh
+        btBvhTriangleMeshShape* triMeshShape = new btBvhTriangleMeshShape(triMesh, true);
 
-	btScalar mass(0.0f);
-	btVector3 localInertia(0,0,0);
+        btScalar mass(0.0f);
+        btVector3 localInertia(0,0,0);
 
-	// Use the default motion state
-	btDefaultMotionState* triMotionState = new btDefaultMotionState(startTransform);
+        // Use the default motion state
+        btDefaultMotionState* triMotionState = new btDefaultMotionState(startTransform);
 
-	// Create the rigid body
-	btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, triMotionState, triMeshShape, localInertia);
-	btRigidBody* triBody = new btRigidBody(rbInfo);
+        // Create the rigid body
+        btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, triMotionState, triMeshShape, localInertia);
+        btRigidBody* triBody = new btRigidBody(rbInfo);
 
-	triBody->getWorldTransform().setOrigin(btVector3(s->_getDerivedPosition().x, s->_getDerivedPosition().y, s->_getDerivedPosition().z));
-	triBody->getWorldTransform().setRotation(btQuaternion(s->_getDerivedOrientation().x, s->_getDerivedOrientation().y, s->_getDerivedOrientation().z, s->_getDerivedOrientation().w) );
+        triBody->getWorldTransform().setOrigin(btVector3(s->_getDerivedPosition().x, s->_getDerivedPosition().y, s->_getDerivedPosition().z));
+        triBody->getWorldTransform().setRotation(btQuaternion(s->_getDerivedOrientation().x, s->_getDerivedOrientation().y, s->_getDerivedOrientation().z, s->_getDerivedOrientation().w) );
 
-	// Set additional collision flags
-	// triBody->setCollisionFlags(triBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
-	triBody->setFriction(0.4);
+        // Set additional collision flags
+        // triBody->setCollisionFlags(triBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+        triBody->setFriction(0.4);
 
-	// Add the body to the dynamics world
-	mBtWorld->addRigidBody(triBody);
+        // Add the body to the dynamics world
+        mBtWorld->addRigidBody(triBody);
     }
 
     // Create terrain collision shape - http://www.ogre3d.org/forums/viewtopic.php?t=58756
@@ -262,9 +264,9 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
      Ogre::Terrain* pTerrain;
      while(ti.hasMoreElements())
      {
-	 // ugly hack, use last terrain, there should only be one.
-	 pTerrain = ti.getNext()->instance;
-	 qDebug() << "one terrain.";
+         // ugly hack, use last terrain, there should only be one.
+         pTerrain = ti.getNext()->instance;
+         qDebug() << "one terrain.";
      }
 
      float* terrainHeightData = pTerrain->getHeightData();
@@ -272,11 +274,11 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 
      float * pDataConvert= new float[pTerrain->getSize() * pTerrain->getSize()];
      for(int i=0;i<pTerrain->getSize();i++)
-	memcpy(
-		    pDataConvert+pTerrain->getSize() * i, // source
-		    terrainHeightData + pTerrain->getSize() * (pTerrain->getSize()-i-1), // target
-		    sizeof(float)*(pTerrain->getSize()) // size
-		    );
+        memcpy(
+                    pDataConvert+pTerrain->getSize() * i, // source
+                    terrainHeightData + pTerrain->getSize() * (pTerrain->getSize()-i-1), // target
+                    sizeof(float)*(pTerrain->getSize()) // size
+                    );
 
      float metersBetweenVertices = pTerrain->getWorldSize()/(pTerrain->getSize()-1);
      btVector3 localScaling(metersBetweenVertices, 1, metersBetweenVertices);
@@ -288,15 +290,15 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 //     qDebug() << "terrainheight max" << pTerrain->getMaxHeight();
 
      btHeightfieldTerrainShape* groundShape = new btHeightfieldTerrainShape(
-		 pTerrain->getSize(),
-		 pTerrain->getSize(),
-		 pDataConvert,
-		 1/*ignore*/,
-		 0.0,// WAS: pTerrain->getMinHeight(), but that yields 0 on first run, 75 when loading cached terrain. So this is a nice hack.
-		 pTerrain->getMaxHeight(),
-		 1,
-		 PHY_FLOAT,
-		 true);
+                 pTerrain->getSize(),
+                 pTerrain->getSize(),
+                 pDataConvert,
+                 1/*ignore*/,
+                 0.0,// WAS: pTerrain->getMinHeight(), but that yields 0 on first run, 75 when loading cached terrain. So this is a nice hack.
+                 pTerrain->getMaxHeight(),
+                 1,
+                 PHY_FLOAT,
+                 true);
 
      groundShape->setUseDiamondSubdivision(true);
      groundShape->setLocalScaling(localScaling);
@@ -307,17 +309,17 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
      mGroundBody->setRestitution(0.6);
 
      mGroundBody->getWorldTransform().setOrigin(
-		 btVector3(
-		     terrainPosition.x,
-		     terrainPosition.y + (pTerrain->getMaxHeight()/2),
-		     terrainPosition.z));
+                 btVector3(
+                     terrainPosition.x,
+                     terrainPosition.y + (pTerrain->getMaxHeight()/2),
+                     terrainPosition.z));
 
      mGroundBody->getWorldTransform().setRotation(
-		 btQuaternion(
-		     Ogre::Quaternion::IDENTITY.x,
-		     Ogre::Quaternion::IDENTITY.y,
-		     Ogre::Quaternion::IDENTITY.z,
-		     Ogre::Quaternion::IDENTITY.w));
+                 btQuaternion(
+                     Ogre::Quaternion::IDENTITY.x,
+                     Ogre::Quaternion::IDENTITY.y,
+                     Ogre::Quaternion::IDENTITY.z,
+                     Ogre::Quaternion::IDENTITY.w));
 
      mBtWorld->addRigidBody(mGroundBody);
 
@@ -340,13 +342,14 @@ void Vehicle::run()
 //    QThread::exec();
 }
 
+/*
 void Vehicle::slotUpdatePosition(void)
 {
     QMutexLocker locker(&mMutex);
 
     int f,b,l,r;
 
-    mFlightController->getEngineSpeeds(f, b, l, r);
+//    mFlightController->getEngineSpeeds(f, b, l, r);
 
     QList<int> motorSpeeds;
 
@@ -356,20 +359,40 @@ void Vehicle::slotUpdatePosition(void)
 
     slotSetMotorSpeeds(motorSpeeds);
 
-    //slotSetWind();
 
     slotUpdatePhysics();
 
 //    qDebug() << "Vehicle::slotUpdatePosition(): done";
+}*/
+
+void Vehicle::slotSetMotion(const quint8& thrust, const qint8& nick, const qint8& roll, const qint8& yaw, const qint8& height)
+{
+    // To get it like mikrokopter, we'd have to understand FlightCtrl's fc.c
+
+    // Apply general thrust. A value of 255 means 100% thrust, which means around 760rpm/Volt
+    const int rpm = ((float)thrust) / 255.0 * 760.0 * mBattery->currentVoltage();
+    const float thrustScalar = mEngine.calculateThrust(rpm);
+    const Ogre::Vector3 thrustVectorOgre = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0, thrustScalar, 0);
+    mVehicleBody->applyCentralForce(btVector3(thrustVectorOgre.x, thrustVectorOgre.y, thrustVectorOgre.z));
+
+    // Apply yawing torque
+    const double torqueScalar = mEngine.calculateTorque(rpm);
+    Ogre::Vector3 torque = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0.0, torqueScalar, 0.0);
+    mVehicleBody->applyTorque(btVector3(torque.x, torque.y, torque.z));
+
+    // Apply pitching torque. We Assume that on full pitch (-127 or 128), we switch off one side (3 motors) completely
+    // and put the other 3 motors to full thrust. Of course, this only works with idling motors, so when the vehicle is in
+    // mid-air, the maximum pitch-rpm-difference is limited to where the vehicle would start to sink.
+
+
 }
 
-//void Vehicle::slotSetNextWayPoint(const CoordinateGps &wayPoint)
-//{
-//    QMutexLocker locker(&mMutex);
+void vehicle::slotUpdateWind()
+{
+    // apply wind forces
+}
 
-//    mNextWayPoint = mCoordinateConverter.convert(wayPoint);
-//}
-
+/*
 void Vehicle::slotSetMotorSpeeds(const QList<int> &speeds)
 {
     Q_ASSERT(speeds.size() == mEngineNodes.size());
@@ -377,33 +400,33 @@ void Vehicle::slotSetMotorSpeeds(const QList<int> &speeds)
     // We apply forces to the vehicle depending on the speeds of its propellers.
     for(int i=0;i<speeds.size();++i)
     {
-	const double thrustScalar = mEngine.calculateThrust(speeds.at(i));
+        const double thrustScalar = mEngine.calculateThrust(speeds.at(i));
 
-	// f b -l -r
+        // f b -l -r
 
-	const Ogre::Vector3 thrustVectorOgre = mEngineNodes.at(i)->_getDerivedOrientation() * Ogre::Vector3(0, thrustScalar, 0);
-	const btVector3 thrustVectorBt(thrustVectorOgre.x, thrustVectorOgre.y, thrustVectorOgre.z);
+        const Ogre::Vector3 thrustVectorOgre = mEngineNodes.at(i)->_getDerivedOrientation() * Ogre::Vector3(0, thrustScalar, 0);
+        const btVector3 thrustVectorBt(thrustVectorOgre.x, thrustVectorOgre.y, thrustVectorOgre.z);
 //        const Ogre::Vector3 pos = mEngineNodes.at(i)->_getDerivedPosition() - mVehicleNode->_getDerivedPosition();
-	const Ogre::Vector3 pos = mVehicleNode->_getDerivedOrientation() * mEngineNodes.at(i)->getPosition();
-	const btVector3 position(pos.x, pos.y, pos.z);
-	mVehicleBody->applyForce(thrustVectorBt, position);
+        const Ogre::Vector3 pos = mVehicleNode->_getDerivedOrientation() * mEngineNodes.at(i)->getPosition();
+        const btVector3 position(pos.x, pos.y, pos.z);
+        mVehicleBody->applyForce(thrustVectorBt, position);
 //        qDebug() << "Vehicle::slotSetMotorSpeeds(): thrust" << i << thrustScalar << thrustVectorOgre.x << thrustVectorOgre.y << thrustVectorOgre.z << "at" << position.x() << position.y() << position.z();
 
-	const double torqueScalar = mEngine.calculateTorque(speeds.at(i));
-	Ogre::Vector3 torque = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0.0, torqueScalar, 0.0);
-	mVehicleBody->applyTorque(btVector3(torque.x, torque.y, torque.z));
+        const double torqueScalar = mEngine.calculateTorque(speeds.at(i));
+        Ogre::Vector3 torque = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0.0, torqueScalar, 0.0);
+        mVehicleBody->applyTorque(btVector3(torque.x, torque.y, torque.z));
 //        qDebug() << "Vehicle::slotSetMotorSpeeds(): torque y:" << i << torqueScalar << torque.y;
     }
 
 //    qDebug() << "Vehicle::slotSetMotorSpeeds(): total yaw torque is" << mVehicleBody->getTotalTorque().y();
-}
+}*/
 
 float Vehicle::getHeightAboveGround()
 {
     Ogre::TerrainGroup::RayResult rayResult = mOgreWidget->mTerrainGroup->rayIntersects(Ogre::Ray(mVehicleNode->_getDerivedPosition() + Ogre::Vector3(0,1000,0), Ogre::Vector3::NEGATIVE_UNIT_Y));
     if(rayResult.hit)
     {
-	return mVehicleNode->_getDerivedPosition().y - rayResult.position.y;
+        return mVehicleNode->_getDerivedPosition().y - rayResult.position.y;
     }
 
     return -1.0;
@@ -436,9 +459,9 @@ void Vehicle::slotUpdatePhysics(void)
     foreach(LaserScanner* ls, *laserScanners)
     {
 //        Ogre::SceneNode* scannerNode = mOgreWidget->sceneManager()->getSceneNode(ls->objectName().append("_node").toStdString());
-	Ogre::SceneNode* scannerNode = ls->getSceneNode();
-	    scannerNode->_update(false, true);
-	ls->slotSetScannerPose(scannerNode->_getDerivedPosition(), scannerNode->_getDerivedOrientation());
+        Ogre::SceneNode* scannerNode = ls->getSceneNode();
+            scannerNode->_update(false, true);
+        ls->slotSetScannerPose(scannerNode->_getDerivedPosition(), scannerNode->_getDerivedOrientation());
     }
 
     // TODO: If we loop with more than 25fps, update more slowly

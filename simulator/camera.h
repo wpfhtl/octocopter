@@ -78,6 +78,9 @@ public slots:
     void slotPause(void);
     void slotSetTimeFactor(double timeFactor);
 //    void slotSetCameraPose(const Ogre::Vector3 &position, const Ogre::Quaternion &orientation);
+
+signals:
+    void newImageData(const QString& camName, const Pose& pose, const QByteArray&);
 };
 
 #endif

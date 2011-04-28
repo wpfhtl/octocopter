@@ -21,6 +21,8 @@ LaserScanner::LaserScanner(
     mAngleStep = angleStep;
     mTimeFactor = mSimulator->getTimeFactor();
 
+    mBottomBeamClockDivisor = 0;
+
     mTimerScan = 0;
 
     // We need to register what we want to emit.
@@ -113,6 +115,10 @@ void LaserScanner::slotDoScan()
         return;
     }
 
+    // emit bottomBeamLength on every 40th scan
+    mBottomBeamClockDivisor++;
+    mBottomBeamClockDivisor %= 40;
+
     const long long realTimeBetweenRaysUS = (1000000.0 / 6.0 / mSpeed * mAngleStep) * (1.0 / mTimeFactor);
 
     struct timeval timeStart;
@@ -123,7 +129,8 @@ void LaserScanner::slotDoScan()
     int numberOfRays = 0;
 
     // a container for collected rays, or rather the world coordinates of where they ended
-    QList<QVector3D> scanData;
+    QVector<LidarPoint> scanContainer;
+    scanContainer.reserve((mAngleStop - mAngleStart) / mAngleStep + 10);
 
     while(mCurrentScanAngle <= mAngleStop)
     {
@@ -205,7 +212,10 @@ void LaserScanner::slotDoScan()
         if(distanceFinal < mRange)
         {
             const Ogre::Vector3 point = mLaserBeam.getPoint(distanceFinal);
-            scanData << QVector3D(point.x, point.y, point.z);
+
+            if(mBottomBeamClockDivisor == 0 && mCurrentScanAngle == 123.0 /*FIXME!*/) emit bottomBeamLength(distanceFinal);
+
+            scanContainer << LidarPoint(QVector3D(point.x, point.y, point.z), QVector3D(), distanceFinal);
         }
 
         // Increase mCurrentScanAngle by mAngleStep for the next laserBeam
@@ -226,27 +236,7 @@ void LaserScanner::slotDoScan()
 //    const long long timeDiff = (timeNow.tv_sec - timeStart.tv_sec) * 1000000 + (timeNow.tv_usec - timeStart.tv_usec);
 //    qDebug() << "LaserScanner::slotDoScan(): took" << timeDiff << "us, should have been" << (long long)(realTimeBetweenRaysUS * ((mAngleStop - mAngleStart)/mAngleStep));
 
-    // This scan is finished, send it to our baseconnection
-    QByteArray data;
-    QDataStream stream(&data, QIODevice::WriteOnly);
-
-    // set packet type.
-    stream << QString("points");
-
-    // How many hits?
-    stream << (quint32)scanData.size();
-
-    // From which position?
-    // Assuming the laserscanner's position stays pretty much the same within one scan, there's no need
-    // to transmit the direction to the scanner in every hit-packet. So we only send the positions.
-    stream << QVector3D(mScannerPosition.x, mScannerPosition.y, mScannerPosition.z);
-
-    // Stream the hits
-    stream << scanData;
-
-//    qDebug() << "lidar sending bytes:" << data.length();
-
-    mSimulator->mBaseConnection->slotSendData(data);
+    emit newLidarPoints(scanContainer);
 
     // Set mCurrentScanAngle for the next scan to mAngleStart
     mCurrentScanAngle = mAngleStart;
@@ -258,7 +248,7 @@ void LaserScanner::slotDoScan()
     const long long scanTimeElapsed = (timeNow.tv_sec - timeStart.tv_sec) * 1000000 + (timeNow.tv_usec - timeStart.tv_usec);
     const long long timeRest = (1000000/(mSpeed/60)) * (1.0 / mTimeFactor) - scanTimeElapsed;
 //    qDebug() << "LaserScanner::slotDoScan(): emitted results, resting" << timeRest << "us after scan.";
-    scanData.clear();
+    scanContainer.clear();
     usleep(std::max(0, (int)timeRest));
 }
 

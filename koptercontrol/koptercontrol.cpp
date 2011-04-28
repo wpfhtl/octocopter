@@ -93,7 +93,9 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
         mRtkFetcher = new RtkFetcher(rtkBaseHostName, rtkBasePort, this);
         mLaserScanner = new LaserScanner(portSerialLaserScanner, Pose());
         mBaseConnection = new BaseConnection(networkInterface, this);
-        mFlightController = new FlightController(mLaserScanner);
+        mFlightController = new FlightController();
+
+        connect(mLaserScanner, SIGNAL(bottomBeamLength(const float&)), mFlightController, SLOT(slotSetBottomBeamLength(const float&)));
 
         connect(mKopter, SIGNAL(kopterStatus(const float&, const float&)), mBaseConnection, SLOT(slotNewVehicleStatus(const float&, const float&)));
 

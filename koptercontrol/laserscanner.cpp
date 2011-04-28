@@ -9,6 +9,8 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &pose)
 
     mIsEnabled = false;
 
+    mPoints.reserve(1200); // should be 1080 points (270 degrees, 0.25° resolution)
+
     mScannerPoseFirst = mScannerPoseBefore = mScannerPoseAfter = mScannerPoseLast = 0;
 
     mScanDistancesPrevious = new vector<long>;
@@ -118,11 +120,14 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
                             (*mScanDistancesCurrent)[i],
                             0.0);
 
-                QVector3D point = p.orientation.rotatedVector(rayPos) + p.position;
-                qDebug() << "scanned point from" << p << "is" << point;
+                LidarPoint point(p.orientation.rotatedVector(rayPos) + p.position, QVector3D(), (*mScanDistancesCurrent)[i]);
+                qDebug() << "scanned lidarpointpoint from" << p << "is" << point;
 
                 mPoints.append(point);
             }
+
+            emit newLidarPoints(mPoints);
+            mPoints.clear();
         }
     }
 

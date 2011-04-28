@@ -20,9 +20,13 @@ Engine::Engine(void) : QObject()
 
     initializePropellers();
 
-    Q_ASSERT(setPropeller("GRP_SPD_5543"));
+    // According to http://www.mikrokopter.de/ucwiki/ROXXY2827-35, with a 10*EPP our motor
+    // does 820g of thrust = 8 Newton at 10A.
 
-//    Q_ASSERT(calculateThrust(12500) > 2.3 && calculateThrust(12500) < 2.4);
+    Q_ASSERT(setPropeller("APC_SF_1047"));
+
+    // Try to match http://gallery.mikrokopter.de/main.php?g2_view=core.DownloadItem&g2_itemId=49297
+    Q_ASSERT(calculateThrust(12500) > 7.7 && calculateThrust(12500) < 10);
 }
 
 Engine::Engine(const Engine &other)
@@ -150,6 +154,8 @@ void Engine::initializePropellers(void)
     mPropellers.insert("APC_SF_9075", Propeller(0.8874339, -0.02086166, 0.00001947172, 4200, 6640, 9, 7.5));
     mPropellers.insert("APC_SF_1038", Propeller(2.849586, -0.05184909, 0.00002478117, 4490, 7480, 10, 3.8));
     mPropellers.insert("APC_SF_1047", Propeller(7.617356, -0.01831207, 0.00002058443, 3680, 7000, 10, 4.7));
+    // Like above, just patched to allow higher RPM range
+    mPropellers.insert("APC_SF_1047", Propeller(7.617356, -0.01831207, 0.00002058443, 0, 13000, 10, 4.7));
     mPropellers.insert("APC_SF_1070", Propeller(1.733572, -0.00747006, 0.00002465333, 3220, 5540, 10, 7));
     mPropellers.insert("APC_SF_1138", Propeller(1.01845, -0.0364687, 0.0000268147, 4300, 6890, 11, 3.8));
     mPropellers.insert("APC_SF_1147", Propeller(4.714039, -0.04695355, 0.00003391365, 3660, 6340, 11, 4.7));

@@ -66,7 +66,7 @@ bool CloudExporter::savePly(const Node* node, QTextStream* stream, QProgressDial
 
             (*stream) << point->position.x() << " " << point->position.y() << " " << point->position.z() << " ";
             (*stream) << normal.x() << " " << normal.y() << " " << normal.z() << " ";
-            (*stream) << point->squaredDistance;
+            (*stream) << point->distance;
             (*stream) << endl;
         }
 

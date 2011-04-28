@@ -60,7 +60,7 @@ void Kopter::slotTestMotors(const QList<unsigned char> &speeds)
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
 }
 
-void Kopter::slotSetMotion(quint8 thrust, qint8 nick, qint8 roll, qint8 yaw, qint8 height)
+void Kopter::slotSetMotion(const quint8& thrust, const qint8& nick, const qint8& roll, const qint8& yaw, const qint8& height)
 {
     if(mPendingReplies.contains('b')) qWarning() << "Still waiting for a 'B', should not send right now!";
 

@@ -52,12 +52,13 @@ public:
 private:
     mutable QMutex mMutex;
 
-    QTimer* mViewUpdateTimer;
+    QTimer* mUpdateTimer;
     double mTimeFactor;
     QTime mTimeSimulationStart; // when simulation was started
     QTime mTimeSimulationPause; // when simulation was paused, invalid when it's not currently paused.
     StatusWidget* mStatusWidget;
 
+    FlightController* mFlightController;
 
 private slots:
     void slotOgreInitialized(void);
@@ -65,7 +66,6 @@ private slots:
     void slotNotifyDevicesOfNewTimeFactor();
 
 public slots:
-    void slotScanFinished(QList<CoordinateGps>);
     void slotSimulationStart(void);
     void slotSimulationPause(void);
 

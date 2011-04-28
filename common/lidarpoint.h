@@ -5,26 +5,28 @@
 #include <QDebug>
 
 #ifdef LIDARPOINT_KEEPS_PARENTNODE
-#include "node.h"
-class Node;
+//#include "node.h"
+
 #endif
 
+class Node;
 
 class LidarPoint : public QObject
 {
     Q_OBJECT
 
 public:
-    LidarPoint(const QVector3D &position, const QVector3D &direction, const float &squaredDistance);
+    LidarPoint();
+    LidarPoint(const QVector3D &position, const QVector3D &direction, const float &distance);
     LidarPoint(const LidarPoint &other);
 
     LidarPoint& operator=(const LidarPoint &other);
     bool operator==(const LidarPoint &other) const;
 
-#ifdef LIDARPOINT_KEEPS_PARENTNODE
+//#ifdef LIDARPOINT_KEEPS_PARENTNODE
     // The node that we live in. This pointer is set by the node when it swallows us.
     Node* node;
-#endif
+//#endif
 
     // Position is position of detected object, direction is from
     // that object back to the laserscanner. The direction of the
@@ -37,7 +39,7 @@ public:
     // object. Probably helpful because the further an object is away,
     // the worse its position (not distance) accuracy will be due to
     // the platforms orientation-misalignment.
-    float squaredDistance;
+    float distance;
 
     // Distances to other QVector3Ds
     inline double distanceTo(const QVector3D &other) const { return (position-other).length(); }

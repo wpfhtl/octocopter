@@ -1,21 +1,26 @@
 #include "lidarpoint.h"
 
-LidarPoint::LidarPoint(const QVector3D &position, const QVector3D &direction, const float &squaredDistance) :
+LidarPoint::LidarPoint() : QObject(), position(), direction(), distance(-1)
+{
+
+}
+
+LidarPoint::LidarPoint(const QVector3D &position, const QVector3D &direction, const float &distance) :
         QObject(),
         position(position),
         direction(direction),
-        squaredDistance(squaredDistance)
+        distance(distance)
 {
-#ifdef LIDARPOINT_KEEPS_PARENTNODE
+//#ifdef LIDARPOINT_KEEPS_PARENTNODE
         node = 0;
-#endif
+//#endif
 }
 
 LidarPoint::LidarPoint(const LidarPoint &other)
 {
     position = other.position;
     direction = other.direction;
-    squaredDistance = other.squaredDistance;
+    distance = other.distance;
 
 #ifdef LIDARPOINT_KEEPS_PARENTNODE
     node = other.node;
@@ -26,7 +31,7 @@ LidarPoint& LidarPoint::operator=(const LidarPoint &other)
 {
     position = other.position;
     direction = other.direction;
-    squaredDistance = other.squaredDistance;
+    distance = other.distance;
 
 #ifdef LIDARPOINT_KEEPS_PARENTNODE
     node = other.node;
@@ -41,19 +46,19 @@ bool LidarPoint::operator==(const LidarPoint &other) const
     return
             this->position == other.position &&
             this->direction == other.direction &&
-            this->squaredDistance == other.squaredDistance;
+            this->distance == other.distance;
 }
 
 
 QDebug operator<<(QDebug dbg, const LidarPoint &lidarPoint)
 {
-    dbg.nospace() << "LidarPoint: Position:" << lidarPoint.position << "Direction:" << lidarPoint.direction << "squaredDistance:" << lidarPoint.squaredDistance;
+    dbg.nospace() << "LidarPoint: Position:" << lidarPoint.position << "Direction:" << lidarPoint.direction << "squaredDistance:" << lidarPoint.distance;
     return dbg.maybeSpace();
 }
 
 QDataStream& operator<<(QDataStream &out, const LidarPoint &lidarPoint)
 {
-    out << lidarPoint.position << lidarPoint.direction << lidarPoint.squaredDistance;
+    out << lidarPoint.position << lidarPoint.direction << lidarPoint.distance;
     return out;
 }
 
@@ -61,6 +66,6 @@ QDataStream& operator>>(QDataStream &in, LidarPoint &lidarPoint)
 {
     in >> lidarPoint.position;
     in >> lidarPoint.direction;
-    in >> lidarPoint.squaredDistance;
+    in >> lidarPoint.distance;
     return in;
 }

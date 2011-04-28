@@ -75,7 +75,7 @@ private slots:
     void slotSerialPortDataReady();
 
 public slots:
-    void slotSetMotion(quint8 thrust, qint8 nick, qint8 roll, qint8 yaw, qint8 height);
+    void slotSetMotion(const quint8& thrust, const qint8& nick, const qint8& roll, const qint8& yaw, const qint8& height);
     void slotTestMotors(const QList<unsigned char> &speeds);
     void slotReset();
     void slotGetVersion();

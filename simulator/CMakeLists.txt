@@ -12,7 +12,10 @@ simulator
 ../common/baseconnection
 ogrewidget
 battery
-flightcontroller
+../common/flightcontroller
+../common/pose
+../common/lidarpoint
+../common/waypoint
 engine
 joystick
 laserscanner
@@ -32,7 +35,10 @@ simulator.h
 ../common/baseconnection.h
 ogrewidget.h
 battery.h
-flightcontroller.h
+../common/flightcontroller.h
+../common/pose.h
+../common/lidarpoint.h
+../common/waypoint.h
 engine.h
 joystick.h
 laserscanner.h
@@ -81,7 +87,7 @@ SET(CMAKE_DEBUG_POSTFIX "_d")
 SET(DEBUG_POSTFIX "_d")
 SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING "debug oder nicht")
 
-INCLUDE_DIRECTORIES(/usr/include ${BULLET_INCLUDE_DIRS}  ${OGRE_INCLUDE_DIRS} ${OGRE_Terrain_INCLUDE_DIRS} ${OGRE_Paging_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
+INCLUDE_DIRECTORIES(/usr/include ${BULLET_INCLUDE_DIRS}  ${OGRE_INCLUDE_DIRS} ${OGRE_Terrain_INCLUDE_DIRS} ${OGRE_Paging_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 ADD_EXECUTABLE(simulator ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
 
 TARGET_LINK_LIBRARIES(simulator ${BULLET_LIBRARIES} ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${OGRE_Terrain_LIBRARY_NAMES} ${OGRE_RTShaderSystem_LIBRARY_NAMES} ${OGRE_Paging_LIBRARY_NAMES})

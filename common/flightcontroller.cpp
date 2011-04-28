@@ -1,10 +1,8 @@
 #include "flightcontroller.h"
 
-FlightController::FlightController(LaserScanner* const laserScanner) : QObject()
+FlightController::FlightController() : QObject()
 {
     setFlightState(Idle);
-
-    mLaserScanner = laserScanner;
 
     for(int i=0;i<4;i++) {
 //        setFlightState(ApproachingNextWayPoint);
@@ -76,7 +74,7 @@ void FlightController::slotComputeMotionCommands()
         const float currentPitch = mLastKnownVehiclePose.getPitchDegrees(true); //mMotionState->getNode()->_getDerivedOrientation().getPitch(true).valueDegrees();
         const float currentRoll = mLastKnownVehiclePose.getRollDegrees(false); //mMotionState->getNode()->_getDerivedOrientation().getRoll(true).valueDegrees();
         const float currentYaw = 180.0 + mLastKnownVehiclePose.getYawDegrees(false); //mMotionState->getNode()->_getDerivedOrientation().getYaw(true).valueDegrees();
-        const float currentHeight = mLaserScanner->getHeightAboveGround(); //mLastKnownVehiclePose.position.y(); //mMotionState->getPosition().y;//mVehicle->getHeightAboveGround();
+        const float currentHeight = mLastKnownBottomBeamLength; // WARNING: use position.y? if not, check mLastKnownBottomBeamLengthTimestamp//mLastKnownVehiclePose.position.y(); //mMotionState->getPosition().y;//mVehicle->getHeightAboveGround();
 
         double errorYaw = mDesiredYaw - currentYaw;
         mErrorIntegralYaw += errorYaw*timeDiff;
@@ -218,7 +216,7 @@ void FlightController::wayPointReached()
     {
         emit message(QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), Information, "waypoint reached, more waypoints present, approaching");
     }
-    else if(mLaserScanner->getHeightAboveGround() < 0.2)
+    else if(mLastKnownBottomBeamLength < 0.2)
     {
         setFlightState(Idle);
         // TODO: slow down first. Not necessary, we ARE slow when reaching a waypoint. Hopefully.
@@ -227,7 +225,7 @@ void FlightController::wayPointReached()
     else
     {
         mWayPoints.append(getLandingWayPoint());
-        emit message(QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), Information, QString("ManualControl disabled, no further wayPoints, HeightAboveGround high (" + QString::number(mLaserScanner->getHeightAboveGround()) + "m), now landing"));
+        emit message(QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), Information, QString("ManualControl disabled, no further wayPoints, HeightAboveGround high (" + QString::number(mLastKnownBottomBeamLength) + "m), now landing"));
     }
 
     emit wayPointReached(mWayPointsPassed.last());
@@ -267,7 +265,7 @@ void FlightController::slotWayPointDelete(const QString &hashValue, const int in
         if(mWayPoints.size() == 0 && getFlightState() == ApproachingNextWayPoint)
         {
             // The list is now empty and we are flying. Insert a landing-waypoint if we're not close to the ground;
-            if(mLaserScanner->getHeightAboveGround() > 0.2)
+            if(mLastKnownBottomBeamLength > 0.2)
             {
                 // Insert landing-waypoint, keep approaching
                 mWayPoints.append(getLandingWayPoint());
@@ -305,8 +303,8 @@ QList<WayPoint> FlightController::getWayPoints()
 
 WayPoint FlightController::getLandingWayPoint() const
 {
-    // naive implementation
-    return WayPoint(mLastKnownVehiclePose.position - QVector3D(0.0, mLaserScanner->getHeightAboveGround(), 0.0));
+    // naive implementation, WARNING: make sure kopter is straight in the air!
+    return WayPoint(mLastKnownVehiclePose.position - QVector3D(0.0, mLastKnownBottomBeamLength, 0.0));
 }
 
 FlightController::FlightState FlightController::getFlightState(void) const { return mFlightState; }
@@ -349,4 +347,10 @@ void FlightController::setFlightState(const FlightState& flightState)
 void FlightController::slotScanningInProgress(const quint32& timestamp)
 {
     mGpsTimeOfLastScan = timestamp;
+}
+
+void FlightController::slotSetBottomBeamLength(const float& beamLength)
+{
+    mLastKnownBottomBeamLengthTimestamp = QTime::currentTime();
+    mLastKnownBottomBeamLength = beamLength;
 }

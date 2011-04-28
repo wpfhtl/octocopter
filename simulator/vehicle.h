@@ -40,6 +40,7 @@ private:
     QList<Engine> mEngines; // probably deprecated for mEngineNodes and mEngine
     Engine mEngine;
     QList<Ogre::SceneNode*> mEngineNodes;
+    Battery* mBattery;
 
 protected:
     btAxisSweep3 *mBtBroadphase;
@@ -78,8 +79,10 @@ public slots:
     void start(void);
     void stop(void);
 //    void slotSetNextWayPoint(const CoordinateGps &wayPoint);
-    void slotSetMotorSpeeds(const QList<int> &speeds);
+//    void slotSetMotorSpeeds(const QList<int> &speeds);
+    void slotSetMotion(const quint8& thrust, const qint8& nick, const qint8& roll, const qint8& yaw, const qint8& height);
     void slotShutDown(void);
+    void slotUpdateWind();
 
 private slots:
     void slotUpdatePosition(void);

@@ -7,10 +7,10 @@ PROJECT(koptercontrol)
 cmake_policy(SET CMP0015 NEW)
 
 SET(SRC_FILES
-flightcontroller
 koptercontrol
 koptermessage
 kopter
+../common/flightcontroller
 ../common/common
 ../common/pose
 ../common/waypoint
@@ -24,10 +24,10 @@ qextserialport/src/posix_qextserialport
 )
 
 SET(INC_FILES
-flightcontroller.h
 koptercontrol.h
 koptermessage.h
 kopter.h
+../common/flightcontroller.h
 ../common/common.h
 ../common/pose.h
 ../common/waypoint.h
@@ -75,6 +75,7 @@ INCLUDE_DIRECTORIES(
     urg/usr/include/urg/
     ${SDL_INCLUDE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/
 )
 

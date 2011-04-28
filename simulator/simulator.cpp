@@ -40,14 +40,18 @@ Simulator::Simulator(void) :
     connect(mStatusWidget, SIGNAL(timeFactorChanged(double)), mBattery, SLOT(slotSetTimeFactor(double)));
     connect(mOgreWidget, SIGNAL(currentRenderStatistics(QSize,int,float)), mStatusWidget, SLOT(slotUpdateVisualization(QSize, int, float)));
 
-    mViewUpdateTimer = new QTimer(this);
-    mViewUpdateTimer->setInterval(1000/60);
-    connect(mViewUpdateTimer, SIGNAL(timeout()), mOgreWidget, SLOT(update()));
+    mUpdateTimer = new QTimer(this);
+    mUpdateTimer->setInterval(1000/60);
+    connect(mUpdateTimer, SIGNAL(timeout()), SLOT(slotUpdate()));
 
     mTimeFactor = mStatusWidget->getTimeFactor();
     qDebug() << "Simulator::Simulator(): setting timeFactor to" << mTimeFactor;
 
     mBaseConnection = new BaseConnection("eth0", this);
+
+    mFlightController = new FlightController;
+
+    connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mVehicle, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
 }
 
 Simulator::~Simulator(void)
@@ -125,7 +129,7 @@ void Simulator::slotSimulationStart(void)
     }
 
     // Set the timer to update mOgreWidget every 25th of a second.
-    mViewUpdateTimer->start();
+    mUpdateTimer->start();
 }
 
 void Simulator::slotSimulationPause(void)
@@ -148,7 +152,7 @@ void Simulator::slotSimulationPause(void)
         QMetaObject::invokeMethod(mCameras->at(i), "slotPause", Qt::QueuedConnection);
 
     // Stop the update timer for the GL view
-    mViewUpdateTimer->stop();
+    mUpdateTimer->stop();
 }
 
 bool Simulator::isPaused(void) const
@@ -252,14 +256,23 @@ double Simulator::getTimeFactor(void) const
     return mTimeFactor;
 }
 
+Simulator::slotUpdate()
+{
+    // This will compute and emit motion commands, which are then used by vehicle.
+    mFlightController->slotComputeMotionCommands();
+
+    // Set wind in our simulation
+    mVehicle->slotUpdateWind();
+
+    // Do the physics
+    mVehicle->slotUpdatePhysics();
+
+    // At last, re-render
+    mOgreWidget->update();
+
+}
+
 QList<LaserScanner*>* Simulator::getLaserScannerList(void)
 {
     return mLaserScanners;
-}
-
-void Simulator::slotScanFinished(QList<CoordinateGps>)
-{
-    // TODO: send scanner pose and scanData to network.
-    // TODO: no, we need to send a structure holding at least the scanner's position at the beginning and at the end, and the scan itself.
-    // TODO: no, we need to send world coordinates instead of simple long ints. Yeah.
 }

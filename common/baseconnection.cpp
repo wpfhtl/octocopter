@@ -266,6 +266,10 @@ void BaseConnection::slotNewLidarPoints(const QVector<LidarPoint>& points)
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
+    // FIXME: From which position?
+    // Assuming the laserscanner's position stays pretty much the same within one scan, there's no need
+    // to transmit the direction to the scanner in every hit-packet. So we only send the positions.
+
     stream << QString("lidarpoints");
     stream << points;
     slotSendData(data, false);

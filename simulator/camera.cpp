@@ -73,9 +73,25 @@ void Camera::slotSendImage()
     stream << (quint32)imageArray.size();
     mNetworkPayload.append(imageArray);
 
-    qDebug() << "Camera::slotRecordImage(): datagram size:" << mNetworkPayload.size();
+    emit newImageData(
+                objectName(),
+                Pose(
+                    QVector3D(
+                        mCameraNode->_getDerivedPosition().x,
+                        mCameraNode->_getDerivedPosition().y,
+                        mCameraNode->_getDerivedPosition().z
+                        ),
+                    QQuaternion(
+                        mCameraNode->_getDerivedOrientation().w,
+                        mCameraNode->_getDerivedOrientation().x,
+                        mCameraNode->_getDerivedOrientation().y,
+                        mCameraNode->_getDerivedOrientation().z),
+                    0
+                    ),
+                imageArray
+                );
 
-    mSimulator->mBaseConnection->slotSendData(mNetworkPayload);
+    qDebug() << "Camera::slotRecordImage(): datagram size:" << mNetworkPayload.size();
 }
 
 void Camera::slotPause(void)

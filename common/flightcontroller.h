@@ -7,7 +7,7 @@
 
 #include <common.h>
 #include "waypoint.h"
-#include "laserscanner.h"
+#include <laserscanner.h>
 #include "pose.h"
 
 /*
@@ -28,7 +28,7 @@ class FlightController : public QObject
     Q_OBJECT
 
 public:
-    FlightController(LaserScanner* const);
+    FlightController();
     ~FlightController();
 
     enum FlightState
@@ -38,9 +38,6 @@ public:
         Freezing,
         Idle
     };
-
-    LaserScanner* mLaserScanner;
-
 
     FlightState getFlightState(void) const;
     QString getFlightStateString(void) const;
@@ -65,6 +62,9 @@ private:
     float mErrorIntegralPitch, mErrorIntegralRoll, mErrorIntegralYaw, mErrorIntegralHeight;
 
     Pose mLastKnownVehiclePose;
+
+    QTime mLastKnownBottomBeamLengthTimestamp;
+    float mLastKnownBottomBeamLength;
 
     // Upon reaching a waypoint, we rotate. This helps to keep track of that rotation
     float mDesiredYaw;
@@ -95,6 +95,9 @@ public slots:
 
     // Called regularly by our parent, we compute the motion commands then and emit motion(...).
     void slotComputeMotionCommands();
+
+    // Called by LaserScanner to set the last known distance of the ray pointing down in vehicle frame
+    void slotSetBottomBeamLength(const float&);
 
     // Why does the FlightController give a &%$§ whether the laserscanner is active? While scanning,
     // we want to yaw constantly, so that the lidar can see more terrain (similar to creating

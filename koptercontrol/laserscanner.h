@@ -4,6 +4,7 @@
 #include <UrgCtrl.h>
 #include "pose.h"
 #include <stdlib.h>
+#include <lidarpoint.h>
 
 #include <QtCore>
 #include <QtNetwork>
@@ -27,7 +28,7 @@ private:
 
     vector<long> *mScanDistancesPrevious, *mScanDistancesCurrent, *mScanDistancesNext;
 
-    QVector<QVector3D> mPoints;
+    QVector<LidarPoint> mPoints;
 
     // This scanner's Pose relative to the vehicle
     Pose mRelativePose;
@@ -68,6 +69,11 @@ public slots:
     // Pose also contains a timestamp which is set to the receiver-time of when that pose
     // was recorded.
     void slotNewVehiclePose(Pose* pose);
+
+signals:
+    void bottomBeamLength(const float&);
+
+    void newLidarPoints(const QVector<LidarPoint>&);
 };
 
 #endif

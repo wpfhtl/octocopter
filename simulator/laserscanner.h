@@ -11,7 +11,7 @@
 #include "coordinateconverter.h"
 
 #include "profiler.h"
-//#include <valgrind/callgrind.h>
+#include <lidarpoint.h>
 
 class Simulator;
 class OgreWidget;
@@ -24,6 +24,12 @@ private:
     Simulator *mSimulator;
 
     QMutex mMutex;
+
+    // We emit the length of the bottom beam (directed -Y in vehicle frame, NOT world frame)
+    // every once in a while for FlightController to get an idea of heightAboveGround when the
+    // vehicle is straightened in terms of pitch & roll. We don't need this signal to be emitted
+    // with 40Hz, so we need a clock divising variable.
+    quint8 mBottomBeamClockDivisor;
 
 //    QUdpSocket* mUdpSocket;
 
@@ -127,6 +133,11 @@ public slots:
     void slotPause(void);
     void slotSetTimeFactor(double);
     void slotSetScannerPose(const Ogre::Vector3 &position, const Ogre::Quaternion &orientation);
+
+signals:
+    void bottomBeamLength(const float&);
+
+    void newLidarPoints(const QVector<LidarPoint>&);
 };
 
 #endif
