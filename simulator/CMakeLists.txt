@@ -24,7 +24,7 @@ statuswidget
 dialogconfiguration
 ../common/profiler
 ../common/coordinategps
-vehicle
+physics
 ../common/coordinateconverter
 ../common/common
 BtOgre/BtOgre
@@ -47,7 +47,7 @@ statuswidget.h
 dialogconfiguration.h
 ../common/profiler.h
 ../common/coordinategps.h
-vehicle.h
+physics.h
 ../common/coordinateconverter.h
 ../common/common.h
 BtOgre/BtOgrePG.h
@@ -62,7 +62,8 @@ SET(RESOURCE_FILES
 )
 
 # use this if bullet is also compiled with double precision
-ADD_DEFINITIONS(-DBT_USE_DOUBLE_PRECISION)
+#ADD_DEFINITIONS(-DBT_USE_DOUBLE_PRECISION)
+#ADD_DEFINITIONS(-DOGRE_DOUBLE_PRECISION=0) # or -DOGRE_CONFIG_DOUBLE
 SET(BULLET_LIBRARIES BulletDynamics BulletSoftBody BulletCollision LinearMath)
 SET(BULLET_INCLUDE_DIRS /usr/local/include/bullet/)
 

@@ -171,6 +171,8 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
             posElem->baseVertexPointerToElement(vertex, &pReal);
             Ogre::Vector3 pt(pReal[0], pReal[1], pReal[2]);
 
+            qDebug() << "vertex" << j << "of mesh:" << pt.x << pt.y << pt.z;
+
             vertices.push_back(pt);
         }
 
@@ -218,6 +220,10 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
             float scale = s->_getDerivedScale().x;
             triMesh->addTriangle(vert0 * scale, vert1 * scale, vert2 * scale);
 
+            qDebug() << "scale" << scale << "adding triangle1" << (vert0 * scale).x() << (vert0 * scale).y() << (vert0 * scale).z();
+            qDebug() << "scale" << scale << "adding triangle2" << (vert1 * scale).x() << (vert1 * scale).y() << (vert1 * scale).z();
+            qDebug() << "scale" << scale << "adding triangle3" << (vert2 * scale).x() << (vert2 * scale).y() << (vert2 * scale).z();
+
             // Increase index count
             i += 3;
         }
@@ -239,6 +245,8 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
         // Create the rigid body
         btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, triMotionState, triMeshShape, localInertia);
         btRigidBody* triBody = new btRigidBody(rbInfo);
+
+        qDebug() << "setting object to" << s->_getDerivedPosition().x << s->_getDerivedPosition().y << s->_getDerivedPosition().z;
 
         triBody->getWorldTransform().setOrigin(btVector3(s->_getDerivedPosition().x, s->_getDerivedPosition().y, s->_getDerivedPosition().z));
         triBody->getWorldTransform().setRotation(btQuaternion(s->_getDerivedOrientation().x, s->_getDerivedOrientation().y, s->_getDerivedOrientation().z, s->_getDerivedOrientation().w) );
@@ -268,30 +276,55 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
      float * pDataConvert= new float[pTerrain->getSize() * pTerrain->getSize()];
      for(int i=0;i<pTerrain->getSize();i++)
         memcpy(
-                    pDataConvert+pTerrain->getSize() * i, // source
-                    terrainHeightData + pTerrain->getSize() * (pTerrain->getSize()-i-1), // target
+                    pDataConvert + (pTerrain->getSize() * i), // destination
+                    terrainHeightData + pTerrain->getSize() * (pTerrain->getSize()-i-1), // source
                     sizeof(float)*(pTerrain->getSize()) // size
                     );
+
+     float minV = 9999, maxV = 0;
+     for(int i=0;i<pTerrain->getSize()*pTerrain->getSize();i++)
+     {
+//         float val = pTerrain->getHeightData()[i];
+         float val = pDataConvert[i];
+         minV = val < minV ? val : minV;
+         maxV = val > maxV ? val : maxV;
+//         printf(" %.2f", val);
+     }
+     qDebug() << "min/max:" << minV << maxV;
 
      float metersBetweenVertices = pTerrain->getWorldSize()/(pTerrain->getSize()-1);
      btVector3 localScaling(metersBetweenVertices, 1, metersBetweenVertices);
 
-//     qDebug() << "terrainposition y is" << terrainPosition.y;
-//     qDebug() << "terrainpos or old" << terrainPosition.y + (pTerrain->getMaxHeight()-pTerrain->getMinHeight())/2;
-//     qDebug() << "terrainpos or new" << terrainPosition.y + (pTerrain->getMaxHeight())/2;
-//     qDebug() << "terrainheight min" << pTerrain->getMinHeight();
-//     qDebug() << "terrainheight max" << pTerrain->getMaxHeight();
+     qDebug() << "terrainsize is" << pTerrain->getSize(),
+     qDebug() << "terrainposition y is" << terrainPosition.y;
+     qDebug() << "terrainpos or old" << terrainPosition.y + (pTerrain->getMaxHeight()-pTerrain->getMinHeight())/2;
+     qDebug() << "terrainpos or new" << terrainPosition.y + (pTerrain->getMaxHeight())/2;
+     qDebug() << "terrainheight min" << pTerrain->getMinHeight();
+     qDebug() << "terrainheight max" << pTerrain->getMaxHeight();
 
      btHeightfieldTerrainShape* groundShape = new btHeightfieldTerrainShape(
                  pTerrain->getSize(),
                  pTerrain->getSize(),
                  pDataConvert,
-                 1/*ignore*/,
+                 1.0, // heightScale
                  0.0,// WAS: pTerrain->getMinHeight(), but that yields 0 on first run, 75 when loading cached terrain. So this is a nice hack.
                  pTerrain->getMaxHeight(),
                  1,
                  PHY_FLOAT,
                  true);
+
+     for(int i=0;i<pTerrain->getSize();i++)
+     {
+         for(int j=0;j<pTerrain->getSize();j++)
+         {
+//             printf(" %.2f", groundShape->getRawHeightFieldValue(i,j));
+         }
+     }
+
+     btVector3 min, max;
+     groundShape->getAabb(btTransform(), min, max);
+     qDebug() << "min:" << min.x() << min.y() << min.z();
+     qDebug() << "max:" << max.x() << max.y() << max.z();
 
      groundShape->setUseDiamondSubdivision(true);
      groundShape->setLocalScaling(localScaling);
@@ -316,7 +349,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 
      mBtWorld->addRigidBody(mGroundBody);
 
-//     mBtDebugDrawer->step();
+     mBtDebugDrawer->step();
 }
 
 Vehicle::~Vehicle()
@@ -423,7 +456,7 @@ void Vehicle::slotUpdatePhysics(void)
     mBtWorld->stepSimulation(deltaS, maxSubSteps, fixedTimeStep);
 //    mVehicleBody->applyForce(btVector3(0, 20, 0), btVector3(0, 0, 0));
 
-  mBtDebugDrawer->step();
+//  mBtDebugDrawer->step();
 
     mTimeOfLastUpdate = simulationTime;
 

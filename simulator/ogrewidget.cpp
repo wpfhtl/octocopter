@@ -724,7 +724,7 @@ void OgreWidget::setupTerrain()
 //    bool blankTerrain = false;
 
 
-    mTerrainPos = Ogre::Vector3(0.0, 0.0, 0.0);
+    mTerrainPos = Ogre::Vector3(1.1, 1.0, 1.0);
 
 //    mEditMarker = ogreSceneManager->createEntity("editMarker", "sphere.mesh");
 //    mEditNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode();
@@ -777,7 +777,7 @@ void OgreWidget::setupTerrain()
 
 
     mTerrainGroup = new Ogre::TerrainGroup(mSceneManager, Ogre::Terrain::ALIGN_X_Z, TERRAIN_SIZE, TERRAIN_WORLD_SIZE);
-    mTerrainGroup->setFilenameConvention(Ogre::String("cachedterrain"), Ogre::String("dat"));
+    mTerrainGroup->setFilenameConvention(Ogre::String("cachedterrain2"), Ogre::String("dat"));
     mTerrainGroup->setOrigin(mTerrainPos);
 
     mTerrainGlobals = new Ogre::TerrainGlobalOptions();
@@ -785,7 +785,7 @@ void OgreWidget::setupTerrain()
 
     for(long x = TERRAIN_PAGE_MIN_X; x <= TERRAIN_PAGE_MAX_X; ++x)
         for (long y = TERRAIN_PAGE_MIN_Y; y <= TERRAIN_PAGE_MAX_Y; ++y)
-            defineTerrain(x, y/*, blankTerrain*/);
+            defineTerrain(x, y);
 
     // sync load since we NEED everything in place when we start
     mTerrainGroup->loadAllTerrains(true);
@@ -808,7 +808,7 @@ void OgreWidget::setupTerrain()
     Ogre::SceneNode* sceneNode;
     Ogre::Quaternion rotation;
     Ogre::Vector3 position(175, 0, 125);
-
+/*
     entity = mSceneManager->createEntity("tudorHouse", "tudorhouse.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
     rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
@@ -845,7 +845,7 @@ void OgreWidget::setupTerrain()
                 rotation);
     sceneNode->attachObject(entity);
     addMeshInformation(entity,sceneNode);
-
+*/
     entity = mSceneManager->createEntity("windmill", "windmill.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
     rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
