@@ -11,17 +11,11 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
     mBattery = new Battery(this, 14.8, 5.0);
     mBattery->charge();
 
-    mTimerUpdatePosition = new QTimer(this);
-    mTimerUpdatePosition->setInterval(1000/60);
-    connect(mTimerUpdatePosition, SIGNAL(timeout()), SLOT(slotUpdatePosition()));
+    mTotalVehicleWeight = 2.270;
 
-    // Set up motors, as seen from the top
-    // http://www.mikrokopter.de/ucwiki/ElektronikVerkabelung#head-4e6a59d9824e114e97488c7fdaa2b1d75025bae9
-//    mEngines.append(Engine(btTransform(btQuaternion(000,deg2rad(000),000), btVector3(+0.00, +0.00, -0.20))));  // engine 1, forward, CW
-//    mEngines.append(Engine(btTransform(btQuaternion(000,deg2rad(000),000), btVector3(+0.00, +0.00, +0.20))));  // engine 2, backward,  CW
-//    mEngines.append(Engine(btTransform(btQuaternion(000,000,deg2rad(180)), btVector3(+0.20, +0.00, +0.00))));  // engine 3, right, CCW
-//    mEngines.append(Engine(btTransform(btQuaternion(000,000,deg2rad(180)), btVector3(-0.20, +0.00, +0.00))));  // engine 4, left,  CCW
-
+//    mTimerUpdateGps = new QTimer(this);
+//    mTimerUpdateGps->setInterval(1000/60);
+//    connect(mTimerUpdateGps, SIGNAL(timeout()), SLOT(slotEmitVehiclePose()));
 
     // Bullet initialisation.
     mBtBroadphase = new btAxisSweep3(btVector3(-10000,-10000,-10000), btVector3(10000,10000,10000), 1024);
@@ -113,16 +107,15 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
 //    mVehicleShape->setLocalScaling(btVector3(2,1,2));
 
     //Calculate inertia.
-    btScalar mass = 0.5;
     btVector3 inertia;
-    mVehicleShape->calculateLocalInertia(mass, inertia);
+    mVehicleShape->calculateLocalInertia(mTotalVehicleWeight, inertia);
 
     //Create BtOgre MotionState (connects Ogre and Bullet).
     mVehicleState = new BtOgre::RigidBodyState(mVehicleNode);
-    connect(mVehicleState, SIGNAL(newPose(const Ogre::Vector3, const Ogre::Quaternion)), SIGNAL(newPose(const Ogre::Vector3, const Ogre::Quaternion)));
+    connect(mVehicleState, SIGNAL(newPose(const Pose&)), SIGNAL(newVehiclePose(const Pose&)));
 
     //Create the Body.
-    mVehicleBody = new btRigidBody(mass, mVehicleState, mVehicleShape, inertia);
+    mVehicleBody = new btRigidBody(mTotalVehicleWeight, mVehicleState, mVehicleShape, inertia);
     mVehicleBody->setFriction(0.8);
     mVehicleBody->setRestitution(0.6);
 //    mVehicleBody->setCollisionFlags(mVehicleBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT | btCollisionObject::CF_CUSTOM_MATERIAL_CALLBACK );
@@ -335,91 +328,74 @@ Vehicle::~Vehicle()
     delete mBtBroadphase;
 }
 
-void Vehicle::run()
+void Vehicle::slotSetMotion(const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height)
 {
-//    mTimeOfLastUpdate = mSimulator->getSimulationTime();
-//    mTimerUpdatePosition->start();
-//    QThread::exec();
-}
+    qDebug() << "Vehicle::slotSetMotion(): setting physics forces according to motion...";
 
-/*
-void Vehicle::slotUpdatePosition(void)
-{
-    QMutexLocker locker(&mMutex);
-
-    int f,b,l,r;
-
-//    mFlightController->getEngineSpeeds(f, b, l, r);
-
-    QList<int> motorSpeeds;
-
-    motorSpeeds << f << b << -l << -r;
-
-//    qDebug() << "Vehicle::slotUpdatePosition():\t\t" << "f" << f << "b" << b << "l" << l << "r" << r;
-
-    slotSetMotorSpeeds(motorSpeeds);
-
-
-    slotUpdatePhysics();
-
-//    qDebug() << "Vehicle::slotUpdatePosition(): done";
-}*/
-
-void Vehicle::slotSetMotion(const quint8& thrust, const qint8& nick, const qint8& roll, const qint8& yaw, const qint8& height)
-{
     // To get it like mikrokopter, we'd have to understand FlightCtrl's fc.c
 
-    // Apply general thrust. A value of 255 means 100% thrust, which means around 760rpm/Volt
-    const int rpm = ((float)thrust) / 255.0 * 760.0 * mBattery->currentVoltage();
-    const float thrustScalar = mEngine.calculateThrust(rpm);
+    // The Kopter weighs 1750g with full load (gps, atomboard, hokuyo),
+    // and the 500mAh 4S weighs 520g, adding up to 2270g.
+    // According to http://gallery.mikrokopter.de/main.php/v/tech/Okto2_5000_Payload.gif.html?g2_imageViewsIndex=1,
+
+    // Apply general thrust. A value of 255 means 100% thrust, which means around 10A at full battery
+    const float thrustCurrent = (((float)thrust) / 255.0) * 10.0 * (mBattery->currentVoltage() / mBattery->maxVoltage());
+    const float thrustScalar = mEngine.calculateThrust(thrustCurrent) * 8;
     const Ogre::Vector3 thrustVectorOgre = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0, thrustScalar, 0);
     mVehicleBody->applyCentralForce(btVector3(thrustVectorOgre.x, thrustVectorOgre.y, thrustVectorOgre.z));
 
-    // Apply yawing torque
-    const double torqueScalar = mEngine.calculateTorque(rpm);
-    Ogre::Vector3 torque = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0.0, torqueScalar, 0.0);
-    mVehicleBody->applyTorque(btVector3(torque.x, torque.y, torque.z));
+    // When we yaw, pitch or roll, we always take x RPM from one pair of motors and add it to another pair. Since
+    // the rpm/current-curve is pretty linear for small changes, we assume that yawing, pitching and rolling do
+    // not really affect overall current consumption. Not really valid, but good enough for us.
+    mBattery->setDischargeCurrent(thrustCurrent);
 
-    // Apply pitching torque. We Assume that on full pitch (-127 or 128), we switch off one side (3 motors) completely
-    // and put the other 3 motors to full thrust. Of course, this only works with idling motors, so when the vehicle is in
-    // mid-air, the maximum pitch-rpm-difference is limited to where the vehicle would start to sink.
+    // Let us wildly assume that the motors go 2000rpm faster/slower on maximum yaw
+    const double torqueScalarYaw = mEngine.calculateTorque(2000 * (((float)yaw) / 128.0));
+    Ogre::Vector3 torqueVectorYaw = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0.0, torqueScalarYaw, 0.0);
+    mVehicleBody->applyTorque(btVector3(torqueVectorYaw.x, torqueVectorYaw.y, torqueVectorYaw.z));
+
+    // Set the motor positions
+    const btVector3 motor1(0.0, 0.0, -0.375);
+    const btVector3 motor2(+0.205, 0.0, -0.205);
+    const btVector3 motor3(+0.375, 0.0, 0.0);
+    const btVector3 motor4(+0.205, 0.0, +0.205);
+    const btVector3 motor5(0.0, 0.0, +0.375);
+    const btVector3 motor6(-0.205, 0.0, +0.205);
+    const btVector3 motor7(-0.375, 0.0, 0.0);
+    const btVector3 motor8(-0.205, 0.0, -0.205);
+
+    // Let us wildly assume that the motors get 2A more/less on maximum amplitude
+    const double forceScalarPitch = mEngine.calculateThrust(2.0 * (abs((float)pitch) / 128.0));
+    Ogre::Vector3 forceVectorPitch = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(forceScalarPitch, 0.0, 0.0);
+    btVector3 forceVectorPitchBullet(forceVectorPitch.x, forceVectorPitch.y, forceVectorPitch.z);
+
+    mVehicleBody->applyForce(forceVectorPitchBullet, motor1);
+    mVehicleBody->applyForce(forceVectorPitchBullet, motor2);
+    mVehicleBody->applyForce(forceVectorPitchBullet, motor8);
+
+    mVehicleBody->applyForce(-forceVectorPitchBullet, motor4);
+    mVehicleBody->applyForce(-forceVectorPitchBullet, motor5);
+    mVehicleBody->applyForce(-forceVectorPitchBullet, motor6);
 
 
+    // Let us wildly assume that the motors get 2A more/less on maximum amplitude
+    const double forceScalarRoll = mEngine.calculateThrust(2.0 * (abs((float)pitch) / 128.0));
+    Ogre::Vector3 forceVectorRoll = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(forceScalarRoll, 0.0, 0.0);
+    btVector3 forceVectorRollBullet(forceVectorRoll.x, forceVectorRoll.y, forceVectorRoll.z);
+
+    mVehicleBody->applyForce(forceVectorRollBullet, motor2);
+    mVehicleBody->applyForce(forceVectorRollBullet, motor3);
+    mVehicleBody->applyForce(forceVectorRollBullet, motor4);
+
+    mVehicleBody->applyForce(-forceVectorRollBullet, motor6);
+    mVehicleBody->applyForce(-forceVectorRollBullet, motor7);
+    mVehicleBody->applyForce(-forceVectorRollBullet, motor8);
 }
 
-void vehicle::slotUpdateWind()
+void Vehicle::slotUpdateWind()
 {
     // apply wind forces
 }
-
-/*
-void Vehicle::slotSetMotorSpeeds(const QList<int> &speeds)
-{
-    Q_ASSERT(speeds.size() == mEngineNodes.size());
-
-    // We apply forces to the vehicle depending on the speeds of its propellers.
-    for(int i=0;i<speeds.size();++i)
-    {
-        const double thrustScalar = mEngine.calculateThrust(speeds.at(i));
-
-        // f b -l -r
-
-        const Ogre::Vector3 thrustVectorOgre = mEngineNodes.at(i)->_getDerivedOrientation() * Ogre::Vector3(0, thrustScalar, 0);
-        const btVector3 thrustVectorBt(thrustVectorOgre.x, thrustVectorOgre.y, thrustVectorOgre.z);
-//        const Ogre::Vector3 pos = mEngineNodes.at(i)->_getDerivedPosition() - mVehicleNode->_getDerivedPosition();
-        const Ogre::Vector3 pos = mVehicleNode->_getDerivedOrientation() * mEngineNodes.at(i)->getPosition();
-        const btVector3 position(pos.x, pos.y, pos.z);
-        mVehicleBody->applyForce(thrustVectorBt, position);
-//        qDebug() << "Vehicle::slotSetMotorSpeeds(): thrust" << i << thrustScalar << thrustVectorOgre.x << thrustVectorOgre.y << thrustVectorOgre.z << "at" << position.x() << position.y() << position.z();
-
-        const double torqueScalar = mEngine.calculateTorque(speeds.at(i));
-        Ogre::Vector3 torque = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0.0, torqueScalar, 0.0);
-        mVehicleBody->applyTorque(btVector3(torque.x, torque.y, torque.z));
-//        qDebug() << "Vehicle::slotSetMotorSpeeds(): torque y:" << i << torqueScalar << torque.y;
-    }
-
-//    qDebug() << "Vehicle::slotSetMotorSpeeds(): total yaw torque is" << mVehicleBody->getTotalTorque().y();
-}*/
 
 float Vehicle::getHeightAboveGround()
 {
@@ -438,7 +414,7 @@ void Vehicle::slotUpdatePhysics(void)
     const btScalar deltaS = std::max(0.0f, (simulationTime - mTimeOfLastUpdate) / 1000.0f); // elapsed time since last call in seconds
     const int maxSubSteps = 20;
     const btScalar fixedTimeStep = 1.0 / 60.0;
-//    qDebug() << "Vehicle::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
+    qDebug() << "Vehicle::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
 
     mVehicleBody->applyDamping(deltaS);
 
@@ -468,25 +444,19 @@ void Vehicle::slotUpdatePhysics(void)
     // TODO: why the fuck does a timer in vehicle drive the gl update?
     //mOgreWidget->update();
 }
-
+/*
 void Vehicle::start(void)
 {
     qDebug() << "Vehicle::start(): starting timer.";
-    mTimerUpdatePosition->start();
+    mTimerUpdateGps->start();
 }
 
 void Vehicle::stop(void)
 {
     qDebug() << "Vehicle::stop(): stopping timer.";
-    mTimerUpdatePosition->stop();
+    mTimerUpdateGps->stop();
 }
-
-void Vehicle::slotShutDown(void)
-{
-    QMutexLocker locker(&mMutex);
-
-//    quit();
-}
+*/
 
 QVector3D Vehicle::getLinearVelocity() const
 {
@@ -500,3 +470,7 @@ QVector3D Vehicle::getAngularVelocity() const
     return QVector3D(vA.x(), vA.y(), vA.z());
 }
 
+void Vehicle::slotSetTotalVehicleWeight(const float& weight)
+{
+    mTotalVehicleWeight = weight;
+}

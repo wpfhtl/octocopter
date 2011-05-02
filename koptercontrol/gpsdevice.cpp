@@ -623,7 +623,7 @@ void GpsDevice::processSbfData()
                 const float  lat = ((float)block->Lat) / 10000000.0;
                 const float  alt = ((float)block->Alt) / 1000.0;
                 emit newVehiclePose(
-                            new Pose(
+                            Pose(
                                 // TODO: use PosFine, see SBF reference guide, page 80?
                                 convertGeodeticToCartesian(lon, lat, alt),
                                 QQuaternion::fromAxisAndAngle(0,1,0, ((float)block->Heading) * 0.001) *

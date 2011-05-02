@@ -60,6 +60,11 @@ CoordinateGps CoordinateConverter::convert(const Ogre::Vector3 &coordinate) cons
     return cg;
 }
 
+CoordinateGps CoordinateConverter::convert(const QVector3D &c) const
+{
+    return convert(Ogre::Vector3(c.x(), c.y(), c.z()));
+}
+
 //QString CoordinateConverter::formatGpsDegree(const float value) const
 //{
 //    QString result;

@@ -18,16 +18,16 @@ private:
     double mCapacity; // in AH
     double mDischargeCurrent;  // in A, how much is drawn from the battery right now.
     double mEnergy;   // in AH, the energy left in the battery
-    double mVoltage;  // in Volt
+    double mMaxVoltage;  // in Volt
     int mChargeStatusInPercent;
 
 public:
-    Battery(QObject *parent = 0, const double &voltage = 12.0, const double &capacity = 4.0);
+    Battery(QObject *parent = 0, const double &maxVoltage = 12.0, const double &capacity = 4.0);
     void setDischargeCurrent(const double &current);
     void charge();
 
     double currentVoltage(void) const;
-    double voltage(void) const;
+    double maxVoltage(void) const;
 
     double energy(void) const;
     double capacity(void) const;

@@ -6,6 +6,7 @@
 #include "btBulletDynamicsCommon.h"
 #include "OgreSceneNode.h"
 #include "BtOgreExtras.h"
+#include <pose.h>
 
 namespace BtOgre {
 
@@ -55,7 +56,12 @@ class RigidBodyState : public QObject, public btMotionState
                 mNode->setOrientation(rot.w(), rot.x(), rot.y(), rot.z());
                 mNode->setPosition(pos.x(), pos.y(), pos.z());
 
-                emit newPose(mNode->getPosition(), mNode->getOrientation());
+                emit newPose(
+                            Pose(
+                                QVector3D(pos.x(), pos.y(), pos.z()),
+                                QQuaternion(rot.w(), rot.x(), rot.y(), rot.z())
+                                )
+                            );
             }
 
         }
@@ -83,7 +89,8 @@ class RigidBodyState : public QObject, public btMotionState
         }
 
     signals:
-        void newPose(const Ogre::Vector3 pos, const Ogre::Quaternion rot);
+//        void newPose(const Ogre::Vector3 pos, const Ogre::Quaternion rot);
+        void newPose(const Pose& pose);
 };
 
 //Softbody-Ogre connection goes here!

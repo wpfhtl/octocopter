@@ -6,11 +6,36 @@ Pose::Pose(const QVector3D &position, const QQuaternion &orientation, const quin
     this->position = position;
 
     this->timestamp = timestamp;
+
+    if(timestamp == 0) this->timestamp = getCurrentGpsTowTime();
+}
+
+Pose::Pose(const QVector3D &position, const float &yaw, const float &pitch, const float &roll, const quint32& timestamp)
+{
+    this->position = position;
+    this->yaw = yaw;
+    this->pitch = pitch;
+    this->roll = roll;
+
+    this->timestamp = timestamp;
+
+    if(timestamp == 0) this->timestamp = getCurrentGpsTowTime();
 }
 
 Pose::Pose()
 {
     this->timestamp = 0;
+}
+
+quint32 Pose::getCurrentGpsTowTime()
+{
+    const QDate today = QDate::currentDate();
+    QDateTime beginningOfWeek(today.addDays(-(today.dayOfWeek() % 7)), QTime(0, 0, 0, 0));
+
+    qDebug() << beginningOfWeek.toString("ddd hh:mm:ss:zzz");
+    Q_ASSERT(beginningOfWeek.date().dayOfWeek() == Qt::Sunday && beginningOfWeek.toString("hh:mm:ss:zzz") == QString("00:00:00:000"));
+
+    return beginningOfWeek.msecsTo(QDateTime::currentDateTime());
 }
 
 Pose Pose::interpolateLinear(const Pose &before, const Pose &after, const float &mu)
@@ -95,7 +120,7 @@ QVector3D Pose::getPosition(void) const
 
 QDataStream& operator<<(QDataStream &out, const Pose &pose)
 {
-    out << pose.position << pose.orientation << pose.timestamp;
+    out << pose.position << pose.orientation << pose.yaw << pose.pitch << pose.roll << pose.timestamp;
     return out;
 }
 
@@ -103,6 +128,9 @@ QDataStream& operator>>(QDataStream &in, Pose &pose)
 {
     in >> pose.position;
     in >> pose.orientation;
+    in >> pose.yaw;
+    in >> pose.pitch;
+    in >> pose.roll;
     in >> pose.timestamp;
     return in;
 }

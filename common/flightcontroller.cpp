@@ -2,7 +2,7 @@
 
 FlightController::FlightController() : QObject()
 {
-    setFlightState(Idle);
+    setFlightState(ApproachingNextWayPoint);
 
     for(int i=0;i<4;i++) {
 //        setFlightState(ApproachingNextWayPoint);
@@ -36,7 +36,7 @@ void FlightController::slotComputeMotionCommands()
 
     if(getFlightState() == ManualControl)
     {
-//        qDebug() << "FlightController::getEngineSpeeds(): joystick";
+//        qDebug() << "FlightController::slotComputeMotionCommands(): joystick";
 
 
         mPrevErrorPitch = 0 - mLastKnownVehiclePose.getPitchDegrees(false); //mMotionState->getOrientation().getPitch(false).valueDegrees();
@@ -57,11 +57,11 @@ void FlightController::slotComputeMotionCommands()
     }
     else if(getFlightState() == ApproachingNextWayPoint)
     {
-//        qDebug() << "FlightController::getEngineSpeeds(): autopilot";
-
         Q_ASSERT(mWayPoints.size() > 0);
 
         QVector3D nextWayPoint = mWayPoints.first();
+
+        qDebug() << "FlightController::slotComputeMotionCommands(): approaching next wpt at" << nextWayPoint;
 
         // http://en.wikipedia.org/wiki/PID_controller, thanks Minorsky!
         static double Kp = 5.1;
@@ -168,6 +168,9 @@ void FlightController::slotComputeMotionCommands()
         if(r>max) r=max; if(r<-max) r=-max;
 
 //        emit speeds(f, 0, r, 0, b, 0, l, 0);
+
+        qDebug() << "FlightController::slotComputeMotionCommands(): motion is" << 70 << 0 << 0 << 0 << 0;
+
         emit motion(70, 0, 0, 0, 0);
 
         // See whether we're close at the waypoint and moving slowly
@@ -323,9 +326,9 @@ QString FlightController::getFlightStateString(void) const
     Q_ASSERT(false && "FLIGHTSTATE UNDEFINED!");
 }
 
-void FlightController::slotSetVehiclePose(Pose* pose)
+void FlightController::slotSetVehiclePose(const Pose& pose)
 {
-    mLastKnownVehiclePose = *pose;
+    mLastKnownVehiclePose = pose;
 }
 
 void FlightController::slotFreeze()

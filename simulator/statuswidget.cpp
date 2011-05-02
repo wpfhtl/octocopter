@@ -17,7 +17,7 @@ StatusWidget::StatusWidget(Simulator *simulator) : QDockWidget((QWidget*)simulat
 
     connect(mBattery, SIGNAL(chargeStatusChanged(int)), SLOT(slotUpdateBattery(int)));
 
-    mLabelBatteryVoltage->setText(QString::number(mBattery->voltage(), 'g', 2) + " V");
+    mLabelBatteryVoltage->setText(QString::number(mBattery->maxVoltage(), 'g', 2) + " V");
     mLabelBatteryEnergy->setText(QString::number(mBattery->capacity(), 'g', 2) + " Ah");
 
     mCompass->setStyle(new QPlastiqueStyle);
@@ -68,7 +68,7 @@ void StatusWidget::slotShowConfiguration()
 
 void StatusWidget::slotUpdateBattery(const int chargeStateInPercent)
 {
-    mLabelBatteryVoltageCurrent->setText(QString::number(mBattery->voltage(), 'g', 2) + " V");
+    mLabelBatteryVoltageCurrent->setText(QString::number(mBattery->maxVoltage(), 'g', 2) + " V");
     mLabelBatteryEnergyCurrent->setText(QString::number(mBattery->energy(), 'g', 2) + " Ah");
 }
 
@@ -88,31 +88,27 @@ void StatusWidget::slotUpdateVisualization(QSize windowSize, int triangles, floa
             );
 }
 
-void StatusWidget::slotUpdatePose(const Ogre::Vector3 &position, const Ogre::Quaternion &rotation)
+void StatusWidget::slotUpdatePose(const Pose &pose)
 {
-    mLabelPoseOgreX->setText(QString("%1m").arg(position.x, 3, 'f', 1, '0'));
-    mLabelPoseOgreY->setText(QString("%1m").arg(position.y, 3, 'f', 1, '0'));
-    mLabelPoseOgreZ->setText(QString("%1m").arg(position.z, 3, 'f', 1, '0'));
+    mLabelPoseOgreX->setText(QString("%1m").arg(pose.position.x(), 3, 'f', 1, '0'));
+    mLabelPoseOgreY->setText(QString("%1m").arg(pose.position.y(), 3, 'f', 1, '0'));
+    mLabelPoseOgreZ->setText(QString("%1m").arg(pose.position.z(), 3, 'f', 1, '0'));
 
-    CoordinateGps wgs84 = mCoordinateConverter->convert(position);
+    CoordinateGps wgs84 = mCoordinateConverter->convert(pose.position);
 
     mLabelPoseWgs84Longitude->setText(wgs84.formatGpsDegree(wgs84.longitude()));
     mLabelPoseWgs84Latitude->setText(wgs84.formatGpsDegree(wgs84.latitude()));
     mLabelPoseWgs84Elevation->setText(QString("%1m").arg(wgs84.elevation(), 3, 'f', 1, QLatin1Char('0')));
 
-    const int pitch = rotation.getPitch(false).valueDegrees();
-    const int roll = rotation.getRoll(false).valueDegrees();
-    const int yaw = rotation.getYaw(false).valueDegrees();
-
     QString deg;
     deg.sprintf("%c", 176);
     deg.prepend("%1");
 
-    mLabelPitch->setText(deg.arg(pitch, 3, 10, QLatin1Char('0')));
-    mLabelRoll->setText(deg.arg(roll, 3, 10, QLatin1Char('0')));
-    mLabelYaw->setText(deg.arg(yaw, 3, 10, QLatin1Char('0')));
+    mLabelPitch->setText(deg.arg((int)pose.pitch, 3, 10, QLatin1Char('0')));
+    mLabelRoll->setText(deg.arg((int)pose.roll, 3, 10, QLatin1Char('0')));
+    mLabelYaw->setText(deg.arg((int)pose.yaw, 3, 10, QLatin1Char('0')));
 
-    mCompass->setValue(yaw+180);
+    mCompass->setValue(pose.yaw);
 
     // flight dynamics
     QVector3D vL = mSimulator->mVehicle->getLinearVelocity();

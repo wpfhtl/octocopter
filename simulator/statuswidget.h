@@ -7,6 +7,7 @@
 #include "dialogconfiguration.h"
 #include "ui_statuswidget.h"
 #include "battery.h"
+#include <pose.h>
 
 #define QT_USE_FAST_CONCATENATION
 #define QT_USE_FAST_OPERATOR_PLUS
@@ -31,11 +32,11 @@ public:
 public slots:
     void slotSetButtonStartEnabled(bool);
     void slotSetButtonPauseEnabled(bool);
+    void slotUpdatePose(const Pose &pose);
 
 private slots:
     void slotUpdateBattery(const int chargeStateInPercent);
     void slotUpdateVisualization(QSize windowSize, int triangles, float fps);
-    void slotUpdatePose(const Ogre::Vector3 &position, const Ogre::Quaternion &rotation);
     void slotSimulationStarted();
     void slotSimulationPaused();
     void slotShowConfiguration();

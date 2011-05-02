@@ -50,7 +50,6 @@ Simulator::Simulator(void) :
     mBaseConnection = new BaseConnection("eth0", this);
 
     mFlightController = new FlightController;
-
     connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mVehicle, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
 }
 
@@ -83,7 +82,8 @@ void Simulator::slotOgreInitialized(void)
     // Vehicle creates SceneNode and Entity in OgreWidget. But OgreWidget is not initialized after instatiation, but only when
     // the window is initialized. Thus, vehicle needs to be created after ogreWidget initialization.
     mVehicle = new Vehicle(this, mOgreWidget);
-    connect(mVehicle, SIGNAL(newPose(const Ogre::Vector3&, const Ogre::Quaternion&)), mStatusWidget, SLOT(slotUpdatePose(const Ogre::Vector3&, const Ogre::Quaternion&)));
+    connect(mVehicle, SIGNAL(newVehiclePose(const Pose&)), mFlightController, SLOT(slotSetVehiclePose(const Pose&)));
+    connect(mVehicle, SIGNAL(newVehiclePose(const Pose&)), mStatusWidget, SLOT(slotUpdatePose(const Pose&)));
 
 //    mBaseConnection->setVehicle(mVehicle);
 
@@ -111,7 +111,7 @@ void Simulator::slotSimulationStart(void)
     }
 
     mTimeSimulationPause = QTime(); // invalidate;
-    mVehicle->start();
+//    mVehicle->start();
 
     // Notify all laserscanners
     for(int i=0; i < mLaserScanners->size(); i++)
@@ -140,7 +140,7 @@ void Simulator::slotSimulationPause(void)
     mStatusWidget->slotSetButtonStartEnabled(true);
 
     mTimeSimulationPause.start();
-    mVehicle->stop();
+//    mVehicle->stop();
 
     // Notify all laserscanners
     for(int i=0; i < mLaserScanners->size(); i++)
@@ -256,20 +256,20 @@ double Simulator::getTimeFactor(void) const
     return mTimeFactor;
 }
 
-Simulator::slotUpdate()
+void Simulator::slotUpdate()
 {
+    qDebug() << "Simulator::slotUpdate()";
     // This will compute and emit motion commands, which are then used by vehicle.
     mFlightController->slotComputeMotionCommands();
 
     // Set wind in our simulation
     mVehicle->slotUpdateWind();
 
-    // Do the physics
+    // Do the physics. This will move the vehicle, which will make the vehicle's motion state emit its new position, which will go into flightcontroller. Sweet!
     mVehicle->slotUpdatePhysics();
 
     // At last, re-render
     mOgreWidget->update();
-
 }
 
 QList<LaserScanner*>* Simulator::getLaserScannerList(void)

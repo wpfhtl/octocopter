@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QSettings>
+#include <QVector3D>
 #include <Ogre.h>
 #include <math.h>
 
@@ -23,6 +24,7 @@ public:
     void setOrigin(const CoordinateGps &origin);
 
     CoordinateGps convert(const Ogre::Vector3 &coordinate) const;
+    CoordinateGps convert(const QVector3D &coordinate) const;
     Ogre::Vector3 convert(const CoordinateGps &coordinate) const;
 
 //    QString formatGpsDegree(const float value) const;

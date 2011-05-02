@@ -15,11 +15,13 @@ private:
 
 public:
     Pose(const QVector3D &position, const QQuaternion &orientation, const quint32& timestamp = 0);
+    Pose(const QVector3D &position, const float &yaw, const float &pitch, const float &roll, const quint32& timestamp = 0);
     Pose();
 
 
     QVector3D position;
     QQuaternion orientation;
+    float yaw, pitch, roll;
 
     // This is the GPS Time-Of-Week, specified in milliseconds since last Sunday, 00:00:00 AM (midnight)
     quint32 timestamp;
@@ -38,6 +40,8 @@ public:
 
 //    QQuaternion getOrientation(void) const;
 //    QVector3D getPosition(void) const;
+
+    static quint32 getCurrentGpsTowTime();
 
     float getRollRadians(bool reprojectAxis) const;
     float getPitchRadians(bool reprojectAxis) const;

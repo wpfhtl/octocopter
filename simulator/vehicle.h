@@ -5,6 +5,7 @@
 #include <QMutex>
 #include <QMutexLocker>
 #include <QTimer>
+#include <QDebug>
 
 #include <OgreTerrainGroup.h>
 
@@ -19,7 +20,7 @@
 #include "engine.h"
 #include "ogrewidget.h"
 #include "flightcontroller.h"
-#include <coordinateconverter.h>
+#include <pose.h>
 
 class Simulator;
 class OgreWidget;
@@ -31,16 +32,14 @@ class Vehicle : public QObject//QThread
 
 private:
     mutable QMutex mMutex;
-    QTimer *mTimerUpdatePosition;
+//    QTimer *mTimerUpdateGps;
     int mTimeOfLastUpdate; // the last simulationtime from simulator. Needed, as the physics engine needs deltas.
     Simulator *mSimulator;
-//    CoordinateConverter mCoordinateConverter;
-//    Ogre::Vector3 mNextWayPoint;
     OgreWidget* mOgreWidget;
-    QList<Engine> mEngines; // probably deprecated for mEngineNodes and mEngine
     Engine mEngine;
     QList<Ogre::SceneNode*> mEngineNodes;
     Battery* mBattery;
+    float mTotalVehicleWeight;
 
 protected:
     btAxisSweep3 *mBtBroadphase;
@@ -72,21 +71,18 @@ public:
     FlightController* mFlightController;
 
 signals:
-    void newPose(const Ogre::Vector3 pos, const Ogre::Quaternion rot);
+    void newVehiclePose(const Pose&);
 
 public slots:
-    void run(void);
-    void start(void);
-    void stop(void);
-//    void slotSetNextWayPoint(const CoordinateGps &wayPoint);
-//    void slotSetMotorSpeeds(const QList<int> &speeds);
+//    void start(void);
+//    void stop(void);
     void slotSetMotion(const quint8& thrust, const qint8& nick, const qint8& roll, const qint8& yaw, const qint8& height);
-    void slotShutDown(void);
     void slotUpdateWind();
+    void slotSetTotalVehicleWeight(const float&);
+    void slotUpdatePhysics(void);
 
 private slots:
-    void slotUpdatePosition(void);
-    void slotUpdatePhysics(void);
+//    void slotEmitVehiclePose();
 };
 
 #endif

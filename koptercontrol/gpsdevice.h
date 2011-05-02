@@ -230,7 +230,7 @@ signals:
     // log/status messages
     void message(const QString&, const LogImportance& importance, const QString& message);
 
-    void newVehiclePose(Pose*);
+    void newVehiclePose(const Pose&);
 
     // Again, timestamp is number of milliseconds since last sunday 00:00:00 AM (midnight)
     void scanFinished(const quint32& timestamp);

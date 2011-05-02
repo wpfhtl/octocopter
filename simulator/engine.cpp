@@ -20,13 +20,15 @@ Engine::Engine(void) : QObject()
 
     initializePropellers();
 
-    // According to http://www.mikrokopter.de/ucwiki/ROXXY2827-35, with a 10*EPP our motor
-    // does 820g of thrust = 8 Newton at 10A.
+    // According to http://www.mikrokopter.de/ucwiki/ROXXY2827-35, with
+    // a 10*EPP our motor does 820g of thrust = 8 Newton at 10A.
 
     Q_ASSERT(setPropeller("APC_SF_1047"));
 
+    qDebug() << "Engine::Engine(): thrust: 10000:" << calculateThrust(10000);
+
     // Try to match http://gallery.mikrokopter.de/main.php?g2_view=core.DownloadItem&g2_itemId=49297
-    Q_ASSERT(calculateThrust(12500) > 7.7 && calculateThrust(12500) < 10);
+    Q_ASSERT(calculateThrust(10000) > 7.7 && calculateThrust(10000) < 10);
 }
 
 Engine::Engine(const Engine &other)
@@ -76,7 +78,8 @@ btVector3 Engine::calculateThrust(const int rpm) const
 
     return thrustVector;
 }
-*/
+
+
 
 double Engine::calculateThrust(const int rpm) const
 {
@@ -92,7 +95,7 @@ double Engine::calculateThrust(const int rpm) const
 
     return thrust;
 }
-/*
+
 btVector3 Engine::calculateTorque(const int rpm) const
 {
     // This method returns a vector of torque caused by
@@ -117,7 +120,7 @@ double Engine::calculateTorque(const int rpm) const
     Q_ASSERT(mCurrentPropeller.c1 != 0 && mCurrentPropeller.c2 != 0 && mCurrentPropeller.c3 != 0);
 //    Q_ASSERT(rpm > mCurrentPropeller.rpmMin && rpm < mCurrentPropeller.rpmMax);
 
-    static float torqueCoefficient = 0.000228 * 50000; // FIXME: this factor is made-up
+    static float torqueCoefficient = 0.228 * 50; // FIXME: this factor is made-up
     static float densityAir = 1.184;
     const float rotorDiscArea = M_PI * pow(mCurrentPropeller.diameter/2.0, 2);
     const float radiusPow3 = pow(mCurrentPropeller.diameter/2.0, 3);
@@ -128,6 +131,12 @@ double Engine::calculateTorque(const int rpm) const
     return torque;
 }
 
+double Engine::calculateThrust(const float& current)
+{
+    // Have a look at Strom-Schub.ods to find the base for these calculations
+    return pow(current, 0.725)/85.0;
+}
+
 btVector3 Engine::getPosition(void) const
 {
     return mPose.getOrigin();
@@ -136,7 +145,7 @@ btVector3 Engine::getPosition(void) const
 void Engine::initializePropellers(void)
 {
     // http://www.badcock.net/ThrustXL/
-    // The diameter is given in inches, is converted to meters in th ePropeller c'tor
+    // The diameter is given in inches, is converted to meters in the Propeller c'tor
 
     mPropellers.insert("AERO_6050", Propeller(-0.03115116, -0.005362921, 0.000002500332, 11260, 17410, 6, 5));
     mPropellers.insert("AERO_6540", Propeller(0.09004005, -0.003803596, 0.000003055015, 4500, 17080, 6.5, 4));

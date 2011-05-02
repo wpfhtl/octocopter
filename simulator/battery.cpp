@@ -3,7 +3,7 @@
 Battery::Battery(QObject *parent, const double &voltage, const double &capacity) :
         QObject(parent),
         mUpdateTimer(this),
-        mVoltage(voltage),
+        mMaxVoltage(voltage),
         mCapacity(capacity),
         mEnergy(capacity),
         mTimeFactor(1),
@@ -37,12 +37,12 @@ void Battery::slotUpdate(void)
 double Battery::currentVoltage(void) const
 {
     // WARNING: find a better (nonlinear) discharge curve, empty Battery now has 0,8 * mVoltage
-    return (mVoltage * 0.8) + (mVoltage * 0.2 * (mEnergy / mCapacity));
+    return (mMaxVoltage * 0.8) + (mMaxVoltage * 0.2 * (mEnergy / mCapacity));
 }
 
-double Battery::voltage(void) const
+double Battery::maxVoltage(void) const
 {
-    return mVoltage;
+    return mMaxVoltage;
 }
 
 double Battery::energy(void) const

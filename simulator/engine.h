@@ -64,7 +64,14 @@ public:
 
     // returns thrust in newton for a given rpm
 //    btVector3 calculateThrust(const int rpm) const;
-    double calculateThrust(const int rpm) const;
+//    double calculateThrust(const int rpm) const;
+
+
+    // This method was added later, upon realization that we don't care about RPM. Instead,
+    // we use http://www.mikrocontroller.com/files/Schubdiagramm_Roxxy2827-35.jpg to correlate
+    // thrust and current. This also makes the battery-simulation work better.
+    // Returns a thrust force in newton for a given current flowing through a single motor.
+    double calculateThrust(const float& current);
 
     // returns torque in Nm.
 //    btVector3 calculateTorque(const int rpm) const;

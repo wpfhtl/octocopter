@@ -12,6 +12,7 @@
 #include "vehicle.h"
 #include "laserscanner.h"
 #include "baseconnection.h"
+#include "flightcontroller.h"
 #include "camera.h"
 #include "statuswidget.h"
 #include "coordinateconverter.h"
@@ -64,6 +65,7 @@ private slots:
     void slotOgreInitialized(void);
     void slotSetTimeFactor(double);
     void slotNotifyDevicesOfNewTimeFactor();
+    void slotUpdate();
 
 public slots:
     void slotSimulationStart(void);
