@@ -32,11 +32,11 @@ BaseStation::BaseStation() : QMainWindow()
     addDockWidget(Qt::BottomDockWidgetArea, mLogWidget);
     menuBar()->addAction("Save Log", mLogWidget, SLOT(save()));
 
-    mFlightPlanner = new FlightPlannerPhysics(&mVehiclePosition, &mVehicleOrientation, mOctree);
-    mFlightPlanner->slotSetScanVolume(QVector3D(140, 60, 80), QVector3D(240, 120, 150));
-    connect(mFlightPlanner, SIGNAL(newWayPoint(const QVector3D)), mControlWidget, SLOT(slotNewWayPoint(const QVector3D)));
-    connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
-    connect(mControlWidget, SIGNAL(generateWaypoints()), mFlightPlanner, SLOT(slotGenerateWaypoints()));
+    mFlightPlanner = new FlightPlannerPhysics(&mVehiclePose, mOctree);
+//    mFlightPlanner->slotSetScanVolume(QVector3D(140, 60, 80), QVector3D(240, 120, 150));
+//    connect(mFlightPlanner, SIGNAL(newWayPoint(const QVector3D)), mControlWidget, SLOT(slotNewWayPoint(const QVector3D)));
+//    connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
+//    connect(mControlWidget, SIGNAL(generateWaypoints()), mFlightPlanner, SLOT(slotGenerateWaypoints()));
 
     menuBar()->addAction("Save Cloud", this, SLOT(slotExportCloud()));
 
@@ -44,11 +44,20 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(update()));
     setCentralWidget(mGlWidget);
 
-    connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWidget, SLOT(updateGL()));
+//    connect(mGlWidget, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
+//    connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWidget, SLOT(updateGL()));
 
     mTimerUpdateStatus = new QTimer();
     mTimerUpdateStatus->setInterval(500);
     connect(mTimerUpdateStatus, SIGNAL(timeout()), SLOT(slotGetStatus()));
+
+    mPlotWidget = new PlotWidget(this);
+    addDockWidget(Qt::LeftDockWidgetArea, mPlotWidget);
+
+    mPlotWidget->createCurve("pitch");
+    mPlotWidget->createCurve("roll");
+    mPlotWidget->createCurve("thrust");
+    mPlotWidget->createCurve("yaw");
 
     mLogWidget->log("startup finished, ready.");
 
@@ -120,6 +129,8 @@ void BaseStation::slotReadSocket()
 
     if(mIncomingDataBuffer.size() < 8) return;
 
+    mIncomingDataBuffer.remove(mIncomingDataBuffer.indexOf(QString("$KPROT").toAscii()), 6);
+
     QDataStream stream(mIncomingDataBuffer); // byteArray is const!
     quint32 packetLength;
     stream >> packetLength;
@@ -168,8 +179,8 @@ void BaseStation::processPacket(QByteArray data)
         {
 //            qDebug() << p;
             mOctree->insertPoint(new LidarPoint(p, (p-scannerPosition).normalized(), (p-scannerPosition).lengthSquared()));
-            if(i%10 == 0)
-                mFlightPlanner->insertPoint(new LidarPoint(p, (p-scannerPosition).normalized(), (p-scannerPosition).lengthSquared()));
+//            if(i%10 == 0)
+//                mFlightPlanner->insertPoint(new LidarPoint(p, (p-scannerPosition).normalized(), (p-scannerPosition).lengthSquared()));
             i++;
         }
 
@@ -210,11 +221,10 @@ void BaseStation::processPacket(QByteArray data)
     {
         QVector3D linearVelocity;
 
-        stream >> mVehiclePosition;
-        stream >> mVehicleOrientation;
+        stream >> mVehiclePose;
         stream >> linearVelocity;
 
-        mControlWidget->slotUpdatePose(mVehiclePosition, mVehicleOrientation);
+        mControlWidget->slotUpdatePose(mVehiclePose);
         mControlWidget->slotUpdateDynamics(linearVelocity);
     }
     else if(packetType == "waypoints")
@@ -238,6 +248,22 @@ void BaseStation::processPacket(QByteArray data)
         stream >> text;
 
         mLogWidget->log(QString("rover: ") + text);
+    }
+    else if(packetType == "controllervalues")
+    {
+        quint8 thrust;
+        qint8 pitch, roll, yaw, height;
+
+        stream >> thrust;
+        stream >> pitch;
+        stream >> roll;
+        stream >> yaw;
+        stream >> height;
+
+        QVector<float> values;
+        values << pitch << roll << thrust << yaw;
+
+        mPlotWidget->slotAppendData(values);
     }
     else
     {
@@ -293,12 +319,14 @@ void BaseStation::slotSendData(const QByteArray &data)
 //    qDebug() << "BaseStation::slotSendData():" << data << mTcpSocket->state();
 //    qDebug() << "BaseStation::slotSendData():" << mTcpSocket->errorString();
 
-    QByteArray lengthArray;
-    QDataStream streamLength(&lengthArray, QIODevice::WriteOnly);
-    streamLength << (quint32)(data.length() + sizeof(quint32));
+    QByteArray dataToSend;
+    QDataStream streamDataToSend(&dataToSend, QIODevice::WriteOnly);
+    streamDataToSend << QString("$KPROT").toAscii();
+    streamDataToSend << (quint32)(data.length() + sizeof(quint32));
 
-    mTcpSocket->write(lengthArray);
-    mTcpSocket->write(data);
+    dataToSend.append(data);
+
+    mTcpSocket->write(dataToSend);
 }
 
 void BaseStation::slotConnect()
@@ -314,12 +342,12 @@ void BaseStation::slotSocketError(QAbstractSocket::SocketError socketError)
         QTimer::singleShot(2000, this, SLOT(slotConnect()));
 }
 
-const QVector3D& BaseStation::getCurrentVehiclePosition(void) const
-{
-    return mVehiclePosition;
-}
+//const QVector3D& BaseStation::getCurrentVehiclePosition(void) const
+//{
+//    return mVehiclePosition;
+//}
 
-const QVector3D BaseStation::getNextWayPoint(void) const
+const WayPoint BaseStation::getNextWayPoint(void) const
 {
     return mControlWidget->getNextWayPoint();
 }

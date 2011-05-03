@@ -23,7 +23,9 @@ cloudexporter
 ../common/waypoint
 ../common/octree
 ../common/node
+../common/pose
 ../common/common
+../common/plotwidget
 )
 
 SET(INC_FILES
@@ -42,7 +44,9 @@ cloudexporter.h
 ../common/waypoint.h
 ../common/octree.h
 ../common/node.h
+../common/pose.h
 ../common/common.h
+../common/plotwidget.h
 )
 
 SET(UI_FILES
@@ -76,12 +80,13 @@ QT4_ADD_RESOURCES(RESOURCE_SRCS ${RESOURCE_FILES})
 SET(CMAKE_DEBUG_POSTFIX "_d")
 SET(CMAKE_BUILD_TYPE "Debug")
 # use this if bullet is also compiled with double precision
-ADD_DEFINITIONS(-DBT_USE_DOUBLE_PRECISION)
+#ADD_DEFINITIONS(-DBT_USE_DOUBLE_PRECISION)
 
 # Enable the Node LidarPoint::node member, in which a lidarpoint remembers in which node it is stored. Increases octree efficiency,
 # but also creates a dependency on "Node", which is otherwise unused in koptercontrol project
 ADD_DEFINITIONS(-DLIDARPOINT_KEEPS_PARENTNODE)
-INCLUDE_DIRECTORIES(/usr/include ${BULLET_INCLUDES} ${OGRE_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
+INCLUDE_DIRECTORIES(/usr/include /usr/local/qwt-6.0.0-svn/include/ ${BULLET_INCLUDES} ${OGRE_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
+LINK_DIRECTORIES(/usr/local/qwt-6.0.0-svn/lib/)
 ADD_EXECUTABLE(basestation ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-TARGET_LINK_LIBRARIES(basestation ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${BULLET_LIBRARIES} GLU)
+TARGET_LINK_LIBRARIES(basestation qwt qwtmathml ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${BULLET_LIBRARIES} GLU)
 LINK_DIRECTORIES(/usr/lib/)

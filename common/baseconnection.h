@@ -12,12 +12,15 @@
 #include <lidarpoint.h>
 #include <pose.h>
 
+class Simulator;
+
 class BaseConnection : public QObject
 {
     Q_OBJECT
 
 private:
     mutable QMutex mMutex;
+    Simulator* mSimulator;
     QString mInterface; // used only for RSSI reading in case of WLAN connection
     QTcpSocket* mTcpSocket;
     QTcpServer* mTcpServer;
@@ -84,6 +87,9 @@ public slots:
         const quint8& lastPvtAge,
         const QString& status
         );
+
+    // called by flightcontroller to send its output to basestation for debugging purposes
+    void slotNewMotionCommands(const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height);
 
     // called by rover to send new log message to basestation
     void slotNewLogMessage(const QString& source, const LogImportance& importance, const QString& text);

@@ -1,4 +1,5 @@
 #include "baseconnection.h"
+#include <simulator.h>
 
 // for getRssi()
 #include <sys/ioctl.h>
@@ -60,6 +61,8 @@ void BaseConnection::slotReadSocket(bool lockMutex)
 
     if(mIncomingDataBuffer.size() < 8) return;
 
+    mIncomingDataBuffer.remove(mIncomingDataBuffer.indexOf(QString("$KPROT").toAscii()), 6);
+
     QDataStream stream(mIncomingDataBuffer); // byteArray is const!
     quint32 packetLength;
     stream >> packetLength;
@@ -118,13 +121,10 @@ void BaseConnection::processPacket(QByteArray packet)
         QDataStream stream(&data, QIODevice::WriteOnly);
 
         stream << QString("status");
+        stream << mSimulator->mFlightController->getLastKnownPose();
+        stream << mSimulator->mPhysics->getVehicleLinearVelocity();
 
-//        stream << mFlightController->getPosition();
-//        stream << mFlightController->getOrientation();
-
-//        stream << mVehicle->getLinearVelocity();
-
-//        qDebug() << "BaseConnection::processPacket(): getstatus done, sending reply.";
+        qDebug() << "BaseConnection::processPacket(): getstatus done, sending reply.";
 
         slotSendData(data, false);
     }
@@ -156,6 +156,7 @@ void BaseConnection::slotSendData(const QByteArray &data, bool lockMutex)
     QByteArray datagramLengthArray;
     QDataStream streamLength(&datagramLengthArray, QIODevice::WriteOnly);
     streamLength << (quint32)(data.length() + sizeof(quint32));
+    mOutgoingDataBuffer.append(QString("$KPROT").toAscii());
     mOutgoingDataBuffer.append(datagramLengthArray);
 
 //    qDebug() << "BaseConnection::slotQueueWrite(): appending bytes to buffer:" << data.size();
@@ -325,6 +326,21 @@ void BaseConnection::slotNewGpsStatus(
     stream << numSatellitesTracked;
     stream << lastPvtAge;
     stream << status;
+    slotSendData(data, false);
+}
+
+void BaseConnection::slotNewMotionCommands(const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height)
+{
+    QMutexLocker locker(&mMutex);
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    stream << thrust;
+    stream << pitch;
+    stream << roll;
+    stream << yaw;
+    stream << height;
+
     slotSendData(data, false);
 }
 

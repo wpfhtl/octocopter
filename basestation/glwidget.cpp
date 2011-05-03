@@ -141,7 +141,7 @@ void GlWidget::paintGL()
 //        qDebug() << "centering around 0/0/0" << otc;
 //    }
 
-    mCamLookAt = mBaseStation->getCurrentVehiclePosition();
+    mCamLookAt = mFlightPlanner->getVehiclePose().position;
 
     gluLookAt(0.0, 500.0, 500.0,
               mCamLookAt.x(), mCamLookAt.y(), mCamLookAt.z(),
@@ -161,7 +161,7 @@ void GlWidget::paintGL()
 
 
     // Draw vehicle position
-    OpenGlUtilities::drawSphere(mBaseStation->getCurrentVehiclePosition(), 1.0, 20.0, QColor(20,255,20,100));
+    OpenGlUtilities::drawSphere(mFlightPlanner->getVehiclePose().position, 1.0, 20.0, QColor(20,255,20,100));
 
     // Draw next waypoint
     OpenGlUtilities::drawSphere(mBaseStation->getNextWayPoint(), 1.0, 20.0, QColor(255,255,255,100));
@@ -191,7 +191,8 @@ void GlWidget::paintGL()
     glEnd();
 
     // draw
-    mFlightPlanner->visualize();
+//    mFlightPlanner->visualize();
+    emit visualizeNow();
 }
 
 

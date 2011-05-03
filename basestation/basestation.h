@@ -17,6 +17,9 @@
 #include "controlwidget.h"
 #include "logwidget.h"
 #include "cloudexporter.h"
+#include <plotwidget.h>
+#include <waypoint.h>
+#include <pose.h>
 
 class ControlWidget;
 class FlightPlannerInterface;
@@ -28,8 +31,9 @@ class BaseStation : public QMainWindow
 
 private:
     QTcpSocket* mTcpSocket;
-    QVector3D mVehiclePosition;
-    QQuaternion mVehicleOrientation;
+//    QVector3D mVehiclePosition;
+//    QQuaternion mVehicleOrientation;
+    Pose mVehiclePose;
 
     QByteArray mIncomingDataBuffer;
 
@@ -37,6 +41,7 @@ private:
 
     ControlWidget* mControlWidget;
     LogWidget* mLogWidget;
+    PlotWidget* mPlotWidget;
 
     QTimer* mTimerUpdateStatus;
 
@@ -73,13 +78,8 @@ public:
     BaseStation(void);
     ~BaseStation();
 
-    const QVector3D& getCurrentVehiclePosition(void) const;
-    const QVector3D getNextWayPoint(void) const;
-
-
-signals:
-
-public slots:
+//    const QVector3D& getCurrentVehiclePosition(void) const;
+    const WayPoint getNextWayPoint(void) const;
 };
 
 #endif

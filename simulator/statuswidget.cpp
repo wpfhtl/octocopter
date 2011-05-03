@@ -111,7 +111,7 @@ void StatusWidget::slotUpdatePose(const Pose &pose)
     mCompass->setValue(pose.yaw);
 
     // flight dynamics
-    QVector3D vL = mSimulator->mVehicle->getLinearVelocity();
+    QVector3D vL = mSimulator->mPhysics->getVehicleLinearVelocity();
     mLabelSpeed->setText(QString::number(vL.length(), 'f', 4) + " m/s");
     mLabelSpeedVertical->setText(QString::number(vL.y(), 'f', 4) + " m/s");
     vL.setY(0.0);

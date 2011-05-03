@@ -42,8 +42,7 @@ public:
     FlightState getFlightState(void) const;
     QString getFlightStateString(void) const;
 
-    QVector3D getPosition() const;
-    QQuaternion getOrientation();
+    Pose getLastKnownPose(void) const;
     QList<WayPoint> getWayPoints();
     void clearWayPoints();
 
@@ -54,9 +53,7 @@ private:
 
     FlightState mFlightState;
 
-    QTime mTimeOfLastUpdate;
-
-    quint32 mGpsTimeOfLastScan;
+    QTime mTimeOfLastUpdate, mTimeOfLastLaserScan;
 
     float mPrevErrorPitch, mPrevErrorRoll, mPrevErrorYaw, mPrevErrorHeight;
     float mErrorIntegralPitch, mErrorIntegralRoll, mErrorIntegralYaw, mErrorIntegralHeight;
@@ -75,7 +72,7 @@ private:
 
 signals:
     // used to set the motor-speeds
-    void motion(const quint8& thrust, const qint8& nick, const qint8& roll, const qint8& yaw, const qint8& height);
+    void motion(const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height);
 
     // emitted when a waypoint is reached
     void wayPointReached(const WayPoint&);

@@ -1,9 +1,8 @@
 #include "flightplannerinterface.h"
 
-FlightPlannerInterface::FlightPlannerInterface(const QVector3D * const position, const QQuaternion * const orientation, Octree* pointCloud) : QObject()
+FlightPlannerInterface::FlightPlannerInterface(const Pose * const pose, Octree* pointCloud) : QObject()
 {
-    mVehiclePosition = position;
-    mVehicleOrientation = orientation;
+    mVehiclePose = pose;
     qDebug() << "FlightPlannerInterface c'tor.";
 }
 
@@ -57,4 +56,9 @@ void FlightPlannerInterface::sortToShortestPath(QVector<QVector3D> &wayPoints, c
     float distanceAfter = 0;
     for(int i=1;i<wayPoints.size();i++) distanceAfter += wayPoints.at(i-1).distanceToLine(wayPoints.at(i), QVector3D());
     qDebug() << "FlightPlannerInterface::sortToShortestPath(): total distance between" << wayPoints.size() << "points after:" << distanceAfter;
+}
+
+const Pose FlightPlannerInterface::getVehiclePose(void) const
+{
+    return *mVehiclePose;
 }

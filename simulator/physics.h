@@ -1,5 +1,5 @@
-#ifndef VEHICLE_H
-#define VEHICLE_H
+#ifndef PHYSICS_H
+#define PHYSICS_H
 
 //#include <QThread>
 #include <QMutex>
@@ -26,7 +26,7 @@ class Simulator;
 class OgreWidget;
 class FlightController;
 
-class Vehicle : public QObject//QThread
+class Physics : public QObject//QThread
 {
     Q_OBJECT
 
@@ -61,11 +61,11 @@ protected:
     btCollisionShape *mGroundShape;
 
 public:
-    Vehicle(Simulator *simulator, OgreWidget *ogreWidget);
-    ~Vehicle();
+    Physics(Simulator *simulator, OgreWidget *ogreWidget);
+    ~Physics();
 
-    QVector3D getLinearVelocity() const;
-    QVector3D getAngularVelocity() const;
+    QVector3D getVehicleLinearVelocity() const;
+    QVector3D getVehicleAngularVelocity() const;
     float getHeightAboveGround();
 
     FlightController* mFlightController;
@@ -76,7 +76,7 @@ signals:
 public slots:
 //    void start(void);
 //    void stop(void);
-    void slotSetMotion(const quint8& thrust, const qint8& nick, const qint8& roll, const qint8& yaw, const qint8& height);
+    void slotSetMotion(const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height);
     void slotUpdateWind();
     void slotSetTotalVehicleWeight(const float&);
     void slotUpdatePhysics(void);

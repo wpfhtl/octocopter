@@ -808,7 +808,7 @@ void OgreWidget::setupTerrain()
     Ogre::SceneNode* sceneNode;
     Ogre::Quaternion rotation;
     Ogre::Vector3 position(175, 0, 125);
-/*
+
     entity = mSceneManager->createEntity("tudorHouse", "tudorhouse.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
     rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
@@ -845,7 +845,7 @@ void OgreWidget::setupTerrain()
                 rotation);
     sceneNode->attachObject(entity);
     addMeshInformation(entity,sceneNode);
-*/
+
     entity = mSceneManager->createEntity("windmill", "windmill.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
     rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);

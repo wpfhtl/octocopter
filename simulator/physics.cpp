@@ -1,6 +1,6 @@
-#include "vehicle.h"
+#include "physics.h"
 
-Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
+Physics::Physics(Simulator *simulator, OgreWidget *ogreWidget) :
 //        QThread(simulator),
         QObject(simulator),
         mMutex(QMutex::NonRecursive)
@@ -170,9 +170,6 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
         {
             posElem->baseVertexPointerToElement(vertex, &pReal);
             Ogre::Vector3 pt(pReal[0], pReal[1], pReal[2]);
-
-            qDebug() << "vertex" << j << "of mesh:" << pt.x << pt.y << pt.z;
-
             vertices.push_back(pt);
         }
 
@@ -219,10 +216,6 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
             // Add the triangle into the triangle mesh
             float scale = s->_getDerivedScale().x;
             triMesh->addTriangle(vert0 * scale, vert1 * scale, vert2 * scale);
-
-            qDebug() << "scale" << scale << "adding triangle1" << (vert0 * scale).x() << (vert0 * scale).y() << (vert0 * scale).z();
-            qDebug() << "scale" << scale << "adding triangle2" << (vert1 * scale).x() << (vert1 * scale).y() << (vert1 * scale).z();
-            qDebug() << "scale" << scale << "adding triangle3" << (vert2 * scale).x() << (vert2 * scale).y() << (vert2 * scale).z();
 
             // Increase index count
             i += 3;
@@ -281,26 +274,15 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
                     sizeof(float)*(pTerrain->getSize()) // size
                     );
 
-     float minV = 9999, maxV = 0;
-     for(int i=0;i<pTerrain->getSize()*pTerrain->getSize();i++)
-     {
-//         float val = pTerrain->getHeightData()[i];
-         float val = pDataConvert[i];
-         minV = val < minV ? val : minV;
-         maxV = val > maxV ? val : maxV;
-//         printf(" %.2f", val);
-     }
-     qDebug() << "min/max:" << minV << maxV;
-
      float metersBetweenVertices = pTerrain->getWorldSize()/(pTerrain->getSize()-1);
      btVector3 localScaling(metersBetweenVertices, 1, metersBetweenVertices);
 
-     qDebug() << "terrainsize is" << pTerrain->getSize(),
-     qDebug() << "terrainposition y is" << terrainPosition.y;
-     qDebug() << "terrainpos or old" << terrainPosition.y + (pTerrain->getMaxHeight()-pTerrain->getMinHeight())/2;
-     qDebug() << "terrainpos or new" << terrainPosition.y + (pTerrain->getMaxHeight())/2;
-     qDebug() << "terrainheight min" << pTerrain->getMinHeight();
-     qDebug() << "terrainheight max" << pTerrain->getMaxHeight();
+//     qDebug() << "terrainsize is" << pTerrain->getSize(),
+//     qDebug() << "terrainposition y is" << terrainPosition.y;
+//     qDebug() << "terrainpos or old" << terrainPosition.y + (pTerrain->getMaxHeight()-pTerrain->getMinHeight())/2;
+//     qDebug() << "terrainpos or new" << terrainPosition.y + (pTerrain->getMaxHeight())/2;
+//     qDebug() << "terrainheight min" << pTerrain->getMinHeight();
+//     qDebug() << "terrainheight max" << pTerrain->getMaxHeight();
 
      btHeightfieldTerrainShape* groundShape = new btHeightfieldTerrainShape(
                  pTerrain->getSize(),
@@ -313,20 +295,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
                  PHY_FLOAT,
                  true);
 
-     for(int i=0;i<pTerrain->getSize();i++)
-     {
-         for(int j=0;j<pTerrain->getSize();j++)
-         {
-//             printf(" %.2f", groundShape->getRawHeightFieldValue(i,j));
-         }
-     }
-
-     btVector3 min, max;
-     groundShape->getAabb(btTransform(), min, max);
-     qDebug() << "min:" << min.x() << min.y() << min.z();
-     qDebug() << "max:" << max.x() << max.y() << max.z();
-
-     groundShape->setUseDiamondSubdivision(true);
+     groundShape->setUseDiamondSubdivision(false);
      groundShape->setLocalScaling(localScaling);
 
      mGroundBody = new btRigidBody(0, new btDefaultMotionState(), groundShape);
@@ -352,7 +321,7 @@ Vehicle::Vehicle(Simulator *simulator, OgreWidget *ogreWidget) :
      mBtDebugDrawer->step();
 }
 
-Vehicle::~Vehicle()
+Physics::~Physics()
 {
     // Free Bullet stuff.
     delete mBtSolver;
@@ -361,9 +330,9 @@ Vehicle::~Vehicle()
     delete mBtBroadphase;
 }
 
-void Vehicle::slotSetMotion(const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height)
+void Physics::slotSetMotion(const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height)
 {
-    qDebug() << "Vehicle::slotSetMotion(): setting physics forces according to motion...";
+    qDebug() << "Physics::slotSetMotion(): setting physics forces according to motion...";
 
     // To get it like mikrokopter, we'd have to understand FlightCtrl's fc.c
 
@@ -376,6 +345,8 @@ void Vehicle::slotSetMotion(const quint8& thrust, const qint8& pitch, const qint
     const float thrustScalar = mEngine.calculateThrust(thrustCurrent) * 8;
     const Ogre::Vector3 thrustVectorOgre = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0, thrustScalar, 0);
     mVehicleBody->applyCentralForce(btVector3(thrustVectorOgre.x, thrustVectorOgre.y, thrustVectorOgre.z));
+
+    qDebug() << "Physics::slotSetMotion(): thrust" << (((float)thrust) / 255.0) << "currentPerEngine" << thrustCurrent << "thrustTotalNewtonScalar" << thrustScalar << "-> newton per engine" << thrustVectorOgre.x << thrustVectorOgre.y << thrustVectorOgre.z;
 
     // When we yaw, pitch or roll, we always take x RPM from one pair of motors and add it to another pair. Since
     // the rpm/current-curve is pretty linear for small changes, we assume that yawing, pitching and rolling do
@@ -412,7 +383,7 @@ void Vehicle::slotSetMotion(const quint8& thrust, const qint8& pitch, const qint
 
 
     // Let us wildly assume that the motors get 2A more/less on maximum amplitude
-    const double forceScalarRoll = mEngine.calculateThrust(2.0 * (abs((float)pitch) / 128.0));
+    const double forceScalarRoll = mEngine.calculateThrust(2.0 * (abs((float)roll) / 128.0));
     Ogre::Vector3 forceVectorRoll = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(forceScalarRoll, 0.0, 0.0);
     btVector3 forceVectorRollBullet(forceVectorRoll.x, forceVectorRoll.y, forceVectorRoll.z);
 
@@ -425,12 +396,12 @@ void Vehicle::slotSetMotion(const quint8& thrust, const qint8& pitch, const qint
     mVehicleBody->applyForce(-forceVectorRollBullet, motor8);
 }
 
-void Vehicle::slotUpdateWind()
+void Physics::slotUpdateWind()
 {
     // apply wind forces
 }
 
-float Vehicle::getHeightAboveGround()
+float Physics::getHeightAboveGround()
 {
     Ogre::TerrainGroup::RayResult rayResult = mOgreWidget->mTerrainGroup->rayIntersects(Ogre::Ray(mVehicleNode->_getDerivedPosition() + Ogre::Vector3(0,1000,0), Ogre::Vector3::NEGATIVE_UNIT_Y));
     if(rayResult.hit)
@@ -441,13 +412,13 @@ float Vehicle::getHeightAboveGround()
     return -1.0;
 }
 
-void Vehicle::slotUpdatePhysics(void)
+void Physics::slotUpdatePhysics(void)
 {
     const int simulationTime = mSimulator->getSimulationTime(); // milliseconds
     const btScalar deltaS = std::max(0.0f, (simulationTime - mTimeOfLastUpdate) / 1000.0f); // elapsed time since last call in seconds
     const int maxSubSteps = 20;
     const btScalar fixedTimeStep = 1.0 / 60.0;
-    qDebug() << "Vehicle::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
+    qDebug() << "Physics::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
 
     mVehicleBody->applyDamping(deltaS);
 
@@ -478,32 +449,32 @@ void Vehicle::slotUpdatePhysics(void)
     //mOgreWidget->update();
 }
 /*
-void Vehicle::start(void)
+void Physics::start(void)
 {
-    qDebug() << "Vehicle::start(): starting timer.";
+    qDebug() << "Physics::start(): starting timer.";
     mTimerUpdateGps->start();
 }
 
-void Vehicle::stop(void)
+void Physics::stop(void)
 {
-    qDebug() << "Vehicle::stop(): stopping timer.";
+    qDebug() << "Physics::stop(): stopping timer.";
     mTimerUpdateGps->stop();
 }
 */
 
-QVector3D Vehicle::getLinearVelocity() const
+QVector3D Physics::getVehicleLinearVelocity() const
 {
     const btVector3 vL = mVehicleBody->getLinearVelocity();
     return QVector3D(vL.x(), vL.y(), vL.z());
 }
 
-QVector3D Vehicle::getAngularVelocity() const
+QVector3D Physics::getVehicleAngularVelocity() const
 {
     const btVector3 vA = mVehicleBody->getAngularVelocity();
     return QVector3D(vA.x(), vA.y(), vA.z());
 }
 
-void Vehicle::slotSetTotalVehicleWeight(const float& weight)
+void Physics::slotSetTotalVehicleWeight(const float& weight)
 {
     mTotalVehicleWeight = weight;
 }

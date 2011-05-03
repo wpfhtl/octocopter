@@ -17,12 +17,10 @@ class FlightPlannerBasic : public FlightPlannerInterface
     Q_OBJECT
 
 public:
-    FlightPlannerBasic(const QVector3D * const position, const QQuaternion * const orientation, Octree* pointCloud);
+    FlightPlannerBasic(const Pose * const pose, Octree* pointCloud);
     ~FlightPlannerBasic();
 
     void insertPoint(LidarPoint* const point);
-
-    void visualize() const;
 
 private:
     Octree* mOctree;
@@ -36,6 +34,7 @@ private slots:
 
 public slots:
     void slotWayPointReached(const QVector3D);
+    void slotVisualize() const;
 
 };
 

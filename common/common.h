@@ -10,6 +10,8 @@
 
 QString hash(QList<WayPoint> list);
 
+void checkLibaryPrecision();
+
 enum LogImportance
 {
     Information,

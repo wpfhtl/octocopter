@@ -32,7 +32,7 @@ public:
     const WayPoint getNextWayPoint() const;
 
 public slots:
-    void slotUpdatePose(const QVector3D &position, const QQuaternion &rot);
+    void slotUpdatePose(const Pose &pose);
     void slotUpdateDynamics(QVector3D linearVelocity);
     void slotUpdateWayPoints(const QList<WayPoint>& waypoints);
 

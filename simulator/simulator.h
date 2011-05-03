@@ -9,7 +9,7 @@
 
 #include "ogrewidget.h"
 #include "battery.h"
-#include "vehicle.h"
+#include "physics.h"
 #include "laserscanner.h"
 #include "baseconnection.h"
 #include "flightcontroller.h"
@@ -23,7 +23,7 @@
 #define deg2rad(x) (x)*M_PI/180.0
 #define rad2deg(x) (x)*180.0/M_PI
 
-class Vehicle;
+class Physics;
 class Camera;
 class LaserScanner;
 class StatusWidget;
@@ -44,11 +44,13 @@ public:
     CoordinateConverter *mCoordinateConverter;
     Battery* mBattery;
     OgreWidget* mOgreWidget;
-    Vehicle *mVehicle;
+    Physics *mPhysics;
     BaseConnection* mBaseConnection;
 
     QList<LaserScanner*> *mLaserScanners;
     QList<Camera*> *mCameras;
+
+    FlightController* mFlightController;
 
 private:
     mutable QMutex mMutex;
@@ -59,7 +61,6 @@ private:
     QTime mTimeSimulationPause; // when simulation was paused, invalid when it's not currently paused.
     StatusWidget* mStatusWidget;
 
-    FlightController* mFlightController;
 
 private slots:
     void slotOgreInitialized(void);

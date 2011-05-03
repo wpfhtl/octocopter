@@ -9,6 +9,7 @@
 
 #include "openglutilities.h"
 #include "octree.h"
+#include "pose.h"
 #include "flightplannerinterface.h"
 #include "basestation.h"
 
@@ -61,6 +62,7 @@ protected:
     void timerEvent ( QTimerEvent * event );
 
 signals:
+    void visualizeNow();
 
 public slots:
 

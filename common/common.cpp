@@ -12,4 +12,3 @@ QString hash(QList<WayPoint> list)
 
     return hash.result();
 }
-

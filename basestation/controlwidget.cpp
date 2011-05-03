@@ -197,11 +197,11 @@ void ControlWidget::slotUpdateBattery(const int chargeStateInPercent)
 //    mLabelBatteryEnergyCurrent->setText(QString::number(mBattery->energy(), 'g', 2) + " Ah");
 }
 
-void ControlWidget::slotUpdatePose(const QVector3D &position, const QQuaternion &rot)
+void ControlWidget::slotUpdatePose(const Pose &pose)
 {
-    mLabelPoseOgreX->setText(QString("%1m").arg(position.x(), 3, 'f', 1, '0'));
-    mLabelPoseOgreY->setText(QString("%1m").arg(position.y(), 3, 'f', 1, '0'));
-    mLabelPoseOgreZ->setText(QString("%1m").arg(position.z(), 3, 'f', 1, '0'));
+    mLabelPoseOgreX->setText(QString("%1m").arg(pose.position.x(), 3, 'f', 1, '0'));
+    mLabelPoseOgreY->setText(QString("%1m").arg(pose.position.y(), 3, 'f', 1, '0'));
+    mLabelPoseOgreZ->setText(QString("%1m").arg(pose.position.z(), 3, 'f', 1, '0'));
 
 //    CoordinateGps wgs84 = mCoordinateConverter->convert(position);
 
@@ -209,21 +209,15 @@ void ControlWidget::slotUpdatePose(const QVector3D &position, const QQuaternion 
 //    mLabelPoseWgs84Latitude->setText(wgs84.formatGpsDegree(wgs84.latitude()));
 //    mLabelPoseWgs84Elevation->setText(QString("%1m").arg(wgs84.elevation(), 3, 'f', 1, QLatin1Char('0')));
 
-    Ogre::Quaternion rotation(rot.scalar(), rot.x(), rot.y(), rot.z());
-
-    const int pitch = rotation.getPitch(false).valueDegrees();
-    const int roll = rotation.getRoll(false).valueDegrees();
-    const int yaw = rotation.getYaw(false).valueDegrees();
-
     QString deg;
     deg.sprintf("%c", 176);
     deg.prepend("%1");
 
-    mLabelPitch->setText(deg.arg(pitch, 3, 10, QLatin1Char('0')));
-    mLabelRoll->setText(deg.arg(roll, 3, 10, QLatin1Char('0')));
-    mLabelYaw->setText(deg.arg(yaw, 3, 10, QLatin1Char('0')));
+    mLabelPitch->setText(deg.arg((int)pose.pitch, 3, 10, QLatin1Char('0')));
+    mLabelRoll->setText(deg.arg((int)pose.roll, 3, 10, QLatin1Char('0')));
+    mLabelYaw->setText(deg.arg((int)pose.yaw, 3, 10, QLatin1Char('0')));
 
-    mCompass->setValue(yaw+180);
+    mCompass->setValue(pose.yaw+180);
 }
 
 void ControlWidget::slotUpdateDynamics(QVector3D linearVelocity)

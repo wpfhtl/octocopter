@@ -25,10 +25,10 @@ Engine::Engine(void) : QObject()
 
     Q_ASSERT(setPropeller("APC_SF_1047"));
 
-    qDebug() << "Engine::Engine(): thrust: 10000:" << calculateThrust(10000);
+    qDebug() << "Engine::Engine(): thrust at 10 Amps:" << calculateThrust(10.0);
 
     // Try to match http://gallery.mikrokopter.de/main.php?g2_view=core.DownloadItem&g2_itemId=49297
-    Q_ASSERT(calculateThrust(10000) > 7.7 && calculateThrust(10000) < 10);
+    Q_ASSERT(calculateThrust(10.0) > 7.7 && calculateThrust(10.0) < 10);
 }
 
 Engine::Engine(const Engine &other)
@@ -134,7 +134,7 @@ double Engine::calculateTorque(const int rpm) const
 double Engine::calculateThrust(const float& current)
 {
     // Have a look at Strom-Schub.ods to find the base for these calculations
-    return pow(current, 0.725)/85.0;
+    return pow(current*1000.0, 0.725)/85.0;
 }
 
 btVector3 Engine::getPosition(void) const

@@ -1,13 +1,13 @@
 #include "flightplannerphysics.h"
 
-FlightPlannerPhysics::FlightPlannerPhysics(const QVector3D * const position, const QQuaternion * const orientation, Octree* pointCloud) : FlightPlannerInterface(position, orientation, pointCloud)
+FlightPlannerPhysics::FlightPlannerPhysics(const Pose * const pose, Octree* pointCloud) : FlightPlannerInterface(pose, pointCloud)
 {
     // The octree is initialized on arrival of the first point, with this point at its center.
     // We do this so we can drop spheres only within the octree's XZ plane.
     mOctree = 0;
 
     // Bullet initialisation.
-    mBtBroadphase = new btDbvtBroadphase(); //new btAxisSweep3(btVector3(-10000,-10000,-10000), btVector3(10000,10000,10000), 1024); // = new btDbvtBroadphase();
+    mBtBroadphase = new btDbvtBroadphase; //new btAxisSweep3(btVector3(-10000,-10000,-10000), btVector3(10000,10000,10000), 1024); // = new btDbvtBroadphase();
     mBtCollisionConfig = new btDefaultCollisionConfiguration;
     mBtDispatcher = new btCollisionDispatcher(mBtCollisionConfig);
 
@@ -15,10 +15,10 @@ FlightPlannerPhysics::FlightPlannerPhysics(const QVector3D * const position, con
     mBtSolver = new btSequentialImpulseConstraintSolver;
 
     mBtWorld = new btDiscreteDynamicsWorld(mBtDispatcher, mBtBroadphase, mBtSolver, mBtCollisionConfig);
-    mBtWorld->setGravity(btVector3(0,-9.8,0));
+//    mBtWorld->setGravity(btVector3(0,-9.8,0));
 
-    mDbgDrawer = new BulletDebugDrawerGl;
-    mBtWorld->setDebugDrawer(mDbgDrawer);
+//    mDbgDrawer = new BulletDebugDrawerGl;
+//    mBtWorld->setDebugDrawer(mDbgDrawer);
 
     mLidarPointTransform.setIdentity();
 
@@ -30,7 +30,7 @@ FlightPlannerPhysics::FlightPlannerPhysics(const QVector3D * const position, con
     mDeletionTriggerTransform.setIdentity();
     mDeletionTriggerTransform.setOrigin(btVector3(0.0, mScanVolumeMin.y()-10.0, 0.0));
     mDeletionTriggerShape = new btBoxShape(btVector3(500, 10, 500)); // These are HALF-extents!
-    mDeletionTriggerGhostObject = new btGhostObject();
+    mDeletionTriggerGhostObject = new btGhostObject;
     mDeletionTriggerGhostObject->setWorldTransform(mDeletionTriggerTransform);
     mDeletionTriggerGhostObject->setCollisionShape(mDeletionTriggerShape);
     mDeletionTriggerGhostObject->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
@@ -253,7 +253,7 @@ void FlightPlannerPhysics::slotGenerateWaypoints()
 
     qDebug() << "number of waypoints to emit:" << mSampleSpheres.size();
 
-    sortToShortestPath(newWaypoints, *mVehiclePosition);
+    sortToShortestPath(newWaypoints, mVehiclePose->position);
 
     foreach(const QVector3D& wpt, newWaypoints)
         emit newWayPoint(wpt);
@@ -281,7 +281,7 @@ void FlightPlannerPhysics::slotPointInserted(const LidarPoint* lp)
 }
 
 // NOT in a glBegin()/glEnd() pair.
-void FlightPlannerPhysics::visualize() const
+void FlightPlannerPhysics::slotVisualize() const
 {
     mBtWorld->debugDrawWorld();
 
