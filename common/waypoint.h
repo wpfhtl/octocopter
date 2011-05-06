@@ -1,6 +1,7 @@
 #ifndef WAYPOINT_H
 #define WAYPOINT_H
 
+#include <QVector2D>
 #include <QVector3D>
 
 // For now, this class is just a QVector3D, but it might
@@ -15,6 +16,8 @@ public:
     WayPoint(const QVector3D& vector);
 
     WayPoint &operator=(const WayPoint& other);
+
+    QVector2D getPositionOnPlane() const;
 
 //signals:
 

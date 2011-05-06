@@ -191,10 +191,10 @@ void ControlWidget::slotNewWayPoint(const WayPoint& point)
     mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
 }
 
-void ControlWidget::slotUpdateBattery(const int chargeStateInPercent)
+void ControlWidget::slotUpdateBattery(const double& voltageCurrent, const double& voltageMax)
 {
-//    mLabelBatteryVoltageCurrent->setText(QString::number(mBattery->voltage(), 'g', 2) + " V");
-//    mLabelBatteryEnergyCurrent->setText(QString::number(mBattery->energy(), 'g', 2) + " Ah");
+    mLabelBatteryVoltageCurrent->setText(QString::number(voltageCurrent, 'f', 2) + " V");
+    mLabelBatteryVoltage->setText(QString::number(voltageMax, 'f', 2) + " V");
 }
 
 void ControlWidget::slotUpdatePose(const Pose &pose)
@@ -213,11 +213,11 @@ void ControlWidget::slotUpdatePose(const Pose &pose)
     deg.sprintf("%c", 176);
     deg.prepend("%1");
 
-    mLabelPitch->setText(deg.arg((int)pose.pitch, 3, 10, QLatin1Char('0')));
-    mLabelRoll->setText(deg.arg((int)pose.roll, 3, 10, QLatin1Char('0')));
-    mLabelYaw->setText(deg.arg((int)pose.yaw, 3, 10, QLatin1Char('0')));
+    mLabelPitch->setText(deg.arg((int)pose.getPitchDegrees(), 3, 10, QLatin1Char('0')));
+    mLabelRoll->setText(deg.arg((int)pose.getRollDegrees(), 3, 10, QLatin1Char('0')));
+    mLabelYaw->setText(deg.arg((int)pose.getYawDegrees(), 3, 10, QLatin1Char('0')));
 
-    mCompass->setValue(pose.yaw+180);
+    mCompass->setValue(pose.getYawDegrees()+180);
 }
 
 void ControlWidget::slotUpdateDynamics(QVector3D linearVelocity)
@@ -250,6 +250,19 @@ void ControlWidget::slotUpdateWayPoints(const QList<WayPoint>& waypoints)
     mWayPointTable->blockSignals(false);
 
     mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
+}
+
+void ControlWidget::slotUpdateSimulationTime(const quint32& time)
+{
+
+    const int secsPassed = time / 1000;
+    const int secs = secsPassed % 60;
+    const int mins = (secsPassed+1) / 60;
+    const int hours = (mins+1) / 60;
+
+    mLabelDuration->setText(
+            QString("%1:%2:%3").arg(QString::number(hours), 2, '0').arg(QString::number(mins), 2, '0').arg(QString::number(secs), 2, '0')
+            );
 }
 
 void ControlWidget::slotSetScanVolume()

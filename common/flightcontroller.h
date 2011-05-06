@@ -74,6 +74,14 @@ signals:
     // used to set the motor-speeds
     void motion(const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height);
 
+    void debugValues(
+        const Pose& usedPose,
+        const quint8& thrust,
+        const qint8& pitch,
+        const qint8& roll,
+        const qint8& yaw,
+        const qint8& height);
+
     // emitted when a waypoint is reached
     void wayPointReached(const WayPoint&);
 

@@ -68,7 +68,7 @@ private slots:
     void slotConnect(void);
     void slotExportCloud(void);
 
-    void slotWayPointInsert(QString, int, QVector3D);
+    void slotWayPointInsert(QString, int, const WayPoint&);
     void slotWayPointDelete(QString, int);
 
     void slotSendData(const QByteArray &data);

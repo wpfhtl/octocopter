@@ -7,8 +7,8 @@
 #include <sys/socket.h>
 #include <linux/wireless.h>
 
-BaseConnection::BaseConnection(const QString& interface, QObject* parent) :
-    QObject(parent),
+BaseConnection::BaseConnection(const QString& interface, Simulator* simulator) :
+    QObject(simulator),
     mMutex(QMutex::NonRecursive)
 {
     QMutexLocker locker(&mMutex);
@@ -17,6 +17,8 @@ BaseConnection::BaseConnection(const QString& interface, QObject* parent) :
 
     mInterface = interface;
     mTcpSocket = 0;
+
+    mSimulator = simulator;
 
     mTcpServer = new QTcpServer(this);
     connect(mTcpServer, SIGNAL(newConnection()), SLOT(slotNewConnection()));
@@ -61,7 +63,7 @@ void BaseConnection::slotReadSocket(bool lockMutex)
 
     if(mIncomingDataBuffer.size() < 8) return;
 
-    mIncomingDataBuffer.remove(mIncomingDataBuffer.indexOf(QString("$KPROT").toAscii()), 6);
+//    mIncomingDataBuffer.remove(mIncomingDataBuffer.indexOf(QString("$KPROT").toAscii()), 6);
 
     QDataStream stream(mIncomingDataBuffer); // byteArray is const!
     quint32 packetLength;
@@ -121,8 +123,11 @@ void BaseConnection::processPacket(QByteArray packet)
         QDataStream stream(&data, QIODevice::WriteOnly);
 
         stream << QString("status");
+        stream << mSimulator->getSimulationTime();
         stream << mSimulator->mFlightController->getLastKnownPose();
         stream << mSimulator->mPhysics->getVehicleLinearVelocity();
+        stream << mSimulator->mBattery->voltageCurrent();
+        stream << mSimulator->mBattery->voltageMax();
 
         qDebug() << "BaseConnection::processPacket(): getstatus done, sending reply.";
 
@@ -156,7 +161,7 @@ void BaseConnection::slotSendData(const QByteArray &data, bool lockMutex)
     QByteArray datagramLengthArray;
     QDataStream streamLength(&datagramLengthArray, QIODevice::WriteOnly);
     streamLength << (quint32)(data.length() + sizeof(quint32));
-    mOutgoingDataBuffer.append(QString("$KPROT").toAscii());
+//    mOutgoingDataBuffer.append(QString("$KPROT").toAscii());
     mOutgoingDataBuffer.append(datagramLengthArray);
 
 //    qDebug() << "BaseConnection::slotQueueWrite(): appending bytes to buffer:" << data.size();
@@ -260,18 +265,15 @@ void BaseConnection::slotPoseChanged(const Pose& pose, const quint32 receiverTim
 }
 
 // called by rover to send lidarpoints to the basestation
-void BaseConnection::slotNewLidarPoints(const QVector<LidarPoint>& points)
+void BaseConnection::slotNewLidarPoints(const QVector3D& scanPosition, const QVector<QVector3D>& points)
 {
-    qDebug() << "sending" << points.size() << "new lidarpoints to base";
+//    qDebug() << "sending" << points.size() << "new lidarpoints to base";
     QMutexLocker locker(&mMutex);
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
-    // FIXME: From which position?
-    // Assuming the laserscanner's position stays pretty much the same within one scan, there's no need
-    // to transmit the direction to the scanner in every hit-packet. So we only send the positions.
-
     stream << QString("lidarpoints");
+    stream << scanPosition;
     stream << points;
     slotSendData(data, false);
 }
@@ -329,12 +331,14 @@ void BaseConnection::slotNewGpsStatus(
     slotSendData(data, false);
 }
 
-void BaseConnection::slotNewMotionCommands(const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height)
+void BaseConnection::slotNewControllerDebugValues(const Pose& pose, const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height)
 {
     QMutexLocker locker(&mMutex);
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
+    stream << QString("controllervalues");
+    stream << pose;
     stream << thrust;
     stream << pitch;
     stream << roll;

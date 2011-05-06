@@ -26,3 +26,8 @@ WayPoint& WayPoint::operator=(const WayPoint& other)
 
     return *this;
 }
+
+QVector2D WayPoint::getPositionOnPlane() const
+{
+    return QVector2D(x(), z());
+}

@@ -114,6 +114,9 @@ void DialogConfiguration::slotReadConfigurationLaserScanner()
 
         laserScanners->append(newLaserScanner);
 
+        connect(newLaserScanner, SIGNAL(scanFinished(quint32)), mSimulator->mFlightController, SLOT(slotScanningInProgress(quint32)));
+        connect(newLaserScanner, SIGNAL(newLidarPoints(const QVector3D&, const QVector<QVector3D>&)), mSimulator->mBaseConnection, SLOT(slotNewLidarPoints(const QVector3D&, const QVector<QVector3D>&)));
+
         // Now create a row in the LaserScannerTable
         mTableWidgetLaserScanners->blockSignals(true);
         mTableWidgetLaserScanners->setItem(i, 0, new QTableWidgetItem(mSettings.value("posX", 0.0).toString()));
@@ -390,6 +393,9 @@ void DialogConfiguration::slotLaserScannerAdd()
     mTableWidgetLaserScanners->setItem(row, 10,new QTableWidgetItem("0.25"));
     mTableWidgetLaserScanners->blockSignals(false);
 
+    connect(newLaserScanner, SIGNAL(scanFinished(quint32)), mSimulator->mFlightController, SLOT(slotScanningInProgress(quint32)));
+    connect(newLaserScanner, SIGNAL(newLidarPoints(const QVector3D&, const QVector<QVector3D>&)), mSimulator->mBaseConnection, SLOT(slotNewLidarPoints(const QVector3D&, const QVector<QVector3D>&)));
+
     newLaserScanner->start();
     mOgreWidget->update();
 }
@@ -402,7 +408,8 @@ void DialogConfiguration::slotLaserScannerDel()
     LaserScanner* scanner = mSimulator->getLaserScannerList()->takeAt(row);
     scanner->quit();
     scanner->wait();
-    delete scanner;
+//    delete scanner;
+    scanner->deleteLater();
 
     mOgreWidget->update();
 }

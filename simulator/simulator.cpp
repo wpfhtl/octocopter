@@ -8,7 +8,6 @@ Simulator::Simulator(void) :
         mMutex(QMutex::NonRecursive)
 {
     qDebug() << "Simulator::Simulator()";
-    QMutexLocker locker(&mMutex);
 
     resize(1024, 768);
 
@@ -27,31 +26,36 @@ Simulator::Simulator(void) :
     setCentralWidget(mOgreWidget);
     mOgreWidget->show();
 
+    mJoystick = new Joystick;
+    if(!mJoystick->isValid()) QMessageBox::warning(this, "Joystick not found", "Joystick initialization failed, using manual control will be impossible.");
+    connect(mJoystick, SIGNAL(buttonStateChanged(quint8,bool)), SLOT(slotJoystickButtonChanged(quint8, bool)));
+    mJoystickEnabled = true;
+
     connect(mOgreWidget, SIGNAL(setupFinished()), SLOT(slotOgreInitialized()), Qt::QueuedConnection);
 
-    mBattery = new Battery(this, 12.0, 4.0);
-    mBattery->setDischargeCurrent(20.0);
+    mBattery = new Battery(this, 14.8, 5.0);
+    mBattery->charge();
+
+
+    mUpdateTimer = new QTimer(this);
+    mUpdateTimer->setInterval(1000/60);
+    connect(mUpdateTimer, SIGNAL(timeout()), SLOT(slotUpdate()));
+
+
+    mFlightController = new FlightController;
+
+    // We now are probably in a state where we can service the basestation, so lets go ahead and create the connection.
+    mBaseConnection = new BaseConnection("eth0", this);
 
     mStatusWidget = new StatusWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mStatusWidget);
     connect(mStatusWidget, SIGNAL(simulationStart()), SLOT(slotSimulationStart()));
     connect(mStatusWidget, SIGNAL(simulationPause()), SLOT(slotSimulationPause()));
     connect(mStatusWidget, SIGNAL(timeFactorChanged(double)), SLOT(slotSetTimeFactor(double)));
-    connect(mStatusWidget, SIGNAL(timeFactorChanged(double)), mBattery, SLOT(slotSetTimeFactor(double)));
     connect(mOgreWidget, SIGNAL(currentRenderStatistics(QSize,int,float)), mStatusWidget, SLOT(slotUpdateVisualization(QSize, int, float)));
-
-    mUpdateTimer = new QTimer(this);
-    mUpdateTimer->setInterval(1000/60);
-    connect(mUpdateTimer, SIGNAL(timeout()), SLOT(slotUpdate()));
 
     mTimeFactor = mStatusWidget->getTimeFactor();
     qDebug() << "Simulator::Simulator(): setting timeFactor to" << mTimeFactor;
-
-    mFlightController = new FlightController;
-
-    mBaseConnection = new BaseConnection("eth0", this);
-
-    connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mBaseConnection, SLOT(slotNewMotionCommands(quint8,qint8,qint8,qint8,qint8)));
 }
 
 Simulator::~Simulator(void)
@@ -65,7 +69,7 @@ Simulator::~Simulator(void)
         LaserScanner* scanner = mLaserScanners->takeFirst();
         scanner->quit();
         scanner->wait();
-        delete scanner;
+        scanner->deleteLater();
     }
     delete mLaserScanners;
 
@@ -85,13 +89,16 @@ void Simulator::slotOgreInitialized(void)
     mPhysics = new Physics(this, mOgreWidget);
     connect(mPhysics, SIGNAL(newVehiclePose(const Pose&)), mFlightController, SLOT(slotSetVehiclePose(const Pose&)));
     connect(mPhysics, SIGNAL(newVehiclePose(const Pose&)), mStatusWidget, SLOT(slotUpdatePose(const Pose&)));
-    connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mPhysics, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
 
-//    mBaseConnection->setVehicle(mVehicle);
+    // Only one of the two objects will emit motion signals depending on mJoystickEnabled
+    connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mPhysics, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
+    connect(mJoystick, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mPhysics, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
 
     // Same thing for StatusWidget, which has the configuration window. Tell it to read the config only after ogre
     // is initialized, so it can create cameras and laserscanners.
     mStatusWidget->mDialogConfiguration->slotReadConfiguration();
+
+    connect(mFlightController, SIGNAL(debugValues(Pose,quint8,qint8,qint8,qint8,qint8)), mBaseConnection, SLOT(slotNewControllerDebugValues(Pose,quint8,qint8,qint8,qint8,qint8)));
 }
 
 void Simulator::slotSimulationStart(void)
@@ -100,6 +107,8 @@ void Simulator::slotSimulationStart(void)
 
     mStatusWidget->slotSetButtonPauseEnabled(true);
     mStatusWidget->slotSetButtonStartEnabled(false);
+
+    mBattery->slotStart();
 
     if(mTimeSimulationPause.isValid())
     {
@@ -141,6 +150,8 @@ void Simulator::slotSimulationPause(void)
     mStatusWidget->slotSetButtonPauseEnabled(false);
     mStatusWidget->slotSetButtonStartEnabled(true);
 
+    mBattery->slotPause();
+
     mTimeSimulationPause.start();
 //    mVehicle->stop();
 
@@ -163,9 +174,10 @@ bool Simulator::isPaused(void) const
 }
 
 // returns scaled time since start in milliseconds
-int Simulator::getSimulationTime(void) const
+quint32 Simulator::getSimulationTime(void) const
 {
-    QMutexLocker locker(&mMutex);
+    // We need no mutex-locking, as this method does only const operations. Hopefully.
+//    QMutexLocker locker(&mMutex);
 
     if(mTimeSimulationPause.isValid())
     {
@@ -182,7 +194,7 @@ int Simulator::getSimulationTime(void) const
     else
     {
         // both invalid, has never run before
-        qDebug() << "Simulator::getSimulationTime(): never started, returning 0";
+//        qDebug() << "Simulator::getSimulationTime(): never started, returning 0";
         return 0;
     }
 }
@@ -258,11 +270,52 @@ double Simulator::getTimeFactor(void) const
     return mTimeFactor;
 }
 
+void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enabled)
+{
+    // This slow is called when pressing and releasing a button, so only act once.
+    if(!enabled) return;
+
+    if(button < 4)
+    {
+        if(mJoystickEnabled)
+        {
+            slotShowMessage("Disabling Joystick control, enabling FlightController.");
+            mJoystickEnabled = false;
+        }
+        else
+        {
+            slotShowMessage("Enabling Joystick control, disabling FlightController.");
+            mJoystickEnabled = true;
+        }
+    }
+    else
+    {
+        if(mUpdateTimer->isActive())
+        {
+            slotShowMessage("Pausing simulation due to Joystick request.");
+            slotSimulationPause();
+        }
+        else
+        {
+            slotShowMessage("Starting simulation due to Joystick request.");
+            slotSimulationStart();
+        }
+    }
+}
+
 void Simulator::slotUpdate()
 {
-    qDebug() << "Simulator::slotUpdate()";
-    // This will compute and emit motion commands, which are then used by vehicle.
-    mFlightController->slotComputeMotionCommands();
+//    qDebug() << "Simulator::slotUpdate()";
+
+    if(mJoystickEnabled && mJoystick->isValid())
+    {
+        mJoystick->emitMotionCommands();
+    }
+    else
+    {
+        // This will compute and emit motion commands, which are then used by vehicle.
+        mFlightController->slotComputeMotionCommands();
+    }
 
     // Set wind in our simulation
     mPhysics->slotUpdateWind();

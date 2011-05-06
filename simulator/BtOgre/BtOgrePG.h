@@ -4,6 +4,7 @@
 #include <QObject>
 
 #include "btBulletDynamicsCommon.h"
+#include "OgreQuaternion.h"
 #include "OgreSceneNode.h"
 #include "BtOgreExtras.h"
 #include <pose.h>
@@ -56,10 +57,21 @@ class RigidBodyState : public QObject, public btMotionState
                 mNode->setOrientation(rot.w(), rot.x(), rot.y(), rot.z());
                 mNode->setPosition(pos.x(), pos.y(), pos.z());
 
+//                float yaw, pitch, roll;
+//                transform.getBasis().getEulerZYX(yaw, pitch, roll, 2);
+
+                Ogre::Matrix3 mat;
+                mNode->_getDerivedOrientation().ToRotationMatrix(mat);
+
+                Ogre::Radian yaw, pitch, roll;
+                mat.ToEulerAnglesYXZ(yaw, pitch, roll);
+
                 emit newPose(
                             Pose(
                                 QVector3D(pos.x(), pos.y(), pos.z()),
-                                QQuaternion(rot.w(), rot.x(), rot.y(), rot.z())
+                                fmod(yaw.valueRadians() + Ogre::Degree(360.0).valueRadians(), 360.0*M_PI/180.0),
+                                -pitch.valueRadians(),
+                                roll.valueRadians()
                                 )
                             );
             }

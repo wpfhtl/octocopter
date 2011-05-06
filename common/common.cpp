@@ -12,3 +12,15 @@ QString hash(QList<WayPoint> list)
 
     return hash.result();
 }
+
+
+quint32 getCurrentGpsTowTime()
+{
+    const QDate today = QDate::currentDate();
+    QDateTime beginningOfWeek(today.addDays(-(today.dayOfWeek() % 7)), QTime(0, 0, 0, 0));
+
+//    qDebug() << beginningOfWeek.toString("ddd hh:mm:ss:zzz");
+    Q_ASSERT(beginningOfWeek.date().dayOfWeek() == Qt::Sunday && beginningOfWeek.toString("hh:mm:ss:zzz") == QString("00:00:00:000"));
+
+    return beginningOfWeek.msecsTo(QDateTime::currentDateTime());
+}

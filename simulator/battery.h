@@ -6,6 +6,10 @@
 #include <QTimer>
 #include <QTime>
 
+#include "simulator.h"
+
+class Simulator;
+
 class Battery : public QObject
 {
 Q_OBJECT
@@ -14,31 +18,36 @@ Q_OBJECT
 
 private:
     QTimer mUpdateTimer;
-    double mTimeFactor;
+//    double mTimeFactor;
     double mCapacity; // in AH
     double mDischargeCurrent;  // in A, how much is drawn from the battery right now.
     double mEnergy;   // in AH, the energy left in the battery
     double mMaxVoltage;  // in Volt
     int mChargeStatusInPercent;
+    Simulator* mSimulator;
+    quint32 mSimulationTimeOfLastUpdate;
 
 public:
-    Battery(QObject *parent = 0, const double &maxVoltage = 12.0, const double &capacity = 4.0);
-    void setDischargeCurrent(const double &current);
+    Battery(Simulator* simulator, const double &voltageMax = 12.0, const double &capacity = 4.0);
     void charge();
 
-    double currentVoltage(void) const;
-    double maxVoltage(void) const;
+    double voltageCurrent(void) const;
+    double voltageMax(void) const;
 
     double energy(void) const;
     double capacity(void) const;
+
+public slots:
+    void slotSetDischargeCurrent(const double &current);
+//    void slotSetTimeFactor(const double &timeFactor);
+    void slotStart();
+    void slotPause();
 
 signals:
     void chargeStatusChanged(int);
 
 private slots:
     void slotUpdate();
-    void slotSetTimeFactor(const double &timeFactor);
-
 };
 
 #endif

@@ -2,8 +2,15 @@
 
 Pose::Pose(const QVector3D &position, const QQuaternion &orientation, const quint32& timestamp)
 {
-    this->orientation = orientation;
     this->position = position;
+
+//    setYawRadians(getYawRadians(orientation, true));
+//    setPitchRadians(getPitchRadians(orientation, true));
+//    setRollRadians(getRollRadians(orientation, true));
+
+    mYaw = getYawRadians(orientation, true);
+    mPitch = getPitchRadians(orientation, true);
+    mRoll = getRollRadians(orientation, true);
 
     this->timestamp = timestamp;
 
@@ -13,9 +20,13 @@ Pose::Pose(const QVector3D &position, const QQuaternion &orientation, const quin
 Pose::Pose(const QVector3D &position, const float &yaw, const float &pitch, const float &roll, const quint32& timestamp)
 {
     this->position = position;
-    this->yaw = yaw;
-    this->pitch = pitch;
-    this->roll = roll;
+//    setYawRadians(yaw);
+//    setPitchRadians(pitch);
+//    setRollRadians(roll);
+
+    mYaw = yaw;
+    mPitch = pitch;
+    mRoll = roll;
 
     this->timestamp = timestamp;
 
@@ -27,24 +38,16 @@ Pose::Pose()
     this->timestamp = 0;
 }
 
-quint32 Pose::getCurrentGpsTowTime()
-{
-    const QDate today = QDate::currentDate();
-    QDateTime beginningOfWeek(today.addDays(-(today.dayOfWeek() % 7)), QTime(0, 0, 0, 0));
-
-//    qDebug() << beginningOfWeek.toString("ddd hh:mm:ss:zzz");
-    Q_ASSERT(beginningOfWeek.date().dayOfWeek() == Qt::Sunday && beginningOfWeek.toString("hh:mm:ss:zzz") == QString("00:00:00:000"));
-
-    return beginningOfWeek.msecsTo(QDateTime::currentDateTime());
-}
-
 Pose Pose::interpolateLinear(const Pose &before, const Pose &after, const float &mu)
 {
     Q_ASSERT(mu <= 0.0 && mu <= 1.0);
 
     return Pose(
                 before.position * (1.0 - mu) + after.position * mu,
-                before.orientation * (1.0 - mu) + after.orientation * mu
+                before.mYaw * (1.0 - mu) + after.mYaw * mu,
+                before.mPitch * (1.0 - mu) + after.mPitch * mu,
+                before.mRoll * (1.0 - mu) + after.mRoll * mu,
+                before.timestamp * (1.0 - mu) + after.timestamp * mu
                 );
 }
 
@@ -56,30 +59,86 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
     const double mu2 = mu*mu;
 
     // position
-    QVector3D p0, p1, p2, p3;
-    p0 = last->position - after->position - first->position + before->position;
-    p1 = first->position - before->position - p0;
-    p2 = after->position - first->position;
-    p3 = before->position;
+    QVector3D po0, po1, po2, po3;
+    po0 = last->position - after->position - first->position + before->position;
+    po1 = first->position - before->position - po0;
+    po2 = after->position - first->position;
+    po3 = before->position;
 
-    QVector3D resultPosition = p0*mu*mu2+p1*mu2+p2*mu+p3;
+    QVector3D resultPosition = po0*mu*mu2+po1*mu2+po2*mu+po3;
 
-    // orientation
-    QQuaternion  o0, o1, o2, o3;
-    o0 = last->orientation - after->orientation - first->orientation + before->orientation;
-    o1 = first->orientation - before->orientation - o0;
-    o2 = after->orientation - first->orientation;
-    o3 = before->orientation;
+    // yaw
+    float  y0, y1, y2, y3;
+    y0 = last->mYaw - after->mYaw - first->mYaw + before->mYaw;
+    y1 = first->mYaw - before->mYaw - y0;
+    y2 = after->mYaw - first->mYaw;
+    y3 = before->mYaw;
 
-    QQuaternion resultOrientation = o0*mu*mu2+o1*mu2+o2*mu+o3;
+    const float yaw = y0*mu*mu2+y1*mu2+y2*mu+y3;
 
-    return Pose(resultPosition, resultOrientation);
+    // pitch
+    float  p0, p1, p2, p3;
+    p0 = last->mPitch - after->mPitch - first->mPitch + before->mPitch;
+    p1 = first->mPitch - before->mPitch - p0;
+    p2 = after->mPitch - first->mPitch;
+    p3 = before->mPitch;
+
+    const float pitch = p0*mu*mu2+p1*mu2+p2*mu+p3;
+
+    // roll
+    float  r0, r1, r2, r3;
+    r0 = last->mRoll - after->mRoll - first->mRoll + before->mRoll;
+    r1 = first->mRoll - before->mRoll - r0;
+    r2 = after->mRoll - first->mRoll;
+    r3 = before->mRoll;
+
+    const float roll = r0*mu*mu2+r1*mu2+r2*mu+r3;
+
+    // roll
+    float  t0, t1, t2, t3;
+    t0 = last->timestamp - after->timestamp - first->timestamp + before->timestamp;
+    t1 = first->timestamp - before->timestamp - t0;
+    t2 = after->timestamp - first->timestamp;
+    t3 = before->timestamp;
+
+    const float timestamp = t0*mu*mu2+t1*mu2+t2*mu+t3;
+
+    return Pose(resultPosition, yaw, pitch, roll, timestamp);
+}
+
+float Pose::normalizeAngleRadians(const float& angle)
+{
+    return DEG2RAD(normalizeAngleDegrees(RAD2DEG(angle)));
+}
+
+float Pose::normalizeAngleDegrees(const float& angle)
+{
+    float angleNew = angle;
+    while(angleNew <= -180.0) angleNew += 360.0;
+    while(angleNew > 180.0) angleNew -= 360.0;
+    return angleNew;
+}
+
+
+QVector2D Pose::getPlanarPosition() const
+{
+    return QVector2D(position.x(), position.z());
+}
+
+QVector2D Pose::getPlanarDirection() const
+{
+    const float y = -cos(getYawRadians());
+    const float x = -sin(getYawRadians());
+
+    QVector2D result(x, y);
+    qDebug() << "Pose::getPlanarDirection(): angle" << getYawDegrees() << "result" << result;
+    return result;
 }
 
 // unused
 Pose Pose::operator*(const float &factor)
 {
-    return Pose(position * factor, orientation * factor);
+    return Pose(/*position * factor, orientation * factor*/);
 }
 
 
@@ -91,7 +150,9 @@ Pose Pose::operator*(const float &factor)
 Pose* Pose::operator+(const Pose &p)
 {
     position += p.position;
-    orientation += p.orientation;
+    setYawRadians(mYaw + p.mYaw);
+    setPitchRadians(mPitch + p.mPitch);
+    setRollRadians(mRoll + p.mRoll);
     return this;
 }
 
@@ -103,41 +164,37 @@ Pose* Pose::operator+(const Pose &p)
 
 QDebug operator<<(QDebug dbg, const Pose &pose)
 {
-    dbg.nospace() << "Pose: Position:" << pose.position << "Orientation:" << pose.orientation;
+    dbg.nospace() << "Position:" << pose.position << "yaw" << pose.getYawDegrees() << "pitch" << pose.getPitchDegrees() << "roll" << pose.getRollDegrees();
     return dbg.maybeSpace();
 }
 
-/*
-QQuaternion Pose::getOrientation(void) const
-{
-    return orientation;
-}
-
-QVector3D Pose::getPosition(void) const
-{
-    return position;
-}*/
-
 QDataStream& operator<<(QDataStream &out, const Pose &pose)
 {
-    out << pose.position << pose.orientation << pose.yaw << pose.pitch << pose.roll << pose.timestamp;
+    out << pose.position << pose.getYawRadians() << pose.getPitchRadians() << pose.getRollRadians() << pose.timestamp;
     return out;
 }
 
 QDataStream& operator>>(QDataStream &in, Pose &pose)
 {
+    float yaw, pitch, roll;
     in >> pose.position;
-    in >> pose.orientation;
-    in >> pose.yaw;
-    in >> pose.pitch;
-    in >> pose.roll;
+    in >> yaw;
+    in >> pitch;
+    in >> roll;
     in >> pose.timestamp;
+
+    qDebug() << "reconstructing pose with YPR:" << yaw << pitch << roll;
+
+    pose.setYawRadians(yaw);
+    pose.setPitchRadians(pitch);
+    pose.setRollRadians(roll);
+
     return in;
 }
 
-float Pose::getRollRadians(bool reprojectAxis) const
+float Pose::getRollRadians(const QQuaternion& orientation, bool reprojectAxis)
 {
-    if (reprojectAxis)
+    if(reprojectAxis)
     {
         // ben: this was Real in ogre, so it might be better to use double
         // roll = atan2(localx.y, localx.x)
@@ -159,9 +216,9 @@ float Pose::getRollRadians(bool reprojectAxis) const
     }
 }
 
-float Pose::getPitchRadians(bool reprojectAxis) const
+float Pose::getPitchRadians(const QQuaternion& orientation, bool reprojectAxis)
 {
-    if (reprojectAxis)
+    if(reprojectAxis)
     {
         // pitch = atan2(localy.z, localy.y)
         // pick parts of yAxis() implementation that we need
@@ -183,9 +240,9 @@ float Pose::getPitchRadians(bool reprojectAxis) const
     }
 }
 
-float Pose::getYawRadians(bool reprojectAxis) const
+float Pose::getYawRadians(const QQuaternion& orientation, bool reprojectAxis)
 {
-    if (reprojectAxis)
+    if(reprojectAxis)
     {
         // yaw = atan2(localz.x, localz.z)
         // pick parts of zAxis() implementation that we need

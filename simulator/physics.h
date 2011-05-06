@@ -33,13 +33,17 @@ class Physics : public QObject//QThread
 private:
     mutable QMutex mMutex;
 //    QTimer *mTimerUpdateGps;
-    int mTimeOfLastUpdate; // the last simulationtime from simulator. Needed, as the physics engine needs deltas.
+    quint32 mTimeOfLastPhysicsUpdate; // the last simulationtime from simulator. Needed, as the physics engine needs deltas.
     Simulator *mSimulator;
     OgreWidget* mOgreWidget;
     Engine mEngine;
     QList<Ogre::SceneNode*> mEngineNodes;
-    Battery* mBattery;
     float mTotalVehicleWeight;
+
+    // for the pitch/roll-low-level-controller
+    float mErrorIntegralPitch, mErrorIntegralRoll;
+    float mPrevErrorPitch, mPrevErrorRoll;
+    quint32 mTimeOfLastControllerUpdate;
 
 protected:
     btAxisSweep3 *mBtBroadphase;

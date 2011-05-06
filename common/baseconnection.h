@@ -42,7 +42,7 @@ private slots:
     void slotFlushWriteQueue(void);
 
 public:
-    BaseConnection(const QString& interface, QObject* parent);
+    BaseConnection(const QString& interface, Simulator* simulator);
     ~BaseConnection();
 
 signals:
@@ -70,7 +70,7 @@ public slots:
     void slotPoseChanged(const Pose& pose, const quint32 receiverTime);
 
     // called by rover to send lidarpoints to the basestation
-    void slotNewLidarPoints(const QVector<LidarPoint>& points);
+    void slotNewLidarPoints(const QVector3D& scanPosition, const QVector<QVector3D>& points);
 
     // called by rover to send new vehicle status to basestation
     void slotNewVehicleStatus(
@@ -89,7 +89,7 @@ public slots:
         );
 
     // called by flightcontroller to send its output to basestation for debugging purposes
-    void slotNewMotionCommands(const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height);
+    void slotNewControllerDebugValues(const Pose& pose, const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height);
 
     // called by rover to send new log message to basestation
     void slotNewLogMessage(const QString& source, const LogImportance& importance, const QString& text);

@@ -12,6 +12,7 @@
 
 #include "profiler.h"
 #include <lidarpoint.h>
+#include <common.h>
 
 class Simulator;
 class OgreWidget;
@@ -137,7 +138,9 @@ public slots:
 signals:
     void bottomBeamLength(const float&);
 
-    void newLidarPoints(const QVector<LidarPoint>&);
+    void newLidarPoints(const QVector3D&, const QVector<QVector3D>&);
+
+    void scanFinished(const quint32&);
 };
 
 #endif

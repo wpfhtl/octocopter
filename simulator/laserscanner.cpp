@@ -12,6 +12,8 @@ LaserScanner::LaserScanner(
     qDebug() << "LaserScanner::LaserScanner()";
     Q_ASSERT(angleStart < angleStop);
 
+    qRegisterMetaType<QVector<QVector3D> >("QVector<QVector3D>");
+
     mSimulator = simulator;
     mOgreWidget = ogreWidget;
     setRange(range); // to also set mRangeSquared
@@ -129,7 +131,7 @@ void LaserScanner::slotDoScan()
     int numberOfRays = 0;
 
     // a container for collected rays, or rather the world coordinates of where they ended
-    QVector<LidarPoint> scanContainer;
+    QVector<QVector3D> scanContainer;
     scanContainer.reserve((mAngleStop - mAngleStart) / mAngleStep + 10);
 
     while(mCurrentScanAngle <= mAngleStop)
@@ -215,7 +217,7 @@ void LaserScanner::slotDoScan()
 
             if(mBottomBeamClockDivisor == 0 && mCurrentScanAngle == 123.0 /*FIXME!*/) emit bottomBeamLength(distanceFinal);
 
-            scanContainer << LidarPoint(QVector3D(point.x, point.y, point.z), QVector3D(), distanceFinal);
+            scanContainer << QVector3D(point.x, point.y, point.z);
         }
 
         // Increase mCurrentScanAngle by mAngleStep for the next laserBeam
@@ -236,7 +238,14 @@ void LaserScanner::slotDoScan()
 //    const long long timeDiff = (timeNow.tv_sec - timeStart.tv_sec) * 1000000 + (timeNow.tv_usec - timeStart.tv_usec);
 //    qDebug() << "LaserScanner::slotDoScan(): took" << timeDiff << "us, should have been" << (long long)(realTimeBetweenRaysUS * ((mAngleStop - mAngleStart)/mAngleStep));
 
-    emit newLidarPoints(scanContainer);
+    emit scanFinished(mSimulator->getSimulationTime());
+
+//    qDebug() << "LaserScanner::doScan(): emitting" << scanContainer.size() << "points.";
+
+    emit newLidarPoints(
+                QVector3D(mScannerPosition.x, mScannerPosition.y, mScannerPosition.z),
+                scanContainer
+                );
 
     // Set mCurrentScanAngle for the next scan to mAngleStart
     mCurrentScanAngle = mAngleStart;

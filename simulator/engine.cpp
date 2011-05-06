@@ -120,7 +120,7 @@ double Engine::calculateTorque(const int rpm) const
     Q_ASSERT(mCurrentPropeller.c1 != 0 && mCurrentPropeller.c2 != 0 && mCurrentPropeller.c3 != 0);
 //    Q_ASSERT(rpm > mCurrentPropeller.rpmMin && rpm < mCurrentPropeller.rpmMax);
 
-    static float torqueCoefficient = 0.228 * 50; // FIXME: this factor is made-up
+    static float torqueCoefficient = 0.228 * 10; // FIXME: this factor is made-up
     static float densityAir = 1.184;
     const float rotorDiscArea = M_PI * pow(mCurrentPropeller.diameter/2.0, 2);
     const float radiusPow3 = pow(mCurrentPropeller.diameter/2.0, 3);
@@ -134,7 +134,11 @@ double Engine::calculateTorque(const int rpm) const
 double Engine::calculateThrust(const float& current)
 {
     // Have a look at Strom-Schub.ods to find the base for these calculations
-    return pow(current*1000.0, 0.725)/85.0;
+    // We also accept negative values, yielding the same thrust, just negative :)
+    if(current >= 0.0)
+        return pow(current*1000.0, 0.725)/85.0;
+    else
+        return -(pow(-current*1000.0, 0.725)/85.0);
 }
 
 btVector3 Engine::getPosition(void) const

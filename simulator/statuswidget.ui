@@ -293,22 +293,9 @@
          <item>
           <widget class="QLabel" name="label_4">
            <property name="text">
-            <string>OGRE</string>
+            <string>X</string>
            </property>
           </widget>
-         </item>
-         <item>
-          <spacer name="horizontalSpacer_4">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
          </item>
          <item>
           <widget class="QLabel" name="mLabelPoseOgreX">
@@ -331,6 +318,13 @@
           </spacer>
          </item>
          <item>
+          <widget class="QLabel" name="label_18">
+           <property name="text">
+            <string>Y</string>
+           </property>
+          </widget>
+         </item>
+         <item>
           <widget class="QLabel" name="mLabelPoseOgreY">
            <property name="text">
             <string>0.0 m</string>
@@ -349,6 +343,13 @@
             </size>
            </property>
           </spacer>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_19">
+           <property name="text">
+            <string>Z</string>
+           </property>
+          </widget>
          </item>
          <item>
           <widget class="QLabel" name="mLabelPoseOgreZ">

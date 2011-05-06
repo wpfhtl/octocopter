@@ -2,6 +2,7 @@
 #define SIMULATOR_H
 
 #include <QMainWindow>
+#include <QMessageBox>
 #include <QList>
 #include <QDebug>
 #include <QMutex>
@@ -10,6 +11,7 @@
 #include "ogrewidget.h"
 #include "battery.h"
 #include "physics.h"
+#include "joystick.h"
 #include "laserscanner.h"
 #include "baseconnection.h"
 #include "flightcontroller.h"
@@ -18,10 +20,6 @@
 #include "coordinateconverter.h"
 
 #include "engine.h"
-
-// probably not the right place to put this
-#define deg2rad(x) (x)*M_PI/180.0
-#define rad2deg(x) (x)*180.0/M_PI
 
 class Physics;
 class Camera;
@@ -38,9 +36,8 @@ public:
     ~Simulator(void);
     double getTimeFactor(void) const;
     bool isPaused(void) const;
-    int getSimulationTime(void) const; // returns milliseconds since start of simulation, scaled by timeFactor
+    quint32 getSimulationTime(void) const; // returns milliseconds since start of simulation, scaled by timeFactor
     QList<LaserScanner*>* getLaserScannerList(void);
-//    CoordinateConverter* getCoordinateConverter(void);
     CoordinateConverter *mCoordinateConverter;
     Battery* mBattery;
     OgreWidget* mOgreWidget;
@@ -55,11 +52,13 @@ public:
 private:
     mutable QMutex mMutex;
 
+    bool mJoystickEnabled;
     QTimer* mUpdateTimer;
     double mTimeFactor;
     QTime mTimeSimulationStart; // when simulation was started
     QTime mTimeSimulationPause; // when simulation was paused, invalid when it's not currently paused.
     StatusWidget* mStatusWidget;
+    Joystick* mJoystick;
 
 
 private slots:
@@ -67,6 +66,7 @@ private slots:
     void slotSetTimeFactor(double);
     void slotNotifyDevicesOfNewTimeFactor();
     void slotUpdate();
+    void slotJoystickButtonChanged(const quint8& button, const bool& enabled);
 
 public slots:
     void slotSimulationStart(void);

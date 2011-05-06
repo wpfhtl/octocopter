@@ -17,8 +17,8 @@ StatusWidget::StatusWidget(Simulator *simulator) : QDockWidget((QWidget*)simulat
 
     connect(mBattery, SIGNAL(chargeStatusChanged(int)), SLOT(slotUpdateBattery(int)));
 
-    mLabelBatteryVoltage->setText(QString::number(mBattery->maxVoltage(), 'g', 2) + " V");
-    mLabelBatteryEnergy->setText(QString::number(mBattery->capacity(), 'g', 2) + " Ah");
+    mLabelBatteryVoltage->setText(QString::number(mBattery->voltageMax(), 'f', 2) + " V");
+    mLabelBatteryEnergy->setText(QString::number(mBattery->capacity(), 'f', 2) + " Ah");
 
     mCompass->setStyle(new QPlastiqueStyle);
 
@@ -68,8 +68,9 @@ void StatusWidget::slotShowConfiguration()
 
 void StatusWidget::slotUpdateBattery(const int chargeStateInPercent)
 {
-    mLabelBatteryVoltageCurrent->setText(QString::number(mBattery->maxVoltage(), 'g', 2) + " V");
-    mLabelBatteryEnergyCurrent->setText(QString::number(mBattery->energy(), 'g', 2) + " Ah");
+    Q_UNUSED(chargeStateInPercent);
+    mLabelBatteryVoltageCurrent->setText(QString::number(mBattery->voltageCurrent(), 'f', 2) + " V");
+    mLabelBatteryEnergyCurrent->setText(QString::number(mBattery->energy(), 'f', 2) + " Ah");
 }
 
 void StatusWidget::slotUpdateVisualization(QSize windowSize, int triangles, float fps)
@@ -104,11 +105,11 @@ void StatusWidget::slotUpdatePose(const Pose &pose)
     deg.sprintf("%c", 176);
     deg.prepend("%1");
 
-    mLabelPitch->setText(deg.arg((int)pose.pitch, 3, 10, QLatin1Char('0')));
-    mLabelRoll->setText(deg.arg((int)pose.roll, 3, 10, QLatin1Char('0')));
-    mLabelYaw->setText(deg.arg((int)pose.yaw, 3, 10, QLatin1Char('0')));
+    mLabelPitch->setText(deg.arg((int)pose.getPitchDegrees(), 3, 10, QLatin1Char('0')));
+    mLabelRoll->setText(deg.arg((int)pose.getRollDegrees(), 3, 10, QLatin1Char('0')));
+    mLabelYaw->setText(deg.arg((int)pose.getYawDegrees(), 3, 10, QLatin1Char('0')));
 
-    mCompass->setValue(pose.yaw);
+    mCompass->setValue(fmod(180.0 + pose.getYawDegrees(), 360.0));
 
     // flight dynamics
     QVector3D vL = mSimulator->mPhysics->getVehicleLinearVelocity();

@@ -34,7 +34,7 @@ private:
     qint16 x, y, z, r;
     int fd, deviceNum, numAxis, numButtons;
     QString deviceFile;
-    char joystickName[255];
+    QString mJoystickName;
     char* mButtons;
 
 
@@ -43,7 +43,10 @@ private slots:
 //    void slotPollButtons();
 
 signals:
-    void buttonStateChanged(unsigned char, bool);
+    void buttonStateChanged(quint8 buttonNumber, bool pressed);
+
+    // used to set the motor-speeds
+    void motion(const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height);
 
 public:
     Joystick();
@@ -53,7 +56,8 @@ public:
     bool isValid(void) const;
 
 
-    void getAxisValues(float &axisX, float &axisY, float &axisZ, float &axisR);
+//    void getAxisValues(float &axisX, float &axisY, float &axisZ, float &axisR);
+    void emitMotionCommands();
     bool isButtonPressed(const unsigned short number);
 };
 

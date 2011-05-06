@@ -1,17 +1,20 @@
 #ifndef POSE_H
 #define POSE_H
 
+#include <QVector2D>
 #include <QVector3D>
 #include <QQuaternion>
 #include <QTime>
 #include <QDebug>
 
+#include <common.h>
 #include <math.h>
 
 class Pose// : public QObject
 {
 //    Q_OBJECT
 private:
+    float mYaw, mPitch, mRoll; // angle in RADIANS!
 
 public:
     Pose(const QVector3D &position, const QQuaternion &orientation, const quint32& timestamp = 0);
@@ -20,8 +23,7 @@ public:
 
 
     QVector3D position;
-    QQuaternion orientation;
-    float yaw, pitch, roll;
+//    QQuaternion orientation;
 
     // This is the GPS Time-Of-Week, specified in milliseconds since last Sunday, 00:00:00 AM (midnight)
     quint32 timestamp;
@@ -31,6 +33,9 @@ public:
     // Returns a pose between @before and @after, also needs @first and @last, as its bicubic
     static Pose interpolateCubic(const Pose * const first, const Pose * const before, const Pose * const after, const Pose * const last, const float &mu);
 
+    static float normalizeAngleRadians(const float& angle);
+    static float normalizeAngleDegrees(const float& angle);
+
     Pose operator*(const float &factor);
 //    Pose operator*(const float &factor);
 //    const Pose operator+(const Pose & p);
@@ -38,18 +43,35 @@ public:
     Pose* operator+(const Pose &p);
 //    friend inline const Pose operator+(const Pose &q1, const Pose &q2);
 
-//    QQuaternion getOrientation(void) const;
-//    QVector3D getPosition(void) const;
+    QVector2D getPlanarPosition() const;
 
-    static quint32 getCurrentGpsTowTime();
+    // Assuming that:
+    // - 000 deg == NEGATIVE_Z
+    // - 090 deg == NEGATIVE_X
+    // - 180 deg == POSITIVE_Z
+    // - 270 deg == POSITIVE_X
+    QVector2D getPlanarDirection() const;
 
-    float getRollRadians(bool reprojectAxis) const;
-    float getPitchRadians(bool reprojectAxis) const;
-    float getYawRadians(bool reprojectAxis) const;
 
-    float getRollDegrees(bool reprojectAxis) const {return 180.0 * getRollRadians(reprojectAxis) / M_PI;};
-    float getPitchDegrees(bool reprojectAxis) const {return 180.0 * getPitchRadians(reprojectAxis) / M_PI;};
-    float getYawDegrees(bool reprojectAxis) const {return 180.0 * getYawRadians(reprojectAxis) / M_PI;};
+
+
+
+
+    static float getRollRadians(const QQuaternion& orientation, bool reprojectAxis);
+    static float getPitchRadians(const QQuaternion& orientation, bool reprojectAxis);
+    static float getYawRadians(const QQuaternion& orientation, bool reprojectAxis);
+
+    float getPitchRadians() const {return mPitch;};
+    float getRollRadians() const {return mRoll;};
+    float getYawRadians() const {return mYaw;};
+
+    float getRollDegrees() const {return 180.0 * mRoll / M_PI;};
+    float getPitchDegrees() const {return 180.0 * mPitch / M_PI;};
+    float getYawDegrees() const {return 180.0 * mYaw / M_PI;};
+
+    void setYawRadians(const float& yaw) {mYaw = /*normalizeAngleRadians*/(yaw);};
+    void setPitchRadians(const float& pitch) {mPitch = /*normalizeAngleRadians*/(pitch);};
+    void setRollRadians(const float& roll) {mRoll = /*normalizeAngleRadians*/(roll);};
 
 signals:
 
