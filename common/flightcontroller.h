@@ -53,7 +53,7 @@ private:
 
     FlightState mFlightState;
 
-    QTime mTimeOfLastUpdate, mTimeOfLastLaserScan;
+    QTime mTimeOfLastControllerUpdate, mTimeOfLastLaserScan;
 
     float mPrevErrorPitch, mPrevErrorRoll, mPrevErrorYaw, mPrevErrorHeight;
     float mErrorIntegralPitch, mErrorIntegralRoll, mErrorIntegralYaw, mErrorIntegralHeight;

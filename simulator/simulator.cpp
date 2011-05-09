@@ -323,6 +323,8 @@ void Simulator::slotUpdate()
     // Do the physics. This will move the vehicle, which will make the vehicle's motion state emit its new position, which will go into flightcontroller. Sweet!
     mPhysics->slotUpdatePhysics();
 
+    mOgreWidget->slotVisualizeTrajectory(mFlightController->getLastKnownPose().position, mFlightController->getWayPoints().first());
+
     // At last, re-render
     mOgreWidget->update();
 }

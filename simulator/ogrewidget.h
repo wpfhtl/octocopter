@@ -163,6 +163,8 @@ public slots:
             const Ogre::Node::TransformSpace &transformSpace = Ogre::Node::TS_LOCAL,
             const bool reAimCamera = false);
 
+    void slotVisualizeTrajectory(const QVector3D& start, const QVector3D& end);
+
 signals:
     void setupFinished();
     void cameraPositionChanged(const Ogre::Vector3 &pos);
@@ -236,6 +238,8 @@ private:
     Ogre::SceneNode *mCameraNode;
     Ogre::Entity *mVehicleEntity;
     Ogre::SceneNode *mVehicleNode;
+
+    Ogre::ManualObject* mTrajectoryLine;
 
     void addMeshInformation(Ogre::Entity* entity, Ogre::SceneNode* node);
 

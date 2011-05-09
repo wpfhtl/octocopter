@@ -60,7 +60,6 @@ private:
     StatusWidget* mStatusWidget;
     Joystick* mJoystick;
 
-
 private slots:
     void slotOgreInitialized(void);
     void slotSetTimeFactor(double);

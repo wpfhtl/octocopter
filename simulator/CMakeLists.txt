@@ -65,7 +65,7 @@ SET(RESOURCE_FILES
 #ADD_DEFINITIONS(-DBT_USE_DOUBLE_PRECISION)
 #ADD_DEFINITIONS(-DOGRE_DOUBLE_PRECISION=0) # or -DOGRE_CONFIG_DOUBLE
 SET(BULLET_LIBRARIES BulletDynamics BulletSoftBody BulletCollision LinearMath)
-SET(BULLET_INCLUDE_DIRS /usr/local/include/bullet/)
+SET(BULLET_INCLUDE_DIRS /usr/local/include/bullet/ /usr/include/bullet/)
 
 #"Sources" and "Headers" are the group names in Visual Studio.
 SOURCE_GROUP("Sources" FILES ${SRC_FILES})

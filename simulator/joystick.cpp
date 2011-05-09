@@ -3,7 +3,7 @@
 Joystick::Joystick() : QObject()
 {
     x = y = z = numButtons = numAxis = 0;
-    deviceFile = "/dev/input/js";
+    deviceFile = "/dev/input/js%1";
     valid = false;
 
     // Set a short timeout for select()ing the fd
@@ -12,9 +12,9 @@ Joystick::Joystick() : QObject()
 
     // Try opening all js-device-files before failing.
     int currentDeviceIndex = 0;
-    while((fd = open(deviceFile.append(QString::number(currentDeviceIndex)).toLocal8Bit().constData(), O_RDONLY)) == -1)
+    while((fd = open(deviceFile.arg(currentDeviceIndex).toLocal8Bit().constData(), O_RDONLY)) == -1)
     {
-        qDebug() << "Joystick::Joystick(): Couldn't open joystick at" << deviceFile << currentDeviceIndex;
+        qDebug() << "Joystick::Joystick(): Couldn't open joystick at" << deviceFile.arg(currentDeviceIndex);
         currentDeviceIndex++;
 
         if(currentDeviceIndex > MAX_DEVICE_NUM)

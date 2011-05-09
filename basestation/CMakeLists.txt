@@ -58,7 +58,7 @@ SET(RESOURCE_FILES
 )
 
 SET(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath BulletSoftBody)
-SET(BULLET_INCLUDES /usr/local/include/bullet/ /usr/include/ /usr/include/BulletCollision/BroadphaseCollision/ /usr/include/BulletCollision/CollisionDispatch)
+SET(BULLET_INCLUDES /usr/local/include/bullet/ /usr/include/bullet /usr/include/BulletCollision/BroadphaseCollision/ /usr/include/BulletCollision/CollisionDispatch)
 
 #"Sources" and "Headers" are the group names in Visual Studio.
 SOURCE_GROUP("Sources" FILES ${SRC_FILES})
@@ -85,8 +85,8 @@ SET(CMAKE_BUILD_TYPE "Debug")
 # Enable the Node LidarPoint::node member, in which a lidarpoint remembers in which node it is stored. Increases octree efficiency,
 # but also creates a dependency on "Node", which is otherwise unused in koptercontrol project
 ADD_DEFINITIONS(-DLIDARPOINT_KEEPS_PARENTNODE)
-INCLUDE_DIRECTORIES(/usr/include /usr/local/qwt-6.0.0-svn/include/ ${BULLET_INCLUDES} ${OGRE_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
+INCLUDE_DIRECTORIES(/usr/include /usr/include/qwt6 /usr/local/qwt-6.0.0-svn/include/ ${BULLET_INCLUDES} ${OGRE_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 LINK_DIRECTORIES(/usr/local/qwt-6.0.0-svn/lib/)
 ADD_EXECUTABLE(basestation ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-TARGET_LINK_LIBRARIES(basestation qwt qwtmathml ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${BULLET_LIBRARIES} GLU)
+TARGET_LINK_LIBRARIES(basestation qwt6 ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${BULLET_LIBRARIES} GLU)
 LINK_DIRECTORIES(/usr/lib/)

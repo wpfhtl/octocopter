@@ -558,10 +558,23 @@ void OgreWidget::initOgreSystem()
                     "SdkSample::_setup");
     }
 
-
     createScene();
 
     setupTerrain();
+
+
+    // initialize trajectory line
+    mTrajectoryLine = mSceneManager->createManualObject(QString("trajectoryLine_manualobject").toStdString());
+    Ogre::SceneNode* mTrajectoryLineNode = mSceneManager->getRootSceneNode()->createChildSceneNode("trajectoryLine_node");
+
+    Ogre::MaterialPtr trajectoryLineMaterial = Ogre::MaterialManager::getSingleton().create("trajectoryLineMaterial", "General");
+    trajectoryLineMaterial->setReceiveShadows(false);
+    trajectoryLineMaterial->getTechnique(0)->setLightingEnabled(true);
+    trajectoryLineMaterial->getTechnique(0)->getPass(0)->setDiffuse(0,0,1,0);
+    trajectoryLineMaterial->getTechnique(0)->getPass(0)->setAmbient(0,0,1);
+    trajectoryLineMaterial->getTechnique(0)->getPass(0)->setSelfIllumination(0,0,1);
+//    trajectoryLineMaterial->dispose();  // dispose pointer, not the material
+    mTrajectoryLineNode->attachObject(mTrajectoryLine);
 
     emit setupFinished();
 
@@ -636,6 +649,16 @@ Ogre::SceneNode* OgreWidget::createScanner(const QString name, const Ogre::Vecto
     qDebug() << "OgreWidget::createScannerNode(): done, returning";
 
     return scannerNode;
+}
+
+void OgreWidget::slotVisualizeTrajectory(const QVector3D& start, const QVector3D& end)
+{
+    qDebug() << "OgreWidget::slotVisualizeTrajectory(): drawing line:" << start << end;
+    mTrajectoryLine->clear();
+    mTrajectoryLine->begin(QString("trajectoryLineMaterial").toStdString(), Ogre::RenderOperation::OT_LINE_LIST);
+    mTrajectoryLine->position(Ogre::Vector3(start.x(), start.y(), start.z()));
+    mTrajectoryLine->position(Ogre::Vector3(end.x(), end.y(), end.z()));
+    mTrajectoryLine->end();
 }
 
 void OgreWidget::destroyScanner(const QString name)

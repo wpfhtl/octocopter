@@ -157,6 +157,12 @@ void BaseConnection::slotSendData(const QByteArray &data, bool lockMutex)
 {
     if(lockMutex) QMutexLocker locker(&mMutex);
 
+    if(!mTcpSocket)
+    {
+        qDebug() << "BaseConnection::slotSendData(): no client connected, throwing data away...";
+        return;
+    }
+
     // Prepend the length of the datagram
     QByteArray datagramLengthArray;
     QDataStream streamLength(&datagramLengthArray, QIODevice::WriteOnly);

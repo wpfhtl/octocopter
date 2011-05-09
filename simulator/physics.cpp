@@ -383,13 +383,13 @@ void Physics::slotSetMotion(const quint8& thrust, const qint8& pitch, const qint
     static float Kd = 2.0;
 
     // Pitch
-    const float errorPitch = 0.9*((float)pitch) + currentPitch.valueDegrees();
+    const float errorPitch = 0.9*((float)pitch) - currentPitch.valueDegrees();
     mErrorIntegralPitch += errorPitch*timeDiff;
     const float derivativePitch = (errorPitch - mPrevErrorPitch + 0.00001)/timeDiff;
     const float outputPitch = (Kp*errorPitch) + (Ki*mErrorIntegralPitch) + (Kd*derivativePitch);
     mPrevErrorPitch = errorPitch;
 
-    Ogre::Vector3 torqueVectorPitch = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(-outputPitch/10.0, 0.0, 0.0);
+    Ogre::Vector3 torqueVectorPitch = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(outputPitch/10.0, 0.0, 0.0);
     mVehicleBody->applyTorque(btVector3(torqueVectorPitch.x, torqueVectorPitch.y, torqueVectorPitch.z));
 
     // Roll

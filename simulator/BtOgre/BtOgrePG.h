@@ -52,6 +52,9 @@ class RigidBodyState : public QObject, public btMotionState
             btQuaternion rot = transform.getRotation();
             btVector3 pos = transform.getOrigin();
 
+            float y,p,r=2;
+            transform.getBasis().getEulerZYX(y,p,r);
+
             if(mNode)
             {
                 mNode->setOrientation(rot.w(), rot.x(), rot.y(), rot.z());
@@ -70,7 +73,7 @@ class RigidBodyState : public QObject, public btMotionState
                             Pose(
                                 QVector3D(pos.x(), pos.y(), pos.z()),
                                 fmod(yaw.valueRadians() + Ogre::Degree(360.0).valueRadians(), 360.0*M_PI/180.0),
-                                -pitch.valueRadians(),
+                                pitch.valueRadians(),
                                 roll.valueRadians()
                                 )
                             );

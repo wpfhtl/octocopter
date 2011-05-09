@@ -123,7 +123,7 @@ QwtPlotCurve* PlotWidget::getCurve(const QString& name)
 
 void PlotWidget::slotAppendData(const QVector<float>& data)
 {
-    qDebug() << "PlotWidget::slotAppendData(): number of values to append:" << data.size();
+//    qDebug() << "PlotWidget::slotAppendData(): number of values to append:" << data.size();
 
     if(data.size() != mCurves.size())
     {
@@ -140,7 +140,7 @@ void PlotWidget::slotAppendData(const QVector<float>& data)
     {
          i.next();
 
-         qDebug() << "now appending to curve" << i.key() << "row" << mNumberOfRowsStored << "value" << data.at(column);
+//         qDebug() << "now appending to curve" << i.key() << "row" << mNumberOfRowsStored << "value" << data.at(column);
 
 //         QVector<double>* x = mCurveDataX.value(i.key());
          QVector<double>* y = mCurveDataY.value(i.key());

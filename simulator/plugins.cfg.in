@@ -1,12 +1,12 @@
 # Defines plugins to load
 
 # Define plugin folder
-#PluginFolder=${OGRE_PLUGIN_DIR_REL}
-PluginFolder=/usr/lib/OGRE/
+#PluginFolder=${OGRE_PLUGIN_DIR_REL} ${OGRE_PLUGIN_DIR_DBG}
+PluginFolder=/usr/local/lib/OGRE/
 
 # Define plugins
 Plugin=RenderSystem_GL
 #Plugin=RenderSystem_Direct3D9
 Plugin=Plugin_OctreeSceneManager
 Plugin=Plugin_BSPSceneManager
-Plugin=Plugin_CgProgramManager
+#Plugin=Plugin_CgProgramManager

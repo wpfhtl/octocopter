@@ -17,7 +17,7 @@ FlightController::FlightController() : QObject()
 
     mDesiredYaw = 0.0;
 
-    mTimeOfLastUpdate = QTime::currentTime();
+    mTimeOfLastControllerUpdate = QTime::currentTime();
     mTimeOfLastLaserScan = QTime::currentTime().addSecs(-2);
 
     emit currentWayPoints(mWayPoints);
@@ -30,7 +30,7 @@ FlightController::~FlightController()
 
 void FlightController::slotComputeMotionCommands()
 {
-    const double timeDiff = std::min(0.2, (double)(mTimeOfLastUpdate.msecsTo(QTime::currentTime()) / 1000.0)); // elapsed time since last call in seconds
+    const double timeDiff = std::min(0.2, (double)(mTimeOfLastControllerUpdate.msecsTo(QTime::currentTime()) / 1000.0)); // elapsed time since last call in seconds
 
     // deprecated
 //    int f,b,l,r;
@@ -38,6 +38,7 @@ void FlightController::slotComputeMotionCommands()
     quint8 out_thrust = 0;
     qint8 out_yaw, out_pitch, out_roll = 0;
 
+    // TODO: Do we still need this flightstate? how do we detect that manual control is activated?
     if(getFlightState() == ManualControl)
     {
 //        qDebug() << "FlightController::slotComputeMotionCommands(): joystick";
@@ -49,19 +50,18 @@ void FlightController::slotComputeMotionCommands()
         // clear the error integrals, so we don't get spikes after releasing the joystick
         mErrorIntegralPitch = mErrorIntegralRoll = mErrorIntegralYaw = mErrorIntegralHeight = 0.1;
 
-/*        qDebug() << "values PRY:\t"
-                 << mMotionState->getNode()->_getDerivedOrientation().getPitch(true).valueDegrees()
-                 << mMotionState->getNode()->_getDerivedOrientation().getRoll(true).valueDegrees()
-                 << mMotionState->getNode()->_getDerivedOrientation().getYaw(true).valueDegrees() + 180.0;
-*/
-//        qDebug() << "values PRYH:" << mMotionState->getOrientation().getPitch(true).valueDegrees() << mMotionState->getOrientation().getRoll(true).valueDegrees() << mMotionState->getOrientation().getYaw(false).valueDegrees() << mMotionState->getPosition().y;
-
         // It should not matter, but just emit some halfway-safe value;
         emit motion(100, 0, 0, 0, 0);
     }
     else if(getFlightState() == ApproachingNextWayPoint)
     {
         Q_ASSERT(mWayPoints.size() > 0);
+
+        if(getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp > 500)
+        {
+            qDebug() << "FlightController::slotComputeMotionCommands(): vehicle pose update is more than 500ms ago, skipping motion computation.";
+            return;
+        }
 
         WayPoint nextWayPoint = mWayPoints.first();
 
@@ -74,17 +74,22 @@ void FlightController::slotComputeMotionCommands()
         else
         {
             qDebug() << "FlightController::slotComputeMotionCommands(): timeDiff" << timeDiff << "scanning" << mLastKnownVehiclePose.position << "->" << nextWayPoint;
-            mDesiredYaw = fmod(mDesiredYaw + (timeDiff * 30.0 /*deg per second*/), 360.0);
+            mDesiredYaw = fmod(mDesiredYaw + (timeDiff * 10.0 /*deg per second*/), 360.0);
         }
 
-        const QVector2D directionVectorToNextWayPoint = (nextWayPoint.getPositionOnPlane() - mLastKnownVehiclePose.getPlanarPosition()).normalized();
-        const float angleBetweenVehicleNorthAndNextWayPoint = atan2(-directionVectorToNextWayPoint.y(), -directionVectorToNextWayPoint.x());
+        const QVector2D directionVectorToNextWayPoint = (nextWayPoint.getPositionOnPlane() - mLastKnownVehiclePose.getPlanarPosition());//.normalized();
+        const float angleBetweenVehicleNorthAndNextWayPoint = atan2(-directionVectorToNextWayPoint.x(), -directionVectorToNextWayPoint.y());
         const float angleToTurnToWayPoint = Pose::normalizeAngleRadians(angleBetweenVehicleNorthAndNextWayPoint - mLastKnownVehiclePose.getYawRadians());
 
+        qDebug() << "mLastKnownVehiclePose.getPlanarPosition()" << mLastKnownVehiclePose.getPlanarPosition();
+        qDebug() << "nextWayPoint.getPositionOnPlane():" << nextWayPoint.getPositionOnPlane();
+        qDebug() << "directionVectorToNextWayPoint:" << directionVectorToNextWayPoint;
+        qDebug() << "angleBetweenVehicleNorthAndNextWayPoint:" << RAD2DEG(angleBetweenVehicleNorthAndNextWayPoint);
+
         if(angleToTurnToWayPoint > 0)
-            qDebug() << "To point at waypoint, turn left by" << RAD2DEG(angleToTurnToWayPoint);
+            qDebug() << "To point at waypoint, turn left:" << RAD2DEG(angleToTurnToWayPoint);
         else
-            qDebug() << "To point at waypoint, turn right by" << RAD2DEG(-angleToTurnToWayPoint);
+            qDebug() << "To point at waypoint, turn right:" << RAD2DEG(angleToTurnToWayPoint);
 
         // http://en.wikipedia.org/wiki/PID_controller, thanks Minorsky!
         static double Kp = 5.1;
@@ -112,22 +117,22 @@ void FlightController::slotComputeMotionCommands()
             qDebug() << "ROLL  SHOULD BE" << sin(angleToTurnToWayPoint);
             qDebug() << "PITCH SHOULD BE" << cos(angleToTurnToWayPoint);
 
-            if(mLastKnownVehiclePose.position.x() > nextWayPoint.x())
-            {
-                desiredRoll = sin(angleToTurnToWayPoint) * fmin((mLastKnownVehiclePose.position.x() - nextWayPoint.x())*3, 15.0);
-            }
-            else
-            {
-                desiredRoll = sin(angleToTurnToWayPoint) * -fmin((nextWayPoint.x() - mLastKnownVehiclePose.position.x())*3, 15.0);
-            }
-            if(mLastKnownVehiclePose.position.z() > nextWayPoint.z())
-            {
-                desiredPitch = cos(angleToTurnToWayPoint) * fmin((mLastKnownVehiclePose.position.z() - nextWayPoint.z())*3, 15.0);
-            }
-            else
-            {
-                desiredPitch = cos(angleToTurnToWayPoint) * -fmin((nextWayPoint.z() - mLastKnownVehiclePose.position.z())*3, 15.0);
-            }
+//            if(mLastKnownVehiclePose.position.x() > nextWayPoint.x())
+//            {
+                desiredRoll = sin(angleToTurnToWayPoint) * /*fmin(abs(mLastKnownVehiclePose.position.x() - nextWayPoint.x())*3,*/ 15.0/*)*/;
+//            }
+//            else
+//            {
+//                desiredRoll = sin(angleToTurnToWayPoint) * -fmin((nextWayPoint.x() - mLastKnownVehiclePose.position.x())*3, 15.0);
+//            }
+//            if(mLastKnownVehiclePose.position.z() > nextWayPoint.z())
+//            {
+                desiredPitch = cos(angleToTurnToWayPoint) * /*fmin(abs(mLastKnownVehiclePose.position.z() - nextWayPoint.z())*3,*/ 15.0/*)*/;
+//            }
+//            else
+//            {
+//                desiredPitch = cos(angleToTurnToWayPoint) * -fmin((nextWayPoint.z() - mLastKnownVehiclePose.position.z())*3, 15.0);
+//            }
 
             qDebug() << "ROLL  DESIRED IS" << desiredRoll;
             qDebug() << "PITCH DESIRED IS" << desiredPitch;
@@ -137,23 +142,24 @@ void FlightController::slotComputeMotionCommands()
         double errorPitch = desiredPitch + mLastKnownVehiclePose.getPitchDegrees();
         mErrorIntegralPitch += errorPitch*timeDiff;
         double derivativePitch = (errorPitch - mPrevErrorPitch + 0.00001)/timeDiff;
-        double outputPitch = (Kp*errorPitch) + (Ki*mErrorIntegralPitch) + (Kd*derivativePitch);
+        double outputPitch = (Kp*errorPitch) + (Ki*mErrorIntegralPitch) + (0.0*Kd*derivativePitch);
 
         double errorRoll = desiredRoll - mLastKnownVehiclePose.getRollDegrees();
         mErrorIntegralRoll += errorRoll*timeDiff;
         double derivativeRoll = (errorRoll - mPrevErrorRoll + 0.00001)/timeDiff;
-        double outputRoll = (Kp*errorRoll) + (Ki*mErrorIntegralRoll) + (Kd*derivativeRoll);
+        double outputRoll = (Kp*errorRoll) + (Ki*mErrorIntegralRoll) + (0.0*Kd*derivativeRoll);
 
         double errorHeight = nextWayPoint.y() - mLastKnownVehiclePose.position.y();
         mErrorIntegralHeight += errorHeight*timeDiff;
         double derivativeHeight = (errorHeight - mPrevErrorHeight + 0.00001)/timeDiff;
-        double outputThrust = (Kp*errorHeight) + (0.0*Ki*mErrorIntegralHeight) + (Kd*derivativeHeight);
+        double outputThrust = (Kp*errorHeight) + (0.5*Ki*mErrorIntegralHeight) + (Kd*derivativeHeight);
 
         outputPitch /= 10.0;
         outputRoll /= 10.0;
 
         qDebug() << "values PRYH:" << QString::number(mLastKnownVehiclePose.getPitchDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.getRollDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.getYawDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.position.y(), 'f', 2);
         qDebug() << "should PRYH:" << QString::number(desiredPitch, 'f', 2) << "\t" << QString::number(desiredRoll, 'f', 2) << "\t" << QString::number(mDesiredYaw, 'f', 2) << "\t" << QString::number(nextWayPoint.y(), 'f', 2);
+        qDebug() << "error  PRYH:" << QString::number(errorPitch, 'f', 2) << "\t" << QString::number(errorRoll, 'f', 2) << "\t" << QString::number(errorYaw, 'f', 2) << "\t" << QString::number(errorHeight, 'f', 2);
         qDebug() << "derivt PRYH:" << QString::number(derivativePitch, 'f', 2) << "\t" << QString::number(derivativeRoll, 'f', 2) << "\t" << QString::number(derivativeYaw, 'f', 2) << "\t" << QString::number(derivativeHeight, 'f', 2);
         qDebug() << "prevEr PRYH:" << QString::number(mPrevErrorPitch, 'f', 2) << "\t" << QString::number(mPrevErrorRoll, 'f', 2) << "\t" << QString::number(mPrevErrorYaw, 'f', 2) << "\t" << QString::number(mPrevErrorHeight, 'f', 2);
         qDebug() << "inteEr PRYH:" << QString::number(mErrorIntegralPitch, 'f', 2) << "\t" << QString::number(mErrorIntegralRoll, 'f', 2) << "\t" << QString::number(mErrorIntegralYaw, 'f', 2) << "\t" << QString::number(mErrorIntegralHeight, 'f', 2);
@@ -171,7 +177,8 @@ void FlightController::slotComputeMotionCommands()
 
         qDebug() << "FlightController::slotComputeMotionCommands(): motion is" << out_thrust << out_yaw << out_pitch << out_roll << 20;
 
-        emit motion(out_thrust, out_pitch, out_roll, out_yaw, 0);
+//        emit motion(out_thrust, out_pitch, out_roll, out_yaw, 0);
+        emit motion(out_thrust, -desiredPitch, desiredRoll, out_yaw, 0);
         emit debugValues(mLastKnownVehiclePose, out_thrust, out_pitch, out_roll, out_yaw, 0);
 
 //        emit motion(100, 3, 0, 0, 20);
@@ -202,7 +209,7 @@ void FlightController::slotComputeMotionCommands()
         Q_ASSERT(false && "FlightState not defined!");
     }
 
-    mTimeOfLastUpdate = QTime::currentTime();
+    mTimeOfLastControllerUpdate = QTime::currentTime();
 
 //    qDebug() << "engine spds:" << "f" << f << "\tb" << b << "\tl" << l << "\tr" << r << endl;
 }

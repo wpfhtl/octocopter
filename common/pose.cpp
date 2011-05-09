@@ -183,7 +183,7 @@ QDataStream& operator>>(QDataStream &in, Pose &pose)
     in >> roll;
     in >> pose.timestamp;
 
-    qDebug() << "reconstructing pose with YPR:" << yaw << pitch << roll;
+//    qDebug() << "reconstructing pose with YPR:" << yaw << pitch << roll;
 
     pose.setYawRadians(yaw);
     pose.setPitchRadians(pitch);
