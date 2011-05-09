@@ -178,7 +178,7 @@ void FlightController::slotComputeMotionCommands()
         qDebug() << "FlightController::slotComputeMotionCommands(): motion is" << out_thrust << out_yaw << out_pitch << out_roll << 20;
 
 //        emit motion(out_thrust, out_pitch, out_roll, out_yaw, 0);
-        emit motion(out_thrust, -desiredPitch, desiredRoll, out_yaw, 0);
+        emit motion(out_thrust, desiredPitch, desiredRoll, 50, 0);
         emit debugValues(mLastKnownVehiclePose, out_thrust, out_pitch, out_roll, out_yaw, 0);
 
 //        emit motion(100, 3, 0, 0, 20);

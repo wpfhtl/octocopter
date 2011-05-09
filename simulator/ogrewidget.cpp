@@ -861,6 +861,7 @@ void OgreWidget::setupTerrain()
     addMeshInformation(entity,sceneNode);
 
     entity = mSceneManager->createEntity("house2", "house2.mesh");
+    entity->setMaterialName("house2/8_-_Default");
     entity->setQueryFlags(0xFFFFFFFF);
     rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
     sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(

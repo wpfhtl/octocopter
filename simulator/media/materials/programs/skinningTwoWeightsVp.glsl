@@ -26,7 +26,6 @@ void main()
 	    int idx = int(blendIndices[bone]) * 3;
         // ATI GLSL compiler can't handle unrolling the loop so do it manually
         // ATI GLSL has better performance when mat4 is used rather than using individual dot product
-        // There is a bug in ATI mat4 constructor (Cat 7.2) when indexed uniform array elements are used as vec4 parameter so manually assign
 		mat4 worldMatrix;
 		worldMatrix[0] = worldMatrix3x4Array[idx];
 		worldMatrix[1] = worldMatrix3x4Array[idx + 1];

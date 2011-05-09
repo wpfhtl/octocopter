@@ -73,7 +73,7 @@ class RigidBodyState : public QObject, public btMotionState
                             Pose(
                                 QVector3D(pos.x(), pos.y(), pos.z()),
                                 fmod(yaw.valueRadians() + Ogre::Degree(360.0).valueRadians(), 360.0*M_PI/180.0),
-                                pitch.valueRadians(),
+                                -pitch.valueRadians(),
                                 roll.valueRadians()
                                 )
                             );
