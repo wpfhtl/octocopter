@@ -16,7 +16,7 @@ void FlightPlannerInterface::slotSetScanVolume(const QVector3D min, const QVecto
     mScanVolumeMax = max;
 }
 
-void FlightPlannerInterface::sortToShortestPath(QVector<QVector3D> &wayPoints, const QVector3D &currentVehiclePosition)
+void FlightPlannerInterface::sortToShortestPath(QList<WayPoint> &wayPoints, const QVector3D &currentVehiclePosition)
 {
     qDebug() << "FlightPlannerInterface::sortToShortestPath(): vehicle is at" << currentVehiclePosition;
 
@@ -24,7 +24,7 @@ void FlightPlannerInterface::sortToShortestPath(QVector<QVector3D> &wayPoints, c
     for(int i=1;i<wayPoints.size();i++) distanceBefore += wayPoints.at(i-1).distanceToLine(wayPoints.at(i), QVector3D());
     qDebug() << "FlightPlannerInterface::sortToShortestPath(): total distance between" << wayPoints.size() << "points before:" << distanceBefore;
 
-    QVector<QVector3D> wps(wayPoints);
+    QList<WayPoint> wps(wayPoints);
     float distanceBeforewps = 0;
     for(int i=1;i<wps.size();i++) distanceBeforewps += wps.at(i-1).distanceToLine(wps.at(i), QVector3D());
     qDebug() << "FlightPlannerInterface::sortToShortestPath(): wps total distance between" << wps.size() << "points before:" << distanceBeforewps;
@@ -48,10 +48,10 @@ void FlightPlannerInterface::sortToShortestPath(QVector<QVector3D> &wayPoints, c
         }
 
         wayPoints.append(wps.at(indexOfClosestNeighbor));
-        wps.remove(indexOfClosestNeighbor);
+        wps.removeAt(indexOfClosestNeighbor);
     }
 
-    wayPoints.remove(0);
+    wayPoints.takeFirst();
 
     float distanceAfter = 0;
     for(int i=1;i<wayPoints.size();i++) distanceAfter += wayPoints.at(i-1).distanceToLine(wayPoints.at(i), QVector3D());

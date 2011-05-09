@@ -25,7 +25,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     mControlWidget = new ControlWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mControlWidget);
-    connect(mControlWidget, SIGNAL(wayPointInsert(QString, int, const WayPoint&)), SLOT(slotWayPointInsert(QString, int, const WayPoint&)));
+    connect(mControlWidget, SIGNAL(wayPointInsert(QString, int, const QList<WayPoint>&)), SLOT(slotWayPointInsert(QString, int, const QList<WayPoint>&)));
     connect(mControlWidget, SIGNAL(wayPointDelete(QString, int)), SLOT(slotWayPointDelete(QString, int)));
 
     mLogWidget = new LogWidget(this);
@@ -33,10 +33,10 @@ BaseStation::BaseStation() : QMainWindow()
     menuBar()->addAction("Save Log", mLogWidget, SLOT(save()));
 
     mFlightPlanner = new FlightPlannerPhysics(&mVehiclePose, mOctree);
-//    mFlightPlanner->slotSetScanVolume(QVector3D(140, 60, 80), QVector3D(240, 120, 150));
-//    connect(mFlightPlanner, SIGNAL(newWayPoint(const QVector3D)), mControlWidget, SLOT(slotNewWayPoint(const QVector3D)));
-//    connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
-//    connect(mControlWidget, SIGNAL(generateWaypoints()), mFlightPlanner, SLOT(slotGenerateWaypoints()));
+    mFlightPlanner->slotSetScanVolume(QVector3D(140, 60, 80), QVector3D(240, 120, 150));
+    connect(mFlightPlanner, SIGNAL(newWayPointsReady(const QList<WayPoint>)), mControlWidget, SLOT(slotNewWayPoints(const QList<WayPoint>)));
+    connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
+    connect(mControlWidget, SIGNAL(generateWaypoints()), mFlightPlanner, SLOT(slotGenerateWaypoints()));
 
     menuBar()->addAction("Save Cloud", this, SLOT(slotExportCloud()));
 
@@ -44,8 +44,8 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(update()));
     setCentralWidget(mGlWidget);
 
-//    connect(mGlWidget, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
-//    connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWidget, SLOT(updateGL()));
+    connect(mGlWidget, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
+    connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWidget, SLOT(updateGL()));
 
     mTimerUpdateStatus = new QTimer();
     mTimerUpdateStatus->setInterval(500);
@@ -184,8 +184,8 @@ void BaseStation::processPacket(QByteArray data)
         {
 //            qDebug() << p;
             mOctree->insertPoint(new LidarPoint(p, (p-scannerPosition).normalized(), (p-scannerPosition).lengthSquared()));
-//            if(i%10 == 0)
-//                mFlightPlanner->insertPoint(new LidarPoint(p, (p-scannerPosition).normalized(), (p-scannerPosition).lengthSquared()));
+            if(i%10 == 0)
+                mFlightPlanner->insertPoint(new LidarPoint(p, (p-scannerPosition).normalized(), (p-scannerPosition).lengthSquared()));
             i++;
         }
 
@@ -249,8 +249,10 @@ void BaseStation::processPacket(QByteArray data)
     }
     else if(packetType == "waypointreached")
     {
-        QVector3D wpt;
+        WayPoint wpt;
         stream >> wpt;
+
+        mControlWidget->slotRoverReachedNextWayPoint();
 
         mLogWidget->log(QString("reached waypoint %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
     }
@@ -300,17 +302,17 @@ void BaseStation::slotGetStatus()
     slotSendData(data);
 }
 
-void BaseStation::slotWayPointInsert(QString hash, int index, const WayPoint& wpt)
+void BaseStation::slotWayPointInsert(QString hash, int index, const QList<WayPoint>& wayPoints)
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
     stream << QString("waypointinsert");
     stream << hash;
-    stream << (quint32)index;
-    stream << wpt;
+    stream << (quint16)index;
+    stream << wayPoints;
 
-    mLogWidget->log(QString("inserting waypoint %1 %2 %3 at position %4").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()).arg(index));
+    mLogWidget->log(QString("inserting %1 waypoints").arg(wayPoints.size()));
 
     slotSendData(data);
 }
@@ -322,7 +324,7 @@ void BaseStation::slotWayPointDelete(QString hash, int index)
 
     stream << QString("waypointdelete");
     stream << hash;
-    stream << (quint32)index;
+    stream << (quint16)index;
 
     mLogWidget->log(QString("deleting waypoint at index %4").arg(index));
 

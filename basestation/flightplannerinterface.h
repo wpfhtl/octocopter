@@ -4,6 +4,7 @@
 #include <QObject>
 #include "octree.h"
 #include "glwidget.h"
+#include <waypoint.h>
 
 class Pose;
 
@@ -14,7 +15,7 @@ protected:
     QVector3D mScanVolumeMin, mScanVolumeMax;
     const Pose *mVehiclePose;
 
-    static void sortToShortestPath(QVector<QVector3D> &wayPoints, const QVector3D &currentVehiclePosition);
+    static void sortToShortestPath(QList<WayPoint> &wayPoints, const QVector3D &currentVehiclePosition);
 
 public:
     FlightPlannerInterface(const Pose * const pose, Octree* pointCloud);
@@ -33,7 +34,7 @@ public slots:
     virtual void slotVisualize() const = 0;
 
 signals:
-    void newWayPoint(const QVector3D);
+    void newWayPointsReady(const QList<WayPoint>&);
     void clearWayPoints();
     void suggestVisualization();
 };

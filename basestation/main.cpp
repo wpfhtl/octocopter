@@ -7,7 +7,7 @@
 int main(int argc, char *argv[])
 {
     // Having OGRE or bullet use double precision means nothing but trouble.
-    qDebug() << "main(): sizeof: Ogre::Real" << sizeof(Ogre::Real) << "btScalar" << sizeof(btScalar);
+    qDebug() << "main(): sizeof: btScalar" << sizeof(btScalar);
     Q_ASSERT(sizeof(btScalar) == 4 && "Please make sure Bullet is compiled to use single precision");
 
     QApplication app(argc, argv);

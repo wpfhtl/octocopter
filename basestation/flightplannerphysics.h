@@ -5,6 +5,7 @@
 //#include "physicssphere.h"
 #include "node.h"
 #include "lidarpoint.h"
+#include <waypoint.h>
 #include "openglutilities.h"
 
 #include "bulletdebugdrawergl.h"
@@ -60,7 +61,7 @@ private:
     QList<btRigidBody*> mSampleSphereList;
 
 signals:
-    void newWayPoint(const QVector3D);
+    void newWayPointsReady(const QList<WayPoint>&);
 
 private slots:
     void slotPointInserted(const LidarPoint*);

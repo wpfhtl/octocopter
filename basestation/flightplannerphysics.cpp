@@ -121,7 +121,7 @@ void FlightPlannerPhysics::slotGenerateWaypoints()
 {
     // Now the hard work:
     //
-    // 1. Drop small spheres (big enough for the quad to fit in). Delete them if they sleep on other spheres.
+    // 1. Drop small spheres (big enough for the vehicle to fit in). Delete them if they sleep on other spheres.
     // 2. Let it dry until everyone is sleeping and falling spheres are deleted
     // 3. Drop big spheres (little smaller than lidar range). Delete small spheres being touched by big spheres.
     // 4. Let it dry until everyone is sleeping and falling spheres are deleted
@@ -164,7 +164,7 @@ void FlightPlannerPhysics::slotGenerateWaypoints()
 
     mLastSampleSphereHitPositions.clear();
 
-    QVector<QVector3D> newWaypoints;
+    QList<WayPoint> newWayPoints;
 
     // And now let them fall from the sky...
     for(int i=0;i<1000;i++)
@@ -222,11 +222,12 @@ void FlightPlannerPhysics::slotGenerateWaypoints()
                // THIS IS THE INTERESTING PART! IF THE SPHERE HAS PREVIOUSLY HIT A LIDARPOINT, MAKE THAT A NEW WAYPOINT!
                if(mLastSampleSphereHitPositions.contains(rigidBody))
                {
-                   QVector3D pos = mLastSampleSphereHitPositions.value(rigidBody) + QVector3D(0.0, 3 * mShapeSampleSphere->getRadius(), 0.0);
+//                   QVector3D pos = mLastSampleSphereHitPositions.value(rigidBody) + QVector3D(0.0, 3 * mShapeSampleSphere->getRadius(), 0.0);
+                   WayPoint w(mLastSampleSphereHitPositions.value(rigidBody) + QVector3D(0.0, 3 * mShapeSampleSphere->getRadius(), 0.0));
 //                   emit newWayPoint(pos);
-                   newWaypoints.append(pos);
+                   newWayPoints.append(w);
 
-                   sampleSphereTransform.setOrigin(btVector3(pos.x(), pos.y(), pos.z()));
+                   sampleSphereTransform.setOrigin(btVector3(w.x(), w.y(), w.z()));
                    // We don't need any inertia, mass etc,. as this body is static.
                    btDefaultMotionState* sampleSpherePointMotionState = new btDefaultMotionState(sampleSphereTransform);
                    btRigidBody::btRigidBodyConstructionInfo rbInfo(0, sampleSpherePointMotionState, mShapeSampleSphere, btVector3(0,0,0));
@@ -253,12 +254,13 @@ void FlightPlannerPhysics::slotGenerateWaypoints()
 
     qDebug() << "number of waypoints to emit:" << mSampleSpheres.size();
 
-    sortToShortestPath(newWaypoints, mVehiclePose->position);
+    sortToShortestPath(newWayPoints, mVehiclePose->position);
 
-    foreach(const QVector3D& wpt, newWaypoints)
-        emit newWayPoint(wpt);
+    emit newWayPointsReady(newWayPoints);
+//    foreach(const QVector3D& wpt, newWaypoints)
+//        emit newWayPoint(wpt);
 
-
+    // remove the old samplespheres...
     foreach(btRigidBody* body, mSampleSpheres)
     {
 //        btTransform t;

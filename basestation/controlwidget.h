@@ -2,7 +2,7 @@
 #define CONTROLWIDGET_H
 
 #include <QtGui>
-#include <Ogre.h>
+//#include <Ogre.h>
 #include "ui_controlwidget.h"
 #include "basestation.h"
 #include "waypoint.h"
@@ -39,7 +39,10 @@ public slots:
     void slotUpdateBattery(const double& voltageCurrent, const double& voltageMax);
 
     // Called my FlightPlanner to add a new waypoint.
-    void slotNewWayPoint(const WayPoint&);
+//    void slotNewWayPoint(const WayPoint&);
+    void slotNewWayPoints(const QList<WayPoint>&);
+
+    void slotRoverReachedNextWayPoint();
 
 private slots:
     void slotSimulationStarted();
@@ -64,7 +67,7 @@ signals:
 
     void generateWaypoints();
 
-    void wayPointInsert(QString, int index, const WayPoint&);
+    void wayPointInsert(QString, int index, const QList<WayPoint>&);
     void wayPointDelete(QString, int index);
 };
 
