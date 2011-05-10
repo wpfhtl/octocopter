@@ -171,7 +171,7 @@ void PlotWidget::slotAppendData(const QVector<float>& data)
     mFileStream->flush();
     mFile->flush();
 
-    mPlot->replot();
+    if(isVisible()) mPlot->replot();
 }
 
 void PlotWidget::slotLegendChecked(QwtPlotItem* plotItem, bool checked)

@@ -4,7 +4,6 @@
 #include "flightplannerphysics.h"
 
 BaseStation::BaseStation() : QMainWindow()
-
 {
     qDebug() << "BaseStation::BaseStation()";
     mOctree = new Octree(
@@ -12,10 +11,14 @@ BaseStation::BaseStation() : QMainWindow()
             QVector3D(100, 100, 100),  // max
             1000);
 
+    mProgress = 0;
+
     mOctree->setMinimumPointDistance(0.1);
     mOctree->setPointHandler(OpenGlUtilities::drawPoint);
 
     mIncomingDataBuffer.clear();
+
+    menuBar()->addAction("Connect", this, SLOT(slotConnect()));
 
     mTcpSocket = new QTcpSocket(this);
     connect(mTcpSocket, SIGNAL(readyRead()), SLOT(slotReadSocket()));
@@ -37,6 +40,7 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mFlightPlanner, SIGNAL(newWayPointsReady(const QList<WayPoint>)), mControlWidget, SLOT(slotNewWayPoints(const QList<WayPoint>)));
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
     connect(mControlWidget, SIGNAL(generateWaypoints()), mFlightPlanner, SLOT(slotGenerateWaypoints()));
+    connect(mFlightPlanner, SIGNAL(processingStatus(QString, quint8)), SLOT(slotFlightPlannerProcessing(QString, quint8)));
 
     menuBar()->addAction("Save Cloud", this, SLOT(slotExportCloud()));
 
@@ -81,7 +85,7 @@ void BaseStation::slotSocketDisconnected()
 
     mTimerUpdateStatus->stop();
 
-    mTcpSocket->connectToHost("localhost", 12345);
+    slotConnect();
 }
 
 void BaseStation::slotSocketConnected()
@@ -348,7 +352,14 @@ void BaseStation::slotSendData(const QByteArray &data)
 
 void BaseStation::slotConnect()
 {
-    mTcpSocket->connectToHost("localhost", 12345);
+    if(mRoverHostName.isEmpty())
+    {
+        bool ok = false;
+        mRoverHostName = QInputDialog::getText(this, "Hostname", "Please enter the rover's hostname", QLineEdit::Normal, "localhost", &ok);
+        if(!ok) return;
+    }
+
+    mTcpSocket->connectToHost(mRoverHostName, 12345);
 }
 
 void BaseStation::slotSocketError(QAbstractSocket::SocketError socketError)
@@ -362,4 +373,22 @@ void BaseStation::slotSocketError(QAbstractSocket::SocketError socketError)
 const WayPoint BaseStation::getNextWayPoint(void) const
 {
     return mControlWidget->getNextWayPoint();
+}
+
+void BaseStation::slotFlightPlannerProcessing(const QString& text, const quint8& progress)
+{
+    if(!mProgress)
+    {
+        mProgress = new QProgressDialog(text, "Abort", 0, 100, this);
+//        mProgress->setWindowModality(Qt::WindowModal);
+    }
+
+    mProgress->setValue(progress);
+
+    if(progress == 100)
+    {
+        mProgress->hide();
+        mProgress->deleteLater();
+        mProgress = 0;
+    }
 }

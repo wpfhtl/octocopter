@@ -46,6 +46,10 @@ Simulator::Simulator(void) :
 
     // We now are probably in a state where we can service the basestation, so lets go ahead and create the connection.
     mBaseConnection = new BaseConnection("eth0", this);
+    connect(mBaseConnection, SIGNAL(wayPointInsert(QString,quint16,QList<WayPoint>)), mFlightController, SLOT(slotWayPointInsert(QString,quint16,QList<WayPoint>)));
+    connect(mBaseConnection, SIGNAL(wayPointDelete(QString,quint16)), mFlightController, SLOT(slotWayPointDelete(QString,quint16)));
+
+    connect(mFlightController, SIGNAL(wayPointReached(WayPoint)), mBaseConnection, SLOT(slotWayPointReached(WayPoint)));
 
     mStatusWidget = new StatusWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mStatusWidget);
@@ -323,7 +327,7 @@ void Simulator::slotUpdate()
     // Do the physics. This will move the vehicle, which will make the vehicle's motion state emit its new position, which will go into flightcontroller. Sweet!
     mPhysics->slotUpdatePhysics();
 
-    mOgreWidget->slotVisualizeTrajectory(mFlightController->getLastKnownPose().position, mFlightController->getWayPoints().first());
+    mOgreWidget->slotVisualizeTrajectory(mFlightController->getLastKnownPose().position, mFlightController->getWayPoints());
 
     // At last, re-render
     mOgreWidget->update();

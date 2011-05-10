@@ -62,6 +62,7 @@ private:
 
 signals:
     void newWayPointsReady(const QList<WayPoint>&);
+    void processingStatus(const QString& text, const quint8 percentReady);
 
 private slots:
     void slotPointInserted(const LidarPoint*);

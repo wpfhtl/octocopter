@@ -651,14 +651,28 @@ Ogre::SceneNode* OgreWidget::createScanner(const QString name, const Ogre::Vecto
     return scannerNode;
 }
 
-void OgreWidget::slotVisualizeTrajectory(const QVector3D& start, const QVector3D& end)
+void OgreWidget::slotVisualizeTrajectory(const QVector3D& start, const QList<WayPoint>& waypoints)
 {
-    qDebug() << "OgreWidget::slotVisualizeTrajectory(): drawing line:" << start << end;
+//    qDebug() << "OgreWidget::slotVisualizeTrajectory(): nuber of waypoints to visualize::" << waypoints.size();
     mTrajectoryLine->clear();
+//    mTrajectoryLine->begin(QString("trajectoryLineMaterial").toStdString(), Ogre::RenderOperation::OT_LINE_LIST);
+//
     mTrajectoryLine->begin(QString("trajectoryLineMaterial").toStdString(), Ogre::RenderOperation::OT_LINE_LIST);
-    mTrajectoryLine->position(Ogre::Vector3(start.x(), start.y(), start.z()));
-    mTrajectoryLine->position(Ogre::Vector3(end.x(), end.y(), end.z()));
+
+    for(int i=0;i<waypoints.size();i++)
+    {
+//        qDebug() << "drawing line" << i;
+
+        if(i==0)
+            mTrajectoryLine->position(Ogre::Vector3(start.x(), start.y(), start.z()));
+        else
+            mTrajectoryLine->position(Ogre::Vector3(waypoints.at(i-1).x(), waypoints.at(i-1).y(), waypoints.at(i-1).z()));
+
+        mTrajectoryLine->position(Ogre::Vector3(waypoints.at(i).x(), waypoints.at(i).y(), waypoints.at(i).z()));
+    }
+
     mTrajectoryLine->end();
+//    mTrajectoryLine->end();
 }
 
 void OgreWidget::destroyScanner(const QString name)

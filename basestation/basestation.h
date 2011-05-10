@@ -5,8 +5,8 @@
 #include <QtGui>
 #include <QtNetwork>
 #include <QDebug>
-
-#include <QUdpSocket>
+#include <QInputDialog>
+#include <QTcpSocket>
 #include <QMutex>
 
 #include "glwidget.h"
@@ -35,6 +35,8 @@ private:
 //    QQuaternion mVehicleOrientation;
     Pose mVehiclePose;
 
+    QString mRoverHostName;
+
     QByteArray mIncomingDataBuffer;
 
     FlightPlannerInterface* mFlightPlanner;
@@ -58,6 +60,8 @@ private:
 
     QMap<QString, CameraWindow*> mCameraWindows;
 
+    QProgressDialog* mProgress;
+
     void processPacket(QByteArray data);
 
 private slots:
@@ -67,6 +71,8 @@ private slots:
     void slotSocketError(QAbstractSocket::SocketError socketError);
     void slotConnect(void);
     void slotExportCloud(void);
+
+    void slotFlightPlannerProcessing(const QString& text, const quint8& progress);
 
     void slotWayPointInsert(QString, int, const QList<WayPoint>&);
     void slotWayPointDelete(QString, int);

@@ -15,6 +15,7 @@
 
 #include "simulator.h"
 #include "laserscanner.h"
+#include <waypoint.h>
 
 #include <Terrain/OgreTerrain.h>
 #include <Terrain/OgreTerrainGroup.h>
@@ -163,7 +164,7 @@ public slots:
             const Ogre::Node::TransformSpace &transformSpace = Ogre::Node::TS_LOCAL,
             const bool reAimCamera = false);
 
-    void slotVisualizeTrajectory(const QVector3D& start, const QVector3D& end);
+    void slotVisualizeTrajectory(const QVector3D& start, const QList<WayPoint>& waypoints);
 
 signals:
     void setupFinished();

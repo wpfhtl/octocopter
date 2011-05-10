@@ -99,6 +99,7 @@ void ControlWidget::slotWayPointDelete()
 
 void ControlWidget::slotRoverReachedNextWayPoint()
 {
+    mWayPoints.takeAt(0);
     mWayPointTable->removeRow(0);
     mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
 }

@@ -95,8 +95,8 @@ signals:
 
 public slots:
     void slotSetVehiclePose(const Pose&);
-    void slotWayPointInsert(const QString &hash, const int index, const QVector3D &wayPoint);
-    void slotWayPointDelete(const QString &hash, const int index);
+    void slotWayPointInsert(const QString &hash, const quint16 index, const QList<WayPoint>&wayPoints);
+    void slotWayPointDelete(const QString &hash, const quint16 index);
 
     // Called regularly by our parent, we compute the motion commands then and emit motion(...).
     void slotComputeMotionCommands();

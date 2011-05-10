@@ -47,7 +47,9 @@ public:
 
 signals:
     // emitted when a new list of waypoints has arrived from the basestation
-    void newWayPointListFromBase(QVector<WayPoint> wayPoints);
+//    void newWayPointListFromBase(QVector<WayPoint> wayPoints);
+    void wayPointInsert(const QString& hash, quint16 index, const QList<WayPoint>& wayPoints);
+    void wayPointDelete(const QString& hash, quint16 index);
 
     // emitted when the basestation wants the kopter to freeze in mid-air
     // (i.e. hold the position, not stop the motors)

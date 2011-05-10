@@ -169,6 +169,8 @@ void FlightPlannerPhysics::slotGenerateWaypoints()
     // And now let them fall from the sky...
     for(int i=0;i<1000;i++)
     {
+        emit processingStatus("Computing physics...", ((i+1)/10));
+
         mBtWorld->applyGravity();
         mBtWorld->stepSimulation(0.01, 10);
 
@@ -223,7 +225,7 @@ void FlightPlannerPhysics::slotGenerateWaypoints()
                if(mLastSampleSphereHitPositions.contains(rigidBody))
                {
 //                   QVector3D pos = mLastSampleSphereHitPositions.value(rigidBody) + QVector3D(0.0, 3 * mShapeSampleSphere->getRadius(), 0.0);
-                   WayPoint w(mLastSampleSphereHitPositions.value(rigidBody) + QVector3D(0.0, 3 * mShapeSampleSphere->getRadius(), 0.0));
+                   WayPoint w(mLastSampleSphereHitPositions.value(rigidBody) + QVector3D(0.0, 5 * mShapeSampleSphere->getRadius(), 0.0));
 //                   emit newWayPoint(pos);
                    newWayPoints.append(w);
 
@@ -306,7 +308,7 @@ void FlightPlannerPhysics::slotVisualize() const
     {
         btTransform t;
         body->getMotionState()->getWorldTransform(t);
-        OpenGlUtilities::drawSphere(QVector3D(t.getOrigin().x(), t.getOrigin().y(), t.getOrigin().z()), radius, 20, QColor(255,255,0, 64));
+        OpenGlUtilities::drawSphere(QVector3D(t.getOrigin().x(), t.getOrigin().y(), t.getOrigin().z()), radius, 20, QColor(0,255,0, 32));
     }
     // Draw sampleSpheres
     foreach(const btRigidBody* body, mSampleSpheres)

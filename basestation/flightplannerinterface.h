@@ -35,6 +35,7 @@ public slots:
 
 signals:
     void newWayPointsReady(const QList<WayPoint>&);
+    void processingStatus(const QString& text, const quint8 percentReady);
     void clearWayPoints();
     void suggestVisualization();
 };

@@ -172,7 +172,7 @@ void Kopter::slotSerialPortDataReady()
                 else if(message.getId() == 'B')
                 {
 //                    qDebug() << "Kopter::slotSerialPortDataReady(): received confirmation for externalControl frame:" << (quint8)message.getPayload()[0];
-                    Q_ASSERT(!mPendingReplies.contains('b'));
+                    // why here? Q_ASSERT(!mPendingReplies.contains('b'));
                     emit externControlReplyReceived();
                 }
                 else if(message.getId() == 'D')

@@ -100,20 +100,21 @@ void BaseConnection::processPacket(QByteArray packet)
     if(command == "waypointinsert")
     {
         QString hash;
-        quint32 index;
-        QVector3D wayPoint;
+        quint16 index;
+        QList<WayPoint> wayPoints;
         stream >> hash;
         stream >> index;
-        stream >> wayPoint;
-//        mFlightController->slotWayPointInsert(hash, index, wayPoint);
-        qDebug() << "BaseConnection::processPacket(): inserting waypoint from base to index" << index << wayPoint;
+        stream >> wayPoints;
+        emit wayPointInsert(hash, index, wayPoints);
+        qDebug() << "BaseConnection::processPacket(): inserting" << wayPoints.size() << "waypoints from base to index" << index;
     }
     else if(command == "waypointdelete")
     {
         QString hash;
-        quint32 index;
+        quint16 index;
         stream >> hash;
         stream >> index;
+        emit wayPointDelete(hash, index);
 //        mFlightController->slotWayPointDelete(hash, index);
         qDebug() << "BaseConnection::processPacket(): deleting waypoint" << index << "from base.";
     }
@@ -129,7 +130,7 @@ void BaseConnection::processPacket(QByteArray packet)
         stream << mSimulator->mBattery->voltageCurrent();
         stream << mSimulator->mBattery->voltageMax();
 
-        qDebug() << "BaseConnection::processPacket(): getstatus done, sending reply.";
+//        qDebug() << "BaseConnection::processPacket(): getstatus done, sending reply.";
 
         slotSendData(data, false);
     }
@@ -247,6 +248,9 @@ void BaseConnection::slotNewWayPointsFromRover(const QVector<WayPoint>& wayPoint
 void BaseConnection::slotWayPointReached(const WayPoint& wpt)
 {
     QMutexLocker locker(&mMutex);
+
+    qDebug() << "BaseConnection::slotWayPointReached(): reached" << wpt;
+
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
