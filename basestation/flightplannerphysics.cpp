@@ -290,7 +290,7 @@ void FlightPlannerPhysics::slotVisualize() const
     mBtWorld->debugDrawWorld();
 
     // Draw the scanVolume
-    OpenGlUtilities::drawAabb(mScanVolumeMin, mScanVolumeMax, QVector3D(0.0, 1.0, 0.0));
+    OpenGlUtilities::drawAabb(mScanVolumeMin, mScanVolumeMax, QColor(0, 0, 255, 255), 3);
 
     // Draw Octree
     if(mOctree)
@@ -322,7 +322,7 @@ void FlightPlannerPhysics::slotVisualize() const
     btVector3 min, max;
     mDeletionTriggerGhostObject->getCollisionShape()->getAabb(mDeletionTriggerTransform, min, max);
 //    qDebug() << "ghost aabb" << QVector3D(min.x(), min.y(), min.z()) << QVector3D(max.x(), max.y(), max.z());
-    OpenGlUtilities::drawAabb(QVector3D(min.x(), min.y(), min.z()), QVector3D(max.x(), max.y(), max.z()), QVector3D(1.0, 1.0, 1.0));
+    OpenGlUtilities::drawAabb(QVector3D(min.x(), min.y(), min.z()), QVector3D(max.x(), max.y(), max.z()), QColor(255, 255, 255));
 }
 
 void FlightPlannerPhysics::slotWayPointReached(const QVector3D)

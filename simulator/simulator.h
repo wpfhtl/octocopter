@@ -61,6 +61,7 @@ private:
     Joystick* mJoystick;
 
 private slots:
+//    void slotSetWindSetting(bool, float);
     void slotOgreInitialized(void);
     void slotSetTimeFactor(double);
     void slotNotifyDevicesOfNewTimeFactor();

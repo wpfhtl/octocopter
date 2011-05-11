@@ -94,6 +94,8 @@ void Simulator::slotOgreInitialized(void)
     connect(mPhysics, SIGNAL(newVehiclePose(const Pose&)), mFlightController, SLOT(slotSetVehiclePose(const Pose&)));
     connect(mPhysics, SIGNAL(newVehiclePose(const Pose&)), mStatusWidget, SLOT(slotUpdatePose(const Pose&)));
 
+    connect(mStatusWidget, SIGNAL(windDetailChanged(bool,float)), mPhysics, SLOT(slotSetWindSetting(bool, float)));
+
     // Only one of the two objects will emit motion signals depending on mJoystickEnabled
     connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mPhysics, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
     connect(mJoystick, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mPhysics, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
@@ -320,9 +322,6 @@ void Simulator::slotUpdate()
         // This will compute and emit motion commands, which are then used by vehicle.
         mFlightController->slotComputeMotionCommands();
     }
-
-    // Set wind in our simulation
-    mPhysics->slotUpdateWind();
 
     // Do the physics. This will move the vehicle, which will make the vehicle's motion state emit its new position, which will go into flightcontroller. Sweet!
     mPhysics->slotUpdatePhysics();

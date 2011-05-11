@@ -23,6 +23,7 @@ StatusWidget::StatusWidget(Simulator *simulator) : QDockWidget((QWidget*)simulat
     mCompass->setStyle(new QPlastiqueStyle);
 
     mDialogConfiguration = new DialogConfiguration(mSimulator);
+    connect(mDialogConfiguration, SIGNAL(windDetailChanged(bool,float)), SIGNAL(windDetailChanged(bool,float)));
 }
 
 StatusWidget::~StatusWidget()

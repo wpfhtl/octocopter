@@ -33,6 +33,9 @@ public slots:
 
 private slots:
 
+    void slotReadConfigurationMisc();
+    void slotSaveConfigurationMisc();
+
     void slotReadConfigurationLaserScanner();
     void slotSaveConfigurationLaserScanner();
 
@@ -41,6 +44,8 @@ private slots:
 
     void slotLaserScannerDetailChanged(QTableWidgetItem* item);
     void slotCameraDetailChanged(QTableWidgetItem* item);
+
+    void slotWindDetailChanged();
 
     void slotLaserScannerAdd();
     void slotLaserScannerDel();
@@ -51,6 +56,7 @@ private slots:
     void slotOkPressed();
 
 signals:
+    void windDetailChanged(const bool& enable, const float& factor);
     void timeFactorChanged(double);
     void simulationStart();
     void simulationPause();

@@ -39,11 +39,17 @@ private:
     Engine mEngine;
     QList<Ogre::SceneNode*> mEngineNodes;
     float mTotalVehicleWeight;
+    QVector<btVector3> mVectorWind;
 
     // for the pitch/roll-low-level-controller
     float mErrorIntegralPitch, mErrorIntegralRoll;
     float mPrevErrorPitch, mPrevErrorRoll;
     quint32 mTimeOfLastControllerUpdate;
+
+    bool mWindEnable;
+    float mWindFactor;
+
+    bool initializeWind();
 
 protected:
     btAxisSweep3 *mBtBroadphase;
@@ -76,16 +82,18 @@ public:
 
 signals:
     void newVehiclePose(const Pose&);
+    void windInitialized(const bool&);
 
 public slots:
 //    void start(void);
 //    void stop(void);
     void slotSetMotion(const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height);
-    void slotUpdateWind();
+    void slotSetWindSetting(const bool& enable, const float& factor);
     void slotSetTotalVehicleWeight(const float&);
     void slotUpdatePhysics(void);
 
 private slots:
+    void slotUpdateWind();
 //    void slotEmitVehiclePose();
 };
 

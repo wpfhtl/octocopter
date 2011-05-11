@@ -74,3 +74,15 @@ void Battery::slotPause()
 {
     mUpdateTimer.stop();
 }
+
+void Battery::slotSetCapacity(const double& capacity)
+{
+    mCapacity = capacity;
+    charge();
+}
+
+void Battery::slotSetVoltageMax(const double& voltage)
+{
+    mMaxVoltage = voltage;
+    charge();
+}

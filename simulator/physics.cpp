@@ -10,6 +10,8 @@ Physics::Physics(Simulator *simulator, OgreWidget *ogreWidget) :
 
     mTotalVehicleWeight = 2.270;
 
+    initializeWind();
+
     mErrorIntegralPitch = mErrorIntegralRoll = 0.0;
 
     // Bullet initialisation.
@@ -406,9 +408,60 @@ void Physics::slotSetMotion(const quint8& thrust, const qint8& pitch, const qint
 //    qDebug() << "llctrlout r should" << roll << "is" << currentRoll.valueDegrees() << "error" << errorRoll << "derivative" << derivativeRoll << "output" << outputRoll;
 }
 
+bool Physics::initializeWind()
+{
+    QFile windDataFile("winddata-10Hz.txt");
+    if(!windDataFile.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        emit windInitialized(false);
+        return false;
+    }
+
+    while(!windDataFile.atEnd())
+    {
+        QString line(windDataFile.readLine());
+
+        QStringList record = line.split(';');
+
+        // record now contains 7 values:
+        // 0: S is always 0
+        // 1 2 3: X, Y, Z components of the windvector, in m/s
+        // 4: T is temperature
+        // 5: V is horizontal windspeed
+        // 6: D is wind-direction in degrees
+
+        btVector3 windVector(
+                    record.at(1).toFloat(),
+                    record.at(2).toFloat(),
+                    record.at(3).toFloat()
+                    );
+
+        mVectorWind.append(windVector);
+    }
+
+    emit windInitialized(true);
+    return true;
+}
+
+void Physics::slotSetWindSetting(const bool& enable, const float& factor)
+{
+    mWindEnable = enable;
+    mWindFactor = factor;
+}
+
 void Physics::slotUpdateWind()
 {
-    // apply wind forces
+    if(mWindEnable && mWindFactor != 0.0 && !mVectorWind.empty())
+    {
+        const quint32 sampleNumber = (mSimulator->getSimulationTime() / 100) % mVectorWind.size();
+
+        btVector3 windVector = mVectorWind.at(sampleNumber);
+        mVehicleBody->applyCentralForce(windVector * mWindFactor);
+
+        qDebug() << "Physics::slotUpdateWind(): applying wind sample" << sampleNumber << ":" << windVector.x() << windVector.y() << windVector.z() << "and factor" << mWindFactor;
+    }
+    else
+        qDebug() << "Physics::slotUpdateWind(): not applying wind: enabled:" << mWindEnable << "factor" << mWindFactor << "samples:" << mVectorWind.size();
 }
 
 float Physics::getHeightAboveGround()
@@ -424,6 +477,8 @@ float Physics::getHeightAboveGround()
 
 void Physics::slotUpdatePhysics(void)
 {
+    slotUpdateWind();
+
     const int simulationTime = mSimulator->getSimulationTime(); // milliseconds
     const btScalar deltaS = std::max(0.0f, (simulationTime - mTimeOfLastPhysicsUpdate) / 1000.0f); // elapsed time since last call in seconds
     const int maxSubSteps = 20;

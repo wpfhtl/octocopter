@@ -27,10 +27,10 @@ void OpenGlUtilities::drawPoint(const QVector3D &pos)
 //    glEnd();
 }
 
-void OpenGlUtilities::drawAabb(const QVector3D &min, const QVector3D &max, const QVector3D &color)
+void OpenGlUtilities::drawAabb(const QVector3D &min, const QVector3D &max, const QColor &color, const quint8& lineWidth)
 {
-    glLineWidth(1);
-    glColor4f(color.x(), color.y(), color.z(), 0.5);
+    glLineWidth(lineWidth);
+    glColor4f(color.redF(), color.greenF(), color.blueF(), color.alphaF());
 
     glBegin(GL_LINE_STRIP);
     glVertex3f(min.x(), min.y(), min.z());

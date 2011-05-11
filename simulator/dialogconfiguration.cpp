@@ -7,6 +7,9 @@ DialogConfiguration::DialogConfiguration(Simulator *simulator) :
     qDebug() << "DialogConfiguration::DialogConfiguration()";
     setupUi(this);
 
+    mSimulator = simulator;
+    mOgreWidget = mSimulator->mOgreWidget;
+
     connect(mTableWidgetLaserScanners, SIGNAL(itemChanged(QTableWidgetItem*)), SLOT(slotLaserScannerDetailChanged(QTableWidgetItem*)));
     connect(mBtnLaserScannerAdd, SIGNAL(clicked()), SLOT(slotLaserScannerAdd()));
     connect(mBtnLaserScannerDel, SIGNAL(clicked()), SLOT(slotLaserScannerDel()));
@@ -15,6 +18,12 @@ DialogConfiguration::DialogConfiguration(Simulator *simulator) :
     connect(mBtnCameraAdd, SIGNAL(clicked()), SLOT(slotCameraAdd()));
     connect(mBtnCameraDel, SIGNAL(clicked()), SLOT(slotCameraDel()));
 
+    connect(mChkBoxWindEnable, SIGNAL(stateChanged(int)), SLOT(slotWindDetailChanged()));
+    connect(mSpinBoxWindFactor, SIGNAL(valueChanged(double)), SLOT(slotWindDetailChanged()));
+
+    connect(mSpinBoxBatteryVoltage, SIGNAL(valueChanged(double)), mSimulator->mBattery, SLOT(slotSetVoltageMax(double)));
+    connect(mSpinBoxBatteryCapacity, SIGNAL(valueChanged(double)), mSimulator->mBattery, SLOT(slotSetCapacity(double)));
+
 //    QStringList labelsCams;
 //    labelsCams << "X" << "Y" << "Z" << "Pitch" << "Roll" << "Yaw" << "Interval" << "Width" << "Height";
     mTableWidgetLaserScanners->horizontalHeader()->setVisible(true);
@@ -22,8 +31,6 @@ DialogConfiguration::DialogConfiguration(Simulator *simulator) :
     mTableWidgetMotors->horizontalHeader()->setVisible(true);
 //    mTableWidgetCameras->setHorizontalHeaderLabels(labelsCams);
 
-    mSimulator = simulator;
-    mOgreWidget = mSimulator->mOgreWidget;
 
     connect(mBtnOk, SIGNAL(clicked()), SLOT(slotOkPressed()));
 
@@ -38,6 +45,12 @@ DialogConfiguration::~DialogConfiguration()
     qDebug() << "DialogConfiguration::~DialogConfiguration(): done";
 }
 
+void DialogConfiguration::slotWindDetailChanged()
+{
+    emit windDetailChanged(mChkBoxWindEnable->isChecked(), mSpinBoxWindFactor->value());
+}
+
+
 void DialogConfiguration::slotOkPressed()
 {
     qDebug() << "SimulationControlWidget::slotOkPressed(): saving config";
@@ -49,13 +62,41 @@ void DialogConfiguration::slotReadConfiguration()
 {
     slotReadConfigurationLaserScanner();
     slotReadConfigurationCamera();
+    slotReadConfigurationMisc();
 }
 
 void DialogConfiguration::slotSaveConfiguration()
 {
     slotSaveConfigurationLaserScanner();
     slotSaveConfigurationCamera();
+    slotSaveConfigurationMisc();
     mSettings.sync();
+}
+
+void DialogConfiguration::slotReadConfigurationMisc()
+{
+    mSettings.beginGroup("misc");
+
+    mChkBoxWindEnable->setChecked(mSettings.value("windEnable").toBool());
+    mSpinBoxWindFactor->setValue(mSettings.value("windFactor").toFloat());
+
+    mSpinBoxBatteryVoltage->setValue(mSettings.value("batteryVoltage").toFloat());
+    mSpinBoxBatteryCapacity->setValue(mSettings.value("batteryCapacity").toFloat());
+
+    mSettings.endGroup();
+}
+
+void DialogConfiguration::slotSaveConfigurationMisc()
+{
+    mSettings.beginGroup("misc");
+
+    mSettings.setValue("windEnable", mChkBoxWindEnable->isChecked());
+    mSettings.setValue("windFactor", mSpinBoxWindFactor->value());
+
+    mSettings.setValue("batteryVoltage", mSpinBoxBatteryVoltage->value());
+    mSettings.setValue("batteryCapacity", mSpinBoxBatteryCapacity->value());
+
+    mSettings.endGroup();
 }
 
 void DialogConfiguration::slotReadConfigurationLaserScanner()

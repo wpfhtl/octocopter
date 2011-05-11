@@ -42,6 +42,7 @@ private slots:
     void slotShowConfiguration();
 
 signals:
+    void windDetailChanged(bool,float);
     void timeFactorChanged(double);
     void simulationStart();
     void simulationPause();

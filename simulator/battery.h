@@ -40,6 +40,8 @@ public:
 public slots:
     void slotSetDischargeCurrent(const double &current);
 //    void slotSetTimeFactor(const double &timeFactor);
+    void slotSetCapacity(const double& capacity);
+    void slotSetVoltageMax(const double& voltage);
     void slotStart();
     void slotPause();
 
