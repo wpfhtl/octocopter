@@ -20,7 +20,6 @@ class BaseConnection : public QObject
 
 private:
     mutable QMutex mMutex;
-    Simulator* mSimulator;
     QString mInterface; // used only for RSSI reading in case of WLAN connection
     QTcpSocket* mTcpSocket;
     QTcpServer* mTcpServer;
@@ -28,7 +27,7 @@ private:
 
     void processPacket(QByteArray packet);
 
-    int getRssi();
+    qint8 getRssi();
 
 private slots:
     void slotNewConnection(void);
@@ -42,7 +41,7 @@ private slots:
     void slotFlushWriteQueue(void);
 
 public:
-    BaseConnection(const QString& interface, Simulator* simulator);
+    BaseConnection(const QString& interface);
     ~BaseConnection();
 
 signals:
@@ -61,6 +60,11 @@ signals:
     // lidar-data when link is saturated. TODO: combine with RSSI?
     void networkSaturationChanged(const quint8& percentage);
 
+    // emitted when the base is requesting status information. Please collect
+    // information and call the slotNewVehicleStatus(...) slot.
+    // UNUSED, we will alays send statu, no need to request it.
+//    void statusRequested();
+
 public slots:
     // called when the rover has changed the waypoints list, will be sent to base
     void slotNewWayPointsFromRover(const QVector<WayPoint>& wayPoints);
@@ -69,15 +73,16 @@ public slots:
     void slotWayPointReached(const WayPoint&wpt);
 
     // called by rover to send updated pose to basestation (called frequently)
-    void slotPoseChanged(const Pose& pose, const quint32 receiverTime);
+    void slotPoseChanged(const Pose& pose);
 
     // called by rover to send lidarpoints to the basestation
     void slotNewLidarPoints(const QVector3D& scanPosition, const QVector<QVector3D>& points);
 
     // called by rover to send new vehicle status to basestation
     void slotNewVehicleStatus(
-        const float& batteryVoltage,
-        const float& barometricHeight
+        const quint32& missionRunTime, // milliseconds
+        const qint16& barometricHeight,
+        const float& batteryVoltage
         );
 
     // called by rover to send new gps status to basestation

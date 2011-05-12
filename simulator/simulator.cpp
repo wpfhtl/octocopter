@@ -9,6 +9,8 @@ Simulator::Simulator(void) :
 {
     qDebug() << "Simulator::Simulator()";
 
+    mClockDivisorBaseConnectionUpdate = 0;
+
     resize(1024, 768);
 
     slotShowMessage("Starting up...");
@@ -45,7 +47,7 @@ Simulator::Simulator(void) :
     mFlightController = new FlightController;
 
     // We now are probably in a state where we can service the basestation, so lets go ahead and create the connection.
-    mBaseConnection = new BaseConnection("eth0", this);
+    mBaseConnection = new BaseConnection("eth0");
     connect(mBaseConnection, SIGNAL(wayPointInsert(QString,quint16,QList<WayPoint>)), mFlightController, SLOT(slotWayPointInsert(QString,quint16,QList<WayPoint>)));
     connect(mBaseConnection, SIGNAL(wayPointDelete(QString,quint16)), mFlightController, SLOT(slotWayPointDelete(QString,quint16)));
 
@@ -327,6 +329,19 @@ void Simulator::slotUpdate()
     mPhysics->slotUpdatePhysics();
 
     mOgreWidget->slotVisualizeTrajectory(mFlightController->getLastKnownPose().position, mFlightController->getWayPoints());
+
+    // Give baseconnection 4Hz updates about pose and vehicle status
+    mClockDivisorBaseConnectionUpdate = (mClockDivisorBaseConnectionUpdate+1) % (250 / mUpdateTimer->interval());
+    if(mClockDivisorBaseConnectionUpdate == 0)
+    {
+        mBaseConnection->slotNewVehicleStatus(
+                    getSimulationTime(),
+                    mFlightController->getLastKnownPose().position.y(),
+                    mBattery->voltageCurrent()
+                    );
+
+        mBaseConnection->slotPoseChanged(mFlightController->getLastKnownPose());
+    }
 
     // At last, re-render
     mOgreWidget->update();

@@ -1,7 +1,7 @@
 #ifndef LASERSCANNER_H
 #define LASERSCANNER_H
 
-#include <UrgCtrl.h>
+#include <urg/UrgCtrl.h>
 #include "pose.h"
 #include <stdlib.h>
 #include <lidarpoint.h>
@@ -56,7 +56,7 @@ public:
 //    void run(void);
 
 public slots:
-    void slotSetPose(const Pose &pose);
+    void slotSetRelativePose(const Pose &pose);
 
     void slotEnableScanning(const bool&);
 
@@ -68,7 +68,7 @@ public slots:
     // The @pose is created by GpsDevice and then ownership is passed to LaserScanner.
     // Pose also contains a timestamp which is set to the receiver-time of when that pose
     // was recorded.
-    void slotNewVehiclePose(Pose* pose);
+    void slotNewVehiclePose(const Pose& pose);
 
 signals:
     void bottomBeamLength(const float&);

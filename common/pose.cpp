@@ -106,18 +106,30 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
     return Pose(resultPosition, yaw, pitch, roll, timestamp);
 }
 
-float Pose::normalizeAngleRadians(const float& angle)
+float Pose::getShortestTurnRadians(const float& angle)
 {
-    return DEG2RAD(normalizeAngleDegrees(RAD2DEG(angle)));
+    return DEG2RAD(getShortestTurnDegrees(RAD2DEG(angle)));
 }
 
-float Pose::normalizeAngleDegrees(const float& angle)
+float Pose::getShortestTurnDegrees(const float& angle)
 {
     float angleNew = angle;
     while(angleNew <= -180.0) angleNew += 360.0;
     while(angleNew > 180.0) angleNew -= 360.0;
     return angleNew;
 }
+
+float Pose::keepWithinRangeRadians(float angleRadians)
+{
+    // When two angles are added, e.g. 270 + 270 deg, we arrive at 540,
+    // which can be simplified to 180 degrees.
+    // This is DIFFERENT from normalizeAngle, please see its description
+    while(angleRadians > DEG2RAD(360.0)) angleRadians -= DEG2RAD(360.0);
+    while(angleRadians < DEG2RAD(-360.0)) angleRadians += DEG2RAD(360.0);
+
+    return angleRadians;
+}
+
 
 
 QVector2D Pose::getPlanarPosition() const
@@ -141,19 +153,24 @@ Pose Pose::operator*(const float &factor)
     return Pose(/*position * factor, orientation * factor*/);
 }
 
-
-//const Pose Pose::operator+(const Pose & p)
-//{
-//    return Pose(position + p.position, orientation + p.orientation);
-//}
-
-Pose* Pose::operator+(const Pose &p)
+// No idea whether the order of orientation is correct
+const QQuaternion Pose::getOrientation() const
 {
-    position += p.position;
-    setYawRadians(mYaw + p.mYaw);
-    setPitchRadians(mPitch + p.mPitch);
-    setRollRadians(mRoll + p.mRoll);
-    return this;
+    return
+            QQuaternion::fromAxisAndAngle(QVector3D(1,0,0), getPitchDegrees())
+            * QQuaternion::fromAxisAndAngle(QVector3D(0,0,1), getRollDegrees())
+            * QQuaternion::fromAxisAndAngle(QVector3D(0,1,0), getYawDegrees());
+}
+
+Pose Pose::operator+(const Pose &p) const
+{
+    return Pose(
+                position + p.position,
+                keepWithinRangeRadians(mYaw + p.getYawRadians()),
+                keepWithinRangeRadians(mPitch + p.getPitchRadians()),
+                keepWithinRangeRadians(mRoll + p.getRollRadians()),
+                (timestamp + p.timestamp)/2
+                );
 }
 
 /*const Pose Pose::operator+(const Pose &q1, const Pose &q2)

@@ -21,7 +21,7 @@ class Kopter : public QObject
         signed char   Roll;
         signed char   Gier;
         unsigned char Gas;		//gas value is limited (in the fc sw) to the gas *stick* value
-        signed char   Hight;	//sets the hight for the barometric-hight-sensor
+        signed char   Height;	//sets the hight for the barometric-hight-sensor
         unsigned char free;		//not used atm
         unsigned char Frame;	//value, which is send back by the fc for confirmation
         unsigned char Config;	//if set to 1 the ExternControl is set active
@@ -68,6 +68,7 @@ private:
 
     QextSerialPort *mSerialPortFlightCtrl;
     QByteArray mReceiveBuffer;
+    QTime mMissionStartTime;
 
     void initialize();
 
@@ -87,7 +88,7 @@ public slots:
 signals:
 //    void voltage(float);
 //    void height(qint16);
-    void kopterStatus(const qint16&, const float&);
+    void kopterStatus(const quint32 missionRunTime, const qint16& baroheight, const float& voltage);
     void externControlReplyReceived();
 
 };

@@ -52,6 +52,7 @@ public:
 private:
     mutable QMutex mMutex;
 
+    quint8 mClockDivisorBaseConnectionUpdate;
     bool mJoystickEnabled;
     QTimer* mUpdateTimer;
     double mTimeFactor;

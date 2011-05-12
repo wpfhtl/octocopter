@@ -1,5 +1,4 @@
 #include "baseconnection.h"
-#include <simulator.h>
 
 // for getRssi()
 #include <sys/ioctl.h>
@@ -7,8 +6,8 @@
 #include <sys/socket.h>
 #include <linux/wireless.h>
 
-BaseConnection::BaseConnection(const QString& interface, Simulator* simulator) :
-    QObject(simulator),
+BaseConnection::BaseConnection(const QString& interface) :
+    QObject(),
     mMutex(QMutex::NonRecursive)
 {
     QMutexLocker locker(&mMutex);
@@ -17,8 +16,6 @@ BaseConnection::BaseConnection(const QString& interface, Simulator* simulator) :
 
     mInterface = interface;
     mTcpSocket = 0;
-
-    mSimulator = simulator;
 
     mTcpServer = new QTcpServer(this);
     connect(mTcpServer, SIGNAL(newConnection()), SLOT(slotNewConnection()));
@@ -118,22 +115,12 @@ void BaseConnection::processPacket(QByteArray packet)
 //        mFlightController->slotWayPointDelete(hash, index);
         qDebug() << "BaseConnection::processPacket(): deleting waypoint" << index << "from base.";
     }
-    else if(command == "getstatus")
-    {
-        QByteArray data;
-        QDataStream stream(&data, QIODevice::WriteOnly);
+//    else if(command == "getstatus")
+//    {
+////        qDebug() << "BaseConnection::processPacket(): getstatus requested, emitting signal.";
 
-        stream << QString("status");
-        stream << mSimulator->getSimulationTime();
-        stream << mSimulator->mFlightController->getLastKnownPose();
-        stream << mSimulator->mPhysics->getVehicleLinearVelocity();
-        stream << mSimulator->mBattery->voltageCurrent();
-        stream << mSimulator->mBattery->voltageMax();
-
-//        qDebug() << "BaseConnection::processPacket(): getstatus done, sending reply.";
-
-        slotSendData(data, false);
-    }
+//        emit statusRequested();
+//    }
     else if(command == "enablescanning")
     {
         bool enable = false;
@@ -190,7 +177,7 @@ void BaseConnection::slotFlushWriteQueue()
 //        qDebug() << "BaseConnection::slotFlushWriteQueue(): mTcpSocket is 0, skipping.";
 }
 
-int BaseConnection::getRssi()
+qint8 BaseConnection::getRssi()
 {
     /* Any old socket will do, and a datagram socket is pretty cheap */
     int sockfd;
@@ -209,7 +196,7 @@ int BaseConnection::getRssi()
     if(ioctl(sockfd, SIOCGIWSTATS, &iwr) < 0)
     {
             slotNewLogMessage(QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), Error, "Could not execute SIOCGIWSTATS IOCTL");
-            return -1;
+            return 100;
     }
 
     int signalQuality = iws.qual.level;
@@ -235,7 +222,6 @@ int BaseConnection::getRssi()
 void BaseConnection::slotNewWayPointsFromRover(const QVector<WayPoint>& wayPoints)
 {
     qDebug() << "sending new waypoints to base:" << wayPoints;
-    QMutexLocker locker(&mMutex);
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
@@ -247,8 +233,6 @@ void BaseConnection::slotNewWayPointsFromRover(const QVector<WayPoint>& wayPoint
 // called by rover when it has reached a waypoint, notifies basestation
 void BaseConnection::slotWayPointReached(const WayPoint& wpt)
 {
-    QMutexLocker locker(&mMutex);
-
     qDebug() << "BaseConnection::slotWayPointReached(): reached" << wpt;
 
     QByteArray data;
@@ -261,15 +245,13 @@ void BaseConnection::slotWayPointReached(const WayPoint& wpt)
 }
 
 // called by rover to send updated pose to basestation (called frequently)
-void BaseConnection::slotPoseChanged(const Pose& pose, const quint32 receiverTime)
+void BaseConnection::slotPoseChanged(const Pose& pose)
 {
-    QMutexLocker locker(&mMutex);
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
     stream << QString("posechanged");
     stream << pose;
-    stream << receiverTime;
 
     slotSendData(data, false);
 }
@@ -278,7 +260,6 @@ void BaseConnection::slotPoseChanged(const Pose& pose, const quint32 receiverTim
 void BaseConnection::slotNewLidarPoints(const QVector3D& scanPosition, const QVector<QVector3D>& points)
 {
 //    qDebug() << "sending" << points.size() << "new lidarpoints to base";
-    QMutexLocker locker(&mMutex);
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
@@ -290,15 +271,12 @@ void BaseConnection::slotNewLidarPoints(const QVector3D& scanPosition, const QVe
 
 // called by rover to send new vehicle status to basestation
 void BaseConnection::slotNewVehicleStatus(
-    const float& batteryVoltage,
-    const float& barometricHeight
+    const quint32& missionRunTime,
+    const qint16& barometricHeight,
+    const float& batteryVoltage
     )
 {
-
-
-    QMutexLocker locker(&mMutex);
-
-    const float wirelessRssi = getRssi();
+    const qint8 wirelessRssi = getRssi();
 
     slotNewLogMessage(
                 QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
@@ -310,9 +288,10 @@ void BaseConnection::slotNewVehicleStatus(
     QDataStream stream(&data, QIODevice::WriteOnly);
 
     stream << QString("vehiclestatus");
-    stream << batteryVoltage;
-    stream << barometricHeight;
-    stream << wirelessRssi;
+    stream << (quint32)missionRunTime;
+    stream << (qint16)barometricHeight;
+    stream << (float)batteryVoltage;
+    stream << (qint8)wirelessRssi;
     slotSendData(data, false);
 }
 
@@ -327,7 +306,6 @@ void BaseConnection::slotNewGpsStatus(
     )
 {
     qDebug() << "sending new gps status to base:" << mode << info << error << numSatellitesTracked << status;
-    QMutexLocker locker(&mMutex);
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
@@ -343,7 +321,6 @@ void BaseConnection::slotNewGpsStatus(
 
 void BaseConnection::slotNewControllerDebugValues(const Pose& pose, const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height)
 {
-    QMutexLocker locker(&mMutex);
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
@@ -361,8 +338,6 @@ void BaseConnection::slotNewControllerDebugValues(const Pose& pose, const quint8
 // called by rover to send new log message to basestation
 void BaseConnection::slotNewLogMessage(const QString& source, const LogImportance& importance, const QString& text)
 {
-    QMutexLocker locker(&mMutex);
-
     qDebug() << "NewLogMsg:" << source << importance << text;
 
     QByteArray data;
@@ -370,7 +345,7 @@ void BaseConnection::slotNewLogMessage(const QString& source, const LogImportanc
 
     stream << QString("logmessage");
     stream << source;
-    stream << importance;
+    stream << (quint8)importance;
     stream << text;
     slotSendData(data, false);
 }

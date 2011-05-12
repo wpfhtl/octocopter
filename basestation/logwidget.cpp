@@ -29,7 +29,7 @@ void LogWidget::clear()
     mTextEdit->clear();
 }
 
-void LogWidget::log(const QString &text)
+void LogWidget::log(const LogImportance& importance, const QString& source, const QString& text)
 {
-    mTextEdit->append(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss:zzz") + "\t" + text);
+    mTextEdit->append(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss:zzz") + QString(" %1 %2\t%3").arg(importance).arg(source).arg(text));
 }

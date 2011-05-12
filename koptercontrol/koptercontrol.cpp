@@ -92,22 +92,20 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
         mGpsDevice = new GpsDevice(portSerialGpsUsb, portSerialGpsCom, this);
         mRtkFetcher = new RtkFetcher(rtkBaseHostName, rtkBasePort, this);
         mLaserScanner = new LaserScanner(portSerialLaserScanner, Pose());
-        mBaseConnection = new BaseConnection(networkInterface, this);
+        mBaseConnection = new BaseConnection(networkInterface);
         mFlightController = new FlightController();
 
-        connect(mLaserScanner, SIGNAL(bottomBeamLength(const float&)), mFlightController, SLOT(slotSetBottomBeamLength(const float&)));
+        connect(mKopter, SIGNAL(kopterStatus(quint32, qint16, float)), mBaseConnection, SLOT(slotNewVehicleStatus(quint32, qint16, float)));
 
-        connect(mKopter, SIGNAL(kopterStatus(const float&, const float&)), mBaseConnection, SLOT(slotNewVehicleStatus(const float&, const float&)));
+        connect(mLaserScanner, SIGNAL(bottomBeamLength(const float&)), mFlightController, SLOT(slotSetBottomBeamLength(const float&)));
 
         connect(mRtkFetcher, SIGNAL(rtkData(const QByteArray&)), mGpsDevice, SLOT(slotSetRtkData(const QByteArray&)));
 
         connect(mBaseConnection, SIGNAL(enableScanning(const bool&)), mLaserScanner, SLOT(slotEnableScanning(const bool&)));
 
-        // WARNING: The pose is created on the heap by GpsDevice and destroyed by mLaserScanner. There
-        // is NO guarantee concerning its lifetime after the pose has been passed to mLaserScanner, so
-        // either use it immediately or copy it for yourself.
-        connect(mGpsDevice, SIGNAL(newVehiclePose(Pose*)), mFlightController, SLOT(slotSetVehiclePose(Pose*)));
-        connect(mGpsDevice, SIGNAL(newVehiclePose(Pose*)), mLaserScanner, SLOT(slotNewVehiclePose(Pose*)));
+        connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mFlightController, SLOT(slotSetVehiclePose(Pose)));
+        connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mLaserScanner, SLOT(slotNewVehiclePose(Pose)));
+        connect(mGpsDevice, SIGNAL(newVehiclePoseLowFreq(Pose)), mBaseConnection, SLOT(slotPoseChanged(Pose)));
 
         connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
 
@@ -119,14 +117,14 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
                 );
 
         mTimerComputeMotion = new QTimer(this);
-        mTimerComputeMotion->setInterval(100);
+        mTimerComputeMotion->setInterval(50);
         mTimerComputeMotion->start();
         connect(mTimerComputeMotion, SIGNAL(timeout()), mFlightController, SLOT(slotComputeMotionCommands()));
 
-        mKopter->slotSubscribeDebugValues(100);
+        mKopter->slotSubscribeDebugValues(500);
 
-        connect(mKopter, SIGNAL(externControlReplyReceived()), SLOT(slotDoSomething()));
-        mKopter->slotSetMotion(fabs(sin(0.00))*40, 0, 0, 0, 0);
+//        connect(mKopter, SIGNAL(externControlReplyReceived()), SLOT(slotDoSomething()));
+//        mKopter->slotSetMotion(fabs(sin(0.00))*40, 0, 0, 0, 0);
 }
 
 KopterControl::~KopterControl()
@@ -175,24 +173,6 @@ void KopterControl::slotHandleSignal()
 int main(int argc, char **argv)
 {
     setupUnixSignalHandlers();
-
-    Pose p2(
-                QVector3D(0,0,0),
-                QQuaternion::fromAxisAndAngle(0,1,0, 40) * // Heading
-                QQuaternion::fromAxisAndAngle(1,0,0, 50) * // Pitch
-                QQuaternion::fromAxisAndAngle(0,0,1, 60), // Roll
-                0);
-
-    Pose p(
-                QVector3D(0,0,0),
-                QQuaternion::fromAxisAndAngle(0,0,1, 60) * // Roll
-                QQuaternion::fromAxisAndAngle(1,0,0, 50) * // Pitch
-                QQuaternion::fromAxisAndAngle(0,1,0, 40), // Heading
-                0);
-
-    qDebug() << "pose is" << p.getYawDegrees(true) << p.getPitchDegrees(true) << p.getRollDegrees(true);
-    exit(0);
-
 
     KopterControl KopterControl(argc, argv);
 

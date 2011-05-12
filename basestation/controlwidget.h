@@ -33,11 +33,12 @@ public:
 
 public slots:
     void slotUpdatePose(const Pose &pose);
-    void slotUpdateDynamics(QVector3D linearVelocity);
+//    void slotUpdateDynamics(QVector3D linearVelocity);
     void slotUpdateWayPoints(const QList<WayPoint>& waypoints);
-    void slotUpdateSimulationTime(const quint32& time);
-    void slotUpdateBattery(const double& voltageCurrent, const double& voltageMax);
-
+    void slotUpdateMissionRunTime(const quint32& time);
+    void slotUpdateBattery(const float& voltageCurrent);
+    void slotUpdateWirelessRssi(const qint8& wirelessRssi);
+    void slotUpdateBarometricHeight(const qint16& barometricHeight);
     // Called my FlightPlanner to add a new waypoint.
 //    void slotNewWayPoint(const WayPoint&);
     void slotNewWayPoints(const QList<WayPoint>&);

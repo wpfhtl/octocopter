@@ -62,6 +62,8 @@ void Kopter::slotTestMotors(const QList<unsigned char> &speeds)
 
 void Kopter::slotSetMotion(const quint8& thrust, const qint8& nick, const qint8& roll, const qint8& yaw, const qint8& height)
 {
+    if(!mMissionStartTime.isValid()) mMissionStartTime = QTime::currentTime();
+
     if(mPendingReplies.contains('b')) qWarning() << "Still waiting for a 'B', should not send right now!";
 
     mStructExternControl.Frame = 1;
@@ -71,7 +73,7 @@ void Kopter::slotSetMotion(const quint8& thrust, const qint8& nick, const qint8&
     mStructExternControl.Roll = roll;
     mStructExternControl.Gas = thrust;
     mStructExternControl.Gier = yaw;
-    mStructExternControl.Hight = height;
+    mStructExternControl.Height = height;
 
     KopterMessage message(1, 'b', QByteArray((const char *)&mStructExternControl, sizeof(mStructExternControl)));
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
@@ -180,18 +182,22 @@ void Kopter::slotSerialPortDataReady()
                     QByteArray payload = message.getPayload();
                     const DebugOut* debugOut = (DebugOut*)payload.data();
 
-                    emit kopterStatus(debugOut->Analog[5], (float)(debugOut->Analog[9])/10.0);
+                    emit kopterStatus(
+                                (quint32)mMissionStartTime.msecsTo(QTime::currentTime()),
+                                debugOut->Analog[5],
+                                (float)(debugOut->Analog[9])/10.0
+                                );
 
                     /*
                     for(int i=0;i<32;i++)
                     {
-//                        qDebug() << QTime::currentTime() << "Kopter::slotSerialPortDataReady(): value" << i<< mAnalogValueLabels.value(i) << "is" << debugOut->Analog[i];
+                        qDebug() << QTime::currentTime() << "Kopter::slotSerialPortDataReady(): value" << i<< mAnalogValueLabels.value(i) << "is" << debugOut->Analog[i];
 
                         switch(i)
                         {
                         // Here you can emit values you're interested in.
                         case 5:
-//                            qDebug() << "kopter height is" << debugOut->Analog[i];
+                            qDebug() << "kopter height is" << debugOut->Analog[i];
                             emit height(debugOut->Analog[i]);
                             break;
                         case 9:

@@ -2,6 +2,7 @@
 #define LOGWIDGET_H
 
 #include <QtGui>
+#include <common.h>
 #include "ui_logwidget.h"
 
 class LogWidget : public QDockWidget, public Ui::LogWidget
@@ -17,7 +18,7 @@ public:
 //    ~LogWidget();
 
 public slots:
-    void log(const QString &text);
+    void log(const LogImportance& importance, const QString& source, const QString& text);
     void save();
     void clear();
 

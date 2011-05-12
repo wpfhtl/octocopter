@@ -21,9 +21,8 @@ public:
     Pose(const QVector3D &position, const float &yaw, const float &pitch, const float &roll, const quint32& timestamp = 0);
     Pose();
 
-
     QVector3D position;
-//    QQuaternion orientation;
+    const QQuaternion getOrientation() const;
 
     // This is the GPS Time-Of-Week, specified in milliseconds since last Sunday, 00:00:00 AM (midnight)
     quint32 timestamp;
@@ -33,14 +32,19 @@ public:
     // Returns a pose between @before and @after, also needs @first and @last, as its bicubic
     static Pose interpolateCubic(const Pose * const first, const Pose * const before, const Pose * const after, const Pose * const last, const float &mu);
 
-    static float normalizeAngleRadians(const float& angle);
-    static float normalizeAngleDegrees(const float& angle);
+    // Returns the shortest turn to an angle. For example:
+    // 359 => -1
+    // 181 => -179
+    // -270 => 90
+    static float getShortestTurnRadians(const float& angle);
+    static float getShortestTurnDegrees(const float& angle);
+    static float keepWithinRangeRadians(float angleRadians);
 
     Pose operator*(const float &factor);
 //    Pose operator*(const float &factor);
 //    const Pose operator+(const Pose & p);
 
-    Pose* operator+(const Pose &p);
+    Pose operator+(const Pose &p) const;
 //    friend inline const Pose operator+(const Pose &q1, const Pose &q2);
 
     QVector2D getPlanarPosition() const;
@@ -57,21 +61,21 @@ public:
 
 
 
-    static float getRollRadians(const QQuaternion& orientation, bool reprojectAxis);
     static float getPitchRadians(const QQuaternion& orientation, bool reprojectAxis);
+    static float getRollRadians(const QQuaternion& orientation, bool reprojectAxis);
     static float getYawRadians(const QQuaternion& orientation, bool reprojectAxis);
 
     float getPitchRadians() const {return mPitch;};
     float getRollRadians() const {return mRoll;};
     float getYawRadians() const {return mYaw;};
 
-    float getRollDegrees() const {return 180.0 * mRoll / M_PI;};
-    float getPitchDegrees() const {return 180.0 * mPitch / M_PI;};
-    float getYawDegrees() const {return 180.0 * mYaw / M_PI;};
+    float getPitchDegrees() const {return RAD2DEG(mPitch);};
+    float getRollDegrees() const {return RAD2DEG(mRoll);};
+    float getYawDegrees() const {return RAD2DEG(mYaw);};
 
-    void setYawRadians(const float& yaw) {mYaw = /*normalizeAngleRadians*/(yaw);};
     void setPitchRadians(const float& pitch) {mPitch = /*normalizeAngleRadians*/(pitch);};
     void setRollRadians(const float& roll) {mRoll = /*normalizeAngleRadians*/(roll);};
+    void setYawRadians(const float& yaw) {mYaw = /*normalizeAngleRadians*/(yaw);};
 
 signals:
 

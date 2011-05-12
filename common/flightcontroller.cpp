@@ -77,7 +77,7 @@ void FlightController::slotComputeMotionCommands()
 
         const QVector2D directionVectorToNextWayPoint = (nextWayPoint.getPositionOnPlane() - mLastKnownVehiclePose.getPlanarPosition());//.normalized();
         const float angleBetweenVehicleNorthAndNextWayPoint = atan2(-directionVectorToNextWayPoint.x(), -directionVectorToNextWayPoint.y());
-        const float angleToTurnToWayPoint = Pose::normalizeAngleRadians(angleBetweenVehicleNorthAndNextWayPoint - mLastKnownVehiclePose.getYawRadians());
+        const float angleToTurnToWayPoint = Pose::getShortestTurnRadians(angleBetweenVehicleNorthAndNextWayPoint - mLastKnownVehiclePose.getYawRadians());
 
 //        qDebug() << "mLastKnownVehiclePose.getPlanarPosition()" << mLastKnownVehiclePose.getPlanarPosition();
 //        qDebug() << "nextWayPoint.getPositionOnPlane():" << nextWayPoint.getPositionOnPlane();
@@ -94,7 +94,7 @@ void FlightController::slotComputeMotionCommands()
         static double Ki = 1.2;
         static double Kd = 0.6;
 
-        double errorYaw = mDesiredYaw - Pose::normalizeAngleDegrees(mLastKnownVehiclePose.getYawDegrees());
+        double errorYaw = mDesiredYaw - Pose::getShortestTurnDegrees(mLastKnownVehiclePose.getYawDegrees());
         mErrorIntegralYaw += errorYaw*timeDiff;
         double derivativeYaw = (errorYaw - mPrevErrorYaw + 0.00001)/timeDiff;
         double outputYaw = (Kp*errorYaw) + (Ki*mErrorIntegralYaw) + (Kd*derivativeYaw);

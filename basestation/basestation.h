@@ -78,7 +78,7 @@ private slots:
     void slotWayPointDelete(QString, int);
 
     void slotSendData(const QByteArray &data);
-    void slotGetStatus(void);
+//    void slotGetStatus(void);
 
 public:
     BaseStation(void);

@@ -35,6 +35,8 @@ ControlWidget::ControlWidget(BaseStation* baseStation) : QDockWidget((QWidget*)b
 
     mCompass->setStyle(new QPlastiqueStyle);
 
+    mBarWirelessRssi->setRange(0, 100);
+
 //    mDialogConfiguration = new DialogConfiguration(mSimulator);
 
     resize(minimumSizeHint());
@@ -222,10 +224,9 @@ void ControlWidget::slotNewWayPoints(const QList<WayPoint>& waypoints)
     mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
 }
 
-void ControlWidget::slotUpdateBattery(const double& voltageCurrent, const double& voltageMax)
+void ControlWidget::slotUpdateBattery(const float& voltageCurrent)
 {
-    mLabelBatteryVoltageCurrent->setText(QString::number(voltageCurrent, 'f', 2) + " V");
-    mLabelBatteryVoltage->setText(QString::number(voltageMax, 'f', 2) + " V");
+    mLabelBatteryVoltage->setText(QString::number(voltageCurrent, 'f', 2) + " V");
 }
 
 void ControlWidget::slotUpdatePose(const Pose &pose)
@@ -251,14 +252,14 @@ void ControlWidget::slotUpdatePose(const Pose &pose)
     mCompass->setValue(pose.getYawDegrees()+180);
 }
 
-void ControlWidget::slotUpdateDynamics(QVector3D linearVelocity)
+/*void ControlWidget::slotUpdateDynamics(QVector3D linearVelocity)
 {
     // flight dynamics
     mLabelSpeed->setText(QString::number(linearVelocity.length(), 'f', 4) + " m/s");
     mLabelSpeedVertical->setText(QString::number(linearVelocity.y(), 'f', 4) + " m/s");
     linearVelocity.setY(0.0);
     mLabelSpeedHorizontal->setText(QString::number(linearVelocity.length(), 'f', 4) + " m/s");
-}
+}*/
 
 void ControlWidget::slotUpdateWayPoints(const QList<WayPoint>& waypoints)
 {
@@ -283,7 +284,7 @@ void ControlWidget::slotUpdateWayPoints(const QList<WayPoint>& waypoints)
     mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
 }
 
-void ControlWidget::slotUpdateSimulationTime(const quint32& time)
+void ControlWidget::slotUpdateMissionRunTime(const quint32& time)
 {
 
     const int secsPassed = time / 1000;
@@ -291,9 +292,19 @@ void ControlWidget::slotUpdateSimulationTime(const quint32& time)
     const int mins = (secsPassed+1) / 60;
     const int hours = (mins+1) / 60;
 
-    mLabelDuration->setText(
+    mLabelMissionRunTime->setText(
             QString("%1:%2:%3").arg(QString::number(hours), 2, '0').arg(QString::number(mins), 2, '0').arg(QString::number(secs), 2, '0')
             );
+}
+
+void ControlWidget::slotUpdateWirelessRssi(const qint8& wirelessRssi)
+{
+    mBarWirelessRssi->setValue(wirelessRssi);
+}
+
+void ControlWidget::slotUpdateBarometricHeight(const qint16& barometricHeight)
+{
+    mLabelBarometricHeight->setText(QString::number(barometricHeight));
 }
 
 void ControlWidget::slotSetScanVolume()

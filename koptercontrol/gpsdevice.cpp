@@ -4,6 +4,8 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
 {
     qDebug() << "GpsDevice::GpsDevice(): Using usb port" << serialDeviceFileUsb << "and com port" << serialDeviceFileCom;
 
+    mPoseClockDivisor = 0;
+
     mNumberOfRemainingRepliesUsb = 0;
     mRtkDataCounter = 0;
     mSerialPortOnDeviceUsb = "";
@@ -622,16 +624,19 @@ void GpsDevice::processSbfData()
                 const float  lon = ((float)block->Lon) / 10000000.0;
                 const float  lat = ((float)block->Lat) / 10000000.0;
                 const float  alt = ((float)block->Alt) / 1000.0;
-                emit newVehiclePose(
-                            Pose(
-                                // TODO: use PosFine, see SBF reference guide, page 80?
-                                convertGeodeticToCartesian(lon, lat, alt),
-                                QQuaternion::fromAxisAndAngle(0,1,0, ((float)block->Heading) * 0.001) *
-                                QQuaternion::fromAxisAndAngle(1,0,0, ((float)block->Pitch) * 0.001) *
-                                QQuaternion::fromAxisAndAngle(0,0,1, ((float)block->Roll) * 0.001),
-                                block->TOW // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
-                                )
+                Pose p(
+                            // TODO: use PosFine, see SBF reference guide, page 80?
+                            convertGeodeticToCartesian(lon, lat, alt),
+                            QQuaternion::fromAxisAndAngle(0,1,0, ((float)block->Heading) * 0.001) *
+                            QQuaternion::fromAxisAndAngle(1,0,0, ((float)block->Pitch) * 0.001) *
+                            QQuaternion::fromAxisAndAngle(0,0,1, ((float)block->Roll) * 0.001),
+                            block->TOW // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
                             );
+
+                emit newVehiclePose(p);
+
+                mPoseClockDivisor = mPoseClockDivisor % 20;
+                if(mPoseClockDivisor % 20 == 0) emit newVehiclePoseLowFreq(p);
 
                 qDebug() << "position is" << lon << lat << alt;
             }

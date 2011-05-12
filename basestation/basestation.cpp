@@ -68,7 +68,7 @@ BaseStation::BaseStation() : QMainWindow()
     mPlotWidget->createCurve("pRoll");
     mPlotWidget->createCurve("pYaw");
 
-    mLogWidget->log("startup finished, ready.");
+    mLogWidget->log(Information, "BaseStation::BaseStation()", "startup finished, ready.");
 
     slotConnect();
 }
@@ -81,7 +81,7 @@ void BaseStation::slotSocketDisconnected()
 {
     qDebug() << "BaseStation::slotConnectionEnded()";
 
-    mLogWidget->log("connection closed, retrying...");
+    mLogWidget->log(Warning, "BaseStation::slotSocketDisconnected()", "connection closed, retrying...");
 
     mTimerUpdateStatus->stop();
 
@@ -92,7 +92,7 @@ void BaseStation::slotSocketConnected()
 {
     qDebug() << "BaseStation::slotSocketConnected()";
 
-    mLogWidget->log("connection established.");
+    mLogWidget->log(Information, "BaseStation::slotSocketConnected()", "connection established.");
 
     mTimerUpdateStatus->start();
 }
@@ -104,9 +104,15 @@ void BaseStation::slotExportCloud()
     if(fileName.isNull()) return;
 
     if(CloudExporter::savePly(this, mOctree, fileName))
-      QMessageBox::information(this, "Cloud export", "Successfully wrote cloud to\n" + fileName, "OK");
+    {
+        mLogWidget->log(Information, "BaseStation::slotExportCloud()", "Successfully wrote cloud to " + fileName);
+        QMessageBox::information(this, "Cloud export", "Successfully wrote cloud to\n" + fileName, "OK");
+    }
     else
+    {
+        mLogWidget->log(Error, "BaseStation::slotExportCloud()", "Failed saving cloud to file " + fileName);
         QMessageBox::information(this, "Cloud export", "Failed saving cloud to file\n\n" + fileName, "OK");
+    }
 }
 
 void BaseStation::addRandomPoint()
@@ -121,7 +127,7 @@ void BaseStation::addRandomPoint()
                     )
             );
 
-    mLogWidget->log("added random point.");
+    mLogWidget->log(Information, "BaseStation::addRandomPoint()", "added random point.");
 }
 
 void BaseStation::keyPressEvent(QKeyEvent* event)
@@ -181,7 +187,7 @@ void BaseStation::processPacket(QByteArray data)
         stream >> scannerPosition;
         stream >> pointList;
 
-        mLogWidget->log(QString("received %1 points, inserting...").arg(pointList.size()));
+//        mLogWidget->log(QString("received %1 points, inserting...").arg(pointList.size()));
 
         int i=0;
         foreach(const QVector3D &p, pointList)
@@ -195,7 +201,7 @@ void BaseStation::processPacket(QByteArray data)
 
         mGlWidget->update();
 
-        mLogWidget->log(QString("%1 points using %2 MB, %3 nodes, %4 points added.").arg(mOctree->getNumberOfItems()).arg((mOctree->getNumberOfItems()*sizeof(LidarPoint))/1000000.0, 2, 'g').arg(mOctree->getNumberOfNodes()).arg(pointList.size()));
+        mLogWidget->log(Information, "BaseStation::processPacket()", QString("%1 points using %2 MB, %3 nodes, %4 points added.").arg(mOctree->getNumberOfItems()).arg((mOctree->getNumberOfItems()*sizeof(LidarPoint))/1000000.0, 2, 'g').arg(mOctree->getNumberOfNodes()).arg(pointList.size()));
 
 //        qDebug() << "appended" << pointList.size() << "points to octree.";
     }
@@ -226,22 +232,28 @@ void BaseStation::processPacket(QByteArray data)
         win->slotSetPixmapData(image);
         win->show();
     }
-    else if(packetType == "status")
+    else if(packetType == "vehiclestatus")
     {
-        QVector3D linearVelocity;
-        quint32 simulationTime;
-        double batteryVoltageMax, batteryVoltageCurrent;
+        quint32 missionRunTime;
+        float batteryVoltage;
+        qint16 barometricHeight;
+        qint8 wirelessRssi;
 
-        stream >> simulationTime;
+        stream >> missionRunTime;
+        stream >> barometricHeight;
+        stream >> batteryVoltage;
+        stream >> wirelessRssi;
+
+        mControlWidget->slotUpdateMissionRunTime(missionRunTime);
+        mControlWidget->slotUpdateBattery(batteryVoltage);
+        mControlWidget->slotUpdateBarometricHeight(barometricHeight);
+        mControlWidget->slotUpdateWirelessRssi(wirelessRssi);
+    }
+    else if(packetType == "posechanged")
+    {
         stream >> mVehiclePose;
-        stream >> linearVelocity;
-        stream >> batteryVoltageCurrent;
-        stream >> batteryVoltageMax;
 
-        mControlWidget->slotUpdateSimulationTime(simulationTime);
         mControlWidget->slotUpdatePose(mVehiclePose);
-        mControlWidget->slotUpdateDynamics(linearVelocity);
-        mControlWidget->slotUpdateBattery(batteryVoltageCurrent, batteryVoltageMax);
     }
     else if(packetType == "waypoints")
     {
@@ -258,14 +270,18 @@ void BaseStation::processPacket(QByteArray data)
 
         mControlWidget->slotRoverReachedNextWayPoint();
 
-        mLogWidget->log(QString("reached waypoint %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
+        mLogWidget->log(Information, "BaseStation::processPacket()", QString("reached waypoint %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
     }
-    else if(packetType == "message")
+    else if(packetType == "logmessage")
     {
-        QString text;
+        quint8 importance;
+        QString source, text;
+
+        stream >> source;
+        stream >> importance;
         stream >> text;
 
-        mLogWidget->log(QString("rover: ") + text);
+        mLogWidget->log((LogImportance)importance, ">" + source, text);
     }
     else if(packetType == "controllervalues")
     {
@@ -289,22 +305,22 @@ void BaseStation::processPacket(QByteArray data)
     else
     {
         qDebug() << "BaseStation::processPacket(): unknown packetType" << packetType;
-        mLogWidget->log("unknown packetType: " + packetType);
+        mLogWidget->log(Error, "BaseStation::processPacket()", "unknown packetType: " + packetType);
         mIncomingDataBuffer.clear();
     }
 }
 
-void BaseStation::slotGetStatus()
-{
-//    mLogWidget->log("asking rover for status.");
+//void BaseStation::slotGetStatus()
+//{
+////    mLogWidget->log("asking rover for status.");
 
-    QByteArray data;
-    QDataStream stream(&data, QIODevice::WriteOnly);
+//    QByteArray data;
+//    QDataStream stream(&data, QIODevice::WriteOnly);
 
-    stream << QString("getstatus");
+//    stream << QString("getstatus");
 
-    slotSendData(data);
-}
+//    slotSendData(data);
+//}
 
 void BaseStation::slotWayPointInsert(QString hash, int index, const QList<WayPoint>& wayPoints)
 {
@@ -316,7 +332,7 @@ void BaseStation::slotWayPointInsert(QString hash, int index, const QList<WayPoi
     stream << (quint16)index;
     stream << wayPoints;
 
-    mLogWidget->log(QString("inserting %1 waypoints").arg(wayPoints.size()));
+    mLogWidget->log(Information, "BaseStation::slotWayPointInsert()", QString("inserting %1 waypoints").arg(wayPoints.size()));
 
     slotSendData(data);
 }
@@ -330,7 +346,7 @@ void BaseStation::slotWayPointDelete(QString hash, int index)
     stream << hash;
     stream << (quint16)index;
 
-    mLogWidget->log(QString("deleting waypoint at index %4").arg(index));
+    mLogWidget->log(Information, "BaseStation::slotWayPointDelete()", QString("deleting waypoint at index %4").arg(index));
 
     slotSendData(data);
 }

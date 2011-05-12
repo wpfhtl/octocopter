@@ -50,7 +50,7 @@ void LaserScanner::run()
 //    return mRelativePose;
 //}
 
-void LaserScanner::slotSetPose(const Pose &pose)
+void LaserScanner::slotSetRelativePose(const Pose &pose)
 {
     mRelativePose = pose;
 }
@@ -120,7 +120,7 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
                             (*mScanDistancesCurrent)[i],
                             0.0);
 
-                LidarPoint point(p.orientation.rotatedVector(rayPos) + p.position, QVector3D(), (*mScanDistancesCurrent)[i]);
+                LidarPoint point(p.getOrientation().rotatedVector(rayPos) + p.position, QVector3D(), (*mScanDistancesCurrent)[i]);
                 qDebug() << "scanned lidarpointpoint from" << p << "is" << point;
 
                 mPoints.append(point);
@@ -134,10 +134,10 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
 //    sendPointsToBase();
 }
 
-void LaserScanner::slotNewVehiclePose(Pose* pose)
+void LaserScanner::slotNewVehiclePose(const Pose& pose)
 {
     QMutexLocker locker(&mMutex);
-    qDebug() << "LaserScanner::slotNewPose(): received a scan-pose from gps-device at time" << pose->timestamp;
+    qDebug() << "LaserScanner::slotNewPose(): received a scan-pose from gps-device at time" << pose.timestamp;
 
     // The hokuyo finished a scan and sent a falling edge to the GpsDevice, which now notifies us of
     // this scan together with the pose in which scanning finished.
@@ -147,7 +147,7 @@ void LaserScanner::slotNewVehiclePose(Pose* pose)
     mScannerPoseFirst = mScannerPoseBefore;
     mScannerPoseBefore = mScannerPoseAfter;
     mScannerPoseAfter = mScannerPoseLast;
-    mScannerPoseLast = *pose + mRelativePose;
+    mScannerPoseLast = new Pose(pose + mRelativePose);
 }
 
 void LaserScanner::slotEnableScanning(const bool& enabled)

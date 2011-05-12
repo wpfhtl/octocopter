@@ -72,7 +72,7 @@ SET(CMAKE_BUILD_TYPE "Debug")
 
 INCLUDE_DIRECTORIES(
     /usr/include
-    urg/usr/include/urg/
+    /usr/local/include
     ${SDL_INCLUDE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
