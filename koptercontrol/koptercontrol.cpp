@@ -103,6 +103,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
         connect(mRtkFetcher, SIGNAL(rtkData(const QByteArray&)), mGpsDevice, SLOT(slotSetRtkData(const QByteArray&)));
 
         connect(mBaseConnection, SIGNAL(enableScanning(const bool&)), mLaserScanner, SLOT(slotEnableScanning(const bool&)));
+        connect(mBaseConnection, SIGNAL(rtkDataReady(const QByteArray&)), mGpsDevice, SLOT(slotSetRtkData(const QByteArray&)))
 
         connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mFlightController, SLOT(slotSetVehiclePose(Pose)));
         connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mLaserScanner, SLOT(slotNewVehiclePose(Pose)));

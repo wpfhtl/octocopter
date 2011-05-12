@@ -20,6 +20,7 @@ class BaseConnection : public QObject
 
 private:
     mutable QMutex mMutex;
+    int mSockfd; // socket for reading RSSI
     QString mInterface; // used only for RSSI reading in case of WLAN connection
     QTcpSocket* mTcpSocket;
     QTcpServer* mTcpServer;
@@ -59,6 +60,8 @@ signals:
     // emitted to indicate saturation of connection. Idea is to send less
     // lidar-data when link is saturated. TODO: combine with RSSI?
     void networkSaturationChanged(const quint8& percentage);
+
+    void rtkDataReady(const QByteArray&);
 
     // emitted when the base is requesting status information. Please collect
     // information and call the slotNewVehicleStatus(...) slot.

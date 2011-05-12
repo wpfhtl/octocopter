@@ -11,7 +11,6 @@
 
 #include "kopter.h"
 #include "gpsdevice.h"
-#include "rtkfetcher.h"
 #include "laserscanner.h"
 #include "baseconnection.h"
 #include "flightcontroller.h"
@@ -36,7 +35,6 @@ class KopterControl : public QCoreApplication
         Kopter *mKopter;
         FlightController *mFlightController;
         GpsDevice *mGpsDevice;
-        RtkFetcher *mRtkFetcher;
         LaserScanner *mLaserScanner;
         BaseConnection *mBaseConnection;
 
