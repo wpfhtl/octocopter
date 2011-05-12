@@ -73,6 +73,8 @@ public slots:
 signals:
     void bottomBeamLength(const float&);
 
+    void message(const LogImportance, const QString& source, const QString &text);
+
     void newLidarPoints(const QVector<LidarPoint>&);
 };
 

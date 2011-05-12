@@ -14,6 +14,9 @@ BaseConnection::BaseConnection(const QString& interface) :
 
     qDebug() << "BaseConnection::BaseConnection()";
 
+    /* Any old socket will do, and a datagram socket is pretty cheap */
+    mSockfd = socket(AF_INET, SOCK_DGRAM, 0);
+
     mInterface = interface;
     mTcpSocket = 0;
 
@@ -127,6 +130,12 @@ void BaseConnection::processPacket(QByteArray packet)
         stream >> enable;
         emit enableScanning(enable);
     }
+    else if(command == "rtkdata")
+    {
+        QByteArray rtkData;
+        stream >> rtkData;
+        emit rtkDataReady(rtkData);
+    }
     else
     {
         qDebug() << "UNKNOWN COMMAND" << command;
@@ -179,10 +188,11 @@ void BaseConnection::slotFlushWriteQueue()
 
 qint8 BaseConnection::getRssi()
 {
-    /* Any old socket will do, and a datagram socket is pretty cheap */
-    int sockfd;
-    if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
-        slotNewLogMessage(QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), Error, "Could not create simple datagram socket");
+    if((mSockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
+    {
+        slotNewLogMessage(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Could not create simple datagram socket");
+        return -1;
+    }
 
     struct iwreq iwr;
     struct iw_statistics iws;
@@ -193,9 +203,9 @@ qint8 BaseConnection::getRssi()
     iwr.u.data.flags = 1;
     strncpy(iwr.ifr_name, mInterface.toAscii(), IFNAMSIZ);
 
-    if(ioctl(sockfd, SIOCGIWSTATS, &iwr) < 0)
+    if(ioctl(mSockfd, SIOCGIWSTATS, &iwr) < 0)
     {
-            slotNewLogMessage(QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), Error, "Could not execute SIOCGIWSTATS IOCTL");
+            slotNewLogMessage(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Could not execute SIOCGIWSTATS IOCTL");
             return 100;
     }
 
@@ -203,7 +213,7 @@ qint8 BaseConnection::getRssi()
 
     if(signalQuality == 0 || iws.qual.updated & IW_QUAL_QUAL_INVALID || iws.qual.updated & IW_QUAL_ALL_INVALID)
     {
-        slotNewLogMessage(QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), Error, "link quality reading invalid");
+        slotNewLogMessage(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "link quality reading invalid");
         return -1;
     }
 
@@ -278,11 +288,11 @@ void BaseConnection::slotNewVehicleStatus(
 {
     const qint8 wirelessRssi = getRssi();
 
-    slotNewLogMessage(
-                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                Information,
-                QString("sending vehicle status to base: voltage: %1, baro-height: %2, rssi %3.").arg(batteryVoltage).arg(barometricHeight).arg(wirelessRssi)
-                );
+//    slotNewLogMessage(
+//                Information,
+//                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
+//                QString("sending vehicle status to base: voltage: %1, baro-height: %2, rssi %3.").arg(batteryVoltage).arg(barometricHeight).arg(wirelessRssi)
+//                );
 
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
@@ -336,7 +346,7 @@ void BaseConnection::slotNewControllerDebugValues(const Pose& pose, const quint8
 }
 
 // called by rover to send new log message to basestation
-void BaseConnection::slotNewLogMessage(const QString& source, const LogImportance& importance, const QString& text)
+void BaseConnection::slotNewLogMessage(const LogImportance& importance, const QString& source, const QString& text)
 {
     qDebug() << "NewLogMsg:" << source << importance << text;
 

@@ -88,11 +88,12 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
         qDebug() << "KopterControl::KopterControl(): using laserscanner at" << portSerialLaserScanner;
         qDebug() << "KopterControl::KopterControl(): reading RSSI at interface" << networkInterface;
 
+        mBaseConnection = new BaseConnection(networkInterface);
         mKopter = new Kopter(portSerialKopter, this);
         mGpsDevice = new GpsDevice(portSerialGpsUsb, portSerialGpsCom, this);
         mRtkFetcher = new RtkFetcher(rtkBaseHostName, rtkBasePort, this);
         mLaserScanner = new LaserScanner(portSerialLaserScanner, Pose());
-        mBaseConnection = new BaseConnection(networkInterface);
+        connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
         mFlightController = new FlightController();
 
         connect(mKopter, SIGNAL(kopterStatus(quint32, qint16, float)), mBaseConnection, SLOT(slotNewVehicleStatus(quint32, qint16, float)));

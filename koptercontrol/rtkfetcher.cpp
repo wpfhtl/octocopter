@@ -4,8 +4,8 @@ RtkFetcher::RtkFetcher(const QString &hostName, const uint &port, QObject* paren
 {
       qDebug() << "RtkFetcher::RtkFetcher()";
 
-          mNumberOfRemainingReplies = 0;
-    mSerialPortOnDevice = "";
+      mNumberOfRemainingReplies = 0;
+      mSerialPortOnDevice = "";
 
       mRemoteHost = hostName;
       mRemotePort = port;
@@ -46,25 +46,25 @@ void RtkFetcher::slotSocketDataReady()
 
     if(mNumberOfRemainingReplies != 0)
     {
-	const int position = mReceiveBuffer.indexOf(mSerialPortOnDevice + QString(">"));
-	if(position != -1)
-	{
-	    qDebug() << "RtkFetcher::slotSerialPortDataReady(): received reply to" << mLastCommandToDevice.trimmed() << ":" << mReceiveBuffer.left(position).trimmed();
-	    qDebug() << "RtkFetcher::slotSerialPortDataReady(): now sending next command, if any";
+        const int position = mReceiveBuffer.indexOf(mSerialPortOnDevice + QString(">"));
+        if(position != -1)
+        {
+            qDebug() << "RtkFetcher::slotSerialPortDataReady(): received reply to" << mLastCommandToDevice.trimmed() << ":" << mReceiveBuffer.left(position).trimmed();
+            qDebug() << "RtkFetcher::slotSerialPortDataReady(): now sending next command, if any";
 
-	    if(mReceiveBuffer.left(position).contains("$R? ASCII commands between prompts were discarded!")) qDebug() << "RtkFetcher::slotSerialPortDataReady(): it seems we were talking too fast?!";
+            if(mReceiveBuffer.left(position).contains("$R? ASCII commands between prompts were discarded!")) qDebug() << "RtkFetcher::slotSerialPortDataReady(): it seems we were talking too fast?!";
 
-	    mReceiveBuffer.remove(0, position+5);
-	    mNumberOfRemainingReplies--;
-	    slotFlushCommandQueue();
-	}
+            mReceiveBuffer.remove(0, position+5);
+            mNumberOfRemainingReplies--;
+            slotFlushCommandQueue();
+        }
     }
     else
     {
-	// We're not waiting for a reply to a command, this must be correction data!
-	qDebug() << "RtkFetcher::slotSerialPortDataReady(): emitting" << mReceiveBuffer.size() << "bytes of correction data.";
-	emit rtkData(mReceiveBuffer);
-	mReceiveBuffer.clear();
+        // We're not waiting for a reply to a command, this must be correction data!
+        qDebug() << "RtkFetcher::slotSerialPortDataReady(): emitting" << mReceiveBuffer.size() << "bytes of correction data.";
+        emit rtkData(mReceiveBuffer);
+        mReceiveBuffer.clear();
     }
 }
 
@@ -74,11 +74,11 @@ void RtkFetcher::slotSocketStateChanged(QAbstractSocket::SocketState socketState
 
       if(socketState == QAbstractSocket::ConnectedState && mSerialPortOnDevice.isEmpty())
       {
-	determineSerialPortOnDevice();
+        determineSerialPortOnDevice();
 
-	rtkOutputInitialize();
+        rtkOutputInitialize();
 
-	rtkOutputStart();
+        rtkOutputStart();
       }
 }
 
@@ -108,20 +108,20 @@ void RtkFetcher::slotFlushCommandQueue()
 {
     if(mNumberOfRemainingReplies == 0 && mCommandQueue.size())
     {
-	mLastCommandToDevice = mCommandQueue.takeFirst();
-	qDebug() << "RtkFetcher::slotFlushCommandQueue(): currently not waiting for a reply, so sending next command:" << mLastCommandToDevice.trimmed();
-	if(mReceiveBuffer.size() != 0) qDebug() << "RtkFetcher::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << mReceiveBuffer;
+        mLastCommandToDevice = mCommandQueue.takeFirst();
+        qDebug() << "RtkFetcher::slotFlushCommandQueue(): currently not waiting for a reply, so sending next command:" << mLastCommandToDevice.trimmed();
+        if(mReceiveBuffer.size() != 0) qDebug() << "RtkFetcher::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << mReceiveBuffer;
 
-	mTcpSocket->write(mLastCommandToDevice);
-	mNumberOfRemainingReplies++;
+        mTcpSocket->write(mLastCommandToDevice);
+        mNumberOfRemainingReplies++;
     }
     else if(mNumberOfRemainingReplies)
     {
-	qDebug() << "RtkFetcher::slotFlushCommandQueue(): still waiting for" << mNumberOfRemainingReplies << "command-replies, not sending.";
+        qDebug() << "RtkFetcher::slotFlushCommandQueue(): still waiting for" << mNumberOfRemainingReplies << "command-replies, not sending.";
     }
     else
     {
-	qDebug() << "RtkFetcher::slotFlushCommandQueue(): nothing to send.";
+        qDebug() << "RtkFetcher::slotFlushCommandQueue(): nothing to send.";
     }
 }
 
@@ -143,13 +143,13 @@ void RtkFetcher::determineSerialPortOnDevice()
     // Use line sending with e.g. COM2 or USB1 to determine the port on the serial device being used.
     if(data.right(1) == ">" && (port.left(3) == "COM" || port.left(3) == "USB"))
     {
-	mSerialPortOnDevice = port;
-	qDebug() << "RtkFetcher::determineSerialPortOnDevice(): serial port on device is now " << mSerialPortOnDevice;
-	qDebug() << "RtkFetcher::determineSerialPortOnDevice(): other non-rtk data:" << data;
+        mSerialPortOnDevice = port;
+        qDebug() << "RtkFetcher::determineSerialPortOnDevice(): serial port on device is now " << mSerialPortOnDevice;
+        qDebug() << "RtkFetcher::determineSerialPortOnDevice(): other non-rtk data:" << data;
     }
     else
     {
-	qFatal("RtkFetcher::determineSerialPortOnDevice(): couldn't get serialPortOnDevice, data is: %s", qPrintable(QString(data)));
+        qFatal("RtkFetcher::determineSerialPortOnDevice(): couldn't get serialPortOnDevice, data is: %s", qPrintable(QString(data)));
     }
 }
 
@@ -165,15 +165,15 @@ void RtkFetcher::rtkOutputInitialize()
     QFile file("rtk-init.txt");
     if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
     {
-	qDebug() << "RtkFetcher::rtkOutputInitialize(): couldn't read rtk-init.txt to initialize gps device";
-	QCoreApplication::quit();
+        qDebug() << "RtkFetcher::rtkOutputInitialize(): couldn't read rtk-init.txt to initialize gps device";
+        QCoreApplication::quit();
     }
 
     while(!file.atEnd())
     {
-	QByteArray line = file.readLine();
-	line.replace("$PORT", mSerialPortOnDevice.toAscii());
-	sendAsciiCommand(line.trimmed());
+        QByteArray line = file.readLine();
+        line.replace("$PORT", mSerialPortOnDevice.toAscii());
+        sendAsciiCommand(line.trimmed());
     }
 
     qDebug() << "RtkFetcher::rtkOutputInitialize(): done sending rtk-init.txt";
@@ -186,15 +186,15 @@ void RtkFetcher::rtkOutputStart()
     QFile file("rtk-start.txt");
     if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
     {
-	qDebug() << "RtkFetcher::rtkOutputStart(): couldn't read rtk-start.txt to start rtk output";
-	QCoreApplication::quit();
+        qDebug() << "RtkFetcher::rtkOutputStart(): couldn't read rtk-start.txt to start rtk output";
+        QCoreApplication::quit();
     }
 
     while(!file.atEnd())
     {
-	QByteArray line = file.readLine();
-	line.replace("$PORT", mSerialPortOnDevice.toAscii());
-	sendAsciiCommand(line.trimmed());
+        QByteArray line = file.readLine();
+        line.replace("$PORT", mSerialPortOnDevice.toAscii());
+        sendAsciiCommand(line.trimmed());
     }
 
     qDebug() << "RtkFetcher::rtkOutputStart(): done sending rtk-start.txt";
@@ -212,15 +212,15 @@ void RtkFetcher::rtkOutputStop()
     QFile file("rtk-stop.txt");
     if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
     {
-	qDebug() << "RtkFetcher::rtkOutputStop(): couldn't read rtk-stop.txt to stop rtk output";
-	QCoreApplication::quit();
+        qDebug() << "RtkFetcher::rtkOutputStop(): couldn't read rtk-stop.txt to stop rtk output";
+        QCoreApplication::quit();
     }
 
     while(!file.atEnd())
     {
-	QByteArray line = file.readLine();
-	line.replace("$PORT", mSerialPortOnDevice.toAscii());
-	sendAsciiCommand(line.trimmed());
+        QByteArray line = file.readLine();
+        line.replace("$PORT", mSerialPortOnDevice.toAscii());
+        sendAsciiCommand(line.trimmed());
     }
 
     qDebug() << "RtkFetcher::rtkOutputStop(): done sending rtk-stop.txt";

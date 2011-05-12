@@ -19,8 +19,9 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &pose)
 
     if (! mScanner.connect(mDeviceFileName.toAscii().constData()))
     {
-      qDebug() << "LaserScanner::LaserScanner(): connecting to" << mDeviceFileName << "failed: UrgCtrl::connect gave" << mScanner.what();
-      exit(1);
+        emit message(Error, "LaserScanner::LaserScanner()", "Connecting to " + mDeviceFileName + " failed: UrgCtrl::connect gave: " + QString(mScanner.what()));
+        qDebug() << "LaserScanner::LaserScanner(): connecting to" << mDeviceFileName << "failed: UrgCtrl::connect gave" << mScanner.what();
+        return;
     }
 
     mMilliSecondsPerScan = mScanner.scanMsec();

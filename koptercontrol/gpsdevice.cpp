@@ -197,7 +197,12 @@ quint32 GpsDevice::getTimeToTowRollOver()
 
     const Sbf_ReceiverTime *block = (Sbf_ReceiverTime*)dataUsb.data();
 
-    Q_ASSERT(block->TOW != 4294967295 && "GPS Receiver TOW is at its do-not-use-value, give it time to initialize.");
+    if(block->TOW == 4294967295)
+    {
+        emit message(Error, "GpsDevice::getTimeToTowRollOver()", "GPS Receiver TOW is at its do-not-use-value, give it time to initialize. Quitting.");
+        qWarning() << "GpsDevice::getTimeToTowRollOver(): GPS Receiver TOW is at its do-not-use-value, give it time to initialize. Quitting.";
+        QCoreApplication::quit();
+    }
 
     // SecondsPerWeek - CurrentSecondInWeek is number of seconds till rollover
     const int secondsToRollOver = (7 * 86400) - (block->TOW / 1000);
@@ -402,6 +407,7 @@ void GpsDevice::processSbfData()
         case 4045:
         {
             // IntPVAAGeod
+//            qDebug() << "SBF: PVAAGeod";
             const Sbf_PVAAGeod *block = (Sbf_PVAAGeod*)mReceiveBufferUsb.data();
 
             // Check the Info-field and emit states if it changes
@@ -642,7 +648,7 @@ void GpsDevice::processSbfData()
             }
 
 //            qDebug() << "SBF: IntAttEuler: Info" << block->Info << "Mode" << block->Mode << "Error" << block->Error << "TOW" << block->TOW << "WNc" << block->WNc << "HPR:" << block->Heading << block->Pitch << block->Roll;;
-            qDebug() << "Info" << block->Info << "Mode" << block->Mode << "Error" << block->Error << "HPR:" << block->Heading << block->Pitch << block->Roll;;
+//            qDebug() << "Info" << block->Info << "Mode" << block->Mode << "Error" << block->Error << "HPR:" << block->Heading << block->Pitch << block->Roll;;
         }
             break;
         case 5924:
@@ -696,6 +702,11 @@ void GpsDevice::slotSetRtkData(const QByteArray &data)
     mRtkDataCounter += data.size();
     qDebug() << "GpsDevice::slotSetRtkData(): forwarding" << data.size() << "bytes of rtk-data to gps device, total is" << mRtkDataCounter;
     mSerialPortCom->write(data);
+    emit message(
+                Info,
+                "GpsDevice::slotSetRtkData()",
+                QString("Fed %1 bytes of RTK data into rover gps device.").arg(data.size())
+                )
 }
 
 //GpsDevice::Status GpsDevice::getStatus(void) const
@@ -707,8 +718,8 @@ void GpsDevice::slotEmitCurrentGpsStatus(const QString& text)
 {
     emit gpsStatus(mLastModeFromDevice, mLastInfoFromDevice, mLastErrorFromDevice, mLastNumberOfSatellitesUsed, mLastGnssAgeFromDevice, text);
     emit message(
-                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                 Information,
+                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                 QString("Mode %1, Info %2, Error %3, NumSats %4, GnssAge %5").arg(mLastModeFromDevice).arg(mLastInfoFromDevice).arg(mLastErrorFromDevice).arg(mLastNumberOfSatellitesUsed).arg(mLastGnssAgeFromDevice)
                 );
 }

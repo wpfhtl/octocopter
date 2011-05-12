@@ -228,7 +228,7 @@ public slots:
 
 signals:
     // log/status messages
-    void message(const QString&, const LogImportance& importance, const QString& message);
+    void message(const LogImportance& importance, const QString&, const QString& message);
 
     void newVehiclePose(const Pose&); // emitted at 20Hz
     void newVehiclePoseLowFreq(const Pose&); // emitted at ~1Hz;
