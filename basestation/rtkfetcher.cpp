@@ -74,11 +74,11 @@ void RtkFetcher::slotSocketStateChanged(QAbstractSocket::SocketState socketState
 
       if(socketState == QAbstractSocket::ConnectedState && mSerialPortOnDevice.isEmpty())
       {
-        determineSerialPortOnDevice();
+//        determineSerialPortOnDevice();
 
-        rtkOutputInitialize();
+        //rtkOutputInitialize();
 
-        rtkOutputStart();
+        //rtkOutputStart();
       }
 }
 
