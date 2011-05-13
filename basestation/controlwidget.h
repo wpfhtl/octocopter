@@ -42,6 +42,7 @@ public slots:
     // Called my FlightPlanner to add a new waypoint.
 //    void slotNewWayPoint(const WayPoint&);
     void slotNewWayPoints(const QList<WayPoint>&);
+    void slotUpdateGpsStatus(const quint8& mode, const quint8& info, const quint8& error, const quint8& numSatellitesTracked, const quint8& lastPvtAge, const QString& status);
 
     void slotRoverReachedNextWayPoint();
 

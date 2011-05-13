@@ -15,7 +15,9 @@ flightplannerinterface
 flightplannerbasic
 flightplannerphysics
 camerawindow
+rtkfetcher
 controlwidget
+connectiondialog
 bulletdebugdrawergl
 cloudexporter
 ../common/openglutilities
@@ -36,7 +38,9 @@ flightplannerinterface.h
 flightplannerbasic.h
 flightplannerphysics.h
 camerawindow.h
+rtkfetcher.h
 controlwidget.h
+connectiondialog.h
 bulletdebugdrawergl.h
 cloudexporter.h
 ../common/openglutilities.h
@@ -52,6 +56,7 @@ cloudexporter.h
 SET(UI_FILES
 controlwidget.ui
 logwidget.ui
+connectiondialog.ui
 )
 
 SET(RESOURCE_FILES

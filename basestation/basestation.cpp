@@ -13,12 +13,16 @@ BaseStation::BaseStation() : QMainWindow()
 
     mProgress = 0;
 
+    mHostNames << "atomboard.dyndns.org" << "localhost" << "192.168.1.2";
+    mConnectionDialog = new ConnectionDialog(this);
+    slotAskForConnectionHostNames();
+
     mOctree->setMinimumPointDistance(0.1);
     mOctree->setPointHandler(OpenGlUtilities::drawPoint);
 
     mIncomingDataBuffer.clear();
 
-    menuBar()->addAction("Connect", this, SLOT(slotConnect()));
+    menuBar()->addAction("Connect", this, SLOT(slotConnectToRover()));
 
     mTcpSocket = new QTcpSocket(this);
     connect(mTcpSocket, SIGNAL(readyRead()), SLOT(slotReadSocket()));
@@ -34,6 +38,9 @@ BaseStation::BaseStation() : QMainWindow()
     mLogWidget = new LogWidget(this);
     addDockWidget(Qt::BottomDockWidgetArea, mLogWidget);
     menuBar()->addAction("Save Log", mLogWidget, SLOT(save()));
+
+    mRtkFetcher = new RtkFetcher(mConnectionDialog->getHostNameRtkBase(), 8888, this);
+    connect(mRtkFetcher, SIGNAL(rtkData(QByteArray)), SLOT(slotSendRtkDataToRover(QByteArray)));
 
     mFlightPlanner = new FlightPlannerPhysics(&mVehiclePose, mOctree);
     mFlightPlanner->slotSetScanVolume(QVector3D(140, 60, 80), QVector3D(240, 120, 150));
@@ -70,7 +77,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     mLogWidget->log(Information, "BaseStation::BaseStation()", "startup finished, ready.");
 
-    slotConnect();
+    slotConnectToRover();
 }
 
 BaseStation::~BaseStation()
@@ -85,7 +92,7 @@ void BaseStation::slotSocketDisconnected()
 
     mTimerUpdateStatus->stop();
 
-    slotConnect();
+    slotConnectToRover();
 }
 
 void BaseStation::slotSocketConnected()
@@ -249,6 +256,27 @@ void BaseStation::processPacket(QByteArray data)
         mControlWidget->slotUpdateBarometricHeight(barometricHeight);
         mControlWidget->slotUpdateWirelessRssi(wirelessRssi);
     }
+    else if(packetType == "gpsstatus")
+    {
+        quint8 mode, info, error, numSatellitesTracked, lastPvtAge;
+        QString status;
+
+        stream >> mode;
+        stream >> info;
+        stream >> error;
+        stream >> numSatellitesTracked;
+        stream >> lastPvtAge;
+        stream >> status;
+
+        mLogWidget->log(
+                    error == 0 ? Information : Error,
+                    QString("GpsDevice"),
+                    QString("Mode %1, Info %2, Error %3, NumSats %4, PvtAge %5, Status %6")
+                    .arg(mode).arg(info).arg(error).arg(numSatellitesTracked).arg(lastPvtAge).arg(status)
+                    );
+
+        mControlWidget->slotUpdateGpsStatus(mode, info, error, numSatellitesTracked, lastPvtAge, status);
+    }
     else if(packetType == "posechanged")
     {
         stream >> mVehiclePose;
@@ -337,6 +365,19 @@ void BaseStation::slotWayPointInsert(QString hash, int index, const QList<WayPoi
     slotSendData(data);
 }
 
+void BaseStation::slotSendRtkDataToRover(const QByteArray& rtkData)
+{
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    stream << QString("rtkdata");
+    stream << rtkData;
+
+    mLogWidget->log(Information, "BaseStation::slotSendRtkDataToRover()", QString("sending %1 bytes of rtk data to rover").arg(rtkData.size()));
+
+    slotSendData(data);
+}
+
 void BaseStation::slotWayPointDelete(QString hash, int index)
 {
     QByteArray data;
@@ -366,16 +407,18 @@ void BaseStation::slotSendData(const QByteArray &data)
     mTcpSocket->write(dataToSend);
 }
 
-void BaseStation::slotConnect()
+void BaseStation::slotAskForConnectionHostNames()
 {
-    if(mRoverHostName.isEmpty())
-    {
-        bool ok = false;
-        mRoverHostName = QInputDialog::getText(this, "Hostname", "Please enter the rover's hostname", QLineEdit::Normal, "localhost", &ok);
-        if(!ok) return;
-    }
+    mConnectionDialog->show();
+    mConnectionDialog->exec();
+}
 
-    mTcpSocket->connectToHost(mRoverHostName, 12345);
+void BaseStation::slotConnectToRover()
+{
+    while(mConnectionDialog->getHostNameRover().isEmpty())
+        slotAskForConnectionHostNames();
+
+    mTcpSocket->connectToHost(mConnectionDialog->getHostNameRover(), 12345);
 }
 
 void BaseStation::slotSocketError(QAbstractSocket::SocketError socketError)
@@ -383,7 +426,7 @@ void BaseStation::slotSocketError(QAbstractSocket::SocketError socketError)
     qDebug() << "BaseStation::slotSocketError():" << socketError;
 
     if(socketError == QAbstractSocket::ConnectionRefusedError)
-        QTimer::singleShot(2000, this, SLOT(slotConnect()));
+        QTimer::singleShot(2000, this, SLOT(slotConnectToRover()));
 }
 
 const WayPoint BaseStation::getNextWayPoint(void) const

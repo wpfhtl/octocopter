@@ -11,9 +11,11 @@
 
 #include "glwidget.h"
 #include "octree.h"
+#include "rtkfetcher.h"
 #include "lidarpoint.h"
 #include "flightplannerinterface.h"
 #include "camerawindow.h"
+#include "connectiondialog.h"
 #include "controlwidget.h"
 #include "logwidget.h"
 #include "cloudexporter.h"
@@ -35,12 +37,15 @@ private:
 //    QQuaternion mVehicleOrientation;
     Pose mVehiclePose;
 
-    QString mRoverHostName;
+    ConnectionDialog* mConnectionDialog;
+
+    QStringList mHostNames;
 
     QByteArray mIncomingDataBuffer;
 
     FlightPlannerInterface* mFlightPlanner;
 
+    RtkFetcher* mRtkFetcher;
     ControlWidget* mControlWidget;
     LogWidget* mLogWidget;
     PlotWidget* mPlotWidget;
@@ -65,17 +70,20 @@ private:
     void processPacket(QByteArray data);
 
 private slots:
+    void slotAskForConnectionHostNames();
+
     void slotSocketConnected(void);
     void slotSocketDisconnected(void);
     void slotReadSocket(void);
     void slotSocketError(QAbstractSocket::SocketError socketError);
-    void slotConnect(void);
+    void slotConnectToRover(void);
     void slotExportCloud(void);
 
     void slotFlightPlannerProcessing(const QString& text, const quint8& progress);
 
     void slotWayPointInsert(QString, int, const QList<WayPoint>&);
     void slotWayPointDelete(QString, int);
+    void slotSendRtkDataToRover(const QByteArray& rtkData);
 
     void slotSendData(const QByteArray &data);
 //    void slotGetStatus(void);

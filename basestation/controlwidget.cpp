@@ -299,7 +299,30 @@ void ControlWidget::slotUpdateMissionRunTime(const quint32& time)
 
 void ControlWidget::slotUpdateWirelessRssi(const qint8& wirelessRssi)
 {
-    mBarWirelessRssi->setValue(wirelessRssi);
+    if(wirelessRssi < 0 && mBarWirelessRssi->maximum() == 100)
+    {
+        mBarWirelessRssi->setRange(0, 0);
+    }
+    else
+    {
+        mBarWirelessRssi->setRange(0, 100);
+        mBarWirelessRssi->setValue(wirelessRssi);
+    }
+}
+
+void ControlWidget::slotUpdateGpsStatus(const quint8& mode, const quint8& info, const quint8& error, const quint8& numSatellitesTracked, const quint8& lastPvtAge, const QString& status)
+{
+    mLabelGpsMode->setText(QString::number(mode));
+    mLabelGpsInfo->setText(QString::number(info));
+    mLabelGpsError->setText(QString::number(error));
+    mLabelGpsNumSats->setText(QString::number(numSatellitesTracked));
+    mLabelGpsPvtAge->setText(QString::number(lastPvtAge));
+
+    if(!status.isEmpty())
+    {
+        mTextEditGpsStatus->appendPlainText(status);
+        mTextEditGpsStatus->moveCursor(QTextCursor::End);
+    }
 }
 
 void ControlWidget::slotUpdateBarometricHeight(const qint16& barometricHeight)

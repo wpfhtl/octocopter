@@ -14,7 +14,7 @@
    <string>Status</string>
   </property>
   <widget class="QWidget" name="dockWidgetContents">
-   <layout class="QVBoxLayout" name="verticalLayout_5">
+   <layout class="QVBoxLayout" name="verticalLayout_7">
     <item>
      <widget class="QGroupBox" name="groupBox_5">
       <property name="title">
@@ -352,6 +352,154 @@
      </widget>
     </item>
     <item>
+     <widget class="QGroupBox" name="groupBox">
+      <property name="title">
+       <string>GPS Receiver Status</string>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_5">
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_10">
+         <item>
+          <widget class="QLabel" name="mLabelGpsStatus">
+           <property name="text">
+            <string>Mode</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="mLabelGpsMode">
+           <property name="text">
+            <string>-1</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_11">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>13</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_9">
+           <property name="text">
+            <string>Info</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="mLabelGpsInfo">
+           <property name="text">
+            <string>-1</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_12">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>13</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_6">
+           <property name="text">
+            <string>Error</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="mLabelGpsError">
+           <property name="text">
+            <string>-1</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_14">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>17</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_11">
+           <property name="text">
+            <string>Sats</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="mLabelGpsNumSats">
+           <property name="text">
+            <string>-1</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_13">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>13</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_13">
+           <property name="text">
+            <string>PvtAge</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="mLabelGpsPvtAge">
+           <property name="text">
+            <string>-1</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QPlainTextEdit" name="mTextEditGpsStatus">
+         <property name="undoRedoEnabled">
+          <bool>false</bool>
+         </property>
+         <property name="lineWrapMode">
+          <enum>QPlainTextEdit::NoWrap</enum>
+         </property>
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
      <widget class="QGroupBox" name="mGroupBoxWayPoints">
       <property name="title">
        <string>Waypoints</string>
@@ -612,7 +760,7 @@
     <item>
      <widget class="QGroupBox" name="groupBox_6">
       <property name="title">
-       <string>ScanVolume</string>
+       <string>WayPoints</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_4">
        <item>
@@ -734,20 +882,24 @@
         </layout>
        </item>
        <item>
-        <widget class="QPushButton" name="mBtnSetScanVolume">
-         <property name="text">
-          <string>Set ScanVolume</string>
-         </property>
-        </widget>
+        <layout class="QHBoxLayout" name="horizontalLayout_9">
+         <item>
+          <widget class="QPushButton" name="mBtnSetScanVolume">
+           <property name="text">
+            <string>Set ScanVolume</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="mBtnGenerateWaypoints">
+           <property name="text">
+            <string>Generate</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
       </layout>
-     </widget>
-    </item>
-    <item>
-     <widget class="QPushButton" name="mBtnGenerateWaypoints">
-      <property name="text">
-       <string>Generate Waypoints</string>
-      </property>
      </widget>
     </item>
     <item>
