@@ -91,7 +91,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
         mBaseConnection = new BaseConnection(networkInterface);
         mKopter = new Kopter(portSerialKopter, this);
         mGpsDevice = new GpsDevice(portSerialGpsUsb, portSerialGpsCom, this);
-        mRtkFetcher = new RtkFetcher(rtkBaseHostName, rtkBasePort, this);
+        //mRtkFetcher = new RtkFetcher(rtkBaseHostName, rtkBasePort, this);
         mLaserScanner = new LaserScanner(portSerialLaserScanner, Pose());
         connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
         mFlightController = new FlightController();
@@ -100,10 +100,10 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
         connect(mLaserScanner, SIGNAL(bottomBeamLength(const float&)), mFlightController, SLOT(slotSetBottomBeamLength(const float&)));
 
-        connect(mRtkFetcher, SIGNAL(rtkData(const QByteArray&)), mGpsDevice, SLOT(slotSetRtkData(const QByteArray&)));
+        //connect(mRtkFetcher, SIGNAL(rtkData(const QByteArray&)), mGpsDevice, SLOT(slotSetRtkData(const QByteArray&)));
 
         connect(mBaseConnection, SIGNAL(enableScanning(const bool&)), mLaserScanner, SLOT(slotEnableScanning(const bool&)));
-        connect(mBaseConnection, SIGNAL(rtkDataReady(const QByteArray&)), mGpsDevice, SLOT(slotSetRtkData(const QByteArray&)))
+        connect(mBaseConnection, SIGNAL(rtkDataReady(const QByteArray&)), mGpsDevice, SLOT(slotSetRtkData(const QByteArray&)));
 
         connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mFlightController, SLOT(slotSetVehiclePose(Pose)));
         connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mLaserScanner, SLOT(slotNewVehiclePose(Pose)));

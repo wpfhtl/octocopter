@@ -703,10 +703,10 @@ void GpsDevice::slotSetRtkData(const QByteArray &data)
     qDebug() << "GpsDevice::slotSetRtkData(): forwarding" << data.size() << "bytes of rtk-data to gps device, total is" << mRtkDataCounter;
     mSerialPortCom->write(data);
     emit message(
-                Info,
+                Information,
                 "GpsDevice::slotSetRtkData()",
                 QString("Fed %1 bytes of RTK data into rover gps device.").arg(data.size())
-                )
+                );
 }
 
 //GpsDevice::Status GpsDevice::getStatus(void) const
