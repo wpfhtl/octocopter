@@ -612,7 +612,7 @@ void GpsDevice::processSbfData()
             if(numberOfSatellitesUsed != mLastNumberOfSatellitesUsed)
             {
                 mLastNumberOfSatellitesUsed = numberOfSatellitesUsed;
-                slotEmitCurrentGpsStatus("Number of used satellites changed");
+                slotEmitCurrentGpsStatus(QString("Number of used satellites changed to %1").arg(numberOfSatellitesUsed));
             }
 
             // Only emit a pose if the values are not set to the do-not-use values.
