@@ -8,13 +8,9 @@
 
 #include <common.h>
 
-#include "pose.h"
+class Pose;
+class QextSerialPort;
 
-#include "qextserialport/src/qextserialport.h"
-
-#include <math.h>
-
-//#define M_PI 3.14159265
 
 static const quint16 CRC_16CCIT_LookUp[256] = {
 
@@ -57,21 +53,9 @@ class GpsDevice : public QObject
     Q_OBJECT
 
 public:
-//    enum Status
-//    {
-//        Initializing,
-//        Running,
-//        Error,
-//        Stopped,
-//        WaitingForCalibration,
-//        WaitingForAlignment,
-//        WaitingForSatellites
-//    };
 
     GpsDevice(QString &serialDeviceUsb, QString &serialDeviceCom, QObject *parent = 0);
     ~GpsDevice();
-
-//    GpsDevice::Status getStatus(void) const;
 
 private:
     quint8 mPoseClockDivisor; // for emitting a low-frequency pose for debugging
@@ -239,7 +223,8 @@ signals:
 //    void stateChanged(const GpsDevice::Status&, const QString&);
 
     void gpsStatus(
-        const quint8& mode,
+        const quint8& gnssMode,
+        const quint8& integrationMode,
         const quint8& info,
         const quint8& error,
         const quint8& numSatellitesTracked,

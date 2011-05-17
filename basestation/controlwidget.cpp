@@ -310,11 +310,12 @@ void ControlWidget::slotUpdateWirelessRssi(const qint8& wirelessRssi)
     }
 }
 
-void ControlWidget::slotUpdateGpsStatus(const quint8& mode, const quint8& info, const quint8& error, const quint8& numSatellitesTracked, const quint8& lastPvtAge, const QString& status)
+void ControlWidget::slotUpdateGpsStatus(const quint8& gnssMode, const quint8& integrationMode, const quint8& info, const quint8& error, const quint8& numSatellitesTracked, const quint8& lastPvtAge, const QString& status)
 {
-    mLabelGpsMode->setText(QString::number(mode));
-    mLabelGpsInfo->setText(QString::number(info));
-    mLabelGpsError->setText(QString::number(error));
+    mLabelGpsGnssMode->setText(GpsStatusInformation::getGnssMode(gnssMode));
+    mLabelGpsIntegrationMode->setText(GpsStatusInformation::getIntegrationMode(integrationMode));
+    mLabelGpsInfo->setText(GpsStatusInformation::getInfo(info));
+    mLabelGpsError->setText(GpsStatusInformation::getError(error));
     mLabelGpsNumSats->setText(QString::number(numSatellitesTracked));
     mLabelGpsPvtAge->setText(QString::number(lastPvtAge));
 

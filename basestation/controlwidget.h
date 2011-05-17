@@ -6,13 +6,13 @@
 #include "ui_controlwidget.h"
 #include "basestation.h"
 #include "waypoint.h"
+#include "gpsstatusinformation.h"
 #include "common.h" // for hash()
 
 #define QT_USE_FAST_CONCATENATION
 #define QT_USE_FAST_OPERATOR_PLUS
 
 class BaseStation;
-//class DialogConfiguration;
 
 class ControlWidget : public QDockWidget, public Ui::ControlWidget
 {
@@ -33,17 +33,13 @@ public:
 
 public slots:
     void slotUpdatePose(const Pose &pose);
-//    void slotUpdateDynamics(QVector3D linearVelocity);
     void slotUpdateWayPoints(const QList<WayPoint>& waypoints);
     void slotUpdateMissionRunTime(const quint32& time);
     void slotUpdateBattery(const float& voltageCurrent);
     void slotUpdateWirelessRssi(const qint8& wirelessRssi);
     void slotUpdateBarometricHeight(const qint16& barometricHeight);
-    // Called my FlightPlanner to add a new waypoint.
-//    void slotNewWayPoint(const WayPoint&);
     void slotNewWayPoints(const QList<WayPoint>&);
-    void slotUpdateGpsStatus(const quint8& mode, const quint8& info, const quint8& error, const quint8& numSatellitesTracked, const quint8& lastPvtAge, const QString& status);
-
+    void slotUpdateGpsStatus(const quint8& gnssMode, const quint8& integrationMode, const quint8& info, const quint8& error, const quint8& numSatellitesTracked, const quint8& lastPvtAge, const QString& status);
     void slotRoverReachedNextWayPoint();
 
 private slots:

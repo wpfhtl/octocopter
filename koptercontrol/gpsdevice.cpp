@@ -1,3 +1,7 @@
+#include "pose.h"
+#include "qextserialport/src/qextserialport.h"
+#include <math.h>
+
 #include "gpsdevice.h"
 
 GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom, QObject *parent) : QObject(parent)
@@ -545,7 +549,6 @@ void GpsDevice::processSbfData()
                 switch(gnssPvtMode)
                 {
                 case 0:
-//                    mStatus = Error;
                     slotEmitCurrentGpsStatus("GNSSPVTMode is 0, see error field.");
                     break;
 
@@ -558,7 +561,6 @@ void GpsDevice::processSbfData()
                     break;
 
                 case 3:
-//                    mStatus = Error;
                     slotEmitCurrentGpsStatus("PVT fixed location");
                     break;
 
@@ -592,7 +594,6 @@ void GpsDevice::processSbfData()
 
                 default:
                     qWarning() << "GpsDevice::processSbfData(): WARNING: unknown GNSSPVTMode code" << gnssPvtMode;
-//                    mStatus = Error;
                     slotEmitCurrentGpsStatus(QString("Unknown GNSSPVTMode %1").arg(gnssPvtMode));
                     break;
                 }
@@ -709,18 +710,13 @@ void GpsDevice::slotSetRtkData(const QByteArray &data)
                 );
 }
 
-//GpsDevice::Status GpsDevice::getStatus(void) const
-//{
-//    return mStatus;
-//}
-
 void GpsDevice::slotEmitCurrentGpsStatus(const QString& text)
 {
-    emit gpsStatus(mLastModeFromDevice, mLastInfoFromDevice, mLastErrorFromDevice, mLastNumberOfSatellitesUsed, mLastGnssAgeFromDevice, text);
+    emit gpsStatus(mLastGnssPvtModeFromDevice, mLastModeFromDevice, mLastInfoFromDevice, mLastErrorFromDevice, mLastNumberOfSatellitesUsed, mLastGnssAgeFromDevice, text);
     emit message(
                 Information,
                 QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                QString("Mode %1, Info %2, Error %3, NumSats %4, GnssAge %5").arg(mLastModeFromDevice).arg(mLastInfoFromDevice).arg(mLastErrorFromDevice).arg(mLastNumberOfSatellitesUsed).arg(mLastGnssAgeFromDevice)
+                QString("GnssMode %1, IntMode %2, Info %3, Error %4, NumSats %5, GnssAge %6").arg(mLastGnssPvtModeFromDevice).arg(mLastModeFromDevice).arg(mLastInfoFromDevice).arg(mLastErrorFromDevice).arg(mLastNumberOfSatellitesUsed).arg(mLastGnssAgeFromDevice)
                 );
 }
 

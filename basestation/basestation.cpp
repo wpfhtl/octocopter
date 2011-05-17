@@ -258,10 +258,11 @@ void BaseStation::processPacket(QByteArray data)
     }
     else if(packetType == "gpsstatus")
     {
-        quint8 mode, info, error, numSatellitesTracked, lastPvtAge;
+        quint8 gnssMode, integrationMode, info, error, numSatellitesTracked, lastPvtAge;
         QString status;
 
-        stream >> mode;
+        stream >> gnssMode;
+        stream >> integrationMode;
         stream >> info;
         stream >> error;
         stream >> numSatellitesTracked;
@@ -271,11 +272,11 @@ void BaseStation::processPacket(QByteArray data)
         mLogWidget->log(
                     error == 0 ? Information : Error,
                     QString("GpsDevice"),
-                    QString("Mode %1, Info %2, Error %3, NumSats %4, PvtAge %5, Status %6")
-                    .arg(mode).arg(info).arg(error).arg(numSatellitesTracked).arg(lastPvtAge).arg(status)
+                    QString("GnssMode %1, IntgrationMode %2, Info %3, Error %4, NumSats %5, PvtAge %6, Status %7")
+                    .arg(gnssMode).arg(integrationMode).arg(info).arg(error).arg(numSatellitesTracked).arg(lastPvtAge).arg(status)
                     );
 
-        mControlWidget->slotUpdateGpsStatus(mode, info, error, numSatellitesTracked, lastPvtAge, status);
+        mControlWidget->slotUpdateGpsStatus(gnssMode, integrationMode, info, error, numSatellitesTracked, lastPvtAge, status);
     }
     else if(packetType == "posechanged")
     {

@@ -90,7 +90,8 @@ public slots:
 
     // called by rover to send new gps status to basestation
     void slotNewGpsStatus(
-        const quint8& mode,
+        const quint8& gnssMode,
+        const quint8& integrationMode,
         const quint8& info,
         const quint8& error,
         const quint8& numSatellitesTracked,

@@ -28,6 +28,7 @@ cloudexporter
 ../common/pose
 ../common/common
 ../common/plotwidget
+../common/gpsstatusinformation
 )
 
 SET(INC_FILES
@@ -51,6 +52,7 @@ cloudexporter.h
 ../common/pose.h
 ../common/common.h
 ../common/plotwidget.h
+../common/gpsstatusinformation.h
 )
 
 SET(UI_FILES
