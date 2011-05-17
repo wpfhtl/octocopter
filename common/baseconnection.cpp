@@ -15,9 +15,11 @@ BaseConnection::BaseConnection(const QString& interface) :
     qDebug() << "BaseConnection::BaseConnection()";
 
     /* Any old socket will do, and a datagram socket is pretty cheap */
-    mSockfd = socket(AF_INET, SOCK_DGRAM, 0);
+//    mSockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    mWirelessDevice = new WirelessDevice(interface);
+    mWirelessDevice->getRssi();
 
-    mInterface = interface;
+//    mInterface = interface;
     mTcpSocket = 0;
 
     mTcpServer = new QTcpServer(this);
@@ -186,7 +188,7 @@ void BaseConnection::slotFlushWriteQueue()
 //        qDebug() << "BaseConnection::slotFlushWriteQueue(): mTcpSocket is 0, skipping.";
 }
 
-qint8 BaseConnection::getRssi()
+/*qint8 BaseConnection::getRssi()
 {
     if((mSockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
     {
@@ -221,8 +223,7 @@ qint8 BaseConnection::getRssi()
             signalQuality -= 0x100;
 
     return signalQuality;
-}
-
+}*/
 
 
 
@@ -286,7 +287,7 @@ void BaseConnection::slotNewVehicleStatus(
     const float& batteryVoltage
     )
 {
-    const qint8 wirelessRssi = getRssi();
+    const qint8 wirelessRssi = mWirelessDevice->getRssi();
 
 //    slotNewLogMessage(
 //                Information,

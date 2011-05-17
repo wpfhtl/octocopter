@@ -47,7 +47,7 @@ QString GpsStatusInformation::getGnssMode(const quint8& gnssMode)
     case 10: gnssModeString = "PPP FloatAmbiguities"; break;
 
     default:
-        qWarning() << "GpsStatusInformation::getGnssMode(): WARNING: unknown GNSSPVTMode code" << gnssPvtMode;
+        qWarning() << "GpsStatusInformation::getGnssMode(): WARNING: unknown GNSSPVTMode code" << gnssPvtMode << "gnssmode" << gnssMode;
         gnssModeString = QString("Unknown GNSSPVTMode %1").arg(gnssPvtMode);
         break;
     }

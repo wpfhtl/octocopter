@@ -16,6 +16,7 @@ kopter
 ../common/waypoint
 ../common/lidarpoint
 ../common/baseconnection
+../common/wirelessdevice
 gpsdevice
 laserscanner
 qextserialport/src/qextserialport
@@ -32,6 +33,7 @@ kopter.h
 ../common/waypoint.h
 ../common/lidarpoint.h
 ../common/baseconnection.h
+../common/wirelessdevice.h
 gpsdevice.h
 laserscanner.h
 qextserialport/src/qextserialport.h

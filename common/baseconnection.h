@@ -10,6 +10,7 @@
 #include <common.h>
 #include <waypoint.h>
 #include <lidarpoint.h>
+#include <wirelessdevice.h>
 #include <pose.h>
 
 class Simulator;
@@ -20,15 +21,16 @@ class BaseConnection : public QObject
 
 private:
     mutable QMutex mMutex;
-    int mSockfd; // socket for reading RSSI
-    QString mInterface; // used only for RSSI reading in case of WLAN connection
+//    int mSockfd; // socket for reading RSSI
+//    QString mInterface; // used only for RSSI reading in case of WLAN connection
     QTcpSocket* mTcpSocket;
     QTcpServer* mTcpServer;
     QByteArray mIncomingDataBuffer, mOutgoingDataBuffer;
+    WirelessDevice* mWirelessDevice;
 
     void processPacket(QByteArray packet);
 
-    qint8 getRssi();
+//    qint8 getRssi();
 
 private slots:
     void slotNewConnection(void);
