@@ -14,12 +14,12 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
     mRtkDataCounter = 0;
     mSerialPortOnDeviceUsb = "";
 
-    mLastErrorFromDevice = 255;
-    mLastModeFromDevice = 255;
-    mLastInfoFromDevice = 65535;
-    mLastGnssPvtModeFromDevice = 255;
-    mLastNumberOfSatellitesUsed = 255;
-    mLastGnssAgeFromDevice = 0;
+    mLastErrorFromDevice = 24;
+    mLastModeFromDevice = 0;
+    mLastInfoFromDevice = 0;
+    mLastGnssPvtModeFromDevice = 0;
+    mLastNumberOfSatellitesUsed = 0;
+    mLastGnssAgeFromDevice = 255;
 
     // We use the USB port to talk to the GPS receiver and receive poses
     mSerialPortUsb = new QextSerialPort(serialDeviceFileUsb, QextSerialPort::EventDriven);
@@ -365,7 +365,8 @@ void GpsDevice::processSbfData()
 
         if(indexOfSyncMarker != 0)
         {
-            qWarning() << "GpsDevice::processSbfData(): WARNING: SBF Sync Marker $@ was not at byte 0!";
+            qWarning() << "GpsDevice::processSbfData(): WARNING: SBF Sync Marker $@ was not at byte 0, but at" << indexOfSyncMarker;
+            qWarning() << "GpsDevice::processSbfData(): WARNING: removing section before $@:" << mReceiveBufferUsb.mid(0, indexOfSyncMarker);
             mReceiveBufferUsb.remove(0, indexOfSyncMarker);
         }
 
@@ -417,29 +418,30 @@ void GpsDevice::processSbfData()
             // Check the Info-field and emit states if it changes
             if(mLastInfoFromDevice != block->Info)
             {
+                qDebug() << "lastInfo was" << mLastInfoFromDevice << "new info is" << block->Info;
                 const quint16 previousInfoFromDevice = mLastInfoFromDevice;
                 mLastInfoFromDevice = block->Info;
 
-                if(previousInfoFromDevice & 1 != block->Info & 1)
-                    slotEmitCurrentGpsStatus(QString("ACLR measurements used: %1").arg(block->Info & 1 == 1 ? "true" : "false"));
+                if(!testBitEqual(previousInfoFromDevice, block->Info, 0))
+                    slotEmitCurrentGpsStatus(QString("ACLR measurements used: %1").arg(testBit(block->Info, 0) ? "true" : "false"));
 
-                if(previousInfoFromDevice & 2 != block->Info & 2)
-                    slotEmitCurrentGpsStatus(QString("GYRO measurements used: %1").arg(block->Info & 2 == 2 ? "true" : "false"));
+                if(!testBitEqual(previousInfoFromDevice, block->Info, 1))
+                    slotEmitCurrentGpsStatus(QString("GYRO measurements used: %1").arg(testBit(block->Info, 1) ? "true" : "false"));
 
-                if(previousInfoFromDevice & 2048 != block->Info & 2048)
-                    slotEmitCurrentGpsStatus(QString("Heading ambiguity fixed: %1").arg(block->Info & 2048 == 2048 ? "true" : "false"));
+                if(!testBitEqual(previousInfoFromDevice, block->Info, 11))
+                    slotEmitCurrentGpsStatus(QString("Heading ambiguity fixed: %1").arg(testBit(block->Info, 11) ? "true" : "false"));
 
-                if(previousInfoFromDevice & 4096 != block->Info & 4096)
-                    slotEmitCurrentGpsStatus(QString("Zero constraint used: %1").arg(block->Info & 2048 == 2048 ? "true" : "false"));
+                if(!testBitEqual(previousInfoFromDevice, block->Info, 12))
+                    slotEmitCurrentGpsStatus(QString("Zero constraint used: %1").arg(testBit(block->Info, 12) ? "true" : "false"));
 
-                if(previousInfoFromDevice & 8192 != block->Info & 8192)
-                    slotEmitCurrentGpsStatus(QString("GNSS position used: %1").arg(block->Info & 8192 == 8192 ? "true" : "false"));
+                if(!testBitEqual(previousInfoFromDevice, block->Info, 13))
+                    slotEmitCurrentGpsStatus(QString("GNSS position used: %1").arg(testBit(block->Info, 13) ? "true" : "false"));
 
-                if(previousInfoFromDevice & 16384 != block->Info & 16384)
-                    slotEmitCurrentGpsStatus(QString("GNSS velocity used: %1").arg(block->Info & 16384 == 16384 ? "true" : "false"));
+                if(!testBitEqual(previousInfoFromDevice, block->Info, 14))
+                    slotEmitCurrentGpsStatus(QString("GNSS velocity used: %1").arg(testBit(block->Info, 14) ? "true" : "false"));
 
-                if(previousInfoFromDevice & 32768 != block->Info & 32768)
-                    slotEmitCurrentGpsStatus(QString("GNSS attitude used: %1").arg(block->Info & 32768 == 32768 ? "true" : "false"));
+                if(!testBitEqual(previousInfoFromDevice, block->Info, 15))
+                    slotEmitCurrentGpsStatus(QString("GNSS attitude used: %1").arg(testBit(block->Info, 15) ? "true" : "false"));
             }
 
             // Check the Mode-field and emit states if it changes
@@ -479,126 +481,14 @@ void GpsDevice::processSbfData()
             if(mLastErrorFromDevice != block->Error)
             {
                 mLastErrorFromDevice = block->Error;
-
-                switch(block->Error)
-                {
-                case 0:
-//                    mStatus = Running;
-//                    emit stateChanged(mStatus, "OK");
-                    slotEmitCurrentGpsStatus("Error changed to 0, running fine.");
-                    break;
-
-                case 4:
-                case 5:
-                case 6:
-                case 7:
-                case 20:
-                case 21:
-//                    mStatus = Error;
-//                    emit stateChanged(mStatus, QString("Error %1").arg(block->Error));
-                    slotEmitCurrentGpsStatus(QString("Error %1").arg(block->Error));
-                    break;
-
-                case 22:
-//                    mStatus = WaitingForCalibration;
-//                    emit stateChanged(mStatus, "Waiting for calibration");
-                    slotEmitCurrentGpsStatus("Waiting for calibration");
-                    break;
-
-                case 23:
-//                    mStatus = WaitingForAlignment;
-//                    emit stateChanged(mStatus, "Waiting for alignment");
-                    slotEmitCurrentGpsStatus("Waiting for alignment");
-                    break;
-                case 24:
-//                    mStatus = WaitingForSatellites;
-//                    emit stateChanged(mStatus, "Waiting for satellites");
-                    slotEmitCurrentGpsStatus("Waiting for satellites");
-                    break;
-                default:
-                    qWarning() << "GpsDevice::processSbfData(): WARNING: unknown error code" << block->Error;
-//                    mStatus = Error;
-//                    emit stateChanged(mStatus, QString("Unknown Error %1").arg(block->Error));
-                    slotEmitCurrentGpsStatus(QString("Unknown Error %1").arg(block->Error));
-                    break;
-                }
+                slotEmitCurrentGpsStatus(GpsStatusInformation::getError(mLastErrorFromDevice));
             }
-
 
             // Check the GnssPvtMode-field and emit states if it changes
             if(mLastGnssPvtModeFromDevice != block->GNSSPVTMode)
             {
                 mLastGnssPvtModeFromDevice = block->GNSSPVTMode;
-
-                if(block->GNSSPVTMode & 64 == 64)
-                {
-//                    mStatus = Error;
-//                    emit stateChanged(mStatus, QString("GPS device configured as base, acquiring position"));
-                    slotEmitCurrentGpsStatus("GPS device configured as base, acquiring position");
-                }
-
-                if(block->GNSSPVTMode & 128 == 128)
-                {
-//                    mStatus = Error;
-//                    emit stateChanged(mStatus, QString("GPS device running in 2D mode"));
-                    slotEmitCurrentGpsStatus("GPS device running in 2D mode");
-                }
-
-                const quint8 gnssPvtMode = block->GNSSPVTMode & 15;
-
-                switch(gnssPvtMode)
-                {
-                case 0:
-                    slotEmitCurrentGpsStatus("GNSSPVTMode is 0, see error field.");
-                    break;
-
-                case 1:
-                    slotEmitCurrentGpsStatus("PVT stand-alone");
-                    break;
-
-                case 2:
-                    slotEmitCurrentGpsStatus("PVT differential");
-                    break;
-
-                case 3:
-                    slotEmitCurrentGpsStatus("PVT fixed location");
-                    break;
-
-                case 4:
-                    slotEmitCurrentGpsStatus("PVT RTK fixed ambiguities");
-                    break;
-
-                case 5:
-                    slotEmitCurrentGpsStatus("PVT RTK float ambiguities");
-                    break;
-
-                case 6:
-                    slotEmitCurrentGpsStatus("PVT SBAS aided");
-                    break;
-
-                case 7:
-                    slotEmitCurrentGpsStatus("PVT RTK moving base fixed ambiguities");
-                    break;
-
-                case 8:
-                    slotEmitCurrentGpsStatus("PVT RTK moving base float ambiguities");
-                    break;
-
-                case 9:
-                    slotEmitCurrentGpsStatus("PVT PPP fixed ambiguities");
-                    break;
-
-                case 10:
-                    slotEmitCurrentGpsStatus("PVT PPP float ambiguities");
-                    break;
-
-                default:
-                    qWarning() << "GpsDevice::processSbfData(): WARNING: unknown GNSSPVTMode code" << gnssPvtMode;
-                    slotEmitCurrentGpsStatus(QString("Unknown GNSSPVTMode %1").arg(gnssPvtMode));
-                    break;
-                }
-
-                mLastGnssPvtModeFromDevice = block->GNSSPVTMode;
+                slotEmitCurrentGpsStatus(GpsStatusInformation::getGnssMode(mLastGnssPvtModeFromDevice));
             }
 
             // TODO: this will change often in regular usage, really notify?

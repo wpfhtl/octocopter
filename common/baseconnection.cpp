@@ -310,14 +310,22 @@ void BaseConnection::slotNewVehicleStatus(
 void BaseConnection::slotNewGpsStatus(
     const quint8& gnssMode,
     const quint8& integrationMode,
-    const quint8& info,
+    const quint16& info,
     const quint8& error,
     const quint8& numSatellitesTracked,
     const quint8& lastPvtAge,
     const QString& status
     )
 {
-    qDebug() << "sending new gps status to base:" << gnssMode << integrationMode << info << error << numSatellitesTracked << status;
+    qDebug() << "sending new gps status to base:"
+             << "gnssMode" << gnssMode
+             << "integrationMode" << integrationMode
+             << "info" << info
+             << "error" << error
+             << "numsats" << numSatellitesTracked
+             << "lastPvtAge" << lastPvtAge
+             << "status" << status;
+
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 

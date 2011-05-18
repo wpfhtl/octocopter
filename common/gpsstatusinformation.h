@@ -4,6 +4,8 @@
 #include <QDebug>
 #include <QString>
 
+#include <common.h>
+
 class GpsStatusInformation
 {
 private:

@@ -20,7 +20,7 @@ QString GpsStatusInformation::getGnssMode(const quint8& gnssMode)
     QString gnssModeString;
 
     // the mode is in bits 0-3
-    const quint8 gnssPvtMode = gnssMode & 15;
+    const quint8 gnssPvtMode = (gnssMode & 15);
 
     switch(gnssPvtMode)
     {
@@ -52,8 +52,8 @@ QString GpsStatusInformation::getGnssMode(const quint8& gnssMode)
         break;
     }
 
-    if(gnssMode & 64 != 0) gnssModeString.prepend("Base, acquiring position, ");
-    if(gnssMode & 128 != 0) gnssModeString.append(", 2D mode");
+    if(testBit(gnssMode, 6)) gnssModeString.prepend("Base, acquiring position, ");
+    if(testBit(gnssMode, 7)) gnssModeString.append(", 2D mode");
 
     return gnssModeString;
 };
@@ -84,13 +84,13 @@ QString GpsStatusInformation::getError(const quint8& error)
 QString GpsStatusInformation::getInfo(const quint16& info)
 {
     QString infoString = QString("ACC%1 GYR%2 AMB%3 ZER%4 GPSP%5 GPSV%6 GPSA%7")
-            .arg(info & 1 != 0 ? 1 : 0)
-            .arg(info & 2 != 0 ? 1 : 0)
-            .arg(info & 2048 != 0 ? 1 : 0)
-            .arg(info & 4096 != 0 ? 1 : 0)
-            .arg(info & 8192 != 0 ? 1 : 0)
-            .arg(info & 16384 != 0 ? 1 : 0)
-            .arg(info & 32768 != 0 ? 1 : 0);
+            .arg(testBit(info, 0) ? 1 : 0)
+            .arg(testBit(info, 1) ? 1 : 0)
+            .arg(testBit(info, 11) ? 1 : 0)
+            .arg(testBit(info, 12) ? 1 : 0)
+            .arg(testBit(info, 13) ? 1 : 0)
+            .arg(testBit(info, 14) ? 1 : 0)
+            .arg(testBit(info, 15) ? 1 : 0);
 
     return infoString;
 };

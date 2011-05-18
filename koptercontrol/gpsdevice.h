@@ -7,6 +7,7 @@
 #include <QTimer>
 
 #include <common.h>
+#include <gpsstatusinformation.h>
 
 class Pose;
 class QextSerialPort;
@@ -225,7 +226,7 @@ signals:
     void gpsStatus(
         const quint8& gnssMode,
         const quint8& integrationMode,
-        const quint8& info,
+        const quint16& info,
         const quint8& error,
         const quint8& numSatellitesTracked,
         const quint8& lastPvtAge,
