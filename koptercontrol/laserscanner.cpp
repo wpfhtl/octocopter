@@ -138,7 +138,7 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
 void LaserScanner::slotNewVehiclePose(const Pose& pose)
 {
     QMutexLocker locker(&mMutex);
-    qDebug() << "LaserScanner::slotNewPose(): received a scan-pose from gps-device at time" << pose.timestamp;
+    qDebug() << "LaserScanner::slotNewVehiclePose(): received a pose from gps-device at time" << pose.timestamp;
 
     // The hokuyo finished a scan and sent a falling edge to the GpsDevice, which now notifies us of
     // this scan together with the pose in which scanning finished.

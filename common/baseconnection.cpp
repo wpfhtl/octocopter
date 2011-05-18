@@ -317,7 +317,7 @@ void BaseConnection::slotNewGpsStatus(
     const QString& status
     )
 {
-    qDebug() << "sending new gps status to base:"
+    qDebug() << t() << "BaseConnection::slotNewGpsStatus(): -> base:"
              << "gnssMode" << gnssMode
              << "integrationMode" << integrationMode
              << "info" << info

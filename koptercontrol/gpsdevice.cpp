@@ -316,7 +316,7 @@ void GpsDevice::slotSerialPortDataReady()
         if(position != -1)
         {
             qDebug() << "GpsDevice::slotSerialPortDataReady(): received reply to" << mLastCommandToDeviceUsb.trimmed() << ":" << mReceiveBufferUsb.left(position).trimmed();
-            qDebug() << "GpsDevice::slotSerialPortDataReady(): now sending next command, if any";
+//            qDebug() << "GpsDevice::slotSerialPortDataReady(): now sending next command, if any";
 
             if(mReceiveBufferUsb.left(position).contains("$R? ASCII commands between prompts were discarded!"))
                 qDebug() << "GpsDevice::slotSerialPortDataReady(): it seems we were talking too fast?!";
@@ -418,7 +418,7 @@ void GpsDevice::processSbfData()
             // Check the Info-field and emit states if it changes
             if(mLastInfoFromDevice != block->Info)
             {
-                qDebug() << "lastInfo was" << mLastInfoFromDevice << "new info is" << block->Info;
+                qDebug() << t() << "GpsDevice::processSbfData(): info changed from" << mLastInfoFromDevice << "to" << block->Info;
                 const quint16 previousInfoFromDevice = mLastInfoFromDevice;
                 mLastInfoFromDevice = block->Info;
 
@@ -447,6 +447,7 @@ void GpsDevice::processSbfData()
             // Check the Mode-field and emit states if it changes
             if(mLastModeFromDevice != block->Mode)
             {
+                qDebug() << t() << "GpsDevice::processSbfData(): mode changed from" << mLastModeFromDevice << "to" << block->Mode;
                 mLastModeFromDevice = block->Mode;
 
                 switch(block->Mode)
@@ -480,6 +481,7 @@ void GpsDevice::processSbfData()
             // Check the Error-field and emit states if it changes
             if(mLastErrorFromDevice != block->Error)
             {
+                qDebug() << t() << "GpsDevice::processSbfData(): error changed from" << mLastErrorFromDevice << "to" << block->Error;
                 mLastErrorFromDevice = block->Error;
                 slotEmitCurrentGpsStatus(GpsStatusInformation::getError(mLastErrorFromDevice));
             }
@@ -487,6 +489,7 @@ void GpsDevice::processSbfData()
             // Check the GnssPvtMode-field and emit states if it changes
             if(mLastGnssPvtModeFromDevice != block->GNSSPVTMode)
             {
+                qDebug() << t() << "GpsDevice::processSbfData(): GnssPvtMode changed from" << mLastGnssPvtModeFromDevice << "to" << block->GNSSPVTMode;
                 mLastGnssPvtModeFromDevice = block->GNSSPVTMode;
                 slotEmitCurrentGpsStatus(GpsStatusInformation::getGnssMode(mLastGnssPvtModeFromDevice));
             }
@@ -494,13 +497,15 @@ void GpsDevice::processSbfData()
             // TODO: this will change often in regular usage, really notify?
             if(mLastGnssAgeFromDevice != block->GNSSage)
             {
+                qDebug() << t() << "GpsDevice::processSbfData(): GnssAge changed from" << mLastGnssAgeFromDevice << "to" << block->GNSSage;
                 mLastGnssAgeFromDevice = block->GNSSage;
                 slotEmitCurrentGpsStatus(QString("No GNSS-PVT for %1 seconds").arg(block->GNSSage));
             }
 
-            const quint8 numberOfSatellitesUsed = block->NrSVAnt & 31;
+            const quint8 numberOfSatellitesUsed = (block->NrSVAnt & 31);
             if(numberOfSatellitesUsed != mLastNumberOfSatellitesUsed)
             {
+                qDebug() << t() << "GpsDevice::processSbfData(): numSats changed from" << mLastNumberOfSatellitesUsed << "to" << numberOfSatellitesUsed;
                 mLastNumberOfSatellitesUsed = numberOfSatellitesUsed;
                 slotEmitCurrentGpsStatus(QString("Number of used satellites changed to %1").arg(numberOfSatellitesUsed));
             }
@@ -530,12 +535,17 @@ void GpsDevice::processSbfData()
                             block->TOW // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
                             );
 
+                qDebug() << "GpsDevice::processSbfData(): new position is: lon" << lon << "lat" << lat << "alt" << alt;
+
                 emit newVehiclePose(p);
 
                 mPoseClockDivisor = mPoseClockDivisor % 20;
                 if(mPoseClockDivisor % 20 == 0) emit newVehiclePoseLowFreq(p);
 
-                qDebug() << "position is" << lon << lat << alt;
+            }
+            else
+            {
+                qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, either error or do-not-use-values encountered.";
             }
 
 //            qDebug() << "SBF: IntAttEuler: Info" << block->Info << "Mode" << block->Mode << "Error" << block->Error << "TOW" << block->TOW << "WNc" << block->WNc << "HPR:" << block->Heading << block->Pitch << block->Roll;;

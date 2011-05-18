@@ -35,6 +35,7 @@ inline int ipow(int base, int exp)
     return result;
 }
 
+QString t();
 
 enum LogImportance
 {
