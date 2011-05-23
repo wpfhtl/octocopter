@@ -58,10 +58,6 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mGlWidget, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
     connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWidget, SLOT(updateGL()));
 
-    mTimerUpdateStatus = new QTimer();
-    mTimerUpdateStatus->setInterval(500);
-    connect(mTimerUpdateStatus, SIGNAL(timeout()), SLOT(slotGetStatus()));
-
     mPlotWidget = new PlotWidget(this);
     mPlotWidget->setAllowedAreas(Qt::AllDockWidgetAreas);
     addDockWidget(Qt::LeftDockWidgetArea, mPlotWidget);
@@ -90,7 +86,7 @@ void BaseStation::slotSocketDisconnected()
 
     mLogWidget->log(Warning, "BaseStation::slotSocketDisconnected()", "connection closed, retrying...");
 
-    mTimerUpdateStatus->stop();
+    mControlWidget->slotUpdateRoverConnection(false);
 
     slotConnectToRover();
 }
@@ -101,7 +97,7 @@ void BaseStation::slotSocketConnected()
 
     mLogWidget->log(Information, "BaseStation::slotSocketConnected()", "connection established.");
 
-    mTimerUpdateStatus->start();
+    mControlWidget->slotUpdateRoverConnection(true);
 }
 
 void BaseStation::slotExportCloud()
@@ -258,7 +254,8 @@ void BaseStation::processPacket(QByteArray data)
     }
     else if(packetType == "gpsstatus")
     {
-        quint8 gnssMode, integrationMode, info, error, numSatellitesTracked, lastPvtAge;
+        quint8 gnssMode, integrationMode, error, numSatellitesTracked, lastPvtAge;
+        quint16 info;
         QString status;
 
         stream >> gnssMode;
@@ -339,18 +336,6 @@ void BaseStation::processPacket(QByteArray data)
     }
 }
 
-//void BaseStation::slotGetStatus()
-//{
-////    mLogWidget->log("asking rover for status.");
-
-//    QByteArray data;
-//    QDataStream stream(&data, QIODevice::WriteOnly);
-
-//    stream << QString("getstatus");
-
-//    slotSendData(data);
-//}
-
 void BaseStation::slotWayPointInsert(QString hash, int index, const QList<WayPoint>& wayPoints)
 {
     QByteArray data;
@@ -377,6 +362,8 @@ void BaseStation::slotSendRtkDataToRover(const QByteArray& rtkData)
     mLogWidget->log(Information, "BaseStation::slotSendRtkDataToRover()", QString("sending %1 bytes of rtk data to rover").arg(rtkData.size()));
 
     slotSendData(data);
+
+    mControlWidget->slotUpdateRtkStatus(true);
 }
 
 void BaseStation::slotWayPointDelete(QString hash, int index)
@@ -419,12 +406,15 @@ void BaseStation::slotConnectToRover()
     while(mConnectionDialog->getHostNameRover().isEmpty())
         slotAskForConnectionHostNames();
 
+    mTcpSocket->abort();
     mTcpSocket->connectToHost(mConnectionDialog->getHostNameRover(), 12345);
 }
 
 void BaseStation::slotSocketError(QAbstractSocket::SocketError socketError)
 {
     qDebug() << "BaseStation::slotSocketError():" << socketError;
+
+    mControlWidget->slotUpdateRoverConnection(false);
 
     if(socketError == QAbstractSocket::ConnectionRefusedError)
         QTimer::singleShot(2000, this, SLOT(slotConnectToRover()));

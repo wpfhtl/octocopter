@@ -17,8 +17,8 @@ GpsDevice::GpsDevice(QString &serialDeviceFile, QObject *parent) : QObject(paren
 
     if(!mSerialPort->isOpen())
     {
-	qDebug() << "Opening serial port" << serialDeviceFile << "failed:" << mSerialPort->errorString() << "Exiting.";
-	exit(1);
+        qDebug() << "Opening serial port" << serialDeviceFile << "failed:" << mSerialPort->errorString() << "Exiting.";
+        exit(1);
     }
 
     determineSerialPortOnDevice();
@@ -48,20 +48,20 @@ void GpsDevice::slotFlushCommandQueue()
 {
     if(mNumberOfRemainingReplies == 0 && mCommandQueue.size())
     {
-	mLastCommandToDevice = mCommandQueue.takeFirst();
-	qDebug() << "GpsDevice::slotFlushCommandQueue(): currently not waiting for a reply, so sending next command:" << mLastCommandToDevice.trimmed();
-	if(mReceiveBuffer.size() != 0) qDebug() << "GpsDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << mReceiveBuffer;
+        mLastCommandToDevice = mCommandQueue.takeFirst();
+        qDebug() << "GpsDevice::slotFlushCommandQueue(): currently not waiting for a reply, so sending next command:" << mLastCommandToDevice.trimmed();
+        if(mReceiveBuffer.size() != 0) qDebug() << "GpsDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << mReceiveBuffer;
 
-	mSerialPort->write(mLastCommandToDevice);
-	mNumberOfRemainingReplies++;
+        mSerialPort->write(mLastCommandToDevice);
+        mNumberOfRemainingReplies++;
     }
     else if(mNumberOfRemainingReplies)
     {
-	qDebug() << "GpsDevice::slotFlushCommandQueue(): still waiting for" << mNumberOfRemainingReplies << "command-replies, not sending.";
+        qDebug() << "GpsDevice::slotFlushCommandQueue(): still waiting for" << mNumberOfRemainingReplies << "command-replies, not sending.";
     }
     else
     {
-	qDebug() << "GpsDevice::slotFlushCommandQueue(): nothing to send.";
+        qDebug() << "GpsDevice::slotFlushCommandQueue(): nothing to send.";
     }
 }
 
@@ -83,14 +83,14 @@ void GpsDevice::determineSerialPortOnDevice()
     // Use line sending with e.g. COM2 or USB1 to determine the port on the serial device being used.
     if(data.right(1) == ">" && (port.left(3) == "COM" || port.left(3) == "USB"))
     {
-	mSerialPortOnDevice = port;
-	qDebug() << "GpsDevice::determineSerialPortOnDevice(): serial port on device is now " << mSerialPortOnDevice;
-	qDebug() << "GpsDevice::determineSerialPortOnDevice(): other non-rtk data:" << data;
+        mSerialPortOnDevice = port;
+        qDebug() << "GpsDevice::determineSerialPortOnDevice(): serial port on device is now " << mSerialPortOnDevice;
+        qDebug() << "GpsDevice::determineSerialPortOnDevice(): other non-rtk data:" << data;
     }
     else
     {
-	qDebug() << "GpsDevice::determineSerialPortOnDevice(): couldn't get serialPortOnDevice, data is:" << data;
-	exit(1);
+        qDebug() << "GpsDevice::determineSerialPortOnDevice(): couldn't get serialPortOnDevice, data is:" << data;
+        exit(1);
     }
 }
 
@@ -106,15 +106,15 @@ void GpsDevice::rtkOutputInitialize()
     QFile file("rtk-init.txt");
     if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
     {
-	qDebug() << "GpsDevice::rtkOutputInitialize(): couldn't read rtk-init.txt to initialize gps device";
-	QCoreApplication::quit();
+        qDebug() << "GpsDevice::rtkOutputInitialize(): couldn't read rtk-init.txt to initialize gps device";
+        QCoreApplication::quit();
     }
 
     while(!file.atEnd())
     {
-	QByteArray line = file.readLine();
-	line.replace("$PORT", mSerialPortOnDevice.toAscii());
-	sendAsciiCommand(line.trimmed());
+        QByteArray line = file.readLine();
+        line.replace("$PORT", mSerialPortOnDevice.toAscii());
+        sendAsciiCommand(line.trimmed());
     }
 
     qDebug() << "GpsDevice::rtkOutputInitialize(): done sending rtk-init.txt";
@@ -144,15 +144,15 @@ void GpsDevice::rtkOutputStart()
     QFile file("rtk-start.txt");
     if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
     {
-	qDebug() << "GpsDevice::rtkOutputInitialize(): couldn't read rtk-start.txt to start rtk output";
-	QCoreApplication::quit();
+        qDebug() << "GpsDevice::rtkOutputInitialize(): couldn't read rtk-start.txt to start rtk output";
+        QCoreApplication::quit();
     }
 
     while(!file.atEnd())
     {
-	QByteArray line = file.readLine();
-	line.replace("$PORT", mSerialPortOnDevice.toAscii());
-	sendAsciiCommand(line.trimmed());
+        QByteArray line = file.readLine();
+        line.replace("$PORT", mSerialPortOnDevice.toAscii());
+        sendAsciiCommand(line.trimmed());
     }
 
     qDebug() << "GpsDevice::rtkOutputInitialize(): done sending rtk-start.txt";
@@ -172,15 +172,15 @@ void GpsDevice::rtkOutputStop()
     QFile file("rtk-stop.txt");
     if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
     {
-	qDebug() << "GpsDevice::rtkOutputInitialize(): couldn't read rtk-stop.txt to stop rtk output";
-	QCoreApplication::quit();
+        qDebug() << "GpsDevice::rtkOutputInitialize(): couldn't read rtk-stop.txt to stop rtk output";
+        QCoreApplication::quit();
     }
 
     while(!file.atEnd())
     {
-	QByteArray line = file.readLine();
-	line.replace("$PORT", mSerialPortOnDevice.toAscii());
-	sendAsciiCommand(line.trimmed());
+        QByteArray line = file.readLine();
+        line.replace("$PORT", mSerialPortOnDevice.toAscii());
+        sendAsciiCommand(line.trimmed());
     }
 
     qDebug() << "GpsDevice::rtkOutputInitialize(): done sending rtk-stop.txt";
@@ -194,29 +194,29 @@ void GpsDevice::slotSerialPortDataReady()
     usleep(100000); // wait for the later bytes of this message to come on in...
     mReceiveBuffer.append(mSerialPort->readAll());
 
-    qDebug() << "GpsDevice::slotSerialPortDataReady():" << mReceiveBuffer;
+//    qDebug() << "GpsDevice::slotSerialPortDataReady():" << mReceiveBuffer;
 
     if(mNumberOfRemainingReplies != 0)
     {
-	const int position = mReceiveBuffer.indexOf(mSerialPortOnDevice + QString(">"));
-	if(position != -1)
-	{
-	    qDebug() << "GpsDevice::slotSerialPortDataReady(): received reply to" << mLastCommandToDevice.trimmed() << ":" << mReceiveBuffer.left(position).trimmed();
-	    qDebug() << "GpsDevice::slotSerialPortDataReady(): now sending next command, if any";
+        const int position = mReceiveBuffer.indexOf(mSerialPortOnDevice + QString(">"));
+        if(position != -1)
+        {
+            qDebug() << "GpsDevice::slotSerialPortDataReady(): received reply to" << mLastCommandToDevice.trimmed() << ":" << mReceiveBuffer.left(position).trimmed();
+            qDebug() << "GpsDevice::slotSerialPortDataReady(): now sending next command, if any";
 
-	    if(mReceiveBuffer.left(position).contains("$R? ASCII commands between prompts were discarded!")) qDebug() << "GpsDevice::slotSerialPortDataReady(): it seems we were talking too fast?!";
+            if(mReceiveBuffer.left(position).contains("$R? ASCII commands between prompts were discarded!")) qDebug() << "GpsDevice::slotSerialPortDataReady(): it seems we were talking too fast?!";
 
-	    mReceiveBuffer.remove(0, position+5);
-	    mNumberOfRemainingReplies--;
-	    slotFlushCommandQueue();
-	}
+            mReceiveBuffer.remove(0, position+5);
+            mNumberOfRemainingReplies--;
+            slotFlushCommandQueue();
+        }
     }
     else
     {
-	// We're not waiting for a reply to a command, this must be correction data!
-	qDebug() << "GpsDevice::slotSerialPortDataReady(): emitting" << mReceiveBuffer.size() << "bytes of correction data.";
-	emit correctionDataReady(mReceiveBuffer);
-	mReceiveBuffer.clear();
+        // We're not waiting for a reply to a command, this must be correction data!
+//        qDebug() << "GpsDevice::slotSerialPortDataReady(): emitting" << mReceiveBuffer.size() << "bytes of correction data.";
+        emit correctionDataReady(mReceiveBuffer);
+        mReceiveBuffer.clear();
     }
 
 }

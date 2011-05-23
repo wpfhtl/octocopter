@@ -19,8 +19,7 @@ class ControlWidget : public QDockWidget, public Ui::ControlWidget
 Q_OBJECT
 private:
     BaseStation *mBaseStation;
-//    Battery* mBattery;
-//    CoordinateConverter *mCoordinateConverter;
+    QTimer mTimerRtkIndicator;
     QList<WayPoint> mWayPoints;
 
     void initWayPointTable();
@@ -39,8 +38,10 @@ public slots:
     void slotUpdateWirelessRssi(const qint8& wirelessRssi);
     void slotUpdateBarometricHeight(const qint16& barometricHeight);
     void slotNewWayPoints(const QList<WayPoint>&);
-    void slotUpdateGpsStatus(const quint8& gnssMode, const quint8& integrationMode, const quint8& info, const quint8& error, const quint8& numSatellitesTracked, const quint8& lastPvtAge, const QString& status);
+    void slotUpdateGpsStatus(const quint8& gnssMode, const quint8& integrationMode, const quint16& info, const quint8& error, const quint8& numSatellitesTracked, const quint8& lastPvtAge, const QString& status);
     void slotRoverReachedNextWayPoint();
+    void slotUpdateRtkStatus(bool working = false);
+    void slotUpdateRoverConnection(bool connected);
 
 private slots:
     void slotSimulationStarted();

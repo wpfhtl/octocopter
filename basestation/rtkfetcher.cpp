@@ -42,15 +42,15 @@ void RtkFetcher::slotSocketDataReady()
     usleep(100000); // wait for the later bytes of this message to come on in...
     mReceiveBuffer.append(mTcpSocket->readAll());
 
-    qDebug() << "RtkFetcher::slotSerialPortDataReady():" << mReceiveBuffer;
+//    qDebug() << "RtkFetcher::slotSocketDataReady():" << mReceiveBuffer;
 
     if(mNumberOfRemainingReplies != 0)
     {
         const int position = mReceiveBuffer.indexOf(mSerialPortOnDevice + QString(">"));
         if(position != -1)
         {
-            qDebug() << "RtkFetcher::slotSerialPortDataReady(): received reply to" << mLastCommandToDevice.trimmed() << ":" << mReceiveBuffer.left(position).trimmed();
-            qDebug() << "RtkFetcher::slotSerialPortDataReady(): now sending next command, if any";
+            qDebug() << "RtkFetcher::slotSocketDataReady(): received reply to" << mLastCommandToDevice.trimmed() << ":" << mReceiveBuffer.left(position).trimmed();
+            qDebug() << "RtkFetcher::slotSocketDataReady(): now sending next command, if any";
 
             if(mReceiveBuffer.left(position).contains("$R? ASCII commands between prompts were discarded!")) qDebug() << "RtkFetcher::slotSerialPortDataReady(): it seems we were talking too fast?!";
 
@@ -62,7 +62,7 @@ void RtkFetcher::slotSocketDataReady()
     else
     {
         // We're not waiting for a reply to a command, this must be correction data!
-        qDebug() << "RtkFetcher::slotSerialPortDataReady(): emitting" << mReceiveBuffer.size() << "bytes of correction data.";
+//        qDebug() << "RtkFetcher::slotSocketDataReady(): emitting" << mReceiveBuffer.size() << "bytes of correction data.";
         emit rtkData(mReceiveBuffer);
         mReceiveBuffer.clear();
     }

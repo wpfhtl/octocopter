@@ -10,6 +10,10 @@ ControlWidget::ControlWidget(BaseStation* baseStation) : QDockWidget((QWidget*)b
 //    connect(mBtnPause, SIGNAL(clicked()), SLOT(slotSimulationPaused()));
 
     initWayPointTable();
+    mTimerRtkIndicator.setInterval(1500);
+    mTimerRtkIndicator.start();
+
+    connect(&mTimerRtkIndicator, SIGNAL(timeout()), SLOT(slotUpdateRtkStatus()));
 
     connect(mBtnWptPrepend, SIGNAL(clicked()), SLOT(slotWayPointPrepend()));
     connect(mBtnWptAppend, SIGNAL(clicked()), SLOT(slotWayPointAppend()));
@@ -75,6 +79,53 @@ void ControlWidget::slotSimulationPaused()
     emit simulationPause();
 }
 
+void ControlWidget::slotUpdateRoverConnection(bool connected)
+{
+    if(connected)
+    {
+        if(mLabelRoverIndicator->styleSheet() == "background-color:#55ff55;")
+            mLabelRoverIndicator->setStyleSheet("background-color:#22aa22;");
+        else
+            mLabelRoverIndicator->setStyleSheet("background-color:#55ff55;");
+
+        mLabelRoverIndicator->setText("OK");
+    }
+    else
+    {
+        if(mLabelRoverIndicator->styleSheet() == "background-color:#ff5555;")
+            mLabelRoverIndicator->setStyleSheet("background-color:#aa2222;");
+        else
+            mLabelRoverIndicator->setStyleSheet("background-color:#ff5555;");
+
+        mLabelRoverIndicator->setText("ERR");
+    }
+
+}
+
+void ControlWidget::slotUpdateRtkStatus(bool working)
+{
+    if(working)
+    {
+        if(mLabelRtkIndicator->styleSheet() == "background-color:#55ff55;")
+            mLabelRtkIndicator->setStyleSheet("background-color:#22aa22;");
+        else
+            mLabelRtkIndicator->setStyleSheet("background-color:#55ff55;");
+
+        mLabelRtkIndicator->setText("OK");
+
+        mTimerRtkIndicator.stop();
+        mTimerRtkIndicator.start();
+    }
+    else
+    {
+        if(mLabelRtkIndicator->styleSheet() == "background-color:#ff5555;")
+            mLabelRtkIndicator->setStyleSheet("background-color:#aa2222;");
+        else
+            mLabelRtkIndicator->setStyleSheet("background-color:#ff5555;");
+
+        mLabelRtkIndicator->setText("ERR");
+    }
+}
 
 void ControlWidget::slotWayPointPrepend()
 {
@@ -231,9 +282,9 @@ void ControlWidget::slotUpdateBattery(const float& voltageCurrent)
 
 void ControlWidget::slotUpdatePose(const Pose &pose)
 {
-    mLabelPoseOgreX->setText(QString("%1m").arg(pose.position.x(), 3, 'f', 1, '0'));
-    mLabelPoseOgreY->setText(QString("%1m").arg(pose.position.y(), 3, 'f', 1, '0'));
-    mLabelPoseOgreZ->setText(QString("%1m").arg(pose.position.z(), 3, 'f', 1, '0'));
+    mLabelPoseOgreX->setText(QString("%1m").arg(pose.position.x(), 4, 'f', 3, '0'));
+    mLabelPoseOgreY->setText(QString("%1m").arg(pose.position.y(), 4, 'f', 3, '0'));
+    mLabelPoseOgreZ->setText(QString("%1m").arg(pose.position.z(), 4, 'f', 3, '0'));
 
 //    CoordinateGps wgs84 = mCoordinateConverter->convert(position);
 
@@ -310,7 +361,7 @@ void ControlWidget::slotUpdateWirelessRssi(const qint8& wirelessRssi)
     }
 }
 
-void ControlWidget::slotUpdateGpsStatus(const quint8& gnssMode, const quint8& integrationMode, const quint8& info, const quint8& error, const quint8& numSatellitesTracked, const quint8& lastPvtAge, const QString& status)
+void ControlWidget::slotUpdateGpsStatus(const quint8& gnssMode, const quint8& integrationMode, const quint16& info, const quint8& error, const quint8& numSatellitesTracked, const quint8& lastPvtAge, const QString& status)
 {
     mLabelGpsGnssMode->setText(GpsStatusInformation::getGnssMode(gnssMode));
     mLabelGpsIntegrationMode->setText(GpsStatusInformation::getIntegrationMode(integrationMode));
@@ -323,6 +374,7 @@ void ControlWidget::slotUpdateGpsStatus(const quint8& gnssMode, const quint8& in
     {
         mTextEditGpsStatus->appendPlainText(status);
         mTextEditGpsStatus->moveCursor(QTextCursor::End);
+        mTextEditGpsStatus->moveCursor(QTextCursor::StartOfLine);
     }
 }
 

@@ -33,8 +33,6 @@ class BaseStation : public QMainWindow
 
 private:
     QTcpSocket* mTcpSocket;
-//    QVector3D mVehiclePosition;
-//    QQuaternion mVehicleOrientation;
     Pose mVehiclePose;
 
     ConnectionDialog* mConnectionDialog;
@@ -49,8 +47,6 @@ private:
     ControlWidget* mControlWidget;
     LogWidget* mLogWidget;
     PlotWidget* mPlotWidget;
-
-    QTimer* mTimerUpdateStatus;
 
     // a container for collected rays, or rather the world coordinates of where they ended
     Octree* mOctree;
@@ -71,28 +67,22 @@ private:
 
 private slots:
     void slotAskForConnectionHostNames();
-
     void slotSocketConnected(void);
     void slotSocketDisconnected(void);
     void slotReadSocket(void);
     void slotSocketError(QAbstractSocket::SocketError socketError);
     void slotConnectToRover(void);
     void slotExportCloud(void);
-
     void slotFlightPlannerProcessing(const QString& text, const quint8& progress);
-
     void slotWayPointInsert(QString, int, const QList<WayPoint>&);
     void slotWayPointDelete(QString, int);
     void slotSendRtkDataToRover(const QByteArray& rtkData);
-
     void slotSendData(const QByteArray &data);
-//    void slotGetStatus(void);
 
 public:
     BaseStation(void);
     ~BaseStation();
 
-//    const QVector3D& getCurrentVehiclePosition(void) const;
     const WayPoint getNextWayPoint(void) const;
 };
 
