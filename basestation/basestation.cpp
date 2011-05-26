@@ -13,7 +13,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     mProgress = 0;
 
-    mHostNames << "atomboard.dyndns.org" << "localhost" << "192.168.1.2";
+    mHostNames << "atomboard.dyndns.org" << "localhost" << "192.168.1.1";
     mConnectionDialog = new ConnectionDialog(this);
     slotAskForConnectionHostNames();
 
@@ -34,6 +34,9 @@ BaseStation::BaseStation() : QMainWindow()
     addDockWidget(Qt::RightDockWidgetArea, mControlWidget);
     connect(mControlWidget, SIGNAL(wayPointInsert(QString, int, const QList<WayPoint>&)), SLOT(slotWayPointInsert(QString, int, const QList<WayPoint>&)));
     connect(mControlWidget, SIGNAL(wayPointDelete(QString, int)), SLOT(slotWayPointDelete(QString, int)));
+
+    mWirelessDevice = new WirelessDevice("wlan0");
+    connect(mWirelessDevice, SIGNAL(rssi(qint8)), mControlWidget, SLOT(slotUpdateWirelessRssi(qint8)));
 
     mLogWidget = new LogWidget(this);
     addDockWidget(Qt::BottomDockWidgetArea, mLogWidget);
@@ -250,7 +253,11 @@ void BaseStation::processPacket(QByteArray data)
         mControlWidget->slotUpdateMissionRunTime(missionRunTime);
         mControlWidget->slotUpdateBattery(batteryVoltage);
         mControlWidget->slotUpdateBarometricHeight(barometricHeight);
-        mControlWidget->slotUpdateWirelessRssi(wirelessRssi);
+
+        // It seems impossible to read the RSSI of the basestation's signal if the rover
+        // is the access-point. At least hostapd seems to have no feature for querying
+        // an STAs RSSI. Thus, we read the RSSI of the rover's signal at the base...
+//        mControlWidget->slotUpdateWirelessRssi(wirelessRssi);
     }
     else if(packetType == "gpsstatus")
     {

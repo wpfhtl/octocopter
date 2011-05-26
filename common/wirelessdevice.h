@@ -3,15 +3,23 @@
 
 #include <QString>
 #include <QStringList>
+#include <QTimer>
 #include <QDebug>
 #include <QFile>
 
-
-
-class WirelessDevice
+class WirelessDevice : public QObject
 {
+    Q_OBJECT
+
 private:
     QString mInterfaceName;
+    QTimer* mUpdateTimer;
+
+private slots:
+    void slotEmitRssi();
+
+signals:
+    void rssi(qint8);
 
 public:
     WirelessDevice(const QString& interfaceName);

@@ -1,8 +1,13 @@
 #include "wirelessdevice.h"
 
-WirelessDevice::WirelessDevice(const QString& interfaceName)
+WirelessDevice::WirelessDevice(const QString& interfaceName) : QObject()
 {
     mInterfaceName = interfaceName;
+
+    mUpdateTimer = new QTimer;
+    connect(mUpdateTimer, SIGNAL(timeout()), SLOT(slotEmitRssi()));
+    mUpdateTimer->setInterval(250);
+    mUpdateTimer->start();
 }
 
 qint8 WirelessDevice::getRssi()
@@ -44,4 +49,9 @@ qint8 WirelessDevice::getRssi()
     }
 
     return -1;
+}
+
+void WirelessDevice::slotEmitRssi()
+{
+    emit rssi(getRssi());
 }

@@ -19,6 +19,7 @@
 #include "controlwidget.h"
 #include "logwidget.h"
 #include "cloudexporter.h"
+#include "wirelessdevice.h"
 #include <plotwidget.h>
 #include <waypoint.h>
 #include <pose.h>
@@ -34,6 +35,8 @@ class BaseStation : public QMainWindow
 private:
     QTcpSocket* mTcpSocket;
     Pose mVehiclePose;
+
+    WirelessDevice* mWirelessDevice;
 
     ConnectionDialog* mConnectionDialog;
 
