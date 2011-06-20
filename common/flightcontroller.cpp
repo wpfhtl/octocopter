@@ -5,7 +5,7 @@ FlightController::FlightController() : QObject()
     setFlightState(Idle);
 
 //    for(int i=0;i<4;i++) {
-//    setFlightState(ApproachingNextWayPoint);
+//        setFlightState(ApproachingNextWayPoint);
 //        mWayPoints.append(QVector3D(140, 100, 80));
 //        mWayPoints.append(QVector3D(240, 100, 80));
 //        mWayPoints.append(QVector3D(140, 100, 160));
