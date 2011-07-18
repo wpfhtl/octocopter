@@ -38,7 +38,7 @@
    <item row="1" column="2">
     <widget class="QLineEdit" name="mLineEditHostNameRtkBase">
      <property name="text">
-      <string>localhost</string>
+      <string>134.100.13.169</string>
      </property>
     </widget>
    </item>

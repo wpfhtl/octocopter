@@ -2,7 +2,7 @@
 # refer to the root source directory of the project as ${SIMULATOR_SOURCE_DIR} and
 # to the root binary directory of the project as ${SIMULATOR_BINARY_DIR}.
 CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
-PROJECT (basestation)
+PROJECT(basestation)
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} /usr/share/cmake/Modules/)
 
@@ -91,8 +91,7 @@ SET(CMAKE_BUILD_TYPE "Debug")
 # Enable the Node LidarPoint::node member, in which a lidarpoint remembers in which node it is stored. Increases octree efficiency,
 # but also creates a dependency on "Node", which is otherwise unused in koptercontrol project
 ADD_DEFINITIONS(-DLIDARPOINT_KEEPS_PARENTNODE)
-INCLUDE_DIRECTORIES(/usr/include /usr/include/qwt6 /usr/local/qwt/include/ ${BULLET_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
-LINK_DIRECTORIES(/usr/local/qwt/lib/)
+INCLUDE_DIRECTORIES(/usr/include /usr/local/include/ ${BULLET_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
+LINK_DIRECTORIES(/usr/lib/ /usr/local/lib/)
 ADD_EXECUTABLE(basestation ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-TARGET_LINK_LIBRARIES(basestation qwt6 ${QT_LIBRARIES} ${BULLET_LIBRARIES} GLU)
-LINK_DIRECTORIES(/usr/lib/)
+TARGET_LINK_LIBRARIES(basestation qwt ${QT_LIBRARIES} ${BULLET_LIBRARIES} GLU)

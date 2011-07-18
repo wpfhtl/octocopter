@@ -28,8 +28,14 @@ FlightPlannerPhysics::FlightPlannerPhysics(const Pose * const pose, Octree* poin
 
     // Set up a ghost object that deletes SampleSpheres when they hit it.
     mDeletionTriggerTransform.setIdentity();
-    mDeletionTriggerTransform.setOrigin(btVector3(0.0, mScanVolumeMin.y()-10.0, 0.0));
-    mDeletionTriggerShape = new btBoxShape(btVector3(500, 10, 500)); // These are HALF-extents!
+    mDeletionTriggerTransform.setOrigin(btVector3(mScanVolumeMin.x(), mScanVolumeMin.y()-10.0, mScanVolumeMin.z()));
+
+    mDeletionTriggerShape = new btBoxShape(
+                btVector3( // These are HALF-extents!
+                    (mScanVolumeMax.x() - mScanVolumeMin.x()) / 2.0,
+                    10,
+                    (mScanVolumeMax.z() - mScanVolumeMin.z()) / 2.0));
+
     mDeletionTriggerGhostObject = new btGhostObject;
     mDeletionTriggerGhostObject->setWorldTransform(mDeletionTriggerTransform);
     mDeletionTriggerGhostObject->setCollisionShape(mDeletionTriggerShape);
@@ -290,16 +296,20 @@ void FlightPlannerPhysics::slotVisualize() const
     mBtWorld->debugDrawWorld();
 
     // Draw the scanVolume
+    glDisable(GL_LIGHTING);
     OpenGlUtilities::drawAabb(mScanVolumeMin, mScanVolumeMax, QColor(0, 0, 255, 255), 3);
+    glEnable(GL_LIGHTING);
 
     // Draw Octree
     if(mOctree)
     {
         glPointSize(4);
         glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
+        glDisable(GL_LIGHTING);
         glBegin(GL_POINTS);
         mOctree->handlePoints(); // => glVertex3f()...
         glEnd();
+        glEnable(GL_LIGHTING);
     }
 
     // Draw waypoints
@@ -332,5 +342,22 @@ void FlightPlannerPhysics::slotWayPointReached(const QVector3D)
 void FlightPlannerPhysics::slotSetScanVolume(const QVector3D min, const QVector3D max)
 {
     FlightPlannerInterface::slotSetScanVolume(min, max);
-    mDeletionTriggerTransform.setOrigin(btVector3(0.0, mScanVolumeMin.y()-10.0, 0.0)); // 5.0 is the half-height of the boxShape
+
+    mDeletionTriggerTransform.setOrigin(
+                btVector3(
+                    mScanVolumeMin.x() + (mScanVolumeMax.x() - mScanVolumeMin.x()) / 2.0,
+                    mScanVolumeMin.y()-5.0,
+                    mScanVolumeMin.z() + (mScanVolumeMax.z() - mScanVolumeMin.z()) / 2.0
+                    )
+                );
+
+    // recreate deletionTriggerShape with correct size.
+    delete mDeletionTriggerShape;
+    mDeletionTriggerShape = new btBoxShape(
+                btVector3( // These are HALF-extents!
+                    (mScanVolumeMax.x() - mScanVolumeMin.x()) / 2.0,
+                    5,
+                    (mScanVolumeMax.z() - mScanVolumeMin.z()) / 2.0)
+                );
+    mDeletionTriggerGhostObject->setCollisionShape(mDeletionTriggerShape);
 }

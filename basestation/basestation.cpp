@@ -42,7 +42,7 @@ BaseStation::BaseStation() : QMainWindow()
     addDockWidget(Qt::BottomDockWidgetArea, mLogWidget);
     menuBar()->addAction("Save Log", mLogWidget, SLOT(save()));
 
-    mRtkFetcher = new RtkFetcher(mConnectionDialog->getHostNameRtkBase(), 8888, this);
+    mRtkFetcher = new RtkFetcher(mConnectionDialog->getHostNameRtkBase(), 4001, this);
     connect(mRtkFetcher, SIGNAL(rtkData(QByteArray)), SLOT(slotSendRtkDataToRover(QByteArray)));
 
     mFlightPlanner = new FlightPlannerPhysics(&mVehiclePose, mOctree);

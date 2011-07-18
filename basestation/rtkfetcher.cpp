@@ -63,8 +63,11 @@ void RtkFetcher::slotSocketDataReady()
     {
         // We're not waiting for a reply to a command, this must be correction data!
 //        qDebug() << "RtkFetcher::slotSocketDataReady(): emitting" << mReceiveBuffer.size() << "bytes of correction data.";
-        emit rtkData(mReceiveBuffer);
-        mReceiveBuffer.clear();
+        if(mReceiveBuffer.size() > 500)
+        {
+            emit rtkData(mReceiveBuffer);
+            mReceiveBuffer.clear();
+        }
     }
 }
 

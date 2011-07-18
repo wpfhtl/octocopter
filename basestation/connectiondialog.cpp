@@ -9,7 +9,7 @@ ConnectionDialog::ConnectionDialog(QWidget *parent) :
     ui->setupUi(this);
 
     QStringList hostNames;
-    hostNames << "atomboard.dyndns.org" << "localhost" << "192.168.1.2";
+    hostNames << "atomboard.dyndns.org" << "localhost" << "192.168.1.2" << "tams9" << "134.100.13.169";
 
     QCompleter *completer = new QCompleter(hostNames, this);
     completer->setCaseSensitivity(Qt::CaseInsensitive);
