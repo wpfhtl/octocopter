@@ -17,7 +17,7 @@ class FlightPlannerBasic : public FlightPlannerInterface
     Q_OBJECT
 
 public:
-    FlightPlannerBasic(const Pose * const pose, Octree* pointCloud);
+    FlightPlannerBasic(QWidget* widget, const Pose * const pose, Octree* pointCloud);
     ~FlightPlannerBasic();
 
     void insertPoint(LidarPoint* const point);

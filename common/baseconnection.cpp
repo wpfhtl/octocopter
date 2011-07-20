@@ -16,8 +16,8 @@ BaseConnection::BaseConnection(const QString& interface) :
 
     /* Any old socket will do, and a datagram socket is pretty cheap */
 //    mSockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    mWirelessDevice = new WirelessDevice(interface);
-    mWirelessDevice->getRssi();
+//    mWirelessDevice = new WirelessDevice(interface);
+//    mWirelessDevice->getRssi();
 
 //    mInterface = interface;
     mTcpSocket = 0;
@@ -230,16 +230,17 @@ void BaseConnection::slotFlushWriteQueue()
 
 
 // called when the rover has changed the waypoints list, will be sent to base
-void BaseConnection::slotNewWayPointsFromRover(const QVector<WayPoint>& wayPoints)
-{
-    qDebug() << "sending new waypoints to base:" << wayPoints;
-    QByteArray data;
-    QDataStream stream(&data, QIODevice::WriteOnly);
+// Disabled: Why should the rover ever send waypoints?
+//void BaseConnection::slotNewWayPointsFromRover(const QVector<WayPoint>& wayPoints)
+//{
+//    qDebug() << "sending new waypoints to base:" << wayPoints;
+//    QByteArray data;
+//    QDataStream stream(&data, QIODevice::WriteOnly);
 
-    stream << QString("waypoints");
-    stream << wayPoints;
-    slotSendData(data, false);
-}
+//    stream << QString("waypoints");
+//    stream << wayPoints;
+//    slotSendData(data, false);
+//}
 
 // called by rover when it has reached a waypoint, notifies basestation
 void BaseConnection::slotWayPointReached(const WayPoint& wpt)
@@ -287,7 +288,7 @@ void BaseConnection::slotNewVehicleStatus(
     const float& batteryVoltage
     )
 {
-    const qint8 wirelessRssi = mWirelessDevice->getRssi();
+    const qint8 wirelessRssi = 0;// = mWirelessDevice->getRssi();
 
 //    slotNewLogMessage(
 //                Information,

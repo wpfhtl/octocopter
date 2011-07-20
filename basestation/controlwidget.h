@@ -20,7 +20,7 @@ Q_OBJECT
 private:
     BaseStation *mBaseStation;
     QTimer mTimerRtkIndicator;
-    QList<WayPoint> mWayPoints;
+//    QList<WayPoint> mWayPoints;
 
     void initWayPointTable();
 
@@ -28,30 +28,31 @@ public:
     ControlWidget(BaseStation *baseStation);
     ~ControlWidget();
 
-    const WayPoint getNextWayPoint() const;
-
 public slots:
     void slotUpdatePose(const Pose &pose);
-    void slotUpdateWayPoints(const QList<WayPoint>& waypoints);
     void slotUpdateMissionRunTime(const quint32& time);
     void slotUpdateBattery(const float& voltageCurrent);
     void slotUpdateWirelessRssi(const qint8& wirelessRssi);
     void slotUpdateBarometricHeight(const qint16& barometricHeight);
-    void slotNewWayPoints(const QList<WayPoint>&);
     void slotUpdateGpsStatus(const quint8& gnssMode, const quint8& integrationMode, const quint16& info, const quint8& error, const quint8& numSatellitesTracked, const quint8& lastPvtAge, const QString& status);
-    void slotRoverReachedNextWayPoint();
     void slotUpdateRtkStatus(bool working = false);
     void slotUpdateRoverConnection(bool connected);
+
+    // Called by FlightPlanner when it has changed its internal list.
+    void slotWayPointInserted(const quint16& index, const WayPoint& waypoint);
+    void slotWayPointDeleted(const quint16& index);
+    void slotSetWayPoints(QList<WayPoint>);
+    void slotWayPointsCleared();
 
 private slots:
     void slotSimulationStarted();
     void slotSimulationPaused();
 
+    // Called when buttons are pressed, simply emit signals to be processed my FlightPlanner
     void slotWayPointPrepend();
     void slotWayPointAppend();
     void slotWayPointDelete();
-    void slotWayPointChange(int row, int column);
-
+    void slotWayPointChange(int, int);
     void slotWayPointUp();
     void slotWayPointDown();
 
@@ -66,8 +67,9 @@ signals:
 
     void generateWaypoints();
 
-    void wayPointInsert(QString, int index, const QList<WayPoint>&);
-    void wayPointDelete(QString, int index);
+    void wayPointInsert(const quint16& index, const WayPoint&);
+    void wayPointDelete(const quint16& index);
+    void wayPointSwap(const quint16& i, const quint16& j);
 };
 
 #endif // ControlWidget_H

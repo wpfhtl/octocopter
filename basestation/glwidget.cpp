@@ -39,8 +39,9 @@ GlWidget::GlWidget(BaseStation *baseStation, Octree* octree, FlightPlannerInterf
 void GlWidget::initializeGL()
 {
     // Set up the rendering context, define display lists etc.:
-    glClearColor(0.3, .3, .3, 0.0);
+/*    glClearColor(0.3, .3, .3, 0.0);
 //    glClearColor(1.0, 1.0, 1.0, 0.0);
+    glClearDepth(1.0f);
     glEnable(GL_DEPTH_TEST);
 //    glEnable(GL_CULL_FACE);
     glShadeModel(GL_SMOOTH);
@@ -57,20 +58,37 @@ void GlWidget::initializeGL()
     glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
 
 
+    glHint(GL_LINE_SMOOTH_HINT, GL_NICEST); // antialias lines
 
-
-//    glShadeModel(GL_SMOOTH);
+    glShadeModel(GL_SMOOTH);
 //    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 //    glClearDepth(1.0f);
 //    glEnable(GL_DEPTH_TEST);
 //    glDepthFunc(GL_LEQUAL);
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+    */
     /* we use resizeGL once to set up our initial perspective */
 //    resizeGL(width, height);
     /* Reset the rotation angle of our object */
 //    rotQuad = 0;
 //    glFlush();
 
+
+    glShadeModel(GL_SMOOTH);						// Enable Smooth Shading
+    glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// Black Background
+    glClearDepth(1.0f);							// Depth Buffer Setup
+    glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);					// Set Line Antialiasing
+
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
+
+//    glEnable(GL_BLEND);							// Enable Blending
+//    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);			// Type Of Blending To Use
+//    glBlendFunc( GL_SRC_ALPHA, GL_ONE );
+    glBlendFunc( GL_ZERO, GL_ONE_MINUS_SRC_ALPHA );
+//    glBlendFunc( GL_SRC_ALPHA_SATURATE, GL_ONE );
+//    glBlendFunc(GL_ONE_MINUS_DST_ALPHA,GL_DST_ALPHA);
+    glEnable(GL_DEPTH_TEST);
 
 
 }
@@ -162,7 +180,9 @@ void GlWidget::paintGL()
 
 
     // Draw vehicle position
+//    glDisable(GL_LIGHTING);
     OpenGlUtilities::drawSphere(mFlightPlanner->getVehiclePose().position, 1.0, 20.0, QColor(20,255,20,100));
+//    glEnable(GL_LIGHTING);
 
     // Draw next waypoint
     OpenGlUtilities::drawSphere(mBaseStation->getNextWayPoint(), 1.0, 20.0, QColor(255,255,255,100));
@@ -170,26 +190,28 @@ void GlWidget::paintGL()
 //    glTranslatef(+0.0, +100.0, +0.0);
 
 
-    drawAxes(10, 10, 10, 1.0, 1.0, 0.0);
+    drawAxes(20, 20, 20, 1.0, 1.0, 0.0);
     // Draw base plate
-        glDisable(GL_LIGHTING);
-    glBlendFunc(GL_SRC_ALPHA,GL_ONE);
-    glColor4f(1.0f, 1.0f, 1.0f, 0.1f);
-    glBegin(GL_QUADS);
-    glVertex3f(1000, 0, -1000);
-    glVertex3f(1000, 0, 1000);
-    glVertex3f(-1000, 0, 1000);
-    glVertex3f(-1000, 0, -1000);
-    glEnd();
-    glEnable(GL_LIGHTING);
+//    glDisable(GL_LIGHTING);
+//    glBlendFunc(GL_SRC_ALPHA,GL_ONE);
+//    glColor4f(1.0f, 1.0f, 1.0f, 0.1f);
+//    glBegin(GL_QUADS);
+//    glVertex3f(1000, 0, -1000);
+//    glVertex3f(1000, 0, 1000);
+//    glVertex3f(-1000, 0, 1000);
+//    glVertex3f(-1000, 0, -1000);
+//    glEnd();
+//    glEnable(GL_LIGHTING);
 
 
 //    mOctree->drawGl();
+    glDisable(GL_LIGHTING);
     glPointSize(1);
-    glColor4f(1.0f, 1.0f, 0.0f, 1.0f);
+    glColor4f(.5f, .5f, .5f, 0.9f);
     glBegin(GL_POINTS);
     mOctree->handlePoints();
     glEnd();
+    glEnable(GL_LIGHTING);
 
     // draw
 //    mFlightPlanner->visualize();

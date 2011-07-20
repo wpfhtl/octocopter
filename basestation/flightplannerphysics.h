@@ -2,7 +2,7 @@
 #define FLIGHTPLANNERPHYSICS_H
 
 #include "flightplannerinterface.h"
-//#include "physicssphere.h"
+#include "flightplannerphysicsdialog.h"
 #include "node.h"
 #include "lidarpoint.h"
 #include <waypoint.h>
@@ -18,15 +18,18 @@ class FlightPlannerPhysics : public FlightPlannerInterface
 {
     Q_OBJECT
 public:
-    FlightPlannerPhysics(const Pose * const pose, Octree* pointCloud);
+    FlightPlannerPhysics(QWidget* widget, const Pose * const pose, Octree* pointCloud);
     ~FlightPlannerPhysics();
 
     void insertPoint(LidarPoint* const point);
 
 private:
     Octree* mOctree;
-
+    FlightPlannerPhysicsDialog* mDialog;
     BulletDebugDrawerGl* mDbgDrawer;
+    bool mPhysicsProcessingActive;
+
+    QList<WayPoint> mWayPointsGenerated;
 
     // testing
 //    btTransform mDeletionTriggerTransform;
@@ -38,17 +41,17 @@ private:
     btCollisionShape *mDeletionTriggerShape;
     btGhostObject *mDeletionTriggerGhostObject;
 
-    btCompoundShape *mLidarFloorShape;
-    btPairCachingGhostObject *mLidarFloorGhostObject;
+    btCompoundShape *mPointCloudShape;
+    btPairCachingGhostObject *mPointCloudGhostObject;
 
     btSphereShape *mShapeSampleSphere;
-    QList<btRigidBody*> mSampleSpheres;
+    QList<btRigidBody*> mSampleObjects;
 
     // In this QMap, we associate SampleSphere* -> QVector3D_Last_LidarPoint_Hit
-    QMap<btRigidBody*, QVector3D> mLastSampleSphereHitPositions;
+    QMap<btRigidBody*, QVector3D> mLastSampleObjectHitPositions;
 
     // This list contains waypoints. They are never deleted, only added.
-    QList<btRigidBody*> mWayPoints;
+//    QList<btRigidBody*> mWayPoints;
 
 //    btAxisSweep3 *mBtBroadphase;
     btDbvtBroadphase *mBtBroadphase;
@@ -58,18 +61,20 @@ private:
     btSequentialImpulseConstraintSolver *mBtSolver;
     btDiscreteDynamicsWorld *mBtWorld;
 
-    QList<btRigidBody*> mSampleSphereList;
-
 signals:
-    void newWayPointsReady(const QList<WayPoint>&);
-    void processingStatus(const QString& text, const quint8 percentReady);
+//    void newWayPointsReady(const QList<WayPoint>&);
+//    void processingStatus(const QString& text, const quint8 percentReady);
 
 private slots:
     void slotPointInserted(const LidarPoint*);
     void slotGenerateWaypoints();
+    void slotCreateSampleGeometry();
+    void slotDeleteSampleGeometry();
+    void slotProcessPhysics(bool);
+    void slotEmitWayPoints();
+    void slotGravityChanged(const QVector3D& gravity);
 
 public slots:
-    void slotWayPointReached(const QVector3D);
     void slotSetScanVolume(const QVector3D min, const QVector3D max);
     void slotVisualize() const;
 

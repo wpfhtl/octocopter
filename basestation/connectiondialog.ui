@@ -24,7 +24,7 @@
    <item row="0" column="2">
     <widget class="QLineEdit" name="mLineEditHostNameRover">
      <property name="text">
-      <string>192.168.1.1</string>
+      <string>localhost</string>
      </property>
     </widget>
    </item>

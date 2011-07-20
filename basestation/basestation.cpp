@@ -32,8 +32,6 @@ BaseStation::BaseStation() : QMainWindow()
 
     mControlWidget = new ControlWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mControlWidget);
-    connect(mControlWidget, SIGNAL(wayPointInsert(QString, int, const QList<WayPoint>&)), SLOT(slotWayPointInsert(QString, int, const QList<WayPoint>&)));
-    connect(mControlWidget, SIGNAL(wayPointDelete(QString, int)), SLOT(slotWayPointDelete(QString, int)));
 
     mWirelessDevice = new WirelessDevice("wlan0");
     connect(mWirelessDevice, SIGNAL(rssi(qint8)), mControlWidget, SLOT(slotUpdateWirelessRssi(qint8)));
@@ -45,12 +43,19 @@ BaseStation::BaseStation() : QMainWindow()
     mRtkFetcher = new RtkFetcher(mConnectionDialog->getHostNameRtkBase(), 4001, this);
     connect(mRtkFetcher, SIGNAL(rtkData(QByteArray)), SLOT(slotSendRtkDataToRover(QByteArray)));
 
-    mFlightPlanner = new FlightPlannerPhysics(&mVehiclePose, mOctree);
+    mFlightPlanner = new FlightPlannerPhysics(this, &mVehiclePose, mOctree);
     mFlightPlanner->slotSetScanVolume(QVector3D(140, 60, 80), QVector3D(240, 120, 150));
-    connect(mFlightPlanner, SIGNAL(newWayPointsReady(const QList<WayPoint>)), mControlWidget, SLOT(slotNewWayPoints(const QList<WayPoint>)));
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
     connect(mControlWidget, SIGNAL(generateWaypoints()), mFlightPlanner, SLOT(slotGenerateWaypoints()));
-    connect(mFlightPlanner, SIGNAL(processingStatus(QString, quint8)), SLOT(slotFlightPlannerProcessing(QString, quint8)));
+
+    connect(mControlWidget, SIGNAL(wayPointInsert(const quint16&, const WayPoint&)), mFlightPlanner, SLOT(slotWayPointInsert(const quint16&, const WayPoint&)));
+    connect(mControlWidget, SIGNAL(wayPointDelete(const quint16&)), mFlightPlanner, SLOT(slotWayPointDelete(const quint16&)));
+    connect(mControlWidget, SIGNAL(wayPointSwap(quint16,quint16)), mFlightPlanner, SLOT(slotWayPointSwap(quint16,quint16)));
+
+    connect(mFlightPlanner, SIGNAL(wayPointDeleted(quint16)), mControlWidget, SLOT(slotWayPointDeleted(quint16)));
+    connect(mFlightPlanner, SIGNAL(wayPointInserted(quint16,WayPoint)), mControlWidget, SLOT(slotWayPointInserted(quint16,WayPoint)));
+    connect(mFlightPlanner, SIGNAL(wayPoints(QList<WayPoint>)), mControlWidget, SLOT(slotSetWayPoints(QList<WayPoint>)));
+    connect(mFlightPlanner, SIGNAL(wayPointsCleared()), mControlWidget, SLOT(slotWayPointsCleared()));
 
     menuBar()->addAction("Save Cloud", this, SLOT(slotExportCloud()));
 
@@ -288,20 +293,20 @@ void BaseStation::processPacket(QByteArray data)
 
         mControlWidget->slotUpdatePose(mVehiclePose);
     }
-    else if(packetType == "waypoints")
+    /*else if(packetType == "waypoints")
     {
         QList<WayPoint> wayPoints;
 
         stream >> wayPoints;
 
         mControlWidget->slotUpdateWayPoints(wayPoints);
-    }
+    }*/
     else if(packetType == "waypointreached")
     {
         WayPoint wpt;
         stream >> wpt;
 
-        mControlWidget->slotRoverReachedNextWayPoint();
+        mFlightPlanner->slotWayPointReached(wpt);
 
         mLogWidget->log(Information, "BaseStation::processPacket()", QString("reached waypoint %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
     }
@@ -429,10 +434,15 @@ void BaseStation::slotSocketError(QAbstractSocket::SocketError socketError)
 
 const WayPoint BaseStation::getNextWayPoint(void) const
 {
-    return mControlWidget->getNextWayPoint();
+    QList<WayPoint> waypoints = mFlightPlanner->getWayPoints();
+
+    if(waypoints.size())
+        return waypoints.first();
+    else
+        return WayPoint();
 }
 
-void BaseStation::slotFlightPlannerProcessing(const QString& text, const quint8& progress)
+/*void BaseStation::slotFlightPlannerProcessing(const QString& text, const quint8& progress)
 {
     if(!mProgress)
     {
@@ -448,4 +458,4 @@ void BaseStation::slotFlightPlannerProcessing(const QString& text, const quint8&
         mProgress->deleteLater();
         mProgress = 0;
     }
-}
+}*/

@@ -26,7 +26,7 @@ private:
     QTcpSocket* mTcpSocket;
     QTcpServer* mTcpServer;
     QByteArray mIncomingDataBuffer, mOutgoingDataBuffer;
-    WirelessDevice* mWirelessDevice;
+//    WirelessDevice* mWirelessDevice;
 
     void processPacket(QByteArray packet);
 
@@ -72,7 +72,7 @@ signals:
 
 public slots:
     // called when the rover has changed the waypoints list, will be sent to base
-    void slotNewWayPointsFromRover(const QVector<WayPoint>& wayPoints);
+//    void slotNewWayPointsFromRover(const QVector<WayPoint>& wayPoints);
 
     // called by rover when it has reached a waypoint, notifies basestation
     void slotWayPointReached(const WayPoint&wpt);

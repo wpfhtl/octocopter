@@ -76,7 +76,7 @@ private slots:
     void slotSocketError(QAbstractSocket::SocketError socketError);
     void slotConnectToRover(void);
     void slotExportCloud(void);
-    void slotFlightPlannerProcessing(const QString& text, const quint8& progress);
+//    void slotFlightPlannerProcessing(const QString& text, const quint8& progress);
     void slotWayPointInsert(QString, int, const QList<WayPoint>&);
     void slotWayPointDelete(QString, int);
     void slotSendRtkDataToRover(const QByteArray& rtkData);

@@ -532,6 +532,9 @@
            <property name="selectionMode">
             <enum>QAbstractItemView::SingleSelection</enum>
            </property>
+           <property name="selectionBehavior">
+            <enum>QAbstractItemView::SelectRows</enum>
+           </property>
            <property name="textElideMode">
             <enum>Qt::ElideRight</enum>
            </property>
@@ -765,7 +768,7 @@
     <item>
      <widget class="QGroupBox" name="groupBox_6">
       <property name="title">
-       <string>WayPoints</string>
+       <string>WayPoint Generation</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_4">
        <item>

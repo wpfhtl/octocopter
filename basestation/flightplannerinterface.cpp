@@ -1,9 +1,13 @@
 #include "flightplannerinterface.h"
 
-FlightPlannerInterface::FlightPlannerInterface(const Pose * const pose, Octree* pointCloud) : QObject()
+FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, const Pose * const pose, Octree* pointCloud) : QObject()
 {
+    mParentWidget = widget;
     mVehiclePose = pose;
+    mWayPointsAhead = new QList<WayPoint>;
+    mWayPointsPassed = new QList<WayPoint>;
     qDebug() << "FlightPlannerInterface c'tor.";
+
 }
 
 FlightPlannerInterface::~FlightPlannerInterface()
@@ -61,4 +65,76 @@ void FlightPlannerInterface::sortToShortestPath(QList<WayPoint> &wayPoints, cons
 const Pose FlightPlannerInterface::getVehiclePose(void) const
 {
     return *mVehiclePose;
+}
+
+
+
+void FlightPlannerInterface::slotWayPointDelete(const quint16& index)
+{
+    if(mWayPointsAhead->size() <= index)
+    {
+        qWarning() << "FlightPlannerInterface::slotWayPointDelete(): cannot delete waypoint at index" << index << ", size is only" << mWayPointsAhead->size();
+        return;
+    }
+
+    mWayPointsAhead->removeAt(index);
+    emit wayPointDeleted(index);
+    emit suggestVisualization();
+}
+
+void FlightPlannerInterface::slotWayPointInsert(const quint16& index, const WayPoint& wpt)
+{
+    if(index > mWayPointsAhead->size())
+    {
+        qWarning() << "FlightPlannerInterface::slotWayPointInsert(): cannot delete waypoint at index" << index << ", size is only" << mWayPointsAhead->size();
+        return;
+    }
+
+    mWayPointsAhead->insert(index, wpt);
+    emit wayPointInserted(index, wpt);
+    emit suggestVisualization();
+}
+
+void FlightPlannerInterface::slotWayPointSwap(const quint16& i, const quint16& j)
+{
+    if(mWayPointsAhead->size() <= i || mWayPointsAhead->size() <= j)
+    {
+        qWarning() << "FlightPlannerInterface::slotWayPointSwap(): cannot swap waypoints at index" << i << "and" << j <<", size is only" << mWayPointsAhead->size();
+        return;
+    }
+    qDebug() << "FlightPlannerInterface::slotWayPointSwap(): swapping waypoints at index" << i << "and" << j <<", size is" << mWayPointsAhead->size();
+
+    mWayPointsAhead->swap(i,j);
+
+    emit wayPointDeleted(i);
+    emit wayPointInserted(i, mWayPointsAhead->at(j));
+    emit wayPointDeleted(j);
+    emit wayPointInserted(j, mWayPointsAhead->at(i));
+
+    emit suggestVisualization();
+}
+
+void FlightPlannerInterface::slotWayPointsClear()
+{
+    mWayPointsAhead->clear();
+    emit wayPointsCleared();
+    emit suggestVisualization();
+}
+
+void FlightPlannerInterface::slotWayPointReached(const WayPoint)
+{
+    if(!mWayPointsAhead->size())
+    {
+        qWarning() << "FlightPlannerInterface::slotWayPointReached(): mWayPointsAhead is empty, how can you reach a waypoint?";
+        return;
+    }
+
+    mWayPointsPassed->append(mWayPointsAhead->takeAt(0));
+    emit wayPointDeleted(0);
+    emit suggestVisualization();
+}
+
+const QList<WayPoint> FlightPlannerInterface::getWayPoints()
+{
+    return *mWayPointsAhead;
 }

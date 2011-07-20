@@ -14,11 +14,13 @@ class FlightPlannerInterface : public QObject
 protected:
     QVector3D mScanVolumeMin, mScanVolumeMax;
     const Pose *mVehiclePose;
+    QWidget* mParentWidget;
+    QList<WayPoint>* mWayPointsAhead, *mWayPointsPassed;
 
     static void sortToShortestPath(QList<WayPoint> &wayPoints, const QVector3D &currentVehiclePosition);
 
 public:
-    FlightPlannerInterface(const Pose * const pose, Octree* pointCloud);
+    FlightPlannerInterface(QWidget* widget, const Pose * const pose, Octree* pointCloud);
     virtual ~FlightPlannerInterface();
 
     // Insert points from the laserscanners. Note that the points might also be inserted
@@ -27,16 +29,26 @@ public:
 
     const Pose getVehiclePose(void) const;
 
+    const QList<WayPoint> getWayPoints();
+
 public slots:
+    void slotWayPointDelete(const quint16& index);
+    void slotWayPointInsert(const quint16& index, const WayPoint& wpt);
+    void slotWayPointSwap(const quint16& i, const quint16& j);
+    void slotWayPointsClear();
+
+    virtual void slotWayPointReached(const WayPoint);
+
     virtual void slotSetScanVolume(const QVector3D min, const QVector3D max);
-    virtual void slotWayPointReached(const QVector3D) = 0;
     virtual void slotGenerateWaypoints() = 0;
     virtual void slotVisualize() const = 0;
 
 signals:
-    void newWayPointsReady(const QList<WayPoint>&);
-    void processingStatus(const QString& text, const quint8 percentReady);
-    void clearWayPoints();
+    void wayPointInserted(const quint16& index, const WayPoint& wpt);
+    void wayPointDeleted(const quint16& index);
+    void wayPointsCleared();
+    void wayPoints(QList<WayPoint>);
+
     void suggestVisualization();
 };
 

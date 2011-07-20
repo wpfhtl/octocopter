@@ -10,7 +10,7 @@ ControlWidget::ControlWidget(BaseStation* baseStation) : QDockWidget((QWidget*)b
 //    connect(mBtnPause, SIGNAL(clicked()), SLOT(slotSimulationPaused()));
 
     initWayPointTable();
-    mTimerRtkIndicator.setInterval(1500);
+    mTimerRtkIndicator.setInterval(3100);
     mTimerRtkIndicator.start();
 
     connect(&mTimerRtkIndicator, SIGNAL(timeout()), SLOT(slotUpdateRtkStatus()));
@@ -127,154 +127,6 @@ void ControlWidget::slotUpdateRtkStatus(bool working)
     }
 }
 
-void ControlWidget::slotWayPointPrepend()
-{
-    QVector3D wpt(mSpinBoxWptX->value(), mSpinBoxWptY->value(), mSpinBoxWptZ->value());
-    QList<WayPoint> list;
-    list << WayPoint(wpt);
-    emit wayPointInsert(hash(mWayPoints), 0, list);
-}
-
-void ControlWidget::slotWayPointAppend()
-{
-    QVector3D wpt(mSpinBoxWptX->value(), mSpinBoxWptY->value(), mSpinBoxWptZ->value());
-    QList<WayPoint> list;
-    list << WayPoint(wpt);
-    emit wayPointInsert(hash(mWayPoints), mWayPoints.size(), list);
-}
-
-void ControlWidget::slotWayPointDelete()
-{
-    QList<QTableWidgetItem *> items = mWayPointTable->selectedItems();
-    if(items.size() != 1) return;
-    emit wayPointDelete(hash(mWayPoints), items.at(0)->row());
-}
-
-void ControlWidget::slotRoverReachedNextWayPoint()
-{
-    mWayPoints.takeAt(0);
-    mWayPointTable->removeRow(0);
-    mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
-}
-
-void ControlWidget::slotWayPointChange(int row, int /*column*/)
-{
-    emit wayPointDelete(hash(mWayPoints), row);
-
-    // update local list to keep the hash correct
-    mWayPoints.removeAt(row);
-
-    QVector3D wpt(
-                mWayPointTable->item(row, 0)->text().toFloat(),
-                mWayPointTable->item(row, 1)->text().toFloat(),
-                mWayPointTable->item(row, 2)->text().toFloat());
-
-    QList<WayPoint> list;
-    list << WayPoint(wpt);
-
-    emit wayPointInsert(hash(mWayPoints), row, list);
-}
-
-void ControlWidget::slotWayPointUp()
-{
-    QList<QTableWidgetItem *> items = mWayPointTable->selectedItems();
-
-    if(items.size() != 1 || items.at(0)->row() < 1) return;
-
-    const int rowUpper = items.at(0)->row()-1;
-    const int rowLower = items.at(0)->row();
-
-    QVector3D wptUpper(
-                mWayPointTable->item(rowUpper, 0)->text().toFloat(),
-                mWayPointTable->item(rowUpper, 1)->text().toFloat(),
-                mWayPointTable->item(rowUpper, 2)->text().toFloat());
-
-    QVector3D wptLower(
-                mWayPointTable->item(rowLower, 0)->text().toFloat(),
-                mWayPointTable->item(rowLower, 1)->text().toFloat(),
-                mWayPointTable->item(rowLower, 2)->text().toFloat());
-
-    // Now switch upper and lower
-    emit wayPointDelete(hash(mWayPoints), rowLower);
-    mWayPoints.removeAt(rowLower);
-
-    emit wayPointDelete(hash(mWayPoints), rowUpper);
-    mWayPoints.removeAt(rowUpper);
-
-
-    QList<WayPoint> listLower;
-    listLower << WayPoint(wptLower);
-    emit wayPointInsert(hash(mWayPoints), rowUpper, listLower);
-    mWayPoints.insert(rowUpper, wptLower);
-
-    QList<WayPoint> listUpper;
-    listUpper << WayPoint(wptUpper);
-    emit wayPointInsert(hash(mWayPoints), rowLower, listUpper);
-    mWayPoints.insert(rowLower, wptUpper);
-}
-
-void ControlWidget::slotWayPointDown()
-{
-    QList<QTableWidgetItem *> items = mWayPointTable->selectedItems();
-
-    if(items.size() != 1 || items.at(0)->row() >= mWayPointTable->rowCount()-1) return;
-
-    const int rowUpper = items.at(0)->row();
-    const int rowLower = items.at(0)->row()+1;
-
-    WayPoint wptUpper(
-                QVector3D(
-                    mWayPointTable->item(rowUpper, 0)->text().toFloat(),
-                    mWayPointTable->item(rowUpper, 1)->text().toFloat(),
-                    mWayPointTable->item(rowUpper, 2)->text().toFloat())
-                );
-
-    WayPoint wptLower(
-                QVector3D(
-                    mWayPointTable->item(rowLower, 0)->text().toFloat(),
-                    mWayPointTable->item(rowLower, 1)->text().toFloat(),
-                    mWayPointTable->item(rowLower, 2)->text().toFloat())
-                );
-
-    // Now switch upper and lower
-    emit wayPointDelete(hash(mWayPoints), rowLower);
-    mWayPoints.removeAt(rowLower);
-
-    emit wayPointDelete(hash(mWayPoints), rowUpper);
-    mWayPoints.removeAt(rowUpper);
-
-    QList<WayPoint> listLower;
-    listLower << WayPoint(wptLower);
-    emit wayPointInsert(hash(mWayPoints), rowUpper, listLower);
-    mWayPoints.insert(rowUpper, wptLower);
-
-    QList<WayPoint> listUpper;
-    listUpper << WayPoint(wptUpper);
-    emit wayPointInsert(hash(mWayPoints), rowLower, listUpper);
-    mWayPoints.insert(rowLower, wptUpper);
-
-    mWayPointTable->setCurrentCell(rowLower, 1);
-}
-
-void ControlWidget::slotNewWayPoints(const QList<WayPoint>& waypoints)
-{
-    emit wayPointInsert(hash(mWayPoints), mWayPoints.size(), waypoints);
-    mWayPoints.append(waypoints);
-
-    mWayPointTable->blockSignals(true);
-    mWayPointTable->setRowCount(mWayPointTable->rowCount() + waypoints.size());
-
-    for(int i=0;i<waypoints.size();i++)
-    {
-        mWayPointTable->setItem(mWayPointTable->rowCount()-waypoints.size()+i, 0, new QTableWidgetItem(QString::number(waypoints.at(i).x())));
-        mWayPointTable->setItem(mWayPointTable->rowCount()-waypoints.size()+i, 1, new QTableWidgetItem(QString::number(waypoints.at(i).y())));
-        mWayPointTable->setItem(mWayPointTable->rowCount()-waypoints.size()+i, 2, new QTableWidgetItem(QString::number(waypoints.at(i).z())));
-    }
-    mWayPointTable->blockSignals(false);
-
-    mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
-}
-
 void ControlWidget::slotUpdateBattery(const float& voltageCurrent)
 {
     mLabelBatteryVoltage->setText(QString::number(voltageCurrent, 'f', 2) + " V");
@@ -286,12 +138,6 @@ void ControlWidget::slotUpdatePose(const Pose &pose)
     mLabelPoseOgreY->setText(QString("%1m").arg(pose.position.y(), 4, 'f', 3, '0'));
     mLabelPoseOgreZ->setText(QString("%1m").arg(pose.position.z(), 4, 'f', 3, '0'));
 
-//    CoordinateGps wgs84 = mCoordinateConverter->convert(position);
-
-//    mLabelPoseWgs84Longitude->setText(wgs84.formatGpsDegree(wgs84.longitude()));
-//    mLabelPoseWgs84Latitude->setText(wgs84.formatGpsDegree(wgs84.latitude()));
-//    mLabelPoseWgs84Elevation->setText(QString("%1m").arg(wgs84.elevation(), 3, 'f', 1, QLatin1Char('0')));
-
     QString deg;
     deg.sprintf("%c", 176);
     deg.prepend("%1");
@@ -301,38 +147,6 @@ void ControlWidget::slotUpdatePose(const Pose &pose)
     mLabelYaw->setText(deg.arg((int)pose.getYawDegrees(), 3, 10, QLatin1Char('0')));
 
     mCompass->setValue(pose.getYawDegrees()+180);
-}
-
-/*void ControlWidget::slotUpdateDynamics(QVector3D linearVelocity)
-{
-    // flight dynamics
-    mLabelSpeed->setText(QString::number(linearVelocity.length(), 'f', 4) + " m/s");
-    mLabelSpeedVertical->setText(QString::number(linearVelocity.y(), 'f', 4) + " m/s");
-    linearVelocity.setY(0.0);
-    mLabelSpeedHorizontal->setText(QString::number(linearVelocity.length(), 'f', 4) + " m/s");
-}*/
-
-void ControlWidget::slotUpdateWayPoints(const QList<WayPoint>& waypoints)
-{
-    mWayPoints = waypoints;
-
-    mWayPointTable->blockSignals(true);
-    mWayPointTable->clear();
-    mWayPointTable->setRowCount(waypoints.size());
-
-    for(int i=0;i<waypoints.size();i++)
-    {
-        QVector3D wpt = waypoints.at(i);
-        qDebug() << "now adding waypoint" << wpt << "to table";
-        mWayPointTable->setItem(i, 0, new QTableWidgetItem(QString::number(waypoints.at(i).x())));
-        mWayPointTable->setItem(i, 1, new QTableWidgetItem(QString::number(waypoints.at(i).y())));
-        mWayPointTable->setItem(i, 2, new QTableWidgetItem(QString::number(waypoints.at(i).z())));
-    }
-
-    initWayPointTable();
-    mWayPointTable->blockSignals(false);
-
-    mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
 }
 
 void ControlWidget::slotUpdateMissionRunTime(const quint32& time)
@@ -391,10 +205,123 @@ void ControlWidget::slotSetScanVolume()
                 );
 }
 
-const WayPoint ControlWidget::getNextWayPoint() const
+/*
+  ###########################################################################
+  Slots that are called when a button is pressed, emits signals with
+  modification requests for the waypoint list
+  ###########################################################################
+*/
+
+void ControlWidget::slotWayPointPrepend()
 {
-    if(mWayPoints.empty())
-        return WayPoint();
-    else
-        return mWayPoints.first();
+    emit wayPointInsert(0, WayPoint(QVector3D(mSpinBoxWptX->value(), mSpinBoxWptY->value(), mSpinBoxWptZ->value())));
+}
+
+void ControlWidget::slotWayPointAppend()
+{
+    emit wayPointInsert(mWayPointTable->rowCount(), WayPoint(QVector3D(mSpinBoxWptX->value(), mSpinBoxWptY->value(), mSpinBoxWptZ->value())));
+}
+
+void ControlWidget::slotWayPointDelete()
+{
+    QList<QTableWidgetItem *> items = mWayPointTable->selectedItems();
+    if(items.size() != 1) return;
+    emit wayPointDelete(items.at(0)->row());
+}
+
+void ControlWidget::slotWayPointChange(int row, int /*column*/)
+{
+    QVector3D wpt(
+                mWayPointTable->item(row, 0)->text().toFloat(),
+                mWayPointTable->item(row, 1)->text().toFloat(),
+                mWayPointTable->item(row, 2)->text().toFloat());
+
+    emit wayPointDelete(row);
+    emit wayPointInsert(row, wpt);
+}
+
+void ControlWidget::slotWayPointUp()
+{
+    QList<QTableWidgetItem *> items = mWayPointTable->selectedItems();
+
+    if(items.size() != 1 || items.at(0)->row() < 1) return;
+
+    const int rowUpper = items.at(0)->row()-1;
+    const int rowLower = items.at(0)->row();
+
+    emit wayPointSwap(rowUpper, rowLower);
+    mWayPointTable->setCurrentCell(rowLower, 1);
+}
+
+void ControlWidget::slotWayPointDown()
+{
+    QList<QTableWidgetItem *> items = mWayPointTable->selectedItems();
+
+    if(items.size() != 1 || items.at(0)->row() >= mWayPointTable->rowCount()-1)
+    {
+        qDebug() << "items size" << items.size() << "row" << items.at(0)->row() << "rowcount" << mWayPointTable->rowCount();
+        return;
+    }
+
+    const int rowUpper = items.at(0)->row();
+    const int rowLower = items.at(0)->row()+1;
+
+    emit wayPointSwap(rowUpper, rowLower);
+    mWayPointTable->setCurrentCell(rowLower, 1);
+}
+
+
+/*
+  ###########################################################################
+  Slots that are called when a the waypoint list is changed externally, will
+  sync the gui with the list.
+  ###########################################################################
+*/
+
+void ControlWidget::slotWayPointInserted(const quint16& index, const WayPoint& waypoint)
+{
+    mWayPointTable->blockSignals(true);
+    mWayPointTable->insertRow(index);
+
+    mWayPointTable->setItem(index, 0, new QTableWidgetItem(QString::number(waypoint.x())));
+    mWayPointTable->setItem(index, 1, new QTableWidgetItem(QString::number(waypoint.y())));
+    mWayPointTable->setItem(index, 2, new QTableWidgetItem(QString::number(waypoint.z())));
+
+    mWayPointTable->blockSignals(false);
+
+    mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
+}
+
+void ControlWidget::slotWayPointDeleted(const quint16& index)
+{
+    mWayPointTable->removeRow(index);
+    mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
+}
+
+void ControlWidget::slotSetWayPoints(QList<WayPoint> wayPoints)
+{
+    mWayPointTable->clear();
+
+    mWayPointTable->blockSignals(true);
+
+    for(int i=0;i<wayPoints.size();i++)
+    {
+        const WayPoint waypoint = wayPoints.at(i);
+
+        mWayPointTable->insertRow(i);
+
+        mWayPointTable->setItem(i, 0, new QTableWidgetItem(QString::number(waypoint.x())));
+        mWayPointTable->setItem(i, 1, new QTableWidgetItem(QString::number(waypoint.y())));
+        mWayPointTable->setItem(i, 2, new QTableWidgetItem(QString::number(waypoint.z())));
+    }
+
+    mWayPointTable->blockSignals(false);
+    mWayPointTable->resizeRowsToContents();
+
+    mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
+}
+
+void ControlWidget::slotWayPointsCleared()
+{
+    mWayPointTable->clear();
 }

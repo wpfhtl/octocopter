@@ -14,6 +14,7 @@ logwidget
 flightplannerinterface
 flightplannerbasic
 flightplannerphysics
+flightplannerphysicsdialog
 camerawindow
 rtkfetcher
 controlwidget
@@ -39,6 +40,7 @@ logwidget.h
 flightplannerinterface.h
 flightplannerbasic.h
 flightplannerphysics.h
+flightplannerphysicsdialog.h
 camerawindow.h
 rtkfetcher.h
 controlwidget.h
@@ -61,6 +63,7 @@ SET(UI_FILES
 controlwidget.ui
 logwidget.ui
 connectiondialog.ui
+flightplannerphysicsdialog.ui
 )
 
 SET(RESOURCE_FILES
