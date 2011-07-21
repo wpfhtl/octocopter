@@ -101,24 +101,26 @@ void BaseConnection::processPacket(QByteArray packet)
 
     if(command == "waypointinsert")
     {
-        QString hash;
         quint16 index;
-        QList<WayPoint> wayPoints;
-        stream >> hash;
+        WayPoint wayPoint;
         stream >> index;
-        stream >> wayPoints;
-        emit wayPointInsert(hash, index, wayPoints);
-        qDebug() << "BaseConnection::processPacket(): inserting" << wayPoints.size() << "waypoints from base to index" << index;
+        stream >> wayPoint;
+        emit wayPointInsert(index, wayPoint);
+        qDebug() << "BaseConnection::processPacket(): inserting waypoint from base to index" << index;
     }
     else if(command == "waypointdelete")
     {
-        QString hash;
         quint16 index;
-        stream >> hash;
         stream >> index;
-        emit wayPointDelete(hash, index);
-//        mFlightController->slotWayPointDelete(hash, index);
+        emit wayPointDelete(index);
         qDebug() << "BaseConnection::processPacket(): deleting waypoint" << index << "from base.";
+    }
+    else if(command == "waypoints")
+    {
+        QList<WayPoint> wayPointList;
+        stream >> wayPointList;
+        qDebug() << "BaseConnection::processPacket(): received" << wayPointList.size() << "waypoints from base.";
+        emit wayPoints(wayPointList);
     }
 //    else if(command == "getstatus")
 //    {
@@ -241,6 +243,21 @@ void BaseConnection::slotFlushWriteQueue()
 //    stream << wayPoints;
 //    slotSendData(data, false);
 //}
+
+void BaseConnection::slotFlightControllerWayPointsChanged(const QList<WayPoint>& wayPoints)
+{
+    // We're here because the base sent some changes to the rover's waypoint-list, and now
+    // we get a chance to send a hash of the rover's list back to the base, so they can compare.
+    qDebug() << "BaseConnection::slotFlightControllerWayPointsChanged(): number of waypoints" << wayPoints.size();
+
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    stream << QString("currentwaypointshash");
+    stream << hash(wayPoints);
+
+    slotSendData(data, false);
+}
 
 // called by rover when it has reached a waypoint, notifies basestation
 void BaseConnection::slotWayPointReached(const WayPoint& wpt)

@@ -106,10 +106,10 @@ void FlightPlannerInterface::slotWayPointSwap(const quint16& i, const quint16& j
 
     mWayPointsAhead->swap(i,j);
 
-    emit wayPointDeleted(i);
-    emit wayPointInserted(i, mWayPointsAhead->at(j));
     emit wayPointDeleted(j);
-    emit wayPointInserted(j, mWayPointsAhead->at(i));
+    emit wayPointInserted(j, mWayPointsAhead->at(j));
+    emit wayPointDeleted(i);
+    emit wayPointInserted(i, mWayPointsAhead->at(i));
 
     emit suggestVisualization();
 }
@@ -117,7 +117,7 @@ void FlightPlannerInterface::slotWayPointSwap(const quint16& i, const quint16& j
 void FlightPlannerInterface::slotWayPointsClear()
 {
     mWayPointsAhead->clear();
-    emit wayPointsCleared();
+    emit wayPoints(*mWayPointsAhead);
     emit suggestVisualization();
 }
 
@@ -137,4 +137,10 @@ void FlightPlannerInterface::slotWayPointReached(const WayPoint)
 const QList<WayPoint> FlightPlannerInterface::getWayPoints()
 {
     return *mWayPointsAhead;
+}
+
+void FlightPlannerInterface::getScanVolume(QVector3D& min, QVector3D& max)
+{
+    min = mScanVolumeMin;
+    max = mScanVolumeMax;
 }

@@ -225,7 +225,7 @@ void ControlWidget::slotWayPointAppend()
 void ControlWidget::slotWayPointDelete()
 {
     QList<QTableWidgetItem *> items = mWayPointTable->selectedItems();
-    if(items.size() != 1) return;
+    //if(items.size() != 1) return;
     emit wayPointDelete(items.at(0)->row());
 }
 
@@ -244,20 +244,20 @@ void ControlWidget::slotWayPointUp()
 {
     QList<QTableWidgetItem *> items = mWayPointTable->selectedItems();
 
-    if(items.size() != 1 || items.at(0)->row() < 1) return;
+    if(/*items.size() != 1 || */items.at(0)->row() < 1) return;
 
     const int rowUpper = items.at(0)->row()-1;
     const int rowLower = items.at(0)->row();
 
     emit wayPointSwap(rowUpper, rowLower);
-    mWayPointTable->setCurrentCell(rowLower, 1);
+    mWayPointTable->setCurrentCell(rowUpper, 1);
 }
 
 void ControlWidget::slotWayPointDown()
 {
     QList<QTableWidgetItem *> items = mWayPointTable->selectedItems();
 
-    if(items.size() != 1 || items.at(0)->row() >= mWayPointTable->rowCount()-1)
+    if(/*items.size() != 1 || */items.at(0)->row() >= mWayPointTable->rowCount()-1)
     {
         qDebug() << "items size" << items.size() << "row" << items.at(0)->row() << "rowcount" << mWayPointTable->rowCount();
         return;
@@ -287,6 +287,8 @@ void ControlWidget::slotWayPointInserted(const quint16& index, const WayPoint& w
     mWayPointTable->setItem(index, 1, new QTableWidgetItem(QString::number(waypoint.y())));
     mWayPointTable->setItem(index, 2, new QTableWidgetItem(QString::number(waypoint.z())));
 
+    mWayPointTable->resizeRowsToContents();
+
     mWayPointTable->blockSignals(false);
 
     mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
@@ -301,6 +303,7 @@ void ControlWidget::slotWayPointDeleted(const quint16& index)
 void ControlWidget::slotSetWayPoints(QList<WayPoint> wayPoints)
 {
     mWayPointTable->clear();
+    mWayPointTable->setRowCount(0);
 
     mWayPointTable->blockSignals(true);
 
@@ -324,4 +327,5 @@ void ControlWidget::slotSetWayPoints(QList<WayPoint> wayPoints)
 void ControlWidget::slotWayPointsCleared()
 {
     mWayPointTable->clear();
+    mWayPointTable->setRowCount(0);
 }

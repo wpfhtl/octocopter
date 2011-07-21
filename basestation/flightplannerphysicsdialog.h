@@ -17,6 +17,7 @@ public:
     ~FlightPlannerPhysicsDialog();
 
     float getSampleSphereRadius() const;
+    bool visualizationActive() const;
 
 private:
     Ui::FlightPlannerPhysicsDialog *ui;

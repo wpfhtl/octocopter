@@ -48,3 +48,8 @@ void FlightPlannerPhysicsDialog::slotGravityChanged()
                     )
                 );
 }
+
+bool FlightPlannerPhysicsDialog::visualizationActive() const
+{
+    return ui->mChkBoxVisualize->isChecked();
+}

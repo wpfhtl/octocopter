@@ -55,7 +55,11 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mFlightPlanner, SIGNAL(wayPointDeleted(quint16)), mControlWidget, SLOT(slotWayPointDeleted(quint16)));
     connect(mFlightPlanner, SIGNAL(wayPointInserted(quint16,WayPoint)), mControlWidget, SLOT(slotWayPointInserted(quint16,WayPoint)));
     connect(mFlightPlanner, SIGNAL(wayPoints(QList<WayPoint>)), mControlWidget, SLOT(slotSetWayPoints(QList<WayPoint>)));
-    connect(mFlightPlanner, SIGNAL(wayPointsCleared()), mControlWidget, SLOT(slotWayPointsCleared()));
+
+    connect(mFlightPlanner, SIGNAL(wayPointDeleted(quint16)), SLOT(slotWayPointDeleted(quint16)));
+    connect(mFlightPlanner, SIGNAL(wayPointInserted(quint16,WayPoint)), SLOT(slotWayPointInserted(quint16,WayPoint)));
+
+    connect(mFlightPlanner, SIGNAL(wayPoints(QList<WayPoint>)), SLOT(slotSetWayPoints(QList<WayPoint>)));
 
     menuBar()->addAction("Save Cloud", this, SLOT(slotExportCloud()));
 
@@ -65,6 +69,9 @@ BaseStation::BaseStation() : QMainWindow()
 
     connect(mGlWidget, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
     connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWidget, SLOT(updateGL()));
+
+    menuBar()->addAction("ViewFromSide", mGlWidget, SLOT(slotViewFromSide()));
+    menuBar()->addAction("ViewFromTop", mGlWidget, SLOT(slotViewFromTop()));
 
     mPlotWidget = new PlotWidget(this);
     mPlotWidget->setAllowedAreas(Qt::AllDockWidgetAreas);
@@ -293,14 +300,17 @@ void BaseStation::processPacket(QByteArray data)
 
         mControlWidget->slotUpdatePose(mVehiclePose);
     }
-    /*else if(packetType == "waypoints")
+    else if(packetType == "currentwaypointshash")
     {
-        QList<WayPoint> wayPoints;
+        QString wayPointsHashFromRover;
+        stream >> wayPointsHashFromRover;
 
-        stream >> wayPoints;
-
-        mControlWidget->slotUpdateWayPoints(wayPoints);
-    }*/
+        if(hash(mFlightPlanner->getWayPoints()) != wayPointsHashFromRover)
+        {
+            mLogWidget->log(Warning, "BaseStation::processPacket()", QString("waypoints hash from rover does not match our hash, resending list"));
+            slotSetWayPoints(mFlightPlanner->getWayPoints());
+        }
+    }
     else if(packetType == "waypointreached")
     {
         WayPoint wpt;
@@ -348,17 +358,44 @@ void BaseStation::processPacket(QByteArray data)
     }
 }
 
-void BaseStation::slotWayPointInsert(QString hash, int index, const QList<WayPoint>& wayPoints)
+void BaseStation::slotSetWayPoints(const QList<WayPoint>& wayPoints)
+{
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    stream << QString("waypoints");
+    stream << wayPoints;
+
+    mLogWidget->log(Information, "BaseStation::slotSetWayPoints()", QString("transmitting %1 waypoints to rover").arg(wayPoints.size()));
+
+    slotSendData(data);
+}
+
+void BaseStation::slotWayPointInserted(const quint16& index, const WayPoint& wayPoint)
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
     stream << QString("waypointinsert");
-    stream << hash;
-    stream << (quint16)index;
-    stream << wayPoints;
+//    stream << hash;
+    stream << index;
+    stream << wayPoint;
 
-    mLogWidget->log(Information, "BaseStation::slotWayPointInsert()", QString("inserting %1 waypoints").arg(wayPoints.size()));
+    mLogWidget->log(Information, "BaseStation::slotWayPointInsert()", QString("inserting 1 waypoint at index %2").arg(index));
+
+    slotSendData(data);
+}
+
+void BaseStation::slotWayPointDeleted(const quint16& index)
+{
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    stream << QString("waypointdelete");
+//    stream << hash;
+    stream << index;
+
+    mLogWidget->log(Information, "BaseStation::slotWayPointDelete()", QString("deleting waypoint at index %1").arg(index));
 
     slotSendData(data);
 }
@@ -376,20 +413,6 @@ void BaseStation::slotSendRtkDataToRover(const QByteArray& rtkData)
     slotSendData(data);
 
     mControlWidget->slotUpdateRtkStatus(true);
-}
-
-void BaseStation::slotWayPointDelete(QString hash, int index)
-{
-    QByteArray data;
-    QDataStream stream(&data, QIODevice::WriteOnly);
-
-    stream << QString("waypointdelete");
-    stream << hash;
-    stream << (quint16)index;
-
-    mLogWidget->log(Information, "BaseStation::slotWayPointDelete()", QString("deleting waypoint at index %4").arg(index));
-
-    slotSendData(data);
 }
 
 void BaseStation::slotSendData(const QByteArray &data)

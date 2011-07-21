@@ -226,30 +226,28 @@ void FlightController::clearWayPoints()
     emit currentWayPoints(mWayPoints);
 }
 
-void FlightController::slotWayPointInsert(const QString &hashValue, const quint16 index, const QList<WayPoint> &wayPoints)
+void FlightController::slotWayPointInsert(const quint16& index, const WayPoint& wayPoint)
 {
-    qDebug() << "FlightController::slotWayPointInsert(): trying to insert" << wayPoints.size() << "waypoints at index" << index;
-    if(hash(mWayPoints) == hashValue)
-    {
-        qDebug() << "FlightController::slotSetNextWayPoint(): state is" << getFlightStateString() << "inserting" << wayPoints.size() << "waypoints into index" << index;
-        for(int i=0;i<wayPoints.size();i++)
-        {
-            mWayPoints.insert(index+i, wayPoints.at(i));
-        }
-        emit currentWayPoints(mWayPoints);
-
-        // Just in case we were idle (or landing, which is the same) before...
-        if(mFlightState == Idle) setFlightState(ApproachingNextWayPoint);
-    }
-    //else Q_ASSERT(false && "hashfailure in slotWayPointInsert");
-//    qDebug() <<  "FlightController::slotWayPointInsert():" << hashValue << index << wayPoint << "hash failure";
-
+    qDebug() << "FlightController::slotWayPointInsert(): trying to insert waypoint at index" << index;
+    qDebug() << "FlightController::slotSetNextWayPoint(): state is" << getFlightStateString() << "inserting waypoint into index" << index;
+    mWayPoints.insert(index, wayPoint);
     emit currentWayPoints(mWayPoints);
+
+    // Just in case we were idle (or landing, which is the same) before...
+    if(mFlightState == Idle) setFlightState(ApproachingNextWayPoint);
+    //else Q_ASSERT(false && "hashfailure in slotWayPointInsert");
+    //    qDebug() <<  "FlightController::slotWayPointInsert():" << hashValue << index << wayPoint << "hash failure";
+
+//    emit currentWayPoints(mWayPoints);
 }
 
-void FlightController::slotWayPointDelete(const QString &hashValue, const quint16 index)
+void FlightController::slotWayPointDelete(const quint16& index)
 {
-    if(hash(mWayPoints) == hashValue)
+    if(mWayPoints.size() <= index)
+    {
+        qWarning("FlightController::slotWayPointDelete(): couldn't delete waypoint at index %d, list only has %d entries.", index, mWayPoints.size());
+    }
+    else
     {
         mWayPoints.removeAt(index);
 
@@ -269,11 +267,35 @@ void FlightController::slotWayPointDelete(const QString &hashValue, const quint1
             }
         }
     }
-    else Q_ASSERT("hash failure");
-//    else
-//    {
-        emit currentWayPoints(mWayPoints);
-//    }
+    emit currentWayPoints(mWayPoints);
+}
+
+void FlightController::slotSetWayPoints(const QList<WayPoint>& wayPoints)
+{
+    mWayPoints.clear();
+    mWayPoints = wayPoints;
+
+    // The list might now be empty, so we might have to land.
+    if(mWayPoints.size() == 0 && getFlightState() == ApproachingNextWayPoint)
+    {
+        // The list is now empty and we are flying. Insert a landing-waypoint if we're not close to the ground;
+        if(mLastKnownBottomBeamLength > 0.2)
+        {
+            // Insert landing-waypoint, keep approaching
+            mWayPoints.append(getLandingWayPoint());
+        }
+        else
+        {
+            // We're low anyway, just got to idle mode.
+            setFlightState(Idle);
+        }
+    }
+    else if(mWayPoints.size() > 0 && mFlightState == Idle)
+    {
+        setFlightState(ApproachingNextWayPoint);
+    }
+
+    emit currentWayPoints(mWayPoints);
 }
 
 Pose FlightController::getLastKnownPose(void) const

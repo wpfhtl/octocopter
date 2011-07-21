@@ -161,6 +161,9 @@ void GlWidget::paintGL()
 //    }
 
     mCamLookAt = mFlightPlanner->getVehiclePose().position;
+    QVector3D min, max;
+    mFlightPlanner->getScanVolume(min, max);
+    mCamLookAt = min + (max - min)/2.0;
 
     gluLookAt(0.0, 500.0, 500.0,
               mCamLookAt.x(), mCamLookAt.y(), mCamLookAt.z(),

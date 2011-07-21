@@ -390,7 +390,7 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
                     // THIS IS THE INTERESTING PART! IF THE SPHERE HAS PREVIOUSLY HIT A LIDARPOINT, MAKE THAT A NEW WAYPOINT!
                     if(mLastSampleObjectHitPositions.contains(rigidBody))
                     {
-                        WayPoint w(mLastSampleObjectHitPositions.value(rigidBody) + QVector3D(0.0, 5 * mShapeSampleSphere->getRadius(), 0.0));
+                        WayPoint w(mLastSampleObjectHitPositions.value(rigidBody) + QVector3D(0.0, /*5 * mShapeSampleSphere->getRadius()*/10.0, 0.0));
                         mWayPointsGenerated.append(w);
 
                         // This would add the waypoint sphere as static object to the physics world
@@ -416,7 +416,7 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
                 }
             }
 
-            emit suggestVisualization();
+            if(mDialog->visualizationActive()) emit suggestVisualization();
             QApplication::processEvents();
         }
     }
@@ -429,7 +429,6 @@ void FlightPlannerPhysics::slotEmitWayPoints()
     mWayPointsAhead->append(mWayPointsGenerated);
     mWayPointsGenerated.clear();
     sortToShortestPath(*mWayPointsAhead, mVehiclePose->position);
-    emit wayPointsCleared();
     emit wayPoints(*mWayPointsAhead);
 
     emit suggestVisualization();

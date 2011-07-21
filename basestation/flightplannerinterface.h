@@ -31,6 +31,8 @@ public:
 
     const QList<WayPoint> getWayPoints();
 
+    void getScanVolume(QVector3D& min, QVector3D& max);
+
 public slots:
     void slotWayPointDelete(const quint16& index);
     void slotWayPointInsert(const quint16& index, const WayPoint& wpt);
@@ -46,7 +48,6 @@ public slots:
 signals:
     void wayPointInserted(const quint16& index, const WayPoint& wpt);
     void wayPointDeleted(const quint16& index);
-    void wayPointsCleared();
     void wayPoints(QList<WayPoint>);
 
     void suggestVisualization();

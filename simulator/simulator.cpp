@@ -48,10 +48,12 @@ Simulator::Simulator(void) :
 
     // We now are probably in a state where we can service the basestation, so lets go ahead and create the connection.
     mBaseConnection = new BaseConnection("eth0");
-    connect(mBaseConnection, SIGNAL(wayPointInsert(QString,quint16,QList<WayPoint>)), mFlightController, SLOT(slotWayPointInsert(QString,quint16,QList<WayPoint>)));
-    connect(mBaseConnection, SIGNAL(wayPointDelete(QString,quint16)), mFlightController, SLOT(slotWayPointDelete(QString,quint16)));
+    connect(mBaseConnection, SIGNAL(wayPointInsert(quint16,WayPoint)), mFlightController, SLOT(slotWayPointInsert(quint16,WayPoint)));
+    connect(mBaseConnection, SIGNAL(wayPointDelete(quint16)), mFlightController, SLOT(slotWayPointDelete(quint16)));
+    connect(mBaseConnection, SIGNAL(wayPoints(QList<WayPoint>)), mFlightController, SLOT(slotSetWayPoints(QList<WayPoint>)));
 
     connect(mFlightController, SIGNAL(wayPointReached(WayPoint)), mBaseConnection, SLOT(slotWayPointReached(WayPoint)));
+    connect(mFlightController, SIGNAL(currentWayPoints(QList<WayPoint>)), mBaseConnection, SLOT(slotFlightControllerWayPointsChanged(QList<WayPoint>)));
 
     mStatusWidget = new StatusWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mStatusWidget);
