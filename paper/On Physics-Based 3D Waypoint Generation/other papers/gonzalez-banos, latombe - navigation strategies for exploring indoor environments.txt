@@ -1,0 +1,17 @@
+"However, SLAM does not address the sensor-placement portion of the map-building task. That is, given
+the map built so far, where should the robot go next? This is the main question addressed in this paper.
+Concretely, an algorithm is proposed to guide the robot through a series of “good” positions, where “good”
+refers to the expected amount and quality of the information that will be revealed at each new location.
+This is similar to the Next-Best View (NBV) problem studied in Computer Vision and Graphics. However,
+in mobile robotics the problem is complicated by several issues, two of which are particularly crucial. One is
+to achieve safe navigation despite an incomplete knowledge of the environment and sensor limitations (e.g.,
+in range and incidence). The other is the need to ensure suﬃcient overlap between each new local model and
+the current map, in order to allow registration of successive views under positioning uncertainties inherent
+to mobile robots."
+
+NBV is a sensor placement problem.
+Extension to the ArtGallery-Problem.
+
+In a static environment, a safe region remains safe under the union operation.
+
+Man schlägt Punkte vor, die von möglichst vielen offenen Löchern des Grundrisses sichtbar sind. Von denen erstellt man 2d-sensorkeulen in den unbekanntne raum und nimmt den punkt, dessen kegel den größten umfang hat => potential information gain

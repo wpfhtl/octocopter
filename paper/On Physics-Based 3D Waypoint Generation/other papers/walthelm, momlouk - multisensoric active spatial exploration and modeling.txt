@@ -1,0 +1,3 @@
+2d occupancy map (float)
+Man blickt in regionen, für die noch keine oder nur unsichere belegungshypothesen bekannt sind.
+und dann fährt man wohl an einen punkt, von dem möglichst viele dieser regionen sichtbar sind.

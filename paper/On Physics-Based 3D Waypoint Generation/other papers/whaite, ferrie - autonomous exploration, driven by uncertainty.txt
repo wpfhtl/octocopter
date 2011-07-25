@@ -1,0 +1,1 @@
+whaite and ferry use entropy to measure uncertainty in the measurements of 3d geometry. They use a fully parametrict representation of the objects.

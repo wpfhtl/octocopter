@@ -1,0 +1,10 @@
+1	seitliche ansicht, initialwolke, kugeln oben
+2	seitliche ansicht, initialwolke, kugeln schlagen auf
+3	seitliche ansicht, initialwolke, kugeln sind wegpunkte geworden
+
+
+1	top ansicht, initialwolke und neue wegpunkte
+2	top ansicht, wegpunkte von 1 abgegrast, neue wegpunkte
+3	top ansicht, wegpunkte von 2 abgegrast, neue wegpunkte
+
+
