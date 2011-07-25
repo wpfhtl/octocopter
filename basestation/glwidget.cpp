@@ -15,6 +15,12 @@ GlWidget::GlWidget(BaseStation *baseStation, Octree* octree, FlightPlannerInterf
 {
 //    rotQuad = 0.0f;
 //    startTimer(25);
+    QGLFormat fmt;
+    fmt.setSamples(2);
+    fmt.setSampleBuffers(true);
+    QGLFormat::setDefaultFormat(fmt);
+    setFormat(fmt);
+
 
     mBaseStation = baseStation;
 
@@ -39,6 +45,9 @@ GlWidget::GlWidget(BaseStation *baseStation, Octree* octree, FlightPlannerInterf
 void GlWidget::initializeGL()
 {
     // Set up the rendering context, define display lists etc.:
+
+
+
 /*    glClearColor(0.3, .3, .3, 0.0);
 //    glClearColor(1.0, 1.0, 1.0, 0.0);
     glClearDepth(1.0f);
@@ -65,8 +74,8 @@ void GlWidget::initializeGL()
 //    glClearDepth(1.0f);
 //    glEnable(GL_DEPTH_TEST);
 //    glDepthFunc(GL_LEQUAL);
-    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
     */
+    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
     /* we use resizeGL once to set up our initial perspective */
 //    resizeGL(width, height);
     /* Reset the rotation angle of our object */
@@ -75,7 +84,8 @@ void GlWidget::initializeGL()
 
 
     glShadeModel(GL_SMOOTH);						// Enable Smooth Shading
-    glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// Black Background
+//    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);					// Black Background
+    glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// White Background
     glClearDepth(1.0f);							// Depth Buffer Setup
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);					// Set Line Antialiasing
 
@@ -89,8 +99,6 @@ void GlWidget::initializeGL()
 //    glBlendFunc( GL_SRC_ALPHA_SATURATE, GL_ONE );
 //    glBlendFunc(GL_ONE_MINUS_DST_ALPHA,GL_DST_ALPHA);
     glEnable(GL_DEPTH_TEST);
-
-
 }
 
 void GlWidget::resizeGL(int w, int h)
@@ -100,7 +108,8 @@ void GlWidget::resizeGL(int w, int h)
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     gluPerspective(50.0*mZoomFactor, (GLfloat)w/(GLfloat)h, 10, +8000.0);
-//    glTranslatef(camPos.x(), camPos.y(), camPos.z());
+//    gluOrtho2D(-w/2.0, w/2.0, -h/2.0, h/2.0);
+    glTranslatef(camPos.x(), camPos.y(), camPos.z());
     glMatrixMode(GL_MODELVIEW);
 }
 
@@ -108,12 +117,13 @@ void GlWidget::moveCamera(const QVector3D &pos)
 {
 //    qDebug() << "moveCamera to " << pos;
     camPos = pos;
-
+/*
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     gluPerspective(130.0, (GLfloat)width()/(GLfloat)height(), 10, +8000.0);
     glTranslatef(camPos.x(), camPos.y(), camPos.z());
     glMatrixMode(GL_MODELVIEW);
+    */
 }
 
 
@@ -183,9 +193,12 @@ void GlWidget::paintGL()
 
 
     // Draw vehicle position
-//    glDisable(GL_LIGHTING);
+//    glEnable(GL_BLEND);							// Enable Blending
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);			// Type Of Blending To Use
+    glDisable(GL_LIGHTING);
     OpenGlUtilities::drawSphere(mFlightPlanner->getVehiclePose().position, 1.0, 20.0, QColor(20,255,20,100));
-//    glEnable(GL_LIGHTING);
+//    glDisable(GL_BLEND);
+    glEnable(GL_LIGHTING);
 
     // Draw next waypoint
     OpenGlUtilities::drawSphere(mBaseStation->getNextWayPoint(), 1.0, 20.0, QColor(255,255,255,100));
@@ -268,19 +281,18 @@ void GlWidget::mouseMoveEvent(QMouseEvent *event)
     {
         rotX += 180*DY;
         rotY += 180*DX;
-        updateGL();
+//        updateGL();
     }
     else if(event->buttons() & Qt::RightButton)
     {
         rotX += 180*DY;
         rotZ += 180*DX;
-        updateGL();
+//        updateGL();
     }
     else if(event->buttons() & Qt::MiddleButton)
     {
         mCamLookAt.setZ(mCamLookAt.z() + 180*DY);
         mCamLookAt.setX(mCamLookAt.x() + 180*DX);
-        updateGL();
     }
 
     lastPos = event->pos();
@@ -289,7 +301,9 @@ void GlWidget::mouseMoveEvent(QMouseEvent *event)
     rotY = fmod(rotY, 360.0);
     rotZ = fmod(rotZ, 360.0);
 
-//    qDebug() << rotX << rotY << rotZ;
+//    qDebug() << "rotXYZ:" << rotX << rotY << rotZ;
+
+    updateGL();
 }
 
 void GlWidget::wheelEvent(QWheelEvent *event)
@@ -298,9 +312,9 @@ void GlWidget::wheelEvent(QWheelEvent *event)
     double numSteps = numDegrees/30.0;
     double factor = event->delta()/93.0;
 //    mZoomFactor *= factor;
-//    qDebug() << factor << mZoomFactor;
 
     factor>0? mZoomFactor += 0.05 : mZoomFactor -= 0.05;
+//    qDebug() << "zoomFactor" << mZoomFactor;
 
 //    if(factor > 0)
 //        moveCamera(camPos * factor);
@@ -334,3 +348,26 @@ void GlWidget::drawPoint(const QVector3D &point)
     glVertex3f(point.x(), point.y(), point.z());
 }
 */
+
+void GlWidget::slotViewFromTop()
+{
+    rotX = 49.58;
+    rotY = -17.71;
+    rotZ = 19.67;
+    mZoomFactor = 0.4;
+    updateGL();
+}
+
+void GlWidget::slotViewFromSide()
+{
+    rotX = -34.0;
+    rotY = 0.25;
+    rotZ = -15.5;
+    mZoomFactor = 0.4;
+    updateGL();
+}
+
+void GlWidget::slotSaveImage()
+{
+    renderPixmap(0, 0, true).save(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz").prepend("snapshot-").append(".png"));
+}

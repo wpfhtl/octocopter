@@ -15,6 +15,7 @@ FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, const Pose * const p
     connect(mDialog, SIGNAL(submitWayPoints()), SLOT(slotEmitWayPoints()));
 
     connect(mDialog, SIGNAL(gravityChanged(QVector3D)), SLOT(slotGravityChanged(QVector3D)));
+    connect(mDialog, SIGNAL(frictionChanged(float,float)), SLOT(slotFrictionChanged(float,float)));
 
     // Bullet initialisation.
     mBtBroadphase = new btDbvtBroadphase; //new btAxisSweep3(btVector3(-10000,-10000,-10000), btVector3(10000,10000,10000), 1024); // = new btDbvtBroadphase();
@@ -58,7 +59,7 @@ FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, const Pose * const p
     mPointCloudShape = new btCompoundShape(false);
 
     mPointCloudGhostObject = new btPairCachingGhostObject();
-    mPointCloudGhostObject->setFriction(10.0);
+    mPointCloudGhostObject->setFriction(mDialog->getFrictionGround());
 //    mLidarFloorGhostObject->setRestitution(?);
     mPointCloudGhostObject->setWorldTransform(lidarFloorTransform);
     mPointCloudGhostObject->setCollisionShape(mPointCloudShape);
@@ -255,6 +256,16 @@ void FlightPlannerPhysics::slotGravityChanged(const QVector3D& gravity)
                 );
 }
 
+void FlightPlannerPhysics::slotFrictionChanged(const float& frictionPointCloudGround, const float& frictionSampleGeometry)
+{
+    mPointCloudGhostObject->setFriction(frictionPointCloudGround);
+
+    for(int i=0;i<mSampleObjects.size();i++)
+    {
+        mSampleObjects.at(i)->setFriction(frictionSampleGeometry);
+    }
+}
+
 void FlightPlannerPhysics::slotCreateSampleGeometry()
 {
     mShapeSampleSphere->setUnscaledRadius(mDialog->getSampleSphereRadius());
@@ -263,23 +274,56 @@ void FlightPlannerPhysics::slotCreateSampleGeometry()
 
     quint16 numberOfObjectsCreated = 0;
 
-    // Fill the sky with spheres
-    for(
-        float x = mScanVolumeMin.x() + mShapeSampleSphere->getRadius()/2.0;
-        x <= mScanVolumeMax.x() - mShapeSampleSphere->getRadius()/2.0;
-        x += 2 * mShapeSampleSphere->getRadius() + 0.1 /*Margin to prevent unnecessary collisions between sample geometry*/)
+    if(mDialog->getGenerationType() == FlightPlannerPhysicsDialog::GenerateRain)
     {
+
+        // Fill the sky with spheres
         for(
-            float z = mScanVolumeMin.z() + mShapeSampleSphere->getRadius()/2.0;
-            z <= mScanVolumeMax.z() - mShapeSampleSphere->getRadius()/2.0;
-            z += 2*mShapeSampleSphere->getRadius() + 0.1 /*Margin to prevent unnecessary collisions*/)
+            float x = mScanVolumeMin.x() + mShapeSampleSphere->getRadius()/2.0;
+            x <= mScanVolumeMax.x() - mShapeSampleSphere->getRadius()/2.0;
+            x += 2 * mShapeSampleSphere->getRadius() + 0.1 /*Margin to prevent unnecessary collisions between sample geometry*/)
         {
-            sampleSphereTransform.setOrigin(btVector3(x, mScanVolumeMax.y()+mShapeSampleSphere->getRadius(), z));
+            for(
+                float z = mScanVolumeMin.z() + mShapeSampleSphere->getRadius()/2.0;
+                z <= mScanVolumeMax.z() - mShapeSampleSphere->getRadius()/2.0;
+                z += 2*mShapeSampleSphere->getRadius() + 0.1 /*Margin to prevent unnecessary collisions*/)
+            {
+                sampleSphereTransform.setOrigin(btVector3(x, mScanVolumeMax.y()+mShapeSampleSphere->getRadius(), z));
+                // We don't need any inertia, mass etc,. as this body is static.
+                btDefaultMotionState* sampleSpherePointMotionState = new btDefaultMotionState(sampleSphereTransform);
+                btRigidBody::btRigidBodyConstructionInfo rbInfo(mShapeSampleSphere->getRadius(), sampleSpherePointMotionState, mShapeSampleSphere, btVector3(0,0,0));
+                btRigidBody* body = new btRigidBody(rbInfo);
+                body->setFriction(mDialog->getFrictionSampleGeometry());
+//                body->setLinearVelocity(btVector3(0,5,0));
+
+                numberOfObjectsCreated++;
+
+                // Add the body to the dynamics world
+                mSampleObjects.append(body);
+                mBtWorld->addRigidBody(body);
+            }
+        }
+    }
+    else if(mDialog->getGenerationType() == FlightPlannerPhysicsDialog::GenerateShootFromVehicle)
+    {
+        // Shoot from Vehicle
+        for(int i=0;i<mDialog->getEmitCount();i++)
+        {
+            sampleSphereTransform.setOrigin(
+                        btVector3(
+                            mVehiclePose->position.x(),
+                            mVehiclePose->position.y(),
+                            mVehiclePose->position.z())
+                        );
             // We don't need any inertia, mass etc,. as this body is static.
             btDefaultMotionState* sampleSpherePointMotionState = new btDefaultMotionState(sampleSphereTransform);
             btRigidBody::btRigidBodyConstructionInfo rbInfo(mShapeSampleSphere->getRadius(), sampleSpherePointMotionState, mShapeSampleSphere, btVector3(0,0,0));
             btRigidBody* body = new btRigidBody(rbInfo);
-            body->setFriction(0.01);
+            body->setFriction(mDialog->getFrictionSampleGeometry());
+
+            const QVector3D emitVelocity = mDialog->getEmitVelocity();
+            body->setLinearVelocity(btVector3(emitVelocity.x(), emitVelocity.y(), emitVelocity.z()));
+            body->setRestitution(0.01);
 
             numberOfObjectsCreated++;
 
@@ -390,7 +434,7 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
                     // THIS IS THE INTERESTING PART! IF THE SPHERE HAS PREVIOUSLY HIT A LIDARPOINT, MAKE THAT A NEW WAYPOINT!
                     if(mLastSampleObjectHitPositions.contains(rigidBody))
                     {
-                        WayPoint w(mLastSampleObjectHitPositions.value(rigidBody) + QVector3D(0.0, /*5 * mShapeSampleSphere->getRadius()*/10.0, 0.0));
+                        WayPoint w(mLastSampleObjectHitPositions.take(rigidBody) + QVector3D(0.0, /*5 * mShapeSampleSphere->getRadius()*/10.0, 0.0));
                         mWayPointsGenerated.append(w);
 
                         // This would add the waypoint sphere as static object to the physics world

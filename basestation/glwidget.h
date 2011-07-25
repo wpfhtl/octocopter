@@ -65,7 +65,9 @@ signals:
     void visualizeNow();
 
 public slots:
-
+    void slotViewFromTop();
+    void slotViewFromSide();
+    void slotSaveImage();
 };
 
 #endif

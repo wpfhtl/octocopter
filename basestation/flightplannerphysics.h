@@ -73,6 +73,7 @@ private slots:
     void slotProcessPhysics(bool);
     void slotEmitWayPoints();
     void slotGravityChanged(const QVector3D& gravity);
+    void slotFrictionChanged(const float& frictionPointCloudGround, const float& frictionSampleGeometry);
 
 public slots:
     void slotSetScanVolume(const QVector3D min, const QVector3D max);

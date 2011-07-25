@@ -44,7 +44,7 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mRtkFetcher, SIGNAL(rtkData(QByteArray)), SLOT(slotSendRtkDataToRover(QByteArray)));
 
     mFlightPlanner = new FlightPlannerPhysics(this, &mVehiclePose, mOctree);
-    mFlightPlanner->slotSetScanVolume(QVector3D(140, 60, 80), QVector3D(240, 120, 150));
+    mFlightPlanner->slotSetScanVolume(QVector3D(140, 70, 80), QVector3D(240, 120, 150));
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
     connect(mControlWidget, SIGNAL(generateWaypoints()), mFlightPlanner, SLOT(slotGenerateWaypoints()));
 
@@ -69,6 +69,8 @@ BaseStation::BaseStation() : QMainWindow()
 
     connect(mGlWidget, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
     connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWidget, SLOT(updateGL()));
+
+    menuBar()->addAction("Screenshot", mGlWidget, SLOT(slotSaveImage()));
 
     menuBar()->addAction("ViewFromSide", mGlWidget, SLOT(slotViewFromSide()));
     menuBar()->addAction("ViewFromTop", mGlWidget, SLOT(slotViewFromTop()));

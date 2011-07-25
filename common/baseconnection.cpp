@@ -38,6 +38,7 @@ BaseConnection::~BaseConnection()
 void BaseConnection::slotConnectionEnded()
 {
     QMutexLocker locker(&mMutex);
+    mTcpSocket->disconnect();
     mTcpSocket = 0;
 }
 
