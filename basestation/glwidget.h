@@ -47,6 +47,7 @@ class GlWidget : public QGLWidget
     void wheelEvent(QWheelEvent *event);
     void zoom(double zoomFactor);
     void drawAxes(const GLfloat& x, const GLfloat& y, const GLfloat& z, const GLfloat& red, const GLfloat& green, const GLfloat& blue) const;
+    void drawVehicleVelocity() const;
 
 public:
     GlWidget(BaseStation *baseStation, Octree* octree, FlightPlannerInterface* flightPlanner);

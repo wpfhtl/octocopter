@@ -31,6 +31,7 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mTcpSocket, SIGNAL(disconnected()), SLOT(slotSocketDisconnected()));
 
     mControlWidget = new ControlWidget(this);
+    connect(this, SIGNAL(vehiclePoseChanged(Pose)), mControlWidget, SLOT(slotUpdatePose(Pose)));
     addDockWidget(Qt::RightDockWidgetArea, mControlWidget);
 
     mWirelessDevice = new WirelessDevice("wlan0");
@@ -43,8 +44,9 @@ BaseStation::BaseStation() : QMainWindow()
     mRtkFetcher = new RtkFetcher(mConnectionDialog->getHostNameRtkBase(), 4001, this);
     connect(mRtkFetcher, SIGNAL(rtkData(QByteArray)), SLOT(slotSendRtkDataToRover(QByteArray)));
 
-    mFlightPlanner = new FlightPlannerPhysics(this, &mVehiclePose, mOctree);
+    mFlightPlanner = new FlightPlannerPhysics(this, mOctree);
     mFlightPlanner->slotSetScanVolume(QVector3D(140, 70, 80), QVector3D(240, 120, 150));
+    connect(this, SIGNAL(vehiclePoseChanged(Pose)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose)));
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
     connect(mControlWidget, SIGNAL(generateWaypoints()), mFlightPlanner, SLOT(slotGenerateWaypoints()));
 
@@ -298,9 +300,10 @@ void BaseStation::processPacket(QByteArray data)
     }
     else if(packetType == "posechanged")
     {
-        stream >> mVehiclePose;
+        Pose vehiclePose;
+        stream >> vehiclePose;
 
-        mControlWidget->slotUpdatePose(mVehiclePose);
+        emit vehiclePoseChanged(vehiclePose);
     }
     else if(packetType == "currentwaypointshash")
     {

@@ -34,7 +34,7 @@ class BaseStation : public QMainWindow
 
 private:
     QTcpSocket* mTcpSocket;
-    Pose mVehiclePose;
+    //Pose mVehiclePose;
 
     WirelessDevice* mWirelessDevice;
 
@@ -67,6 +67,9 @@ private:
     QProgressDialog* mProgress;
 
     void processPacket(QByteArray data);
+
+signals:
+    void vehiclePoseChanged(Pose);
 
 private slots:
     void slotAskForConnectionHostNames();

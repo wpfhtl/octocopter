@@ -1,7 +1,7 @@
 #ifndef POSE_H
 #define POSE_H
 
-#include <QVector2D>
+//#include <QVector2D>
 #include <QVector3D>
 #include <QQuaternion>
 #include <QTime>
@@ -42,7 +42,7 @@ public:
 
     Pose operator*(const float &factor);
 //    Pose operator*(const float &factor);
-//    const Pose operator+(const Pose & p);
+    const Pose operator-(const Pose &p) const;
 
     Pose operator+(const Pose &p) const;
 //    friend inline const Pose operator+(const Pose &q1, const Pose &q2);
@@ -65,17 +65,17 @@ public:
     static float getRollRadians(const QQuaternion& orientation, bool reprojectAxis);
     static float getYawRadians(const QQuaternion& orientation, bool reprojectAxis);
 
-    float getPitchRadians() const {return mPitch;};
-    float getRollRadians() const {return mRoll;};
-    float getYawRadians() const {return mYaw;};
+    float getPitchRadians() const {return mPitch;}
+    float getRollRadians() const {return mRoll;}
+    float getYawRadians() const {return mYaw;}
 
-    float getPitchDegrees() const {return RAD2DEG(mPitch);};
-    float getRollDegrees() const {return RAD2DEG(mRoll);};
-    float getYawDegrees() const {return RAD2DEG(mYaw);};
+    float getPitchDegrees() const {return RAD2DEG(mPitch);}
+    float getRollDegrees() const {return RAD2DEG(mRoll);}
+    float getYawDegrees() const {return RAD2DEG(mYaw);}
 
-    void setPitchRadians(const float& pitch) {mPitch = /*normalizeAngleRadians*/(pitch);};
-    void setRollRadians(const float& roll) {mRoll = /*normalizeAngleRadians*/(roll);};
-    void setYawRadians(const float& yaw) {mYaw = /*normalizeAngleRadians*/(yaw);};
+    void setPitchRadians(const float& pitch) {mPitch = /*normalizeAngleRadians*/(pitch);}
+    void setRollRadians(const float& roll) {mRoll = /*normalizeAngleRadians*/(roll);}
+    void setYawRadians(const float& yaw) {mYaw = /*normalizeAngleRadians*/(yaw);}
 
 signals:
 

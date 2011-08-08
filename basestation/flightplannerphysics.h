@@ -18,7 +18,7 @@ class FlightPlannerPhysics : public FlightPlannerInterface
 {
     Q_OBJECT
 public:
-    FlightPlannerPhysics(QWidget* widget, const Pose * const pose, Octree* pointCloud);
+    FlightPlannerPhysics(QWidget* widget, Octree* pointCloud);
     ~FlightPlannerPhysics();
 
     void insertPoint(LidarPoint* const point);
@@ -74,6 +74,7 @@ private slots:
     void slotEmitWayPoints();
     void slotGravityChanged(const QVector3D& gravity);
     void slotFrictionChanged(const float& frictionPointCloudGround, const float& frictionSampleGeometry);
+    void slotRestitutionChanged(const float& restitutionPointCloudGround, const float& restitutionSampleGeometry);
 
 public slots:
     void slotSetScanVolume(const QVector3D min, const QVector3D max);

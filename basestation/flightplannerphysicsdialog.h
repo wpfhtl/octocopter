@@ -22,10 +22,13 @@ public:
     float getSampleSphereRadius() const;
     float getFrictionGround() const;
     float getFrictionSampleGeometry() const;
+    float getRestitutionGround() const;
+    float getRestitutionSampleGeometry() const;
     bool visualizationActive() const;
     GenerationType getGenerationType() const;
     quint16 getEmitCount() const;
     QVector3D getEmitVelocity() const;
+    bool useRelativeVelocity() const;
 
 private:
     Ui::FlightPlannerPhysicsDialog *ui;
@@ -33,6 +36,7 @@ private:
 private slots:
     void slotGravityChanged();
     void slotFrictionChanged();
+    void slotRestitutionChanged();
 
 public slots:
     void slotSetProgress(const int& value, const int& min, const int& max);
@@ -44,6 +48,7 @@ signals:
     void processPhysics(bool);
     void gravityChanged(QVector3D);
     void frictionChanged(float,float);
+    void restitutionChanged(float,float);
     void submitWayPoints();
 };
 

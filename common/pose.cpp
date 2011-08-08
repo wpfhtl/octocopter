@@ -173,10 +173,10 @@ Pose Pose::operator+(const Pose &p) const
                 );
 }
 
-/*const Pose Pose::operator+(const Pose &q1, const Pose &q2)
+const Pose Pose::operator-(const Pose &p) const
 {
-    return Pose();
-}*/
+    return Pose(position - p.position, mYaw - p.mYaw, mPitch - p.mPitch, mRoll - p.mRoll);
+}
 
 
 QDebug operator<<(QDebug dbg, const Pose &pose)

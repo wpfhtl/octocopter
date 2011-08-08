@@ -18,6 +18,9 @@ FlightPlannerPhysicsDialog::FlightPlannerPhysicsDialog(QWidget *parent) :
 
     connect(ui->mSpinBoxFrictionGround, SIGNAL(valueChanged(double)), SLOT(slotFrictionChanged()));
     connect(ui->mSpinBoxFrictionSampleGeometry, SIGNAL(valueChanged(double)), SLOT(slotFrictionChanged()));
+
+    connect(ui->mSpinBoxRestitutionGround, SIGNAL(valueChanged(double)), SLOT(slotRestitutionChanged()));
+    connect(ui->mSpinBoxRestitutionSampleGeometry, SIGNAL(valueChanged(double)), SLOT(slotRestitutionChanged()));
 }
 
 FlightPlannerPhysicsDialog::~FlightPlannerPhysicsDialog()
@@ -41,6 +44,11 @@ void FlightPlannerPhysicsDialog::slotAppendMessage(const QString& message)
     ui->mTextBrowser->append(message/* + "\n"*/);
 }
 
+bool FlightPlannerPhysicsDialog::useRelativeVelocity() const
+{
+    return ui->mChkBoxRelativeVelocity->isChecked();
+}
+
 void FlightPlannerPhysicsDialog::slotGravityChanged()
 {
     emit gravityChanged(
@@ -57,6 +65,11 @@ void FlightPlannerPhysicsDialog::slotFrictionChanged()
     emit frictionChanged(ui->mSpinBoxFrictionGround->value(),ui->mSpinBoxFrictionSampleGeometry->value());
 }
 
+void FlightPlannerPhysicsDialog::slotRestitutionChanged()
+{
+    emit restitutionChanged(ui->mSpinBoxRestitutionGround->value(),ui->mSpinBoxRestitutionSampleGeometry->value());
+}
+
 float FlightPlannerPhysicsDialog::getFrictionGround() const
 {
     return ui->mSpinBoxFrictionGround->value();
@@ -65,6 +78,16 @@ float FlightPlannerPhysicsDialog::getFrictionGround() const
 float FlightPlannerPhysicsDialog::getFrictionSampleGeometry() const
 {
     return ui->mSpinBoxFrictionSampleGeometry->value();
+}
+
+float FlightPlannerPhysicsDialog::getRestitutionGround() const
+{
+    return ui->mSpinBoxRestitutionGround->value();
+}
+
+float FlightPlannerPhysicsDialog::getRestitutionSampleGeometry() const
+{
+    return ui->mSpinBoxRestitutionSampleGeometry->value();
 }
 
 bool FlightPlannerPhysicsDialog::visualizationActive() const

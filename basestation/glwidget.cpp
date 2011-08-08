@@ -170,7 +170,8 @@ void GlWidget::paintGL()
 //        qDebug() << "centering around 0/0/0" << otc;
 //    }
 
-    mCamLookAt = mFlightPlanner->getVehiclePose().position;
+    const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().position;
+    mCamLookAt = vehiclePosition;
     QVector3D min, max;
     mFlightPlanner->getScanVolume(min, max);
     mCamLookAt = min + (max - min)/2.0;
@@ -196,7 +197,7 @@ void GlWidget::paintGL()
 //    glEnable(GL_BLEND);							// Enable Blending
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);			// Type Of Blending To Use
     glDisable(GL_LIGHTING);
-    OpenGlUtilities::drawSphere(mFlightPlanner->getVehiclePose().position, 1.0, 20.0, QColor(20,255,20,100));
+    OpenGlUtilities::drawSphere(mFlightPlanner->getLastKnownVehiclePose().position, 1.0, 20.0, QColor(20,255,20,100));
 //    glDisable(GL_BLEND);
     glEnable(GL_LIGHTING);
 
@@ -207,6 +208,8 @@ void GlWidget::paintGL()
 
 
     drawAxes(20, 20, 20, 1.0, 1.0, 0.0);
+
+    drawVehicleVelocity();
     // Draw base plate
 //    glDisable(GL_LIGHTING);
 //    glBlendFunc(GL_SRC_ALPHA,GL_ONE);
@@ -218,6 +221,7 @@ void GlWidget::paintGL()
 //    glVertex3f(-1000, 0, -1000);
 //    glEnd();
 //    glEnable(GL_LIGHTING);
+
 
 
 //    mOctree->drawGl();
@@ -234,6 +238,20 @@ void GlWidget::paintGL()
     emit visualizeNow();
 }
 
+void GlWidget::drawVehicleVelocity() const
+{
+    // draw vehicle velocity as vector
+    const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().position;
+    const QVector3D vehicleVelocity = mFlightPlanner->getCurrentVehicleVelocity();
+    glDisable(GL_LIGHTING);
+    glColor3f(1.0, 0.0, 0.0);
+    glLineWidth(1);
+    glBegin(GL_LINES);
+    glVertex3f(vehiclePosition.x(), vehiclePosition.y(), vehiclePosition.z());
+    glVertex3f(vehiclePosition.x()+vehicleVelocity.x(), vehiclePosition.y()+vehicleVelocity.y(), vehiclePosition.z()+vehicleVelocity.z());
+    glEnd();
+    glEnable(GL_LIGHTING);
+}
 
 void GlWidget::drawAxes(
         const GLfloat& x, const GLfloat& y, const GLfloat& z,

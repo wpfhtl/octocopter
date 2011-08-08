@@ -5,6 +5,7 @@
 #include <QFile>
 #include <QLayout>
 #include <QString>
+#include <QTextStream>
 #include <QPalette>
 #include <QDateTime>
 #include <QDockWidget>

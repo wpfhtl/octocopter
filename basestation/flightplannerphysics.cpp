@@ -1,6 +1,6 @@
 #include "flightplannerphysics.h"
 
-FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, const Pose * const pose, Octree* pointCloud) : FlightPlannerInterface(widget, pose, pointCloud)
+FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, Octree* pointCloud) : FlightPlannerInterface(widget, pointCloud)
 {
     // The octree is initialized on arrival of the first point, with this point at its center.
     // We do this so we can drop spheres only within the octree's XZ plane.
@@ -16,6 +16,7 @@ FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, const Pose * const p
 
     connect(mDialog, SIGNAL(gravityChanged(QVector3D)), SLOT(slotGravityChanged(QVector3D)));
     connect(mDialog, SIGNAL(frictionChanged(float,float)), SLOT(slotFrictionChanged(float,float)));
+    connect(mDialog, SIGNAL(restitutionChanged(float,float)), SLOT(slotRestitutionChanged(float,float)));
 
     // Bullet initialisation.
     mBtBroadphase = new btDbvtBroadphase; //new btAxisSweep3(btVector3(-10000,-10000,-10000), btVector3(10000,10000,10000), 1024); // = new btDbvtBroadphase();
@@ -60,7 +61,7 @@ FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, const Pose * const p
 
     mPointCloudGhostObject = new btPairCachingGhostObject();
     mPointCloudGhostObject->setFriction(mDialog->getFrictionGround());
-//    mLidarFloorGhostObject->setRestitution(?);
+    mPointCloudGhostObject->setRestitution(mDialog->getRestitutionGround());
     mPointCloudGhostObject->setWorldTransform(lidarFloorTransform);
     mPointCloudGhostObject->setCollisionShape(mPointCloudShape);
 //    mLidarFloorGhostObject->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
@@ -266,6 +267,16 @@ void FlightPlannerPhysics::slotFrictionChanged(const float& frictionPointCloudGr
     }
 }
 
+void FlightPlannerPhysics::slotRestitutionChanged(const float& restitutionPointCloudGround, const float& restitutionSampleGeometry)
+{
+    mPointCloudGhostObject->setRestitution(restitutionPointCloudGround);
+
+    for(int i=0;i<mSampleObjects.size();i++)
+    {
+        mSampleObjects.at(i)->setRestitution(restitutionSampleGeometry);
+    }
+}
+
 void FlightPlannerPhysics::slotCreateSampleGeometry()
 {
     mShapeSampleSphere->setUnscaledRadius(mDialog->getSampleSphereRadius());
@@ -294,7 +305,7 @@ void FlightPlannerPhysics::slotCreateSampleGeometry()
                 btRigidBody::btRigidBodyConstructionInfo rbInfo(mShapeSampleSphere->getRadius(), sampleSpherePointMotionState, mShapeSampleSphere, btVector3(0,0,0));
                 btRigidBody* body = new btRigidBody(rbInfo);
                 body->setFriction(mDialog->getFrictionSampleGeometry());
-//                body->setLinearVelocity(btVector3(0,5,0));
+                body->setRestitution(mDialog->getRestitutionSampleGeometry());
 
                 numberOfObjectsCreated++;
 
@@ -311,19 +322,26 @@ void FlightPlannerPhysics::slotCreateSampleGeometry()
         {
             sampleSphereTransform.setOrigin(
                         btVector3(
-                            mVehiclePose->position.x(),
-                            mVehiclePose->position.y(),
-                            mVehiclePose->position.z())
+                            mVehiclePoses.last().position.x(),
+                            mVehiclePoses.last().position.y(),
+                            mVehiclePoses.last().position.z())
                         );
+
             // We don't need any inertia, mass etc,. as this body is static.
             btDefaultMotionState* sampleSpherePointMotionState = new btDefaultMotionState(sampleSphereTransform);
             btRigidBody::btRigidBodyConstructionInfo rbInfo(mShapeSampleSphere->getRadius(), sampleSpherePointMotionState, mShapeSampleSphere, btVector3(0,0,0));
             btRigidBody* body = new btRigidBody(rbInfo);
             body->setFriction(mDialog->getFrictionSampleGeometry());
+            body->setRestitution(mDialog->getRestitutionSampleGeometry());
 
-            const QVector3D emitVelocity = mDialog->getEmitVelocity();
+            QVector3D emitVelocity = mDialog->getEmitVelocity();
+
+            if(mDialog->useRelativeVelocity())
+            {
+                emitVelocity += getCurrentVehicleVelocity();
+            }
+
             body->setLinearVelocity(btVector3(emitVelocity.x(), emitVelocity.y(), emitVelocity.z()));
-            body->setRestitution(0.01);
 
             numberOfObjectsCreated++;
 
@@ -472,7 +490,7 @@ void FlightPlannerPhysics::slotEmitWayPoints()
 
     mWayPointsAhead->append(mWayPointsGenerated);
     mWayPointsGenerated.clear();
-    sortToShortestPath(*mWayPointsAhead, mVehiclePose->position);
+    sortToShortestPath(*mWayPointsAhead, mVehiclePoses.last().position);
     emit wayPoints(*mWayPointsAhead);
 
     emit suggestVisualization();

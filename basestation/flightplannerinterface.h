@@ -13,21 +13,22 @@ class FlightPlannerInterface : public QObject
     Q_OBJECT
 protected:
     QVector3D mScanVolumeMin, mScanVolumeMax;
-    const Pose *mVehiclePose;
+    QList<Pose> mVehiclePoses;
     QWidget* mParentWidget;
     QList<WayPoint>* mWayPointsAhead, *mWayPointsPassed;
 
     static void sortToShortestPath(QList<WayPoint> &wayPoints, const QVector3D &currentVehiclePosition);
 
 public:
-    FlightPlannerInterface(QWidget* widget, const Pose * const pose, Octree* pointCloud);
+    FlightPlannerInterface(QWidget* widget, Octree* pointCloud);
     virtual ~FlightPlannerInterface();
 
     // Insert points from the laserscanners. Note that the points might also be inserted
     // into Octree* pointCloud, this might be independent from the flightplanner.
     virtual void insertPoint(LidarPoint* const point) = 0;
 
-    const Pose getVehiclePose(void) const;
+    const Pose getLastKnownVehiclePose(void) const;
+    const QVector3D getCurrentVehicleVelocity() const;
 
     const QList<WayPoint> getWayPoints();
 
@@ -44,6 +45,8 @@ public slots:
     virtual void slotSetScanVolume(const QVector3D min, const QVector3D max);
     virtual void slotGenerateWaypoints() = 0;
     virtual void slotVisualize() const = 0;
+
+    void slotVehiclePoseChanged(const Pose& pose);
 
 signals:
     void wayPointInserted(const quint16& index, const WayPoint& wpt);
