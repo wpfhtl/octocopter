@@ -2,9 +2,9 @@
 %2345678901234567890123456789012345678901234567890123456789012345678901234567890
 %        1         2         3         4         5         6         7         8
 
-\documentclass[letterpaper, 10 pt, conference]{ieeeconf}  % Comment this line out
+%\documentclass[letterpaper, 10 pt, conference]{ieeeconf}  % Comment this line out
                                                           % if you need a4paper
-%\documentclass[a4paper, 10pt, conference]{ieeeconf}      % Use this line for a4
+\documentclass[a4paper, 10pt, conference]{ieeeconf}      % Use this line for a4
                                                           % paper
 
 \IEEEoverridecommandlockouts                              % This command is only
@@ -85,20 +85,20 @@ This paper presents a novel approach on increasing the efficiency of such mappin
 
 \section{State of the Art}
 
-Since the introduction of Thrun's SLAM approach, much work has been done to refine and extend the algorithm for use in both two- and threedimensional environments []. Finding the next best view, though, has never been a part of SLAM problem.
+Since the introduction of Thrun's SLAM approach, much work has been done to refine and extend the algorithm for use in both two- and threedimensional environments []. Finding the next best view, though, has never been a part of the SLAM problem and is thus rarely addressed by these works.
 
-In general, frontier heuristic is popular, but how to do this in point cloud? low-res, physics spheres.
+In general, frontier-based approaches are a popular method to computing new waypoints [1,2,3,4], as near-frontier sensor-poses often promise high information gains. Unfortunately, information about frontiers between known and unknown space is hard to generate from three-dimensional datastructures such as pointclouds or octrees.
 
+Occupancy grid maps are often used bound to 2d environments or voxel structures.
 
-Occupancy grid maps are bound to 2d environments or voxel structures.
+The next-best-view problem is similar, but does not include the constraints of safe navigation. Extension to art-gallery-problem.
 
-Multi-Level surface maps, Height maps don't allow for overhang.
+Occupancy grid maps - and in extension elevation maps - are often used to store sensor data in generalized form. Although the data structure permits easy traversability computation, storing more complex geometry or overhangs remains impossible, limiting their practical use to two-dimensional environments. Furthermore, its uniform grid size requires a global compromise between model quality and memory consumption. Multi-Level surface maps, introduced by Triebel et al [triebel], eliminate many of these limitations, while still being constrained to a grid.
 
 e.g. ``Autonomous Exploration for 3D Map Learning'' by Johoo et al.
 
 \section{Our approach}
 
-Prior to the mapping process, the user creates a bounding volume as a representation of the region-of-interest around the vehicle's starting position, thereby defining the environment that is to be mapped. All generated viewpoints will be constrained to this volume, also ensuring that the UAV does not leave the given area. At initialization, a physics engine is set up with a detection volume at the bottom of the defined bounding volume. Whenever an object passes this area in physics computations, a ``calculate
 
 \begin{figure*}[ht]
   \centering
@@ -112,9 +112,22 @@ Prior to the mapping process, the user creates a bounding volume as a representa
 
 As three-dimensional environment mapping is often implemented using laserscanners and time-of-flight cameras, unorganized point clouds are a very common type of sensor data. Finding the next best view in such a point cloud can be very hard, as the data itself does not supply any information about geometric structures such as corners, edges, surfaces and normals. Instead of trying to generate these details from the point cloud whenever it changes, our algorithm does not require such information.
 
-The pointcloud itself is saved into two customized octrees which differ only in the allowed maximum density of points. One octree is used to capture all geometry for later surface reconstruction and thus allows for a very high density of points. The other octree is used for waypoint generation and only stores points if there are no other points whithin a distance of *dMin*, leading to comparatively little memory consumption. This density limitation is implemented by simple neighbor-queries common in most octree implementations.
+While scanning, the pointcloud itself is saved into two customized octrees which differ only in the maximum density of points. One octree is used to capture all geometry for later surface reconstruction and thus allows for a very high density of points. The other octree is used for collision detection and stores points only if there are no other points whithin a distance of *dMin*, leading to comparatively little memory consumption. This density limitation is implemented by simple neighbor-queries common in most octree implementations. The exact purpose of this second octree will be explained soon.
 
+Prior to the mapping process, the user creates a bounding volume as a representation of the region-of-interest around the vehicle's starting position, thereby defining the environment that is to be mapped. All generated viewpoints will be constrained to this volume, ensuring that the UAV does not leave the given area. At initialization, a physics engine is set up with a detection volume below the defined bounding volume. The contents of the collision-octree are automatically registered as collision objects int he physics world. After the octrees are populated with an initial set of points, the waypoint-generation algorithm is executed as follows:
 
+\begin{enumerate}
+     \item Create and initialize sample geometry: spheres of arbitrary size are created along the bounding volume's top plane.
+     \item Start the physics simulation, allowing the sample geometry to follow the defined gravity. Whenever a sample sphere collides with a point registered in the collision octree, that event is saved into a special data structure mapping every sphere to the position of its last collision.
+     \item When a sample geometry collides with the detection volume, it is removed from the simulation and the position of its last collision is recorded as a waypoint.
+\end{enumerate}
+
+Although any geometry can be used for waypoint generation, using spheres yields three important advantages:
+\begin{itemize}
+  \item Spheres can represented only by radius and position, so the overall memory requirement is very low (especially when all spheres share a common radius).
+  \item Collision detection between points and spheres is a process of low computational complexity, even redundantizing the narrowphase in collision detection. To detect a collision, it is sufficient to check whether the distance between the sphere's center and the point is smaller than the sphere's radius.
+  \item Most importantly, spheres are ideally suited to slip through smaller ``holes'' in the pointcloud, enabling their detection.
+\end{itemize}
 
 Any sensor generating spatial occupancy information can be used, as the algorithm's input consists solely of geometry.
 
@@ -122,13 +135,13 @@ Spatially limited by defined exploration space, other input pre-existing sensor 
 
 Simulated annealing.
 
-kugeln sind gut wgeen einfacher darstellung im speicher und, weil sie rutschen.
-
 \subsection{3D Model / Data structures}
 
 To operate on non-flat surfaces, we need appropriate data structures. Elevation maps don't work for no overhangs and multiple levels.
 
 point cloud, octree
+
+The introduction of a second octree for collision detection is, in theory, unnecessary, as all of the pointcloud could be registered as collision objects in the physics world. In practice, however, using a second octree with a much lower point density dramatically reduces the number of collision pairs that have to be checked in every step of the physics simulation. This reduction translates to an increased efficiency, making the approach feasible for real-time application on current-generation CPUs.
 
 explain how. bullet, btghostobject
 
@@ -181,8 +194,23 @@ References are important to the reader; therefore, each citation must be complet
 
 \begin{thebibliography}{99}
 
-\bibitem{c1}
-J.G.F. Francis, The QR Transformation I, {\it Comput. J.}, vol. 4, 1961, pp 265-271.
+\bibitem{gonzalez-banos2002}
+% SLAM does not address the sensor-placement
+% Extension to the ArtGallery-Problem
+% Sensorkeulen von Kandidatenpunkten berechnen, 2D only
+H\'{e}ctor H. Gonz\'{a}lez-Ba\~{n}os and Jean-Claude Latombe, Navigation Strategies for Exploring Indoor Environments, {\it I. J. Robotic Res.} 21(10-11), 829-848 (2002)
+
+\bibitem{haehnel2004}
+% Pioneer und Sick zu Outdoor Modellen, 16seiten, kein Wort über next-best-view
+Dirk H\"ahnel and Wolfram Burgard and Sebastian Thrun, Learning Compact 3d Models of Indoor and Outdoor Environments with a Mobile Robot, {\it Elsevier Science Special Issue Eurobot} '01, 1-16
+
+\bibitem{strand}
+% Next-best-view centered
+% Grid, 2d only
+Marcus Strand and Rüdiger Dillmann, Grid based next best view planning for an autonomous robot in indoor environments
+
+\bibitem{strand2008}
+Marcus Strand and Rüdiger Dillmann, Using an attributed 2D-grid for next-best-view planning on 3D environment data for an autonomous robot
 
 \bibitem{c2}
 H. Kwakernaak and R. Sivan, {\it Modern Signals and Systems}, Prentice Hall, Englewood Cliffs, NJ; 1991.
