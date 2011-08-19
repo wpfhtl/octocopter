@@ -244,7 +244,7 @@ void GlWidget::drawVehicleVelocity() const
     const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().position;
     const QVector3D vehicleVelocity = mFlightPlanner->getCurrentVehicleVelocity();
     glDisable(GL_LIGHTING);
-    glColor3f(1.0, 0.0, 0.0);
+    glColor3f(0.0, 1.0, 0.0);
     glLineWidth(1);
     glBegin(GL_LINES);
     glVertex3f(vehiclePosition.x(), vehiclePosition.y(), vehiclePosition.z());

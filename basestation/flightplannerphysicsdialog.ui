@@ -503,6 +503,13 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="mBtnCreateSafePath">
+       <property name="text">
+        <string>Create Safe Path</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="mBtnSubmitWaypoints">
        <property name="text">
         <string>Submit Waypoints</string>

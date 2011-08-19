@@ -29,20 +29,32 @@ private:
     BulletDebugDrawerGl* mDbgDrawer;
     bool mPhysicsProcessingActive;
 
-    QList<WayPoint> mWayPointsGenerated;
+    QList<WayPoint> mWayPointsGenerated, mWayPointsDetour;
 
     // testing
 //    btTransform mDeletionTriggerTransform;
 
-    btTransform mLidarPointTransform;
+    btTransform mTransformLidarPoint;
+    // The shape of a LIDAR-point, i.e. a small sphere
     btCollisionShape *mLidarPointShape;
 
-    btTransform mDeletionTriggerTransform;
+    btTransform mTransformDeletionTrigger;
+
+    // The detection volume at the bottom.
     btCollisionShape *mDeletionTriggerShape;
-    btGhostObject *mDeletionTriggerGhostObject;
+
+    // The Ghost Object using the detection shape at the bottom.
+    btGhostObject *mGhostObjectDeletionTrigger;
+
+    // For vehicle collision avoidance
+//    btTransform mTransformVehicle;
+    btRigidBody *mBodyVehicle;
+//    btDefaultMotionState* mMotionStateVehicle;
+//    btCollisionShape *mShapeVehicle;
+    btPairCachingGhostObject *mGhostObjectVehicle;
 
     btCompoundShape *mPointCloudShape;
-    btPairCachingGhostObject *mPointCloudGhostObject;
+    btPairCachingGhostObject *mGhostObjectPointCloud;
 
     btSphereShape *mShapeSampleSphere;
     QList<btRigidBody*> mSampleObjects;
@@ -78,6 +90,14 @@ private slots:
 
 public slots:
     void slotSetScanVolume(const QVector3D min, const QVector3D max);
+
+    // Inserts detour-waypoints between vehicle position and next waypoint if necessary.
+    // Returns true if path was found, else false.
+    void slotCreateSafePathToNextWayPoint();
+
+    // Overridden from base, create safe path to next waypoint whenever current one was reached.
+    void slotWayPointReached(const WayPoint);
+
     void slotVisualize() const;
 
 };

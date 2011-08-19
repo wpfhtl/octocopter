@@ -45,6 +45,7 @@ public slots:
 signals:
     void createSampleGeometry();
     void deleteSampleGeometry();
+    void createSafePath();
     void processPhysics(bool);
     void gravityChanged(QVector3D);
     void frictionChanged(float,float);

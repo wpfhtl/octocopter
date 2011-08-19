@@ -1,11 +1,14 @@
 #ifndef POSE_H
 #define POSE_H
 
-//#include <QVector2D>
 #include <QVector3D>
 #include <QQuaternion>
 #include <QTime>
 #include <QDebug>
+
+#ifdef BASESTATION
+  #include <bullet/btBulletDynamicsCommon.h>
+#endif
 
 #include <common.h>
 #include <math.h>
@@ -76,6 +79,11 @@ public:
     void setPitchRadians(const float& pitch) {mPitch = /*normalizeAngleRadians*/(pitch);}
     void setRollRadians(const float& roll) {mRoll = /*normalizeAngleRadians*/(roll);}
     void setYawRadians(const float& yaw) {mYaw = /*normalizeAngleRadians*/(yaw);}
+
+#ifdef BASESTATION
+    btTransform getTransform() const {return btTransform(btQuaternion(mYaw, mPitch, mRoll), btVector3(position.x(), position.y(), position.z()));}
+#endif
+
 
 signals:
 

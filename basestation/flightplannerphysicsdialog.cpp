@@ -10,6 +10,8 @@ FlightPlannerPhysicsDialog::FlightPlannerPhysicsDialog(QWidget *parent) :
     connect(ui->mBtnCreateGeometry, SIGNAL(clicked()), SIGNAL(createSampleGeometry()));
     connect(ui->mBtnDeleteGeometry, SIGNAL(clicked()), SIGNAL(deleteSampleGeometry()));
     connect(ui->mBtnProcessPhysics, SIGNAL(clicked(bool)), SIGNAL(processPhysics(bool)));
+    connect(ui->mBtnCreateSafePath, SIGNAL(clicked()), SIGNAL(createSafePath()));
+
     connect(ui->mBtnSubmitWaypoints, SIGNAL(clicked()), SIGNAL(submitWayPoints()));
 
     connect(ui->mSpinBoxGravityX, SIGNAL(valueChanged(double)), SLOT(slotGravityChanged()));

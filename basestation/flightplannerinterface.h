@@ -11,6 +11,8 @@ class Pose;
 class FlightPlannerInterface : public QObject
 {
     Q_OBJECT
+private:
+
 protected:
     QVector3D mScanVolumeMin, mScanVolumeMax;
     QList<Pose> mVehiclePoses;

@@ -11,9 +11,13 @@ class WayPoint : /*public QObject, */public QVector3D
 {
 //    Q_OBJECT
 public:
+    enum Purpose {SCAN, DETOUR};
+
+    Purpose purpose;
+
     WayPoint();
     WayPoint(const WayPoint& other);
-    WayPoint(const QVector3D& vector);
+    WayPoint(const QVector3D& vector, Purpose = SCAN);
 
     WayPoint &operator=(const WayPoint& other);
 
