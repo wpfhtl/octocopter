@@ -1,11 +1,5 @@
 #include "baseconnection.h"
 
-// for getRssi()
-#include <sys/ioctl.h>
-//#include <sys/types.h>
-#include <sys/socket.h>
-#include <linux/wireless.h>
-
 BaseConnection::BaseConnection(const QString& interface) :
     QObject(),
     mMutex(QMutex::NonRecursive)
@@ -14,12 +8,9 @@ BaseConnection::BaseConnection(const QString& interface) :
 
     qDebug() << "BaseConnection::BaseConnection()";
 
-    /* Any old socket will do, and a datagram socket is pretty cheap */
-//    mSockfd = socket(AF_INET, SOCK_DGRAM, 0);
 //    mWirelessDevice = new WirelessDevice(interface);
 //    mWirelessDevice->getRssi();
 
-//    mInterface = interface;
     mTcpSocket = 0;
 
     mTcpServer = new QTcpServer(this);
@@ -60,6 +51,8 @@ void BaseConnection::slotNewConnection()
 void BaseConnection::slotReadSocket(bool lockMutex)
 {
     if(lockMutex) QMutexLocker locker(&mMutex);
+
+    Q_ASSERT(mTcpSocket);
 
     mIncomingDataBuffer.append(mTcpSocket->readAll());
 //    qDebug() << "BaseConnection::slotReadSocket(): incoming-buffer now has" << mIncomingDataBuffer.size() << "bytes";
@@ -306,7 +299,7 @@ void BaseConnection::slotNewVehicleStatus(
     const float& batteryVoltage
     )
 {
-    const qint8 wirelessRssi = 0;// = mWirelessDevice->getRssi();
+    const qint8 wirelessRssi = -1;//mWirelessDevice->getRssi();
 
 //    slotNewLogMessage(
 //                Information,

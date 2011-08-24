@@ -16,7 +16,6 @@ kopter
 ../common/waypoint
 ../common/lidarpoint
 ../common/baseconnection
-../common/wirelessdevice
 ../common/gpsstatusinformation
 gpsdevice
 laserscanner
@@ -34,7 +33,6 @@ kopter.h
 ../common/waypoint.h
 ../common/lidarpoint.h
 ../common/baseconnection.h
-../common/wirelessdevice.h
 ../common/gpsstatusinformation.h
 gpsdevice.h
 laserscanner.h

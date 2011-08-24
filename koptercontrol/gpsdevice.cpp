@@ -543,9 +543,13 @@ void GpsDevice::processSbfData()
                 if(mPoseClockDivisor % 20 == 0) emit newVehiclePoseLowFreq(p);
 
             }
+            else if(block->Error != 0)
+            {
+                qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, error:" << block->Error;
+            }
             else
             {
-                qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, either error or do-not-use-values encountered.";
+                qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, do-not-use values found.";
             }
 
 //            qDebug() << "SBF: IntAttEuler: Info" << block->Info << "Mode" << block->Mode << "Error" << block->Error << "TOW" << block->TOW << "WNc" << block->WNc << "HPR:" << block->Heading << block->Pitch << block->Roll;;
