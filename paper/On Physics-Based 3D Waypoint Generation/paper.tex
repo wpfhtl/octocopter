@@ -3,13 +3,13 @@
 %        1         2         3         4         5         6         7         8
 
 %\documentclass[letterpaper, 10 pt, conference]{ieeeconf}  % Comment this line out
-                                                          % if you need a4paper
-\documentclass[a4paper, 10pt, conference]{ieeeconf}      % Use this line for a4
-                                                          % paper
+                                                           % if you need a4paper
+\documentclass[a4paper, 10pt, conference]{ieeeconf}        % Use this line for a4
+                                                           % paper
 
-\IEEEoverridecommandlockouts                              % This command is only
-                                                          % needed if you want to
-                                                          % use the \thanks command
+\IEEEoverridecommandlockouts                               % This command is only
+                                                           % needed if you want to
+                                                           % use the \thanks command
 \overrideIEEEmargins
 % See the \addtolength command later in the file to balance the column lengths
 % on the last page of the document
@@ -81,24 +81,27 @@ We also present the algorithm by simulating its performance in a virtual outdoor
 
 Automatic model building has always been one of the most important parts of autonomous robotics. Exploration and mapping - as a subclass of this problem - has been the topic of many papers in recent years. The SLAM problem was first solved for two-dimensional mapping scenarios [thrun, freiburg etc.] and later-on expanded to three-dimensional environments [kinect-uav etc].
 
-This paper presents a novel approach on increasing the efficiency of such mapping procedures. While the implementations of SLAM have improved greatly in recent years, one aspect of mapping three-dimensional environments was given comparatively little attention: finding the next best view. Typically, SLAM algorithms have been researched and developed on mobile platforms driving on flat surfaces. This setup does not require a high efficiency in exploration, as it does not inherently impose time constraints. The authors of this paper, however, are implementing exploration and mapping algorithms on a flying platform with a maximum flight time of about 15 minutes. Aiming to explore as much of the environment as possible within this limited time motivates an efficient way of finding sensor-poses (and in extension, -trajectories) that enable sensors to deliver as much information as quickly as possible.
+This paper presents a novel approach on increasing the efficiency of such mapping procedures. While the implementations of SLAM have improved greatly in recent years, one aspect of mapping three-dimensional environments was given comparatively little attention: finding the next best view. Typically, SLAM algorithms have been researched and developed on mobile platforms driving on flat surfaces[TODO]. This setup does not require a high efficiency in exploration, as it does not inherently impose time constraints. The authors of this paper, however, are implementing exploration and mapping algorithms on a flying platform with a maximum flight time of about 15 minutes. Aiming to explore as much of the environment as possible within this limited time motivates an efficient way of finding sensor-poses (and in extension, -trajectories) that enable sensors to deliver as much information as quickly as possible.
 
 \section{State of the Art}
 
-Since the introduction of Thrun's SLAM approach, much work has been done to refine and extend the algorithm for use in both two- and threedimensional environments []. Finding the next best view, though, has never been a part of the SLAM problem and is thus rarely addressed by these works.
+Since the introduction of Thrun's SLAM approach, much work has been done to refine and extend the algorithm for use in both two- and threedimensional environments [...]. Finding the next best view, though, has never been a part of the SLAM problem and is thus rarely addressed by these works.
 
-In general, frontier-based approaches are a popular method to computing new waypoints [1,2,3,4], as near-frontier sensor-poses often promise high information gains. Unfortunately, information about frontiers between known and unknown space is hard to generate from three-dimensional datastructures such as pointclouds or octrees.
+Generating safely reachable waypoints from previously acquired sensor data is an extension of next-best-view problem, as it does not include the constraints of safe navigation. In general, frontier-based approaches are a popular method to compute new waypoints [1,2,3,4] as sensor-poses from areas between known and unknown environment offer a good compromise between safe reachability and high information gain. Unfortunately, information about frontiers between known and unknown space is hard to generate from three-dimensional datastructures such as pointclouds or octrees.
 
-Occupancy grid maps are often used bound to 2d environments or voxel structures.
+\subsection{Data structures}
 
-The next-best-view problem is similar, but does not include the constraints of safe navigation. Extension to art-gallery-problem.
+Occupancy grid maps - and in extension elevation maps - are often used to store sensor data in generalized form. Although the data structure permits easy traversability computation and frontier detection, storing more complex geometry or overhangs remains impossible, limiting its practical use to two-dimensional environments. Furthermore, its uniform grid size requires a global compromise between model quality and memory consumption. Multi-Level surface maps, introduced by Triebel et al [triebel], eliminate many of these limitations, while still being constrained to a grid.
 
-Occupancy grid maps - and in extension elevation maps - are often used to store sensor data in generalized form. Although the data structure permits easy traversability computation, storing more complex geometry or overhangs remains impossible, limiting their practical use to two-dimensional environments. Furthermore, its uniform grid size requires a global compromise between model quality and memory consumption. Multi-Level surface maps, introduced by Triebel et al [triebel], eliminate many of these limitations, while still being constrained to a grid.
+To operate on non-flat surfaces, we need appropriate data structures. Elevation maps don't work for no overhangs and multiple levels.
 
-e.g. ``Autonomous Exploration for 3D Map Learning'' by Johoo et al.
+The introduction of a second octree for collision detection is, in theory, unnecessary, as all of the pointcloud could be registered as collision objects in the physics world. In practice, however, using a second octree with a much lower point density dramatically reduces the number of collision pairs that have to be checked in every step of the physics simulation. This reduction translates to an increased efficiency, making the approach feasible for real-time application on current-generation CPUs.
+
+explain how. bullet, btghostobject
+
+Bilder von fallenden Kugeln, abrutschen.
 
 \section{Our approach}
-
 
 \begin{figure*}[ht]
   \centering
@@ -110,7 +113,7 @@ e.g. ``Autonomous Exploration for 3D Map Learning'' by Johoo et al.
     %\label{expl3}
 \end{figure*}
 
-As three-dimensional environment mapping is often implemented using laserscanners and time-of-flight cameras, unorganized point clouds are a very common type of sensor data. Finding the next best view in such a point cloud can be very hard, as the data itself does not supply any information about geometric structures such as corners, edges, surfaces and normals. Instead of trying to generate these details from the point cloud whenever it changes, our algorithm does not require such information.
+As three-dimensional environment mapping is often implemented using laserscanners and time-of-flight cameras, unorganized point clouds are a very common type of sensor data. Any sensor generating spatial occupancy information can be used, as the pointcloud is the algorithm's only input. Finding the next best view in such data be very hard, as the data itself does not supply any information about geometric structures such as corners, edges, surfaces and normals. Instead of trying to generate these details from the point cloud whenever it changes, our algorithm does not require such information.
 
 While scanning, the pointcloud itself is saved into two customized octrees which differ only in the maximum density of points. One octree is used to capture all geometry for later surface reconstruction and thus allows for a very high density of points. The other octree is used for collision detection and stores points only if there are no other points whithin a distance of *dMin*, leading to comparatively little memory consumption. This density limitation is implemented by simple neighbor-queries common in most octree implementations. The exact purpose of this second octree will be explained soon.
 
@@ -125,27 +128,14 @@ Prior to the mapping process, the user creates a bounding volume as a representa
 Although any geometry can be used for waypoint generation, using spheres yields three important advantages:
 \begin{itemize}
   \item Spheres can represented only by radius and position, so the overall memory requirement is very low (especially when all spheres share a common radius).
-  \item Collision detection between points and spheres is a process of low computational complexity, even redundantizing the narrowphase in collision detection. To detect a collision, it is sufficient to check whether the distance between the sphere's center and the point is smaller than the sphere's radius.
+  \item Collision detection between points and spheres is a process of low computational complexity, even redundantizing the midphase in collision detection. To detect a collision, it is sufficient to check whether the distance between the sphere's center and the point is smaller than the sphere's radius.
   \item Most importantly, spheres are ideally suited to slip through smaller ``holes'' in the pointcloud, enabling their detection.
 \end{itemize}
 
-Any sensor generating spatial occupancy information can be used, as the algorithm's input consists solely of geometry.
+%Spatially limited by defined exploration space, other input pre-existing sensor information and vehicle position.
 
-Spatially limited by defined exploration space, other input pre-existing sensor information and vehicle position.
+%Simulated annealing.
 
-Simulated annealing.
-
-\subsection{3D Model / Data structures}
-
-To operate on non-flat surfaces, we need appropriate data structures. Elevation maps don't work for no overhangs and multiple levels.
-
-point cloud, octree
-
-The introduction of a second octree for collision detection is, in theory, unnecessary, as all of the pointcloud could be registered as collision objects in the physics world. In practice, however, using a second octree with a much lower point density dramatically reduces the number of collision pairs that have to be checked in every step of the physics simulation. This reduction translates to an increased efficiency, making the approach feasible for real-time application on current-generation CPUs.
-
-explain how. bullet, btghostobject
-
-Bilder von fallenden Kugeln, abrutschen.
 
 \subsection{Information Gain}
 
@@ -164,6 +154,14 @@ weil die kugeln, die von der kante fallen, (am meisten) zählen, bekomme ich imm
 
 \subsection{Computational complexity}
 
+The algorithms complexity derives from the computational effort of the collision detection phase in physics simulation and thus from the number of collision objects. Collision detection between $n$ objects in general requires $n(n-1)/2$ collision checks to be performed, leading to a complexity of O($n^2$). Optimized algorithms like sort-and-sweep or implementations relying on spatial subdivison may reduce the complexity to O($n$ log $n$) in favorable cases \cite{legrand2007}. This initially appears to be a major obstacle to employment of the algorithm outside of simulation, as the pointcloud may grow to several million points during a scan. Fortunately, the following optimizations have made the algorithm sufficiently fast for real-time application:
+
+\begin{itemize}
+  \item Given a pointcloud consisting of $n$ points and a set of $m$ sample geometries, the algorithm does not require collision tests between all $n+m$ objects. As the $n$ points making up the accumulated scan data are static, the number of required tests is reduced to $\frac{m(m-1)}{2} + n*m$. Because $n >> m$, this optimization yields a considerable loss in computational effort.
+  \item When using the sensordata solely for waypoint generation, the density of the pointcloud can be reduced to allow gaps almost the size of the sample geometry's radius. That is, if sample spheres are created with a radius of e.g. 1m, the interacting pointcloud may discard points if there are neighbors within a distance of less than ~2m. In practice, this means a reduction of $n$ by two or three dimensions. For this reason, we use two pointclouds in our work; one is used for surface reconstruction and is stored in an octree which allows for close neihgbors (and thus high density) and another pointcloud used for waypoint generation and collision avoidance, stored in an octree rejecting points that would increase local density above the needed threshold.
+  \item As described in Le Grand's work \cite{legrand2007}, execution of the simulation's broadphase on GPU can speed up execution by an order of magnitude compared to calculationi on the CPU.
+\end{itemize}
+
 scalable resolution (sample sphere size / octree density)
 simulated annealing length
 
@@ -174,25 +172,25 @@ scalability durch Kugelgröße / Menge
 
 \section{Outlook}
 
-With the algorithm relying on collision detection between many static and dynamic objects, it is currently limited by the speed of collision detection. In general, physics-simulation in general and collision detection especially tends to lend itself well to parallelization using massively-parallel implementations on GPUs
+With the algorithm relying on collision detection between many static and dynamic objects, it is currently limited by the speed of collision detection. Physics-simulation in general and collision detection especially tends to lend itself well to parallelization using massively-parallel implementations on GPUs
 
 more efficient with opencl -> from iterative to realtime
 kugeln spucken in flugrichtung
 
 collision avoidance! lass die kugeln liegen, fliege drüber, dann wird nichts passieren?!
 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{ACKNOWLEDGMENTS}
-
-The authors gratefully acknowledge the contribution of TAMS.
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-References are important to the reader; therefore, each citation must be complete and correct. If at all possible, references should be commonly available publications.
+%\section{ACKNOWLEDGMENTS}
+%The authors gratefully acknowledge the contribution of TAMS.
 
 \begin{thebibliography}{99}
+
+% ``Autonomous Exploration for 3D Map Learning'' by Johoo et al.
+
+
+
+\bibitem{legrand2007}
+% macht broadphase per CUDA, gut erklärt in GPU gems 3, chapter 32
+Scott Le Grand, Broad-Phase Collision Detection with CUDA, {\it GPU Gems 3, } (2007)
 
 \bibitem{gonzalez-banos2002}
 % SLAM does not address the sensor-placement
