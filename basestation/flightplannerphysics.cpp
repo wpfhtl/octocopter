@@ -32,9 +32,10 @@ FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, Octree* pointCloud) 
       midphase detects which triangles from each trimesh have overlapping AABB and
       narrowphase does collision detection between these triangles. */
     mBtWorld = new btDiscreteDynamicsWorld(mBtDispatcher, mBtBroadphase, mBtSolver, mBtCollisionConfig);
+    mBtWorld->setGravity(btVector3(0,-10,0));
 
-//    mDbgDrawer = new BulletDebugDrawerGl;
-//    mBtWorld->setDebugDrawer(mDbgDrawer);
+    mDbgDrawer = new BulletDebugDrawerGl;
+    mBtWorld->setDebugDrawer(mDbgDrawer);
 
     mTransformLidarPoint.setIdentity();
 
@@ -73,14 +74,16 @@ FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, Octree* pointCloud) 
     mBtWorld->addCollisionObject(mGhostObjectPointCloud, btBroadphaseProxy::SensorTrigger, btBroadphaseProxy::AllFilter & ~btBroadphaseProxy::SensorTrigger);
 
     // Set up vehicle collision avoidance. We create one normal btRigidBody to interact with the world and one ghost object to register collisions
-//    mTransformVehicle.setIdentity();
+    mTransformVehicle.setIdentity();
 //    mShapeVehicle = new btSphereShape(2.0);
-//    mMotionStateVehicle = new btDefaultMotionState;
-    mBodyVehicle = new btRigidBody(btRigidBody::btRigidBodyConstructionInfo(1.0, new btDefaultMotionState, new btSphereShape(2.5), btVector3(0, 0, 0)));
+    mMotionStateVehicle = new btDefaultMotionState;
+    mBodyVehicle = new btRigidBody(btRigidBody::btRigidBodyConstructionInfo(1.0, mMotionStateVehicle, new btSphereShape(2.5), btVector3(0, 0, 0)));
+//    mBtWorld->addRigidBody(mBodyVehicle);
 
     mGhostObjectVehicle = new btPairCachingGhostObject;
     mGhostObjectVehicle->setFriction(10.0);
     mGhostObjectVehicle->setRestitution(0.5);
+    mGhostObjectVehicle->setWorldTransform(mTransformVehicle);
     mGhostObjectVehicle->setCollisionShape(mBodyVehicle->getCollisionShape());
     mBtWorld->addCollisionObject(mGhostObjectVehicle, btBroadphaseProxy::SensorTrigger, btBroadphaseProxy::AllFilter & ~btBroadphaseProxy::SensorTrigger);
 
@@ -99,12 +102,14 @@ void FlightPlannerPhysics::slotCreateSafePathToNextWayPoint()
     slotDeleteSampleGeometry();
 
     // Set the vehicle to the vehicle's current position
-    btTransform transformVehicle = getLastKnownVehiclePose().getTransform();
-    mBodyVehicle->getMotionState()->setWorldTransform(transformVehicle);
-    qDebug() << "initializing vehicle body to" << transformVehicle.getOrigin().x() << transformVehicle.getOrigin().y() << transformVehicle.getOrigin().z();
+//    btTransform transformVehicle = getLastKnownVehiclePose().getTransform();
+//    mBodyVehicle->getMotionState()->setWorldTransform(transformVehicle);
+//    mBodyVehicle->getMotionState()->getWorldTransform(transformVehicle);
+//    mGhostObjectVehicle->setWorldTransform(transformVehicle);
+    qDebug() << "initializing vehicle body and ghost object to" << mTransformVehicle.getOrigin().x() << mTransformVehicle.getOrigin().y() << mTransformVehicle.getOrigin().z();
 
     // Save gravity for later, then disable it.
-    const btVector3 gravityOld = mBtWorld->getGravity();
+//    const btVector3 gravityOld = mBtWorld->getGravity();
     mBtWorld->setGravity(btVector3(0,0,0));
 
     // Create the next waypoint in the physics world
@@ -125,25 +130,40 @@ void FlightPlannerPhysics::slotCreateSafePathToNextWayPoint()
     while(!wayPointReached)
     {
         // Make the vehicle's body rotate so that it will bounce upwards on collision.
-        mBodyVehicle->setAngularVelocity(btVector3(1,2,3)); // TODO
+//        mBodyVehicle->setAngularVelocity(btVector3(1,2,3)); // TODO
 
         // Apply a constant force to push the vehicle towards the waypoint
 //        mBodyVehicle->getMotionState()->getWorldTransform(transformVehicle);
-        const btVector3 vectorToWayPoint = (wayPointPosition - transformVehicle.getOrigin()).normalized();
+        const btVector3 vectorToWayPoint = (wayPointPosition - mTransformVehicle.getOrigin()).normalized();
         qDebug() << "applying force" << vectorToWayPoint.x() << vectorToWayPoint.y() << vectorToWayPoint.z();
-        mBodyVehicle->applyCentralForce(vectorToWayPoint);
+//        mBodyVehicle->applyCentralForce(vectorToWayPoint*10);
+        mBodyVehicle->applyCentralForce(btVector3(0,10,0));
+
+        usleep(500000);
+        suggestVisualization();
+
+        btVector3 force = mBodyVehicle->getTotalForce();
+        qDebug() << "total force on mBodyVehicle is" << force.x() << force.y() << force.z();
 
         // Step the world. The vehicle will move
         mBtWorld->stepSimulation(0.01, 10); // ???
 
-        // Move the vehicle ghost object to the vehicle's rigidBody
-        mBodyVehicle->getMotionState()->getWorldTransform(transformVehicle);
-        qDebug() << "after step, vehicle has moved to" << transformVehicle.getOrigin().x() << transformVehicle.getOrigin().y() << transformVehicle.getOrigin().z();
-        mGhostObjectVehicle->setWorldTransform(transformVehicle);
+        usleep(500000);
+        suggestVisualization();
 
+        // Move the vehicle ghost object to the vehicle's rigidBody
+//        done in slotVehiclePoseChanged now mBodyVehicle->getMotionState()->getWorldTransform(transformVehicle);
+        mTransformVehicle = mBodyVehicle->getWorldTransform();
+        qDebug() << "after step, mBodyVehicle has moved to" << mTransformVehicle.getOrigin().x() << mTransformVehicle.getOrigin().y() << mTransformVehicle.getOrigin().z();
+        mGhostObjectVehicle->setWorldTransform(mTransformVehicle);
+
+        force = mBodyVehicle->getTotalForce();
+        qDebug() << "total force on mBodyVehicle is" << force.x() << force.y() << force.z();
+
+        /*
         // Ask the Vehicle GhostObject whether anything hit it. If yes, create a waypoint slightly backwards.
         btBroadphasePairArray& pairs = mGhostObjectVehicle->getOverlappingPairCache()->getOverlappingPairArray();
-        qDebug() << pairs.size() << "pairs, vehicle body at" << transformVehicle.getOrigin().x() << transformVehicle.getOrigin().y() << transformVehicle.getOrigin().z();
+        qDebug() << pairs.size() << "pairs, vehicle body at" << mTransformVehicle.getOrigin().x() << mTransformVehicle.getOrigin().y() << mTransformVehicle.getOrigin().z();
         for(int j=0; j<pairs.size(); ++j)
         {
             const btBroadphasePair& pair = pairs[j];
@@ -183,7 +203,7 @@ void FlightPlannerPhysics::slotCreateSafePathToNextWayPoint()
                 }
             }
             else qDebug() << "dynamic cast failed!";
-        }
+        }*/
 
         QApplication::processEvents();
 
@@ -197,7 +217,7 @@ void FlightPlannerPhysics::slotCreateSafePathToNextWayPoint()
     delete wayPointBody->getMotionState();
     delete wayPointBody->getCollisionShape();
 
-    mBtWorld->setGravity(gravityOld);
+//    mBtWorld->setGravity(gravityOld);
 }
 
 FlightPlannerPhysics::~FlightPlannerPhysics()
@@ -316,6 +336,13 @@ void FlightPlannerPhysics::slotVisualize() const
     //    glBlendFunc( GL_SRC_ALPHA_SATURATE, GL_ONE );
     //    glBlendFunc(GL_ONE_MINUS_DST_ALPHA,GL_DST_ALPHA);
 
+    // draw next waypoint
+    if(mWayPointsAhead->size())
+    {
+    //        qDebug() << "drawing next wpt at" << mWayPointsAhead->first();
+        OpenGlUtilities::drawSphere(mWayPointsAhead->first(), 0.8, 20.0, QColor(255,0,0,100));
+    }
+
 
     const float radiusSampleGeometry = mShapeSampleSphere->getRadius();
     const float radiusWptScan = 1.5;
@@ -356,7 +383,7 @@ void FlightPlannerPhysics::slotVisualize() const
 
     // Draw the vehicle's physics body
     btTransform tf;
-    mBodyVehicle->getMotionState()->getWorldTransform(tf);
+    mMotionStateVehicle->getWorldTransform(tf);
     OpenGlUtilities::drawSphere(
                 QVector3D(
                     tf.getOrigin().x(),
@@ -364,18 +391,24 @@ void FlightPlannerPhysics::slotVisualize() const
                     tf.getOrigin().z()
                     ),
                 1.1,
-                20,
-                QColor(10,10,10, 128)
+                1,
+                QColor(255,0,0, 255)
                 );
+
+//    qDebug() << "motionStateVehicle is at" << tf.getOrigin().x() << tf.getOrigin().y() << tf.getOrigin().z();
+//    qDebug() << "mTransformVehicle is at" << mTransformVehicle.getOrigin().x() << mTransformVehicle.getOrigin().y() << mTransformVehicle.getOrigin().z();
+//    btTransform hans = mGhostObjectVehicle->getWorldTransform();
+//    qDebug() << "mGhostObjectVehicle is at" << hans.getOrigin().x() << hans.getOrigin().y() << hans.getOrigin().z();
 
     glDisable(GL_BLEND);
 
-    // Draw the ghostobject's AABB
+    // Draw the ghostobject-AABBs
     btVector3 min, max;
     mGhostObjectDeletionTrigger->getCollisionShape()->getAabb(mTransformDeletionTrigger, min, max);
-//    qDebug() << "ghost aabb" << QVector3D(min.x(), min.y(), min.z()) << QVector3D(max.x(), max.y(), max.z());
-//    glDisable(GL_LIGHTING);
     OpenGlUtilities::drawAabb(QVector3D(min.x(), min.y(), min.z()), QVector3D(max.x(), max.y(), max.z()), QColor(255,150,150, 150), 2);
+
+    mGhostObjectVehicle->getCollisionShape()->getAabb(mTransformVehicle, min, max);
+    OpenGlUtilities::drawAabb(QVector3D(min.x(), min.y(), min.z()), QVector3D(max.x(), max.y(), max.z()), QColor(0,250,0, 150), 2);
     glEnable(GL_LIGHTING);
 }
 
@@ -658,4 +691,17 @@ void FlightPlannerPhysics::slotWayPointReached(const WayPoint wpt)
     FlightPlannerInterface::slotWayPointReached(wpt);
 
     slotCreateSafePathToNextWayPoint();
+}
+
+void FlightPlannerPhysics::slotVehiclePoseChanged(const Pose& pose)
+{
+    FlightPlannerInterface::slotVehiclePoseChanged(pose);
+
+    mTransformVehicle = pose.getTransform();
+    mBodyVehicle->setWorldTransform(mTransformVehicle);
+    mMotionStateVehicle->setWorldTransform(mTransformVehicle);
+    mGhostObjectVehicle->setWorldTransform(mTransformVehicle);
+    Q_ASSERT(mMotionStateVehicle == mBodyVehicle->getMotionState());
+
+    // Check for collisions using the ghost object?!
 }

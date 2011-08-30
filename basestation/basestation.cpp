@@ -460,7 +460,7 @@ void BaseStation::slotSocketError(QAbstractSocket::SocketError socketError)
         QTimer::singleShot(2000, this, SLOT(slotConnectToRover()));
 }
 
-const WayPoint BaseStation::getNextWayPoint(void) const
+/*const WayPoint BaseStation::getNextWayPoint(void) const
 {
     QList<WayPoint> waypoints = mFlightPlanner->getWayPoints();
 
@@ -468,7 +468,7 @@ const WayPoint BaseStation::getNextWayPoint(void) const
         return waypoints.first();
     else
         return WayPoint();
-}
+}*/
 
 /*void BaseStation::slotFlightPlannerProcessing(const QString& text, const quint8& progress)
 {

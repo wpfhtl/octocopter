@@ -1,9 +1,8 @@
 #include "bulletdebugdrawergl.h"
 
-BulletDebugDrawerGl::BulletDebugDrawerGl(/*Ogre::SceneNode *node, btDynamicsWorld *world*/) //:
+BulletDebugDrawerGl::BulletDebugDrawerGl(/*Ogre::SceneNode *node, btDynamicsWorld *world*/) : mDebugOn(true)
 //    mNode(node),
 //    mWorld(world),
-//    mDebugOn(true)
 {
 }
 
@@ -30,7 +29,7 @@ BulletDebugDrawerGl::~BulletDebugDrawerGl()
 
 void BulletDebugDrawerGl::drawLine(const btVector3& from,const btVector3& to,const btVector3& color)
 {
-    qDebug() << "BulletDebugDrawerGl::drawLine";
+//    qDebug() << "BulletDebugDrawerGl::drawLine";
     glLineWidth(1);
     glColor4f(color.x(), color.y(), color.z(), 0.9);
 
@@ -56,7 +55,7 @@ void BulletDebugDrawerGl::drawContactPoint(const btVector3& PointOnB, const btVe
 
 void BulletDebugDrawerGl::drawSphere (btScalar radius, const btTransform &transform, const btVector3 &color)
 {
-    OpenGlUtilities::drawSphere(QVector3D(transform.getOrigin().x(), transform.getOrigin().y(), transform.getOrigin().z()), radius, 5.0, QColor(color.x()*255,color.y()*255,color.z()*255));
+    OpenGlUtilities::drawSphere(QVector3D(transform.getOrigin().x(), transform.getOrigin().y(), transform.getOrigin().z()), radius, 5.0, QColor(color.x()*255,color.y()*255,color.z()*255, 30));
 }
 
 void BulletDebugDrawerGl::drawSphere (const btVector3 &p, btScalar radius, const btVector3 &color)
@@ -123,11 +122,13 @@ void BulletDebugDrawerGl::drawBox(const btVector3 &min, const btVector3 &max, co
 void BulletDebugDrawerGl::reportErrorWarning(const char* warningString)
 {
 //    emit messageWarning(QString(warningString));
+    qDebug() << "BulletDebugDrawerGl::reportErrorWarning():" << warningString;
 }
 
 void BulletDebugDrawerGl::draw3dText(const btVector3& location,const char* textString)
 {
 //    Ogre::LogManager::getSingleton().logMessage(textString);
+    qDebug() << "BulletDebugDrawerGl::draw3dText():" << textString;
 }
 
 //0 for off, anything else for on.

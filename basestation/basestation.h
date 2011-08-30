@@ -91,7 +91,7 @@ public:
     BaseStation(void);
     ~BaseStation();
 
-    const WayPoint getNextWayPoint(void) const;
+//    const WayPoint getNextWayPoint(void) const;
 };
 
 #endif

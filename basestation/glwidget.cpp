@@ -85,7 +85,8 @@ void GlWidget::initializeGL()
 
     glShadeModel(GL_SMOOTH);						// Enable Smooth Shading
 //    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);					// Black Background
-    glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// White Background
+    glClearColor(0.5f, 0.5f, 0.5f, 0.0f);					// Black Background
+//    glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// White Background
     glClearDepth(1.0f);							// Depth Buffer Setup
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);					// Set Line Antialiasing
 
@@ -202,7 +203,8 @@ void GlWidget::paintGL()
     glEnable(GL_LIGHTING);
 
     // Draw next waypoint
-    OpenGlUtilities::drawSphere(mBaseStation->getNextWayPoint(), 1.0, 20.0, QColor(255,255,255,100));
+    // Don't, let the flightplanners visualize themselves
+//    OpenGlUtilities::drawSphere(mBaseStation->getNextWayPoint(), 1.0, 20.0, QColor(255,255,255,100));
 
 //    glTranslatef(+0.0, +100.0, +0.0);
 

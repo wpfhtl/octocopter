@@ -47,9 +47,9 @@ private:
     btGhostObject *mGhostObjectDeletionTrigger;
 
     // For vehicle collision avoidance
-//    btTransform mTransformVehicle;
+    btTransform mTransformVehicle;
     btRigidBody *mBodyVehicle;
-//    btDefaultMotionState* mMotionStateVehicle;
+    btDefaultMotionState* mMotionStateVehicle;
 //    btCollisionShape *mShapeVehicle;
     btPairCachingGhostObject *mGhostObjectVehicle;
 
@@ -97,6 +97,9 @@ public slots:
 
     // Overridden from base, create safe path to next waypoint whenever current one was reached.
     void slotWayPointReached(const WayPoint);
+
+    // Overridden from base to move vehicle physics object and check for collisions
+    void slotVehiclePoseChanged(const Pose& pose);
 
     void slotVisualize() const;
 
