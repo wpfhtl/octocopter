@@ -7,7 +7,7 @@
 \documentclass[a4paper, 10pt, conference]{ieeeconf}        % Use this line for a4
                                                            % paper
 
-\IEEEoverridecommandlockouts                               % This command is only
+%\IEEEoverridecommandlockouts                               % This command is only
                                                            % needed if you want to
                                                            % use the \thanks command
 \overrideIEEEmargins
@@ -45,14 +45,14 @@ On Physics-Based 3D Waypoint Generation for Autonomous Exploration in Mobile Rob
 %}
 
 \author{Benjamin Adler and Jianwei Zhang% <-this % stops a space
-\thanks{This work was not supported by any organization}% <-this % stops a space
-\thanks{H. Kwakernaak is with Faculty of Electrical Engineering, Mathematics and Computer Science,
-        University of Twente, 7500 AE Enschede, The Netherlands
-        {\tt\small h.kwakernaak@autsubmit.com}}%
-\thanks{P. Misra is with the Department of Electrical Engineering, Wright State University,
-        Dayton, OH 45435, USA
-        {\tt\small pmisra@cs.wright.edu}}%
-}
+%\thanks{This work was not supported by any organization}% <-this % stops a space
+%\thanks{H. Kwakernaak is with Faculty of Electrical Engineering, Mathematics and Computer Science,
+%        University of Twente, 7500 AE Enschede, The Netherlands
+%        {\tt\small h.kwakernaak@autsubmit.com}}%
+%\thanks{P. Misra is with the Department of Electrical Engineering, Wright State University,
+%        Dayton, OH 45435, USA
+%        {\tt\small pmisra@cs.wright.edu}}%
+%}
 
 
 \begin{document}
@@ -159,7 +159,7 @@ The algorithms complexity derives from the computational effort of the collision
 \begin{itemize}
   \item Given a pointcloud consisting of $n$ points and a set of $m$ sample geometries, the algorithm does not require collision tests between all $n+m$ objects. As the $n$ points making up the accumulated scan data are static, the number of required tests is reduced to $\frac{m(m-1)}{2} + n*m$. Because $n >> m$, this optimization yields a considerable loss in computational effort.
   \item When using the sensordata solely for waypoint generation, the density of the pointcloud can be reduced to allow gaps almost the size of the sample geometry's radius. That is, if sample spheres are created with a radius of e.g. 1m, the interacting pointcloud may discard points if there are neighbors within a distance of less than ~2m. In practice, this means a reduction of $n$ by two or three dimensions. For this reason, we use two pointclouds in our work; one is used for surface reconstruction and is stored in an octree which allows for close neihgbors (and thus high density) and another pointcloud used for waypoint generation and collision avoidance, stored in an octree rejecting points that would increase local density above the needed threshold.
-  \item As described in Le Grand's work \cite{legrand2007}, execution of the simulation's broadphase on GPU can speed up execution by an order of magnitude compared to calculationi on the CPU.
+  \item As described in Le Grand's work \cite{legrand2007}, execution of the simulation's broadphase on GPU can speed up execution by an order of magnitude compared to calculation on the CPU.
 \end{itemize}
 
 scalable resolution (sample sphere size / octree density)
