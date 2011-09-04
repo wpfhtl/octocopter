@@ -1,4 +1,4 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+﻿%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %2345678901234567890123456789012345678901234567890123456789012345678901234567890
 %        1         2         3         4         5         6         7         8
 
@@ -103,6 +103,27 @@ Bilder von fallenden Kugeln, abrutschen.
 
 \section{Our approach}
 
+\subsection{Platform}
+
+To save time during the construction of our platform, we used an "`Okto 2"'-octocopter from the mikrokopter-project \ref{mikrokopter-project} as a base for our vehicle. Technically, the central FlightControl (FC) processor-board is connected to eight brushless-motor controllers (BL) via an I2C bus. Using on-board gyros and accelerometers, the FC is capable of stabilizing the platform by itself when no other motion-control-commands are coming in from either the connected remote-control-receiver or the serial port. The project also offers the NaviControl (NC), an add-on module that sends motion-control-commands (thrust, yaw, pitch, roll as 8-bit signed integers) to steer the platform to waypoints. We abandoned the idea of using the NC for our purposes, as its hardware lacks some flexibility and its control-algorithms are not completely open-source.
+
+Instead, we fitted an Intel Atom processor-board to the base. This board has a serial connection to the FC, which is used to send motion-control-commands and receive sensor input. Furthermore, we mounted a Hokuyo UTM-30LX laserscanner to the platform's front arm such that its scanning-plane is perpendicular to the platform's groundplane.
+
+A Septentrio AsterX2i GPS-receiver has been installed and connected to an XSens MTi IMU, enabling measurement of the platform's pose at 20Hz. Due to RTK-GPS, the position is accurate to within 5cm while the orientation shows a maximum error of ~1° for pitch and roll and ~3° for yaw angles. To shield the GNSS-receiver from electrostatic interferences caused by the processor board and protect from physical damage, both have been encapsulated into electrically shielded carbon-fiber boxes.
+
+The laserscanner rotates at 2400rpm and provides both falling and rising edges after each single scan. This signal is connected the GPS-receiver, which is configured to emit the GNSS-time of the event with microsecond-precision on its USB-connection to the Atom processor-board.
+
+After balancing the platform's extra loads, it exhibits very favorable flight dynamics and drifts very slowly when idling. A switch on the remote control can be used to toggle between remote-control and computer-control. When in the latter mode, the engines thrust will never exceed the value set on the remote control, providing ideal conditions for testing motion controllers. Including payload and battery, the platform weighs TODO grams and requires around 350W of power while hovering, leading to a flight-time between 10 and 15 minutes.
+
+\begin{figure}[thpb]
+  \centering
+  \includegraphics[scale=1.0]{images/oktokopter}
+  \caption{Rendering of our experimental flying platform}
+  \label{figurelabel}
+\end{figure}
+
+\subsection{Algorithm}
+
 \begin{figure*}[ht]
   \centering
     \includegraphics[width=0.23\textwidth]{images/expl1}
@@ -206,6 +227,9 @@ Dirk H\"ahnel and Wolfram Burgard and Sebastian Thrun, Learning Compact 3d Model
 % Next-best-view centered
 % Grid, 2d only
 Marcus Strand and Rüdiger Dillmann, Grid based next best view planning for an autonomous robot in indoor environments
+
+\bibitem{mikrokopterproject}
+Mikrokopter project, \url{http://www.mikrokopter.de}, 2011
 
 \bibitem{strand2008}
 Marcus Strand and Rüdiger Dillmann, Using an attributed 2D-grid for next-best-view planning on 3D environment data for an autonomous robot
