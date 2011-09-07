@@ -81,7 +81,7 @@ We also present the algorithm by simulating its performance in a virtual outdoor
 
 Automatic model building has always been one of the most important parts of autonomous robotics. Exploration and mapping - as a subclass of this problem - has been the topic of many papers in recent years. The SLAM problem was first solved for two-dimensional mapping scenarios [nicht-thrun, freiburg etc.] and later-on expanded to three-dimensional environments [kinect-uav etc].
 
-This paper presents a novel approach on increasing the efficiency of such mapping procedures. While the implementations of SLAM have improved greatly in recent years, one aspect of mapping three-dimensional environments was given comparatively little attention: finding the next best view. Typically, SLAM algorithms have been researched and developed on mobile platforms moving on flat surfaces[TODO]. This setup does not require a high efficiency in exploration, as it does not inherently impose time constraints. The authors of this paper, however, are implementing exploration and mapping algorithms on a flying platform with a maximum flight time of about 15 minutes. Aiming to explore as much of the environment as possible within this limited time motivates an efficient way of finding sensor-poses (and in extension, -trajectories) that enable sensors to deliver as much information as quickly as possible.
+This paper presents a novel approach on increasing the efficiency of such mapping procedures. While the implementations of SLAM have improved greatly in recent years, one aspect of mapping three-dimensional environments was given comparatively little attention: finding the next best view. Typically, SLAM algorithms have been researched and developed on mobile platforms moving on flat surfaces[TODO]. This setup does not require a high efficiency in exploration, as it does not inherently impose time constraints. The authors of this paper, however, are implementing exploration and mapping algorithms on a flying platform with a maximum flight time of less than 15 minutes. Aiming to explore as much of the environment as possible within this limited time motivates an efficient way of finding sensor-poses (and in extension, -trajectories) that enable sensors to deliver as much information as quickly as possible.
 
 \section{State of the Art}
 
@@ -93,7 +93,7 @@ Generating safely reachable waypoints from previously acquired sensor data is an
 
 Occupancy grid maps - and in extension elevation maps - are often used to store sensor data in generalized form. Although the data structure permits easy traversability computation and frontier detection, storing more complex geometry or overhangs remains difficult or even impossible, limiting its practical use to two-dimensional environments. Furthermore, its uniform grid size requires a global compromise between model quality and memory consumption. Multi-Level surface maps, introduced by Triebel et al [triebel], eliminate many of these limitations, while still being constrained to a grid.
 
-In order to capture sensor data representing arbitrarily complex geometry and detail, we decided to implement our algorithm on an octree-based data-structure. Octrees are well suited for storing information in non-uniform resolution and the process of storing and retrieving data can easily be executed in parallel, allowing for optimization of parts of our algorithms. Besides its position, each point in the octree also stores its brightness (i.e. intensity as measured by the laserscanner) and a vector pointing from that point back to the sensor. As the platform's measured orientation is less precise that its measured position, this information will be used lateron to assign points recorded from further distance (and thus suffering a greater impact from platform-orientation errors) a lesser weight in the following surface reconstruction.
+In order to capture sensor data representing arbitrarily complex geometry and detail, we decided to implement our algorithm on an octree-based data-structure. Octrees are well suited for storing information in non-uniform resolution and the process of storing and retrieving data can easily be executed in parallel, allowing for optimization of parts of our algorithms. Besides its position, each point in the octree also stores its brightness (i.e. intensity as measured by the laserscanner) and a vector pointing from that point back to the sensor. As the platform's measured orientation is less precise that its measured position, this vector's length will be used lateron to assign points recorded from further distance (and thus suffering a greater impact from platform-orientation errors) a lesser weight in the following surface reconstruction.
 
 \section{Our approach}
 
@@ -106,30 +106,30 @@ In order to capture sensor data representing arbitrarily complex geometry and de
   \label{oktorendering}
 \end{figure}
 
-To save time during the construction of our platform, we used an ``Okto 2''-octocopter from the mikrokopter-project \cite{mikrokopterproject} as a base for our vehicle. Its central FlightControl (FC) processor-board is connected to eight brushless-motor controllers (BL) via an I2C bus. Employing its on-board gyros and accelerometers, the FC is programmed to stabilize the platform by itself when no other motion-control-commands are received from either the connected remote-control-receiver or the serial port. The project also developed the NaviControl (NC), an add-on hardware module that sends motion-control-commands (thrust, yaw, pitch and roll each as 8-bit signed integers) to steer the platform to waypoints. We abandoned the idea of using the NC for our purposes, as its hardware adds extra weight and its control-algorithms are not open-source. Instead, we fitted an Intel Atom processor-board to the platform. This board has a serial connection to the FC, which is used to send motion-control-commands and receive sensor input.
+To save time during the construction of our platform, we used an ``Okto 2''-octocopter from the mikrokopter-project \cite{mikrokopterproject} as a base for our vehicle (see Fig. \ref{oktorendering}). Its central FlightControl (FC) processor-board is connected to eight brushless-motor controllers (BL) via an I2C bus. Employing its on-board gyros and accelerometers, the FC is programmed to stabilize the platform by itself when no other motion-control-commands are received from either the connected remote-control-receiver or the serial port. The project also developed the NaviControl (NC), an add-on hardware module that sends motion-control-commands (thrust, yaw, pitch and roll each as 8-bit signed integers) to steer the platform to waypoints. We abandoned the idea of using the NC for our purposes, as its hardware adds extra weight and its control-algorithms are neither capable of moving the platform as desired nor open-source. Instead, we fitted an Intel Atom processor-board to the platform. This board has a serial connection to the FC, which is used to send motion-control-commands and receive sensor input.
 
-A Septentrio AsterX2i RTK-GNSS (Real Time Kinematic Global Navigation Satellite System) receiver has been installed and connected to an XSens MTi IMU, enabling measurement of the platform's pose at 20Hz. Due to RTK-GPS, the position is accurate to within 5cm while the orientation shows a maximum error of $\sim$1° for pitch and roll and $\sim$3° for yaw angles. To shield the GNSS-receiver from electrostatic interferences caused by the processor board and protect from physical damage, both have been encapsulated into electrically shielded carbon-fiber boxes.
-
-The laserscanner rotates at 2400rpm and provides both falling and rising edges after each single scan. This signal is connected to the GPS-receiver, which is configured to emit the GNSS-time of the event with microsecond-precision on its USB-connection to the Atom processor-board. With both poses and laserscanner-events being timestamped by the GNSS-receiver, we can interpolate the vehicle's pose to the scanner's pose at the time of each scan.
-
-\begin{figure}[pb]
+\begin{figure}[b]
   \centering
-  \includegraphics[width=0.48\textwidth]{images/scannerpair}
-  \caption{Setup using two scanners, requiring constant pitching motion}
+  \includegraphics[width=0.44\textwidth]{images/scannerpair}
+  \caption{Setup using two scanners with collision avoidance requiring permanent pitching motion}
   \label{lidar_setup_pair}
 \end{figure}
 
-\begin{figure}[pb]
+A Septentrio AsterX2i RTK-GNSS (Real Time Kinematic Global Navigation Satellite System) receiver has been installed and connected to an XSens MTi IMU, enabling measurement of the platform's pose at 20Hz. Due to RTK-GPS, the position is accurate to within 5cm while the orientation shows a maximum error of $\sim$1$^\circ$ for pitch and roll and $\sim$3$^\circ$ for yaw angles. To shield the GNSS-receiver from electrostatic interferences caused by the processor board and protect from physical damage, both have been encapsulated into electrically shielded carbon-fiber boxes.
+
+The laserscanner rotates at 2400rpm and provides both falling and rising edges after each complete scan of its 270$^\circ$ field-of-view. This signal is connected to the GPS-receiver, which is configured to emit the GNSS-time of the event with microsecond-precision on its USB-connection to the Atom processor-board. With both poses and laserscanner-events being timestamped by the GNSS-receiver, we can interpolate the vehicle's pose to the scanner's pose at the time of each scan.
+
+\begin{figure}[b]
   \centering
-  \includegraphics[width=0.48\textwidth]{images/scannersingle}
-  \caption{Setup using single scanner, requiring constant yawing motion}
+  \includegraphics[width=0.44\textwidth]{images/scannersingle}
+  \caption{Setup using single scanner, requiring permanent yawing motion}
   \label{lidar_setup_single}
 \end{figure}
 
 We initially planned to use one laserscanner with its scan-plane perpendicular to both the platform's groundplane and its forward-vector for scanning the environment and another scanner oriented to have its scan-plane parallel to the vehicle's ground-plane for collision-avoidance (see Fig. \ref{lidar_setup_pair}). Besides the obvious disadvantages of another 250 grams of payload and $\sim$10W of power consumption, the platform would have had to constantly pitch during flight to ensure reliable obstacle scanning and detection. To avoid these drawbacks, we instead mounted a single laserscanner as depicted in Fig. \ref{lidar_setup_single}. By constantly yawing the platform in-flight, a single scanner captures both geometry for surface reconstruction and collision avoidance, provided that the platform does not move further than the laserscanners range within one rotation.
 % TODO: speed < lidar-range * drehgeschwindigkeit ?
 
-After balancing the platform's extra loads, it exhibits very favorable flight dynamics and drifts very slowly when idling. A switch on the remote control can be used to toggle between remote-control and computer-control. In the latter mode, the engines thrust will never exceed the value set on the remote control, providing ideal conditions for testing motion controllers. Including payload and a 5000mAh 4s1p LiPo battery, the platform weighs 2250 grams and requires around 350W of power while hovering, leading to a flight-time of up to 15 minutes.
+After balancing the platform's extra loads, it exhibits very favorable flight dynamics and drifts very slowly when idling. A switch on the remote control can be used to toggle between remote-control and computer-control. In the latter mode, the engines thrust will never exceed the value set on the remote control, providing ideal conditions for testing motion controllers. Including payload and a 5000mAh 4s1p LiPo battery, the platform weighs 2250 grams and requires around 350W of power while hovering, leading to a flight-time of up to 12 minutes.
 
 %TODO \subsection{Motion Control}? Ausrichtung zum Ziel, konstantes drehen?
 
@@ -137,17 +137,17 @@ After balancing the platform's extra loads, it exhibits very favorable flight dy
 
 \begin{figure*}[ht]
   \centering
-    \includegraphics[width=0.23\textwidth]{images/expl1}
-    \includegraphics[width=0.23\textwidth]{images/expl2}
-    \includegraphics[width=0.23\textwidth]{images/expl3}
-    \includegraphics[width=0.23\textwidth]{images/process5}
+    \includegraphics[width=0.45\textwidth]{images/expl1}
+    \includegraphics[width=0.45\textwidth]{images/expl2}
+    \includegraphics[width=0.45\textwidth]{images/expl3}
+    \includegraphics[width=0.45\textwidth]{images/process5}
     \caption{Mapping setup; bounding volume is blue, detection volume is red, vehicle position is grey, pointcloud for geometry reconstruction is grey and pointcloud for waypoint generation is red. Second figure shows sampling geometry interacting with pointcloud. Geometry hitting the red volume will be converted to a waypoint at the position it last hit a point from the pointcloud. The last figure shows generated pointcloud and leftover sampling geometry.}
     \label{explanation_of_process}
 \end{figure*}
 
-As three-dimensional environment mapping is often implemented using laserscanners and time-of-flight cameras, unorganized point clouds are a very common type of sensor data. Any sensor generating spatial occupancy information can be used, as the pointcloud is the algorithm's only input. Finding the next best view in such data can be very hard, as it does not supply any information about geometric structures such as corners, edges, surfaces and normals. Instead of trying to generate these details from the point cloud, our algorithm does not require such information.
+As three-dimensional environment mapping is often implemented using laserscanners and time-of-flight cameras, unorganized point clouds are a very common type of sensor data. Any sensor generating spatial occupancy information can be used, as the pointcloud is the algorithm's only input from sensors. Finding the next best view in such data can be very hard, as it does not supply any information about geometric structures such as corners, edges, surfaces and normals. Fortunately, our algorithm does not require such information.
 
-Prior to the mapping process, the user creates a bounding volume as a representation of the region-of-interest around the vehicle's starting position, thereby defining the environment that is to be mapped. All generated viewpoints will be constrained to this volume, ensuring that the UAV does not leave the confined space. At initialization, a physics engine is set up with a detection volume below the defined bounding volume. Each point in the pointcloud is automatically registered as a collision object in the physics world. After the octree is populated with an initial set of points (i.e. right after lift-off), the waypoint-generation algorithm is executed as follows:
+Prior to the mapping process, the user creates a bounding volume as a representation of the region-of-interest around the vehicle's starting position, thereby defining the environment that is to be mapped. All generated viewpoints will be constrained to this volume, ensuring that the UAV does not leave the confined space. At initialization, a physics engine is set up with a detection volume below the defined bounding volume. Each point in the pointcloud is automatically registered as a collision object in the physics world. After the octree is populated with an initial set of points (i.e. right after lift-off), the waypoint-generation algorithm is executed as depicted in Fig. \ref{explanation_of_process}:
 
 \begin{enumerate}
      \item Create and initialize sample geometry: spheres of arbitrary size are created along the bounding volume's top plane.
@@ -171,12 +171,12 @@ Although any geometry can be used for waypoint generation, using spheres yields 
 
 \begin{figure*}[ht]
   \centering
-    \includegraphics[width=0.2\textwidth]{images/process1}
-    \includegraphics[width=0.2\textwidth]{images/process2}
-    \includegraphics[width=0.2\textwidth]{images/process3}
-    \includegraphics[width=0.2\textwidth]{images/process4}
+    \includegraphics[width=0.48\textwidth]{images/process1}
+    \includegraphics[width=0.48\textwidth]{images/process2}
+    \includegraphics[width=0.48\textwidth]{images/process3}
+    \includegraphics[width=0.48\textwidth]{images/process4}
     %\includegraphics[width=0.2\textwidth]{images/process5}
-    \caption{Multiple iterations of waypoint generation lead to a continuous scanning at the border between known and unknown environment.}
+    \caption{Multiple iterations of waypoint generation, as seen from the top, lead to continuous scanning at the border between known and unknown environment.}
     %\label{expl3}
 \end{figure*}
 
@@ -188,36 +188,26 @@ vehicle wird von aktueller position zum wegpunkt gezogen, prall and pointcloud a
 
 \subsection{Computational complexity}
 
-The algorithms complexity derives from the computational effort of the collision detection phase in physics simulation and thus from the number of collision objects. Collision detection between $n$ objects in general requires $n(n-1)/2$ collision checks to be performed, leading to a complexity of O($n^2$). Optimized algorithms like sort-and-sweep or implementations relying on spatial subdivison may reduce the complexity to O($n$ log $n$) in favorable cases \cite{legrand2007}. This initially appears to be a major obstacle to employment of the algorithm outside of simulation, as the pointcloud may grow to several million points during a scan. Fortunately, the following optimizations have made the algorithm sufficiently fast for real-time application:
+The algorithms complexity derives from the computational effort of the collision detection phase in physics simulation and thus from the number of collision objects. Collision detection between $n$ objects in general requires $n(n-1)/2$ collision checks to be performed, leading to a complexity of O($n^2$). Optimized algorithms like sort-and-sweep (\cite{baraff1992}) or implementations relying on spatial subdivison may reduce the complexity to O($n$ log $n$) in favorable cases \cite{legrand2007}. This initially appears to be a major obstacle to employment of the algorithm outside of simulation, as the pointcloud may grow to several million points during a scan; after the following optimizations, however, the algorithm has proven to be sufficiently fast for real-time application on current-generation CPUs.
 
 \begin{itemize}
   \item Given a pointcloud consisting of $n$ points and a set of $m$ sample geometries, the algorithm does not require collision tests between all $n+m$ objects. As the $n$ points making up the accumulated scan data are static, the number of required tests is reduced to $\frac{m(m-1)}{2} + n*m$. Because $n >> m$, this optimization yields a considerable loss in computational effort.
-  \item When using the sensordata solely for waypoint generation, the density of the pointcloud can be reduced to allow gaps almost the size of the sample geometry's radius. That is, if sample spheres are created with a radius of e.g. 1m, the interacting pointcloud may discard points if there are neighbors within a distance of less than $\sim$2m. In practice, this means a reduction of $n$ by two or three dimensions. For this reason, we use two pointclouds in our work; one is used for surface reconstruction and is stored in an octree which allows for close neihgbors (and thus high density) and another pointcloud used for waypoint generation and collision avoidance, stored in an octree rejecting points that would increase local density above the required value.
 
-  % The introduction of a second octree for collision detection is, in theory, unnecessary, as all of the pointcloud could be registered as collision objects in the physics world. In practice, however, using a second octree with a much lower point density dramatically reduces the number of collision pairs that have to be checked in every step of the physics simulation. This reduction translates to an increased efficiency, making the approach feasible for real-time application on current-generation CPUs.
-
-  %While scanning, the pointcloud itself is saved into two customized octrees which differ only in the maximum density of points. One octree is used to capture all geometry for later surface reconstruction and thus allows for a very high density of points. The other octree is used for collision detection and stores points only if there are no other points whithin a distance of *dMin*, leading to comparatively little memory consumption. This density limitation is implemented by simple neighbor-queries common in most octree implementations. The exact purpose of this second octree will be explained soon.
-
+  \item When using the sensordata solely for waypoint generation, the density of the pointcloud can be reduced to allow gaps almost the size of the sample geometries' radius. That is, if sample spheres are created with a radius of e.g. $r = 1m$, the octree storing that pointcloud may discard points if there are neighbors within a distance of less than $2r$. This is implemented by simple neighbor-queries during insertion of candidate points and, while causing a higher computational complexity in that phase, yields a reduction of $n$ by two to three dimensions, dramatically reducing the number of collision pairs that have to be checked in every step of the physics simulation. For this reason, we use two pointclouds in our work; one is used for surface reconstruction and is stored in an octree which allows for close neighbors (and thus high density) and another pointcloud used for waypoint generation and collision avoidance.
 
   \item As described in Le Grand's work \cite{legrand2007}, execution of the simulation's broadphase on GPU can speed up collision detection by an order of magnitude compared to calculation on the CPU.
 \end{itemize}
 
-scalable resolution (sample sphere size / octree density)
-simulated annealing length
-
-\section{Experiments}
+\section{Results}
 efficiency / performance
 graph zeit vs number of points scanned
 scalability durch Kugelgröße / Menge
 
 \section{Outlook}
 
-With the algorithm relying on collision detection between many static and dynamic objects, it is currently limited by the speed of collision detection. Physics-simulation in general and collision detection especially tends to lend itself well to parallelization using massively-parallel implementations on GPUs
+With the algorithm relying on collision detection between many static and dynamic objects, it is currently limited by the speed of collision detection. Physics-simulation in general and collision detection especially lends itself well optimization using massively-parallel implementations on GPUs.
 
-more efficient with opencl -> from iterative to realtime
-kugeln spucken in flugrichtung
-
-collision avoidance! lass die kugeln liegen, fliege drüber, dann wird nichts passieren?!
+We plan to further extend our algorithm by adding another generation-mode for sampling geometry: when created along the bounding volume's top-plane, sample geometry is used to detect unscanned surfaces in all areas of the partially-reconstructed environment. A more efficient approach might also emit sampling geometry from the vehicle's current position with a velocity-vector matching the vehicle's course over ground. The authors expect that this would generate waypoints closer to the vehicle's position, requiring less distance to be travelled when visiting them. Also, as the age of computed waypoints grows, their associated information gain tends to decrease because the surfaces visible from their positions are often already scanned. Even worse, waypoints of older age are more susceptible to being enclosed by previously unscanned surface and thus unreachable. Although collision avoidance discards these waypoints in a later stage, not enqueueing them in the first place seems to be a better strategy.
 
 %\section{ACKNOWLEDGMENTS}
 %The authors gratefully acknowledge the contribution of TAMS.
@@ -231,6 +221,9 @@ collision avoidance! lass die kugeln liegen, fliege drüber, dann wird nichts pas
 \bibitem{legrand2007}
 % macht broadphase per CUDA, gut erklärt in GPU gems 3, chapter 32
 Scott Le Grand, Broad-Phase Collision Detection with CUDA, {\it GPU Gems 3, } (2007)
+
+\bibitem{baraff1992}
+David Baraff, Dynamic Simulation of Non-Penetrating Rigid Bodies, Cornell University, pp. 52 (1992)
 
 \bibitem{gonzalez-banos2002}
 % SLAM does not address the sensor-placement
