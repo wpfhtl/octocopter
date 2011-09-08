@@ -93,7 +93,7 @@ Generating safely reachable waypoints from previously acquired sensor data is an
 
 Occupancy grid maps - and in extension elevation maps - are often used to store sensor data in generalized form. Although the data structure permits easy traversability computation and frontier detection, storing more complex geometry or overhangs remains difficult or even impossible, limiting its practical use to two-dimensional environments. Furthermore, its uniform grid size requires a global compromise between model quality and memory consumption. Multi-Level surface maps, introduced by Triebel et al [triebel], eliminate many of these limitations, while still being constrained to a grid.
 
-In order to capture sensor data representing arbitrarily complex geometry and detail, we decided to implement our algorithm on an octree-based data-structure. Octrees are well suited for storing information in non-uniform resolution and the process of storing and retrieving data can easily be executed in parallel, allowing for optimization of parts of our algorithms. Besides its position, each point in the octree also stores its brightness (i.e. intensity as measured by the laserscanner) and a vector pointing from that point back to the sensor. As the platform's measured orientation is less precise that its measured position, this vector's length will be used lateron to assign points recorded from further distance (and thus suffering a greater impact from platform-orientation errors) a lesser weight in the following surface reconstruction.
+In order to capture sensor data representing arbitrarily complex geometry and detail, we decided to implement our algorithm on an octree-based \cite{meagher1982} data-structure. Octrees are well suited for storing information in non-uniform resolution and the process of storing and retrieving data can easily be executed in parallel, allowing for optimization of parts of our algorithms. Besides its position, each point in the octree also stores its brightness (i.e. intensity as measured by the laserscanner) and a vector pointing from that point back to the sensor. As the platform's measured orientation is less precise that its measured position, this vector's length will be used lateron to assign points recorded from further distance (and thus suffering a greater impact from platform-orientation errors) a lesser weight in the following surface reconstruction.
 
 \section{Our approach}
 
@@ -126,7 +126,7 @@ The laserscanner rotates at 2400rpm and provides both falling and rising edges a
   \label{lidar_setup_single}
 \end{figure}
 
-We initially planned to use one laserscanner with its scan-plane perpendicular to both the platform's groundplane and its forward-vector for scanning the environment and another scanner oriented to have its scan-plane parallel to the vehicle's ground-plane for collision-avoidance (see Fig. \ref{lidar_setup_pair}). Besides the obvious disadvantages of another 250 grams of payload and $\sim$10W of power consumption, the platform would have had to constantly pitch during flight to ensure reliable obstacle scanning and detection. To avoid these drawbacks, we instead mounted a single laserscanner as depicted in Fig. \ref{lidar_setup_single}. By constantly yawing the platform in-flight, a single scanner captures both geometry for surface reconstruction and collision avoidance, provided that the platform does not move further than the laserscanners range within one rotation.
+We initially planned to use two laserscanners, one with its scan-plane perpendicular to both the platform's groundplane and its forward-vector for scanning the environment and another scanner oriented to have its scan-plane parallel to the vehicle's ground-plane for collision-avoidance (see Fig. \ref{lidar_setup_pair}). Besides the obvious disadvantages of another 250 grams of payload and $\sim$10W of power consumption, the platform would have had to constantly pitch during flight to ensure reliable obstacle scanning and detection. To avoid these drawbacks, we instead mounted a single laserscanner as depicted in Fig. \ref{lidar_setup_single}. By constantly yawing the platform in-flight, a single scanner captures both geometry for surface reconstruction and collision avoidance, provided that the world is static and the platform does not move further than the laserscanners range within one rotation.
 % TODO: speed < lidar-range * drehgeschwindigkeit ?
 
 After balancing the platform's extra loads, it exhibits very favorable flight dynamics and drifts very slowly when idling. A switch on the remote control can be used to toggle between remote-control and computer-control. In the latter mode, the engines thrust will never exceed the value set on the remote control, providing ideal conditions for testing motion controllers. Including payload and a 5000mAh 4s1p LiPo battery, the platform weighs 2250 grams and requires around 350W of power while hovering, leading to a flight-time of up to 12 minutes.
@@ -137,17 +137,17 @@ After balancing the platform's extra loads, it exhibits very favorable flight dy
 
 \begin{figure*}[ht]
   \centering
-    \includegraphics[width=0.45\textwidth]{images/expl1}
-    \includegraphics[width=0.45\textwidth]{images/expl2}
-    \includegraphics[width=0.45\textwidth]{images/expl3}
-    \includegraphics[width=0.45\textwidth]{images/process5}
+    \includegraphics[width=0.45\textwidth]{images/process_side/1}
+    \includegraphics[width=0.45\textwidth]{images/process_side/2}
+    \includegraphics[width=0.45\textwidth]{images/process_side/3}
+    \includegraphics[width=0.45\textwidth]{images/process_side/4}
     \caption{Mapping setup; bounding volume is blue, detection volume is red, vehicle position is grey, pointcloud for geometry reconstruction is grey and pointcloud for waypoint generation is red. Second figure shows sampling geometry interacting with pointcloud. Geometry hitting the red volume will be converted to a waypoint at the position it last hit a point from the pointcloud. The last figure shows generated pointcloud and leftover sampling geometry.}
     \label{explanation_of_process}
 \end{figure*}
 
-As three-dimensional environment mapping is often implemented using laserscanners and time-of-flight cameras, unorganized point clouds are a very common type of sensor data. Any sensor generating spatial occupancy information can be used, as the pointcloud is the algorithm's only input from sensors. Finding the next best view in such data can be very hard, as it does not supply any information about geometric structures such as corners, edges, surfaces and normals. Fortunately, our algorithm does not require such information.
+Three-dimensional environment mapping is often implemented using laserscanners and time-of-flight cameras, therefore unorganized point clouds are a very common type of sensor data. Any sensor generating spatial occupancy information can be used, as the pointcloud is the algorithm's only input from sensors. Finding the next best view in such data can be very hard, as it does not supply any information about geometric structures such as corners, edges, surfaces and normals. Fortunately, our algorithm does not require such information.
 
-Prior to the mapping process, the user creates a bounding volume as a representation of the region-of-interest around the vehicle's starting position, thereby defining the environment that is to be mapped. All generated viewpoints will be constrained to this volume, ensuring that the UAV does not leave the confined space. At initialization, a physics engine is set up with a detection volume below the defined bounding volume. Each point in the pointcloud is automatically registered as a collision object in the physics world. After the octree is populated with an initial set of points (i.e. right after lift-off), the waypoint-generation algorithm is executed as depicted in Fig. \ref{explanation_of_process}:
+Prior to the mapping process, the user creates a bounding volume as a representation of the region-of-interest around the vehicle's starting position, thereby defining the environment that is to be mapped. All generated viewpoints will be constrained to this volume, ensuring that the vehicle does not leave the confined space. At initialization, a physics engine is set up with a detection volume below the defined bounding volume. Each point in the pointcloud is automatically registered as a collision object in the physics world. After the octree is populated with an initial set of points (i.e. right after lift-off), the waypoint-generation algorithm is executed as depicted in Fig. \ref{explanation_of_process}:
 
 \begin{enumerate}
      \item Create and initialize sample geometry: spheres of arbitrary size are created along the bounding volume's top plane.
@@ -171,11 +171,12 @@ Although any geometry can be used for waypoint generation, using spheres yields 
 
 \begin{figure*}[ht]
   \centering
-    \includegraphics[width=0.48\textwidth]{images/process1}
-    \includegraphics[width=0.48\textwidth]{images/process2}
-    \includegraphics[width=0.48\textwidth]{images/process3}
-    \includegraphics[width=0.48\textwidth]{images/process4}
-    %\includegraphics[width=0.2\textwidth]{images/process5}
+    \includegraphics[width=0.45\textwidth]{images/process_top/1}
+    \includegraphics[width=0.45\textwidth]{images/process_top/2}
+    \includegraphics[width=0.45\textwidth]{images/process_top/3}
+    \includegraphics[width=0.45\textwidth]{images/process_top/4}
+    \includegraphics[width=0.45\textwidth]{images/process_top/5}
+    \includegraphics[width=0.45\textwidth]{images/process_top/6}
     \caption{Multiple iterations of waypoint generation, as seen from the top, lead to continuous scanning at the border between known and unknown environment.}
     %\label{expl3}
 \end{figure*}
@@ -216,7 +217,9 @@ We plan to further extend our algorithm by adding another generation-mode for sa
 
 % ``Autonomous Exploration for 3D Map Learning'' by Johoo et al.
 
-
+% Octrees
+\bibitem{meagher1982}
+Donald Meagher, Geometric modeling using octree encoding, {\it Computer Graphics and Image Processing}, 19, 2, pp. 129-147, (1982)
 
 \bibitem{legrand2007}
 % macht broadphase per CUDA, gut erklärt in GPU gems 3, chapter 32
