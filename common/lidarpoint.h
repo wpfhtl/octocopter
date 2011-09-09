@@ -33,7 +33,6 @@ public:
     // ray might come in handy when we need to find better next-best-
     // shot poses.
     QVector3D position, direction;
-//    Ray ray;
 
     // This tells us the distance between LaserScanner and detected
     // object. Probably helpful because the further an object is away,

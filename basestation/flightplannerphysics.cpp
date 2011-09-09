@@ -8,6 +8,8 @@ FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, Octree* pointCloud) 
 
     mPhysicsProcessingActive = false;
 
+    mFirstSphereHasHitThisIteration = false;
+
     mDialog = new FlightPlannerPhysicsDialog(mParentWidget);
     connect(mDialog, SIGNAL(createSampleGeometry()), SLOT(slotCreateSampleGeometry()));
     connect(mDialog, SIGNAL(deleteSampleGeometry()), SLOT(slotDeleteSampleGeometry()));
@@ -310,7 +312,7 @@ void FlightPlannerPhysics::slotPointInserted(const LidarPoint* lp)
 // NOT in a glBegin()/glEnd() pair.
 void FlightPlannerPhysics::slotVisualize() const
 {
-    mBtWorld->debugDrawWorld();
+//    mBtWorld->debugDrawWorld();
 
     // Draw the scanVolume
     glDisable(GL_LIGHTING);
@@ -321,7 +323,7 @@ void FlightPlannerPhysics::slotVisualize() const
     if(mOctree)
     {
         glPointSize(4);
-        glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
+        glColor4f(1.0f, 0.0f, 0.0f, 0.8f);
 //        glDisable(GL_LIGHTING);
         glBegin(GL_POINTS);
         mOctree->handlePoints(); // => glVertex3f()...
@@ -351,23 +353,23 @@ void FlightPlannerPhysics::slotVisualize() const
     // Draw passed waypoints
     foreach(const WayPoint& wpt, *mWayPointsPassed)
         if(wpt.purpose == WayPoint::SCAN)
-            OpenGlUtilities::drawSphere(wpt, radiusWptScan, 20, QColor(128,255,128, 32));
+            OpenGlUtilities::drawSphere(wpt, radiusWptScan, 20, QColor(128,255,128, 255));
         else
-            OpenGlUtilities::drawSphere(wpt, radiusWptDetour, 20, QColor(128,255,128, 32));
+            OpenGlUtilities::drawSphere(wpt, radiusWptDetour, 20, QColor(128,255,128, 255));
 
-    // Draw fresh waypoints
+    // Draw freshly generated waypoints
     foreach(const WayPoint& wpt, mWayPointsGenerated)
         if(wpt.purpose == WayPoint::SCAN)
-            OpenGlUtilities::drawSphere(wpt, radiusWptScan, 20, QColor(255,128,128, 32));
+            OpenGlUtilities::drawSphere(wpt, radiusWptScan, 20, QColor(255,128,128, 200));
         else
-            OpenGlUtilities::drawSphere(wpt, radiusWptDetour, 20, QColor(255,128,128, 32));
+            OpenGlUtilities::drawSphere(wpt, radiusWptDetour, 20, QColor(255,128,128, 200));
 
     // Draw future waypoints
     foreach(const WayPoint& wpt, *mWayPointsAhead)
         if(wpt.purpose == WayPoint::SCAN)
-            OpenGlUtilities::drawSphere(wpt, radiusWptScan, 20, QColor(255,255,128, 128));
+            OpenGlUtilities::drawSphere(wpt, radiusWptScan, 20, QColor(255,255,128, 255));
         else
-            OpenGlUtilities::drawSphere(wpt, radiusWptDetour, 20, QColor(255,255,128, 128));
+            OpenGlUtilities::drawSphere(wpt, radiusWptDetour, 20, QColor(255,255,128, 255));
 
     // Draw detour waypoints
     foreach(const WayPoint& wpt, mWayPointsDetour)
@@ -408,7 +410,7 @@ void FlightPlannerPhysics::slotVisualize() const
     OpenGlUtilities::drawAabb(QVector3D(min.x(), min.y(), min.z()), QVector3D(max.x(), max.y(), max.z()), QColor(255,150,150, 150), 2);
 
     mGhostObjectVehicle->getCollisionShape()->getAabb(mTransformVehicle, min, max);
-    OpenGlUtilities::drawAabb(QVector3D(min.x(), min.y(), min.z()), QVector3D(max.x(), max.y(), max.z()), QColor(0,250,0, 150), 2);
+//    OpenGlUtilities::drawAabb(QVector3D(min.x(), min.y(), min.z()), QVector3D(max.x(), max.y(), max.z()), QColor(0,250,0, 150), 2);
     glEnable(GL_LIGHTING);
 }
 
@@ -627,8 +629,18 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
            }
         }*/
 
+
             if(mGhostObjectDeletionTrigger->getNumOverlappingObjects())
+            {
                 qDebug() << "number of objects fallen through in this iteration:" << mGhostObjectDeletionTrigger->getNumOverlappingObjects();
+                if(!mFirstSphereHasHitThisIteration)
+                {
+                    // first sphere! halt the processing and give time for a screenshot! Just for the paper...
+                    mFirstSphereHasHitThisIteration = true;
+                    mPhysicsProcessingActive = false;
+                    break;
+                }
+            }
 
             // We iterate through all rigidBodies touching our deletionTrigger and remove/delete them.
             for(int j = 0; j < mGhostObjectDeletionTrigger->getNumOverlappingObjects(); j++)
@@ -683,6 +695,10 @@ void FlightPlannerPhysics::slotEmitWayPoints()
     sortToShortestPath(*mWayPointsAhead, mVehiclePoses.last().position);
     emit wayPoints(*mWayPointsAhead);
 
+    // just for creating paper-screenshots
+   slotDeleteSampleGeometry();
+    mFirstSphereHasHitThisIteration = false;
+
     emit suggestVisualization();
 }
 
@@ -690,7 +706,7 @@ void FlightPlannerPhysics::slotWayPointReached(const WayPoint wpt)
 {
     FlightPlannerInterface::slotWayPointReached(wpt);
 
-    slotCreateSafePathToNextWayPoint();
+//    slotCreateSafePathToNextWayPoint();
 }
 
 void FlightPlannerPhysics::slotVehiclePoseChanged(const Pose& pose)

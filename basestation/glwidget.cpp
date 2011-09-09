@@ -85,8 +85,8 @@ void GlWidget::initializeGL()
 
     glShadeModel(GL_SMOOTH);						// Enable Smooth Shading
 //    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);					// Black Background
-    glClearColor(0.5f, 0.5f, 0.5f, 0.0f);					// Black Background
-//    glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// White Background
+//    glClearColor(0.5f, 0.5f, 0.5f, 0.0f);					// Black Background
+    glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// White Background
     glClearDepth(1.0f);							// Depth Buffer Setup
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);					// Set Line Antialiasing
 
@@ -198,7 +198,7 @@ void GlWidget::paintGL()
 //    glEnable(GL_BLEND);							// Enable Blending
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);			// Type Of Blending To Use
     glDisable(GL_LIGHTING);
-    OpenGlUtilities::drawSphere(mFlightPlanner->getLastKnownVehiclePose().position, 1.0, 20.0, QColor(20,255,20,100));
+    OpenGlUtilities::drawSphere(mFlightPlanner->getLastKnownVehiclePose().position, 1.0, 20.0, QColor(0,0,0,200));
 //    glDisable(GL_BLEND);
     glEnable(GL_LIGHTING);
 
@@ -229,7 +229,7 @@ void GlWidget::paintGL()
 //    mOctree->drawGl();
     glDisable(GL_LIGHTING);
     glPointSize(1);
-    glColor4f(.5f, .5f, .5f, 0.9f);
+    glColor4f(.5f, .5f, .5f, 0.7f);
     glBegin(GL_POINTS);
     mOctree->handlePoints();
     glEnd();
@@ -321,7 +321,7 @@ void GlWidget::mouseMoveEvent(QMouseEvent *event)
     rotY = fmod(rotY, 360.0);
     rotZ = fmod(rotZ, 360.0);
 
-//    qDebug() << "rotXYZ:" << rotX << rotY << rotZ;
+    qDebug() << "rotXYZ:" << rotX << rotY << rotZ;
 
     updateGL();
 }
@@ -383,6 +383,11 @@ void GlWidget::slotViewFromSide()
     rotX = -34.0;
     rotY = 0.25;
     rotZ = -15.5;
+
+    rotX = -23.0;
+    rotY = -3.54;
+    rotZ = -10.7;
+
     mZoomFactor = 0.4;
     updateGL();
 }

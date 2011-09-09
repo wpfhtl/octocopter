@@ -29,6 +29,8 @@ private:
     BulletDebugDrawerGl* mDbgDrawer;
     bool mPhysicsProcessingActive;
 
+    bool mFirstSphereHasHitThisIteration;
+
     QList<WayPoint> mWayPointsGenerated, mWayPointsDetour;
 
     // testing
