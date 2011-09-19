@@ -56,6 +56,10 @@ private:
 
     GlWidget *mGlWidget;
 
+    QTimer *mTimerStats;
+    QFile *mStatsFile;
+    QDateTime mDateTimeLastLidarInput;
+
     void addRandomPoint();
     void keyPressEvent(QKeyEvent* event);
 
@@ -80,12 +84,15 @@ private slots:
     void slotConnectToRover(void);
     void slotExportCloud(void);
 
-    void slotWayPointInserted(const quint16&, const WayPoint&);
-    void slotWayPointDeleted(const quint16&);
-    void slotSetWayPoints(const QList<WayPoint>&);
+    void slotRoverWayPointInsert(const quint16&, const WayPoint&);
+    void slotRoverWayPointDelete(const quint16&);
+    void slotRoverWayPointsSet(const QList<WayPoint>&);
 
     void slotSendRtkDataToRover(const QByteArray& rtkData);
     void slotSendData(const QByteArray &data);
+
+    void slotWriteStats();
+    void slotAddLogFileMarkForPaper(QList<WayPoint> wptList);
 
 public:
     BaseStation(void);

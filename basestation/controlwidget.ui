@@ -742,14 +742,14 @@
          <item>
           <widget class="QPushButton" name="mBtnWptPrepend">
            <property name="text">
-            <string>Ppnd</string>
+            <string>Pnd</string>
            </property>
           </widget>
          </item>
          <item>
           <widget class="QPushButton" name="mBtnWptAppend">
            <property name="text">
-            <string>Apnd</string>
+            <string>And</string>
            </property>
           </widget>
          </item>
@@ -757,6 +757,20 @@
           <widget class="QPushButton" name="mBtnWptDelete">
            <property name="text">
             <string>Del</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="mBtnWptLoad">
+           <property name="text">
+            <string>Ld</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="mBtnWptSave">
+           <property name="text">
+            <string>Sv</string>
            </property>
           </widget>
          </item>

@@ -30,6 +30,26 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mTcpSocket, SIGNAL(connected()), SLOT(slotSocketConnected()));
     connect(mTcpSocket, SIGNAL(disconnected()), SLOT(slotSocketDisconnected()));
 
+
+
+    mTimerStats = new QTimer(this);
+    mTimerStats->setInterval(1000);
+    mTimerStats->start();
+
+    //mDateTimeProgramStart = QDateTime::currentDateTime();
+
+    mStatsFile = new QFile(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz").prepend("stats-").append(".txt"));
+    if(!mStatsFile->open(QIODevice::WriteOnly | QIODevice::Text))
+    {
+        QMessageBox::critical(this, "File Error", QString("Couldn't open stats-file %1 for writing!").arg(mStatsFile->fileName()));
+    }
+    QTextStream out(mStatsFile);
+    out << "# FlightTime;ItemsInOctreeFine;ItemsInOctreeCoarse\n";
+    out.flush();
+    connect(mTimerStats, SIGNAL(timeout()), SLOT(slotWriteStats()));
+
+
+
     mControlWidget = new ControlWidget(this);
     connect(this, SIGNAL(vehiclePoseChanged(Pose)), mControlWidget, SLOT(slotUpdatePose(Pose)));
     addDockWidget(Qt::RightDockWidgetArea, mControlWidget);
@@ -55,18 +75,22 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mControlWidget, SIGNAL(wayPointSwap(quint16,quint16)), mFlightPlanner, SLOT(slotWayPointSwap(quint16,quint16)));
 
     connect(mFlightPlanner, SIGNAL(wayPointDeleted(quint16)), mControlWidget, SLOT(slotWayPointDeleted(quint16)));
-    connect(mFlightPlanner, SIGNAL(wayPointInserted(quint16,WayPoint)), mControlWidget, SLOT(slotWayPointInserted(quint16,WayPoint)));
     connect(mFlightPlanner, SIGNAL(wayPoints(QList<WayPoint>)), mControlWidget, SLOT(slotSetWayPoints(QList<WayPoint>)));
+    connect(mFlightPlanner, SIGNAL(wayPointInserted(quint16,WayPoint)), mControlWidget, SLOT(slotWayPointInserted(quint16,WayPoint)));
 
-    connect(mFlightPlanner, SIGNAL(wayPointDeleted(quint16)), SLOT(slotWayPointDeleted(quint16)));
-    connect(mFlightPlanner, SIGNAL(wayPointInserted(quint16,WayPoint)), SLOT(slotWayPointInserted(quint16,WayPoint)));
+    // When FlightPlanner wants us to send waypoint updates to the rover...
+    connect(mFlightPlanner, SIGNAL(wayPointInsertOnRover(quint16,WayPoint)), SLOT(slotRoverWayPointInsert(quint16,WayPoint)));
+    connect(mFlightPlanner, SIGNAL(wayPointDeleteOnRover(quint16)), SLOT(slotRoverWayPointDelete(quint16)));
+    connect(mFlightPlanner, SIGNAL(wayPointsSetOnRover(QList<WayPoint>)), SLOT(slotRoverWayPointsSet(QList<WayPoint>)));
 
-    connect(mFlightPlanner, SIGNAL(wayPoints(QList<WayPoint>)), SLOT(slotSetWayPoints(QList<WayPoint>)));
+    // Just for adding a line to the log file for marking a new waypoint generation iteration
+    connect(mFlightPlanner, SIGNAL(wayPointsSetOnRover(QList<WayPoint>)), SLOT(slotAddLogFileMarkForPaper(QList<WayPoint>)));
 
     menuBar()->addAction("Save Cloud", this, SLOT(slotExportCloud()));
 
     mGlWidget = new GlWidget(this, mOctree, mFlightPlanner);
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(update()));
+    connect(mGlWidget, SIGNAL(mouseClickedAtWorldPos(Qt::MouseButton, QVector3D)), mControlWidget, SLOT(slotSetWayPointCoordinateFields(Qt::MouseButton, QVector3D)));
     setCentralWidget(mGlWidget);
 
     connect(mGlWidget, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
@@ -97,6 +121,7 @@ BaseStation::BaseStation() : QMainWindow()
 
 BaseStation::~BaseStation()
 {
+    mStatsFile->close();
 }
 
 void BaseStation::slotSocketDisconnected()
@@ -221,6 +246,9 @@ void BaseStation::processPacket(QByteArray data)
             i++;
         }
 
+        // We only run/stats/logs for efficiency (paper) when scanning is in progress
+        mDateTimeLastLidarInput = QDateTime::currentDateTime();
+
         mGlWidget->update();
 
         mLogWidget->log(Information, "BaseStation::processPacket()", QString("%1 points using %2 MB, %3 nodes, %4 points added.").arg(mOctree->getNumberOfItems()).arg((mOctree->getNumberOfItems()*sizeof(LidarPoint))/1000000.0, 2, 'g').arg(mOctree->getNumberOfNodes()).arg(pointList.size()));
@@ -313,7 +341,7 @@ void BaseStation::processPacket(QByteArray data)
         if(hash(mFlightPlanner->getWayPoints()) != wayPointsHashFromRover)
         {
             mLogWidget->log(Warning, "BaseStation::processPacket()", QString("waypoints hash from rover does not match our hash, resending list"));
-            slotSetWayPoints(mFlightPlanner->getWayPoints());
+            slotRoverWayPointsSet(mFlightPlanner->getWayPoints());
         }
     }
     else if(packetType == "waypointreached")
@@ -323,7 +351,24 @@ void BaseStation::processPacket(QByteArray data)
 
         mFlightPlanner->slotWayPointReached(wpt);
 
+        qDebug() << "process packet: wpt reached:" << QString("reached waypoint %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z());
+
         mLogWidget->log(Information, "BaseStation::processPacket()", QString("reached waypoint %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
+    }
+    else if(packetType == "waypointinserted")
+    {
+        // This happens when the rover reached the last waypoint and appended its own landing waypoint (probably just below the last one)
+        quint16 index;
+        stream >> index;
+
+        WayPoint wpt;
+        stream >> wpt;
+
+        mFlightPlanner->slotWayPointInsertedByRover(index, wpt);
+
+        qDebug() << "process packet: wpt appended by rover:" << QString("waypoint appended by rover: %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z());
+
+        mLogWidget->log(Information, "BaseStation::processPacket()", QString("waypoint appended by rover: %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
     }
     else if(packetType == "logmessage")
     {
@@ -363,7 +408,7 @@ void BaseStation::processPacket(QByteArray data)
     }
 }
 
-void BaseStation::slotSetWayPoints(const QList<WayPoint>& wayPoints)
+void BaseStation::slotRoverWayPointsSet(const QList<WayPoint>& wayPoints)
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
@@ -376,8 +421,10 @@ void BaseStation::slotSetWayPoints(const QList<WayPoint>& wayPoints)
     slotSendData(data);
 }
 
-void BaseStation::slotWayPointInserted(const quint16& index, const WayPoint& wayPoint)
+void BaseStation::slotRoverWayPointInsert(const quint16& index, const WayPoint& wayPoint)
 {
+    qDebug() << "BaseStation::slotRoverWayPointInsert(): telling rover to insert wpt" << wayPoint << "before index" << index;
+
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
@@ -386,21 +433,23 @@ void BaseStation::slotWayPointInserted(const quint16& index, const WayPoint& way
     stream << index;
     stream << wayPoint;
 
-    mLogWidget->log(Information, "BaseStation::slotWayPointInsert()", QString("inserting 1 waypoint at index %2").arg(index));
+    mLogWidget->log(Information, "BaseStation::slotRoverWayPointInsert()", QString("inserting 1 waypoint at index %2").arg(index));
 
     slotSendData(data);
 }
 
-void BaseStation::slotWayPointDeleted(const quint16& index)
+void BaseStation::slotRoverWayPointDelete(const quint16& index)
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
+
+    qDebug() << "BaseStation::slotRoverWayPointDelete(): telling rover to delete wpt" << index;
 
     stream << QString("waypointdelete");
 //    stream << hash;
     stream << index;
 
-    mLogWidget->log(Information, "BaseStation::slotWayPointDelete()", QString("deleting waypoint at index %1").arg(index));
+    mLogWidget->log(Information, "BaseStation::slotRoverWayPointDelete()", QString("deleting waypoint at index %1").arg(index));
 
     slotSendData(data);
 }
@@ -487,3 +536,28 @@ void BaseStation::slotSocketError(QAbstractSocket::SocketError socketError)
         mProgress = 0;
     }
 }*/
+
+void BaseStation::slotWriteStats()
+{
+    static int second = 0;
+    if(mOctree->getNumberOfItems() == 0 || mDateTimeLastLidarInput.secsTo(QDateTime::currentDateTime()) > 1)
+    {
+//        mDateTimeProgramStart = QDateTime::currentDateTime();
+        return;
+    }
+
+//    if(!mDateTimeLastLidarInput.isValid()) mDateTimeLastLidarInput = QDateTime::currentDateTime();
+
+    QTextStream out(mStatsFile);
+//    out << mDateTimeProgramStart.secsTo(QDateTime::currentDateTime()) << "\t";
+    out << second << "\t";
+    out << mOctree->getNumberOfItems() << "\t";
+    out << ((FlightPlannerPhysics*)mFlightPlanner)->getNumberOfPointsInCollisionOctree() << "\n";
+    second++;
+}
+
+void BaseStation::slotAddLogFileMarkForPaper(QList<WayPoint> wptList)
+{
+    QTextStream out(mStatsFile);
+    out << "# Generated" << wptList.size() << "waypoints\n";
+}

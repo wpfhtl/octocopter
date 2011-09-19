@@ -43,6 +43,8 @@ Physics::Physics(Simulator *simulator, OgreWidget *ogreWidget) :
     else
         mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", Ogre::Vector3(10, 100, 10), Ogre::Quaternion::IDENTITY);
 
+    mVehicleNode->setPosition(140,90,150);
+
     mVehicleNode->attachObject(mVehicleEntity);
 
     mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(+0.00, +0.00, -0.20), Ogre::Quaternion(Ogre::Degree(000), Ogre::Vector3(1, 0, 0))));  // engine 1, forward, CW
@@ -458,10 +460,10 @@ void Physics::slotUpdateWind()
         btVector3 windVector = mVectorWind.at(sampleNumber);
         mVehicleBody->applyCentralForce(windVector * mWindFactor);
 
-        qDebug() << "Physics::slotUpdateWind(): applying wind sample" << sampleNumber << ":" << windVector.x() << windVector.y() << windVector.z() << "and factor" << mWindFactor;
+//        qDebug() << "Physics::slotUpdateWind(): applying wind sample" << sampleNumber << ":" << windVector.x() << windVector.y() << windVector.z() << "and factor" << mWindFactor;
     }
-    else
-        qDebug() << "Physics::slotUpdateWind(): not applying wind: enabled:" << mWindEnable << "factor" << mWindFactor << "samples:" << mVectorWind.size();
+//    else
+//        qDebug() << "Physics::slotUpdateWind(): not applying wind: enabled:" << mWindEnable << "factor" << mWindFactor << "samples:" << mVectorWind.size();
 }
 
 float Physics::getHeightAboveGround()

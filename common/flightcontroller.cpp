@@ -127,10 +127,12 @@ void FlightController::slotComputeMotionCommands()
         double errorHeight = nextWayPoint.y() - mLastKnownVehiclePose.position.y();
         mErrorIntegralHeight += errorHeight*timeDiff;
         double derivativeHeight = (errorHeight - mPrevErrorHeight + 0.00001)/timeDiff;
-        double outputThrust = (Kp*errorHeight) + (0.5*Ki*mErrorIntegralHeight) + (Kd*derivativeHeight);
+        double outputThrust = (Kp*errorHeight) + (3.0*0.5*Ki*mErrorIntegralHeight) + (Kd*derivativeHeight);
 
         outputPitch /= 10.0;
         outputRoll /= 10.0;
+
+        qDebug() << "no wpts" << mWayPoints.size() << "next wpt height" << nextWayPoint.y() << "curr height" << mLastKnownVehiclePose.position.y() << "thrust" << outputThrust;
 
 //        qDebug() << "values PRYH:" << QString::number(mLastKnownVehiclePose.getPitchDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.getRollDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.getYawDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.position.y(), 'f', 2);
 //        qDebug() << "should PRYH:" << QString::number(desiredPitch, 'f', 2) << "\t" << QString::number(desiredRoll, 'f', 2) << "\t" << QString::number(mDesiredYaw, 'f', 2) << "\t" << QString::number(nextWayPoint.y(), 'f', 2);
@@ -196,25 +198,28 @@ void FlightController::wayPointReached()
     // The current waypoint has been reached.
     mWayPointsPassed.append(mWayPoints.takeFirst());
 
+    qDebug() << "FlightController::wayPointReached(): reached waypoint" << mWayPointsPassed.last();
+
     Q_ASSERT(getFlightState() == ApproachingNextWayPoint);
 
     if(mWayPoints.size())
     {
         emit message(QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), Information, "waypoint reached, more waypoints present, approaching");
+        qDebug() << "FlightController::wayPointReached(): reached waypoint, approaching next";
     }
     else if(mLastKnownBottomBeamLength < 0.2)
     {
         setFlightState(Idle);
         // TODO: slow down first. Not necessary, we ARE slow when reaching a waypoint. Hopefully.
         emit message(QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), Information, "waypoint reached, no more wayPoints, HeightAboveGround low, idling");
+        qDebug() << "FlightController::wayPointReached(): reached waypoint, no more, we're low, idling";
     }
     else
     {
         mWayPoints.append(getLandingWayPoint());
         emit message(QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), Information, QString("ManualControl disabled, no further wayPoints, HeightAboveGround high (" + QString::number(mLastKnownBottomBeamLength) + "m), now landing"));
+        qDebug() << "FlightController::wayPointReached(): reached waypoint, no more, we're NOT low, adding landing wpt.";
     }
-
-    qDebug() << "FlightController::wayPointReached(): reached waypoint" << mWayPointsPassed.last();
 
     emit wayPointReached(mWayPointsPassed.last());
     emit currentWayPoints(mWayPoints);
@@ -243,6 +248,7 @@ void FlightController::slotWayPointInsert(const quint16& index, const WayPoint& 
 
 void FlightController::slotWayPointDelete(const quint16& index)
 {
+    qDebug() << QString("FlightController::slotWayPointDelete(const quint16& index = %1)").arg(index);
     if(mWayPoints.size() <= index)
     {
         qWarning("FlightController::slotWayPointDelete(): couldn't delete waypoint at index %d, list only has %d entries.", index, mWayPoints.size());
@@ -258,15 +264,18 @@ void FlightController::slotWayPointDelete(const quint16& index)
             if(mLastKnownBottomBeamLength > 0.2)
             {
                 // Insert landing-waypoint, keep approaching
+                qDebug() << "FlightController::slotWayPointDelete(): after deleting wpt, list is empty, inserting landing wpt";
                 mWayPoints.append(getLandingWayPoint());
             }
             else
             {
                 // We're low anyway, just got to idle mode.
+                qDebug() << "FlightController::slotWayPointDelete(): after deleting wpt, list is empty, we're low with beamlength of" << mLastKnownBottomBeamLength << ", idling";
                 setFlightState(Idle);
             }
         }
     }
+    qDebug() << "FlightController::slotWayPointDelete(): after deleting wpt, emitting new wpt list of size" << mWayPoints.size();
     emit currentWayPoints(mWayPoints);
 }
 
@@ -311,6 +320,7 @@ QList<WayPoint> FlightController::getWayPoints()
 WayPoint FlightController::getLandingWayPoint() const
 {
     // naive implementation, WARNING: make sure kopter is straight in the air!
+    Q_ASSERT(false);// temp
     return WayPoint(mLastKnownVehiclePose.position - QVector3D(0.0, mLastKnownBottomBeamLength, 0.0));
 }
 

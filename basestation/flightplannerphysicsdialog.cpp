@@ -13,6 +13,7 @@ FlightPlannerPhysicsDialog::FlightPlannerPhysicsDialog(QWidget *parent) :
     connect(ui->mBtnCreateSafePath, SIGNAL(clicked()), SIGNAL(createSafePath()));
 
     connect(ui->mBtnSubmitWaypoints, SIGNAL(clicked()), SIGNAL(submitWayPoints()));
+    connect(ui->mBtnDeleteWaypoints, SIGNAL(clicked()), SIGNAL(deleteWayPoints()));
 
     connect(ui->mSpinBoxGravityX, SIGNAL(valueChanged(double)), SLOT(slotGravityChanged()));
     connect(ui->mSpinBoxGravityY, SIGNAL(valueChanged(double)), SLOT(slotGravityChanged()));

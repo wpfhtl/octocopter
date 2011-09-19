@@ -18,6 +18,8 @@ ControlWidget::ControlWidget(BaseStation* baseStation) : QDockWidget((QWidget*)b
     connect(mBtnWptPrepend, SIGNAL(clicked()), SLOT(slotWayPointPrepend()));
     connect(mBtnWptAppend, SIGNAL(clicked()), SLOT(slotWayPointAppend()));
     connect(mBtnWptDelete, SIGNAL(clicked()), SLOT(slotWayPointDelete()));
+    connect(mBtnWptLoad, SIGNAL(clicked()), SLOT(slotWayPointLoad()));
+    connect(mBtnWptSave, SIGNAL(clicked()), SLOT(slotWayPointSave()));
 
     connect(mBtnWptUp, SIGNAL(clicked()), SLOT(slotWayPointUp()));
     connect(mBtnWptDown, SIGNAL(clicked()), SLOT(slotWayPointDown()));
@@ -328,4 +330,81 @@ void ControlWidget::slotWayPointsCleared()
 {
     mWayPointTable->clear();
     mWayPointTable->setRowCount(0);
+}
+
+void ControlWidget::slotWayPointLoad()
+{
+    const QString fileName = QFileDialog::getOpenFileName(this, "Load WayPoints");
+    if(!fileName.isNull())
+    {
+        QFile file(fileName);
+        if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        {
+            QMessageBox::critical(this, "File Error", "Couldn't open file for reading!");
+            return;
+        }
+
+        int i = 0;
+        while (!file.atEnd())
+        {
+            const QString line(file.readLine());
+            const QStringList values = line.split(";", QString::SkipEmptyParts);
+
+            if(values.size() != 3)
+            {
+                QMessageBox::warning(this, "File Format Error", QString("Not three numbers in line %1!").arg(i));
+                return;
+            }
+
+            const WayPoint wpt(
+                        QVector3D(
+                            values.at(0).toFloat(),
+                            values.at(1).toFloat(),
+                            values.at(2).toFloat()
+                            )
+                        );
+
+            emit wayPointInsert(mWayPointTable->rowCount(), wpt);
+
+            i++;
+        }
+
+        file.close();
+    }
+}
+
+void ControlWidget::slotWayPointSave()
+{
+    const QString fileName = QFileDialog::getSaveFileName(this, "Save WayPoints");
+    if(!fileName.isNull())
+    {
+        QFile file(fileName);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+        {
+            QMessageBox::critical(this, "File Error", "Couldn't open file for writing!");
+            return;
+        }
+
+        QTextStream out(&file);
+
+        for(int row=0;row<mWayPointTable->rowCount();row++)
+        {
+            out << mWayPointTable->item(row, 0)->text().toFloat() << ";";
+            out << mWayPointTable->item(row, 1)->text().toFloat() << ";";
+            out << mWayPointTable->item(row, 2)->text().toFloat();
+            out << "\n";
+        }
+
+        file.close();
+    }
+}
+
+void ControlWidget::slotSetWayPointCoordinateFields(Qt::MouseButton btn, QVector3D pos)
+{
+    if(btn == Qt::MiddleButton)
+    {
+        mSpinBoxWptX->setValue(pos.x());
+        mSpinBoxWptY->setValue(pos.y());
+        mSpinBoxWptZ->setValue(pos.z());
+    }
 }

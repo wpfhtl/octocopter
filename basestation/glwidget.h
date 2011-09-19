@@ -48,6 +48,7 @@ class GlWidget : public QGLWidget
     void zoom(double zoomFactor);
     void drawAxes(const GLfloat& x, const GLfloat& y, const GLfloat& z, const GLfloat& red, const GLfloat& green, const GLfloat& blue) const;
     void drawVehicleVelocity() const;
+    QVector3D convertMouseToWorldPosition(const QPoint&);
 
 public:
     GlWidget(BaseStation *baseStation, Octree* octree, FlightPlannerInterface* flightPlanner);
@@ -64,6 +65,7 @@ protected:
 
 signals:
     void visualizeNow();
+    void mouseClickedAtWorldPos(Qt::MouseButton, QVector3D);
 
 public slots:
     void slotViewFromTop();

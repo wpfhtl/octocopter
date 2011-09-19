@@ -19,7 +19,7 @@ protected:
     QWidget* mParentWidget;
     QList<WayPoint>* mWayPointsAhead, *mWayPointsPassed;
 
-    static void sortToShortestPath(QList<WayPoint> &wayPoints, const QVector3D &currentVehiclePosition);
+    static void sortToShortestPath(QList<WayPoint> &wayPointsSetOnRover, const QVector3D &currentVehiclePosition);
 
 public:
     FlightPlannerInterface(QWidget* widget, Octree* pointCloud);
@@ -39,6 +39,7 @@ public:
 public slots:
     void slotWayPointDelete(const quint16& index);
     void slotWayPointInsert(const quint16& index, const WayPoint& wpt);
+    void slotWayPointInsertedByRover(const quint16& index, const WayPoint& wpt);
     void slotWayPointSwap(const quint16& i, const quint16& j);
     void slotWayPointsClear();
 
@@ -46,13 +47,23 @@ public slots:
 
     virtual void slotSetScanVolume(const QVector3D min, const QVector3D max);
     virtual void slotGenerateWaypoints() = 0;
-    virtual void slotVisualize() const = 0;
+    virtual void slotVisualize() const;
 
     void slotVehiclePoseChanged(const Pose& pose);
 
 signals:
+    // Emitted to tell other classes that waypoint @wpt was inserted at index @index
     void wayPointInserted(const quint16& index, const WayPoint& wpt);
+
+    // Emitted to tell the rover that it should insert waypoint @wpt at index @index
+    void wayPointInsertOnRover(const quint16& index, const WayPoint& wpt);
+
+    // Emitted to tell other classes that waypoint @index was deleted. We do not care how or by whom
     void wayPointDeleted(const quint16& index);
+    // Emitted to tell the rover that it should delete waypoint @index
+    void wayPointDeleteOnRover(const quint16& index);
+
+    void wayPointsSetOnRover(QList<WayPoint>);
     void wayPoints(QList<WayPoint>);
 
     void suggestVisualization();

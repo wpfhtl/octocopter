@@ -75,12 +75,17 @@ void GlWidget::initializeGL()
 //    glEnable(GL_DEPTH_TEST);
 //    glDepthFunc(GL_LEQUAL);
     */
-    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+//    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
     /* we use resizeGL once to set up our initial perspective */
 //    resizeGL(width, height);
     /* Reset the rotation angle of our object */
 //    rotQuad = 0;
 //    glFlush();
+
+    // needed to convert mous epos to world pos, see
+    // http://stackoverflow.com/questions/3089271/converting-mouse-position-to-world-position-opengl
+    glEnable(GL_DEPTH);
+
 
 
     glShadeModel(GL_SMOOTH);						// Enable Smooth Shading
@@ -108,8 +113,10 @@ void GlWidget::resizeGL(int w, int h)
     glViewport(0, 0, w, h);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(50.0*mZoomFactor, (GLfloat)w/(GLfloat)h, 10, +8000.0);
+//    gluPerspective(50.0*mZoomFactor, (GLfloat)w/(GLfloat)h, 10, +8000.0);
 //    gluOrtho2D(-w/2.0, w/2.0, -h/2.0, h/2.0);
+//    gluOrtho2D(-200.0, 200.0, -200.0, 200.0);
+    glOrtho(-150 * mZoomFactor, 150 * mZoomFactor, -150 * mZoomFactor, 150 * mZoomFactor, 1, 10000);
     glTranslatef(camPos.x(), camPos.y(), camPos.z());
     glMatrixMode(GL_MODELVIEW);
 }
@@ -126,7 +133,6 @@ void GlWidget::moveCamera(const QVector3D &pos)
     glMatrixMode(GL_MODELVIEW);
     */
 }
-
 
 void GlWidget::paintGL()
 {
@@ -191,6 +197,24 @@ void GlWidget::paintGL()
     glTranslatef(-mCamLookAt.x(), -mCamLookAt.y(), -mCamLookAt.z());
 
 
+
+    // Draw base plate for unProjecting
+    /*glEnable(GL_BLEND);
+        glDisable(GL_LIGHTING);
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+    glBlendFunc(GL_CONSTANT_COLOR, GL_ONE_MINUS_SRC_ALPHA);
+    glColor4f(1.0f, 1.0f, 1.0f, 0.0f);
+    glBegin(GL_QUADS);
+    glVertex3f(1000, min.y()+15, -1000);
+    glVertex3f(1000, min.y()+15, 1000);
+    glVertex3f(-1000, min.y()+15, 1000);
+    glVertex3f(-1000, min.y()+15, -1000);
+    glEnd();
+    glEnable(GL_LIGHTING);
+    glDisable(GL_BLEND);*/
+
+
+
 //    glTranslatef(-0.0, -100.0, -0.0);
 
 
@@ -212,18 +236,6 @@ void GlWidget::paintGL()
     drawAxes(20, 20, 20, 1.0, 1.0, 0.0);
 
     drawVehicleVelocity();
-    // Draw base plate
-//    glDisable(GL_LIGHTING);
-//    glBlendFunc(GL_SRC_ALPHA,GL_ONE);
-//    glColor4f(1.0f, 1.0f, 1.0f, 0.1f);
-//    glBegin(GL_QUADS);
-//    glVertex3f(1000, 0, -1000);
-//    glVertex3f(1000, 0, 1000);
-//    glVertex3f(-1000, 0, 1000);
-//    glVertex3f(-1000, 0, -1000);
-//    glEnd();
-//    glEnable(GL_LIGHTING);
-
 
 
 //    mOctree->drawGl();
@@ -290,6 +302,8 @@ void GlWidget::mouseDoubleClickEvent(QMouseEvent *event)
 void GlWidget::mousePressEvent(QMouseEvent *event)
 {
     lastPos = event->pos();
+
+    emit mouseClickedAtWorldPos(event->button(), convertMouseToWorldPosition(event->pos()));
 }
 
 void GlWidget::mouseMoveEvent(QMouseEvent *event)
@@ -333,7 +347,7 @@ void GlWidget::wheelEvent(QWheelEvent *event)
     double factor = event->delta()/93.0;
 //    mZoomFactor *= factor;
 
-    factor>0? mZoomFactor += 0.05 : mZoomFactor -= 0.05;
+    factor > 0 ? mZoomFactor += 0.05 : mZoomFactor -= 0.05;
 //    qDebug() << "zoomFactor" << mZoomFactor;
 
 //    if(factor > 0)
@@ -375,6 +389,7 @@ void GlWidget::slotViewFromTop()
     rotY = -17.71;
     rotZ = 19.67;
     mZoomFactor = 0.4;
+    mZoomFactor = 0.6;
     updateGL();
 }
 
@@ -389,10 +404,65 @@ void GlWidget::slotViewFromSide()
     rotZ = -10.7;
 
     mZoomFactor = 0.4;
+    mZoomFactor = 0.6;
     updateGL();
 }
 
 void GlWidget::slotSaveImage()
 {
     renderPixmap(0, 0, true).save(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz").prepend("snapshot-").append(".png"));
+}
+
+QVector3D GlWidget::convertMouseToWorldPosition(const QPoint& point)
+{
+    GLint viewport[4];
+    GLdouble modelview[16];
+    GLdouble projection[16];
+    GLfloat winX, winY, winZ;
+    GLdouble posX, posY, posZ;
+
+
+
+
+
+    glLoadIdentity();
+    const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().position;
+    mCamLookAt = vehiclePosition;
+    QVector3D min, max;
+    mFlightPlanner->getScanVolume(min, max);
+    mCamLookAt = min + (max - min)/2.0;
+
+    gluLookAt(0.0, 500.0, 500.0,
+              mCamLookAt.x(), mCamLookAt.y(), mCamLookAt.z(),
+              0.0, 1.0, 0.0);
+
+    glTranslatef(mCamLookAt.x(), mCamLookAt.y(), mCamLookAt.z());
+
+    // Mouse Move Rotations
+    glRotatef(rotX,1.0,0.0,0.0);
+    glRotatef(rotY,0.0,1.0,0.0);
+    glRotatef(rotZ,0.0,0.0,1.0);
+
+    glTranslatef(-mCamLookAt.x(), -mCamLookAt.y(), -mCamLookAt.z());
+
+
+
+
+
+
+
+
+    glGetDoublev( GL_MODELVIEW_MATRIX, modelview );
+    glGetDoublev( GL_PROJECTION_MATRIX, projection );
+    glGetIntegerv( GL_VIEWPORT, viewport );
+
+    winX = (float)point.x();
+    winY = (float)viewport[3] - (float)point.y();
+    glReadPixels( point.x(), int(winY), 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &winZ );
+
+    gluUnProject( winX, winY, winZ, modelview, projection, viewport, &posX, &posY, &posZ);
+
+    qDebug() << "world pos of mouse" << point.x() << point.y() << "is" << posX << posY << posZ;
+
+    return QVector3D(posX, posY, posZ);
 }

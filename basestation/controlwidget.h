@@ -38,6 +38,8 @@ public slots:
     void slotUpdateRtkStatus(bool working = false);
     void slotUpdateRoverConnection(bool connected);
 
+    void slotSetWayPointCoordinateFields(Qt::MouseButton, QVector3D);
+
     // Called by FlightPlanner when it has changed its internal list.
     void slotWayPointInserted(const quint16& index, const WayPoint& waypoint);
     void slotWayPointDeleted(const quint16& index);
@@ -48,13 +50,16 @@ private slots:
     void slotSimulationStarted();
     void slotSimulationPaused();
 
-    // Called when buttons are pressed, simply emit signals to be processed my FlightPlanner
+    // Called when buttons are pressed, simply emit signals to be processed by FlightPlanner
     void slotWayPointPrepend();
     void slotWayPointAppend();
     void slotWayPointDelete();
     void slotWayPointChange(int, int);
     void slotWayPointUp();
     void slotWayPointDown();
+
+    void slotWayPointLoad();
+    void slotWayPointSave();
 
     void slotSetScanVolume();
 

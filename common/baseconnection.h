@@ -72,8 +72,8 @@ signals:
 //    void statusRequested();
 
 public slots:
-    // called when the rover has changed the waypoints list, will be sent to base
-//    void slotNewWayPointsFromRover(const QVector<WayPoint>& wayPoints);
+    // called when the rover has appended a waypoint, will be sent to base
+    void slotRoverWayPointInserted(const quint16& index, const WayPoint& wayPoint);
 
     // called by rover when it has reached a waypoint, notifies basestation
     void slotWayPointReached(const WayPoint&wpt);

@@ -22,16 +22,16 @@ void FlightPlannerInterface::slotSetScanVolume(const QVector3D min, const QVecto
 
 void FlightPlannerInterface::sortToShortestPath(QList<WayPoint> &wayPoints, const QVector3D &currentVehiclePosition)
 {
-    qDebug() << "FlightPlannerInterface::sortToShortestPath(): vehicle is at" << currentVehiclePosition;
+//    qDebug() << "FlightPlannerInterface::sortToShortestPath(): vehicle is at" << currentVehiclePosition;
 
     float distanceBefore = 0;
     for(int i=1;i<wayPoints.size();i++) distanceBefore += wayPoints.at(i-1).distanceToLine(wayPoints.at(i), QVector3D());
-    qDebug() << "FlightPlannerInterface::sortToShortestPath(): total distance between" << wayPoints.size() << "points before:" << distanceBefore;
+//    qDebug() << "FlightPlannerInterface::sortToShortestPath(): total distance between" << wayPoints.size() << "points before:" << distanceBefore;
 
     QList<WayPoint> wps(wayPoints);
     float distanceBeforewps = 0;
     for(int i=1;i<wps.size();i++) distanceBeforewps += wps.at(i-1).distanceToLine(wps.at(i), QVector3D());
-    qDebug() << "FlightPlannerInterface::sortToShortestPath(): wps total distance between" << wps.size() << "points before:" << distanceBeforewps;
+//    qDebug() << "FlightPlannerInterface::sortToShortestPath(): wps total distance between" << wps.size() << "points before:" << distanceBeforewps;
 
     wayPoints.clear();
     wayPoints.append(currentVehiclePosition);
@@ -59,7 +59,7 @@ void FlightPlannerInterface::sortToShortestPath(QList<WayPoint> &wayPoints, cons
 
     float distanceAfter = 0;
     for(int i=1;i<wayPoints.size();i++) distanceAfter += wayPoints.at(i-1).distanceToLine(wayPoints.at(i), QVector3D());
-    qDebug() << "FlightPlannerInterface::sortToShortestPath(): total distance between" << wayPoints.size() << "points after:" << distanceAfter;
+//    qDebug() << "FlightPlannerInterface::sortToShortestPath(): total distance between" << wayPoints.size() << "points after:" << distanceAfter;
 }
 
 const Pose FlightPlannerInterface::getLastKnownVehiclePose(void) const
@@ -94,10 +94,27 @@ void FlightPlannerInterface::slotWayPointDelete(const quint16& index)
 
     mWayPointsAhead->removeAt(index);
     emit wayPointDeleted(index);
+    emit wayPointDeleteOnRover(index);
     emit suggestVisualization();
 }
 
+// Called when the UI inserted a WPT. Tell the rover!
 void FlightPlannerInterface::slotWayPointInsert(const quint16& index, const WayPoint& wpt)
+{
+    if(index > mWayPointsAhead->size())
+    {
+        qWarning() << "FlightPlannerInterface::slotWayPointInsert(): cannot delete waypoint at index" << index << ", size is only" << mWayPointsAhead->size();
+        return;
+    }
+
+    mWayPointsAhead->insert(index, wpt);
+    emit wayPointInserted(index, wpt);
+    emit wayPointInsertOnRover(index, wpt);
+    emit suggestVisualization();
+}
+
+// Called when rover inserted a wpt. DO NOT TELL ROVER to insert that same wpt again!
+void FlightPlannerInterface::slotWayPointInsertedByRover(const quint16& index, const WayPoint& wpt)
 {
     if(index > mWayPointsAhead->size())
     {
@@ -122,9 +139,13 @@ void FlightPlannerInterface::slotWayPointSwap(const quint16& i, const quint16& j
     mWayPointsAhead->swap(i,j);
 
     emit wayPointDeleted(j);
+    emit wayPointDeleteOnRover(j);
     emit wayPointInserted(j, mWayPointsAhead->at(j));
+    emit wayPointInsertOnRover(j, mWayPointsAhead->at(j));
     emit wayPointDeleted(i);
+    emit wayPointDeleteOnRover(i);
     emit wayPointInserted(i, mWayPointsAhead->at(i));
+    emit wayPointInsertOnRover(i, mWayPointsAhead->at(i));
 
     emit suggestVisualization();
 }
@@ -132,6 +153,7 @@ void FlightPlannerInterface::slotWayPointSwap(const quint16& i, const quint16& j
 void FlightPlannerInterface::slotWayPointsClear()
 {
     mWayPointsAhead->clear();
+    emit wayPointsSetOnRover(*mWayPointsAhead);
     emit wayPoints(*mWayPointsAhead);
     emit suggestVisualization();
 }
@@ -158,4 +180,16 @@ void FlightPlannerInterface::getScanVolume(QVector3D& min, QVector3D& max)
 {
     min = mScanVolumeMin;
     max = mScanVolumeMax;
+}
+
+void FlightPlannerInterface::slotVisualize() const
+{
+    // Draw line between future waypoints
+    glLineWidth(1);
+    glColor4f(1.0f, 1.0f, 0.0f, 0.8f);
+    glBegin(GL_LINE_STRIP);
+
+    foreach(const WayPoint& wpt, *mWayPointsAhead)
+        glVertex3f(wpt.x(), wpt.y(), wpt.z());
+    glEnd();
 }

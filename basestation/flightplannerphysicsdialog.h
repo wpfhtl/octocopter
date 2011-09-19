@@ -51,6 +51,7 @@ signals:
     void frictionChanged(float,float);
     void restitutionChanged(float,float);
     void submitWayPoints();
+    void deleteWayPoints();
 };
 
 #endif // FLIGHTPLANNERPHYSICSDIALOG_H

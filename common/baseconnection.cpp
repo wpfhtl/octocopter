@@ -99,15 +99,17 @@ void BaseConnection::processPacket(QByteArray packet)
         WayPoint wayPoint;
         stream >> index;
         stream >> wayPoint;
-        emit wayPointInsert(index, wayPoint);
         qDebug() << "BaseConnection::processPacket(): inserting waypoint from base to index" << index;
+        emit wayPointInsert(index, wayPoint);
+        qDebug() << "BaseConnection::processPacket(): inserting waypoint from base to index" << index << "Done.";
     }
     else if(command == "waypointdelete")
     {
         quint16 index;
         stream >> index;
+        qDebug() << "BaseConnection::processPacket(): base tells me to delete wpt" << index << "will now emit wptDelete";
         emit wayPointDelete(index);
-        qDebug() << "BaseConnection::processPacket(): deleting waypoint" << index << "from base.";
+        qDebug() << "BaseConnection::processPacket(): base tells me to delete wpt" << index << "will now emit wptDelete. Done.";
     }
     else if(command == "waypoints")
     {
@@ -115,6 +117,7 @@ void BaseConnection::processPacket(QByteArray packet)
         stream >> wayPointList;
         qDebug() << "BaseConnection::processPacket(): received" << wayPointList.size() << "waypoints from base.";
         emit wayPoints(wayPointList);
+        qDebug() << "BaseConnection::processPacket(): received" << wayPointList.size() << "waypoints from base. Done.";
     }
 //    else if(command == "getstatus")
 //    {
@@ -227,16 +230,18 @@ void BaseConnection::slotFlushWriteQueue()
 
 // called when the rover has changed the waypoints list, will be sent to base
 // Disabled: Why should the rover ever send waypoints?
-//void BaseConnection::slotNewWayPointsFromRover(const QVector<WayPoint>& wayPoints)
-//{
-//    qDebug() << "sending new waypoints to base:" << wayPoints;
-//    QByteArray data;
-//    QDataStream stream(&data, QIODevice::WriteOnly);
+// Update: Because it can cretae its own ladning-waypoint, the base will want to know!
+void BaseConnection::slotRoverWayPointInserted(const quint16& index, const WayPoint& wayPoint)
+{
+    qDebug() << "sending new waypoints to base:" << wayPoint;
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
 
-//    stream << QString("waypoints");
-//    stream << wayPoints;
-//    slotSendData(data, false);
-//}
+    stream << QString("waypointinserted");
+    stream << (quint16)index;
+    stream << wayPoint;
+    slotSendData(data, false);
+}
 
 void BaseConnection::slotFlightControllerWayPointsChanged(const QList<WayPoint>& wayPoints)
 {

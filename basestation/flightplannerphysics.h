@@ -23,6 +23,8 @@ public:
 
     void insertPoint(LidarPoint* const point);
 
+    qint64 getNumberOfPointsInCollisionOctree();
+
 private:
     Octree* mOctree;
     FlightPlannerPhysicsDialog* mDialog;
@@ -85,7 +87,8 @@ private slots:
     void slotCreateSampleGeometry();
     void slotDeleteSampleGeometry();
     void slotProcessPhysics(bool);
-    void slotEmitWayPoints();
+    void slotSubmitGeneratedWayPoints();
+    void slotDeleteGeneratedWayPoints();
     void slotGravityChanged(const QVector3D& gravity);
     void slotFrictionChanged(const float& frictionPointCloudGround, const float& frictionSampleGeometry);
     void slotRestitutionChanged(const float& restitutionPointCloudGround, const float& restitutionSampleGeometry);
