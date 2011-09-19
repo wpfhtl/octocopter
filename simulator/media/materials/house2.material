@@ -5,8 +5,9 @@ material house2/8_-_Default
 	{
 		pass
 		{
-			ambient 0.588235 0.588235 0.588235 1
-			diffuse 0.588235 0.588235 0.588235 1
+// weird! ambient != 1 gives black texture, diffuse kinda(!) works, but 0.99 is << 1.0
+//			ambient 0.588235 0.588235 0.588235 1
+//			diffuse 0.988235 0.988235 0.988235 1
 
 			texture_unit
 			{

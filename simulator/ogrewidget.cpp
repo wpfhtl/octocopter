@@ -848,7 +848,7 @@ void OgreWidget::setupTerrain()
 
     entity = mSceneManager->createEntity("tudorHouse", "tudorhouse.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
-    rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
+    rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)-20), Ogre::Vector3::UNIT_Y);
     sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
                 position + Ogre::Vector3(0, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 6.5, -13),
                 rotation);
@@ -858,7 +858,7 @@ void OgreWidget::setupTerrain()
 
     entity = mSceneManager->createEntity("church", "church.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
-    rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
+    rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)+180.0), Ogre::Vector3::UNIT_Y);
     sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
                 position + Ogre::Vector3(-5, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 0.0, 55),
                 rotation);
@@ -877,7 +877,7 @@ void OgreWidget::setupTerrain()
     entity = mSceneManager->createEntity("house2", "house2.mesh");
     entity->setMaterialName("house2/8_-_Default");
     entity->setQueryFlags(0xFFFFFFFF);
-    rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
+    rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)-100), Ogre::Vector3::UNIT_Y);
     sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
                 position + Ogre::Vector3(20, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 3.0, 25),
                 rotation);
@@ -886,7 +886,7 @@ void OgreWidget::setupTerrain()
 
     entity = mSceneManager->createEntity("windmill", "windmill.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
-    rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
+    rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)+90), Ogre::Vector3::UNIT_Y);
     sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
                 position + Ogre::Vector3(-35, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 0.0, 30),
                 rotation);
