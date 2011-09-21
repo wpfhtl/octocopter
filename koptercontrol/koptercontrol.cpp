@@ -84,15 +84,13 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mKopter, SIGNAL(kopterStatus(quint32, qint16, float)), mBaseConnection, SLOT(slotNewVehicleStatus(quint32, qint16, float)));
 
     connect(mLaserScanner, SIGNAL(bottomBeamLength(const float&)), mFlightController, SLOT(slotSetBottomBeamLength(const float&)));
-
-    //connect(mRtkFetcher, SIGNAL(rtkData(const QByteArray&)), mGpsDevice, SLOT(slotSetRtkData(const QByteArray&)));
-
     connect(mBaseConnection, SIGNAL(enableScanning(const bool&)), mLaserScanner, SLOT(slotEnableScanning(const bool&)));
     connect(mBaseConnection, SIGNAL(rtkDataReady(const QByteArray&)), mGpsDevice, SLOT(slotSetRtkData(const QByteArray&)));
 
     connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mFlightController, SLOT(slotSetVehiclePose(Pose)));
     connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mLaserScanner, SLOT(slotNewVehiclePose(Pose)));
     connect(mGpsDevice, SIGNAL(newVehiclePoseLowFreq(Pose)), mBaseConnection, SLOT(slotPoseChanged(Pose)));
+    connect(mGpsDevice, SIGNAL(scanFinished(quint32)), mLaserScanner, SLOT(slotScanFinished(quint32)));
 
     connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
 

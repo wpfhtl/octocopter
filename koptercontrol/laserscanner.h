@@ -21,6 +21,8 @@ class LaserScanner : public QObject//QThread
 private:
     QString mDeviceFileName;
 
+    QFile* mLogFile;
+
     bool mIsEnabled;
 
     UrgCtrl mScanner;

@@ -158,6 +158,15 @@ void OgreWidget::keyPressEvent(QKeyEvent *e)
         update();
         e->accept();
     }
+    else if(e->key() == Qt::Key_M)
+    {
+        if(mCamera->getPolygonMode() == Ogre::PM_SOLID)
+            mCamera->setPolygonMode(Ogre::PM_WIREFRAME);
+        else
+            mCamera->setPolygonMode(Ogre::PM_SOLID);
+
+        update();
+    }
     else
     {
         e->ignore();
@@ -933,7 +942,7 @@ void OgreWidget::configureTerrainDefaults(Ogre::Light* light)
     // CompositeMapDistance decides how far the Ogre terrain will render the lightmapped terrain.
     mTerrainGlobals->setCompositeMapDistance(3000);
 
-    //mTerrainGlobals->setUseRayBoxDistanceCalculation(true);
+//    mTerrainGlobals->setUseRayBoxDistanceCalculation(true);
     //mTerrainGlobals->getDefaultMaterialGenerator()->setDebugLevel(1);
     //mTerrainGlobals->setLightMapSize(256);
 

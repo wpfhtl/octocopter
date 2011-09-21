@@ -52,8 +52,10 @@ Pose Pose::interpolateLinear(const Pose &before, const Pose &after, const float 
 }
 
 // http://paulbourke.net/miscellaneous/interpolation/
+
+// TODO: This code doesn't really use the timestamps in the poses, that seems stupid
 Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before, const Pose * const after, const Pose * const last, const float &mu)
-{ //                                      y0                 y1                 y2                 y3
+{//                                             y0                        y1                         y2                        y3
     Q_ASSERT(mu <= 0.0 && mu <= 1.0);
 
     const double mu2 = mu*mu;
@@ -169,7 +171,8 @@ Pose Pose::operator+(const Pose &p) const
                 keepWithinRangeRadians(mYaw + p.getYawRadians()),
                 keepWithinRangeRadians(mPitch + p.getPitchRadians()),
                 keepWithinRangeRadians(mRoll + p.getRollRadians()),
-                (timestamp + p.timestamp)/2
+                // use the latest timestamp, needed in LaserScanner::slotNewVehiclePose(const Pose& pose)
+                std::max(timestamp,p.timestamp)
                 );
 }
 

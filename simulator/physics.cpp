@@ -412,7 +412,7 @@ void Physics::slotSetMotion(const quint8& thrust, const qint8& pitch, const qint
 
 bool Physics::initializeWind()
 {
-    QFile windDataFile("winddata-10Hz.txt");
+    QFile windDataFile("winddata.txt");
     if(!windDataFile.open(QIODevice::ReadOnly | QIODevice::Text))
     {
         emit windInitialized(false);

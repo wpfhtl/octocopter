@@ -7,6 +7,10 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &pose)
     mDeviceFileName = deviceFileName;
     mRelativePose = pose;
 
+    mLogFile = new QFile(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz").prepend("scannerdata-").append(".log"));
+    if(!mLogFile->open(QIODevice::WriteOnly | QIODevice::Text))
+        qFatal("LaserScanner::LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
+
     mIsEnabled = false;
 
     mPoints.reserve(1200); // should be 1080 points (270 degrees, 0.25° resolution)
@@ -68,7 +72,7 @@ float LaserScanner::getHeightAboveGround() const
     const int index = mScanner.deg2index(90);
     if(mScanDistancesCurrent->size() > index)
     {
-        return (float)((*mScanDistancesCurrent)[index]) - 0.22;
+        return (float)((*mScanDistancesCurrent)[index]) - 0.21;
     }
     else
     {
@@ -93,6 +97,13 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
         long timestamp = 0;
         if(mScanner.capture(*mScanDistancesNext, &timestamp) <= 0)
             qWarning() << "LaserScanner::slotScanFinished(): weird, less than 1 samples sent by lidar";
+
+        // Write log data: scan[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
+        QTextStream out(&mLogFile);
+        out << "scan " << timestamp;
+        std::vector<long>::iterator itr;
+        for(itr=mScanDistancesNext.begin();itr != mScanDistancesNext.end(); ++itr) out << " " << *itr;
+        out << "\n";
 
         if(mScannerPoseFirst != 0 && mIsEnabled)
         {
@@ -140,8 +151,9 @@ void LaserScanner::slotNewVehiclePose(const Pose& pose)
     QMutexLocker locker(&mMutex);
     qDebug() << "LaserScanner::slotNewVehiclePose(): received a pose from gps-device at time" << pose.timestamp;
 
-    // The hokuyo finished a scan and sent a falling edge to the GpsDevice, which now notifies us of
-    // this scan together with the pose in which scanning finished.
+    // Write log data: pose[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
+    QTextStream out(&mLogFile);
+    out << "pose " << pose.timestamp << " " << pose.position << " " << pose.getPitchDegrees() << " " << pose.getRollDegrees() << " " << pose.getYawDegrees() << "\n";
 
     delete mScannerPoseFirst;
 
@@ -149,9 +161,12 @@ void LaserScanner::slotNewVehiclePose(const Pose& pose)
     mScannerPoseBefore = mScannerPoseAfter;
     mScannerPoseAfter = mScannerPoseLast;
     mScannerPoseLast = new Pose(pose + mRelativePose);
+
+    Q_ASSERT(pose.timestamp == mScannerPoseLast->timestamp);
+
 }
 
-void LaserScanner::slotEnableScanning(const bool& enabled)
+void LaserScanner::slotEnableScanning(const bool& value)
 {
-    mIsEnabled = enabled;
+    mIsEnabled = value;
 }

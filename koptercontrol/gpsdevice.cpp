@@ -539,6 +539,13 @@ void GpsDevice::processSbfData()
 
                 emit newVehiclePose(p);
 
+                // Write log data: timestamp[space]V1[space]V2[space]...[space]Vn\n
+                QTextStream out(&mLogFile);
+                out << timestamp;
+                std::vector<long>::iterator itr;
+                for(itr=mScanDistancesNext.begin();itr != mScanDistancesNext.end(); ++itr) out << " " << *itr;
+                out << "\n";
+
                 mPoseClockDivisor = mPoseClockDivisor % 20;
                 if(mPoseClockDivisor % 20 == 0) emit newVehiclePoseLowFreq(p);
 
@@ -562,7 +569,7 @@ void GpsDevice::processSbfData()
             qDebug() << "SBF: ExtEvent";
             if(msgIdRev != 2)
             {
-                qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock;
+                qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock << "will not emit scanFinished!";
                 break;
             }
             // process
