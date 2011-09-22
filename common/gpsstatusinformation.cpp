@@ -1,8 +1,8 @@
 #include "gpsstatusinformation.h"
 
-GpsStatusInformation::GpsStatusInformation()
-{
-}
+//GpsStatusInformation::GpsStatusInformation()
+//{
+//}
 
 QString GpsStatusInformation::getIntegrationMode(const quint8& integrationMode)
 {
@@ -13,7 +13,7 @@ QString GpsStatusInformation::getIntegrationMode(const quint8& integrationMode)
     case 2: return "GPS + IMU"; break;
     default: return QString("Unknown IntMode %1").arg(integrationMode); break;
     }
-};
+}
 
 QString GpsStatusInformation::getGnssMode(const quint8& gnssMode)
 {
@@ -32,19 +32,19 @@ QString GpsStatusInformation::getGnssMode(const quint8& gnssMode)
 
     case 3: gnssModeString = "FixedLocation"; break;
 
-    case 4: gnssModeString = "RTK FixedAmbiguities"; break;
+    case 4: gnssModeString = "RTK Fixed"; break;
 
-    case 5: gnssModeString = "RTK FloatAmbiguities"; break;
+    case 5: gnssModeString = "RTK Float"; break;
 
     case 6: gnssModeString = "SBAS aided"; break;
 
-    case 7: gnssModeString = "RTK MovingBase FixedAmbiguities"; break;
+    case 7: gnssModeString = "RTK MovingBase Fixed"; break;
 
-    case 8: gnssModeString = "RTK MovingBase FloatAmbiguities"; break;
+    case 8: gnssModeString = "RTK MovingBase Float"; break;
 
-    case 9: gnssModeString = "PPP FixedAmbiguities"; break;
+    case 9: gnssModeString = "PPP Fixed"; break;
 
-    case 10: gnssModeString = "PPP FloatAmbiguities"; break;
+    case 10: gnssModeString = "PPP Float"; break;
 
     default:
         qWarning() << "GpsStatusInformation::getGnssMode(): WARNING: unknown GNSSPVTMode code" << gnssPvtMode << "gnssmode" << gnssMode;
@@ -53,10 +53,10 @@ QString GpsStatusInformation::getGnssMode(const quint8& gnssMode)
     }
 
     if(testBit(gnssMode, 6)) gnssModeString.prepend("Base, acquiring position, ");
-    if(testBit(gnssMode, 7)) gnssModeString.append(", 2D mode");
+    if(testBit(gnssMode, 7)) gnssModeString.append(" (2D)");
 
     return gnssModeString;
-};
+}
 
 QString GpsStatusInformation::getError(const quint8& error)
 {
@@ -73,13 +73,13 @@ QString GpsStatusInformation::getError(const quint8& error)
     case 8: return "Not enough differential corrections available"; break;
     case 9: return "Basestation coordinates not available"; break;
     case 20: return "Integrated PV not requested by user"; break;
-    case 21: return "Not enough valid external sensor measurements"; break;
+    case 21: return "Not enough valid ext sensor values"; break;
     case 22: return "Calibration not ready"; break;
     case 23: return "Alignment not ready"; break;
     case 24: return "Waiting for GNSS PVT"; break;
     default: return QString("Unknown Error %1").arg(error); break;
     }
-};
+}
 
 QString GpsStatusInformation::getInfo(const quint16& info)
 {
@@ -93,4 +93,18 @@ QString GpsStatusInformation::getInfo(const quint16& info)
             .arg(testBit(info, 15) ? 1 : 0);
 
     return infoString;
-};
+}
+
+QString GpsStatusInformation::getInfoRichText(const quint16& info)
+{
+    QString infoString = QString("ACC%1 GYR%2 AMB%3 ZER%4 GPSP%5 GPSV%6 GPSA%7")
+            .arg(testBit(info, 0) ? "1" : "<font color='red'>0</font>")
+            .arg(testBit(info, 1) ? "1" : "<font color='red'>0</font>")
+            .arg(testBit(info, 11) ? "1" : "<font color='red'>0</font>")
+            .arg(testBit(info, 12) ? "1" : "0")
+            .arg(testBit(info, 13) ? "1" : "<font color='red'>0</font>")
+            .arg(testBit(info, 14) ? "1" : "<font color='red'>0</font>")
+            .arg(testBit(info, 15) ? "1" : "<font color='red'>0</font>");
+
+    return infoString;
+}

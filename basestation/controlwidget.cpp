@@ -13,6 +13,9 @@ ControlWidget::ControlWidget(BaseStation* baseStation) : QDockWidget((QWidget*)b
     mTimerRtkIndicator.setInterval(3100);
     mTimerRtkIndicator.start();
 
+    // To enable colored text
+    mLabelGpsInfo->setTextFormat(Qt::RichText);
+
     connect(&mTimerRtkIndicator, SIGNAL(timeout()), SLOT(slotUpdateRtkStatus()));
 
     connect(mBtnWptPrepend, SIGNAL(clicked()), SLOT(slotWayPointPrepend()));
@@ -132,6 +135,7 @@ void ControlWidget::slotUpdateRtkStatus(bool working)
 void ControlWidget::slotUpdateBattery(const float& voltageCurrent)
 {
     mLabelBatteryVoltage->setText(QString::number(voltageCurrent, 'f', 2) + " V");
+    if(voltageCurrent > 13.5) mLabelBatteryVoltage->setStyleSheet(""); else mLabelBatteryVoltage->setStyleSheet("background-color:#ff5555;");
 }
 
 void ControlWidget::slotUpdatePose(const Pose &pose)
@@ -177,14 +181,31 @@ void ControlWidget::slotUpdateWirelessRssi(const qint8& wirelessRssi)
     }
 }
 
-void ControlWidget::slotUpdateGpsStatus(const quint8& gnssMode, const quint8& integrationMode, const quint16& info, const quint8& error, const quint8& numSatellitesTracked, const quint8& lastPvtAge, const QString& status)
+void ControlWidget::slotUpdateGpsStatus(const quint8& gnssMode,
+                                        const quint8& integrationMode,
+                                        const quint16& info,
+                                        const quint8& error,
+                                        const quint8& numSatellitesTracked,
+                                        const quint8& lastPvtAge,
+                                        const quint8& meanCorrAge,
+                                        const QString& status)
 {
     mLabelGpsGnssMode->setText(GpsStatusInformation::getGnssMode(gnssMode));
+    if(gnssMode == 4) mLabelGpsGnssMode->setStyleSheet(""); else mLabelGpsGnssMode->setStyleSheet("background-color:#ff5555;");
+
     mLabelGpsIntegrationMode->setText(GpsStatusInformation::getIntegrationMode(integrationMode));
-    mLabelGpsInfo->setText(GpsStatusInformation::getInfo(info));
+    if(integrationMode == 2) mLabelGpsIntegrationMode->setStyleSheet(""); else mLabelGpsIntegrationMode->setStyleSheet("background-color:#ff5555;");
+
+    mLabelGpsInfo->setText(GpsStatusInformation::getInfoRichText(info));
+
     mLabelGpsError->setText(GpsStatusInformation::getError(error));
+    if(integrationMode == 0) mLabelGpsError->setStyleSheet(""); else mLabelGpsError->setStyleSheet("background-color:#ff5555;");
+
     mLabelGpsNumSats->setText(QString::number(numSatellitesTracked));
+    if(numSatellitesTracked > 5) mLabelGpsNumSats->setStyleSheet(""); else mLabelGpsNumSats->setStyleSheet("background-color:#ff5555;");
+
     mLabelGpsPvtAge->setText(QString::number(lastPvtAge));
+    if(lastPvtAge < 1) mLabelGpsPvtAge->setStyleSheet(""); else mLabelGpsPvtAge->setStyleSheet("background-color:#ff5555;");
 
     if(!status.isEmpty())
     {

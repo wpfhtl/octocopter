@@ -102,6 +102,7 @@ public slots:
         const quint8& error,
         const quint8& numSatellitesTracked,
         const quint8& lastPvtAge,
+        const quint8& meanCorrAge,
         const QString& status
         );
 

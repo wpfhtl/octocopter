@@ -331,6 +331,7 @@ void BaseConnection::slotNewGpsStatus(
     const quint8& error,
     const quint8& numSatellitesTracked,
     const quint8& lastPvtAge,
+    const quint8& meanCorrAge,
     const QString& status
     )
 {
@@ -341,6 +342,7 @@ void BaseConnection::slotNewGpsStatus(
              << "error" << error
              << "numsats" << numSatellitesTracked
              << "lastPvtAge" << lastPvtAge
+             << "meanCorrAge" << meanCorrAge
              << "status" << status;
 
     QByteArray data;
@@ -353,6 +355,7 @@ void BaseConnection::slotNewGpsStatus(
     stream << error;
     stream << numSatellitesTracked;
     stream << lastPvtAge;
+    stream << meanCorrAge;
     stream << status;
     slotSendData(data, false);
 }

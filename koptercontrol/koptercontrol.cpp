@@ -96,9 +96,9 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     connect(
                 mGpsDevice,
-                SIGNAL(gpsStatus(const quint8&, const quint8&, const quint16&, const quint8&, const quint8&, const quint8&, const QString&)),
+                SIGNAL(gpsStatus(const quint8&, const quint8&, const quint16&, const quint8&, const quint8&, const quint8&, const quint8&, const QString&)),
                 mBaseConnection,
-                SLOT(slotNewGpsStatus(const quint8&, const quint8&, const quint16&, const quint8&, const quint8&, const quint8&, const QString&))
+                SLOT(slotNewGpsStatus(const quint8&, const quint8&, const quint16&, const quint8&, const quint8&, const quint8&, const quint8&, const QString&))
                 );
 
     mTimerComputeMotion = new QTimer(this);

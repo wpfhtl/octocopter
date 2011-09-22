@@ -623,11 +623,11 @@ void GpsDevice::slotSetRtkData(const QByteArray &data)
 
 void GpsDevice::slotEmitCurrentGpsStatus(const QString& text)
 {
-    emit gpsStatus(mLastGnssPvtModeFromDevice, mLastModeFromDevice, mLastInfoFromDevice, mLastErrorFromDevice, mLastNumberOfSatellitesUsed, mLastGnssAgeFromDevice, text);
+    emit gpsStatus(mLastGnssPvtModeFromDevice, mLastModeFromDevice, mLastInfoFromDevice, mLastErrorFromDevice, mLastNumberOfSatellitesUsed, mLastGnssAgeFromDevice, mLastMeanCorrAge, text);
     emit message(
                 Information,
                 QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                QString("GnssMode %1, IntMode %2, Info %3, Error %4, NumSats %5, GnssAge %6").arg(mLastGnssPvtModeFromDevice).arg(mLastModeFromDevice).arg(mLastInfoFromDevice).arg(mLastErrorFromDevice).arg(mLastNumberOfSatellitesUsed).arg(mLastGnssAgeFromDevice)
+                QString("GnssMode %1, IntMode %2, Info %3, Error %4, NumSats %5, GnssAge %6, MeanCorrAge %8").arg(mLastGnssPvtModeFromDevice).arg(mLastModeFromDevice).arg(mLastInfoFromDevice).arg(mLastErrorFromDevice).arg(mLastNumberOfSatellitesUsed).arg(mLastGnssAgeFromDevice).arg(mLastMeanCorrAge)
                 );
 }
 

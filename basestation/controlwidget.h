@@ -34,7 +34,7 @@ public slots:
     void slotUpdateBattery(const float& voltageCurrent);
     void slotUpdateWirelessRssi(const qint8& wirelessRssi);
     void slotUpdateBarometricHeight(const qint16& barometricHeight);
-    void slotUpdateGpsStatus(const quint8& gnssMode, const quint8& integrationMode, const quint16& info, const quint8& error, const quint8& numSatellitesTracked, const quint8& lastPvtAge, const QString& status);
+    void slotUpdateGpsStatus(const quint8& gnssMode, const quint8& integrationMode, const quint16& info, const quint8& error, const quint8& numSatellitesTracked, const quint8& lastPvtAge, const quint8& meanCorrAge, const QString& status);
     void slotUpdateRtkStatus(bool working = false);
     void slotUpdateRoverConnection(bool connected);
 

@@ -62,6 +62,7 @@ private:
     quint8 mPoseClockDivisor; // for emitting a low-frequency pose for debugging
     quint8 mLastErrorFromDevice;
     quint8 mLastGnssAgeFromDevice; // seconds since last GNSS PVT solution
+    quint8 mLastMeanCorrAge; // mean correlation data age in 1/10ths seconds
     quint8 mLastModeFromDevice;
     quint8 mLastGnssPvtModeFromDevice;
     quint8 mLastNumberOfSatellitesUsed;
@@ -230,6 +231,7 @@ signals:
         const quint8& error,
         const quint8& numSatellitesTracked,
         const quint8& lastPvtAge,
+        const quint8& meanCorrAge,
         const QString& status = QString()
         );
 
