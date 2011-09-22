@@ -183,7 +183,7 @@ void Kopter::slotSerialPortDataReady()
                     const DebugOut* debugOut = (DebugOut*)payload.data();
 
                     emit kopterStatus(
-                                (quint32)mMissionStartTime.msecsTo(QTime::currentTime()),
+                                mMissionStartTime.isValid() ? (quint32)mMissionStartTime.msecsTo(QTime::currentTime()) : 0,
                                 debugOut->Analog[5],
                                 (float)(debugOut->Analog[9])/10.0
                                 );

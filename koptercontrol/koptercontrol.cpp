@@ -75,13 +75,13 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     qDebug() << "KopterControl::KopterControl(): reading RSSI at interface" << networkInterface;
 
     mBaseConnection = new BaseConnection(networkInterface);
-//    mKopter = new Kopter(portSerialKopter, this);
+    mKopter = new Kopter(portSerialKopter, this);
     mGpsDevice = new GpsDevice(portSerialGpsUsb, portSerialGpsCom, this);
     mLaserScanner = new LaserScanner(portSerialLaserScanner, Pose());
     connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     mFlightController = new FlightController();
 
-//    connect(mKopter, SIGNAL(kopterStatus(quint32, qint16, float)), mBaseConnection, SLOT(slotNewVehicleStatus(quint32, qint16, float)));
+    connect(mKopter, SIGNAL(kopterStatus(quint32, qint16, float)), mBaseConnection, SLOT(slotNewVehicleStatus(quint32, qint16, float)));
 
     connect(mLaserScanner, SIGNAL(bottomBeamLength(const float&)), mFlightController, SLOT(slotSetBottomBeamLength(const float&)));
     connect(mBaseConnection, SIGNAL(enableScanning(const bool&)), mLaserScanner, SLOT(slotEnableScanning(const bool&)));
@@ -106,7 +106,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     mTimerComputeMotion->start();
     connect(mTimerComputeMotion, SIGNAL(timeout()), mFlightController, SLOT(slotComputeMotionCommands()));
 
-    //mKopter->slotSubscribeDebugValues(500);
+    mKopter->slotSubscribeDebugValues(500);
 
     //        connect(mKopter, SIGNAL(externControlReplyReceived()), SLOT(slotDoSomething()));
     //        mKopter->slotSetMotion(fabs(sin(0.00))*40, 0, 0, 0, 0);

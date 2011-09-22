@@ -286,10 +286,13 @@ void GpsDevice::slotCommunicationSetup()
 
     // output IntPVCart, IntAttEuler, and Event-position. ExtSensorMeas is direct IMU measurements
     // We want to know the pose 25 times a second
-    sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod+PVTCartesian,msec40");
+    sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec400");
+
+    // We want to know PVTCartesion (4006) for MeanCorrAge only, so stream it slowly
+    sendAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian,msec500");
 
     // We want to know whenever a scan is finished.
-    sendAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",ExtEvent,OnChange");
+    sendAsciiCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceUsb+",ExtEvent,OnChange");
 
     qDebug() << "GpsDevice::setupCommunication(): done setting up communication";
 
@@ -313,6 +316,7 @@ void GpsDevice::slotCommunicationStop()
     usleep(100000);
     mSerialPortUsb->write(QString("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",none\n").toAscii());
     usleep(100000);
+    mSerialPortUsb->write(QString("setSBFOutput,Stream3,"+mSerialPortOnDeviceUsb+",none\n").toAscii());
 //     mSerialPortUsb->write("setDataInOut,all,CMD,none\n");
 //     usleep(100000);
 //     mSerialPortUsb->write("setDataInOut,all,CMD,none\n");
@@ -383,7 +387,7 @@ quint16 GpsDevice::getCrc(const void *buf, unsigned int length)
 
 void GpsDevice::processSbfData()
 {
-    qDebug() << "GpsDevice::processSbfData():" << mReceiveBufferUsb.size() << "bytes present.";
+    //qDebug() << "GpsDevice::processSbfData():" << mReceiveBufferUsb.size() << "bytes present.";
 
     while(mReceiveBufferUsb.size() > 8)
     {
@@ -422,17 +426,19 @@ void GpsDevice::processSbfData()
 //        qDebug() << "GpsDevice::processSbfData(): gps time is" << timeInWeek/1000.0 << "seconds into week" << timeWeekNumber;
 
         // Process the message if we're interested.
-        qDebug() << "received sbf block" << msgIdBlock;
+        //qDebug() << "received sbf block" << msgIdBlock;
         switch(msgIdBlock)
         {
+
         case 4006:
         {
             // PVTCartesian
             const Sbf_PVTCartesian *block = (Sbf_PVTCartesian*)mReceiveBufferUsb.data();
-            mLastMeanCorrAge = ((float)block->MeanCorrAge)/10.0;
+            mLastMeanCorrAge = std::min(block->MeanCorrAge / 10.0, 255.0);
             qDebug() << "SBF: PVTCartesian: MeanCorrAge in seconds:" << ((float)block->MeanCorrAge)/100.0;
         }
-            break;
+        break;
+
         case 4045:
         {
             // IntPVAAGeod
@@ -579,7 +585,7 @@ void GpsDevice::processSbfData()
             }
             else if(block->Error != 0)
             {
-                qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, error:" << block->Error;
+                qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, error:" << block->Error << " " << GpsStatusInformation::getError(block->Error) ;
             }
             else
             {
