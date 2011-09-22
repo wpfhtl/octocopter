@@ -4,6 +4,26 @@
 
 #include "gpsdevice.h"
 
+/* 
+ * This is the receiver's bootup-config concerning I/O:
+ * > $R: gdio
+ * >   DataInOut, DSK1, CMD, SBF+NMEA, (off)
+ * >   DataInOut, COM1, CMD, none, (on)
+ * >   DataInOut, COM2, MTI, none, (on)
+ * >   DataInOut, COM3, RTCMv3, NMEA, (on)
+ * >   DataInOut, COM4, CMD, none, (on)
+ * >   DataInOut, USB1, CMD, SBF+NMEA, (on)
+ * >   DataInOut, USB2, CMD, SBF+NMEA, (off)
+ * 
+ * We'd usually talk to the receiver on its COM-port to find that ports name (COM3 as above),
+ * but as you can see, that port is not configured to accept CMDs, so it won't talk to us.
+ * Unfortunately, it cannot be set to accept both CMD and RTCMv3. So the port is configured
+ * to accept RTCMv3 and we pre-set mSerialPortOnDeviceCom to COM3 below.
+ * 
+ * Obviously, we now rely on the bootup-config being correct, but that should work.
+ * 
+ */
+
 GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom, QObject *parent) : QObject(parent)
 {
     qDebug() << "GpsDevice::GpsDevice(): Using usb port" << serialDeviceFileUsb << "and com port" << serialDeviceFileCom;
@@ -14,6 +34,7 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
 
     mNumberOfRemainingRepliesUsb = 0;
     mRtkDataCounter = 0;
+    mSerialPortOnDeviceCom = "COM3";
     mSerialPortOnDeviceUsb = "";
 
     mLastErrorFromDevice = 24;
@@ -80,7 +101,7 @@ void GpsDevice::sendAsciiCommand(QString command)
     slotFlushCommandQueue();
 }
 
-void GpsDevice::slotFlushCommandQueue()
+quint8 GpsDevice::slotFlushCommandQueue()
 {
     if(mNumberOfRemainingRepliesUsb == 0 && mCommandQueueUsb.size())
     {
@@ -99,6 +120,8 @@ void GpsDevice::slotFlushCommandQueue()
     {
         qDebug() << "GpsDevice::slotFlushCommandQueue(): nothing to send.";
     }
+    
+    return mCommandQueueUsb.size();
 }
 
 void GpsDevice::slotDetermineSerialPortsOnDevice()
@@ -108,8 +131,6 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
     // and connects to the devices COM2. This method will chat with the device, analyze
     // the prompt in its replies and set mSerialPortOnDevice to COM2. This can be used
     // lateron to tell the device to output useful info on COM2.
-//    mStatus = Initializing;
-//    emit stateChanged(mStatus, "Setting up communication");
     slotEmitCurrentGpsStatus("Setting up communication");
 
     // We use two connections to the board, the other one is just for feeding the RTK
@@ -117,58 +138,57 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
     // as we need to tell the receiver to accept RTK data on that port.
     if(!mSerialPortUsb->isOpen() || !mSerialPortCom->isOpen())
     {
-//        mStatus = Error;
-//        emit stateChanged(mStatus, "Cannot open GPS serial port(s)");
         slotEmitCurrentGpsStatus("Cannot open GPS serial port(s)");
     }
+    
     Q_ASSERT(mSerialPortUsb->isOpen());
     Q_ASSERT(mSerialPortCom->isOpen());
 
     // We just send any string causing a reply to the device, so we can see on what port it is talking to us.
-//    mSerialPortUsb->write("setDataInOut,all,CMD,none\n");
-//    usleep(100000);
-    mSerialPortUsb->write("setComSettings,all,baud115200,bits8,No,bit1,none\n");
-    mSerialPortUsb->write("setDataInOut,all,CMD,none\n");
-    mSerialPortCom->write("getReceiverCapabilities\n");
-    usleep(100000);
-    QCoreApplication::processEvents();
-
-    // After waiting for the reply, read and analyze.
-    QByteArray dataUsb = mSerialPortUsb->readAll();
-    QString portNameUsb = dataUsb.right(5).left(4);
-
-    // Use lines ending with e.g. COM2 or USB1 to determine the port on the serial device being used.
-    if(dataUsb.right(1) == ">" && (portNameUsb.left(3) == "COM" || portNameUsb.left(3) == "USB"))
+    if(mSerialPortOnDeviceUsb.isEmpty())
     {
-        mSerialPortOnDeviceUsb = portNameUsb;
-        qDebug() << "GpsDevice::determineSerialPortOnDevice(): serial usb port on device is now " << mSerialPortOnDeviceUsb;
-//        qDebug() << "GpsDevice::determineSerialPortOnDevice(): other non-rtk data:" << dataUsb;
+        mSerialPortUsb->write("getReceiverCapabilities\n");
+        usleep(100000);
+        QCoreApplication::processEvents();
+
+        // After waiting for the reply, read and analyze.
+        QByteArray dataUsb = mSerialPortUsb->readAll();
+        QString portNameUsb = dataUsb.right(5).left(4);
+
+        // Use lines ending with e.g. COM2 or USB1 to determine the port on the serial device being used.
+        if(dataUsb.right(1) == ">" && (portNameUsb.left(3) == "COM" || portNameUsb.left(3) == "USB"))
+        {
+            mSerialPortOnDeviceUsb = portNameUsb;
+            qDebug() << "GpsDevice::determineSerialPortOnDevice(): serial usb port on device is now " << mSerialPortOnDeviceUsb;
+        }
+        else
+        {
+            qWarning() << "GpsDevice::determineSerialPortOnDevice(): couldn't get serialUsbPortOnDevice, data is:" << dataUsb;
+            slotEmitCurrentGpsStatus("Couldn't get serialUsbPortOnDevice");
+        }
     }
-    else
+    
+    if(mSerialPortOnDeviceCom.isEmpty())
     {
-        qWarning() << "GpsDevice::determineSerialPortOnDevice(): couldn't get serialUsbPortOnDevice, data is:" << dataUsb;
-//        mStatus = Error;
-//        emit stateChanged(mStatus, "Couldn't get serialUsbPortOnDevice");
-        slotEmitCurrentGpsStatus("Couldn't get serialUsbPortOnDevice");
-    }
+        mSerialPortCom->write("getReceiverCapabilities\n");
+        usleep(100000);
+        QCoreApplication::processEvents();
 
-    // After waiting for the reply, read and analyze.
-    QByteArray dataCom = mSerialPortCom->readAll();
-    QString portNameCom = dataCom.right(5).left(4);
+        // After waiting for the reply, read and analyze.
+        QByteArray dataCom = mSerialPortCom->readAll();
+        QString portNameCom = dataCom.right(5).left(4);
 
-    // Use lines ending with e.g. COM2 or USB1 to determine the port on the serial device being used.
-    if(dataCom.right(1) == ">" && (portNameCom.left(3) == "COM" || portNameCom.left(3) == "USB"))
-    {
-        mSerialPortOnDeviceCom = portNameCom;
-        qDebug() << "GpsDevice::determineSerialPortOnDevice(): serial com port on device is now " << mSerialPortOnDeviceCom;
-//        qDebug() << "GpsDevice::determineSerialPortOnDevice(): other non-rtk data:" << dataCom;
-    }
-    else
-    {
-        qWarning() << "GpsDevice::determineSerialPortOnDevice(): couldn't get serialComPortOnDevice, data is:" << dataCom;
-//        mStatus = Error;
-//        emit stateChanged(mStatus, "Couldn't get serialComPortOnDevice");
-        slotEmitCurrentGpsStatus("Couldn't get serialComPortOnDevice");
+        // Use lines ending with e.g. COM2 or USB1 to determine the port on the serial device being used.
+        if(dataCom.right(1) == ">" && (portNameCom.left(3) == "COM" || portNameCom.left(3) == "USB"))
+        {
+            mSerialPortOnDeviceCom = portNameCom;
+            qDebug() << "GpsDevice::determineSerialPortOnDevice(): serial com port on device is now " << mSerialPortOnDeviceCom;
+        }
+        else
+        {
+            qWarning() << "GpsDevice::determineSerialPortOnDevice(): couldn't get serialComPortOnDevice, data is:" << dataCom;
+            slotEmitCurrentGpsStatus("Couldn't get serialComPortOnDevice");
+        }
     }
 
     // Do not start if receiver-time will rollover soon. Should only fail on saturdays, as it will roll over at the end of saturday.
@@ -228,6 +248,7 @@ void GpsDevice::slotCommunicationSetup()
 
     qDebug() << "GpsDevice::setupCommunication(): setting up communication";
 
+    /* use bootup config for now
 
     // reset communications
     sendAsciiCommand("setDataInOut,all,CMD,none");
@@ -258,13 +279,14 @@ void GpsDevice::slotCommunicationSetup()
 
     // start the integration filter
     sendAsciiCommand("setPVTMode,,,,loosely");
+    */
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
     sendAsciiCommand("setEventParameters,EventA,High2Low");
 
     // output IntPVCart, IntAttEuler, and Event-position. ExtSensorMeas is direct IMU measurements
     // We want to know the pose 25 times a second
-    sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec40");
+    sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod+PVTCartesian,msec40");
 
     // We want to know whenever a scan is finished.
     sendAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",ExtEvent,OnChange");
@@ -281,22 +303,20 @@ void GpsDevice::slotCommunicationStop()
 
     // For some reason, resetting this port with the SDIO command below doesn't work.
     // We need to get it to accept CMDs by sending 10 Ss to it.
-    mSerialPortCom->write("SSSSSSSSSS");
-    usleep(100000);
-    QCoreApplication::processEvents();
+//     mSerialPortCom->write("SSSSSSSSSS");
+//     usleep(100000);
+//     QCoreApplication::processEvents();
 
-    qDebug() << "GpsDevice::communicationStop(): setting datainout to all,cmd,none";
+    qDebug() << "GpsDevice::communicationStop(): stopping SBF streams";
 
     mSerialPortUsb->write(QString("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",none\n").toAscii());
     usleep(100000);
     mSerialPortUsb->write(QString("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",none\n").toAscii());
     usleep(100000);
-    mSerialPortUsb->write("setDataInOut,all,CMD,none\n");
-    usleep(100000);
-    mSerialPortUsb->write("setDataInOut,all,CMD,none\n");
-    usleep(100000);
-
-    slotFlushCommandQueue();
+//     mSerialPortUsb->write("setDataInOut,all,CMD,none\n");
+//     usleep(100000);
+//     mSerialPortUsb->write("setDataInOut,all,CMD,none\n");
+//     usleep(100000);
 
 //    emit stateChanged(GpsDevice::Stopped, "Orderly shutdown finished");
     slotEmitCurrentGpsStatus("Orderly shutdown finished");
@@ -363,7 +383,7 @@ quint16 GpsDevice::getCrc(const void *buf, unsigned int length)
 
 void GpsDevice::processSbfData()
 {
-//    qDebug() << "GpsDevice::processSbfData():" << mReceiveBufferUsb.size() << "bytes present.";
+    qDebug() << "GpsDevice::processSbfData():" << mReceiveBufferUsb.size() << "bytes present.";
 
     while(mReceiveBufferUsb.size() > 8)
     {
@@ -402,6 +422,7 @@ void GpsDevice::processSbfData()
 //        qDebug() << "GpsDevice::processSbfData(): gps time is" << timeInWeek/1000.0 << "seconds into week" << timeWeekNumber;
 
         // Process the message if we're interested.
+        qDebug() << "received sbf block" << msgIdBlock;
         switch(msgIdBlock)
         {
         case 4006:
@@ -410,10 +431,11 @@ void GpsDevice::processSbfData()
             if(msgIdRev != 2)
             {
                 qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock;
-                break;
+            //    break;
             }
             // process
-            qDebug() << "SBF: PVTCartesian";
+            const Sbf_PVTCartesian *block = (Sbf_PVTCartesian*)mReceiveBufferUsb.data();
+            qDebug() << "SBF: PVTCartesian: MeanCorrAge in seconds:" << ((float)block->MeanCorrAge)/100.0;
         }
             break;
         case 4045:
@@ -449,6 +471,9 @@ void GpsDevice::processSbfData()
 
                 if(!testBitEqual(previousInfoFromDevice, block->Info, 15))
                     slotEmitCurrentGpsStatus(QString("GNSS attitude used: %1").arg(testBit(block->Info, 15) ? "true" : "false"));
+
+                // If mode was 26627 or 30723, that would be 11X100000000011
+                if(block->Info == 26627 || block->Info == 30723) Q_ASSERT("Whee, GPS INFO is the way it should be!");
             }
 
             // Check the Mode-field and emit states if it changes
@@ -498,17 +523,18 @@ void GpsDevice::processSbfData()
             {
                 qDebug() << t() << "GpsDevice::processSbfData(): GnssPvtMode changed from" << mLastGnssPvtModeFromDevice << "to" << block->GNSSPVTMode;
                 mLastGnssPvtModeFromDevice = block->GNSSPVTMode;
+                //Q_ASSERT(mLastGnssPvtModeFromDevice != 4 && "Finally, we have fixed RTK!");
                 slotEmitCurrentGpsStatus(GpsStatusInformation::getGnssMode(mLastGnssPvtModeFromDevice));
             }
 
-            // TODO: this will change often in regular usage, really notify?
-            if(mLastGnssAgeFromDevice != block->GNSSage)
+            // TODO: this might change often in regular usage, really notify?
+/*            if(mLastGnssAgeFromDevice != block->GNSSage)
             {
                 qDebug() << t() << "GpsDevice::processSbfData(): GnssAge changed from" << mLastGnssAgeFromDevice << "to" << block->GNSSage;
                 mLastGnssAgeFromDevice = block->GNSSage;
                 slotEmitCurrentGpsStatus(QString("No GNSS-PVT for %1 seconds").arg(block->GNSSage));
             }
-
+*/
             const quint8 numberOfSatellitesUsed = (block->NrSVAnt & 31);
             if(numberOfSatellitesUsed != mLastNumberOfSatellitesUsed)
             {
@@ -542,18 +568,17 @@ void GpsDevice::processSbfData()
                             block->TOW // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
                             );
 
-                qDebug() << "GpsDevice::processSbfData(): new position is: lon" << lon << "lat" << lat << "alt" << alt;
+                qDebug() << "GpsDevice::processSbfData(): new pose:"
+                         << "x" << p.position.x()
+                         << "y" << p.position.y()
+                         << "z" << p.position.z()
+                         << "p" << p.getPitchDegrees()
+                         << "r" << p.getRollDegrees()
+                         << "y" << p.getYawDegrees();
 
                 emit newVehiclePose(p);
 
-                // Write log data: timestamp[space]V1[space]V2[space]...[space]Vn\n
-                QTextStream out(&mLogFile);
-                out << timestamp;
-                std::vector<long>::iterator itr;
-                for(itr=mScanDistancesNext.begin();itr != mScanDistancesNext.end(); ++itr) out << " " << *itr;
-                out << "\n";
-
-                mPoseClockDivisor = mPoseClockDivisor % 20;
+                mPoseClockDivisor++;
                 if(mPoseClockDivisor % 20 == 0) emit newVehiclePoseLowFreq(p);
 
             }

@@ -99,10 +99,10 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
             qWarning() << "LaserScanner::slotScanFinished(): weird, less than 1 samples sent by lidar";
 
         // Write log data: scan[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
-        QTextStream out(&mLogFile);
+        QTextStream out(mLogFile);
         out << "scan " << timestamp;
         std::vector<long>::iterator itr;
-        for(itr=mScanDistancesNext.begin();itr != mScanDistancesNext.end(); ++itr) out << " " << *itr;
+        for(itr=mScanDistancesNext->begin();itr != mScanDistancesNext->end(); ++itr) out << " " << *itr;
         out << "\n";
 
         if(mScannerPoseFirst != 0 && mIsEnabled)
@@ -152,8 +152,8 @@ void LaserScanner::slotNewVehiclePose(const Pose& pose)
     qDebug() << "LaserScanner::slotNewVehiclePose(): received a pose from gps-device at time" << pose.timestamp;
 
     // Write log data: pose[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
-    QTextStream out(&mLogFile);
-    out << "pose " << pose.timestamp << " " << pose.position << " " << pose.getPitchDegrees() << " " << pose.getRollDegrees() << " " << pose.getYawDegrees() << "\n";
+    QTextStream out(mLogFile);
+    out << "pose " << pose.timestamp << " " << pose.position.x() << " " << pose.position.y() << " " << pose.position.z() << " " << pose.getPitchDegrees() << " " << pose.getRollDegrees() << " " << pose.getYawDegrees() << "\n";
 
     delete mScannerPoseFirst;
 

@@ -196,10 +196,41 @@ private:
         float          HeadingDot;
     };
 
+    struct Sbf_PVTCartesian
+    {
+      Sbf_Header  Header;
+
+      quint32       TOW;
+      quint16       WNc;
+
+      quint8        Mode;
+      quint8        Error;
+      double         X;
+      double         Y;
+      double         Z;
+      float          Undulation;
+      float          Vx;
+      float          Vy;
+      float          Vz;
+      float          COG;
+      double         RxClkBias;
+      float          RxClkDrift;
+      quint8        TimeSystem;
+      quint8        Datum;
+      quint8        NrSV;
+      quint8        WACorrInfo;
+      quint16       ReferenceId;
+      quint16       MeanCorrAge;
+      quint32       SignalInfo;
+      quint8        AlertFlag;
+      quint8        NrBases;
+      quint8        Reserved[2];
+    };
+
 private slots:
     void slotCommunicationSetup();
     void slotCommunicationStop();
-    void slotFlushCommandQueue();
+    quint8 slotFlushCommandQueue();
     void slotSerialPortDataReady();
     void slotDetermineSerialPortsOnDevice();
 
