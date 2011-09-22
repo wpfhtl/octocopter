@@ -335,7 +335,7 @@ void GlWidget::mouseMoveEvent(QMouseEvent *event)
     rotY = fmod(rotY, 360.0);
     rotZ = fmod(rotZ, 360.0);
 
-    qDebug() << "rotXYZ:" << rotX << rotY << rotZ;
+    //qDebug() << "rotXYZ:" << rotX << rotY << rotZ;
 
     updateGL();
 }

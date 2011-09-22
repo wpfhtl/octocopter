@@ -71,6 +71,7 @@ private:
     unsigned int mRtkDataCounter;
     QByteArray mLastCommandToDeviceUsb;
     QextSerialPort *mSerialPortUsb, *mSerialPortCom;
+    bool mDeviceIsInitialized; // so we only feed it rtk data when the device is ready for it.
 
     // The ports we use to talk to the receiver have a name on the receiver-side, e.g. COM1 or USB2
     QString mSerialPortOnDeviceUsb, mSerialPortOnDeviceCom;

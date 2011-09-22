@@ -8,6 +8,8 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
 {
     qDebug() << "GpsDevice::GpsDevice(): Using usb port" << serialDeviceFileUsb << "and com port" << serialDeviceFileCom;
 
+    mDeviceIsInitialized = false;
+
     mPoseClockDivisor = 0;
 
     mNumberOfRemainingRepliesUsb = 0;
@@ -222,7 +224,7 @@ void GpsDevice::slotCommunicationSetup()
     Q_ASSERT(mSerialPortOnDeviceCom.size() == 4);
 
     // Have a look at the Septentrio Firmware User Manual.pdf. These commands
-    // are necessary to set the device into RTK-Base-Mode
+    // are necessary to set the device into RTK-Rover-Mode
 
     qDebug() << "GpsDevice::setupCommunication(): setting up communication";
 
@@ -275,6 +277,8 @@ void GpsDevice::slotCommunicationSetup()
 
 void GpsDevice::slotCommunicationStop()
 {
+    mDeviceIsInitialized = false;
+
     // For some reason, resetting this port with the SDIO command below doesn't work.
     // We need to get it to accept CMDs by sending 10 Ss to it.
     mSerialPortCom->write("SSSSSSSSSS");
@@ -332,6 +336,9 @@ void GpsDevice::slotSerialPortDataReady()
     }
     else
     {
+        // We're receiving from the device, and it is not a reply to some request we sent ourselves. Thus, the device is
+        // talking to us on its own, which only happens after initializing it
+        mDeviceIsInitialized = true;
         // We're not waiting for a reply to a command, this must be SBF data!
 //        qDebug() << "GpsDevice::slotSerialPortDataReady(): received" << mReceiveBufferUsb.size() << "bytes of SBF data.";
         processSbfData();
@@ -610,15 +617,22 @@ void GpsDevice::processSbfData()
 
 void GpsDevice::slotSetRtkData(const QByteArray &data)
 {
-    // simply write the RTK data into the com-port
-    mRtkDataCounter += data.size();
-    qDebug() << "GpsDevice::slotSetRtkData(): forwarding" << data.size() << "bytes of rtk-data to gps device, total is" << mRtkDataCounter;
-    mSerialPortCom->write(data);
-    emit message(
+    if(mDeviceIsInitialized)
+    {
+        // simply write the RTK data into the com-port
+        mRtkDataCounter += data.size();
+        qDebug() << "GpsDevice::slotSetRtkData(): forwarding" << data.size() << "bytes of rtk-data to gps device, total is" << mRtkDataCounter;
+        mSerialPortCom->write(data);
+        emit message(
                 Information,
                 "GpsDevice::slotSetRtkData()",
                 QString("Fed %1 bytes of RTK data into rover gps device.").arg(data.size())
                 );
+    }
+    else
+    {
+        qDebug() << "GpsDevice::slotSetRtkData(): NOT forwarding" << data.size() << "bytes of rtk-data to gps device, its not initialized yet.";
+    }
 }
 
 void GpsDevice::slotEmitCurrentGpsStatus(const QString& text)

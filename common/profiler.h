@@ -5,6 +5,7 @@
 #include <QSettings>
 #include <Ogre.h>
 #include <math.h>
+#include <sys/time.h>
 
 #include "coordinategps.h"
 //#include "coordinateogre.h"
