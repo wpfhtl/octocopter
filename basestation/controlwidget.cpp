@@ -157,7 +157,7 @@ void ControlWidget::slotUpdatePose(const Pose &pose)
 
 void ControlWidget::slotUpdateMissionRunTime(const quint32& time)
 {
-
+qDebug() << "time passed:"<< time;
     const int secsPassed = time / 1000;
     const int secs = secsPassed % 60;
     const int mins = (secsPassed+1) / 60;
