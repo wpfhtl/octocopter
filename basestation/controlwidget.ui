@@ -315,7 +315,20 @@
           </widget>
          </item>
          <item>
-          <spacer name="horizontalSpacer_9">
+          <widget class="QLabel" name="mLabelGpsGnssMode">
+           <property name="text">
+            <string>unknown</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+           <property name="textInteractionFlags">
+            <set>Qt::LinksAccessibleByMouse</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_2">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
@@ -328,15 +341,16 @@
           </spacer>
          </item>
          <item>
-          <widget class="QLabel" name="mLabelGpsGnssMode">
+          <widget class="QLabel" name="label_23">
            <property name="text">
-            <string>unknown</string>
+            <string>CorrAge</string>
            </property>
-           <property name="wordWrap">
-            <bool>true</bool>
-           </property>
-           <property name="textInteractionFlags">
-            <set>Qt::LinksAccessibleByMouse</set>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="mLabelGpsCorrAge">
+           <property name="text">
+            <string>-1</string>
            </property>
           </widget>
          </item>

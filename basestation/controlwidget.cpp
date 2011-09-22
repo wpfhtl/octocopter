@@ -207,6 +207,9 @@ void ControlWidget::slotUpdateGpsStatus(const quint8& gnssMode,
     mLabelGpsPvtAge->setText(QString::number(lastPvtAge));
     if(lastPvtAge < 1) mLabelGpsPvtAge->setStyleSheet(""); else mLabelGpsPvtAge->setStyleSheet("background-color:#ff5555;");
 
+    mLabelGpsCorrAge->setText(QString::number(((float)meanCorrAge) / 10.0));
+    if(((float)meanCorrAge)/10.0 < 5) mLabelGpsCorrAge->setStyleSheet(""); else mLabelGpsCorrAge->setStyleSheet("background-color:#ff5555;");
+
     if(!status.isEmpty())
     {
         mTextEditGpsStatus->appendPlainText(status);

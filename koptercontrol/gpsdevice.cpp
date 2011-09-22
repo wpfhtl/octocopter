@@ -428,13 +428,8 @@ void GpsDevice::processSbfData()
         case 4006:
         {
             // PVTCartesian
-            if(msgIdRev != 2)
-            {
-                qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock;
-            //    break;
-            }
-            // process
             const Sbf_PVTCartesian *block = (Sbf_PVTCartesian*)mReceiveBufferUsb.data();
+            mLastMeanCorrAge = ((float)block->MeanCorrAge)/10.0;
             qDebug() << "SBF: PVTCartesian: MeanCorrAge in seconds:" << ((float)block->MeanCorrAge)/100.0;
         }
             break;
@@ -599,12 +594,6 @@ void GpsDevice::processSbfData()
         {
             // ExtEvent
             qDebug() << "SBF: ExtEvent";
-            if(msgIdRev != 2)
-            {
-                qWarning() << "GpsDevice::processSbfData(): WARNING: invalid revision" << msgIdRev << "for block id" << msgIdBlock << "will not emit scanFinished!";
-                break;
-            }
-            // process
             const Sbf_ExtEvent *block = (Sbf_ExtEvent*)mReceiveBufferUsb.data();
 
             if(block->TOW != 4294967295)
