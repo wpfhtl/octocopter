@@ -31,6 +31,7 @@ void BaseConnection::slotConnectionEnded()
     QMutexLocker locker(&mMutex);
     mTcpSocket->disconnect();
     mTcpSocket = 0;
+    mTcpServer->listen(QHostAddress::Any, 12345);
 }
 
 void BaseConnection::slotNewConnection()
@@ -45,7 +46,10 @@ void BaseConnection::slotNewConnection()
 
 //    mSocketBuffers.insert(mTcpSocket, new QByteArray);
 
-    qDebug() << "BaseConnection::slotNewConnection(): incoming connection accepted";
+    qDebug() << "BaseConnection::slotNewConnection(): incoming connection from" << mTcpSocket->peerAddress() << "port" << mTcpSocket->peerPort() << "accepted";
+    
+    // FIXME: mTcpServer->close() because we cannot handle a second connection, listen() in connectionEnded.
+    mTcpServer->close();
 }
 
 void BaseConnection::slotReadSocket(bool lockMutex)
