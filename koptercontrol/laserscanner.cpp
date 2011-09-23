@@ -149,7 +149,7 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
 void LaserScanner::slotNewVehiclePose(const Pose& pose)
 {
     QMutexLocker locker(&mMutex);
-    qDebug() << "LaserScanner::slotNewVehiclePose(): received a pose from gps-device at time" << pose.timestamp;
+//    qDebug() << "LaserScanner::slotNewVehiclePose(): received a pose from gps-device at time" << pose.timestamp;
 
     // Write log data: pose[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
     QTextStream out(mLogFile);

@@ -106,15 +106,16 @@ quint8 GpsDevice::slotFlushCommandQueue()
     if(mNumberOfRemainingRepliesUsb == 0 && mCommandQueueUsb.size())
     {
         mLastCommandToDeviceUsb = mCommandQueueUsb.takeFirst();
-        qDebug() << "GpsDevice::slotFlushCommandQueue(): currently not waiting for a reply, so sending next command:" << mLastCommandToDeviceUsb.trimmed();
+        //qDebug() << "GpsDevice::slotFlushCommandQueue(): currently not waiting for a reply, so sending next command:" << mLastCommandToDeviceUsb.trimmed();
+        qDebug() << "pc->gps\n\n" << mLastCommandToDeviceUsb.trimmed();
         if(mReceiveBufferUsb.size() != 0) qDebug() << "GpsDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << mReceiveBufferUsb;
-
+        usleep(250000);
         mSerialPortUsb->write(mLastCommandToDeviceUsb);
         mNumberOfRemainingRepliesUsb++;
     }
     else if(mNumberOfRemainingRepliesUsb)
     {
-        qDebug() << "GpsDevice::slotFlushCommandQueue(): still waiting for" << mNumberOfRemainingRepliesUsb << "command-replies, not sending.";
+//        qDebug() << "GpsDevice::slotFlushCommandQueue(): still waiting for" << mNumberOfRemainingRepliesUsb << "command-replies, not sending.";
     }
     else
     {
@@ -273,8 +274,8 @@ void GpsDevice::slotCommunicationSetup()
 
     // specify vector from GPS antenna ARP to IMU in Vehicle reference frame
     // (vehicle reference frame has X forward, Y right and Z down)
-    // IMU is 7cm in front, 6.7cm to the right and 33cm below ARP
-    sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,270,manual,0.07,0.067,0.33");
+    // IMU is 7cm in front, 6.7cm to the right and 33cm below ARP. Max precision is 1 cm.
+    sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,270,manual,0.07,0.07,0.33");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
     sendAsciiCommand("setEventParameters,EventA,High2Low");
@@ -287,10 +288,10 @@ void GpsDevice::slotCommunicationSetup()
 
     // output IntPVCart, IntAttEuler, and Event-position. ExtSensorMeas is direct IMU measurements
     // We want to know the pose 25 times a second
-    sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec500");
+    sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec200");
 
     // We want to know PVTCartesion (4006) for MeanCorrAge only, so stream it slowly
-    sendAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian,sec1");
+    sendAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian,sec2");
 
     // We want to know whenever a scan is finished.
     sendAsciiCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceUsb+",ExtEvent,OnChange");
@@ -344,7 +345,8 @@ void GpsDevice::slotSerialPortDataReady()
         const int position = mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QString(">"));
         if(position != -1)
         {
-            qDebug() << "GpsDevice::slotSerialPortDataReady(): received reply to" << mLastCommandToDeviceUsb.trimmed() << ":" << mReceiveBufferUsb.left(position).trimmed();
+            //qDebug() << "GpsDevice::slotSerialPortDataReady(): received reply to" << mLastCommandToDeviceUsb.trimmed() << ":" << mReceiveBufferUsb.left(position).trimmed();
+            qDebug() << "gps->pc\n\n" << mReceiveBufferUsb.left(position).trimmed();
 //            qDebug() << "GpsDevice::slotSerialPortDataReady(): now sending next command, if any";
 
             if(mReceiveBufferUsb.left(position).contains("$R? ASCII commands between prompts were discarded!"))
@@ -436,7 +438,7 @@ void GpsDevice::processSbfData()
             // PVTCartesian
             const Sbf_PVTCartesian *block = (Sbf_PVTCartesian*)mReceiveBufferUsb.data();
             mLastMeanCorrAge = std::min(block->MeanCorrAge / 10.0, 255.0);
-            qDebug() << "SBF: PVTCartesian: MeanCorrAge in seconds:" << ((float)block->MeanCorrAge)/100.0;
+            //qDebug() << "SBF: PVTCartesian: MeanCorrAge in seconds:" << ((float)block->MeanCorrAge)/100.0;
         }
         break;
 
@@ -642,7 +644,7 @@ void GpsDevice::slotSetRtkData(const QByteArray &data)
     {
         // simply write the RTK data into the com-port
         mRtkDataCounter += data.size();
-        qDebug() << "GpsDevice::slotSetRtkData(): forwarding" << data.size() << "bytes of rtk-data to gps device, total is" << mRtkDataCounter;
+        //qDebug() << "GpsDevice::slotSetRtkData(): forwarding" << data.size() << "bytes of rtk-data to gps device, total is" << mRtkDataCounter;
         mSerialPortCom->write(data);
         emit message(
                 Information,

@@ -75,7 +75,7 @@ int KopterMessage::send(QextSerialPort* port, QMap<QChar, QTime>* pendingReplies
 
 //    qDebug() << "KopterMessage::send(): waiting for replies:" << stringPendingReplies;
 
-    if(pendingReplies->count(mId)) qWarning() << "KopterMessage::send():" << pendingReplies->count(mId) << "messages of type" << mId << "is still underway, should not resend!";
+// #warning    if(pendingReplies->count(mId)) qWarning() << "KopterMessage::send():" << pendingReplies->count(mId) << "messages of type" << mId << "is still underway, should not resend!";
 
     pendingReplies->insertMulti(mId, QTime::currentTime());
 

@@ -46,7 +46,7 @@ void BaseConnection::slotNewConnection()
 
 //    mSocketBuffers.insert(mTcpSocket, new QByteArray);
 
-    qDebug() << "BaseConnection::slotNewConnection(): incoming connection from" << mTcpSocket->peerAddress() << "port" << mTcpSocket->peerPort() << "accepted";
+//    qDebug() << "BaseConnection::slotNewConnection(): incoming connection from" << mTcpSocket->peerAddress() << "port" << mTcpSocket->peerPort() << "accepted";
     
     // FIXME: mTcpServer->close() because we cannot handle a second connection, listen() in connectionEnded.
     mTcpServer->close();
@@ -161,7 +161,7 @@ void BaseConnection::slotSendData(const QByteArray &data, bool lockMutex)
 
     if(!mTcpSocket)
     {
-        qDebug() << "BaseConnection::slotSendData(): no client connected, throwing data away...";
+//        qDebug() << "BaseConnection::slotSendData(): no client connected, throwing data away...";
         return;
     }
 
@@ -339,7 +339,7 @@ void BaseConnection::slotNewGpsStatus(
     const QString& status
     )
 {
-    qDebug() << t() << "BaseConnection::slotNewGpsStatus(): -> base:"
+/*    qDebug() << t() << "BaseConnection::slotNewGpsStatus(): -> base:"
              << "gnssMode" << gnssMode
              << "integrationMode" << integrationMode
              << "info" << info
@@ -348,7 +348,7 @@ void BaseConnection::slotNewGpsStatus(
              << "lastPvtAge" << lastPvtAge
              << "meanCorrAge" << meanCorrAge
              << "status" << status;
-
+*/
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 

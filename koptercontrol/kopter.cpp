@@ -128,7 +128,7 @@ void Kopter::slotSubscribeDebugValues(int interval)
     {
         const int maximumSubscriptionDuration = 4000;
         const int timeToNextSubscription = maximumSubscriptionDuration - (maximumSubscriptionDuration % mDesiredDebugDataInterval) + mDesiredDebugDataInterval;
-        qDebug() << "Kopter::slotSubscribeDebugValues(): interval" << mDesiredDebugDataInterval << "refreshing subscription in" << timeToNextSubscription;
+//        qDebug() << "Kopter::slotSubscribeDebugValues(): interval" << mDesiredDebugDataInterval << "refreshing subscription in" << timeToNextSubscription;
         QTimer::singleShot(timeToNextSubscription, this, SLOT(slotSubscribeDebugValues()));
     }
 }
@@ -157,7 +157,7 @@ void Kopter::slotSerialPortDataReady()
                 // Remove the record of the pending reply
                 QTime timeOfRequest = mPendingReplies.take(message.getId().toLower());
 //                if(timeOfRequest.isNull()) qWarning() << "Kopter::slotSerialPortDataReady(): got a reply to an unsent message:" << message.toString();
-                if(mPendingReplies.contains(message.getId().toLower()))  qWarning() << "Kopter::slotSerialPortDataReady(): there's another pending message of type" << message.getId().toLower();
+//                if(mPendingReplies.contains(message.getId().toLower()))  qWarning() << "Kopter::slotSerialPortDataReady(): there's another pending message of type" << message.getId().toLower();
 
                 if(message.getId() == 'B') maxreplytime = std::max(maxreplytime, timeOfRequest.msecsTo(QTime::currentTime()));
 
@@ -168,7 +168,7 @@ void Kopter::slotSerialPortDataReady()
                     QByteArray payload = message.getPayload();
                     char labelChar[16];
                     memcpy(labelChar, payload.data()+1, 15);
-                    qDebug() << "Kopter::slotSerialPortDataReady(): label" << (quint8)payload[0] << "is" << QString(labelChar).simplified();
+//                    qDebug() << "Kopter::slotSerialPortDataReady(): label" << (quint8)payload[0] << "is" << QString(labelChar).simplified();
                     mAnalogValueLabels.insert((quint8)payload[0], QString(labelChar).simplified());
                 }
                 else if(message.getId() == 'B')
