@@ -274,8 +274,10 @@ void GpsDevice::slotCommunicationSetup()
     // specify in what orientation the IMU is attached relative to vehicle reference frame (x front, y right and Z down)
     sendAsciiCommand("setExtSensorCalibration,COM2,90,0,0"); // X pointing forward, Y pointing down and Z pointing left
 
-    // specify offset between GPS antenna ARP and IMU (again, vehicle reference frame)
-    sendAsciiCommand("setExtSensorCalibration,COM2,,,,,manual,0.124,-0.052,-0.01"); // IMU is 12.4cm in front, 5.2cm to the left and 1cm above ARP
+    // specify vector from GPS antenna ARP to IMU in Vehicle reference frame
+    // (vehicle reference frame has X forward, Y right and Z down)
+    // IMU is 7cm in front, 6.7cm to the right and 33cm below ARP
+    sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,270,manual,0.07,0.067,0.33");
 
     // start the integration filter
     sendAsciiCommand("setPVTMode,,,,loosely");

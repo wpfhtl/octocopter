@@ -157,7 +157,7 @@ void ControlWidget::slotUpdatePose(const Pose &pose)
 
 void ControlWidget::slotUpdateMissionRunTime(const quint32& time)
 {
-qDebug() << "time passed:"<< time;
+    //qDebug() << "time passed:"<< time;
     const int secsPassed = time / 1000;
     const int secs = secsPassed % 60;
     const int mins = (secsPassed+1) / 60;
@@ -199,7 +199,7 @@ void ControlWidget::slotUpdateGpsStatus(const quint8& gnssMode,
     mLabelGpsInfo->setText(GpsStatusInformation::getInfoRichText(info));
 
     mLabelGpsError->setText(GpsStatusInformation::getError(error));
-    if(integrationMode == 0) mLabelGpsError->setStyleSheet(""); else mLabelGpsError->setStyleSheet("background-color:#ff5555;");
+    if(error == 0) mLabelGpsError->setStyleSheet(""); else mLabelGpsError->setStyleSheet("background-color:#ff5555;");
 
     mLabelGpsNumSats->setText(QString::number(numSatellitesTracked));
     if(numSatellitesTracked > 5) mLabelGpsNumSats->setStyleSheet(""); else mLabelGpsNumSats->setStyleSheet("background-color:#ff5555;");
