@@ -56,7 +56,7 @@ Pose Pose::interpolateLinear(const Pose &before, const Pose &after, const float 
 // TODO: This code doesn't really use the timestamps in the poses, that seems stupid
 Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before, const Pose * const after, const Pose * const last, const float &mu)
 {//                                             y0                        y1                         y2                        y3
-    Q_ASSERT(mu <= 0.0 && mu <= 1.0);
+    Q_ASSERT(mu >= 0.0 && mu <= 1.0);
 
     const double mu2 = mu*mu;
 
@@ -107,6 +107,20 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
 
     return Pose(resultPosition, yaw, pitch, roll, timestamp);
 }
+
+Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before, const Pose * const after, const Pose * const last, const quint32& time)
+{//                                             y0                        y1                         y2                        y3
+    // check parameters
+    Q_ASSERT(before->timestamp < time);
+    Q_ASSERT(after->timestamp > time);
+    Q_ASSERT(after->timestamp > before->timestamp);
+
+    // recreate mu from time argument
+    const float mu = (time - before->timestamp) / (after->timestamp - before->timestamp);
+
+    return interpolateCubic(first, before, after, last, mu);
+}
+
 
 float Pose::getShortestTurnRadians(const float& angle)
 {
