@@ -248,7 +248,10 @@ void GpsDevice::slotCommunicationSetup()
 
     qDebug() << "GpsDevice::setupCommunication(): setting up communication";
 
-    /* use bootup config for now
+    // use bootup config for now
+
+    // show current config
+    sendAsciiCommand("lstConfigFile,Current");
 
     // reset communications
     sendAsciiCommand("setDataInOut,all,CMD,none");
@@ -259,39 +262,35 @@ void GpsDevice::slotCommunicationSetup()
     // make the receiver listen to RTK data on specified port
     sendAsciiCommand("setDataInOut,"+mSerialPortOnDeviceCom+",RTCMv3");
 
-    // configure rover in standalone+rtk mode
-    sendAsciiCommand("setPVTMode,Rover,StandAlone+RTK");
-
     // use a static (not moving) base station
-    sendAsciiCommand("setDiffCorrUsage,,,,,off");
+    sendAsciiCommand("setDiffCorrUsage,LowLatency,20.0,auto,0,off");
 
     // set up INS/GNSS integration
     sendAsciiCommand("setDataInOut,COM2,MTI");
 
     // when GPS fails, use IMU for how many seconds?
-    sendAsciiCommand("setExtSensorUsage,COM2,,10");
-
-    // specify in what orientation the IMU is attached relative to vehicle reference frame (x front, y right and Z down)
-    sendAsciiCommand("setExtSensorCalibration,COM2,90,0,0"); // X pointing forward, Y pointing down and Z pointing left
+    sendAsciiCommand("setExtSensorUsage,COM2,Accelerations+AngularRates,10");
 
     // specify vector from GPS antenna ARP to IMU in Vehicle reference frame
     // (vehicle reference frame has X forward, Y right and Z down)
     // IMU is 7cm in front, 6.7cm to the right and 33cm below ARP
     sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,270,manual,0.07,0.067,0.33");
 
-    // start the integration filter
-    sendAsciiCommand("setPVTMode,,,,loosely");
-    */
-
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
     sendAsciiCommand("setEventParameters,EventA,High2Low");
 
+    // configure rover in standalone+rtk mode
+    sendAsciiCommand("setPVTMode,Rover,all,auto,Loosely");
+
+    // explicitly allow rover to use all RTCMv3 corection messages
+    sendAsciiCommand("setRTCMv3Usage,all");
+
     // output IntPVCart, IntAttEuler, and Event-position. ExtSensorMeas is direct IMU measurements
     // We want to know the pose 25 times a second
-    sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec400");
+    sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec500");
 
     // We want to know PVTCartesion (4006) for MeanCorrAge only, so stream it slowly
-    sendAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian,msec500");
+    sendAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian,sec1");
 
     // We want to know whenever a scan is finished.
     sendAsciiCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceUsb+",ExtEvent,OnChange");
