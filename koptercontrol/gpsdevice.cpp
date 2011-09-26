@@ -275,7 +275,10 @@ void GpsDevice::slotCommunicationSetup()
     // specify vector from GPS antenna ARP to IMU in Vehicle reference frame
     // (vehicle reference frame has X forward, Y right and Z down)
     // IMU is 7cm in front, 6.7cm to the right and 33cm below ARP. Max precision is 1 cm.
-    sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,270,manual,0.07,0.07,0.33");
+    // Specifying orientation is not so easy (=fucking mess, Firmware User manual pg. 41)
+    //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,270,manual,0.07,0.07,0.33");
+    //sendAsciiCommand("setExtSensorCalibration,COM2,manual,-90,0,270,manual,0.07,0.07,0.33");
+    sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,90,manual,0.07,0.07,0.33");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
     sendAsciiCommand("setEventParameters,EventA,High2Low");
@@ -349,8 +352,13 @@ void GpsDevice::slotSerialPortDataReady()
             qDebug() << "gps->pc\n\n" << mReceiveBufferUsb.left(position).trimmed();
 //            qDebug() << "GpsDevice::slotSerialPortDataReady(): now sending next command, if any";
 
+            // After sending/receiving the SsetPvtMode command, the rover needs to be static for better alignment.
+            // Tell the user to wait!
+            if(mReceiveBufferUsb.left(position).contains("SetPvtMode", Qt::CaseInsensitive))
+                qDebug() << "GpsDevice::slotSerialPortDataReady(): Integration filter started (alignment not ready), vehicle must remain static for 20s starting now.";
+
             if(mReceiveBufferUsb.left(position).contains("$R? ASCII commands between prompts were discarded!"))
-                qDebug() << "GpsDevice::slotSerialPortDataReady(): it seems we were talking too fast?!";
+                qDebug() << "GpsDevice::slotSerialPortDataReady(): we were talking too fast!!";
 
             mReceiveBufferUsb.remove(0, position+5);
             mNumberOfRemainingRepliesUsb--;
