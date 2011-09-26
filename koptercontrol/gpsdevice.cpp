@@ -278,7 +278,9 @@ void GpsDevice::slotCommunicationSetup()
     // Specifying orientation is not so easy (=fucking mess, Firmware User manual pg. 41)
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,270,manual,0.07,0.07,0.33");
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,-90,0,270,manual,0.07,0.07,0.33");
-    sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,90,manual,0.07,0.07,0.33");
+    //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,90,manual,0.07,0.07,0.33");
+    // Norman hat ja gesagt!
+    sendAsciiCommand("setExtSensorCalibration,COM2,manual,90,90,0,manual,0.07,0.07,0.33");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
     sendAsciiCommand("setEventParameters,EventA,High2Low");
