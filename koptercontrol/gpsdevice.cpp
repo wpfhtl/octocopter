@@ -281,6 +281,8 @@ void GpsDevice::slotCommunicationSetup()
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,90,manual,0.07,0.07,0.33");
     // Norman hat ja gesagt!
     sendAsciiCommand("setExtSensorCalibration,COM2,manual,90,90,0,manual,0.07,0.07,0.33");
+    // Sarah Dean says "seem to be ok" about 0 90 270
+    //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,270,manual,0.07,0.07,0.33");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
     sendAsciiCommand("setEventParameters,EventA,High2Low");
@@ -296,7 +298,7 @@ void GpsDevice::slotCommunicationSetup()
     sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec200");
 
     // We want to know PVTCartesion (4006) for MeanCorrAge only, so stream it slowly
-    sendAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian,sec2");
+    sendAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus,sec2");
 
     // We want to know whenever a scan is finished.
     sendAsciiCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceUsb+",ExtEvent,OnChange");
@@ -452,6 +454,30 @@ void GpsDevice::processSbfData()
         }
         break;
 
+        case 4014:
+        {
+            // ReceiverStatus
+            const Sbf_ReceiverStatus *block = (Sbf_ReceiverStatus*)mReceiveBufferUsb.data();
+            if(block->CPULoad > 80)
+            {
+                qWarning() << "GpsDevice::processSbfData(): WARNING, receiver CPU load is" << block->CPULoad;
+                slotEmitCurrentGpsStatus(QString("Warning, CPU load is too high (%1%)").arg(block->CPULoad));
+            }
+
+            if(block->ExtError != 0)
+            {
+                qWarning() << "GpsDevice::processSbfData(): ExtError is not 0 but" << block->ExtError;
+                slotEmitCurrentGpsStatus(QString("Warning, ExtError is not zero (%1)").arg(block->ExtError));
+            }
+
+            if(block->RxError != 0)
+            {
+                qWarning() << "GpsDevice::processSbfData(): RxError is not 0 but" << block->RxError;
+                slotEmitCurrentGpsStatus(QString("Warning, RxError is not zero (%1)").arg(block->RxError));
+            }
+        }
+        break;
+
         case 4045:
         {
             // IntPVAAGeod
@@ -499,26 +525,19 @@ void GpsDevice::processSbfData()
                 switch(block->Mode)
                 {
                 case 0:
-//                    mStatus = Error;
-//                    emit stateChanged(mStatus, "Mode changed, no integrated solution available");
                     slotEmitCurrentGpsStatus("Mode changed, no integrated solution available");
                     break;
 
                 case 1:
-//                    emit stateChanged(mStatus, "Mode changed, using only external sensor");
                     slotEmitCurrentGpsStatus("Mode changed, using only external sensor");
                     break;
 
                 case 2:
-//                    mStatus = Running;
-//                    emit stateChanged(mStatus, "Mode changed, using integrated solution");
                     slotEmitCurrentGpsStatus("Mode changed, using integrated solution");
                     break;
 
                 default:
                     qWarning() << "GpsDevice::processSbfData(): WARNING: unknown mode code" << block->Mode;
-//                    mStatus = Error;
-//                    emit stateChanged(mStatus, QString("Unknown Mode %1").arg(block->Mode));
                     slotEmitCurrentGpsStatus(QString("Unknown Mode %1").arg(block->Mode));
                     break;
                 }
@@ -542,13 +561,13 @@ void GpsDevice::processSbfData()
             }
 
             // TODO: this might change often in regular usage, really notify?
-/*            if(mLastGnssAgeFromDevice != block->GNSSage)
+            if(mLastGnssAgeFromDevice != block->GNSSage)
             {
                 qDebug() << t() << "GpsDevice::processSbfData(): GnssAge changed from" << mLastGnssAgeFromDevice << "to" << block->GNSSage;
                 mLastGnssAgeFromDevice = block->GNSSage;
-                slotEmitCurrentGpsStatus(QString("No GNSS-PVT for %1 seconds").arg(block->GNSSage));
+//                slotEmitCurrentGpsStatus(QString("No GNSS-PVT for %1 seconds").arg(block->GNSSage));
             }
-*/
+
             const quint8 numberOfSatellitesUsed = (block->NrSVAnt & 31);
             if(numberOfSatellitesUsed != mLastNumberOfSatellitesUsed)
             {

@@ -227,6 +227,24 @@ private:
       quint8        Reserved[2];
     };
 
+    struct Sbf_ReceiverStatus
+    {
+      Sbf_Header  Header;
+
+      quint32       TOW;
+      uint16_t       WNc;
+
+      quint8        CPULoad;
+      quint8        ExtError;
+      quint32       UpTime;
+      quint32       RxStatus;
+      quint32       RxError;
+      quint8        N;
+      quint8        SBSize;
+      quint8        Reserved2[2];
+      // unused AGCState_2_0_t AGCState[MAXSB_AGCSTATE];
+    };
+
 private slots:
     void slotCommunicationSetup();
     void slotCommunicationStop();
