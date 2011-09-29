@@ -6,21 +6,63 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>331</width>
-    <height>905</height>
+    <width>295</width>
+    <height>688</height>
    </rect>
+  </property>
+  <property name="font">
+   <font>
+    <pointsize>7</pointsize>
+    <kerning>true</kerning>
+   </font>
+  </property>
+  <property name="windowOpacity">
+   <double>1.000000000000000</double>
   </property>
   <property name="windowTitle">
    <string>Status</string>
   </property>
   <widget class="QWidget" name="dockWidgetContents">
    <layout class="QVBoxLayout" name="verticalLayout">
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <property name="leftMargin">
+     <number>2</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>2</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
     <item>
      <widget class="QGroupBox" name="groupBox_5">
       <property name="title">
        <string>General</string>
       </property>
+      <property name="flat">
+       <bool>false</bool>
+      </property>
       <layout class="QGridLayout" name="gridLayout">
+       <property name="leftMargin">
+        <number>3</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>3</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <property name="verticalSpacing">
+        <number>2</number>
+       </property>
        <item row="0" column="0">
         <widget class="QLabel" name="label_12">
          <property name="text">
@@ -132,8 +174,26 @@
        <string>Pose</string>
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout">
+       <property name="leftMargin">
+        <number>3</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>3</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
        <item>
         <layout class="QGridLayout" name="gridLayout_2">
+         <property name="horizontalSpacing">
+          <number>10</number>
+         </property>
+         <property name="verticalSpacing">
+          <number>0</number>
+         </property>
          <item row="0" column="0">
           <widget class="QLabel" name="label_7">
            <property name="text">
@@ -305,8 +365,29 @@
        <string>GPS Receiver Status</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_5">
+       <property name="spacing">
+        <number>1</number>
+       </property>
+       <property name="leftMargin">
+        <number>3</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>3</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_13">
+         <property name="spacing">
+          <number>-1</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
          <item>
           <widget class="QLabel" name="label_20">
            <property name="text">
@@ -504,6 +585,9 @@
        </item>
        <item>
         <widget class="QPlainTextEdit" name="mTextEditGpsStatus">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
          <property name="horizontalScrollBarPolicy">
           <enum>Qt::ScrollBarAlwaysOff</enum>
          </property>
@@ -533,12 +617,30 @@
        <string>Waypoints</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_3">
+       <property name="spacing">
+        <number>1</number>
+       </property>
+       <property name="leftMargin">
+        <number>3</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>3</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_6">
+         <property name="spacing">
+          <number>1</number>
+         </property>
          <item>
           <widget class="QTableWidget" name="mWayPointTable">
            <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
@@ -604,6 +706,19 @@
               <string>U</string>
              </property>
             </widget>
+           </item>
+           <item>
+            <spacer name="verticalSpacer">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
            </item>
            <item>
             <widget class="QPushButton" name="mBtnWptDown">
@@ -762,8 +877,23 @@
        </item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_5">
+         <property name="spacing">
+          <number>1</number>
+         </property>
          <item>
           <widget class="QPushButton" name="mBtnWptPrepend">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>50</width>
+             <height>16777215</height>
+            </size>
+           </property>
            <property name="text">
             <string>Pnd</string>
            </property>
@@ -771,6 +901,18 @@
          </item>
          <item>
           <widget class="QPushButton" name="mBtnWptAppend">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>50</width>
+             <height>16777215</height>
+            </size>
+           </property>
            <property name="text">
             <string>And</string>
            </property>
@@ -778,13 +920,50 @@
          </item>
          <item>
           <widget class="QPushButton" name="mBtnWptDelete">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>50</width>
+             <height>16777215</height>
+            </size>
+           </property>
            <property name="text">
             <string>Del</string>
            </property>
           </widget>
          </item>
          <item>
+          <spacer name="horizontalSpacer_3">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
           <widget class="QPushButton" name="mBtnWptLoad">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>50</width>
+             <height>16777215</height>
+            </size>
+           </property>
            <property name="text">
             <string>Ld</string>
            </property>
@@ -792,6 +971,18 @@
          </item>
          <item>
           <widget class="QPushButton" name="mBtnWptSave">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>50</width>
+             <height>16777215</height>
+            </size>
+           </property>
            <property name="text">
             <string>Sv</string>
            </property>
@@ -808,6 +999,21 @@
        <string>WayPoint Generation</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_4">
+       <property name="spacing">
+        <number>1</number>
+       </property>
+       <property name="leftMargin">
+        <number>3</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>3</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_7">
          <item>

@@ -95,7 +95,7 @@ public slots:
 
 private slots:
     void slotUpdateWind();
-//    void slotEmitVehiclePose();
+    void slotUpdateEngineRotations();
 };
 
 #endif

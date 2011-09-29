@@ -409,6 +409,10 @@ void OgreWidget::paintEvent(QPaintEvent *e)
     }
 
     ogreRoot->_fireFrameStarted();
+
+    // this should be IN a frame listener! animation currently unused
+//    if(mVehicleAnimationState) mVehicleAnimationState->addTime(0.1);
+
 //    qDebug() << "now rendering";
 
     // Construct all laserscanner rays before rendering
@@ -1127,8 +1131,26 @@ bool OgreWidget::initializeRTShaderSystem(Ogre::SceneManager* sceneMgr)
     return true;
 }
 
-Ogre::SceneNode* OgreWidget::createVehicleNode(const Ogre::String name, const Ogre::Vector3 position, const Ogre::Quaternion orientation)
+Ogre::SceneNode* OgreWidget::createVehicleNode(const Ogre::String name, Ogre::Entity** entity, const Ogre::Vector3 position, const Ogre::Quaternion orientation)
 {
+    *entity = mSceneManager->createEntity("vehicleEntity", "oktokopter.mesh");
+/*
+    Ogre::StringVector vec = (*entity)->getAnimableValueNames();
+    Ogre::StringVector::iterator animsIter = vec.begin();
+    qDebug() << "animable value names:";
+    while(animsIter != vec.end())
+    {
+        qDebug() << QString::fromStdString((std::string)(*animsIter));
+        animsIter++;
+    }
+    qDebug() << "animable value names end.";
+
+    mVehicleAnimationState = (*entity)->getAnimationState("bowensmeshanim");
+    qDebug() << "animation name" << QString::fromStdString(mVehicleAnimationState->getAnimationName()) << "pointer:" << mVehicleAnimationState;
+    mVehicleAnimationState->setEnabled(true);
+    mVehicleAnimationState->setLoop(true);
+*/
+
     mVehicleNode = mSceneManager->getRootSceneNode()->createChildSceneNode(name, position, orientation);
     mSceneManager->getRootSceneNode()->removeChild(mCameraNode);
     mVehicleNode->addChild(mCameraNode);

@@ -34,36 +34,43 @@ Physics::Physics(Simulator *simulator, OgreWidget *ogreWidget) :
     //----------------------------------------------------------
     // Vehicle!
     //----------------------------------------------------------
-    mVehicleEntity = mOgreWidget->sceneManager()->createEntity("vehicleEntity", "quadrocopter.mesh");
+
     // "vehicleNode" is fixed, used in ogrewidget.cpp
 
+    //mVehicleEntity = mOgreWidget->sceneManager()->createEntity("vehicleEntity", "oktokopter.mesh");
     // Place the vehicle somewhere above some building
     if(mOgreWidget->mEntities.size())
-        mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", mOgreWidget->mEntities.values().first()->sceneNode->_getDerivedPosition() + Ogre::Vector3(10, 0, 10), Ogre::Quaternion::IDENTITY);
+        mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", &mVehicleEntity, mOgreWidget->mEntities.values().first()->sceneNode->_getDerivedPosition() + Ogre::Vector3(10, 0, 10), Ogre::Quaternion::IDENTITY);
     else
-        mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", Ogre::Vector3(10, 100, 10), Ogre::Quaternion::IDENTITY);
+        mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", &mVehicleEntity, Ogre::Vector3(10, 100, 10), Ogre::Quaternion::IDENTITY);
 
     mVehicleNode->setPosition(140,90,150);
 
     mVehicleNode->attachObject(mVehicleEntity);
 
-    mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(+0.00, +0.00, -0.20), Ogre::Quaternion(Ogre::Degree(000), Ogre::Vector3(1, 0, 0))));  // engine 1, forward, CW
-    mEngineNodes.at(0)->attachObject(mOgreWidget->sceneManager()->createEntity("engineF", "engine.mesh"));
-    mEngineNodes.at(0)->attachObject(mOgreWidget->sceneManager()->createEntity("labelF", "f.mesh"));
+    mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(+0.00, 0.01, -0.375), Ogre::Quaternion(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3(0, 1, 0))));
+    mEngineNodes.at(0)->attachObject(mOgreWidget->sceneManager()->createEntity("engineN", "engineCW.mesh"));
 
-    mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(+0.00, +0.00, +0.20), Ogre::Quaternion(Ogre::Degree(000), Ogre::Vector3(1, 0, 0))));  // engine 2, backward,  CW
-    mEngineNodes.at(1)->attachObject(mOgreWidget->sceneManager()->createEntity("engineB", "engine.mesh"));
-    mEngineNodes.at(1)->attachObject(mOgreWidget->sceneManager()->createEntity("labelB", "b.mesh"));
+    mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(+0.20, 0.01, -0.20), Ogre::Quaternion(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3(0, 1, 0))));
+    mEngineNodes.at(1)->attachObject(mOgreWidget->sceneManager()->createEntity("engineNE", "engineCCW.mesh"));
 
-    mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(-0.20, +0.00, +0.00), Ogre::Quaternion(Ogre::Degree(180), Ogre::Vector3(1, 0, 0))));  // engine 3, left,  CCW
-    mEngineNodes.at(2)->attachObject(mOgreWidget->sceneManager()->createEntity("engineL", "engine.mesh"));
-    mEngineNodes.at(2)->attachObject(mOgreWidget->sceneManager()->createEntity("labelL", "l.mesh"));
+    mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(+0.375, 0.01, +0.00), Ogre::Quaternion(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3(0, 1, 0))));
+    mEngineNodes.at(2)->attachObject(mOgreWidget->sceneManager()->createEntity("engineE", "engineCW.mesh"));
 
-    mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(+0.20, +0.00, +0.00), Ogre::Quaternion(Ogre::Degree(180), Ogre::Vector3(1, 0, 0))));  // engine 4, right, CCW
-    mEngineNodes.at(3)->attachObject(mOgreWidget->sceneManager()->createEntity("engineR", "engine.mesh"));
-    mEngineNodes.at(3)->attachObject(mOgreWidget->sceneManager()->createEntity("labelR", "r.mesh"));
+    mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(+0.20, 0.01, +0.20), Ogre::Quaternion(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3(0, 1, 0))));
+    mEngineNodes.at(3)->attachObject(mOgreWidget->sceneManager()->createEntity("engineSE", "engineCCW.mesh"));
 
-//    qDebug << "Vehicle::Vehicle: absolute position of right left engine:" << mEngineNodes.at()
+    mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(+0.00, 0.01, +0.375), Ogre::Quaternion(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3(0, 1, 0))));
+    mEngineNodes.at(4)->attachObject(mOgreWidget->sceneManager()->createEntity("engineS", "engineCW.mesh"));
+
+    mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(-0.20, 0.01, +0.20), Ogre::Quaternion(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3(0, 1, 0))));
+    mEngineNodes.at(5)->attachObject(mOgreWidget->sceneManager()->createEntity("engineSW", "engineCCW.mesh"));
+
+    mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(-0.375, 0.01, +0.00), Ogre::Quaternion(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3(0, 1, 0))));
+    mEngineNodes.at(6)->attachObject(mOgreWidget->sceneManager()->createEntity("engineW", "engineCW.mesh"));
+
+    mEngineNodes.append(mVehicleNode->createChildSceneNode(Ogre::Vector3(-0.20, 0.01, -0.20), Ogre::Quaternion(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3(0, 1, 0))));
+    mEngineNodes.at(7)->attachObject(mOgreWidget->sceneManager()->createEntity("engineNW", "engineCCW.mesh"));
 
     // Place the vehicle 10m above the ground - does not seem to work.
     Ogre::TerrainGroup::RayResult rayResult = mOgreWidget->mTerrainGroup->rayIntersects(Ogre::Ray(mVehicleNode->_getDerivedPosition() + Ogre::Vector3(0,1000,0), Ogre::Vector3::NEGATIVE_UNIT_Y));
@@ -411,6 +418,15 @@ void Physics::slotSetMotion(const quint8& thrust, const qint8& pitch, const qint
 
 //    qDebug() << "llctrlout p should" << pitch << "is" << currentPitch.valueDegrees() << "error" << errorPitch << "derivative" << derivativePitch << "output" << outputPitch;
 //    qDebug() << "llctrlout r should" << roll << "is" << currentRoll.valueDegrees() << "error" << errorRoll << "derivative" << derivativeRoll << "output" << outputRoll;
+
+    // Don't forget to rotate motors according to thrust
+    for(int i=0;i<mEngineNodes.size();i++)
+    {
+        if(i % 2 == 0)
+            mEngineNodes.at(i)->setOrientation(mEngineNodes.at(i)->getOrientation() * Ogre::Quaternion(Ogre::Degree(+Ogre::Math::RangeRandom(35, 50)), Ogre::Vector3(0,1,0)));
+        else
+            mEngineNodes.at(i)->setOrientation(mEngineNodes.at(i)->getOrientation() * Ogre::Quaternion(Ogre::Degree(-Ogre::Math::RangeRandom(35, 50)), Ogre::Vector3(0,1,0)));
+    }
 }
 
 bool Physics::initializeWind()
@@ -480,6 +496,11 @@ float Physics::getHeightAboveGround()
     }
 
     return -1.0;
+}
+
+void Physics::slotUpdateEngineRotations()
+{
+
 }
 
 void Physics::slotUpdatePhysics(void)

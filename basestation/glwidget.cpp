@@ -39,7 +39,7 @@ GlWidget::GlWidget(BaseStation *baseStation, Octree* octree, FlightPlannerInterf
 
 //    camPos = QVector3D(0, 500, -500);
 
-    setMinimumSize(640, 480);
+    setMinimumSize(320, 240);
 }
 
 void GlWidget::initializeGL()

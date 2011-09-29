@@ -1,0 +1,265 @@
+
+material ArmRed
+{
+	technique
+	{
+		pass
+		{
+			ambient 0.564706 0.117647 0.117647 1
+			diffuse 0.564706 0.117647 0.117647 1
+			specular 0.18 0.18 0.18 1 30
+		}
+
+	}
+
+}
+
+
+
+material FlightCtrl
+{
+	technique
+	{
+		pass
+		{
+			ambient 0.888235 0.888235 0.888235 1
+			diffuse 0.888235 0.888235 0.888235 1
+			specular 0 0 0 1 10
+			scene_blend one one_minus_src_alpha
+
+			texture_unit
+			{
+				texture flightcontroL.png
+			}
+		}
+
+	}
+
+}
+
+
+
+material Antenna
+{
+	technique
+	{
+		pass
+		{
+			ambient 0.145098 0.145098 0.145098 1
+			diffuse 0.145098 0.145098 0.145098 1
+			specular 0.18 0.18 0.18 1 10
+		}
+
+	}
+
+}
+
+
+
+material CFKSmooth
+{
+	technique
+	{
+		pass
+		{
+			ambient 0.0901961 0.0901961 0.0901961 1
+			diffuse 0.0901961 0.0901961 0.0901961 1
+			specular 0 0 0 1 10
+		}
+
+	}
+
+}
+
+
+
+material CFKTexturedBasePlate
+{
+	technique
+	{
+		pass
+		{
+			ambient 0.588235 0.588235 0.588235 1
+			diffuse 0.588235 0.588235 0.588235 1
+			specular 0 0 0 1 10
+
+			texture_unit
+			{
+				texture carbon.jpg
+				transform 5 0 0 0 0 5 0 0 0 0 1 0 0 0 0 1
+			}
+		}
+
+	}
+
+}
+
+
+
+material Arms
+{
+	technique
+	{
+		pass
+		{
+			ambient 0.6509804 0.6509804 0.6509804 1
+			diffuse 0.6509804 0.6509804 0.6509804 1
+			specular 0.851 0.851 0.851 1 21
+
+			texture_unit
+			{
+				texture arms.png
+			}
+		}
+
+	}
+
+}
+
+
+
+material Antriebswellen
+{
+	technique
+	{
+		pass
+		{
+			ambient 0.454902 0.454902 0.454902 1
+			diffuse 0.454902 0.454902 0.454902 1
+			specular 0.9 0.9 0.9 1 10
+		}
+
+	}
+
+}
+
+
+
+material Fans
+{
+	technique
+	{
+		pass
+		{
+			ambient 0.113725 0.113725 0.113725 1
+			diffuse 0.113725 0.113725 0.113725 1
+			specular 0.27 0.27 0.27 1 10
+		}
+
+	}
+
+}
+
+
+
+material BrushlessControllers
+{
+	technique
+	{
+		pass
+		{
+			ambient 0.888235 0.888235 0.888235 1
+			diffuse 0.888235 0.888235 0.888235 1
+			specular 0 0 0 1 10
+			scene_blend one one_minus_src_alpha
+
+			texture_unit
+			{
+				texture brushless-controller.png
+				transform 5.96046e-008 1 0 0 -1 5.96046e-008 0 1 0 0 1 0 0 0 0 1
+			}
+		}
+
+	}
+
+}
+
+
+
+material Motors
+{
+	technique
+	{
+		pass
+		{
+			ambient 0.85098 0.85098 0.85098 1
+			diffuse 0.85098 0.85098 0.85098 1
+			specular 0.45 0.45 0.45 1 10
+
+			texture_unit
+			{
+				texture motor.png
+				transform 4 0 0 0 0 1.1 0 0 0 0 1 0 0 0 0 1
+			}
+		}
+
+	}
+
+}
+
+
+
+material Stehbolzen
+{
+	technique
+	{
+		pass
+		{
+			ambient 0.152941 0.152941 0.152941 1
+			diffuse 0.152941 0.152941 0.152941 1
+			specular 0 0 0 1 10
+		}
+
+	}
+
+}
+
+
+
+material CFKTexturedCarbonBox
+{
+	technique
+	{
+		pass
+		{
+			ambient 0.588235 0.588235 0.588235 1
+			diffuse 0.588235 0.588235 0.588235 1
+			specular 0 0 0 1 10
+
+			texture_unit
+			{
+				texture carbon.jpg
+				transform 1.41421 1.41421 0 -0.207107 -1.41421 1.41421 0 0.5 0 0 1 0 0 0 0 1
+			}
+		}
+
+	}
+
+}
+
+
+
+material Battery
+{
+	technique
+	{
+		pass
+		{
+			ambient 0.988235 0.988235 0.988235 1
+			diffuse 0.988235 0.988235 0.988235 1
+			specular 0 0 0 1 10
+			scene_blend one one_minus_src_alpha
+
+			texture_unit
+			{
+				texture battery.png
+				tex_address_mode clamp clamp
+				transform 1 0 0 0 0 0.95 0 0 0 0 1 0 0 0 0 1
+			}
+		}
+
+	}
+
+}
+
+

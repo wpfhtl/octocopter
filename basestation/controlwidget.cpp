@@ -140,9 +140,9 @@ void ControlWidget::slotUpdateBattery(const float& voltageCurrent)
 
 void ControlWidget::slotUpdatePose(const Pose &pose)
 {
-    mLabelPoseOgreX->setText(QString("%1m").arg(pose.position.x(), 4, 'f', 3, '0'));
-    mLabelPoseOgreY->setText(QString("%1m").arg(pose.position.y(), 4, 'f', 3, '0'));
-    mLabelPoseOgreZ->setText(QString("%1m").arg(pose.position.z(), 4, 'f', 3, '0'));
+    mLabelPoseOgreX->setText(QString("%1").arg(pose.position.x(), 4, 'f', 2, '0'));
+    mLabelPoseOgreY->setText(QString("%1").arg(pose.position.y(), 4, 'f', 2, '0'));
+    mLabelPoseOgreZ->setText(QString("%1").arg(pose.position.z(), 4, 'f', 2, '0'));
 
     QString deg;
     deg.sprintf("%c", 176);

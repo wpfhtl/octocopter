@@ -118,7 +118,8 @@ public:
 
 //    Ogre::RaySceneQuery* createRaySceneQuery(void);
 
-    Ogre::SceneNode* createVehicleNode(const Ogre::String name, const Ogre::Vector3 position, const Ogre::Quaternion orientation);
+    // will create the vehicle node at the followin position, set the @entity pointer, set the animationstate for later (when rendering) and return the scenenode
+    Ogre::SceneNode* createVehicleNode(const Ogre::String name, Ogre::Entity** entity, const Ogre::Vector3 position, const Ogre::Quaternion orientation);
 
     // Creates a scannerNode and attaches a mesh to it.
     Ogre::SceneNode* createScanner(
@@ -209,6 +210,8 @@ private:
     void setupTerrain();
 
     Simulator* mSimulator;
+
+//    Ogre::AnimationState* mVehicleAnimationState;
 
     static const Ogre::Real turboModifier;
     static const QPoint invalidMousePoint;
