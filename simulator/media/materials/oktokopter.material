@@ -29,7 +29,7 @@ material FlightCtrl
 
 			texture_unit
 			{
-				texture flightcontroL.png
+				texture flightcontrol.png
 			}
 		}
 
