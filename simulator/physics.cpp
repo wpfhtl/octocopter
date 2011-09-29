@@ -92,6 +92,7 @@ Physics::Physics(Simulator *simulator, OgreWidget *ogreWidget) :
 
     // We set the collision-shape manually. Note the higher height of the device, it'll hopfully help
     // us to catch high-speed collisions better
+    /*
     mVehicleShape = new btConvexHullShape;
     mVehicleShape->addPoint(btVector3(0.4, 0.2, 0.0));
     mVehicleShape->addPoint(btVector3(0.0, 0.2, 0.4));
@@ -102,6 +103,8 @@ Physics::Physics(Simulator *simulator, OgreWidget *ogreWidget) :
     mVehicleShape->addPoint(btVector3(0.0, -0.1, 0.4));
     mVehicleShape->addPoint(btVector3(-0.4, -0.1, 0.0));
     mVehicleShape->addPoint(btVector3(0.0, -0.1, -0.4));
+    */
+    mVehicleShape = new btBoxShape(btVector3(0.35, 0.15, 0.35));
 
 //    mVehicleShape->setLocalScaling(btVector3(2,1,2));
 
@@ -331,7 +334,7 @@ Physics::~Physics()
 
 void Physics::slotSetMotion(const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height)
 {
-    qDebug() << "Physics::slotSetMotion(): updating physics forces with thrust" << thrust << "pitch" << pitch << "roll" << roll << "yaw" << yaw;
+//    qDebug() << "Physics::slotSetMotion(): updating physics forces with thrust" << thrust << "pitch" << pitch << "roll" << roll << "yaw" << yaw;
 
     /*
       The MikroKopter moves in his own ways, this is how it translates the given externControls into motion:
@@ -415,6 +418,7 @@ bool Physics::initializeWind()
     QFile windDataFile("winddata.txt");
     if(!windDataFile.open(QIODevice::ReadOnly | QIODevice::Text))
     {
+        qDebug() << "Physics::initializeWind(): couldn't open" << windDataFile.fileName() << ", no wind available";
         emit windInitialized(false);
         return false;
     }
@@ -441,6 +445,7 @@ bool Physics::initializeWind()
         mVectorWind.append(windVector);
     }
 
+    qDebug() << "Physics::initializeWind(): read" << mVectorWind.size() << "wind samples.";
     emit windInitialized(true);
     return true;
 }

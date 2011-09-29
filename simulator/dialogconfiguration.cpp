@@ -80,8 +80,8 @@ void DialogConfiguration::slotReadConfigurationMisc()
     mChkBoxWindEnable->setChecked(mSettings.value("windEnable").toBool());
     mSpinBoxWindFactor->setValue(mSettings.value("windFactor").toFloat());
 
-    mSpinBoxBatteryVoltage->setValue(mSettings.value("batteryVoltage").toFloat());
-    mSpinBoxBatteryCapacity->setValue(mSettings.value("batteryCapacity").toFloat());
+    mSpinBoxBatteryVoltage->setValue(mSettings.value("batteryVoltage", "14.8").toFloat());
+    mSpinBoxBatteryCapacity->setValue(mSettings.value("batteryCapacity", "5").toFloat());
 
     mSettings.endGroup();
 }

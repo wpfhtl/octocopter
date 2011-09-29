@@ -10,6 +10,7 @@ Battery::Battery(Simulator* simulator, const double &voltage, const double &capa
 {
     mSimulator = simulator;
     mUpdateTimer.setInterval(500); // 2 times per second shall be enough to get a realistically discharging battery.
+
     connect(&mUpdateTimer, SIGNAL(timeout()), SLOT(slotUpdate()));
 }
 
@@ -35,12 +36,13 @@ void Battery::slotUpdate(void)
 
     mSimulationTimeOfLastUpdate = currentSimulationTime;
 
-//    qDebug() << "Battery::slotUpdate(): battery is now at" << mChargeStatusInPercent << "percent capacity, voltage is" << currentVoltage() << "of" << mVoltage;
+//    qDebug() << "Battery::slotUpdate(): battery is now at" << mChargeStatusInPercent << "percent capacity, voltage is" << voltageCurrent() << "of" << mMaxVoltage;
 }
 
 double Battery::voltageCurrent(void) const
 {
     // WARNING: find a better (nonlinear) discharge curve, empty Battery now has 0,8 * mVoltage
+//    qDebug() << "Battery::voltageCurrent(): this" << this << "max" << mMaxVoltage << "energy" << mEnergy << "cap" << mCapacity;
     return (mMaxVoltage * 0.8) + (mMaxVoltage * 0.2 * (mEnergy / mCapacity));
 }
 
@@ -77,6 +79,7 @@ void Battery::slotPause()
 
 void Battery::slotSetCapacity(const double& capacity)
 {
+    Q_ASSERT(capacity > 0.5 && "Battery with less than 0.5 Ah? Crazy like a fool...");
     mCapacity = capacity;
     charge();
 }
