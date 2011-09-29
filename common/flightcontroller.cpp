@@ -1,17 +1,7 @@
 #include "flightcontroller.h"
 
-FlightController::FlightController() : QObject()
+FlightController::FlightController() : QObject(), mFlightState(Idle)
 {
-    setFlightState(Idle);
-
-//    for(int i=0;i<4;i++) {
-//        setFlightState(ApproachingNextWayPoint);
-//        mWayPoints.append(QVector3D(140, 100, 80));
-//        mWayPoints.append(QVector3D(240, 100, 80));
-//        mWayPoints.append(QVector3D(140, 100, 160));
-//        mWayPoints.append(QVector3D(240, 100, 160));
-//    }
-
     mPrevErrorPitch = mPrevErrorRoll = mPrevErrorYaw = mPrevErrorHeight = 0.1;
     mErrorIntegralPitch = mErrorIntegralRoll = mErrorIntegralYaw = mErrorIntegralHeight = 0.1;
 
