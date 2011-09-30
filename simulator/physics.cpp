@@ -422,10 +422,17 @@ void Physics::slotSetMotion(const quint8& thrust, const qint8& pitch, const qint
     // Don't forget to rotate motors according to thrust
     for(int i=0;i<mEngineNodes.size();i++)
     {
+        // rotate thrust-independent
+//        if(i % 2 == 0)
+//            mEngineNodes.at(i)->setOrientation(mEngineNodes.at(i)->getOrientation() * Ogre::Quaternion(Ogre::Degree(+Ogre::Math::RangeRandom(35, 50)), Ogre::Vector3(0,1,0)));
+//        else
+//            mEngineNodes.at(i)->setOrientation(mEngineNodes.at(i)->getOrientation() * Ogre::Quaternion(Ogre::Degree(-Ogre::Math::RangeRandom(35, 50)), Ogre::Vector3(0,1,0)));
+
+        // rotate thrust-dependent
         if(i % 2 == 0)
-            mEngineNodes.at(i)->setOrientation(mEngineNodes.at(i)->getOrientation() * Ogre::Quaternion(Ogre::Degree(+Ogre::Math::RangeRandom(35, 50)), Ogre::Vector3(0,1,0)));
+            mEngineNodes.at(i)->setOrientation(mEngineNodes.at(i)->getOrientation() * Ogre::Quaternion(Ogre::Degree(thrust+Ogre::Math::RangeRandom(0, 5)), Ogre::Vector3(0,1,0)));
         else
-            mEngineNodes.at(i)->setOrientation(mEngineNodes.at(i)->getOrientation() * Ogre::Quaternion(Ogre::Degree(-Ogre::Math::RangeRandom(35, 50)), Ogre::Vector3(0,1,0)));
+            mEngineNodes.at(i)->setOrientation(mEngineNodes.at(i)->getOrientation() * Ogre::Quaternion(Ogre::Degree(-thrust-Ogre::Math::RangeRandom(0, 5)), Ogre::Vector3(0,1,0)));
     }
 }
 

@@ -4,7 +4,12 @@ PlotWidget::PlotWidget(QWidget *parent) // : QDockWidget(parent)
 {
     mPlot = new QwtPlot(this);
     mPlot->enableAxis(2, false);
+    mPlot->setMinimumSize(160, 120);
+    setMinimumSize(160, 120);
     setWidget(mPlot);
+
+    mPlot->setAxisFont(0, QApplication::font());
+    mPlot->setAxisFont(1, QApplication::font());
 
     // initialize X
     mCurveDataX = new QVector<double>(VECTOR_SIZE);

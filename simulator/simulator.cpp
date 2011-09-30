@@ -35,7 +35,7 @@ Simulator::Simulator(void) :
 
     connect(mOgreWidget, SIGNAL(setupFinished()), SLOT(slotOgreInitialized()), Qt::QueuedConnection);
 
-    mBattery = new Battery(this, 14.8, 5.0);
+    mBattery = new Battery(this, 16.8, 5.0);
     mBattery->charge();
 
 

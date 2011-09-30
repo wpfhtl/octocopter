@@ -2,9 +2,13 @@
 
 LogWidget::LogWidget(QWidget* widget)
 {
+    QFont widgetFont = QApplication::font();
+    setFont(widgetFont);
     setupUi(this);
     mWidget = widget;
-    mTextEdit->setFontPointSize(7.5);
+    //mTextEdit->setFontPointSize(7);
+
+    setTitleBarWidget(new QWidget());
 }
 
 void LogWidget::save()

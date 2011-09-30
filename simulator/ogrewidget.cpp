@@ -521,6 +521,7 @@ void OgreWidget::initOgreSystem()
         ":" + Ogre::StringConverter::toString ((unsigned long)q_parent->winId());
 #endif
     viewConfig["parentWindowHandle"] = widgetHandle;
+    viewConfig["vsync"] = "true"; // this actually works on linux/nvidia-blob/thinkpad!
 
     ogreRenderWindow = ogreRoot->createRenderWindow("Ogre rendering window", width(), height(), false, &viewConfig);
 

@@ -1,6 +1,7 @@
 #ifndef PLOTWIDGET_H
 #define PLOTWIDGET_H
 
+#include <QApplication>
 #include <QMap>
 #include <QFile>
 #include <QLayout>

@@ -6,6 +6,12 @@
 BaseStation::BaseStation() : QMainWindow()
 {
     qDebug() << "BaseStation::BaseStation()";
+
+    // We need a small font.
+    QFont widgetFont = QApplication::font();
+    widgetFont.setPointSize(7);
+    QApplication::setFont(widgetFont);
+
     mOctree = new Octree(
             QVector3D(-100, -100, -100), // min
             QVector3D(100, 100, 100),  // max

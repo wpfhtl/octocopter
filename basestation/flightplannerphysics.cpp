@@ -275,7 +275,7 @@ void FlightPlannerPhysics::insertPoint(LidarPoint* const point)
                 point->position + QVector3D(10, 10, 10),  // max
                 10);
 
-        mOctree->setMinimumPointDistance(2);
+        mOctree->setMinimumPointDistance(1.0);
 
         mOctree->setPointHandler(OpenGlUtilities::drawPoint);
 
@@ -656,7 +656,16 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
                     // THIS IS THE INTERESTING PART! IF THE SPHERE HAS PREVIOUSLY HIT A LIDARPOINT, MAKE THAT A NEW WAYPOINT!
                     if(mLastSampleObjectHitPositions.contains(rigidBody))
                     {
-                        WayPoint w(mLastSampleObjectHitPositions.take(rigidBody) + QVector3D(0.0, /*5 * mShapeSampleSphere->getRadius()*/8.0, 0.0));
+                        WayPoint w(mLastSampleObjectHitPositions.take(rigidBody) + QVector3D(0.0, /*5 * mShapeSampleSphere->getRadius()*/7.5, 0.0));
+
+                        if( // only use waypoints in scanvolume
+                                   w.x() < mScanVolumeMax.x()
+                                && w.y() < mScanVolumeMax.y()
+                                && w.z() < mScanVolumeMax.z()
+                                && w.x() > mScanVolumeMin.x()
+                                && w.y() > mScanVolumeMin.y()
+                                && w.z() > mScanVolumeMin.z()
+                        )
                         mWayPointsGenerated.append(w);
 
                         // This would add the waypoint sphere as static object to the physics world

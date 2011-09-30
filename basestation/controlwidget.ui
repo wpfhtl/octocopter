@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>295</width>
-    <height>688</height>
+    <width>265</width>
+    <height>900</height>
    </rect>
   </property>
   <property name="font">
@@ -27,16 +27,7 @@
     <property name="spacing">
      <number>0</number>
     </property>
-    <property name="leftMargin">
-     <number>2</number>
-    </property>
-    <property name="topMargin">
-     <number>0</number>
-    </property>
-    <property name="rightMargin">
-     <number>2</number>
-    </property>
-    <property name="bottomMargin">
+    <property name="margin">
      <number>0</number>
     </property>
     <item>
@@ -80,7 +71,7 @@
        <item row="0" column="2">
         <widget class="QLabel" name="label_21">
          <property name="text">
-          <string>RtkPulse</string>
+          <string>Rtk</string>
          </property>
         </widget>
        </item>
@@ -110,7 +101,7 @@
        <item row="1" column="1">
         <widget class="QLabel" name="mLabelBarometricHeight">
          <property name="text">
-          <string>?</string>
+          <string>0</string>
          </property>
         </widget>
        </item>
@@ -189,7 +180,7 @@
        <item>
         <layout class="QGridLayout" name="gridLayout_2">
          <property name="horizontalSpacing">
-          <number>10</number>
+          <number>1</number>
          </property>
          <property name="verticalSpacing">
           <number>0</number>
@@ -399,6 +390,9 @@
           <widget class="QLabel" name="mLabelGpsGnssMode">
            <property name="text">
             <string>unknown</string>
+           </property>
+           <property name="textFormat">
+            <enum>Qt::PlainText</enum>
            </property>
            <property name="wordWrap">
             <bool>true</bool>

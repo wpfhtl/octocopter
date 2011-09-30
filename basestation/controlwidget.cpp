@@ -4,6 +4,9 @@ ControlWidget::ControlWidget(BaseStation* baseStation) : QDockWidget((QWidget*)b
 {
     setupUi(this);
 
+    // this removes the title bar. No more dragging, but saves space
+    setTitleBarWidget(new QWidget());
+
     // Wire up the time-box
 //    connect(mSpinBoxTimeFactor, SIGNAL(valueChanged(double)), SIGNAL(timeFactorChanged(double)));
 //    connect(mBtnStart, SIGNAL(clicked()), SLOT(slotSimulationStarted()));
