@@ -1,9 +1,9 @@
-#ifndef CAMERAWINDOW_H
-#define CAMERAWINDOW_H
+#ifndef CAMERAWIDGET_H
+#define CAMERAWIDGET_H
 
 #include <QtGui>
 
-class CameraWindow : public QDialog
+class CameraWidget : public QDockWidget
 {
     Q_OBJECT
 
@@ -11,7 +11,7 @@ class CameraWindow : public QDialog
     QPixmap* mPixmap;
 
 public:
-    CameraWindow(QWidget *parent = 0, const QString &title = QString());
+    CameraWidget(QWidget *parent = 0, const QString &title = QString());
 
 private slots:
     void slotSetDimensions(const QSize size);

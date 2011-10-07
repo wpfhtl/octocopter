@@ -358,7 +358,7 @@ void GpsDevice::slotSerialPortDataReady()
 
             // After sending/receiving the SsetPvtMode command, the rover needs to be static for better alignment.
             // Tell the user to wait!
-            if(mReceiveBufferUsb.left(position).contains("SetPvtMode", Qt::CaseInsensitive))
+            if(mReceiveBufferUsb.left(position).contains("SetPvtMode"))
                 qDebug() << "GpsDevice::slotSerialPortDataReady(): Integration filter started (alignment not ready), vehicle must remain static for 20s starting now.";
 
             if(mReceiveBufferUsb.left(position).contains("$R? ASCII commands between prompts were discarded!"))

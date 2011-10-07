@@ -11,11 +11,11 @@ main
 basestation
 glwidget
 logwidget
+camerawidget
 flightplannerinterface
 flightplannerbasic
 flightplannerphysics
 flightplannerphysicsdialog
-camerawindow
 rtkfetcher
 controlwidget
 connectiondialog
@@ -37,11 +37,11 @@ SET(INC_FILES
 basestation.h
 glwidget.h
 logwidget.h
+camerawidget.h
 flightplannerinterface.h
 flightplannerbasic.h
 flightplannerphysics.h
 flightplannerphysicsdialog.h
-camerawindow.h
 rtkfetcher.h
 controlwidget.h
 connectiondialog.h

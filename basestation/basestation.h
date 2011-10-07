@@ -14,7 +14,7 @@
 #include "rtkfetcher.h"
 #include "lidarpoint.h"
 #include "flightplannerinterface.h"
-#include "camerawindow.h"
+#include "camerawidget.h"
 #include "connectiondialog.h"
 #include "controlwidget.h"
 #include "logwidget.h"
@@ -66,7 +66,7 @@ private:
     void processIncomingPoints();
     void processIncomingImages();
 
-    QMap<QString, CameraWindow*> mCameraWindows;
+    QMap<QString, CameraWidget*> mCameraWidgets;
 
     QProgressDialog* mProgress;
 

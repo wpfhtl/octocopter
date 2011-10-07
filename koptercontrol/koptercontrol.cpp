@@ -38,31 +38,37 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(snSignalPipe, SIGNAL(activated(int)), SLOT(slotHandleSignal()));
 
     QString networkInterface = "wlan0";
-    QString portSerialKopter = "/dev/ttyUSB0";
-    QString portSerialGpsCom = "/dev/ttyUSB1";
-    QString portSerialGpsUsb = "/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device-if00"; //"/dev/ttyACM0";
-    QString portSerialLaserScanner = "/dev/serial/by-id/usb-Hokuyo_Data_Flex_for_USB_URG-Series_USB_Driver-if00"; // "/dev/ttyACM1";
+    QString deviceCamera = "/dev/video0";
+    QString deviceSerialKopter = "/dev/ttyUSB0";
+    QString deviceSerialGpsCom = "/dev/ttyUSB1";
+    QString deviceSerialGpsUsb = "/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device-if00"; //"/dev/ttyACM0";
+    QString deviceSerialLaserScanner = "/dev/serial/by-id/usb-Hokuyo_Data_Flex_for_USB_URG-Series_USB_Driver-if00"; // "/dev/ttyACM1";
 
     QStringList commandLine = arguments();
 
+    if(commandLine.lastIndexOf("-dc") != -1 && commandLine.size() > commandLine.lastIndexOf("-dc") + 1)
+    {
+        deviceCamera = commandLine.at(commandLine.lastIndexOf("-dc") + 1);
+    }
+
     if(commandLine.lastIndexOf("-sk") != -1 && commandLine.size() > commandLine.lastIndexOf("-sk") + 1)
     {
-        portSerialKopter = commandLine.at(commandLine.lastIndexOf("-sk") + 1);
+        deviceSerialKopter = commandLine.at(commandLine.lastIndexOf("-sk") + 1);
     }
 
     if(commandLine.lastIndexOf("-sl") != -1 && commandLine.size() > commandLine.lastIndexOf("-sl") + 1)
     {
-        portSerialLaserScanner = commandLine.at(commandLine.lastIndexOf("-sl") + 1);
+        deviceSerialLaserScanner = commandLine.at(commandLine.lastIndexOf("-sl") + 1);
     }
 
     if(commandLine.lastIndexOf("-sgu") != -1 && commandLine.size() > commandLine.lastIndexOf("-sgu") + 1)
     {
-        portSerialGpsUsb = commandLine.at(commandLine.lastIndexOf("-sgu") + 1);
+        deviceSerialGpsUsb = commandLine.at(commandLine.lastIndexOf("-sgu") + 1);
     }
 
     if(commandLine.lastIndexOf("-sgc") != -1 && commandLine.size() > commandLine.lastIndexOf("-sgc") + 1)
     {
-        portSerialGpsCom = commandLine.at(commandLine.lastIndexOf("-sgc") + 1);
+        deviceSerialGpsCom = commandLine.at(commandLine.lastIndexOf("-sgc") + 1);
     }
 
     if(commandLine.lastIndexOf("-netiface") != -1 && commandLine.size() > commandLine.lastIndexOf("-netiface") + 1)
@@ -70,16 +76,19 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
         networkInterface = commandLine.at(commandLine.lastIndexOf("-netiface") + 1).toLower();
     }
 
-    qDebug() << "KopterControl::KopterControl(): using serial ports: kopter" << portSerialKopter << "gps com" << portSerialGpsCom << "gps usb" << portSerialGpsUsb;
-    qDebug() << "KopterControl::KopterControl(): using laserscanner at" << portSerialLaserScanner;
+    qDebug() << "KopterControl::KopterControl(): using serial ports: kopter" << deviceSerialKopter << "gps com" << deviceSerialGpsCom << "gps usb" << deviceSerialGpsUsb;
+    qDebug() << "KopterControl::KopterControl(): using laserscanner at" << deviceSerialLaserScanner;
     qDebug() << "KopterControl::KopterControl(): reading RSSI at interface" << networkInterface;
 
+    mCamera = new Camera(deviceCamera, QSize(640, 480), QVector3D(), QQuaternion(), 15);
     mBaseConnection = new BaseConnection(networkInterface);
-    mKopter = new Kopter(portSerialKopter, this);
-    mGpsDevice = new GpsDevice(portSerialGpsUsb, portSerialGpsCom, this);
-    mLaserScanner = new LaserScanner(portSerialLaserScanner, Pose());
+    mKopter = new Kopter(deviceSerialKopter, this);
+    mGpsDevice = new GpsDevice(deviceSerialGpsUsb, deviceSerialGpsCom, this);
+    mLaserScanner = new LaserScanner(deviceSerialLaserScanner, Pose());
     connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     mFlightController = new FlightController();
+
+    //connect(mCamera, SIGNAL(imageReady(QByteArray*)))
 
     connect(mKopter, SIGNAL(kopterStatus(quint32, qint16, float)), mBaseConnection, SLOT(slotNewVehicleStatus(quint32, qint16, float)));
 

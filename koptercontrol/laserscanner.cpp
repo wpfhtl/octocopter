@@ -122,7 +122,7 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
                             mScannerPoseBefore,
                             mScannerPoseAfter,
                             mScannerPoseLast,
-                            0.125 + (0.75 * i / mScanDistancesCurrent->size())
+                            (float)(0.125 + (0.75 * i / mScanDistancesCurrent->size()))
                             );
 
                 // position of the point relative to the physical laserscanner

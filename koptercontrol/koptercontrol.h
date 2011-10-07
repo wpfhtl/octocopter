@@ -10,6 +10,7 @@
 #include <QStringList>
 
 #include "kopter.h"
+#include "camera.h"
 #include "gpsdevice.h"
 #include "laserscanner.h"
 #include "baseconnection.h"
@@ -33,6 +34,7 @@ private:
     // We use this pipe for all signals.
     static int signalFd[2];
     Kopter *mKopter;
+    Camera* mCamera;
     FlightController *mFlightController;
     GpsDevice *mGpsDevice;
     LaserScanner *mLaserScanner;

@@ -54,8 +54,6 @@ BaseStation::BaseStation() : QMainWindow()
     out.flush();
     connect(mTimerStats, SIGNAL(timeout()), SLOT(slotWriteStats()));
 
-
-
     mControlWidget = new ControlWidget(this);
     connect(this, SIGNAL(vehiclePoseChanged(Pose)), mControlWidget, SLOT(slotUpdatePose(Pose)));
     addDockWidget(Qt::RightDockWidgetArea, mControlWidget);
@@ -266,27 +264,24 @@ void BaseStation::processPacket(QByteArray data)
         QString cameraName;
         QVector3D cameraPosition;
         QQuaternion cameraOrientation;
-        quint32 imageSize;
         QByteArray image;
 
         stream >> cameraName;
         stream >> cameraPosition;
         stream >> cameraOrientation;
-        stream >> imageSize;
+        stream >> image;
 
-        image.resize(imageSize);
-
-        qDebug() << "imageSize is" << imageSize << "actually read" << stream.readRawData(image.data(), imageSize) << "ba size" << image.size();
+        qDebug() << "imageSize is" << image.size();
 
         qDebug() << "camera" << cameraName << "pos" << cameraPosition << "orientation" << cameraOrientation << "image bytearray size is" << image.size();
 
-        if(!mCameraWindows.contains(cameraName))
-            mCameraWindows.insert(cameraName, new CameraWindow(this, cameraName));
+        if(!mCameraWidgets.contains(cameraName))
+            mCameraWidgets.insert(cameraName, new CameraWidget(this, cameraName));
 
-        CameraWindow* win = mCameraWindows.value(cameraName);
+        CameraWidget* win = mCameraWidgets.value(cameraName);
 
-        win->slotSetPixmapData(image);
-        win->show();
+        win->slotSetPixmapData(qUncompress(image));
+        //win->show();
     }
     else if(packetType == "vehiclestatus")
     {

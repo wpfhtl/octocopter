@@ -1,7 +1,7 @@
-#include "camerawindow.h"
+#include "camerawidget.h"
 
-CameraWindow::CameraWindow(QWidget *parent, const QString &windowTitle) :
-        QDialog(parent), mPixmap(0), mLabel(0)
+CameraWidget::CameraWidget(QWidget *parent, const QString &windowTitle) :
+        QDockWidget(parent), mPixmap(0), mLabel(0)
 {
     setLayout(new QVBoxLayout);
     setWindowTitle(windowTitle);
@@ -11,11 +11,11 @@ CameraWindow::CameraWindow(QWidget *parent, const QString &windowTitle) :
     layout()->addWidget(mLabel);
     mPixmap = new QPixmap;
 
-    // if we do that, we need to delete this window from Triangulator::mCameraWindows, too.
+    // if we do that, we need to delete this window from Triangulator::mCameraWidgets, too.
 //    connect(this, SIGNAL(finished(int)), SLOT(deleteLater()));
 }
 
-void CameraWindow::slotSetPixmapData(const QByteArray &data)
+void CameraWidget::slotSetPixmapData(const QByteArray &data)
 {
     delete mPixmap;
     mPixmap = new QPixmap;
@@ -25,7 +25,7 @@ void CameraWindow::slotSetPixmapData(const QByteArray &data)
     mLabel->setPixmap(*mPixmap);
 }
 
-void CameraWindow::slotSetDimensions(const QSize size)
+void CameraWidget::slotSetDimensions(const QSize size)
 {
     mLabel->setMinimumSize(size);
     mLabel->setMaximumSize(size);

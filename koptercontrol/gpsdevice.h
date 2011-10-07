@@ -232,7 +232,7 @@ private:
       Sbf_Header  Header;
 
       quint32       TOW;
-      uint16_t       WNc;
+      quint16       WNc;
 
       quint8        CPULoad;
       quint8        ExtError;

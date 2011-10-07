@@ -380,6 +380,24 @@ void BaseConnection::slotNewControllerDebugValues(const Pose& pose, const quint8
     slotSendData(data, false);
 }
 
+// called by rover to send new image to basestation
+void BaseConnection::slotNewCameraImage(const QString& name, const QVector3D& position, const QQuaternion& orientation, const QByteArray* image)
+{
+    QByteArray compressedImage = qCompress(*image, 4);
+
+    qDebug() << "BaseConnection::slotNewImage(): sending image after compressing" << image->size() << "bytes down to" << compressedImage.size();
+
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    stream << QString("image");
+    stream << name;
+    stream << position;
+    stream << orientation;
+    stream << compressedImage;
+    slotSendData(data, false);
+}
+
 // called by rover to send new log message to basestation
 void BaseConnection::slotNewLogMessage(const LogImportance& importance, const QString& source, const QString& text)
 {

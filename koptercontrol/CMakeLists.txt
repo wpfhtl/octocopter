@@ -10,6 +10,7 @@ SET(SRC_FILES
 koptercontrol
 koptermessage
 kopter
+camera
 ../common/flightcontroller
 ../common/common
 ../common/pose
@@ -27,6 +28,7 @@ SET(INC_FILES
 koptercontrol.h
 koptermessage.h
 kopter.h
+camera.h
 ../common/flightcontroller.h
 ../common/common.h
 ../common/pose.h
