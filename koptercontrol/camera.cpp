@@ -5,13 +5,14 @@ Camera::Camera(const QString& device, const QSize& imageSize, const QVector3D po
     mFileDescriptor = -1;
     mBufferCount = 0;
     mFps = fps;
-    mWidth = imageSize.width();
+    mImageSize = imageSize; // REDUNDANT!!!!
+    mWidth = imageSize.width(); // THIS IS REDUNDANT
     mHeight = imageSize.height();
     mPosition = position;
     mOrientation = orientation;
     mDeviceFile = device;
     mImageData = new QByteArray;
-    mImageData->reserve(mWidth * mHeight * 3); // RGB or BGR buffer
+    mImageData->resize(mWidth * mHeight * 3); // RGB or BGR buffer
 
     mCaptureTimer = new QTimer(this);
     mCaptureTimer->setInterval(1000 / fps);
@@ -32,7 +33,7 @@ int Camera::initDevice()
     /*** open device ***/
     if (-1 == (mFileDescriptor = open(mDeviceFile.toAscii().constData(), O_RDWR | O_NONBLOCK, 0)))
     {
-        qDebug() << "Could not open device:" << mDeviceFile;
+        qDebug() << "Camera::initDevice(): Could not open device:" << mDeviceFile;
         return -1;
     }
 
@@ -42,18 +43,18 @@ int Camera::initDevice()
 
     if (-1 == xioctl(mFileDescriptor, VIDIOC_QUERYCAP, &caps))
     {
-        qDebug() << "Could not query device capabilities [" <<
+        qDebug() << "Camera::initDevice(): Could not query device capabilities [" <<
                     strerror(errno) << "]";
         return -1;
     }
     if (!(caps.capabilities & V4L2_CAP_VIDEO_CAPTURE))
     {
-        qDebug() << "Device does not support video capture";
+        qDebug() << "Camera::initDevice(): Device does not support video capture";
         return -1;
     }
     if (!(caps.capabilities & V4L2_CAP_STREAMING))
     {
-        qDebug() << "Device does not support streaming I/O";
+        qDebug() << "Camera::initDevice(): Device does not support streaming I/O";
         return -1;
     }
 
@@ -66,7 +67,7 @@ int Camera::initDevice()
 
     if (-1 == xioctl(mFileDescriptor, VIDIOC_S_FMT, &format))
     {
-        qDebug() << "Error while setting the frame size [" <<
+        qDebug() << "Camera::initDevice(): Error while setting the frame size [" <<
                     strerror(errno) << "]";
         return -1;
     }
@@ -76,7 +77,7 @@ int Camera::initDevice()
 
     if (-1 == xioctl(mFileDescriptor, VIDIOC_G_FMT, &format))
     {
-        qDebug() << "Error while querying the frame size [" <<
+        qDebug() << "Camera::initDevice(): Error while querying the frame size [" <<
                     strerror(errno) << "]";
         return -1;
     }
@@ -86,7 +87,7 @@ int Camera::initDevice()
 
     if (mWidth != frame_width || mHeight != frame_height)
     {
-        qDebug() << "Could not set the specified frame size." <<
+        qDebug() << "Camera::initDevice(): Could not set the specified frame size." <<
             "Current frame size is: " << frame_width << "x" << frame_height;
         return -1;
     }
@@ -100,7 +101,7 @@ int Camera::initDevice()
 
     if (-1 == xioctl(mFileDescriptor, VIDIOC_S_PARM, &streamparm))
     {
-        qDebug() << "Error while setting the frame rate [" <<
+        qDebug() << "Camera::initDevice(): Error while setting the frame rate [" <<
                     strerror(errno) << "]";
         return -1;
     }
@@ -110,7 +111,7 @@ int Camera::initDevice()
 
     if (-1 == xioctl(mFileDescriptor, VIDIOC_G_PARM, &streamparm))
     {
-        qDebug() << "Error while querying the frame rate [" <<
+        qDebug() << "Camera::initDevice(): Error while querying the frame rate [" <<
                     strerror(errno) << "]";
         return -1;
     }
@@ -134,7 +135,7 @@ int Camera::initDevice()
     // request device buffers
     if (-1 == xioctl(mFileDescriptor, VIDIOC_REQBUFS, &reqbuf))
     {
-        qDebug() << "Error while requesting device buffers [" <<
+        qDebug() << "Camera::initDevice(): Error while requesting device buffers [" <<
                     strerror(errno) << "]";
         return -1;
     }
@@ -142,7 +143,7 @@ int Camera::initDevice()
     // check if request was successful
     if (reqbuf.count < 2)
     {
-        qDebug() << "Device has insufficient buffer memory";
+        qDebug() << "Camera::initDevice(): Device has insufficient buffer memory";
         return -1;
     }
 
@@ -159,7 +160,7 @@ int Camera::initDevice()
 
         if (-1 == xioctl(mFileDescriptor, VIDIOC_QUERYBUF, &buffer))
         {
-            qDebug() << "Error while querying device buffers [" <<
+            qDebug() << "Camera::initDevice(): Error while querying device buffers [" <<
                         strerror(errno) << "]";
             return -1;
         }
@@ -170,11 +171,13 @@ int Camera::initDevice()
 
         if (MAP_FAILED == mFrameBuffer[mBufferCount].start)
         {
-            qDebug() << "Could not map buffer memory [" <<
+            qDebug() << "Camera::initDevice(): Could not map buffer memory [" <<
                         strerror(errno) << "]";
             return -1;
         }
     }
+
+    qDebug() << "Camera::initDevice(): initialization complete.";
 
     return 0;
 }
@@ -218,7 +221,7 @@ int Camera::startCapturing()
 
         if (-1 == xioctl(mFileDescriptor, VIDIOC_QBUF, &buffer))
         {
-            qDebug() << "Error while queuing device buffer [" <<
+            qDebug() << "Camera::startCapturing(): Error while queuing device buffer [" <<
                         strerror(errno) << "]";
             return -1;
         }
@@ -230,11 +233,13 @@ int Camera::startCapturing()
 
     if (-1 == xioctl(mFileDescriptor, VIDIOC_STREAMON, &type))
     {
-        qDebug() << "Unable to turn on data stream [" << strerror(errno) << "]";
+        qDebug() << "Camera::startCapturing(): Unable to turn on data stream [" << strerror(errno) << "]";
         return -1;
     }
 
     mCaptureTimer->start();
+
+    qDebug() << "Camera::startCapturing(): done.";
 
     return 0;
 }
@@ -247,7 +252,7 @@ int Camera::stopCapturing()
 
     if (-1 == xioctl(mFileDescriptor, VIDIOC_STREAMOFF, &type))
     {
-        qDebug() << "Unable to turn off data stream [" <<
+        qDebug() << "Camera::stopCapturing(): Unable to turn off data stream [" <<
                     strerror(errno) << "]";
         return -1;
     }
@@ -274,7 +279,7 @@ int Camera::retrieveFrame(Frame *frame)
             }
             else
             {
-                qDebug() << "Error while waiting for camera access [" <<
+                qDebug() << "Camera::retrieveFrame(): Error while waiting for camera access [" <<
                             strerror(errno) << "]";
                 return -1;
             }
@@ -282,7 +287,7 @@ int Camera::retrieveFrame(Frame *frame)
 
         if (!ret)
         {
-            qDebug() << "Timeout occured waiting for camera access";
+            qDebug() << "Camera::retrieveFrame(): Timeout occured waiting for camera access";
             return -1;
         }
 
@@ -297,7 +302,7 @@ int Camera::retrieveFrame(Frame *frame)
 
     if (-1 == xioctl(mFileDescriptor, VIDIOC_DQBUF, &buffer))
     {
-        qDebug() << "Error while dequeuing device buffer [" <<
+        qDebug() << "Camera::retrieveFrame(): Error while dequeuing device buffer [" <<
                     strerror(errno) << "]";
         return -1;
     }
@@ -313,7 +318,7 @@ int Camera::retrieveFrame(Frame *frame)
     /*** put device buffer back into the queue ***/
     if (-1 == xioctl(mFileDescriptor, VIDIOC_QBUF, &buffer))
     {
-        qDebug() << "Error while queuing device buffer [" <<
+        qDebug() << "Camera::retrieveFrame(): Error while queuing device buffer [" <<
                     strerror(errno) << "]";
         return -1;
     }
@@ -411,7 +416,17 @@ void Camera::slotReadAndEmitCurrentFrame()
 {
     Frame frame;
     retrieveFrame(&frame);
+    qDebug() << "Camera::slotReadAndEmitCurrentFrame(): frame length is" << frame.length;
     //convertToBgr((u_char *) frame.start, (u_char*)mImageData->data(), mWidth, mHeight);
     convertToRgb((u_char *) frame.start, (u_char*)mImageData->data(), mWidth, mHeight);
-    emit imageReady(mDeviceFile, mPosition, mOrientation, mImageData);
+
+    QImage image((const uchar*)mImageData->constData(), mImageSize.width(), mImageSize.height(), QImage::Format_RGB888);
+    QByteArray imageDataEncoded;
+    QBuffer buffer(&imageDataEncoded);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "JPG", 40);
+
+    qDebug() << "BaseConnection::slotNewImage(): sending image after compressing" << frame.length << "YCbCr bytes down to" << imageDataEncoded.size() << "jpg bytes";
+
+    emit imageReady(mDeviceFile, mImageSize, mPosition, mOrientation, &imageDataEncoded);
 }

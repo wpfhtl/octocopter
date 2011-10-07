@@ -109,7 +109,7 @@ quint8 GpsDevice::slotFlushCommandQueue()
         //qDebug() << "GpsDevice::slotFlushCommandQueue(): currently not waiting for a reply, so sending next command:" << mLastCommandToDeviceUsb.trimmed();
         qDebug() << "pc->gps\n\n" << mLastCommandToDeviceUsb.trimmed();
         if(mReceiveBufferUsb.size() != 0) qDebug() << "GpsDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << mReceiveBufferUsb;
-        usleep(250000);
+        usleep(25000);
         mSerialPortUsb->write(mLastCommandToDeviceUsb);
         mNumberOfRemainingRepliesUsb++;
     }
@@ -279,8 +279,8 @@ void GpsDevice::slotCommunicationSetup()
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,270,manual,0.07,0.07,0.33");
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,-90,0,270,manual,0.07,0.07,0.33");
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,90,manual,0.07,0.07,0.33");
-    // Norman hat ja gesagt!
-    sendAsciiCommand("setExtSensorCalibration,COM2,manual,90,90,0,manual,0.07,0.07,0.33");
+    // Leicht, jetzt wo IMU in der Mitte liegt
+    sendAsciiCommand("setExtSensorCalibration,COM2,manual,180,00,0,manual,0.07,0.07,0.33");
     // Sarah Dean says "seem to be ok" about 0 90 270
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,270,manual,0.07,0.07,0.33");
 
@@ -358,7 +358,7 @@ void GpsDevice::slotSerialPortDataReady()
 
             // After sending/receiving the SsetPvtMode command, the rover needs to be static for better alignment.
             // Tell the user to wait!
-            if(mReceiveBufferUsb.left(position).contains("SetPvtMode"))
+            if(QString(mReceiveBufferUsb.left(position)).contains("SetPvtMode", Qt::CaseInsensitive))
                 qDebug() << "GpsDevice::slotSerialPortDataReady(): Integration filter started (alignment not ready), vehicle must remain static for 20s starting now.";
 
             if(mReceiveBufferUsb.left(position).contains("$R? ASCII commands between prompts were discarded!"))

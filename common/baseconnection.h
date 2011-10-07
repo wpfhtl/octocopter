@@ -110,7 +110,7 @@ public slots:
     void slotNewControllerDebugValues(const Pose& pose, const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height);
 
     // called by rover to send new image to basestation
-    void slotNewCameraImage(const QString& name, const QVector3D& position, const QQuaternion& orientation, const QByteArray* image);
+    void slotNewCameraImage(const QString& name, const QSize& imageSize, const QVector3D& position, const QQuaternion& orientation, const QByteArray* image);
 
     // called by rover to send new log message to basestation
     void slotNewLogMessage(const LogImportance& importance, const QString& source, const QString& text);

@@ -152,7 +152,7 @@ void BaseConnection::processPacket(QByteArray packet)
 void BaseConnection::slotSocketError(QAbstractSocket::SocketError socketError)
 {
     QMutexLocker locker(&mMutex);
-    qDebug() << "BaseConnection::slotSocketImagesError():" << socketError;
+    qDebug() << "BaseConnection::slotSocketError():" << socketError;
 }
 
 void BaseConnection::slotSendData(const QByteArray &data, bool lockMutex)
@@ -381,21 +381,22 @@ void BaseConnection::slotNewControllerDebugValues(const Pose& pose, const quint8
 }
 
 // called by rover to send new image to basestation
-void BaseConnection::slotNewCameraImage(const QString& name, const QVector3D& position, const QQuaternion& orientation, const QByteArray* image)
+void BaseConnection::slotNewCameraImage(const QString& name, const QSize& imageSize, const QVector3D& position, const QQuaternion& orientation, const QByteArray* compressedImage)
 {
-    QByteArray compressedImage = qCompress(*image, 4);
-
-    qDebug() << "BaseConnection::slotNewImage(): sending image after compressing" << image->size() << "bytes down to" << compressedImage.size();
-
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
+qDebug() << "now sending image bytes: count:" << compressedImage->size();
+
     stream << QString("image");
     stream << name;
+    stream << imageSize;
     stream << position;
     stream << orientation;
-    stream << compressedImage;
+    stream << *compressedImage;
     slotSendData(data, false);
+
+qDebug() << "complete data size was" << data.size();
 }
 
 // called by rover to send new log message to basestation

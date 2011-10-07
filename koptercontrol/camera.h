@@ -13,6 +13,7 @@
 #include <QtCore>
 #include <QVector3D>
 #include <QQuaternion>
+#include <QImage>
 
 typedef struct
 {
@@ -37,6 +38,7 @@ public:
     static void convertToRgb(u_char *src, u_char *dst, int width, int height);
 
 private:
+    QSize mImageSize;
     QVector3D mPosition;
     QQuaternion mOrientation;
     QTimer* mCaptureTimer;
@@ -61,7 +63,7 @@ public slots:
     void slotReadAndEmitCurrentFrame();
 
 signals:
-    void imageReady(const QString& name, const QVector3D& position, const QQuaternion& orientation, const QByteArray* image);
+    void imageReady(const QString& name, const QSize& imageSize, const QVector3D& position, const QQuaternion& orientation, const QByteArray* image);
 };
 
 #endif // CAMERA_SOURCE_H

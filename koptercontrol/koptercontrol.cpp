@@ -80,7 +80,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     qDebug() << "KopterControl::KopterControl(): using laserscanner at" << deviceSerialLaserScanner;
     qDebug() << "KopterControl::KopterControl(): reading RSSI at interface" << networkInterface;
 
-    mCamera = new Camera(deviceCamera, QSize(640, 480), QVector3D(), QQuaternion(), 15);
+    mCamera = new Camera(deviceCamera, QSize(320, 240), QVector3D(), QQuaternion(), 12);
     mBaseConnection = new BaseConnection(networkInterface);
     mKopter = new Kopter(deviceSerialKopter, this);
     mGpsDevice = new GpsDevice(deviceSerialGpsUsb, deviceSerialGpsCom, this);
@@ -88,7 +88,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     mFlightController = new FlightController();
 
-    connect(mCamera, SIGNAL(imageReady(QString,QVector3D,QQuaternion,const QByteArray*)), mBaseConnection, SLOT(slotNewCameraImage(QString,QVector3D,QQuaternion,const QByteArray*)));
+    connect(mCamera, SIGNAL(imageReady(QString,QSize,QVector3D,QQuaternion,const QByteArray*)), mBaseConnection, SLOT(slotNewCameraImage(QString,QSize,QVector3D,QQuaternion,const QByteArray*)));
 
     connect(mKopter, SIGNAL(kopterStatus(quint32, qint16, float)), mBaseConnection, SLOT(slotNewVehicleStatus(quint32, qint16, float)));
 
