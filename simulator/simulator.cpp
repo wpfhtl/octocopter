@@ -9,6 +9,11 @@ Simulator::Simulator(void) :
 {
     qDebug() << "Simulator::Simulator()";
 
+    // We need a small font.
+    QFont widgetFont = QApplication::font();
+    widgetFont.setPointSize(7);
+    QApplication::setFont(widgetFont);
+
     mClockDivisorBaseConnectionUpdate = 0;
 
     resize(1024, 768);

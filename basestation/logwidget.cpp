@@ -8,7 +8,7 @@ LogWidget::LogWidget(QWidget* widget)
     mWidget = widget;
     //mTextEdit->setFontPointSize(7);
 
-    setTitleBarWidget(new QWidget());
+    //setTitleBarWidget(new QWidget());
 }
 
 void LogWidget::save()

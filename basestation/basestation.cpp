@@ -259,29 +259,36 @@ void BaseStation::processPacket(QByteArray data)
 
 //        qDebug() << "appended" << pointList.size() << "points to octree.";
     }
-    else if(packetType == "images")
+    else if(packetType == "image")
     {
         QString cameraName;
+        QSize imageSize;
         QVector3D cameraPosition;
         QQuaternion cameraOrientation;
-        QByteArray image;
+        QByteArray imageData;
 
         stream >> cameraName;
+        stream >> imageSize;
         stream >> cameraPosition;
         stream >> cameraOrientation;
-        stream >> image;
+        stream >> imageData;
 
-        qDebug() << "imageSize is" << image.size();
+        qDebug() << "camera" << cameraName << "pos" << cameraPosition << "orientation" << cameraOrientation << "image bytearray size is" << imageData.size();
 
-        qDebug() << "camera" << cameraName << "pos" << cameraPosition << "orientation" << cameraOrientation << "image bytearray size is" << image.size();
+        CameraWidget *widget;
 
         if(!mCameraWidgets.contains(cameraName))
-            mCameraWidgets.insert(cameraName, new CameraWidget(this, cameraName));
+        {
+            widget = new CameraWidget(this, cameraName);
+            mCameraWidgets.insert(cameraName, widget);
+            addDockWidget(Qt::RightDockWidgetArea, widget);
+        }
+        else
+        {
+            widget = mCameraWidgets.value(cameraName);
+        }
 
-        CameraWidget* win = mCameraWidgets.value(cameraName);
-
-        win->slotSetPixmapData(qUncompress(image));
-        //win->show();
+        widget->slotSetPixmapData(imageData);
     }
     else if(packetType == "vehiclestatus")
     {
@@ -396,9 +403,12 @@ void BaseStation::processPacket(QByteArray data)
         stream >> yaw;
         stream >> height;
 
+        // Normalize poseYaw between -180 and 180 for better graphing
+        float poseYaw = pose.getYawDegrees() <= 180.0 ? pose.getYawDegrees() : pose.getYawDegrees() - 360.0;
+
         QVector<float> values;
         values << pitch << roll << thrust << yaw;
-        values << pose.getPitchDegrees() << pose.getRollDegrees() << pose.getYawDegrees();
+        values << pose.getPitchDegrees() << pose.getRollDegrees() << poseYaw;
 
         mPlotWidget->slotAppendData(values);
     }
