@@ -273,7 +273,7 @@ void BaseStation::processPacket(QByteArray data)
         stream >> cameraOrientation;
         stream >> imageData;
 
-        qDebug() << "camera" << cameraName << "pos" << cameraPosition << "orientation" << cameraOrientation << "image bytearray size is" << imageData.size();
+//        qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "camera" << cameraName << "pos" << cameraPosition << "orientation" << cameraOrientation << "image bytearray size is" << imageData.size();
 
         CameraWidget *widget;
 
@@ -507,8 +507,12 @@ void BaseStation::slotConnectToRover()
     while(mConnectionDialog->getHostNameRover().isEmpty())
         slotAskForConnectionHostNames();
 
+    qDebug() << "BaseStation::slotConnectToRover(): aborting and reconnecting...";
+
     mTcpSocket->abort();
     mTcpSocket->connectToHost(mConnectionDialog->getHostNameRover(), 12345);
+
+    qDebug() << "BaseStation::slotConnectToRover(): aborting and reconnecting done.";
 }
 
 void BaseStation::slotSocketError(QAbstractSocket::SocketError socketError)
