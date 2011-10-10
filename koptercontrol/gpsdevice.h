@@ -9,8 +9,10 @@
 #include <common.h>
 #include <gpsstatusinformation.h>
 
+#include <abstractserial.h>
+
 class Pose;
-class QextSerialPort;
+//class QextSerialPort;
 
 
 static const quint16 CRC_16CCIT_LookUp[256] = {
@@ -70,7 +72,7 @@ private:
     int mNumberOfRemainingRepliesUsb;
     unsigned int mRtkDataCounter;
     QByteArray mLastCommandToDeviceUsb;
-    QextSerialPort *mSerialPortUsb, *mSerialPortCom;
+    AbstractSerial *mSerialPortUsb, *mSerialPortCom;
     bool mDeviceIsInitialized; // so we only feed it rtk data when the device is ready for it.
 
     // The ports we use to talk to the receiver have a name on the receiver-side, e.g. COM1 or USB2
@@ -246,6 +248,7 @@ private:
     };
 
 private slots:
+    void slotSerialPortStatusChanged(const QString& status, const QDateTime& time);
     void slotCommunicationSetup();
     void slotCommunicationStop();
     quint8 slotFlushCommandQueue();
@@ -261,6 +264,7 @@ private slots:
 
 public slots:
     void slotSetRtkData(const QByteArray &data);
+    void slotShutDown(); // just calls communicationStop. To be called from the main program's signal handler.
 
 signals:
     // log/status messages

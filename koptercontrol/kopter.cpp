@@ -2,6 +2,16 @@
 
 Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
 {
+    mSerialPortFlightCtrl = new AbstractSerial();
+    mSerialPortFlightCtrl->setDeviceName(serialDeviceFile);
+    if(!mSerialPortFlightCtrl->open(AbstractSerial::ReadWrite)) qFatal("Kopter::Kopter(): Opening serial port %s failed, exiting.", qPrintable(serialDeviceFile));
+    mSerialPortFlightCtrl->setBaudRate(AbstractSerial::BaudRate57600);
+    mSerialPortFlightCtrl->setDataBits(AbstractSerial::DataBits8);
+    mSerialPortFlightCtrl->setParity(AbstractSerial::ParityNone);
+    mSerialPortFlightCtrl->setStopBits(AbstractSerial::StopBits1);
+    mSerialPortFlightCtrl->setFlowControl(AbstractSerial::FlowControlOff);
+
+    /* QExtSerialPort
     mSerialPortFlightCtrl = new QextSerialPort(serialDeviceFile, QextSerialPort::EventDriven);
     mSerialPortFlightCtrl->setBaudRate(BAUD57600);
     mSerialPortFlightCtrl->setFlowControl(FLOW_OFF);
@@ -9,14 +19,12 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     mSerialPortFlightCtrl->setDataBits(DATA_8);
     mSerialPortFlightCtrl->setStopBits(STOP_1);
     mSerialPortFlightCtrl->setTimeout(5000);
-
     mSerialPortFlightCtrl->open(QIODevice::ReadWrite | QIODevice::Unbuffered);
-
     if(!mSerialPortFlightCtrl->isOpen())
     {
         qDebug() << "Kopter::Kopter(): Opening serial port" << serialDeviceFile << "failed:" << mSerialPortFlightCtrl->errorString() << "Exiting.";
         exit(1);
-    }
+    }*/
 
     qDebug() << "Kopter::Kopter(): Opening serial port" << serialDeviceFile << "succeeded, flowControl is" << mSerialPortFlightCtrl->flowControl();
 

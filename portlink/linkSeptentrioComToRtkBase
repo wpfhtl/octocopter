@@ -1,0 +1,2 @@
+#!/bin/bash
+./build/portlink -s /dev/ttyUSB1 -nc 134.100.13.169:4001

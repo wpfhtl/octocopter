@@ -58,7 +58,7 @@ void KopterMessage::setPayload(const QByteArray &payload)
     mPayload = payload;
 }
 
-int KopterMessage::send(QextSerialPort* port, QMap<QChar, QTime>* pendingReplies)
+int KopterMessage::send(QIODevice* port, QMap<QChar, QTime>* pendingReplies)
 {
     Q_ASSERT(mDirection == Outgoing);
 

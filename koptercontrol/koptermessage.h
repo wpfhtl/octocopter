@@ -6,8 +6,7 @@
 #include <QChar>
 #include <QByteArray>
 #include <QDateTime>
-
-#include "qextserialport/src/qextserialport.h"
+#include <QIODevice>
 
 class KopterMessage : public QObject
 {
@@ -46,7 +45,7 @@ public:
     // For example, a 't' message (motortest) yields a 'T' reply, a 'b' message gives a 'B' reply.
     // This way, we can decide whether it makes any sense to send a packet of a type which is
     // still being processed by the FC.
-    int send(QextSerialPort* port, QMap<QChar, QTime>* pendingReplies);
+    int send(QIODevice* port, QMap<QChar, QTime>* pendingReplies);
 
     quint8 getAddress() const;
     QChar getId() const;

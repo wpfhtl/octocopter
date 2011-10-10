@@ -45,38 +45,36 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
     mLastGnssAgeFromDevice = 255;
 
     // We use the USB port to talk to the GPS receiver and receive poses
-    mSerialPortUsb = new QextSerialPort(serialDeviceFileUsb, QextSerialPort::EventDriven);
-    mSerialPortUsb->setBaudRate(BAUD115200);
-    mSerialPortUsb->setFlowControl(FLOW_OFF);
-    mSerialPortUsb->setParity(PAR_NONE);
-    mSerialPortUsb->setDataBits(DATA_8);
-    mSerialPortUsb->setStopBits(STOP_1);
-    mSerialPortUsb->setTimeout(500);
-
-    mSerialPortUsb->open(QIODevice::ReadWrite | QIODevice::Unbuffered);
-
-    if(!mSerialPortUsb->isOpen())
+    mSerialPortUsb = new AbstractSerial();
+//    mSerialPortUsb->enableEmitStatus(true);
+//    connect(mSerialPortUsb, SIGNAL(signalStatus(QString,QDateTime)), SLOT(slotSerialPortStatusChanged(QString,QDateTime)));
+    mSerialPortUsb->setDeviceName(serialDeviceFileUsb);
+    if(!mSerialPortUsb->open(AbstractSerial::ReadWrite))
     {
-        qDebug() << "GpsDevice::GpsDevice(): Opening serial port" << serialDeviceFileUsb << "failed:" << mSerialPortUsb->errorString() << "Exiting.";
-        exit(1);
+        mSerialPortUsb->close();
+        qFatal("GpsDevice::GpsDevice(): Opening serial usb port %s failed, exiting.", qPrintable(serialDeviceFileUsb));
     }
+    mSerialPortUsb->setBaudRate(AbstractSerial::BaudRate115200);
+    mSerialPortUsb->setDataBits(AbstractSerial::DataBits8);
+    mSerialPortUsb->setParity(AbstractSerial::ParityNone);
+    mSerialPortUsb->setStopBits(AbstractSerial::StopBits1);
+    mSerialPortUsb->setFlowControl(AbstractSerial::FlowControlOff);
 
     // We use the COM port to feed the device RTK correction data
-    mSerialPortCom = new QextSerialPort(serialDeviceFileCom, QextSerialPort::EventDriven);
-    mSerialPortCom->setBaudRate(BAUD115200);
-    mSerialPortCom->setFlowControl(FLOW_OFF);
-    mSerialPortCom->setParity(PAR_NONE);
-    mSerialPortCom->setDataBits(DATA_8);
-    mSerialPortCom->setStopBits(STOP_1);
-    mSerialPortCom->setTimeout(500);
-
-    mSerialPortCom->open(QIODevice::ReadWrite | QIODevice::Unbuffered);
-
-    if(!mSerialPortCom->isOpen())
+    mSerialPortCom = new AbstractSerial();
+//    mSerialPortCom->enableEmitStatus(true);
+//    connect(mSerialPortCom, SIGNAL(signalStatus(QString,QDateTime)), SLOT(slotSerialPortStatusChanged(QString,QDateTime)));
+    mSerialPortCom->setDeviceName(serialDeviceFileCom);
+    if(!mSerialPortCom->open(AbstractSerial::ReadWrite))
     {
-        qDebug() << "GpsDevice::GpsDevice(): Opening serial port" << serialDeviceFileCom << "failed:" << mSerialPortCom->errorString() << "Exiting.";
-        exit(1);
+        mSerialPortCom->close();
+        qFatal("GpsDevice::GpsDevice(): Opening serial com port %s failed, exiting.", qPrintable(serialDeviceFileCom));
     }
+    mSerialPortCom->setBaudRate(AbstractSerial::BaudRate115200);
+    mSerialPortCom->setDataBits(AbstractSerial::DataBits8);
+    mSerialPortCom->setParity(AbstractSerial::ParityNone);
+    mSerialPortCom->setStopBits(AbstractSerial::StopBits1);
+    mSerialPortCom->setFlowControl(AbstractSerial::FlowControlOff);
 
     mStatusTimer = new QTimer(this);
     mStatusTimer->setInterval(1000);
@@ -106,16 +104,16 @@ quint8 GpsDevice::slotFlushCommandQueue()
     if(mNumberOfRemainingRepliesUsb == 0 && mCommandQueueUsb.size())
     {
         mLastCommandToDeviceUsb = mCommandQueueUsb.takeFirst();
-        //qDebug() << "GpsDevice::slotFlushCommandQueue(): currently not waiting for a reply, so sending next command:" << mLastCommandToDeviceUsb.trimmed();
-        qDebug() << "pc->gps\n\n" << mLastCommandToDeviceUsb.trimmed();
+        qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "GpsDevice::slotFlushCommandQueue(): currently not waiting for a reply, so sending next command:" << mLastCommandToDeviceUsb.trimmed();
+//        qDebug() << "pc->gps\n\n" << mLastCommandToDeviceUsb.trimmed();
         if(mReceiveBufferUsb.size() != 0) qDebug() << "GpsDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << mReceiveBufferUsb;
-        usleep(25000);
+        usleep(100000);
         mSerialPortUsb->write(mLastCommandToDeviceUsb);
         mNumberOfRemainingRepliesUsb++;
     }
     else if(mNumberOfRemainingRepliesUsb)
     {
-//        qDebug() << "GpsDevice::slotFlushCommandQueue(): still waiting for" << mNumberOfRemainingRepliesUsb << "command-replies, not sending.";
+        qDebug() << "GpsDevice::slotFlushCommandQueue(): still waiting for" << mNumberOfRemainingRepliesUsb << "command-replies, not sending.";
     }
     else
     {
@@ -149,11 +147,16 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
     if(mSerialPortOnDeviceUsb.isEmpty())
     {
         mSerialPortUsb->write("getReceiverCapabilities\n");
-        usleep(100000);
-        QCoreApplication::processEvents();
+
+        QByteArray dataUsb;
+        while((mSerialPortUsb->bytesAvailable() + dataUsb.size()) < 250)
+        {
+            mSerialPortUsb->waitForReadyRead(1000);
+            dataUsb.append(mSerialPortUsb->readAll());
+            qDebug() << "GpsDevice::determineSerialPortOnDevice():" << mSerialPortUsb->bytesAvailable() << "bytes waiting on serial usb port.";
+        }
 
         // After waiting for the reply, read and analyze.
-        QByteArray dataUsb = mSerialPortUsb->readAll();
         QString portNameUsb = dataUsb.right(5).left(4);
 
         // Use lines ending with e.g. COM2 or USB1 to determine the port on the serial device being used.
@@ -164,7 +167,7 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
         }
         else
         {
-            qWarning() << "GpsDevice::determineSerialPortOnDevice(): couldn't get serialUsbPortOnDevice, data is:" << dataUsb;
+            qWarning() << "GpsDevice::determineSerialPortOnDevice(): couldn't get serialUsbPortOnDevice," << dataUsb.size() << "bytes of data are:" << dataUsb.simplified();
             slotEmitCurrentGpsStatus("Couldn't get serialUsbPortOnDevice");
         }
     }
@@ -172,11 +175,16 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
     if(mSerialPortOnDeviceCom.isEmpty())
     {
         mSerialPortCom->write("getReceiverCapabilities\n");
-        usleep(100000);
-        QCoreApplication::processEvents();
+
+        QByteArray dataCom;
+        while((mSerialPortCom->bytesAvailable() + dataCom.size()) < 250)
+        {
+            mSerialPortCom->waitForReadyRead(1000);
+            dataCom.append(mSerialPortCom->readAll());
+            qDebug() << "GpsDevice::determineSerialPortOnDevice():" << mSerialPortCom->bytesAvailable() << "bytes waiting on serial com port.";
+        }
 
         // After waiting for the reply, read and analyze.
-        QByteArray dataCom = mSerialPortCom->readAll();
         QString portNameCom = dataCom.right(5).left(4);
 
         // Use lines ending with e.g. COM2 or USB1 to determine the port on the serial device being used.
@@ -192,51 +200,11 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
         }
     }
 
-    // Do not start if receiver-time will rollover soon. Should only fail on saturdays, as it will roll over at the end of saturday.
-    const quint32 secondsToRollOver = getTimeToTowRollOver();
-    if(secondsToRollOver < 86400) qFatal("ReceiverTime will rollover soon (in %d seconds), quitting.", secondsToRollOver);
-
     // Now that we know what the ports are named, we can setup the board.
     // We connect this signal not in the c'tor but here, because we don't want the slot
     // to be called for answers to requests made in this method.
     connect(mSerialPortUsb, SIGNAL(readyRead()), SLOT(slotSerialPortDataReady()));
     slotCommunicationSetup();
-}
-
-quint32 GpsDevice::getTimeToTowRollOver()
-{
-    Q_ASSERT(mSerialPortOnDeviceUsb.size() == 4);
-
-    qDebug() << "GpsDevice::getTimeToTowRollOver(): requesting receiver time using USB port:" << mSerialPortOnDeviceUsb;
-    mSerialPortUsb->write(QString("setDataInOut,"+mSerialPortOnDeviceUsb+",,+SBF\n").toAscii());
-    usleep(1000000);
-    QCoreApplication::processEvents();
-    mSerialPortUsb->readAll();
-
-    mSerialPortUsb->write(QString("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime\n").toAscii());
-    usleep(1000000);
-    QCoreApplication::processEvents();
-
-    // After waiting for the reply, read and analyze.
-    QByteArray dataUsb = mSerialPortUsb->readAll();
-
-    dataUsb.remove(0, dataUsb.indexOf("$@"));
-
-    const Sbf_ReceiverTime *block = (Sbf_ReceiverTime*)dataUsb.data();
-
-    if(block->TOW == 4294967295)
-    {
-        emit message(Error, "GpsDevice::getTimeToTowRollOver()", "GPS Receiver TOW is at its do-not-use-value, give it time to initialize. Quitting.");
-        qWarning() << "GpsDevice::getTimeToTowRollOver(): GPS Receiver TOW is at its do-not-use-value, give it time to initialize. Quitting.";
-        QCoreApplication::quit();
-    }
-
-    // SecondsPerWeek - CurrentSecondInWeek is number of seconds till rollover
-    const int secondsToRollOver = (7 * 86400) - (block->TOW / 1000);
-
-    qDebug() << "GpsDevice::getTimeToTowRollOver(): TOW" << block->TOW << "will roll over in" << secondsToRollOver << "s =" << ((float)secondsToRollOver)/86400.0 << "d";
-
-    return secondsToRollOver;
 }
 
 void GpsDevice::slotCommunicationSetup()
@@ -259,6 +227,9 @@ void GpsDevice::slotCommunicationSetup()
 
     // make the receiver output SBF blocks on our USB connection
     sendAsciiCommand("setDataInOut,"+mSerialPortOnDeviceUsb+",,+SBF");
+
+    // we want to know the TOW, because we don't want it to roll over! Answer is parsed below.
+    sendAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime");
 
     // make the receiver listen to RTK data on specified port
     sendAsciiCommand("setDataInOut,"+mSerialPortOnDeviceCom+",RTCMv3");
@@ -319,58 +290,81 @@ void GpsDevice::slotCommunicationStop()
 //     usleep(100000);
 //     QCoreApplication::processEvents();
 
-    qDebug() << "GpsDevice::communicationStop(): stopping SBF streams";
+    qDebug() << "GpsDevice::communicationStop(): stopping SBF streams, resetting dataInOut";
 
     mSerialPortUsb->write(QString("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",none\n").toAscii());
     usleep(100000);
     mSerialPortUsb->write(QString("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",none\n").toAscii());
     usleep(100000);
     mSerialPortUsb->write(QString("setSBFOutput,Stream3,"+mSerialPortOnDeviceUsb+",none\n").toAscii());
-//     mSerialPortUsb->write("setDataInOut,all,CMD,none\n");
-//     usleep(100000);
-//     mSerialPortUsb->write("setDataInOut,all,CMD,none\n");
-//     usleep(100000);
+    mSerialPortUsb->write("setDataInOut,all,CMD,none\n");
+    usleep(100000);
+    mSerialPortUsb->write("setDataInOut,all,CMD,none\n");
+    usleep(100000);
 
 //    emit stateChanged(GpsDevice::Stopped, "Orderly shutdown finished");
     slotEmitCurrentGpsStatus("Orderly shutdown finished");
 
     // no need to update status of a disabled device
     mStatusTimer->stop();
+}
 
-    QCoreApplication::processEvents();
+void GpsDevice::slotShutDown()
+{
+    slotCommunicationStop();
 }
 
 void GpsDevice::slotSerialPortDataReady()
 {
-    usleep(100000); // wait for the later bytes of this message to come on in...
+    qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "GpsDevice::slotSerialPortDataReady()";
     mReceiveBufferUsb.append(mSerialPortUsb->readAll());
-
-//    qDebug() << "GpsDevice::slotSerialPortDataReady():" << mReceiveBufferUsb;
 
     if(mNumberOfRemainingRepliesUsb != 0)
     {
-        const int position = mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QString(">"));
-        if(position != -1)
+        while(mNumberOfRemainingRepliesUsb != 0 && mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QString(">")) != -1) // while we found a complete chat reply
         {
-            //qDebug() << "GpsDevice::slotSerialPortDataReady(): received reply to" << mLastCommandToDeviceUsb.trimmed() << ":" << mReceiveBufferUsb.left(position).trimmed();
-            qDebug() << "gps->pc\n\n" << mReceiveBufferUsb.left(position).trimmed();
-//            qDebug() << "GpsDevice::slotSerialPortDataReady(): now sending next command, if any";
+            const int positionEndOfReply = mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QString(">")) + 5;
+//            qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "GpsDevice::slotSerialPortDataReady(): received reply to:" << mLastCommandToDeviceUsb.trimmed() << ":" << mReceiveBufferUsb.left(positionEndOfReply).trimmed();
 
-            // After sending/receiving the SsetPvtMode command, the rover needs to be static for better alignment.
-            // Tell the user to wait!
-            if(QString(mReceiveBufferUsb.left(position)).contains("SetPvtMode", Qt::CaseInsensitive))
-                qDebug() << "GpsDevice::slotSerialPortDataReady(): Integration filter started (alignment not ready), vehicle must remain static for 20s starting now.";
+            // If the receiver replies to "exeSbfOnce,..." use the data to find its TOW. When the TimeOfWeek is about to wrap around, we're in trouble. Don't start!
+            if(mReceiveBufferUsb.left(positionEndOfReply).contains("SBFOnce"))
+            {
+                Q_ASSERT(mReceiveBufferUsb.indexOf("$@") == 0);
 
-            if(mReceiveBufferUsb.left(position).contains("$R? ASCII commands between prompts were discarded!"))
-                qDebug() << "GpsDevice::slotSerialPortDataReady(): we were talking too fast!!";
+                const Sbf_ReceiverTime *block = (Sbf_ReceiverTime*)mReceiveBufferUsb.data();
 
-            mReceiveBufferUsb.remove(0, position+5);
+                if(block->TOW == 4294967295)
+                {
+                    emit message(Error, "GpsDevice::getTimeToTowRollOver()", "GPS Receiver TOW is at its do-not-use-value, give it time to initialize. Quitting.");
+                    qWarning() << "GpsDevice::getTimeToTowRollOver(): GPS Receiver TOW is at its do-not-use-value, give it time to initialize. Quitting.";
+                    QCoreApplication::quit();
+                }
+
+                // SecondsPerWeek - CurrentSecondInWeek is number of seconds till rollover
+                const quint32 secondsToRollOver = (7 * 86400) - (block->TOW / 1000);
+
+                qDebug() << "GpsDevice::slotSerialPortDataReady(): TOW" << block->TOW << "will roll over in" << secondsToRollOver << "s =" << ((float)secondsToRollOver)/86400.0 << "d";
+            }
+
+            // After sending/receiving the SetPvtMode command, the rover needs to be static for better alignment. Tell the user to wait!
+            if(QString(mReceiveBufferUsb.left(positionEndOfReply)).contains("SetPvtMode", Qt::CaseInsensitive))
+                slotEmitCurrentGpsStatus("Integration filter started (alignment not ready), vehicle must remain static for 20s starting now.");
+
+            if(mReceiveBufferUsb.left(positionEndOfReply).contains("$R? ASCII commands between prompts were discarded!"))
+                qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "GpsDevice::slotSerialPortDataReady(): we were talking too fast!!";
+
+            mReceiveBufferUsb.remove(0, positionEndOfReply);
             mNumberOfRemainingRepliesUsb--;
-            slotFlushCommandQueue();
+        }
+
+        if(mReceiveBufferUsb.size())
+        {
+            qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "GpsDevice::slotSerialPortDataReady(): after parsing all replies, rx-buffer not empty, contains:" << mReceiveBufferUsb;
         }
         else
         {
-            Q_ASSERT(false && "Expected a GPS command reply from USB port, but didn't find a prompt at the end");
+//            qDebug() << "GpsDevice::slotSerialPortDataReady(): after parsing all input i will send next command, if any";
+            slotFlushCommandQueue();
         }
     }
     else
@@ -382,7 +376,6 @@ void GpsDevice::slotSerialPortDataReady()
 //        qDebug() << "GpsDevice::slotSerialPortDataReady(): received" << mReceiveBufferUsb.size() << "bytes of SBF data.";
         processSbfData();
     }
-
 }
 
 quint16 GpsDevice::getCrc(const void *buf, unsigned int length)
@@ -424,7 +417,7 @@ void GpsDevice::processSbfData()
 
         if(mReceiveBufferUsb.size() < msgLength)
         {
-            qDebug() << "GpsDevice::processSbfData(): message incomplete, we only have" << mReceiveBufferUsb.size() << "of" << msgLength << "bytes";
+            qDebug() << "GpsDevice::processSbfData(): message incomplete, we only have" << mReceiveBufferUsb.size() << "of" << msgLength << "bytes. Looping.";
             return;
         }
 
@@ -663,7 +656,7 @@ void GpsDevice::processSbfData()
     }
 
     if(mReceiveBufferUsb.size())
-        qDebug() << "GpsDevice::processSbfData(): done processing SBF data, bytes left in buffer:" << mReceiveBufferUsb.size();
+        qDebug() << "GpsDevice::processSbfData(): done processing SBF data, bytes left in buffer:" << mReceiveBufferUsb.size() << "bytes:" << mReceiveBufferUsb;
 
 }
 
@@ -705,4 +698,20 @@ QVector3D GpsDevice::convertGeodeticToCartesian(const double &lon, const double 
     co.setX((lon - 9.933817l) * 111300.0l * cos(M_PI / 180.0 * 53.600669l));
 
     return co;
+}
+
+void GpsDevice::slotSerialPortStatusChanged(const QString& status, const QDateTime& time)
+{
+    if(sender() == mSerialPortUsb)
+    {
+        qDebug() << "GpsDevice::slotSerialPortStatusChanged(): usb port status" << status << "errorstring" << mSerialPortUsb->errorString();
+    }
+    else if(sender() == mSerialPortCom)
+    {
+        qDebug() << "GpsDevice::slotSerialPortStatusChanged(): com port status" << status << "errorstring" << mSerialPortCom->errorString();
+    }
+    else
+    {
+        qDebug() << "GpsDevice::slotSerialPortStatusChanged(): ??? port status" << status;
+    }
 }

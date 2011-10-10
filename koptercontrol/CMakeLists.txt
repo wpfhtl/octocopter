@@ -20,8 +20,6 @@ camera
 ../common/gpsstatusinformation
 gpsdevice
 laserscanner
-qextserialport/src/qextserialport
-qextserialport/src/posix_qextserialport
 )
 
 SET(INC_FILES
@@ -38,7 +36,6 @@ camera.h
 ../common/gpsstatusinformation.h
 gpsdevice.h
 laserscanner.h
-qextserialport/src/qextserialport.h
 )
 
 SET(RESOURCE_FILES
@@ -78,9 +75,10 @@ INCLUDE_DIRECTORIES(
     ${SDL_INCLUDE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/qserialdevice/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/
 )
 
 LINK_DIRECTORIES(/usr/local/lib/)
 ADD_EXECUTABLE(koptercontrol ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES})
+TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES} -lqserialdevice)

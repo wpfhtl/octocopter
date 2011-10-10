@@ -45,7 +45,6 @@ private:
     QString mDeviceFile;
     int mFileDescriptor;
     int mBufferCount;
-    quint16 mWidth, mHeight;
     Frame *mFrameBuffer;
     QByteArray *mImageData;
     quint8 mFps;
@@ -58,8 +57,7 @@ private:
     // helpers:
     static int xioctl(int fd, int request, void *arg);
 
-public slots:
-    void slotSetEmitFrameRate(const quint8 fps);
+private slots:
     void slotReadAndEmitCurrentFrame();
 
 signals:

@@ -6,7 +6,7 @@
 #include <QTimer>
 #include <QDebug>
 
-#include "qextserialport/src/qextserialport.h"
+#include <abstractserial.h>
 #include "koptermessage.h"
 
 class Kopter : public QObject
@@ -66,7 +66,7 @@ private:
     // How many milliseconds between two debug outputs?
     int mDesiredDebugDataInterval;
 
-    QextSerialPort *mSerialPortFlightCtrl;
+    AbstractSerial *mSerialPortFlightCtrl;
     QByteArray mReceiveBuffer;
     QTime mMissionStartTime;
 

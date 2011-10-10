@@ -386,7 +386,7 @@ void BaseConnection::slotNewCameraImage(const QString& name, const QSize& imageS
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
-qDebug() << "now sending image bytes: count:" << compressedImage->size();
+//qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "now sending image bytes: count:" << compressedImage->size();
 
     stream << QString("image");
     stream << name;
@@ -396,7 +396,7 @@ qDebug() << "now sending image bytes: count:" << compressedImage->size();
     stream << *compressedImage;
     slotSendData(data, false);
 
-qDebug() << "complete data size was" << data.size();
+//qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "image sent, complete data size was" << data.size();
 }
 
 // called by rover to send new log message to basestation

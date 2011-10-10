@@ -80,29 +80,27 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     qDebug() << "KopterControl::KopterControl(): using laserscanner at" << deviceSerialLaserScanner;
     qDebug() << "KopterControl::KopterControl(): reading RSSI at interface" << networkInterface;
 
-    mCamera = new Camera(deviceCamera, QSize(320, 240), QVector3D(), QQuaternion(), 12);
     mBaseConnection = new BaseConnection(networkInterface);
     mKopter = new Kopter(deviceSerialKopter, this);
     mGpsDevice = new GpsDevice(deviceSerialGpsUsb, deviceSerialGpsCom, this);
     mLaserScanner = new LaserScanner(deviceSerialLaserScanner, Pose());
-    connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     mFlightController = new FlightController();
+    mCamera = new Camera(deviceCamera, QSize(320, 240), QVector3D(), QQuaternion(), 12);
 
+    connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mCamera, SIGNAL(imageReady(QString,QSize,QVector3D,QQuaternion,const QByteArray*)), mBaseConnection, SLOT(slotNewCameraImage(QString,QSize,QVector3D,QQuaternion,const QByteArray*)));
-
     connect(mKopter, SIGNAL(kopterStatus(quint32, qint16, float)), mBaseConnection, SLOT(slotNewVehicleStatus(quint32, qint16, float)));
-
     connect(mLaserScanner, SIGNAL(bottomBeamLength(const float&)), mFlightController, SLOT(slotSetBottomBeamLength(const float&)));
     connect(mBaseConnection, SIGNAL(enableScanning(const bool&)), mLaserScanner, SLOT(slotEnableScanning(const bool&)));
     connect(mBaseConnection, SIGNAL(rtkDataReady(const QByteArray&)), mGpsDevice, SLOT(slotSetRtkData(const QByteArray&)));
+
+    //    WARNING! THIS ENABLES MOTION!
+    //    connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
 
     connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mFlightController, SLOT(slotSetVehiclePose(Pose)));
     connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mLaserScanner, SLOT(slotNewVehiclePose(Pose)));
     connect(mGpsDevice, SIGNAL(newVehiclePoseLowFreq(Pose)), mBaseConnection, SLOT(slotPoseChanged(Pose)));
     connect(mGpsDevice, SIGNAL(scanFinished(quint32)), mLaserScanner, SLOT(slotScanFinished(quint32)));
-
-//    connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
-
     connect(
                 mGpsDevice,
                 SIGNAL(gpsStatus(const quint8&, const quint8&, const quint16&, const quint8&, const quint8&, const quint8&, const quint8&, const QString&)),
@@ -161,6 +159,7 @@ void KopterControl::slotHandleSignal()
     snSignalPipe->setEnabled(true);
 
     // shutdown orderly
+    mGpsDevice->slotShutDown();
     quit();
 }
 
