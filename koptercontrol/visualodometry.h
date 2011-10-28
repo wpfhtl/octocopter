@@ -8,6 +8,8 @@
 #include <opencv2/opencv.hpp>
 #include <math.h>
 
+//using namespace cv;
+
 class VisualOdometry : public QObject
 {
     Q_OBJECT

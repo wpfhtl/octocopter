@@ -159,7 +159,9 @@ void VisualOdometry::slotProcessImage(const QString& name, const QSize& imageSiz
 
                 cvLine( mImage1, p1, p2, CV_RGB(255,255,255), 1, CV_AA, 0 );
                 sprintf(filename, "frame_%d.jpg", mNumberOfFramesProcessed);
-                cvSaveImage(filename, mImage1);
+//                cvSaveImage(filename, mImage1);
+                cv::imwrite(std::string(filename), mImage1);
+
 
                 qDebug() << "AVG DIRECTION" << averageDirectionX << averageDirectionY;
 }
