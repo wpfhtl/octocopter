@@ -13,6 +13,7 @@
 #include "camera.h"
 #include "gpsdevice.h"
 #include "laserscanner.h"
+#include "visualodometry.h"
 #include "baseconnection.h"
 #include "flightcontroller.h"
 
@@ -39,6 +40,7 @@ private:
     GpsDevice *mGpsDevice;
     LaserScanner *mLaserScanner;
     BaseConnection *mBaseConnection;
+    VisualOdometry* mVisualOdometry;
 
     QSocketNotifier *snSignalPipe;
 

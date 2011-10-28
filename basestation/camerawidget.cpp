@@ -8,7 +8,7 @@ CameraWidget::CameraWidget(QWidget *parent, const QString &windowTitle) :
     layout()->setContentsMargins(0, 0, 0, 0);
     setContentsMargins(0, 0, 0, 0);
     mLabel = new QLabel(this);
-    mLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+//    mLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     layout()->addWidget(mLabel);
     setWidget(mLabel);
     mPixmap = new QPixmap;
@@ -23,8 +23,9 @@ void CameraWidget::slotSetPixmapData(const QByteArray &data)
 //    mPixmap = new QPixmap;
     mPixmap->loadFromData(data);
 //    mPixmap->save("/tmp/target.jpg", "JPG", 100);
-//    slotSetDimensions(mPixmap->size());
-    mLabel->setPixmap(mPixmap->scaled(mLabel->size(), Qt::KeepAspectRatio, Qt::FastTransformation));
+    slotSetDimensions(mPixmap->size());
+    mLabel->setPixmap(*mPixmap);
+//    mLabel->setPixmap(mPixmap->scaled(mLabel->size(), Qt::KeepAspectRatio, Qt::FastTransformation));
 }
 
 void CameraWidget::slotSetDimensions(const QSize size)

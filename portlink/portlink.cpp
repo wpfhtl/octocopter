@@ -66,7 +66,7 @@ PortLink::PortLink(int argc, char **argv) : QCoreApplication(argc, argv)
         {
             Port* port = new NetworkServer(commandLine.takeFirst());
             mPortList.append(port);
-            numberOfPorts++;
+            numberOfPorts += 2; // We increment by two to disable the error based on this value below. One server can have many clients...
         }
         else
         {

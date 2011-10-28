@@ -11,6 +11,7 @@ koptercontrol
 koptermessage
 kopter
 camera
+visualodometry
 ../common/flightcontroller
 ../common/common
 ../common/pose
@@ -27,6 +28,7 @@ koptercontrol.h
 koptermessage.h
 kopter.h
 camera.h
+visualodometry.h
 ../common/flightcontroller.h
 ../common/common.h
 ../common/pose.h
@@ -81,4 +83,4 @@ INCLUDE_DIRECTORIES(
 
 LINK_DIRECTORIES(/usr/local/lib/)
 ADD_EXECUTABLE(koptercontrol ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES} -lqserialdevice)
+TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES} -lqserialdevice -lopencv_core -lopencv_legacy)

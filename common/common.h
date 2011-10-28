@@ -12,6 +12,12 @@
 #define RAD2DEG(RAD) ((RAD)*180/M_PI)
 #define DEG2RAD(DEG) ((DEG)*((M_PI)/(180.0)))
 
+#define SQUARE(X) ((X)*(X))
+
+// So I can do qDebug() << "string is" << Q(myStringObject) << "."; without having quotes around the string-value inthe output
+#define Q(string) (string).toStdString().c_str()
+
+
 QString hash(QList<WayPoint> list);
 
 quint32 getCurrentGpsTowTime();

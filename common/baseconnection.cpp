@@ -289,7 +289,7 @@ void BaseConnection::slotPoseChanged(const Pose& pose)
 }
 
 // called by rover to send lidarpoints to the basestation
-void BaseConnection::slotNewLidarPoints(const QVector3D& scanPosition, const QVector<QVector3D>& points)
+void BaseConnection::slotNewScannedPoints(const QVector3D& scanPosition, const QVector<QVector3D>& points)
 {
 //    qDebug() << "sending" << points.size() << "new lidarpoints to base";
     QByteArray data;

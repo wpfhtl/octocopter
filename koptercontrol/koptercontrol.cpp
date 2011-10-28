@@ -83,12 +83,28 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     mBaseConnection = new BaseConnection(networkInterface);
     mKopter = new Kopter(deviceSerialKopter, this);
     mGpsDevice = new GpsDevice(deviceSerialGpsUsb, deviceSerialGpsCom, this);
-    mLaserScanner = new LaserScanner(deviceSerialLaserScanner, Pose());
+    mLaserScanner = new LaserScanner(
+                deviceSerialLaserScanner,
+                Pose(
+                    QVector3D(      // Offset from Antenna to Laser Source. In Vehicle Reference Frame: Like OpenGL, red arm forward pointing to screen
+                        +0.14,      // From antenna 14cm right to laser
+                        -0.31,      // From Antenna 31cm down to laser
+                        -0.09),     // From Antenna 9cm forward to laser
+                    0.0,            // No yawing
+                    0.0,            // No pitching
+                    -90.0           // 90 degrees roll
+                    )
+                );
+
     mFlightController = new FlightController();
-    mCamera = new Camera(deviceCamera, QSize(320, 240), QVector3D(), QQuaternion(), 12);
+    mCamera = new Camera(deviceCamera, QSize(320, 240), QVector3D(), QQuaternion(), 30);
+
+    mVisualOdometry = new VisualOdometry(mCamera);
 
     connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
-    connect(mCamera, SIGNAL(imageReady(QString,QSize,QVector3D,QQuaternion,const QByteArray*)), mBaseConnection, SLOT(slotNewCameraImage(QString,QSize,QVector3D,QQuaternion,const QByteArray*)));
+    connect(mLaserScanner, SIGNAL(newScannedPoints(QVector3D,QVector<QVector3D>)), mBaseConnection, SLOT(slotNewScannedPoints(QVector3D,QVector<QVector3D>)));
+    connect(mCamera, SIGNAL(imageReadyJpeg(QString,QSize,QVector3D,QQuaternion,const QByteArray*)), mBaseConnection, SLOT(slotNewCameraImage(QString,QSize,QVector3D,QQuaternion,const QByteArray*)));
+    connect(mCamera, SIGNAL(imageReadyYCbCr(QString,QSize,QVector3D,QQuaternion,QByteArray)), mVisualOdometry, SLOT(slotProcessImage(QString,QSize,QVector3D,QQuaternion,QByteArray)));
     connect(mKopter, SIGNAL(kopterStatus(quint32, qint16, float)), mBaseConnection, SLOT(slotNewVehicleStatus(quint32, qint16, float)));
     connect(mLaserScanner, SIGNAL(bottomBeamLength(const float&)), mFlightController, SLOT(slotSetBottomBeamLength(const float&)));
     connect(mBaseConnection, SIGNAL(enableScanning(const bool&)), mLaserScanner, SLOT(slotEnableScanning(const bool&)));
@@ -122,6 +138,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 KopterControl::~KopterControl()
 {
     qDebug() << "KopterControl::~KopterControl(): deleting objects, shutting down.";
+    delete mLaserScanner;
 //    delete mKopter;
     delete snSignalPipe;
 }

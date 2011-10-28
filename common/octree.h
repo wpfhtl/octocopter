@@ -70,6 +70,7 @@ public:
     // Yet more efficient: check whether there is AT LEAST ONE point within @radius of@point
     bool isNeighborWithinRadius(const QVector3D &point, const double radius) const;
 
+    // Sort @list oof points according to distance to @point
     void sortPointList(const QVector3D &point, QList<LidarPoint*>* list) const;
 
     Node* insertPoint(LidarPoint* const point);

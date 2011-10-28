@@ -25,6 +25,11 @@ Camera::~Camera()
     if (-1 == uninitDevice()) { exit(EXIT_FAILURE); }
 }
 
+const QSize Camera::getImageSize() const
+{
+    return mImageSize;
+}
+
 int Camera::initDevice()
 {
     /*** open device ***/
@@ -315,7 +320,7 @@ int Camera::xioctl(int fd, int request, void *arg)
 
 
 /*** clamp value outside the range of an unsigned byte ***/
-inline u_char Camera::clampValue(int value)
+inline unsigned char Camera::clampValue(int value)
 {
     if (255 < value) { return 255; }
     else if (0 > value) { return 0; }
@@ -323,7 +328,7 @@ inline u_char Camera::clampValue(int value)
 }
 
 /*** convert Y'CbCr 4:2:2 to BGR888 ***/
-inline void Camera::convertToBgr(u_char *src, u_char *dst, int width, int height)
+inline void Camera::convertYCbCr422ToBgr888(unsigned char *src, unsigned char *dst, int width, int height)
 {
     int y0, y1, cb, cr;
     int w = width / 2;
@@ -355,7 +360,7 @@ inline void Camera::convertToBgr(u_char *src, u_char *dst, int width, int height
 }
 
 /*** convert Y'CbCr 4:2:2 to RGB888 ***/
-inline void Camera::convertToRgb(u_char *src, u_char *dst, int width, int height)
+inline void Camera::convertYCbCr422ToRgb888(unsigned char *src, unsigned char *dst, int width, int height)
 {
     int y0, y1, cb, cr;
     int w = width / 2;
@@ -386,21 +391,26 @@ inline void Camera::convertToRgb(u_char *src, u_char *dst, int width, int height
     }
 }
 
+
+
 void Camera::slotReadAndEmitCurrentFrame()
 {
     Frame frame;
     retrieveFrame(&frame);
-//    qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "Camera::slotReadAndEmitCurrentFrame(): captured frame.";
-    //convertToBgr((u_char *) frame.start, (u_char*)mImageData->data(), mImageSize.width(), mImageSize.height());
-    convertToRgb((u_char *) frame.start, (u_char*)mImageData->data(), mImageSize.width(), mImageSize.height());
 
+    // unused, we don't encode here, because it might not be used in that same format here
+    /*
+    convertYCbCr422ToRgb888((unsigned char *) frame.start, (unsigned char*)mImageData->data(), mImageSize.width(), mImageSize.height());
     QImage image((const uchar*)mImageData->constData(), mImageSize.width(), mImageSize.height(), QImage::Format_RGB888);
     QByteArray imageDataEncoded;
     QBuffer buffer(&imageDataEncoded);
     buffer.open(QIODevice::WriteOnly);
     image.save(&buffer, "JPG", 40);
+    qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "Camera::slotReadAndEmitCurrentFrame(): sending image after compressing" << frame.length << "YCbCr bytes down to" << imageDataEncoded.size() << "jpg bytes";
+    emit imageReadyJpg(mDeviceFile, mImageSize, mPosition, mOrientation, &imageDataEncoded);
+    */
 
-//    qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "Camera::slotReadAndEmitCurrentFrame(): sending image after compressing" << frame.length << "YCbCr bytes down to" << imageDataEncoded.size() << "jpg bytes";
+    emit imageReadyYCbCr(mDeviceFile, mImageSize, mPosition, mOrientation, QByteArray::fromRawData((const char*)frame.start, frame.length));
 
-    emit imageReady(mDeviceFile, mImageSize, mPosition, mOrientation, &imageDataEncoded);
+
 }

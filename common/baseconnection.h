@@ -85,7 +85,7 @@ public slots:
     void slotPoseChanged(const Pose& pose);
 
     // called by rover to send lidarpoints to the basestation
-    void slotNewLidarPoints(const QVector3D& scanPosition, const QVector<QVector3D>& points);
+    void slotNewScannedPoints(const QVector3D& scanPosition, const QVector<QVector3D>& points);
 
     // called by rover to send new vehicle status to basestation
     void slotNewVehicleStatus(
