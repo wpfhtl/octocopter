@@ -1,15 +1,15 @@
 #include "cloudexporter.h"
 
-CloudExporter::CloudExporter() : QObject()
+PlyManager::PlyManager() : QObject()
 {
     qDebug() << "CloudExporter::CloudExporter()";
 }
 
-CloudExporter::~CloudExporter()
+PlyManager::~PlyManager()
 {
 }
 
-bool CloudExporter::savePly(QWidget* widget, const Octree* tree, const QString &fileName)
+bool PlyManager::savePly(QWidget* widget, const Octree* tree, const QString &fileName)
 {
         QFile file(fileName);
         if(!file.open(QFile::WriteOnly | QFile::Truncate))
@@ -53,7 +53,7 @@ bool CloudExporter::savePly(QWidget* widget, const Octree* tree, const QString &
 
 }
 
-bool CloudExporter::savePly(const Node* node, QTextStream* stream, QProgressDialog* progress)
+bool PlyManager::savePly(const Node* node, QTextStream* stream, QProgressDialog* progress)
 {
     if(progress->wasCanceled()) return false;
 

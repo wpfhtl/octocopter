@@ -91,6 +91,7 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mFlightPlanner, SIGNAL(wayPointsSetOnRover(QList<WayPoint>)), SLOT(slotAddLogFileMarkForPaper(QList<WayPoint>)));
 
     menuBar()->addAction("Save Cloud", this, SLOT(slotExportCloud()));
+    menuBar()->addAction("Load Cloud", this, SLOT(slotImportCloud()));
 
     mGlWidget = new GlWidget(this, mOctree, mFlightPlanner);
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(update()));
@@ -154,7 +155,25 @@ void BaseStation::slotExportCloud()
 
     if(fileName.isNull()) return;
 
-    if(CloudExporter::savePly(this, mOctree, fileName))
+    if(PlyManager::savePly(this, mOctree, fileName))
+    {
+        mLogWidget->log(Information, "BaseStation::slotExportCloud()", "Successfully wrote cloud to " + fileName);
+        QMessageBox::information(this, "Cloud export", "Successfully wrote cloud to\n" + fileName, "OK");
+    }
+    else
+    {
+        mLogWidget->log(Error, "BaseStation::slotExportCloud()", "Failed saving cloud to file " + fileName);
+        QMessageBox::information(this, "Cloud export", "Failed saving cloud to file\n\n" + fileName, "OK");
+    }
+}
+
+void BaseStation::slotImportCloud()
+{
+    const QString fileName = QFileDialog::getLoadFileName(this, "Load cloud from", QString(), "PLY files (*.ply)");
+
+    if(fileName.isNull()) return;
+
+    if(PlyManager::savePly(this, mOctree, fileName))
     {
         mLogWidget->log(Information, "BaseStation::slotExportCloud()", "Successfully wrote cloud to " + fileName);
         QMessageBox::information(this, "Cloud export", "Successfully wrote cloud to\n" + fileName, "OK");
