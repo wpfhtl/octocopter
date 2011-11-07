@@ -4,7 +4,7 @@
 
 #include "gpsdevice.h"
 
-/* 
+/*
  * This is the receiver's bootup-config concerning I/O:
  * > $R: gdio
  * >   DataInOut, DSK1, CMD, SBF+NMEA, (off)
@@ -14,14 +14,14 @@
  * >   DataInOut, COM4, CMD, none, (on)
  * >   DataInOut, USB1, CMD, SBF+NMEA, (on)
  * >   DataInOut, USB2, CMD, SBF+NMEA, (off)
- * 
+ *
  * We'd usually talk to the receiver on its COM-port to find that ports name (COM3 as above),
  * but as you can see, that port is not configured to accept CMDs, so it won't talk to us.
  * Unfortunately, it cannot be set to accept both CMD and RTCMv3. So the port is configured
  * to accept RTCMv3 and we pre-set mSerialPortOnDeviceCom to COM3 below.
- * 
+ *
  * Obviously, we now rely on the bootup-config being correct, but that should work.
- * 
+ *
  */
 
 GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom, QObject *parent) : QObject(parent)
@@ -119,7 +119,7 @@ quint8 GpsDevice::slotFlushCommandQueue()
     {
         qDebug() << "GpsDevice::slotFlushCommandQueue(): nothing to send.";
     }
-    
+
     return mCommandQueueUsb.size();
 }
 
@@ -139,7 +139,7 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
     {
         slotEmitCurrentGpsStatus("Cannot open GPS serial port(s)");
     }
-    
+
     Q_ASSERT(mSerialPortUsb->isOpen());
     Q_ASSERT(mSerialPortCom->isOpen());
 
@@ -171,7 +171,7 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
             slotEmitCurrentGpsStatus("Couldn't get serialUsbPortOnDevice");
         }
     }
-    
+
     if(mSerialPortOnDeviceCom.isEmpty())
     {
         mSerialPortCom->write("getReceiverCapabilities\n");
@@ -250,8 +250,8 @@ void GpsDevice::slotCommunicationSetup()
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,270,manual,0.07,0.07,0.33");
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,-90,0,270,manual,0.07,0.07,0.33");
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,90,manual,0.07,0.07,0.33");
-    // Leicht, jetzt wo IMU in der Mitte liegt
-    sendAsciiCommand("setExtSensorCalibration,COM2,manual,180,00,0,manual,0.07,0.07,0.33");
+    // Leicht, jetzt wo IMU in der Mitte liegt und unter dem kopter hängt
+    sendAsciiCommand("setExtSensorCalibration,COM2,manual,180,00,0,manual,-0.06,0.09,0.48");
     // Sarah Dean says "seem to be ok" about 0 90 270
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,270,manual,0.07,0.07,0.33");
 

@@ -87,12 +87,12 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
                 deviceSerialLaserScanner,
                 Pose(
                     QVector3D(      // Offset from Antenna to Laser Source. In Vehicle Reference Frame: Like OpenGL, red arm forward pointing to screen
-                        +0.14,      // From antenna 14cm right to laser
-                        -0.31,      // From Antenna 31cm down to laser
-                        -0.09),     // From Antenna 9cm forward to laser
+                        +0.09,      // From antenna positive is right to laser
+                        -0.38,      // From Antenna negative is down to laser
+                        -0.11),     // From Antenna negative forward to laser
                     0.0,            // No yawing
-                    0.0,            // No pitching
-                    -90.0           // 90 degrees roll
+                    -90.0,            // 90 deg pitched down
+                    0.0           // No rolling
                     )
                 );
 

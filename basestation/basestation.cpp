@@ -169,19 +169,25 @@ void BaseStation::slotExportCloud()
 
 void BaseStation::slotImportCloud()
 {
-    const QString fileName = QFileDialog::getLoadFileName(this, "Load cloud from", QString(), "PLY files (*.ply)");
+    const QString fileName = QFileDialog::getOpenFileName(this, "Load cloud from", QString(), "PLY files (*.ply)");
 
     if(fileName.isNull()) return;
 
-    if(PlyManager::savePly(this, mOctree, fileName))
+    QList<Octree*> octreesToFill;
+    octreesToFill.append(mOctree);
+
+    QList<FlightPlannerInterface*> flightPlannersToFill;
+    flightPlannersToFill.append(mFlightPlanner);
+
+    if(PlyManager::loadPly(this, octreesToFill, flightPlannersToFill, fileName))
     {
-        mLogWidget->log(Information, "BaseStation::slotExportCloud()", "Successfully wrote cloud to " + fileName);
-        QMessageBox::information(this, "Cloud export", "Successfully wrote cloud to\n" + fileName, "OK");
+        mLogWidget->log(Information, "BaseStation::slotImportCloud()", "Successfully loaded cloud from " + fileName);
+        QMessageBox::information(this, "Cloud import", "Successfully loaded cloud from\n" + fileName, "OK");
     }
     else
     {
-        mLogWidget->log(Error, "BaseStation::slotExportCloud()", "Failed saving cloud to file " + fileName);
-        QMessageBox::information(this, "Cloud export", "Failed saving cloud to file\n\n" + fileName, "OK");
+        mLogWidget->log(Error, "BaseStation::slotImportCloud()", "Failed saving cloud to file " + fileName);
+        QMessageBox::information(this, "Cloud import", "Failed loading cloud from file\n\n" + fileName, "OK");
     }
 }
 

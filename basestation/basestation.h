@@ -18,7 +18,7 @@
 #include "connectiondialog.h"
 #include "controlwidget.h"
 #include "logwidget.h"
-#include "cloudexporter.h"
+#include "plymanager.h"
 #include "wirelessdevice.h"
 #include <plotwidget.h>
 #include <waypoint.h>
@@ -83,6 +83,7 @@ private slots:
     void slotSocketError(QAbstractSocket::SocketError socketError);
     void slotConnectToRover(void);
     void slotExportCloud(void);
+    void slotImportCloud(void);
 
     void slotRoverWayPointInsert(const quint16&, const WayPoint&);
     void slotRoverWayPointDelete(const quint16&);

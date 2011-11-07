@@ -20,7 +20,7 @@ rtkfetcher
 controlwidget
 connectiondialog
 bulletdebugdrawergl
-cloudexporter
+plymanager
 ../common/openglutilities
 ../common/lidarpoint
 ../common/waypoint
@@ -46,7 +46,7 @@ rtkfetcher.h
 controlwidget.h
 connectiondialog.h
 bulletdebugdrawergl.h
-cloudexporter.h
+plymanager.h
 ../common/openglutilities.h
 ../common/lidarpoint.h
 ../common/waypoint.h
@@ -94,7 +94,7 @@ SET(CMAKE_BUILD_TYPE "Debug")
 # Enable the Node LidarPoint::node member, in which a lidarpoint remembers in which node it is stored. Increases octree efficiency,
 # but also creates a dependency on "Node", which is otherwise unused in koptercontrol project
 ADD_DEFINITIONS(-DLIDARPOINT_KEEPS_PARENTNODE -DBASESTATION)
-INCLUDE_DIRECTORIES(/usr/include /usr/local/include/ ${BULLET_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
+INCLUDE_DIRECTORIES(/usr/include /usr/local/include/ ${BULLET_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR} ./ ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 LINK_DIRECTORIES(/usr/lib/ /usr/local/lib/)
 ADD_EXECUTABLE(basestation ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
 TARGET_LINK_LIBRARIES(basestation qwt ${QT_LIBRARIES} ${BULLET_LIBRARIES} GLU)
