@@ -12,11 +12,11 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &pose)
     mRelativePose = pose;
     mNumberOfScannedPoints = 0;
 
-    mLogFileDataRaw = new QFile(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz").prepend("scannerdata-raw-").append(".log"));
+    mLogFileDataRaw = new QFile(QString("scannerdata-raw-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid()).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
     if(!mLogFileDataRaw->open(QIODevice::WriteOnly | QIODevice::Text))
         qFatal("LaserScanner::LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFileDataRaw->fileName()));
 
-    mLogFileDataGlobal = new QFile(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz").prepend("scannerdata-global-").append(".log"));
+    mLogFileDataGlobal = new QFile(QString("scannerdata-global-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid()).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
     if(!mLogFileDataGlobal->open(QIODevice::ReadWrite | QIODevice::Text))
         qFatal("LaserScanner::LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFileDataGlobal->fileName()));
 
@@ -57,7 +57,7 @@ LaserScanner::~LaserScanner()
     QByteArray plyContents = mLogFileDataGlobal->readAll();
 
     // Then write a new file
-    QFile logFileDataPly(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz").prepend("scannerdata-global-").append(".ply"));
+    QFile logFileDataPly(QString("scannerdata-global-%1-%2.ply").arg(QString::number(QCoreApplication::applicationPid()).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
     if(!logFileDataPly.open(QIODevice::WriteOnly | QIODevice::Text))
         qFatal("LaserScanner::LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(logFileDataPly.fileName()));
 

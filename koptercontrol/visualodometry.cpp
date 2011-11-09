@@ -24,7 +24,7 @@ VisualOdometry::VisualOdometry(Camera* camera) : QObject()
     mImageEigen = cvCreateImage(mFrameSize, IPL_DEPTH_32F, 1);
     mImageTemp = cvCreateImage(mFrameSize, IPL_DEPTH_32F, 1);
 
-    mLogFile = new QFile(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz").prepend("visualodometry-").append(".log"));
+    mLogFile = new QFile(QString("visualodometry-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid()).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
     if(!mLogFile->open(QIODevice::WriteOnly | QIODevice::Text))
         qFatal("VisualOdometry::VisualOdometry(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
 
