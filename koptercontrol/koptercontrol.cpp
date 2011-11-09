@@ -97,14 +97,14 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
                 );
 
     mFlightController = new FlightController();
-    mCamera = new Camera(deviceCamera, QSize(320, 240), QVector3D(), QQuaternion(), 30);
+//    mCamera = new Camera(deviceCamera, QSize(320, 240), QVector3D(), QQuaternion(), 15);
 
-    mVisualOdometry = new VisualOdometry(mCamera);
+//    mVisualOdometry = new VisualOdometry(mCamera);
 
     connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mLaserScanner, SIGNAL(newScannedPoints(QVector3D,QVector<QVector3D>)), mBaseConnection, SLOT(slotNewScannedPoints(QVector3D,QVector<QVector3D>)));
-    connect(mCamera, SIGNAL(imageReadyJpeg(QString,QSize,QVector3D,QQuaternion,const QByteArray*)), mBaseConnection, SLOT(slotNewCameraImage(QString,QSize,QVector3D,QQuaternion,const QByteArray*)));
-    connect(mCamera, SIGNAL(imageReadyYCbCr(QString,QSize,QVector3D,QQuaternion,QByteArray)), mVisualOdometry, SLOT(slotProcessImage(QString,QSize,QVector3D,QQuaternion,QByteArray)));
+//    connect(mCamera, SIGNAL(imageReadyJpeg(QString,QSize,QVector3D,QQuaternion,const QByteArray*)), mBaseConnection, SLOT(slotNewCameraImage(QString,QSize,QVector3D,QQuaternion,const QByteArray*)));
+//    connect(mCamera, SIGNAL(imageReadyYCbCr(QString,QSize,QVector3D,QQuaternion,QByteArray)), mVisualOdometry, SLOT(slotProcessImage(QString,QSize,QVector3D,QQuaternion,QByteArray)));
     connect(mKopter, SIGNAL(kopterStatus(quint32, qint16, float)), mBaseConnection, SLOT(slotNewVehicleStatus(quint32, qint16, float)));
     connect(mLaserScanner, SIGNAL(bottomBeamLength(const float&)), mFlightController, SLOT(slotSetBottomBeamLength(const float&)));
     connect(mBaseConnection, SIGNAL(enableScanning(const bool&)), mLaserScanner, SLOT(slotEnableScanning(const bool&)));
@@ -171,12 +171,13 @@ void KopterControl::slotHandleSignal()
     char tmp;
     ::read(signalFd[1], &tmp, sizeof(tmp));
 
-    qDebug("Caught unix-signal, shutting down...");
+    qDebug() << "KopterControl::slotHandleSignal(): caught unix-signal, quitting...";
 
     snSignalPipe->setEnabled(true);
 
     // shutdown orderly
     mGpsDevice->slotShutDown();
+
     quit();
 }
 

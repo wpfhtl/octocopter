@@ -83,4 +83,4 @@ INCLUDE_DIRECTORIES(
 
 LINK_DIRECTORIES(/usr/local/lib/)
 ADD_EXECUTABLE(koptercontrol ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES} -lqserialdevice -lopencv_core -lopencv_legacy)
+TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES} -lqserialdevice -lcv -lhighgui)

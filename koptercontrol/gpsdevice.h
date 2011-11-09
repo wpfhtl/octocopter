@@ -76,6 +76,7 @@ private:
     bool mDeviceIsInitialized; // so we only feed it rtk data when the device is ready for it.
 
     // The ports we use to talk to the receiver have a name on the receiver-side, e.g. COM1 or USB2
+    // We need to use these names to tell the receiver what communication comes in/out of what ports.
     QString mSerialPortOnDeviceUsb, mSerialPortOnDeviceCom;
 
     // To emit status in regular intervals

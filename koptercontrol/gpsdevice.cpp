@@ -32,7 +32,7 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
 
     mPoseClockDivisor = 0;
 
-    mNumberOfRemainingRepliesUsb = 0;
+    mNumberOfRemainingRepliesUsb = 0; // Should never be > 1 as we wait with sending until last command is replied to.
     mRtkDataCounter = 0;
     mSerialPortOnDeviceCom = "COM3";
     mSerialPortOnDeviceUsb = "";
@@ -87,9 +87,13 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
 GpsDevice::~GpsDevice()
 {
     qDebug() << "GpsDevice::~GpsDevice(): stopping output, closing serial ports";
+
     slotCommunicationStop();
+
     mSerialPortUsb->close();
     mSerialPortCom->close();
+
+    qDebug() << "GpsDevice::~GpsDevice(): ports closed, shutdown complete.";
 }
 
 void GpsDevice::sendAsciiCommand(QString command)
@@ -251,12 +255,13 @@ void GpsDevice::slotCommunicationSetup()
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,-90,0,270,manual,0.07,0.07,0.33");
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,90,manual,0.07,0.07,0.33");
     // Leicht, jetzt wo IMU in der Mitte liegt und unter dem kopter hängt
-    sendAsciiCommand("setExtSensorCalibration,COM2,manual,180,00,0,manual,-0.06,0.09,0.48");
+    sendAsciiCommand("setExtSensorCalibration,COM2,manual,180,00,0,manual,-0.06,0.10,0.26");
     // Sarah Dean says "seem to be ok" about 0 90 270
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,270,manual,0.07,0.07,0.33");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
     sendAsciiCommand("setEventParameters,EventA,High2Low");
+    sendAsciiCommand("setEventParameters,EventB,High2Low");
 
     // configure rover in standalone+rtk mode
     sendAsciiCommand("setPVTMode,Rover,all,auto,Loosely");
@@ -266,9 +271,9 @@ void GpsDevice::slotCommunicationSetup()
 
     // output IntPVCart, IntAttEuler, and Event-position. ExtSensorMeas is direct IMU measurements
     // We want to know the pose 25 times a second
-    sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec200");
+    sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec50");
 
-    // We want to know PVTCartesion (4006) for MeanCorrAge only, so stream it slowly
+    // We want to know PVTCartesion (4006) for MeanCorrAge (average correction data age) only, so stream it slowly
     sendAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus,sec2");
 
     // We want to know whenever a scan is finished.
@@ -290,17 +295,22 @@ void GpsDevice::slotCommunicationStop()
 //     usleep(100000);
 //     QCoreApplication::processEvents();
 
-    qDebug() << "GpsDevice::communicationStop(): stopping SBF streams, resetting dataInOut";
+    qDebug() << "GpsDevice::slotCommunicationStop(): disabling SBF streams, resetting dataInOut...";
 
-    mSerialPortUsb->write(QString("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",none\n").toAscii());
+    // we don't need any parsing of these commands.
+//    disconnect(mSerialPortUsb, SIGNAL(readyRead()), this, SLOT(slotSerialPortDataReady()));
+
+    /*mSerialPortUsb->write(QString("setSBFOutput,all,"+mSerialPortOnDeviceUsb+",none\n").toAscii());
     usleep(100000);
-    mSerialPortUsb->write(QString("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",none\n").toAscii());
-    usleep(100000);
-    mSerialPortUsb->write(QString("setSBFOutput,Stream3,"+mSerialPortOnDeviceUsb+",none\n").toAscii());
+    QCoreApplication::processEvents();
     mSerialPortUsb->write("setDataInOut,all,CMD,none\n");
     usleep(100000);
-    mSerialPortUsb->write("setDataInOut,all,CMD,none\n");
-    usleep(100000);
+    QCoreApplication::processEvents();*/
+
+    // reset the receiver. yes, thats a hack.
+//    mSerialPortUsb->write("exeResetReceiver, soft, none\n");
+
+    qDebug() << "GpsDevice::slotCommunicationStop(): disabled SBF streams, reset dataInOut. Answer is" << mSerialPortUsb->bytesAvailable() << "bytes:" << mSerialPortUsb->readAll();
 
 //    emit stateChanged(GpsDevice::Stopped, "Orderly shutdown finished");
     slotEmitCurrentGpsStatus("Orderly shutdown finished");
@@ -311,7 +321,12 @@ void GpsDevice::slotCommunicationStop()
 
 void GpsDevice::slotShutDown()
 {
-    slotCommunicationStop();
+    qDebug() << "GpsDevice::slotShutDown(): shutting down...";
+
+//    mSerialPortUsb->write(QString("setSBFOutput,all,"+mSerialPortOnDeviceUsb+",none\n").toAscii())
+//    disconnect(mSerialPortUsb, SIGNAL(readyRead()), this, SLOT(slotSerialPortDataReady()));
+//    slotCommunicationStop();
+    qDebug() << "GpsDevice::slotShutDown(): shutdown complete.";
 }
 
 void GpsDevice::slotSerialPortDataReady()
