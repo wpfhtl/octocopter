@@ -12,11 +12,11 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &pose)
     mRelativePose = pose;
     mNumberOfScannedPoints = 0;
 
-    mLogFileDataRaw = new QFile(QString("scannerdata-raw-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid()).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
+    mLogFileDataRaw = new QFile(QString("scannerdata-raw-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
     if(!mLogFileDataRaw->open(QIODevice::WriteOnly | QIODevice::Text))
         qFatal("LaserScanner::LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFileDataRaw->fileName()));
 
-    mLogFileDataGlobal = new QFile(QString("scannerdata-global-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid()).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
+    mLogFileDataGlobal = new QFile(QString("scannerdata-global-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
     if(!mLogFileDataGlobal->open(QIODevice::ReadWrite | QIODevice::Text))
         qFatal("LaserScanner::LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFileDataGlobal->fileName()));
 
@@ -57,7 +57,7 @@ LaserScanner::~LaserScanner()
     QByteArray plyContents = mLogFileDataGlobal->readAll();
 
     // Then write a new file
-    QFile logFileDataPly(QString("scannerdata-global-%1-%2.ply").arg(QString::number(QCoreApplication::applicationPid()).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
+    QFile logFileDataPly(QString("scannerdata-global-%1-%2.ply").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
     if(!logFileDataPly.open(QIODevice::WriteOnly | QIODevice::Text))
         qFatal("LaserScanner::LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(logFileDataPly.fileName()));
 
@@ -156,7 +156,7 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
 {
     QMutexLocker locker(&mMutex);
 //    qDebug() << "LaserScanner::slotScanFinished(): scanner finished a scan at time" << timestamp;
-Q_ASSERT(false && "WOOOOOHOOOOOO, FLANKE VOM SCANNER!");
+//Q_ASSERT(false && "WOOOOOHOOOOOO, FLANKE VOM SCANNER!");
 
     // We now have a problem: The hokuyo expects us to retrieve the data within 2ms. So, lets retrieve it quickly:
     // (only if we have enough poses to interpolate that scan, true after 4 scans)

@@ -331,7 +331,7 @@ void GpsDevice::slotShutDown()
 
 void GpsDevice::slotSerialPortDataReady()
 {
-    qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "GpsDevice::slotSerialPortDataReady()";
+//    qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "GpsDevice::slotSerialPortDataReady()";
     mReceiveBufferUsb.append(mSerialPortUsb->readAll());
 
     if(mNumberOfRemainingRepliesUsb != 0)
@@ -639,8 +639,10 @@ void GpsDevice::processSbfData()
         case 5924:
         {
             // ExtEvent
-            qDebug() << "SBF: ExtEvent";
+            //qDebug() << "SBF: ExtEvent";
             const Sbf_ExtEvent *block = (Sbf_ExtEvent*)mReceiveBufferUsb.data();
+
+Q_ASSERT(block->Source == 2);
 
             if(block->TOW != 4294967295)
                 emit scanFinished(block->TOW);
