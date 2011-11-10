@@ -87,6 +87,6 @@ void VoxelManager::initializeData()
 //    if(mData) delete[] mData;
 //    mData = new quint8[dataSize];
     if(mData) cudaFreeHost(mData);
-    if(cudaHostAlloc(&mData, dataSize, cudaHostAllocMapped | cudaHostAllocWriteCombined) != cudaSuccess) qFatal("VoxelManager::initializeData(): couldn't allocate %d bytes of pinned memory, exiting.", dataSize);
+    if(cudaHostAlloc(&mData, dataSize, cudaHostAllocMapped | cudaHostAllocWriteCombined) != cudaSuccess) qFatal("VoxelManager::initializeData(): couldn't allocate %llu bytes of pinned memory, exiting.", dataSize);
     memset(mData, 0, dataSize);
 }

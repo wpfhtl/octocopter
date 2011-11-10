@@ -23,7 +23,7 @@ BaseStation::BaseStation() : QMainWindow()
     mConnectionDialog = new ConnectionDialog(this);
     slotAskForConnectionHostNames();
 
-    mOctree->setMinimumPointDistance(0.1);
+    mOctree->setMinimumPointDistance(0.0001f);
     mOctree->setPointHandler(OpenGlUtilities::drawPoint);
 
     mIncomingDataBuffer.clear();
@@ -35,8 +35,6 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mTcpSocket, SIGNAL(error(QAbstractSocket::SocketError)), SLOT(slotSocketError(QAbstractSocket::SocketError)));
     connect(mTcpSocket, SIGNAL(connected()), SLOT(slotSocketConnected()));
     connect(mTcpSocket, SIGNAL(disconnected()), SLOT(slotSocketDisconnected()));
-
-
 
     mTimerStats = new QTimer(this);
     mTimerStats->setInterval(1000);

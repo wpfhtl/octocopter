@@ -110,10 +110,13 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
 
 Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before, const Pose * const after, const Pose * const last, const quint32& time)
 {//                                             y0                        y1                         y2                        y3
-    // check parameters
+
+    // Check parameters. This should work fine even at the first call, because we only get called once all four poses are populated.
+    Q_ASSERT(first->timestamp < before->timestamp);
     Q_ASSERT(before->timestamp < time);
-    Q_ASSERT(after->timestamp > time);
     Q_ASSERT(after->timestamp > before->timestamp);
+    Q_ASSERT(after->timestamp > time);
+    Q_ASSERT(last->timestamp > after->timestamp);
 
     // recreate mu from time argument
     const float mu = (time - before->timestamp) / (after->timestamp - before->timestamp);
@@ -178,8 +181,7 @@ const QQuaternion Pose::getOrientation() const
 
 Pose Pose::operator+(const Pose &p) const
 {
-    // Should be the same
-
+    // The following two should be the same
     return Pose(
                 position + getOrientation().rotatedVector(p.position),
                 RAD2DEG(keepWithinRangeRadians(mYaw + p.getYawRadians())),
@@ -205,7 +207,7 @@ Pose Pose::operator+(const Pose &p) const
 
 QDebug operator<<(QDebug dbg, const Pose &pose)
 {
-    dbg.nospace() << "POS"
+    dbg.nospace() << "pose " << pose.timestamp
                   << " (" << Q(QString::number(pose.position.x(), 'f', 2))
                   << "/" << Q(QString::number(pose.position.y(), 'f', 2))
                   << "/" << Q(QString::number(pose.position.z(), 'f', 2))
