@@ -6,10 +6,10 @@
 
 LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &pose)
 {
-    qDebug() << "LaserScanner::LaserScanner()";
+    mRelativePose = pose;
+    qDebug() << "LaserScanner::LaserScanner(): initializing the laserscanner with a relative pose of" << mRelativePose;
 
     mDeviceFileName = deviceFileName;
-    mRelativePose = pose;
     mNumberOfScannedPoints = 0;
 
     mLogFileDataRaw = new QFile(QString("scannerdata-raw-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
@@ -20,9 +20,12 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &pose)
     if(!mLogFileDataGlobal->open(QIODevice::ReadWrite | QIODevice::Text))
         qFatal("LaserScanner::LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFileDataGlobal->fileName()));
 
-    mIsEnabled = false;
+    mIsEnabled = true;
 
-    mScannerPoseFirst = mScannerPoseBefore = mScannerPoseAfter = mScannerPoseLast = 0;
+    mScannerPoseFirst = 0;
+    mScannerPoseBefore = 0;
+    mScannerPoseAfter = 0;
+    mScannerPoseLast = 0;
 
     mScanDistancesPrevious = new std::vector<long>;
     mScanDistancesCurrent = new std::vector<long>;
@@ -54,21 +57,23 @@ LaserScanner::~LaserScanner()
     // Write a new file for the PLY data
     QFile logFileDataPly(QString("scannerdata-global-%1-%2.ply").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
     if(!logFileDataPly.open(QIODevice::WriteOnly | QIODevice::Text))
-        qFatal("LaserScanner::LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(logFileDataPly.fileName()));
+        qFatal("LaserScanner::~LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(logFileDataPly.fileName()));
 
     // Create ply header, "element vertex" requires count argument
-    logFileDataPly.write(QString("ply\nformat ascii 1.0\nelement vertex %1\nproperty float x\nproperty float y\nproperty float z\nend_header\n").arg(mNumberOfScannedPoints));
+    logFileDataPly.write(QString("ply\nformat ascii 1.0\nelement vertex %1\nproperty float x\nproperty float y\nproperty float z\nend_header\n").arg(mNumberOfScannedPoints).toAscii());
 
     // Read the processed scanned points, then write ply file
     // Seek to the file's beginning before reading it
+    qDebug() << "LaserScanner::~LaserScanner(): writing pointcloud file of about" << ((mNumberOfScannedPoints*24.5f)/1000000.0f) << "mb, this might take some time...";
     mLogFileDataGlobal->reset();
     while (!mLogFileDataGlobal->atEnd())
     {
-        const QByteArray line = mLogFileDataGlobal.readLine();
+        const QByteArray line = mLogFileDataGlobal->readLine();
         if(!line.contains("comment")) logFileDataPly.write(line);
     }
 
     logFileDataPly.close();
+    qDebug() << "LaserScanner::~LaserScanner(): done writing ply file.";
 
     // Close other logfiles
     mLogFileDataGlobal->close();
@@ -78,8 +83,6 @@ LaserScanner::~LaserScanner()
 void LaserScanner::slotSimulateScanning()
 {
 //    Q_ASSERT(mScanner.isConnected() && "not connected");
-
-    mIsEnabled = true;
 
     static quint32 counter = 0;
     const quint32 timeInMs = 1000.0 * (counter / (1000.0 / mScanner.scanMsec()));
@@ -175,7 +178,7 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
             for(int index=0; index < mScanDistancesCurrent->size(); index++)
             {
                 // Convert millimeters to meters.
-                const float distance = (*mScanDistancesCurrent)[index] / 1000.0;
+                const float distance = (*mScanDistancesCurrent)[index] / 1000.0f;
 
                 // Skip reflections on vehicle (=closer than 50cm)
 //                if(rayLength < 0.5) continue;
@@ -183,12 +186,27 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
                 // Interpolate using the last 4 poses. Do NOT interpolate between 0.0 and 1.0, as
                 // the scan actually only takes place between 0.125 and 0.875 (the scanner only
                 // scans the central 270 degrees of the 360 degree-circle).
-                Pose interpolatedPose = Pose::interpolateCubic(
+/*                const Pose interpolatedPose = Pose::interpolateCubic(
                             mScannerPoseFirst,
                             mScannerPoseBefore,
                             mScannerPoseAfter,
                             mScannerPoseLast,
-                            (float)(0.125 + (0.75 * index / mScanDistancesCurrent->size()))
+                            (float)(0.125f + (0.75f * index / mScanDistancesCurrent->size()))
+                            );*/
+
+                // Alternatively, interpolate not using a parameter mu with 0.0<=mu<=1.0, but rather by passing a time
+		// argument, which is probably the better idea, as it also works when scans and poses don't interleave so well.
+                const float scanTime = (float)mScanner.scanMsec();
+		const quint32 timeOfThisRay = timestamp - mScanner.scanMsec() // when this scan started 180deg in the rear
+                                              + scanTime/8.0f // after running 45degree, (1/8th of angular view), it records first ray
+                                              + (scanTime*0.75f * ((float)index) / ((float)mScanDistancesCurrent->size()));
+
+                const Pose interpolatedPose = Pose::interpolateCubic(
+                            mScannerPoseFirst,
+                            mScannerPoseBefore,
+                            mScannerPoseAfter,
+                            mScannerPoseLast,
+                            timeOfThisRay
                             );
 
                 scannedPoints.append(getWorldPositionOfScannedPoint(interpolatedPose, index, distance));
@@ -197,7 +215,7 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
 
 //            qDebug() << "LaserScanner::slotScanFinished(): now emitting" << scannedPoints.size() << "points generated from a vector of" << mScanDistancesCurrent->size() << "points.";
 
-            const Pose averagedPosistion = Pose::interpolateCubic(
+            const QVector3D averagedPosistion = Pose::interpolateCubic(
                         mScannerPoseFirst,
                         mScannerPoseBefore,
                         mScannerPoseAfter,
@@ -236,7 +254,7 @@ QVector3D LaserScanner::getWorldPositionOfScannedPoint(const Pose& scannerPose, 
 void LaserScanner::slotNewVehiclePose(const Pose& pose)
 {
     QMutexLocker locker(&mMutex);
-    qDebug() << "LaserScanner::slotNewVehiclePose(): received a gps pose" << pose;
+//    qDebug() << "LaserScanner::slotNewVehiclePose(): received a gps pose" << pose;
 
     // Write log data: pose[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
     QTextStream out(mLogFileDataRaw);
@@ -248,12 +266,17 @@ void LaserScanner::slotNewVehiclePose(const Pose& pose)
     mScannerPoseBefore = mScannerPoseAfter;
     mScannerPoseAfter = mScannerPoseLast;
 
-    qDebug() << "LaserScanner::slotNewVehiclePose(): setting laser pose";
+  //  qDebug() << "LaserScanner::slotNewVehiclePose(): setting laser pose";
     mScannerPoseLast = new Pose(pose + mRelativePose);
-    qDebug() << "LaserScanner::slotNewVehiclePose(): set laser pose" << *mScannerPoseLast;
+  //  qDebug() << "LaserScanner::slotNewVehiclePose(): set laser pose" << *mScannerPoseLast;
 
     // Make sure the timestamp from the incoming pose has survived the mangling.
-// FAILS; CHECK THIS!!    Q_ASSERT(mScannerPoseLast->timestamp == pose.timestamp);
+//    Q_ASSERT(mScannerPoseLast->timestamp == pose.timestamp);
+
+    if(mScannerPoseLast->timestamp != pose.timestamp)
+        qDebug() << "LaserScanner::slotNewVehiclePose(): setting laserscanner pose, incoming t" << pose.timestamp
+                 << "mRelativePose t" << mRelativePose.timestamp
+                 << "resulting t" << mScannerPoseLast->timestamp;
 }
 
 void LaserScanner::slotEnableScanning(const bool& value)

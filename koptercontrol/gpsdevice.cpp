@@ -150,7 +150,7 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
     // We just send any string causing a reply to the device, so we can see on what port it is talking to us.
     if(mSerialPortOnDeviceUsb.isEmpty())
     {
-        mSerialPortUsb->write("getReceiverCapabilities\n");
+        mSerialPortUsb->write("getReceiverCapabilities\r\n");
 
         QByteArray dataUsb;
         while((mSerialPortUsb->bytesAvailable() + dataUsb.size()) < 250)
@@ -178,7 +178,7 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
 
     if(mSerialPortOnDeviceCom.isEmpty())
     {
-        mSerialPortCom->write("getReceiverCapabilities\n");
+        mSerialPortCom->write("getReceiverCapabilities\r\n");
 
         QByteArray dataCom;
         while((mSerialPortCom->bytesAvailable() + dataCom.size()) < 250)
@@ -300,15 +300,15 @@ void GpsDevice::slotCommunicationStop()
     // we don't need any parsing of these commands.
 //    disconnect(mSerialPortUsb, SIGNAL(readyRead()), this, SLOT(slotSerialPortDataReady()));
 
-    /*mSerialPortUsb->write(QString("setSBFOutput,all,"+mSerialPortOnDeviceUsb+",none\n").toAscii());
+    mSerialPortUsb->write(QString("setSBFOutput,all,"+mSerialPortOnDeviceUsb+",none\r\n").toAscii());
     usleep(100000);
     QCoreApplication::processEvents();
-    mSerialPortUsb->write("setDataInOut,all,CMD,none\n");
+    mSerialPortUsb->write("setDataInOut,all,CMD,none\r\n");
     usleep(100000);
-    QCoreApplication::processEvents();*/
+    QCoreApplication::processEvents();
 
     // reset the receiver. yes, thats a hack.
-//    mSerialPortUsb->write("exeResetReceiver, soft, none\n");
+//    mSerialPortUsb->write("exeResetReceiver, soft, none\r\n");
 
     qDebug() << "GpsDevice::slotCommunicationStop(): disabled SBF streams, reset dataInOut. Answer is" << mSerialPortUsb->bytesAvailable() << "bytes:" << mSerialPortUsb->readAll();
 
@@ -323,9 +323,9 @@ void GpsDevice::slotShutDown()
 {
     qDebug() << "GpsDevice::slotShutDown(): shutting down...";
 
-//    mSerialPortUsb->write(QString("setSBFOutput,all,"+mSerialPortOnDeviceUsb+",none\n").toAscii())
-//    disconnect(mSerialPortUsb, SIGNAL(readyRead()), this, SLOT(slotSerialPortDataReady()));
-//    slotCommunicationStop();
+//    mSerialPortUsb->write(QString("setSBFOutput,all,"+mSerialPortOnDeviceUsb+",none\r\n").toAscii())
+    disconnect(mSerialPortUsb, SIGNAL(readyRead()), this, SLOT(slotSerialPortDataReady()));
+    slotCommunicationStop();
     qDebug() << "GpsDevice::slotShutDown(): shutdown complete.";
 }
 
@@ -417,10 +417,17 @@ void GpsDevice::processSbfData()
 //        qDebug() << "GpsDevice::processSbfData(): more than 8 data bytes present, processing.";
         const int indexOfSyncMarker = mReceiveBufferUsb.indexOf("$@");
 
-        if(indexOfSyncMarker != 0)
+        if(indexOfSyncMarker == -1)
+	{
+	    // The sync marker wasn't found! This means the whole buffer contains unusable data,
+            // because we cannot use any data without a sync-marker prepended. Clear the buffer.
+            qWarning() << "GpsDevice::processSbfData(): WARNING: SBF Sync marker not found in buffer of" << mReceiveBufferUsb.size() << "bytes. Clearing buffer.";
+            mReceiveBufferUsb.clear();
+            return;
+	}
+        else if(indexOfSyncMarker != 0)
         {
             qWarning() << "GpsDevice::processSbfData(): WARNING: SBF Sync Marker $@ was not at byte 0, but at" << indexOfSyncMarker;
-            qWarning() << "GpsDevice::processSbfData(): WARNING: removing section before $@:" << mReceiveBufferUsb.mid(0, indexOfSyncMarker);
             mReceiveBufferUsb.remove(0, indexOfSyncMarker);
         }
 
@@ -432,13 +439,17 @@ void GpsDevice::processSbfData()
 
         if(mReceiveBufferUsb.size() < msgLength)
         {
-            qDebug() << "GpsDevice::processSbfData(): message incomplete, we only have" << mReceiveBufferUsb.size() << "of" << msgLength << "bytes. Looping.";
+            qDebug() << "GpsDevice::processSbfData(): message incomplete, we only have" << mReceiveBufferUsb.size() << "of" << msgLength << "bytes. Processing postponed..";
             return;
         }
 
         if(getCrc(mReceiveBufferUsb.data()+4, msgLength-4) != msgCrc)
         {
             qWarning() << "GpsDevice::processSbfData(): WARNING: CRC in msg" << msgCrc << "computed" << getCrc(mReceiveBufferUsb.data()+4, msgLength-4) << "msgIdBlock" << msgIdBlock;
+	    // Remove the SBF block body from our incoming USB buffer, so it contains either nothing or the next SBF message
+            // Since the CRC is wrong, msgLength might also be off. Thus we delete just two bytes at the beginning, causing
+            // a warning about spurious data in the next processing iteration, but thats still more safe.
+	    mReceiveBufferUsb.remove(0, 2);
             continue;
         }
 
