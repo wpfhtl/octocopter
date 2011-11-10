@@ -90,9 +90,10 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
                         +0.09,      // From antenna positive is right to laser
                         -0.38,      // From Antenna negative is down to laser
                         -0.11),     // From Antenna negative forward to laser
-                    0.0,            // No yawing
-                    -90.0,            // 90 deg pitched down
-                    0.0           // No rolling
+                    +000.0,         // No yawing
+                    -090.0,         // 90 deg pitched down
+                    +000.0,         // No rolling
+                    1               // Use 1 msec TOW, so that the relative pose is always older than whatever new pose coming in. Don't use 0, as that would be set to current TOW, which might be newer due to clock offsets.
                     )
                 );
 

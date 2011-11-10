@@ -14,6 +14,7 @@ logwidget
 camerawidget
 flightplannerinterface
 flightplannerbasic
+flightplannercuda
 flightplannerphysics
 flightplannerphysicsdialog
 rtkfetcher
@@ -21,6 +22,7 @@ controlwidget
 connectiondialog
 bulletdebugdrawergl
 plymanager
+voxelmanager
 ../common/openglutilities
 ../common/lidarpoint
 ../common/waypoint
@@ -31,6 +33,7 @@ plymanager
 ../common/plotwidget
 ../common/gpsstatusinformation
 ../common/wirelessdevice
+computefreecolumns.cu
 )
 
 SET(INC_FILES
@@ -40,6 +43,7 @@ logwidget.h
 camerawidget.h
 flightplannerinterface.h
 flightplannerbasic.h
+flightplannercuda.h
 flightplannerphysics.h
 flightplannerphysicsdialog.h
 rtkfetcher.h
@@ -47,6 +51,7 @@ controlwidget.h
 connectiondialog.h
 bulletdebugdrawergl.h
 plymanager.h
+voxelmanager.h
 ../common/openglutilities.h
 ../common/lidarpoint.h
 ../common/waypoint.h
@@ -84,6 +89,8 @@ SET(QT_USE_QTOPENGL 1)
 SET(QT_USE_QTNETWORK 1)
 INCLUDE(${QT_USE_FILE})
 
+FIND_PACKAGE(CUDA)
+
 QT4_WRAP_CPP(MOC_SRCS ${INC_FILES})
 QT4_WRAP_UI(UI_SRCS ${UI_FILES})
 QT4_ADD_RESOURCES(RESOURCE_SRCS ${RESOURCE_FILES})
@@ -96,5 +103,5 @@ SET(CMAKE_BUILD_TYPE "Debug")
 ADD_DEFINITIONS(-DLIDARPOINT_KEEPS_PARENTNODE -DBASESTATION)
 INCLUDE_DIRECTORIES(/usr/include /usr/local/include/ ${BULLET_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR} ./ ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 LINK_DIRECTORIES(/usr/lib/ /usr/local/lib/)
-ADD_EXECUTABLE(basestation ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
+CUDA_ADD_EXECUTABLE(basestation ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
 TARGET_LINK_LIBRARIES(basestation qwt ${QT_LIBRARIES} ${BULLET_LIBRARIES} GLU)

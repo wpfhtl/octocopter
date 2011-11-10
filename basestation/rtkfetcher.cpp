@@ -63,11 +63,13 @@ void RtkFetcher::slotSocketDataReady()
     {
         // We're not waiting for a reply to a command, this must be correction data!
 //        qDebug() << "RtkFetcher::slotSocketDataReady(): emitting" << mReceiveBuffer.size() << "bytes of correction data.";
-        if(mReceiveBuffer.size() > 500)
-        {
+
+        // This if causes only big packets to be sent, thus delaying correction data. Disable it for now.
+//        if(mReceiveBuffer.size() > 500)
+//        {
             emit rtkData(mReceiveBuffer);
             mReceiveBuffer.clear();
-        }
+//        }
     }
 }
 

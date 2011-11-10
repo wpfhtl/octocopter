@@ -10,6 +10,8 @@
 #include "node.h"
 #include "lidarpoint.h"
 
+#include <stdint.h> // for uint32_t
+
 class LidarPoint;
 class Node;
 

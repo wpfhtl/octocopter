@@ -189,12 +189,12 @@ Pose Pose::operator+(const Pose &p) const
                 std::max(timestamp,p.timestamp)
                 );
 
-    return Pose(
+    /*return Pose(
                 position + getOrientation().rotatedVector(p.position),
                 p.getOrientation() * getOrientation(),
                 // use the latest timestamp, needed in LaserScanner::slotNewVehiclePose(const Pose& pose)
                 std::max(timestamp,p.timestamp)
-                );
+                );*/
 }
 
 /*const Pose Pose::operator-(const Pose &p) const

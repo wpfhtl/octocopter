@@ -22,6 +22,7 @@ protected:
     static void sortToShortestPath(QList<WayPoint> &wayPointsSetOnRover, const QVector3D &currentVehiclePosition);
 
 public:
+    // Here, basestation passes its own octree. Its up to the implementation to use it.
     FlightPlannerInterface(QWidget* widget, Octree* pointCloud);
     virtual ~FlightPlannerInterface();
 

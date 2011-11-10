@@ -6,6 +6,8 @@
 #include "lidarpoint.h"
 #include "octree.h"
 
+#include <stdint.h> // for uint32_t
+
 class Octree;
 
 class Node

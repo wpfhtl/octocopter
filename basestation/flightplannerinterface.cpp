@@ -7,7 +7,6 @@ FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, Octree* pointClo
     mWayPointsAhead = new QList<WayPoint>;
     mWayPointsPassed = new QList<WayPoint>;
     qDebug() << "FlightPlannerInterface c'tor.";
-
 }
 
 FlightPlannerInterface::~FlightPlannerInterface()

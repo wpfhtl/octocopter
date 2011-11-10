@@ -274,7 +274,7 @@ void GpsDevice::slotCommunicationSetup()
     sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec50");
 
     // We want to know PVTCartesion (4006) for MeanCorrAge (average correction data age) only, so stream it slowly
-    sendAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus,sec2");
+    sendAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus,sec1");
 
     // We want to know whenever a scan is finished.
     sendAsciiCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceUsb+",ExtEvent,OnChange");
@@ -600,12 +600,20 @@ void GpsDevice::processSbfData()
                 const float  lon = ((float)block->Lon) / 10000000.0;
                 const float  lat = ((float)block->Lat) / 10000000.0;
                 const float  alt = ((float)block->Alt) / 1000.0;
+//                Pose p(
+//                            // TODO: use PosFine, see SBF reference guide, page 80?
+//                            convertGeodeticToCartesian(lon, lat, alt),
+//                            QQuaternion::fromAxisAndAngle(0,1,0, ((float)block->Heading) * 0.001) *
+//                            QQuaternion::fromAxisAndAngle(1,0,0, ((float)block->Pitch) * 0.001) *
+//                            QQuaternion::fromAxisAndAngle(0,0,1, ((float)block->Roll) * 0.001),
+//                            block->TOW // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
+//                            );
+
                 Pose p(
-                            // TODO: use PosFine, see SBF reference guide, page 80?
                             convertGeodeticToCartesian(lon, lat, alt),
-                            QQuaternion::fromAxisAndAngle(0,1,0, ((float)block->Heading) * 0.001) *
-                            QQuaternion::fromAxisAndAngle(1,0,0, ((float)block->Pitch) * 0.001) *
-                            QQuaternion::fromAxisAndAngle(0,0,1, ((float)block->Roll) * 0.001),
+                            ((float)block->Heading) * 0.001,
+                            ((float)block->Pitch) * 0.001,
+                            ((float)block->Roll) * 0.001,
                             block->TOW // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
                             );
 
@@ -642,7 +650,8 @@ void GpsDevice::processSbfData()
             //qDebug() << "SBF: ExtEvent";
             const Sbf_ExtEvent *block = (Sbf_ExtEvent*)mReceiveBufferUsb.data();
 
-Q_ASSERT(block->Source == 2);
+            // Laserscanner sync signal is soldered to both ports, but port 1 is broken. If it ever starts working again, I want to know.
+            Q_ASSERT(block->Source == 2);
 
             if(block->TOW != 4294967295)
                 emit scanFinished(block->TOW);

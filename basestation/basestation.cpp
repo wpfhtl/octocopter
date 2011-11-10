@@ -258,12 +258,8 @@ void BaseStation::processPacket(QByteArray data)
     {
         QVector3D scannerPosition;
         QList<QVector3D> pointList;
-//        quint32 numberOfHitsToReceive;
-//        stream >> numberOfHitsToReceive;
         stream >> scannerPosition;
         stream >> pointList;
-
-//        mLogWidget->log(QString("received %1 points, inserting...").arg(pointList.size()));
 
         int i=0;
         foreach(const QVector3D &p, pointList)

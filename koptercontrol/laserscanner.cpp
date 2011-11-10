@@ -51,23 +51,23 @@ LaserScanner::~LaserScanner()
     mScanner.stop();
     mScanner.disconnect();
 
-    // Read the processed scanned points, then write ply file
-    // Seek to the file's beginning before reading it
-    mLogFileDataGlobal->reset();
-    QByteArray plyContents = mLogFileDataGlobal->readAll();
-
-    // Then write a new file
+    // Write a new file for the PLY data
     QFile logFileDataPly(QString("scannerdata-global-%1-%2.ply").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
     if(!logFileDataPly.open(QIODevice::WriteOnly | QIODevice::Text))
         qFatal("LaserScanner::LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(logFileDataPly.fileName()));
 
     // Create ply header, "element vertex" requires count argument
-    QTextStream out(&logFileDataPly);
-    out << "ply\nformat ascii 1.0\nelement vertex " << mNumberOfScannedPoints << "\nproperty float x\nproperty float y\nproperty float z\nend_header\n";
-    out.flush();
+    logFileDataPly.write(QString("ply\nformat ascii 1.0\nelement vertex %1\nproperty float x\nproperty float y\nproperty float z\nend_header\n").arg(mNumberOfScannedPoints));
 
-    // Now write points to new file
-    logFileDataPly.write(plyContents);
+    // Read the processed scanned points, then write ply file
+    // Seek to the file's beginning before reading it
+    mLogFileDataGlobal->reset();
+    while (!mLogFileDataGlobal->atEnd())
+    {
+        const QByteArray line = mLogFileDataGlobal.readLine();
+        if(!line.contains("comment")) logFileDataPly.write(line);
+    }
+
     logFileDataPly.close();
 
     // Close other logfiles
@@ -87,12 +87,6 @@ void LaserScanner::slotSimulateScanning()
     const float currentYaw = fmod((timeInMs/1000.0)*10, 360.0);
 
     qDebug() << "LaserScanner::slotSimulateScanning(): runtime is" << timeInMs/1000.0 << ", yaw is " << currentYaw << "degrees";
-
-    if(counter == 0)
-    {
-        qDebug() << "LaserScanner::slotSimulateScanning(): connecting laserpoint emit to logwrite...";
-        connect(this, SIGNAL(newScannedPoints(QVector3D,QVector<QVector3D>)), this, SLOT(slotLogScannedPoints(QVector3D,QVector<QVector3D>)));
-    }
 
     if(counter % 2 == 0)
     {
@@ -123,12 +117,10 @@ void LaserScanner::slotLogScannedPoints(const QVector3D& vehiclePosition, const 
 {
     qDebug() << "LaserScanner::logScannedPoints(): logging" << points.size() << "points.";
     QTextStream out(mLogFileDataGlobal);
-    //out << "comment " << points.size() << " points scanned from world pos: " << vehiclePosition.x() << " " << vehiclePosition.y() << " " << vehiclePosition.z() << "\n";
+    out << "comment: " << points.size() << " points scanned from world pos: " << vehiclePosition.x() << " " << vehiclePosition.y() << " " << vehiclePosition.z() << "\n";
 
     for (int i = 0; i < points.size(); ++i)
         out << points.at(i).x() << " " << points.at(i).y() << " " << points.at(i).z() << "\n";
-
-//    if(points.size()) out << "\n";
 }
 
 bool LaserScanner::isScanning(void) const
@@ -156,7 +148,6 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
 {
     QMutexLocker locker(&mMutex);
 //    qDebug() << "LaserScanner::slotScanFinished(): scanner finished a scan at time" << timestamp;
-//Q_ASSERT(false && "WOOOOOHOOOOOO, FLANKE VOM SCANNER!");
 
     // We now have a problem: The hokuyo expects us to retrieve the data within 2ms. So, lets retrieve it quickly:
     // (only if we have enough poses to interpolate that scan, true after 4 scans)
@@ -206,16 +197,17 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
 
 //            qDebug() << "LaserScanner::slotScanFinished(): now emitting" << scannedPoints.size() << "points generated from a vector of" << mScanDistancesCurrent->size() << "points.";
 
-            emit newScannedPoints(
-                        Pose::interpolateCubic(
-                            mScannerPoseFirst,
-                            mScannerPoseBefore,
-                            mScannerPoseAfter,
-                            mScannerPoseLast,
-                            (float)0.5
-                            ).position,
-                        scannedPoints
-                        );
+            const Pose averagedPosistion = Pose::interpolateCubic(
+                        mScannerPoseFirst,
+                        mScannerPoseBefore,
+                        mScannerPoseAfter,
+                        mScannerPoseLast,
+                        (float)0.5
+                        ).position;
+
+            slotLogScannedPoints(averagedPosistion, scannedPoints);
+
+            emit newScannedPoints(averagedPosistion, scannedPoints);
         }
         else qDebug() << "LaserScanner::slotScanFinished(): either not enabled or mScannerPoseFirst is still 0 (happens 3 times?!)";
     }
@@ -248,7 +240,7 @@ void LaserScanner::slotNewVehiclePose(const Pose& pose)
 
     // Write log data: pose[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
     QTextStream out(mLogFileDataRaw);
-    out << "pose t" << pose.timestamp << " x" << pose.position.x() << " y" << pose.position.y() << " z" << pose.position.z() << " p" << pose.getPitchDegrees() << " r" << pose.getRollDegrees() << " y" << pose.getYawDegrees() << "\n";
+    out << "pose " << pose.timestamp << " x" << pose.position.x() << " y" << pose.position.y() << " z" << pose.position.z() << " p" << pose.getPitchDegrees() << " r" << pose.getRollDegrees() << " y" << pose.getYawDegrees() << "\n";
 
     delete mScannerPoseFirst;
 
@@ -261,7 +253,7 @@ void LaserScanner::slotNewVehiclePose(const Pose& pose)
     qDebug() << "LaserScanner::slotNewVehiclePose(): set laser pose" << *mScannerPoseLast;
 
     // Make sure the timestamp from the incoming pose has survived the mangling.
-// FAILS; CHECK THIS!!    Q_ASSERT(pose.timestamp == mScannerPoseLast->timestamp);
+// FAILS; CHECK THIS!!    Q_ASSERT(mScannerPoseLast->timestamp == pose.timestamp);
 }
 
 void LaserScanner::slotEnableScanning(const bool& value)
