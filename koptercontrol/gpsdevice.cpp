@@ -601,7 +601,7 @@ void GpsDevice::processSbfData()
                     && block->Lat != -2147483648
                     && block->Lon != -2147483648
                     && block->Alt != -2147483648
-                    && block->Heading != 65536
+                    && block->Heading < 65535 // This is not to spec (SBF Ref Guide, p. 80), but to behaviour, values of 65535 are seen in the wild
                     && block->Pitch != -32768
                     && block->Roll != -32768
                     && block->TOW != 4294967295
@@ -622,19 +622,13 @@ void GpsDevice::processSbfData()
 
                 Pose p(
                             convertGeodeticToCartesian(lon, lat, alt),
-                            ((float)block->Heading) * 0.001,
-                            ((float)block->Pitch) * 0.001,
-                            ((float)block->Roll) * 0.001,
+                            ((float)block->Heading) * 0.01,
+                            ((float)block->Pitch) * 0.01,
+                            ((float)block->Roll) * 0.01,
                             block->TOW // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
                             );
 
-                qDebug() << "GpsDevice::processSbfData(): new pose:"
-                         << "x" << p.position.x()
-                         << "y" << p.position.y()
-                         << "z" << p.position.z()
-                         << "p" << p.getPitchDegrees()
-                         << "r" << p.getRollDegrees()
-                         << "y" << p.getYawDegrees();
+                qDebug() << "GpsDevice::processSbfData(): new" << p;
 
                 emit newVehiclePose(p);
 
