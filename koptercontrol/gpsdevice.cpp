@@ -417,19 +417,19 @@ void GpsDevice::processSbfData()
 //        qDebug() << "GpsDevice::processSbfData(): more than 8 data bytes present, processing.";
         const int indexOfSyncMarker = mReceiveBufferUsb.indexOf("$@");
 
-        if(indexOfSyncMarker == -1)
+	if(indexOfSyncMarker == -1)
 	{
 	    // The sync marker wasn't found! This means the whole buffer contains unusable data,
-            // because we cannot use any data without a sync-marker prepended. Clear the buffer.
-            qWarning() << "GpsDevice::processSbfData(): WARNING: SBF Sync marker not found in buffer of" << mReceiveBufferUsb.size() << "bytes. Clearing buffer.";
-            mReceiveBufferUsb.clear();
-            return;
+	    // because we cannot use any data without a sync-marker prepended. Clear the buffer.
+	    qWarning() << "GpsDevice::processSbfData(): WARNING: SBF Sync marker not found in buffer of" << mReceiveBufferUsb.size() << "bytes. Clearing buffer.";
+	    mReceiveBufferUsb.clear();
+	    return;
 	}
-        else if(indexOfSyncMarker != 0)
-        {
-            qWarning() << "GpsDevice::processSbfData(): WARNING: SBF Sync Marker $@ was not at byte 0, but at" << indexOfSyncMarker;
-            mReceiveBufferUsb.remove(0, indexOfSyncMarker);
-        }
+	else if(indexOfSyncMarker != 0)
+	{
+	    qWarning() << "GpsDevice::processSbfData(): WARNING: SBF Sync Marker $@ was not at byte 0, but at" << indexOfSyncMarker;
+	    mReceiveBufferUsb.remove(0, indexOfSyncMarker);
+	}
 
         const quint16 msgCrc = *(quint16*)(mReceiveBufferUsb.data() + 2);
         const quint16 msgId = *(quint16*)(mReceiveBufferUsb.data() + 4);
@@ -446,10 +446,10 @@ void GpsDevice::processSbfData()
         if(getCrc(mReceiveBufferUsb.data()+4, msgLength-4) != msgCrc)
         {
             qWarning() << "GpsDevice::processSbfData(): WARNING: CRC in msg" << msgCrc << "computed" << getCrc(mReceiveBufferUsb.data()+4, msgLength-4) << "msgIdBlock" << msgIdBlock;
-	    // Remove the SBF block body from our incoming USB buffer, so it contains either nothing or the next SBF message
+            // Remove the SBF block body from our incoming USB buffer, so it contains either nothing or the next SBF message
             // Since the CRC is wrong, msgLength might also be off. Thus we delete just two bytes at the beginning, causing
             // a warning about spurious data in the next processing iteration, but thats still more safe.
-	    mReceiveBufferUsb.remove(0, 2);
+            mReceiveBufferUsb.remove(0, 2);
             continue;
         }
 
@@ -601,30 +601,22 @@ void GpsDevice::processSbfData()
                     && block->Lat != -2147483648
                     && block->Lon != -2147483648
                     && block->Alt != -2147483648
-                    && block->Heading < 65535 // This is not to spec (SBF Ref Guide, p. 80), but to behaviour, values of 65535 are seen in the wild
+                    && block->Heading != 65535 // This is not to the erroneous (off-by-one) spec (SBF Ref Guide, p. 80).
                     && block->Pitch != -32768
                     && block->Roll != -32768
                     && block->TOW != 4294967295
                     )
             {
                 // TODO: we COULD read the sub-cm part, too...
-                const float  lon = ((float)block->Lon) / 10000000.0;
-                const float  lat = ((float)block->Lat) / 10000000.0;
-                const float  alt = ((float)block->Alt) / 1000.0;
-//                Pose p(
-//                            // TODO: use PosFine, see SBF reference guide, page 80?
-//                            convertGeodeticToCartesian(lon, lat, alt),
-//                            QQuaternion::fromAxisAndAngle(0,1,0, ((float)block->Heading) * 0.001) *
-//                            QQuaternion::fromAxisAndAngle(1,0,0, ((float)block->Pitch) * 0.001) *
-//                            QQuaternion::fromAxisAndAngle(0,0,1, ((float)block->Roll) * 0.001),
-//                            block->TOW // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
-//                            );
+                const float  lon = ((float)block->Lon) / 10000000.0f;
+                const float  lat = ((float)block->Lat) / 10000000.0f;
+                const float  alt = ((float)block->Alt) / 1000.0f;
 
                 Pose p(
                             convertGeodeticToCartesian(lon, lat, alt),
-                            ((float)block->Heading) * 0.01,
-                            ((float)block->Pitch) * 0.01,
-                            ((float)block->Roll) * 0.01,
+                            ((float)block->Heading) * 0.01f,
+                            ((float)block->Pitch) * 0.01f,
+                            ((float)block->Roll) * 0.01f,
                             block->TOW // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
                             );
 
