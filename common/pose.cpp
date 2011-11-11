@@ -4,10 +4,6 @@ Pose::Pose(const QVector3D &position, const QQuaternion &orientation, const quin
 {
     this->position = position;
 
-//    setYawRadians(getYawRadians(orientation, true));
-//    setPitchRadians(getPitchRadians(orientation, true));
-//    setRollRadians(getRollRadians(orientation, true));
-
     mYaw = getYawRadians(orientation, true);
     mPitch = getPitchRadians(orientation, true);
     mRoll = getRollRadians(orientation, true);
@@ -20,9 +16,6 @@ Pose::Pose(const QVector3D &position, const QQuaternion &orientation, const quin
 Pose::Pose(const QVector3D &position, const float &yawDegrees, const float &pitchDegrees, const float &rollDegrees, const quint32& timestamp)
 {
     this->position = position;
-//    setYawRadians(yaw);
-//    setPitchRadians(pitch);
-//    setRollRadians(roll);
 
     mYaw = DEG2RAD(yawDegrees);
     mPitch = DEG2RAD(pitchDegrees);
@@ -30,7 +23,10 @@ Pose::Pose(const QVector3D &position, const float &yawDegrees, const float &pitc
 
     this->timestamp = timestamp;
 
-    if(timestamp == 0) this->timestamp = getCurrentGpsTowTime();
+    if(timestamp == 0)
+    {
+        this->timestamp = getCurrentGpsTowTime();
+    }
 }
 
 Pose::Pose()
@@ -115,8 +111,8 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
     Q_ASSERT(first->timestamp < before->timestamp);
     Q_ASSERT(before->timestamp < time);
     Q_ASSERT(after->timestamp > before->timestamp);
-    Q_ASSERT(after->timestamp > time);
-    Q_ASSERT(last->timestamp > after->timestamp);
+    if(after->timestamp < time) qWarning("Pose::interpolateCubic(): interpolating pose for raytime %d, but aftertime is %d.", time, after->timestamp);
+    if(last->timestamp < after->timestamp)  qWarning("Pose::interpolateCubic(): interpolating pose for raytime %d, but aftertime (%d) is after lasttime (%d).", time, after->timestamp, last->timestamp);
 
     // recreate mu from time argument
     const float mu = (time - before->timestamp) / (after->timestamp - before->timestamp);
@@ -207,7 +203,7 @@ Pose Pose::operator+(const Pose &p) const
 
 QDebug operator<<(QDebug dbg, const Pose &pose)
 {
-    dbg.nospace() << "pose " << pose.timestamp
+    dbg.nospace() << "pose t" << pose.timestamp
                   << " (" << Q(QString::number(pose.position.x(), 'f', 2))
                   << "/" << Q(QString::number(pose.position.y(), 'f', 2))
                   << "/" << Q(QString::number(pose.position.z(), 'f', 2))

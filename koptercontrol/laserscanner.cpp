@@ -180,8 +180,8 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
                 // Convert millimeters to meters.
                 const float distance = (*mScanDistancesCurrent)[index] / 1000.0f;
 
-                // Skip reflections on vehicle (=closer than 50cm)
-//                if(rayLength < 0.5) continue;
+                // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
+                if(distance < 0.5f || distance > 10.0f) continue;
 
                 // Interpolate using the last 4 poses. Do NOT interpolate between 0.0 and 1.0, as
                 // the scan actually only takes place between 0.125 and 0.875 (the scanner only
@@ -200,6 +200,8 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
 		const quint32 timeOfThisRay = timestamp - mScanner.scanMsec() // when this scan started 180deg in the rear
                                               + scanTime/8.0f // after running 45degree, (1/8th of angular view), it records first ray
                                               + (scanTime*0.75f * ((float)index) / ((float)mScanDistancesCurrent->size()));
+					      
+		qDebug() << "LaserScanner::slotScanFinished(): scanfinished at" << timestamp << "ray-index is" << index << "raytime is" << timeOfThisRay << "before" << mScannerPoseBefore->timestamp << "after" << mScannerPoseAfter->timestamp;
 
                 const Pose interpolatedPose = Pose::interpolateCubic(
                             mScannerPoseFirst,
@@ -215,17 +217,18 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
 
 //            qDebug() << "LaserScanner::slotScanFinished(): now emitting" << scannedPoints.size() << "points generated from a vector of" << mScanDistancesCurrent->size() << "points.";
 
+/* too expensive, unnecessary precision
             const QVector3D averagedPosistion = Pose::interpolateCubic(
                         mScannerPoseFirst,
                         mScannerPoseBefore,
                         mScannerPoseAfter,
                         mScannerPoseLast,
                         (float)0.5
-                        ).position;
+                        ).position;*/
 
-            slotLogScannedPoints(averagedPosistion, scannedPoints);
+            slotLogScannedPoints(mScannerPoseAfter->position, scannedPoints);
 
-            emit newScannedPoints(averagedPosistion, scannedPoints);
+            emit newScannedPoints(mScannerPoseAfter->position, scannedPoints);
         }
         else qDebug() << "LaserScanner::slotScanFinished(): either not enabled or mScannerPoseFirst is still 0 (happens 3 times?!)";
     }
@@ -271,7 +274,7 @@ void LaserScanner::slotNewVehiclePose(const Pose& pose)
   //  qDebug() << "LaserScanner::slotNewVehiclePose(): set laser pose" << *mScannerPoseLast;
 
     // Make sure the timestamp from the incoming pose has survived the mangling.
-//    Q_ASSERT(mScannerPoseLast->timestamp == pose.timestamp);
+    Q_ASSERT(mScannerPoseLast->timestamp == pose.timestamp);
 
     if(mScannerPoseLast->timestamp != pose.timestamp)
         qDebug() << "LaserScanner::slotNewVehiclePose(): setting laserscanner pose, incoming t" << pose.timestamp

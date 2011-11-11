@@ -227,7 +227,7 @@ void Kopter::slotSerialPortDataReady()
                     qDebug() << "Kopter::slotSerialPortDataReady(): MK software version is" << versionInfo->SWMajor << versionInfo->SWMinor << versionInfo->SWPatch;
 
                     if(versionInfo->ProtoMajor != 11 || versionInfo->ProtoMinor != 0) qFatal("Kopter::slotSerialPortDataReady(): MK protocol version mismatch, exiting.");
-                    if(versionInfo->SWMajor != 0 || versionInfo->SWMinor != 82 || versionInfo->SWPatch != 1) qFatal("Kopter::slotSerialPortDataReady(): MK software version mismatch, exiting.");
+                    if(versionInfo->SWMajor != 0 || versionInfo->SWMinor != 86 || versionInfo->SWPatch != 3) qFatal("Kopter::slotSerialPortDataReady(): MK software version mismatch, this is untested, exiting.");
                 }
             }
             else

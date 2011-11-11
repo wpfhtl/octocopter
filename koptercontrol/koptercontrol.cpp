@@ -93,7 +93,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
                     +000.0,         // No yawing
                     -090.0,         // 90 deg pitched down
                     +000.0,         // No rolling
-                    1               // Use 1 msec TOW, so that the relative pose is always older than whatever new pose coming in. Don't use 0, as that would be set to current TOW, which might be newer due to clock offsets.
+                    10             // Use 10 msec TOW, so that the relative pose is always older than whatever new pose coming in. Don't use 0, as that would be set to current TOW, which might be newer due to clock offsets.
                     )
                 );
 
