@@ -116,7 +116,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mFlightController, SLOT(slotSetVehiclePose(Pose)));
     connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mLaserScanner, SLOT(slotNewVehiclePose(Pose)));
-    connect(mGpsDevice, SIGNAL(newVehiclePoseLowFreq(Pose)), mBaseConnection, SLOT(slotPoseChanged(Pose)));
+    connect(mGpsDevice, SIGNAL(newVehiclePoseLowFreq(Pose)), mBaseConnection, SLOT(slotNewVehiclePose(Pose)));
     connect(mGpsDevice, SIGNAL(scanFinished(quint32)), mLaserScanner, SLOT(slotScanFinished(quint32)));
     connect(
                 mGpsDevice,

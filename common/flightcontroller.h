@@ -94,7 +94,7 @@ signals:
     void message(const QString&, const LogImportance& importance, const QString& message);
 
 public slots:
-    void slotSetVehiclePose(const Pose&);
+    void slotNewVehiclePose(const Pose&);
     void slotWayPointInsert(const quint16& index, const WayPoint& wayPoint);
     void slotWayPointDelete(const quint16& index);
     void slotSetWayPoints(const QList<WayPoint>&);

@@ -277,7 +277,7 @@ void BaseConnection::slotWayPointReached(const WayPoint& wpt)
 }
 
 // called by rover to send updated pose to basestation (called frequently)
-void BaseConnection::slotPoseChanged(const Pose& pose)
+void BaseConnection::slotNewVehiclePose(const Pose& pose)
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);

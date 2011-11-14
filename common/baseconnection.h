@@ -82,7 +82,7 @@ public slots:
     void slotFlightControllerWayPointsChanged(const QList<WayPoint>&);
 
     // called by rover to send updated pose to basestation (called frequently)
-    void slotPoseChanged(const Pose& pose);
+    void slotNewVehiclePose(const Pose& pose);
 
     // called by rover to send lidarpoints to the basestation
     void slotNewScannedPoints(const QVector3D& scanPosition, const QVector<QVector3D>& points);

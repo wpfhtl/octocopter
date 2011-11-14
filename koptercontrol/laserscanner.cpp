@@ -28,7 +28,7 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &pose)
     mScannerPoseLast = 0;
 
     mScanDistancesPrevious = new std::vector<long>;
-    mScanDistancesCurrent = new std::vector<long>;
+    scanDistances = new std::vector<long>;
     mScanDistancesNext = new std::vector<long>;
 
     if(mScanner.connect(mDeviceFileName.toAscii().constData()))
@@ -136,9 +136,9 @@ float LaserScanner::getHeightAboveGround() const
 {
     // WARNING: the index and offset can be calculated from the pose.
     const int index = mScanner.deg2index(-90);
-    if(mScanDistancesCurrent->size() > index)
+    if(scanDistances->size() > index)
     {
-        return (float)((*mScanDistancesCurrent)[index]) - 0.21;
+        return (float)((*scanDistances)[index]) - 0.21;
     }
     else
     {
@@ -152,33 +152,76 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
     QMutexLocker locker(&mMutex);
 //    qDebug() << "LaserScanner::slotScanFinished(): scanner finished a scan at time" << timestamp;
 
+    if(!mIsEnabled) return;
+
+    const quint32 timeStampMiddleOfScan = timestamp - (mScanner.scanMsec() / 2);
+
+    mLastTimeOfPoseOrScan = std::max(timeStampMiddleOfScan, mLastTimeOfPoseOrScan);
+
     // We now have a problem: The hokuyo expects us to retrieve the data within 2ms. So, lets retrieve it quickly:
     // (only if we have enough poses to interpolate that scan, true after 4 scans)
-    if(mScannerPoseBefore != 0)
+    if(mScanner.capture(mSavedScans[timeStampMiddleOfScan]) <= 0)
     {
-        mScanDistancesNext = mScanDistancesPrevious;
-        mScanDistancesPrevious = mScanDistancesCurrent;
-        mScanDistancesCurrent = mScanDistancesNext;
+        qWarning() << "LaserScanner::slotScanFinished(): weird, less than 1 samples received from lidar";
+        mSavedScans.remove(timeStampMiddleOfScan);
+    }
 
-        if(mScanner.capture(*mScanDistancesNext) <= 0) qWarning() << "LaserScanner::slotScanFinished(): weird, less than 1 samples received from lidar";
+    // Write log data: scan[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
+    QTextStream out(mLogFileDataRaw);
+    out << "scan " << timestamp;
+    std::vector<long>::iterator itr;
+    for(itr=mSavedScans[timeStampMiddleOfScan].begin();itr != mSavedScans[timeStampMiddleOfScan].end(); ++itr) out << " " << *itr;
+    out << "\n";
 
-        // Write log data: scan[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
-        QTextStream out(mLogFileDataRaw);
-        out << "scan " << timestamp;
-        std::vector<long>::iterator itr;
-        for(itr=mScanDistancesNext->begin();itr != mScanDistancesNext->end(); ++itr) out << " " << *itr;
-        out << "\n";
+    if(mSavedScans.size() > 1 && mSavedPoses.size() > 3)
+        transformScanData();
+}
 
-        if(mScannerPoseFirst != 0 && mIsEnabled)
+void LaserScanner::transformScanData()
+{
+    // We have scan data from previous scans in mLastScans and poses in mLastPoses, lets work out the world coordinates.
+
+    // How much time difference from a scan to a pose (in past of future) for the pose to be usable for interpolation?
+    const quint8 maximumMillisecondsBetweenPoseAndScan = 60;
+
+    // Delete poses that are far older than the first/oldest scan. These cannot be used anymore because we can only get newer scans from now on.
+    while(mSavedScans.size() && mSavedPoses.at(0).timestamp + maximumMillisecondsBetweenPoseAndScan < mSavedScans.begin().key())
+    {
+        qDebug() << "LaserScanner::transformScan(): removing first pose from" << mSavedPoses.at(0).timestamp << "because the first of" << mSavedScans.size() << "scans was much later at" << mSavedScans.begin().key();
+        mSavedPoses.removeFirst();
+    }
+
+    // Delete scans that are far older than the first/oldest pose. These cannot be used anymore because we can only get newer poses from now on.
+    while(mSavedScans.size() && mSavedPoses.at(0).timestamp - maximumMillisecondsBetweenPoseAndScan > mSavedScans.begin().key())
+    {
+        qDebug() << "LaserScanner::transformScan(): removing first scan from" << mSavedScans.begin().key() << "because the first of" << mSavedPoses.size() << "poses was much later at" << mSavedPoses.at(0).timestamp;
+        mSavedScans.erase(mSavedScans.begin());
+    }
+
+    // Now lets look at every scan...
+    QMap<quint32, std::vector<long> >::iterator i = mSavedScans.begin();
+    while (i != mSavedScans.end())
+    {
+        quint32 timestampScanMiddle = i.key();
+
+        // find poses in mSavedPoses with timestampScan-maximumMillisecondsBetweenPoseAndScan <= timestampScan <= timestampScan+maximumMillisecondsBetweenPoseAndScan
+        QList<Pose*> posesForThisScan;
+        for(int j = 0; j < mSavedPoses.size() && posesForThisScan.size() < 4; ++j)
         {
-            // Now we have scan data from the previous scan in mScanDistancesPrevious and enough
-            // poses around it to interpolate. Go ahead and convert this data to 3d cloud points.
+            if(abs(mSavedPoses.at(j).timestamp - timestampScanMiddle) < maximumMillisecondsBetweenPoseAndScan)
+                posesForThisScan.append(&mSavedPoses[j]);
+        }
+
+        if(posesForThisScan.size() == 4)
+        {
             QVector<QVector3D> scannedPoints;/*(mScanDistancesCurrent->size());*/ // Do not reserve full length, will be less poins due to reflections on the vehicle being filtered
 
-            for(int index=0; index < mScanDistancesCurrent->size(); index++)
+            std::vector<long>* scanDistances = &(i.value());
+
+            for(int index=0; index < scanDistances->size(); index++)
             {
                 // Convert millimeters to meters.
-                const float distance = (*mScanDistancesCurrent)[index] / 1000.0f;
+                const float distance = (*scanDistances)[index] / 1000.0f;
 
                 // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
                 if(distance < 0.5f || distance > 10.0f) continue;
@@ -186,7 +229,7 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
                 // Interpolate using the last 4 poses. Do NOT interpolate between 0.0 and 1.0, as
                 // the scan actually only takes place between 0.125 and 0.875 (the scanner only
                 // scans the central 270 degrees of the 360 degree-circle).
-/*                const Pose interpolatedPose = Pose::interpolateCubic(
+        /*                const Pose interpolatedPose = Pose::interpolateCubic(
                             mScannerPoseFirst,
                             mScannerPoseBefore,
                             mScannerPoseAfter,
@@ -194,20 +237,20 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
                             (float)(0.125f + (0.75f * index / mScanDistancesCurrent->size()))
                             );*/
 
-                // Alternatively, interpolate not using a parameter mu with 0.0<=mu<=1.0, but rather by passing a time
-		// argument, which is probably the better idea, as it also works when scans and poses don't interleave so well.
+                // Interpolate not using a parameter mu with 0.0<=mu<=1.0, but rather by passing a time argument,
+                // which is probably the better idea, as it also works when scans and poses don't interleave so well.
                 const float scanTime = (float)mScanner.scanMsec();
-		const quint32 timeOfThisRay = timestamp - mScanner.scanMsec() // when this scan started 180deg in the rear
-                                              + scanTime/8.0f // after running 45degree, (1/8th of angular view), it records first ray
-                                              + (scanTime*0.75f * ((float)index) / ((float)mScanDistancesCurrent->size()));
-					      
-		qDebug() << "LaserScanner::slotScanFinished(): scanfinished at" << timestamp << "ray-index is" << index << "raytime is" << timeOfThisRay << "before" << mScannerPoseBefore->timestamp << "after" << mScannerPoseAfter->timestamp;
+                const quint32 timeOfThisRay = timestampScanMiddle - (mScanner.scanMsec()/2) // when this scan started 180deg in the rear
+                                              + scanTime / 8.0f // after running 45degree, (1/8th of angular view), it records first ray
+                                              + (scanTime * 0.75f * ((float)index) / ((float)scanDistances->size()));
+
+                qDebug() << "LaserScanner::slotScanFinished(): scanmiddle at" << timestampScanMiddle << "ray-index is" << index << "raytime is" << timeOfThisRay << "before" << posesForThisScan[1]->timestamp << "after" << posesForThisScan[2]->timestamp;
 
                 const Pose interpolatedPose = Pose::interpolateCubic(
-                            mScannerPoseFirst,
-                            mScannerPoseBefore,
-                            mScannerPoseAfter,
-                            mScannerPoseLast,
+                            posesForThisScan[0],
+                            posesForThisScan[1],
+                            posesForThisScan[2],
+                            posesForThisScan[3],
                             timeOfThisRay
                             );
 
@@ -215,23 +258,26 @@ void LaserScanner::slotScanFinished(const quint32 &timestamp)
                 mNumberOfScannedPoints++;
             }
 
-//            qDebug() << "LaserScanner::slotScanFinished(): now emitting" << scannedPoints.size() << "points generated from a vector of" << mScanDistancesCurrent->size() << "points.";
+            slotLogScannedPoints(posesForThisScan[1]->position, scannedPoints);
 
-/* too expensive, unnecessary precision
-            const QVector3D averagedPosistion = Pose::interpolateCubic(
-                        mScannerPoseFirst,
-                        mScannerPoseBefore,
-                        mScannerPoseAfter,
-                        mScannerPoseLast,
-                        (float)0.5
-                        ).position;*/
+            emit newScannedPoints(posesForThisScan[1]->position, scannedPoints);
 
-            slotLogScannedPoints(mScannerPoseAfter->position, scannedPoints);
-
-            emit newScannedPoints(mScannerPoseAfter->position, scannedPoints);
+            // This can has been processed. Delete it.
+            i = mSavedScans.erase(i);
         }
-        else qDebug() << "LaserScanner::slotScanFinished(): either not enabled or mScannerPoseFirst is still 0 (happens 3 times?!)";
+        else
+        {
+            // We could NOT find enough poses for this scan. This may only happen if this scan is so new that the next poses required for interpolation haven't yet arrived.
+            // Make sure that the last pose is not much later than this scan. If it is, we must have missed a pose for this scan. Scan will be deleted later.
+            if(mSavedPoses.last().timestamp - timestampScanMiddle > maximumMillisecondsBetweenPoseAndScan)
+            {
+                qDebug() << "LaserScanner::transformScan(): couldn't find 4 poses for scan from" << timestampScanMiddle << ", latest pose is from" << mSavedPoses.last().timestamp << ", deleting scan";
+                i = mSavedScans.erase(i);
+            }
+        }
     }
+
+    qDebug() << "LaserScanner::transformScan(): after processing all data, there's" << mSavedScans.size() << "scans and" << mSavedPoses.size() << "poses left.";
 }
 
 QVector3D LaserScanner::getWorldPositionOfScannedPoint(const Pose& scannerPose, const quint16 scannerIndex, const float& distance) const
@@ -263,23 +309,19 @@ void LaserScanner::slotNewVehiclePose(const Pose& pose)
     QTextStream out(mLogFileDataRaw);
     out << "pose " << pose.timestamp << " x" << pose.position.x() << " y" << pose.position.y() << " z" << pose.position.z() << " p" << pose.getPitchDegrees() << " r" << pose.getRollDegrees() << " y" << pose.getYawDegrees() << "\n";
 
-    delete mScannerPoseFirst;
+    if(!mIsEnabled) return;
 
-    mScannerPoseFirst = mScannerPoseBefore;
-    mScannerPoseBefore = mScannerPoseAfter;
-    mScannerPoseAfter = mScannerPoseLast;
+    // Append pose to our list
+    mSavedPoses.append(Pose(pose + mRelativePose));
 
-  //  qDebug() << "LaserScanner::slotNewVehiclePose(): setting laser pose";
-    mScannerPoseLast = new Pose(pose + mRelativePose);
-  //  qDebug() << "LaserScanner::slotNewVehiclePose(): set laser pose" << *mScannerPoseLast;
+    mLastTimeOfPoseOrScan = std::max(pose.timestamp, mLastTimeOfPoseOrScan);
 
     // Make sure the timestamp from the incoming pose has survived the mangling.
-    Q_ASSERT(mScannerPoseLast->timestamp == pose.timestamp);
-
-    if(mScannerPoseLast->timestamp != pose.timestamp)
+    if(mSavedPoses.last().timestamp != pose.timestamp)
         qDebug() << "LaserScanner::slotNewVehiclePose(): setting laserscanner pose, incoming t" << pose.timestamp
                  << "mRelativePose t" << mRelativePose.timestamp
                  << "resulting t" << mScannerPoseLast->timestamp;
+
 }
 
 void LaserScanner::slotEnableScanning(const bool& value)

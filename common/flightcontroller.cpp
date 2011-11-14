@@ -330,7 +330,7 @@ QString FlightController::getFlightStateString(void) const
     Q_ASSERT(false && "FLIGHTSTATE UNDEFINED!");
 }
 
-void FlightController::slotSetVehiclePose(const Pose& pose)
+void FlightController::slotNewVehiclePose(const Pose& pose)
 {
 //    qDebug() << "FlightController::slotSetVehiclePose(): vehicle now at" << pose;
     mLastKnownVehiclePose = pose;

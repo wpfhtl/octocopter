@@ -25,18 +25,26 @@ private:
 
     qrk::UrgCtrl mScanner;
 
-    std::vector<long> *mScanDistancesPrevious, *mScanDistancesCurrent, *mScanDistancesNext;
+    std::vector<long> *mScanDistancesPrevious, *scanDistances, *mScanDistancesNext;
 
     // This scanner's pose relative to the vehicle frame
     Pose mRelativePose;
 
     QMutex mMutex;
 
+    quint32 mLastTimeOfPoseOrScan;
+
     // The last 4 scanner-poses in world-coordinates (vehicleFrame + relativeScannerPose),
     // used for cubic interpolation.
     Pose *mScannerPoseFirst, *mScannerPoseBefore, *mScannerPoseAfter, *mScannerPoseLast;
+    // OR, ALTERNATIVELY, an associative map of the last N timestamp => scannerposes
+    QList<Pose> mSavedPoses;
+
+    QMap<quint32, std::vector<long> > mSavedScans;
 
     QVector3D getWorldPositionOfScannedPoint(const Pose& scannerPose, const quint16 scannerIndex, const float& distance) const;
+
+    void transformScanData();
 
 private slots:
     void slotSimulateScanning();

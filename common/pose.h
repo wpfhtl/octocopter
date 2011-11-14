@@ -106,6 +106,9 @@ public:
 
 };
 
+// For establishing a total order on poses. Needed for storage in QMap. WRONG, only needed for key, pose is a value.
+//inline bool operator<(const Pose &p1, const Pose &p2) {return p1.timestamp < p2.timestamp;}
+
 // for using qDebug() << myPose;
 QDebug operator<<(QDebug dbg, const Pose &pose);
 
