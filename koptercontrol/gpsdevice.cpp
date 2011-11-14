@@ -506,7 +506,7 @@ void GpsDevice::processSbfData()
             // Check the Info-field and emit states if it changes
             if(mLastInfoFromDevice != block->Info)
             {
-                qDebug() << t() << "GpsDevice::processSbfData(): info changed from" << mLastInfoFromDevice << "to" << block->Info;
+//                qDebug() << t() << "GpsDevice::processSbfData(): info changed from" << mLastInfoFromDevice << "to" << block->Info;
                 const quint16 previousInfoFromDevice = mLastInfoFromDevice;
                 mLastInfoFromDevice = block->Info;
 
@@ -538,7 +538,7 @@ void GpsDevice::processSbfData()
             // Check the Mode-field and emit states if it changes
             if(mLastModeFromDevice != block->Mode)
             {
-                qDebug() << t() << "GpsDevice::processSbfData(): mode changed from" << mLastModeFromDevice << "to" << block->Mode;
+  //              qDebug() << t() << "GpsDevice::processSbfData(): mode changed from" << mLastModeFromDevice << "to" << block->Mode;
                 mLastModeFromDevice = block->Mode;
 
                 switch(block->Mode)
@@ -632,6 +632,10 @@ void GpsDevice::processSbfData()
             {
                 qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, error:" << block->Error << " " << GpsStatusInformation::getError(block->Error) ;
             }
+else if(block->Heading == 65535)
+{
+	qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, heading is 65535, donotuse";
+}
             else
             {
                 qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, do-not-use values found.";
