@@ -80,7 +80,11 @@ const QVector3D FlightPlannerInterface::getCurrentVehicleVelocity() const
     if(mVehiclePoses.size() < 2) return QVector3D();
 
     const quint32 timeDiffMs = mVehiclePoses.last().timestamp - mVehiclePoses.first().timestamp;
-    return (mVehiclePoses.last().position - mVehiclePoses.first().position) * (1000 / timeDiffMs);
+
+    if(timeDiffMs == 0)
+        return QVector3D();
+    else
+        return (mVehiclePoses.last().position - mVehiclePoses.first().position) * (1000 / timeDiffMs);
 }
 
 void FlightPlannerInterface::slotWayPointDelete(const quint16& index)

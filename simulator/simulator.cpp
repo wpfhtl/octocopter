@@ -100,7 +100,7 @@ void Simulator::slotOgreInitialized(void)
     // Vehicle creates SceneNode and Entity in OgreWidget. But OgreWidget is not initialized after instatiation, but only when
     // the window is initialized. Thus, vehicle needs to be created after ogreWidget initialization.
     mPhysics = new Physics(this, mOgreWidget);
-    connect(mPhysics, SIGNAL(newVehiclePose(const Pose&)), mFlightController, SLOT(slotSetVehiclePose(const Pose&)));
+    connect(mPhysics, SIGNAL(newVehiclePose(const Pose&)), mFlightController, SLOT(slotNewVehiclePose(Pose)));
     connect(mPhysics, SIGNAL(newVehiclePose(const Pose&)), mStatusWidget, SLOT(slotUpdatePose(const Pose&)));
 
     connect(mStatusWidget, SIGNAL(windDetailChanged(bool,float)), mPhysics, SLOT(slotSetWindSetting(bool, float)));
@@ -347,7 +347,7 @@ void Simulator::slotUpdate()
                     mBattery->voltageCurrent()
                     );
 
-        mBaseConnection->slotPoseChanged(mFlightController->getLastKnownPose());
+        mBaseConnection->slotNewVehiclePose(mFlightController->getLastKnownPose());
     }
 
     // At last, re-render

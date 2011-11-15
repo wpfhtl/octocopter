@@ -276,7 +276,7 @@ void BaseStation::processPacket(QByteArray data)
 
         mLogWidget->log(Information, "BaseStation::processPacket()", QString("%1 points using %2 MB, %3 nodes, %4 points added.").arg(mOctree->getNumberOfItems()).arg((mOctree->getNumberOfItems()*sizeof(LidarPoint))/1000000.0, 2, 'g').arg(mOctree->getNumberOfNodes()).arg(pointList.size()));
 
-//        qDebug() << "appended" << pointList.size() << "points to octree.";
+        qDebug() << "BaseStation::processPacket(): appended" << pointList.size() << "points to octree.";
     }
     else if(packetType == "image")
     {
