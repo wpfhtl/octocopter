@@ -28,7 +28,7 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &pose)
     mScannerPoseLast = 0;
 
     mScanDistancesPrevious = new std::vector<long>;
-    scanDistances = new std::vector<long>;
+//     scanDistances = new std::vector<long>;
     mScanDistancesNext = new std::vector<long>;
 
     if(mScanner.connect(mDeviceFileName.toAscii().constData()))
@@ -54,30 +54,45 @@ LaserScanner::~LaserScanner()
     mScanner.stop();
     mScanner.disconnect();
 
-    // Write a new file for the PLY data
-    QFile logFileDataPly(QString("scannerdata-global-%1-%2.ply").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
-    if(!logFileDataPly.open(QIODevice::WriteOnly | QIODevice::Text))
-        qFatal("LaserScanner::~LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(logFileDataPly.fileName()));
-
-    // Create ply header, "element vertex" requires count argument
-    logFileDataPly.write(QString("ply\nformat ascii 1.0\nelement vertex %1\nproperty float x\nproperty float y\nproperty float z\nend_header\n").arg(mNumberOfScannedPoints).toAscii());
-
-    // Read the processed scanned points, then write ply file
-    // Seek to the file's beginning before reading it
-    qDebug() << "LaserScanner::~LaserScanner(): writing pointcloud file of about" << ((mNumberOfScannedPoints*24.5f)/1000000.0f) << "mb, this might take some time...";
-    mLogFileDataGlobal->reset();
-    while (!mLogFileDataGlobal->atEnd())
+    // If we have global data, write a new file in PLY format
+    if(mLogFileDataGlobal->size())
     {
-        const QByteArray line = mLogFileDataGlobal->readLine();
-        if(!line.contains("comment")) logFileDataPly.write(line);
-    }
+        QFile logFileDataPly(QString("scannerdata-global-%1-%2.ply").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
+        if(!logFileDataPly.open(QIODevice::WriteOnly | QIODevice::Text))
+            qFatal("LaserScanner::~LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(logFileDataPly.fileName()));
 
-    logFileDataPly.close();
-    qDebug() << "LaserScanner::~LaserScanner(): done writing ply file.";
+        // Create ply header, "element vertex" requires count argument
+        logFileDataPly.write(QString("ply\nformat ascii 1.0\nelement vertex %1\nproperty float x\nproperty float y\nproperty float z\nend_header\n").arg(mNumberOfScannedPoints).toAscii());
+
+        // Read the processed scanned points, then write ply file
+        // Seek to the file's beginning before reading it
+        qDebug() << "LaserScanner::~LaserScanner(): writing pointcloud file of about" << ((mNumberOfScannedPoints*24.5f)/1000000.0f) << "mb, this might take some time...";
+        mLogFileDataGlobal->reset();
+        while (!mLogFileDataGlobal->atEnd())
+        {
+            const QByteArray line = mLogFileDataGlobal->readLine();
+            if(!line.contains("comment")) logFileDataPly.write(line);
+        }
+
+        logFileDataPly.close();
+        qDebug() << "LaserScanner::~LaserScanner(): done writing ply file.";
+    }
 
     // Close other logfiles
     mLogFileDataGlobal->close();
     mLogFileDataRaw->close();
+
+    // Delete logfiles with a size of 0 (emtpty) or 100 (just ply header, no data)
+    const QFileInfoList list = QDir().entryInfoList(QStringList("scannerdata-*"), QDir::Files | QDir::NoSymLinks);
+    for(int i = 0; i < list.size(); ++i)
+    {
+        const QFileInfo fileInfo = list.at(i);
+        if(fileInfo.size() == 0 || fileInfo.size() == 100)
+        {
+            qDebug() << "LaserScanner::~LaserScanner(): moving useless logfile to /tmp:" << fileInfo.fileName();
+            QFile::rename(fileInfo.canonicalFilePath(), fileInfo.fileName().prepend("/tmp/"));
+        }
+    }
 }
 
 void LaserScanner::slotSimulateScanning()
@@ -136,45 +151,15 @@ float LaserScanner::getHeightAboveGround() const
 {
     // WARNING: the index and offset can be calculated from the pose.
     const int index = mScanner.deg2index(-90);
-    if(scanDistances->size() > index)
-    {
-        return (float)((*scanDistances)[index]) - 0.21;
-    }
-    else
-    {
+//     if(scanDistances->size() > index)
+//     {
+//         return (float)((*scanDistances)[index]) - 0.21;
+//     }
+//     else
+//     {
         // WARNING: this might cause trouble.
         return -1.0;
-    }
-}
-
-void LaserScanner::slotScanFinished(const quint32 &timestamp)
-{
-    QMutexLocker locker(&mMutex);
-//    qDebug() << "LaserScanner::slotScanFinished(): scanner finished a scan at time" << timestamp;
-
-    if(!mIsEnabled) return;
-
-    const quint32 timeStampMiddleOfScan = timestamp - (mScanner.scanMsec() / 2);
-
-    mLastTimeOfPoseOrScan = std::max(timeStampMiddleOfScan, mLastTimeOfPoseOrScan);
-
-    // We now have a problem: The hokuyo expects us to retrieve the data within 2ms. So, lets retrieve it quickly:
-    // (only if we have enough poses to interpolate that scan, true after 4 scans)
-    if(mScanner.capture(mSavedScans[timeStampMiddleOfScan]) <= 0)
-    {
-        qWarning() << "LaserScanner::slotScanFinished(): weird, less than 1 samples received from lidar";
-        mSavedScans.remove(timeStampMiddleOfScan);
-    }
-
-    // Write log data: scan[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
-    QTextStream out(mLogFileDataRaw);
-    out << "scan " << timestamp;
-    std::vector<long>::iterator itr;
-    for(itr=mSavedScans[timeStampMiddleOfScan].begin();itr != mSavedScans[timeStampMiddleOfScan].end(); ++itr) out << " " << *itr;
-    out << "\n";
-
-    if(mSavedScans.size() > 1 && mSavedPoses.size() > 3)
-        transformScanData();
+//     }
 }
 
 void LaserScanner::transformScanData()
@@ -324,7 +309,68 @@ void LaserScanner::slotNewVehiclePose(const Pose& pose)
 
 }
 
+void LaserScanner::slotSetScannerTimeStamp(const quint32& timestamp)
+{
+    // We were called after the host was synchronized with the GPS clock, so @timestamp
+    // should be pretty much now.
+
+    // Because Hokuyo UTM30LX only supports time-stamp values up to 2^24=16M milliseconds and
+    // starts with 0 on bootup, it wraps after 4.66 hours. This means, we cannot feed the GPS
+    // TOW into the scanner, that would only work from Sunday Morning/Midnight to 04:39:37 in
+    // the morning. So what now?
+    //
+    // We ask the scanner for its current timestamp and use that information to create a
+    // mapping from scanner-timestamp to GPS' TOW.
+
+    mScanner.recentTimestamp()
+
+            wtf?
+
+    mScanner.setTimestamp(timestamp);
+}
+
 void LaserScanner::slotEnableScanning(const bool& value)
 {
     mIsEnabled = value;
+}
+
+
+void LaserScanner::slotScanFinished(const quint32 &timestamp)
+{
+    QMutexLocker locker(&mMutex);
+//     qDebug() << t() << "LaserScanner::slotScanFinished(): scanner finished a scan at time" << timestamp;
+
+    if(!mIsEnabled) return;
+
+    const quint32 timeStampMiddleOfScan = timestamp - (mScanner.scanMsec() / 2);
+
+    mLastTimeOfPoseOrScan = std::max(timeStampMiddleOfScan, mLastTimeOfPoseOrScan);
+
+    // We now have a problem: The hokuyo expects us to retrieve the data within 2ms. So, lets retrieve it quickly:
+    // (only if we have enough poses to interpolate that scan, true after 4 scans)
+//     std::vector<long>* peter = new std::vector<long>;
+    long timestampScanner;
+    int numRays= mScanner.capture(*mScanDistancesNext, &timestampScanner);
+    qDebug() << "sys" << getCurrentGpsTowTime() << "gps" << timestamp << "means" << getCurrentGpsTowTime() - timestamp << "ms delay, scanner timestamp" << timestampScanner << "numrays:" << numRays;
+    
+    if(numRays <= 0)
+    {
+//         qWarning() << "LaserScanner::slotScanFinished(): weird, less than 1 samples received from lidar";
+//         mSavedScans.remove(timeStampMiddleOfScan);
+    }
+    else
+    {
+      
+      mSavedScans.insert(timeStampMiddleOfScan, *mScanDistancesNext);
+    }
+
+    // Write log data: scan[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
+    QTextStream out(mLogFileDataRaw);
+    out << "scan " << timestamp;
+    std::vector<long>::iterator itr;
+    for(itr=mSavedScans[timeStampMiddleOfScan].begin();itr != mSavedScans[timeStampMiddleOfScan].end(); ++itr) out << " " << *itr;
+    out << "\n";
+
+    if(mSavedScans.size() > 1 && mSavedPoses.size() > 3)
+        transformScanData();
 }

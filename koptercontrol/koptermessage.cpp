@@ -83,7 +83,7 @@ int KopterMessage::send(QIODevice* port, QMap<QChar, QTime>* pendingReplies)
 
     mData.append(getChecksum(mData));
 
-//    qDebug() << "KopterMessage::send():" << mData;
+    qDebug() << "KopterMessage::send():" << mData;
 
     mData.append('\r');
 
@@ -205,6 +205,9 @@ bool KopterMessage::isValid()
         }
         else
         {
+            qDebug () << "KopterMessage::isValid(): data is:" << mData;
+            if(mData.right(3).left(2) != getChecksum(mData.left(mData.size()-3))) qDebug() << "KopterMessage::isValid(): false, checksum error, data:" << mData;
+            if(mData.right(1) != "\r") qDebug() << "KopterMessage::isValid(): false, no CR at end, data:" << mData;
             return false;
         }
     }

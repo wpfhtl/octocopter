@@ -114,7 +114,8 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     //    WARNING! THIS ENABLES MOTION!
     //    connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
 
-    connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mFlightController, SLOT(slotSetVehiclePose(Pose)));
+    connect(mGpsDevice, SIGNAL(gpsTimeOfWeekEstablished(quint32)), mLaserScanner, SLOT(slotSetScannerTimeStamp(quint32)));
+    connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mFlightController, SLOT(slotNewVehiclePose(Pose)));
     connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mLaserScanner, SLOT(slotNewVehiclePose(Pose)));
     connect(mGpsDevice, SIGNAL(newVehiclePoseLowFreq(Pose)), mBaseConnection, SLOT(slotNewVehiclePose(Pose)));
     connect(mGpsDevice, SIGNAL(scanFinished(quint32)), mLaserScanner, SLOT(slotScanFinished(quint32)));
@@ -138,9 +139,9 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
 KopterControl::~KopterControl()
 {
-    qDebug() << "KopterControl::~KopterControl(): deleting objects, shutting down.";
+    qDebug() << "KopterControl::~KopterControl(): shutting down, deleting objects.";
+    delete mGpsDevice;
     delete mLaserScanner;
-//    delete mKopter;
     delete snSignalPipe;
 }
 
@@ -179,7 +180,7 @@ void KopterControl::slotHandleSignal()
     // shutdown orderly
     mGpsDevice->slotShutDown();
 
-    quit();
+//    quit();
 }
 
 int main(int argc, char **argv)

@@ -34,6 +34,7 @@ public slots:
 private:
     // We use this pipe for all signals.
     static int signalFd[2];
+
     Kopter *mKopter;
     Camera* mCamera;
     FlightController *mFlightController;

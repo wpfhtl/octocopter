@@ -30,6 +30,8 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
 
     mDeviceIsInitialized = false;
 
+    mTimeStampStartup = QDateTime::currentDateTime();
+
     mPoseClockDivisor = 0;
 
     mNumberOfRemainingRepliesUsb = 0; // Should never be > 1 as we wait with sending until last command is replied to.
@@ -75,6 +77,7 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
     mSerialPortCom->setParity(AbstractSerial::ParityNone);
     mSerialPortCom->setStopBits(AbstractSerial::StopBits1);
     mSerialPortCom->setFlowControl(AbstractSerial::FlowControlOff);
+    connect(mSerialPortCom, SIGNAL(readyRead()), SLOT(slotDataReadyOnCom()));
 
     mStatusTimer = new QTimer(this);
     mStatusTimer->setInterval(1000);
@@ -86,20 +89,16 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
 
 GpsDevice::~GpsDevice()
 {
-    qDebug() << "GpsDevice::~GpsDevice(): stopping output, closing serial ports";
-
-    slotCommunicationStop();
-
     mSerialPortUsb->close();
     mSerialPortCom->close();
 
-    qDebug() << "GpsDevice::~GpsDevice(): ports closed, shutdown complete.";
+    qDebug() << "GpsDevice::~GpsDevice(): ports closed, destructed.";
 }
 
-void GpsDevice::sendAsciiCommand(QString command)
+void GpsDevice::queueAsciiCommand(QString command)
 {
+    qDebug() << "GpsDevice::queueAsciiCommand(): queueing command" << command;
     mCommandQueueUsb.append(command.append("\r\n").toAscii());
-
     slotFlushCommandQueue();
 }
 
@@ -108,16 +107,15 @@ quint8 GpsDevice::slotFlushCommandQueue()
     if(mNumberOfRemainingRepliesUsb == 0 && mCommandQueueUsb.size())
     {
         mLastCommandToDeviceUsb = mCommandQueueUsb.takeFirst();
-        qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "GpsDevice::slotFlushCommandQueue(): currently not waiting for a reply, so sending next command:" << mLastCommandToDeviceUsb.trimmed();
-//        qDebug() << "pc->gps\n\n" << mLastCommandToDeviceUsb.trimmed();
-        if(mReceiveBufferUsb.size() != 0) qDebug() << "GpsDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << mReceiveBufferUsb;
+        qDebug() << t() << "GpsDevice::slotFlushCommandQueue(): currently not waiting for a reply, so sending next command:" << mLastCommandToDeviceUsb.trimmed();
+        if(mReceiveBufferUsb.size()) qDebug() << t() << "GpsDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << mReceiveBufferUsb;
         usleep(100000);
         mSerialPortUsb->write(mLastCommandToDeviceUsb);
         mNumberOfRemainingRepliesUsb++;
     }
     else if(mNumberOfRemainingRepliesUsb)
     {
-        qDebug() << "GpsDevice::slotFlushCommandQueue(): still waiting for" << mNumberOfRemainingRepliesUsb << "command-replies, not sending.";
+        qDebug() << "GpsDevice::slotFlushCommandQueue(): still waiting for" << mNumberOfRemainingRepliesUsb << "usb command-replies, not sending.";
     }
     else
     {
@@ -207,7 +205,7 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
     // Now that we know what the ports are named, we can setup the board.
     // We connect this signal not in the c'tor but here, because we don't want the slot
     // to be called for answers to requests made in this method.
-    connect(mSerialPortUsb, SIGNAL(readyRead()), SLOT(slotSerialPortDataReady()));
+    connect(mSerialPortUsb, SIGNAL(readyRead()), SLOT(slotDataReadyOnUsb()));
     slotCommunicationSetup();
 }
 
@@ -224,28 +222,37 @@ void GpsDevice::slotCommunicationSetup()
     // use bootup config for now
 
     // show current config
-    sendAsciiCommand("lstConfigFile,Current");
+    queueAsciiCommand("lstConfigFile,Current");
 
     // reset communications
-    sendAsciiCommand("setDataInOut,all,CMD,none");
+    queueAsciiCommand("setDataInOut,all,CMD,none");
 
-    // make the receiver output SBF blocks on our USB connection
-    sendAsciiCommand("setDataInOut,"+mSerialPortOnDeviceUsb+",,+SBF");
-
-    // we want to know the TOW, because we don't want it to roll over! Answer is parsed below.
-    sendAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime");
+    // make the receiver output SBF blocks on both COM and USB connections
+    queueAsciiCommand("setDataInOut,"+mSerialPortOnDeviceCom+",RTCMv3,SBF");
+    queueAsciiCommand("setDataInOut,"+mSerialPortOnDeviceUsb+",CMD,SBF");
 
     // make the receiver listen to RTK data on specified port
-    sendAsciiCommand("setDataInOut,"+mSerialPortOnDeviceCom+",RTCMv3");
+//    sendAsciiCommand("setDataInOut,"+mSerialPortOnDeviceCom+",RTCMv3");
+
+    // we want to know the TOW, because we don't want it to roll over! Answer is parsed below and used to sync time.
+    queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime");
+    queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime");
+    queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime");
+    queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime");
+
+    queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceCom+",ReceiverTime");
+    queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceCom+",ReceiverTime");
+    queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceCom+",ReceiverTime");
+    queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceCom+",ReceiverTime");
 
     // use a static (not moving) base station
-    sendAsciiCommand("setDiffCorrUsage,LowLatency,20.0,auto,0,off");
+    queueAsciiCommand("setDiffCorrUsage,LowLatency,20.0,auto,0,off");
 
     // set up INS/GNSS integration
-    sendAsciiCommand("setDataInOut,COM2,MTI");
+    queueAsciiCommand("setDataInOut,COM2,MTI");
 
     // when GPS fails, use IMU for how many seconds?
-    sendAsciiCommand("setExtSensorUsage,COM2,Accelerations+AngularRates,10");
+    queueAsciiCommand("setExtSensorUsage,COM2,Accelerations+AngularRates,10");
 
     // specify vector from GPS antenna ARP to IMU in Vehicle reference frame
     // (vehicle reference frame has X forward, Y right and Z down)
@@ -255,29 +262,35 @@ void GpsDevice::slotCommunicationSetup()
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,-90,0,270,manual,0.07,0.07,0.33");
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,90,manual,0.07,0.07,0.33");
     // Leicht, jetzt wo IMU in der Mitte liegt und unter dem kopter hängt
-    sendAsciiCommand("setExtSensorCalibration,COM2,manual,180,00,0,manual,-0.06,0.10,0.26");
+    queueAsciiCommand("setExtSensorCalibration,COM2,manual,180,00,0,manual,-0.06,0.10,0.26");
     // Sarah Dean says "seem to be ok" about 0 90 270
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,270,manual,0.07,0.07,0.33");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
-    sendAsciiCommand("setEventParameters,EventA,High2Low");
-    sendAsciiCommand("setEventParameters,EventB,High2Low");
+    queueAsciiCommand("setEventParameters,EventA,High2Low");
+    queueAsciiCommand("setEventParameters,EventB,High2Low");
 
-    // configure rover in standalone+rtk mode
-    sendAsciiCommand("setPVTMode,Rover,all,auto,Loosely");
+    // configure rover in standalone+rtk mode (use "RTKFixed" instead of "all"?)
+    queueAsciiCommand("setPVTMode,Rover,all,auto,Loosely");
 
     // explicitly allow rover to use all RTCMv3 corection messages
-    sendAsciiCommand("setRTCMv3Usage,all");
+    queueAsciiCommand("setRTCMv3Usage,all");
 
     // output IntPVCart, IntAttEuler, and Event-position. ExtSensorMeas is direct IMU measurements
     // We want to know the pose 25 times a second
-    sendAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec50");
+    queueAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec500");
 
     // We want to know PVTCartesion (4006) for MeanCorrAge (average correction data age) only, so stream it slowly
-    sendAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus,sec1");
+    queueAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus,sec1");
 
     // We want to know whenever a scan is finished.
-    sendAsciiCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceUsb+",ExtEvent,OnChange");
+    queueAsciiCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceUsb+",ExtEvent,OnChange");
+
+    // We want to know whenever a scan is finished.
+    queueAsciiCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceUsb+",ExtEvent,OnChange");
+
+    // We want to know what time it is
+    queueAsciiCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
 
     qDebug() << "GpsDevice::setupCommunication(): done setting up communication";
 
@@ -285,88 +298,72 @@ void GpsDevice::slotCommunicationSetup()
     mStatusTimer->start();
 }
 
-void GpsDevice::slotCommunicationStop()
+void GpsDevice::slotShutDown()
 {
+    qDebug() << "GpsDevice::slotShutDown(): starting shutdown sequence after" << mTimeStampStartup.secsTo(QDateTime::currentDateTime()) << "seconds runtime: disabling SBF streams, syncing clock, resetting dataInOut...";
     mDeviceIsInitialized = false;
 
-    // For some reason, resetting this port with the SDIO command below doesn't work.
-    // We need to get it to accept CMDs by sending 10 Ss to it.
-//     mSerialPortCom->write("SSSSSSSSSS");
-//     usleep(100000);
-//     QCoreApplication::processEvents();
+//    qDebug() << "GpsDevice::slotCommunicationStop(): ";
+//    mSerialPortUsb->write(QString("setSBFOutput,all,"+mSerialPortOnDeviceUsb+",none\r\n").toAscii());
+//    mSerialPortUsb->write(QString("setSBFOutput,all,"+mSerialPortOnDeviceCom+",none\r\n").toAscii());
+//    usleep(100000);
+//    QCoreApplication::processEvents();
 
-    qDebug() << "GpsDevice::slotCommunicationStop(): disabling SBF streams, resetting dataInOut...";
-
-    // we don't need any parsing of these commands.
-//    disconnect(mSerialPortUsb, SIGNAL(readyRead()), this, SLOT(slotSerialPortDataReady()));
-
-    mSerialPortUsb->write(QString("setSBFOutput,all,"+mSerialPortOnDeviceUsb+",none\r\n").toAscii());
-    usleep(100000);
-    QCoreApplication::processEvents();
-    mSerialPortUsb->write("setDataInOut,all,CMD,none\r\n");
-    usleep(100000);
-    QCoreApplication::processEvents();
-
-    // reset the receiver. yes, thats a hack.
-//    mSerialPortUsb->write("exeResetReceiver, soft, none\r\n");
-
-    qDebug() << "GpsDevice::slotCommunicationStop(): disabled SBF streams, reset dataInOut. Answer is" << mSerialPortUsb->bytesAvailable() << "bytes:" << mSerialPortUsb->readAll();
-
-//    emit stateChanged(GpsDevice::Stopped, "Orderly shutdown finished");
-    slotEmitCurrentGpsStatus("Orderly shutdown finished");
+    queueAsciiCommand("setSBFOutput,all,"+mSerialPortOnDeviceUsb+",none");
+    queueAsciiCommand("setSBFOutput,all,"+mSerialPortOnDeviceCom+",none");
+    queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime");
+    queueAsciiCommand("setDataInOut,all,CMD,none");
+    queueAsciiCommand("setPVTMode,Rover,StandAlone");
+    queueAsciiCommand("shutdown");
 
     // no need to update status of a disabled device
     mStatusTimer->stop();
+    qDebug() << "GpsDevice::slotShutDown(): shutdown sequence processed, waiting for asynchronous shutdown confirmation...";
 }
 
-void GpsDevice::slotShutDown()
+void GpsDevice::slotDataReadyOnCom()
 {
-    qDebug() << "GpsDevice::slotShutDown(): shutting down...";
-
-//    mSerialPortUsb->write(QString("setSBFOutput,all,"+mSerialPortOnDeviceUsb+",none\r\n").toAscii())
-    disconnect(mSerialPortUsb, SIGNAL(readyRead()), this, SLOT(slotSerialPortDataReady()));
-    slotCommunicationStop();
-    qDebug() << "GpsDevice::slotShutDown(): shutdown complete.";
+        mReceiveBufferCom.append(mSerialPortCom->readAll());
+        qDebug() << "GpsDevice::slotDataReadyOnCom(): size of SBF data is now" << mReceiveBufferCom.size() << "bytes, processing:" << mReceiveBufferCom;
+        processSbfData(mReceiveBufferCom);
 }
 
-void GpsDevice::slotSerialPortDataReady()
+void GpsDevice::slotDataReadyOnUsb()
 {
-//    qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "GpsDevice::slotSerialPortDataReady()";
+//    qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb()";
     mReceiveBufferUsb.append(mSerialPortUsb->readAll());
 
     if(mNumberOfRemainingRepliesUsb != 0)
     {
+        // If the receiver replies to "exeSbfOnce" commands, process that data immediately. It might be receivertime, which is time-crucial.
+        if(mReceiveBufferUsb.left(2) == QString("$@").toAscii())
+        {
+            qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): device replied to a request with SBF, processing" << mReceiveBufferUsb.size() << "SBF bytes.";
+            Q_ASSERT(mReceiveBufferUsb.indexOf("$@") == 0);
+            processSbfData(mReceiveBufferUsb);
+
+            // Its quite possible that AFTER the SBF-data, there was the exeSBFOnce command reply. If so, this reply
+            // is still in the buffer and needs to be processed. Luckily, this is done in the while-loop below.
+        }
+
         while(mNumberOfRemainingRepliesUsb != 0 && mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QString(">")) != -1) // while we found a complete chat reply
         {
             const int positionEndOfReply = mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QString(">")) + 5;
-//            qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "GpsDevice::slotSerialPortDataReady(): received reply to:" << mLastCommandToDeviceUsb.trimmed() << ":" << mReceiveBufferUsb.left(positionEndOfReply).trimmed();
-
-            // If the receiver replies to "exeSbfOnce,..." use the data to find its TOW. When the TimeOfWeek is about to wrap around, we're in trouble. Don't start!
-            if(mReceiveBufferUsb.left(positionEndOfReply).contains("SBFOnce"))
-            {
-                Q_ASSERT(mReceiveBufferUsb.indexOf("$@") == 0);
-
-                const Sbf_ReceiverTime *block = (Sbf_ReceiverTime*)mReceiveBufferUsb.data();
-
-                if(block->TOW == 4294967295)
-                {
-                    emit message(Error, "GpsDevice::getTimeToTowRollOver()", "GPS Receiver TOW is at its do-not-use-value, give it time to initialize. Quitting.");
-                    qWarning() << "GpsDevice::getTimeToTowRollOver(): GPS Receiver TOW is at its do-not-use-value, give it time to initialize. Quitting.";
-                    QCoreApplication::quit();
-                }
-
-                // SecondsPerWeek - CurrentSecondInWeek is number of seconds till rollover
-                const quint32 secondsToRollOver = (7 * 86400) - (block->TOW / 1000);
-
-                qDebug() << "GpsDevice::slotSerialPortDataReady(): TOW" << block->TOW << "will roll over in" << secondsToRollOver << "s =" << ((float)secondsToRollOver)/86400.0 << "d";
-            }
+            qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): received reply to:" << mLastCommandToDeviceUsb.trimmed() << ":" << mReceiveBufferUsb.size() << "bytes:" << mReceiveBufferUsb.left(positionEndOfReply).trimmed();
 
             // After sending/receiving the SetPvtMode command, the rover needs to be static for better alignment. Tell the user to wait!
             if(QString(mReceiveBufferUsb.left(positionEndOfReply)).contains("SetPvtMode", Qt::CaseInsensitive))
                 slotEmitCurrentGpsStatus("Integration filter started (alignment not ready), vehicle must remain static for 20s starting now.");
 
             if(mReceiveBufferUsb.left(positionEndOfReply).contains("$R? ASCII commands between prompts were discarded!"))
-                qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "GpsDevice::slotSerialPortDataReady(): we were talking too fast!!";
+                qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): we were talking too fast!!";
+
+            if(mReceiveBufferUsb.left(positionEndOfReply).contains("shutdown"))
+            {
+                slotEmitCurrentGpsStatus("Orderly shutdown finished");
+                qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): shutdown confirmed by device, quitting.";
+                QCoreApplication::quit();
+            }
 
             mReceiveBufferUsb.remove(0, positionEndOfReply);
             mNumberOfRemainingRepliesUsb--;
@@ -374,11 +371,11 @@ void GpsDevice::slotSerialPortDataReady()
 
         if(mReceiveBufferUsb.size())
         {
-            qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "GpsDevice::slotSerialPortDataReady(): after parsing all replies, rx-buffer not empty, contains:" << mReceiveBufferUsb;
+            qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): after parsing all replies, rx-buffer not empty, contains:" << mReceiveBufferUsb;
         }
         else
         {
-//            qDebug() << "GpsDevice::slotSerialPortDataReady(): after parsing all input i will send next command, if any";
+//            qDebug() << "GpsDevice::slotDataReadyOnUsb(): after parsing all input i will send next command, if any";
             slotFlushCommandQueue();
         }
     }
@@ -388,8 +385,8 @@ void GpsDevice::slotSerialPortDataReady()
         // talking to us on its own, which only happens after initializing it
         mDeviceIsInitialized = true;
         // We're not waiting for a reply to a command, this must be SBF data!
-//        qDebug() << "GpsDevice::slotSerialPortDataReady(): received" << mReceiveBufferUsb.size() << "bytes of SBF data.";
-        processSbfData();
+        qDebug() << "GpsDevice::slotDataReadyOnUsb(): received" << mReceiveBufferUsb.size() << "bytes of SBF data, processing...";
+        processSbfData(mReceiveBufferUsb);
     }
 }
 
@@ -408,48 +405,54 @@ quint16 GpsDevice::getCrc(const void *buf, unsigned int length)
   return crc;
 }
 
-void GpsDevice::processSbfData()
+void GpsDevice::processSbfData(QByteArray& receiveBuffer)
 {
-    //qDebug() << "GpsDevice::processSbfData():" << mReceiveBufferUsb.size() << "bytes present.";
+    //qDebug() << "GpsDevice::processSbfData():" << receiveBuffer.size() << "bytes present.";
 
-    while(mReceiveBufferUsb.size() > 8)
+    while(receiveBuffer.size() > 8)
     {
 //        qDebug() << "GpsDevice::processSbfData(): more than 8 data bytes present, processing.";
-        const int indexOfSyncMarker = mReceiveBufferUsb.indexOf("$@");
+        const int indexOfSyncMarker = receiveBuffer.indexOf("$@");
 
 	if(indexOfSyncMarker == -1)
 	{
 	    // The sync marker wasn't found! This means the whole buffer contains unusable data,
-	    // because we cannot use any data without a sync-marker prepended. Clear the buffer.
-	    qWarning() << "GpsDevice::processSbfData(): WARNING: SBF Sync marker not found in buffer of" << mReceiveBufferUsb.size() << "bytes. Clearing buffer.";
-	    mReceiveBufferUsb.clear();
-	    return;
+            // because we cannot use any data without a sync-marker prepended. So the data must
+            // be non-SBF and should be consumed by someone else.
+            return;
+
+            // This may happen when we send a exeSbfOnce command (e.g. for ReceiverTime). The
+            // receiver then replies with the SBF and then the prompt. The prompt is processed
+            // here and discarded. Thats ok.
+            //qWarning() << "GpsDevice::processSbfData(): WARNING: SBF Sync marker not found in buffer of" << receiveBuffer.size() << "bytes. Clearing buffer:" << receiveBuffer;
+            //receiveBuffer.clear();
+            //return;
 	}
 	else if(indexOfSyncMarker != 0)
 	{
 	    qWarning() << "GpsDevice::processSbfData(): WARNING: SBF Sync Marker $@ was not at byte 0, but at" << indexOfSyncMarker;
-	    mReceiveBufferUsb.remove(0, indexOfSyncMarker);
+	    receiveBuffer.remove(0, indexOfSyncMarker);
 	}
 
-        const quint16 msgCrc = *(quint16*)(mReceiveBufferUsb.data() + 2);
-        const quint16 msgId = *(quint16*)(mReceiveBufferUsb.data() + 4);
+        const quint16 msgCrc = *(quint16*)(receiveBuffer.data() + 2);
+        const quint16 msgId = *(quint16*)(receiveBuffer.data() + 4);
         const quint16 msgIdBlock = msgId & 0x1fff;
         const quint16 msgIdRev = msgId >> 13;
-        const quint16 msgLength = *(quint16*)(mReceiveBufferUsb.data() + 6);
+        const quint16 msgLength = *(quint16*)(receiveBuffer.data() + 6);
 
-        if(mReceiveBufferUsb.size() < msgLength)
+        if(receiveBuffer.size() < msgLength)
         {
-            qDebug() << "GpsDevice::processSbfData(): message incomplete, we only have" << mReceiveBufferUsb.size() << "of" << msgLength << "bytes. Processing postponed..";
+            qDebug() << t() << "GpsDevice::processSbfData(): message incomplete, we only have" << receiveBuffer.size() << "of" << msgLength << "bytes. Processing postponed..";
             return;
         }
 
-        if(getCrc(mReceiveBufferUsb.data()+4, msgLength-4) != msgCrc)
+        if(getCrc(receiveBuffer.data()+4, msgLength-4) != msgCrc)
         {
-            qWarning() << "GpsDevice::processSbfData(): WARNING: CRC in msg" << msgCrc << "computed" << getCrc(mReceiveBufferUsb.data()+4, msgLength-4) << "msgIdBlock" << msgIdBlock;
+            qWarning() << "GpsDevice::processSbfData(): WARNING: CRC in msg" << msgCrc << "computed" << getCrc(receiveBuffer.data()+4, msgLength-4) << "msgIdBlock" << msgIdBlock;
             // Remove the SBF block body from our incoming USB buffer, so it contains either nothing or the next SBF message
             // Since the CRC is wrong, msgLength might also be off. Thus we delete just two bytes at the beginning, causing
             // a warning about spurious data in the next processing iteration, but thats still more safe.
-            mReceiveBufferUsb.remove(0, 2);
+            receiveBuffer.remove(0, 2);
             continue;
         }
 
@@ -467,7 +470,7 @@ void GpsDevice::processSbfData()
         case 4006:
         {
             // PVTCartesian
-            const Sbf_PVTCartesian *block = (Sbf_PVTCartesian*)mReceiveBufferUsb.data();
+            const Sbf_PVTCartesian *block = (Sbf_PVTCartesian*)receiveBuffer.data();
             mLastMeanCorrAge = std::min(block->MeanCorrAge / 10.0, 255.0);
             //qDebug() << "SBF: PVTCartesian: MeanCorrAge in seconds:" << ((float)block->MeanCorrAge)/100.0;
         }
@@ -476,7 +479,7 @@ void GpsDevice::processSbfData()
         case 4014:
         {
             // ReceiverStatus
-            const Sbf_ReceiverStatus *block = (Sbf_ReceiverStatus*)mReceiveBufferUsb.data();
+            const Sbf_ReceiverStatus *block = (Sbf_ReceiverStatus*)receiveBuffer.data();
             if(block->CPULoad > 80)
             {
                 qWarning() << "GpsDevice::processSbfData(): WARNING, receiver CPU load is" << block->CPULoad;
@@ -501,7 +504,7 @@ void GpsDevice::processSbfData()
         {
             // IntPVAAGeod
 //            qDebug() << "SBF: PVAAGeod";
-            const Sbf_PVAAGeod *block = (Sbf_PVAAGeod*)mReceiveBufferUsb.data();
+            const Sbf_PVAAGeod *block = (Sbf_PVAAGeod*)receiveBuffer.data();
 
             // Check the Info-field and emit states if it changes
             if(mLastInfoFromDevice != block->Info)
@@ -632,10 +635,10 @@ void GpsDevice::processSbfData()
             {
                 qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, error:" << block->Error << " " << GpsStatusInformation::getError(block->Error) ;
             }
-else if(block->Heading == 65535)
-{
-	qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, heading is 65535, donotuse";
-}
+            else if(block->Heading == 65535)
+            {
+                qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, heading do-not-use";
+            }
             else
             {
                 qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, do-not-use values found.";
@@ -645,45 +648,124 @@ else if(block->Heading == 65535)
 //            qDebug() << "Info" << block->Info << "Mode" << block->Mode << "Error" << block->Error << "HPR:" << block->Heading << block->Pitch << block->Roll;;
         }
             break;
+
+        case 5914:
+        {
+            // ReceiverTime
+            const Sbf_ReceiverTime *block = (Sbf_ReceiverTime*)receiveBuffer.data();
+
+            qDebug() << t() << "GpsDevice::processSbfData(): received ReceiverTime block: msgid" << msgId << "msgIdBlock" << msgIdBlock << "msgLength" << msgLength << "revision" << msgIdRev;
+
+            if(block->TOW == 4294967295)
+            {
+                emit message(Error, "GpsDevice::processSbfData()", "GPS Receiver TOW is at its do-not-use-value, give it time to initialize.");
+                qWarning() << "GpsDevice::processSbfData(): GPS Receiver TOW is at its do-not-use-value, give it time to initialize.";
+
+                if(mTimeStampStartup.secsTo(QDateTime::currentDateTime()) < 15)
+                {
+                    qWarning() << "GpsDevice::processSbfData(): GPS Receiver TOW is at its do-not-use-value during startup - quitting.";
+                    QCoreApplication::quit();
+                }
+            }
+            else
+            {
+                // Set system time to gps time. Adding a roundtrip-timer is not a good idea, as the board waits until the
+                // second leaps, meaning the time from request to output doesn't equal the time from output to reception.
+
+                // First, what time is it now?
+                struct timeval system;
+                gettimeofday(&system, NULL);
+
+                // SecondsPerWeek - CurrentSecondInWeek is number of seconds till rollover
+                const quint32 secondsToRollOver = (7 * 86400) - (block->TOW / 1000);
+
+                const qint32 offsetHostToGps = block->TOW - getCurrentGpsTowTime();
+                qDebug() << "GpsDevice::processSbfData(): time rollover in" << ((float)secondsToRollOver)/86400.0 << "d, offset host time" << getCurrentGpsTowTime() << "to gps time" << block->TOW << "is" << offsetHostToGps/1000 << "s and" << (offsetHostToGps%1000) << "ms";
+
+                // For small clock drifts AND when system is running, adjust clock. Else, set clock
+                if(abs(offsetHostToGps) < 10 && mDeviceIsInitialized)
+                {
+                    qDebug() << "GpsDevice::processSbfData(): offset smaller than 10ms, using adjtime to correct clock drift...";
+                    system.tv_sec = 0;
+                    system.tv_usec = offsetHostToGps * 1000;
+                    if(adjtime(&system, NULL) < 0)
+                    {
+                        if(errno == EINVAL) qDebug("GpsDevice::processSbfData(): couldn't adjust system time, values invalid.");
+                        else if(errno == EPERM) qDebug("GpsDevice::processSbfData(): couldn't adjust system time, insufficient permissions.");
+                        else qDebug("GpsDevice::processSbfData(): couldn't adjust system time, no idea why, error %d.", errno);
+                    }
+                }
+                else
+                {
+                    qDebug() << "GpsDevice::processSbfData(): offset larger than 10ms, using settimeofday to set clock...";
+                    system.tv_sec += offsetHostToGps/1000;
+                    system.tv_usec += (offsetHostToGps%1000)*1000;
+
+                    // usec can under/overflow; fix it
+                    if(system.tv_usec > 1000000)
+                    {
+                    system.tv_usec -= 1000000;
+                    system.tv_sec += 1;
+                    }
+
+                    if(settimeofday(&system, NULL) < 0)
+                    {
+                        if(errno == EFAULT) qDebug("GpsDevice::processSbfData(): couldn't set system time, values outside of range.");
+                        else if(errno == EINVAL) qDebug("GpsDevice::processSbfData(): couldn't set system time, values invalid.");
+                        else if(errno == EPERM) qDebug("GpsDevice::processSbfData(): couldn't set system time, insufficient permissions.");
+                        else qDebug("GpsDevice::processSbfData(): couldn't set system time, no idea why, error %d.", errno);
+                    }
+                }
+
+                emit gpsTimeOfWeekEstablished(block->TOW);
+
+                qDebug() << "GpsDevice::processSbfData(): after" << mTimeStampStartup.secsTo(QDateTime::currentDateTime()) << "seconds runtime, offset host to gps is" << offsetHostToGps << "ms or" << offsetHostToGps / (mTimeStampStartup.secsTo(QDateTime::currentDateTime()) / 3600.0) << "ms per hour.";
+            }
+        }
+        break;
+
         case 5924:
         {
             // ExtEvent
             //qDebug() << "SBF: ExtEvent";
-            const Sbf_ExtEvent *block = (Sbf_ExtEvent*)mReceiveBufferUsb.data();
+            const Sbf_ExtEvent *block = (Sbf_ExtEvent*)receiveBuffer.data();
 
             // Laserscanner sync signal is soldered to both ports, but port 1 is broken. If it ever starts working again, I want to know.
             Q_ASSERT(block->Source == 2);
 
-            if(block->TOW != 4294967295)
-                emit scanFinished(block->TOW);
-            else
-                qDebug() << "GpsDevice::processSbfData(): WARNING: scan finished, but TOW is set to do-not-use!";
-        }
-            break;
-        case 4037:
-        {
-            // ExtEventPvtCartesian
-            qDebug() << "SBF: ExtEventPvtCartesian";
-        }
-            break;
-        case 4050:
-        {
-            // ExtSensorMeas
-            qDebug() << "SBF: ExtSensorMeas";
-        }
-            break;
-        default:
-        {
-            qDebug() << "GpsDevice::processSbfData(): ignoring block id" << msgIdBlock;
-        }
-        }
+	    if(block->TOW != 4294967295)
+	    {
+              qDebug() << "sys" << getCurrentGpsTowTime() << "gps" << block->TOW << "gps: SBF of" << sizeof(Sbf_ExtEvent) << "in" << receiveBuffer.size() << "bytes tells us scan finished";
+		emit scanFinished(block->TOW);
+	    }
+	    else
+		qDebug() << "GpsDevice::processSbfData(): WARNING: scan finished, but TOW is set to do-not-use!";
+	}
+	    break;
+	case 4037:
+	{
+	    // ExtEventPvtCartesian
+	    qDebug() << "SBF: ExtEventPvtCartesian";
+	}
+	    break;
+	case 4050:
+	{
+	    // ExtSensorMeas
+	    qDebug() << "SBF: ExtSensorMeas";
+	}
+	    break;
+	default:
+	{
+	    qDebug() << "GpsDevice::processSbfData(): ignoring block id" << msgIdBlock;
+	}
+	}
 
         // Remove the SBF block body from our incoming USB buffer, so it contains either nothing or the next SBF message
-        mReceiveBufferUsb.remove(0, msgLength);
+        receiveBuffer.remove(0, msgLength);
     }
 
-    if(mReceiveBufferUsb.size())
-        qDebug() << "GpsDevice::processSbfData(): done processing SBF data, bytes left in buffer:" << mReceiveBufferUsb.size() << "bytes:" << mReceiveBufferUsb;
+    if(receiveBuffer.size())
+        qDebug() << "GpsDevice::processSbfData(): done processing SBF data, bytes left in buffer:" << receiveBuffer.size() << "bytes:" << receiveBuffer;
 
 }
 

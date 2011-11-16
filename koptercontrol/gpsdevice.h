@@ -6,6 +6,7 @@
 #include <QDebug>
 #include <QTimer>
 
+#include <sys/time.h> // for syncing time
 #include <common.h>
 #include <gpsstatusinformation.h>
 
@@ -69,11 +70,13 @@ private:
     quint8 mLastGnssPvtModeFromDevice;
     quint8 mLastNumberOfSatellitesUsed;
     quint16 mLastInfoFromDevice;
-    int mNumberOfRemainingRepliesUsb;
+    quint8 mNumberOfRemainingRepliesUsb;
     unsigned int mRtkDataCounter;
     QByteArray mLastCommandToDeviceUsb;
     AbstractSerial *mSerialPortUsb, *mSerialPortCom;
     bool mDeviceIsInitialized; // so we only feed it rtk data when the device is ready for it.
+
+    QDateTime mTimeStampStartup; // to determine runtime and clock skew at the end.
 
     // The ports we use to talk to the receiver have a name on the receiver-side, e.g. COM1 or USB2
     // We need to use these names to tell the receiver what communication comes in/out of what ports.
@@ -82,20 +85,20 @@ private:
     // To emit status in regular intervals
     QTimer* mStatusTimer;
 
-    QByteArray mReceiveBufferUsb;
+    QByteArray mReceiveBufferUsb, mReceiveBufferCom;
     QList<QByteArray> mCommandQueueUsb;
 
     static inline QVector3D convertGeodeticToCartesian(const double &lon, const double &lat, const float &elevation);
 
-    void sendAsciiCommand(QString command);
+    // Sends @command via USB port and notes that a reply is expected on Ports @replyPorts
+    void queueAsciiCommand(QString command);
 
-    void processSbfData();
+    void processSbfData(QByteArray& receiveBuffer);
     quint16 getCrc(const void *buf, unsigned int length);
 
     // This method finds out how many seconds are left before the TOW (time-of-week)
     // value in the receiver rolls over, potentially screwing up our calculcations.
     quint32 getTimeToTowRollOver();
-
 
     struct Sbf_Header
     {
@@ -251,9 +254,10 @@ private:
 private slots:
     void slotSerialPortStatusChanged(const QString& status, const QDateTime& time);
     void slotCommunicationSetup();
-    void slotCommunicationStop();
+//    void slotCommunicationStop();
     quint8 slotFlushCommandQueue();
-    void slotSerialPortDataReady();
+    void slotDataReadyOnUsb();
+    void slotDataReadyOnCom();
     void slotDetermineSerialPortsOnDevice();
 
     // For timestamp from the GPS device to work with timestamp from the
@@ -276,6 +280,8 @@ signals:
 
     // Again, timestamp is number of milliseconds since last sunday 00:00:00 AM (midnight)
     void scanFinished(const quint32& timestamp);
+
+    void gpsTimeOfWeekEstablished(const quint32& timestamp);
 
 //    void stateChanged(const GpsDevice::Status&, const QString&);
 

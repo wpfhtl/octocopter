@@ -25,7 +25,7 @@ private:
 
     qrk::UrgCtrl mScanner;
 
-    std::vector<long> *mScanDistancesPrevious, *scanDistances, *mScanDistancesNext;
+    std::vector<long> *mScanDistancesPrevious, *mScanDistancesNext;
 
     // This scanner's pose relative to the vehicle frame
     Pose mRelativePose;
@@ -74,6 +74,9 @@ public slots:
 
     // The pose also contains a timestamp (receiver-time) of when that pose was recorded.
     void slotNewVehiclePose(const Pose& pose);
+    
+    // To set the laserscanner's timestamp to the gps time. Hopefully.
+    void slotSetScannerTimeStamp(const quint32& timestamp);
 
 signals:
     void bottomBeamLength(const float&);
