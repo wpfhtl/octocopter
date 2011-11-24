@@ -1,9 +1,11 @@
 #ifndef LASERSCANNER_H
 #define LASERSCANNER_H
 
-#include <UrgCtrl.h>
+#include <urg/UrgCtrl.h>
 //#include <stdio.h>
 #include <stdlib.h>
+
+#include <sys/time.h>
 
 #include <QtCore>
 #include <QtNetwork>

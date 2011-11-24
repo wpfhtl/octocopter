@@ -248,8 +248,19 @@ void GpsDevice::slotCommunicationSetup()
     // use a static (not moving) base station
     queueAsciiCommand("setDiffCorrUsage,LowLatency,20.0,auto,0,off");
 
+    // xPPSOut is connected to DCD line of mSerialPortCom and uses hardpps() to sync clocks.
+    // 0.00 is delay in nanoseconds, higher values cause PPS signal to be generated earlier.
+    // 3600 is MaxSyncAge - time with no PVT after which PPS output is stopped. Ignored for RxClock timing system.
+    queueAsciiCommand("setPPSParameters,sec1,Low2High,0.00,RxClock,3600");
+
     // set up INS/GNSS integration
     queueAsciiCommand("setDataInOut,COM2,MTI");
+
+    // set time system to be GPS, not Galileo
+    queueAsciiCommand("setTimingSystem,GPS");
+
+    // see Firmware User manual pg. 32: drift is so slow we won't ever touch this
+    queueAsciiCommand("setClockSyncThreshold,usec500");
 
     // when GPS fails, use IMU for how many seconds?
     queueAsciiCommand("setExtSensorUsage,COM2,Accelerations+AngularRates,10");

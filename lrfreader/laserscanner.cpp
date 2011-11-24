@@ -45,8 +45,13 @@ void LaserScanner::run()
     //      CaptureTimes = 10,
     //    };
 
-    forever/*(int i = 0; i < CaptureTimes; ++i)*/{
+    QTime timer;
+
+    forever/*(int i = 0; i < CaptureTimes; ++i)*/
+    {
       long timestamp = 0;
+
+      timer.start();
 
       // Get data with intensity information
       int data_n = mScanner.captureWithIntensity(mScanDistances, mScanIntensities, &timestamp);
@@ -57,10 +62,13 @@ void LaserScanner::run()
 
 	// Display
 	// The distance data that are less than urg_minDistance() are shown as invalid value.
-	printf("%d: %ld [mm] (%ld), %ld [msec]\n", front_index, mScanDistances[front_index], mScanIntensities[front_index], timestamp);
+        printf("%d %d: %ld [mm] (%ld), %ld [msec]\n", timer.restart(), front_index, mScanDistances[front_index], mScanIntensities[front_index], timestamp);
       }
-//      delay(scan_msec);
-      usleep(1250);
+      else
+      {
+          qDebug() << "call took" << timer.restart() << "data_n was" << data_n << ", waiting" << mScanner.scanMsec()*1000 << "nanoseconds";
+          usleep(mScanner.scanMsec()*1000);
+      }
     }
 }
 

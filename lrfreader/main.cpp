@@ -4,7 +4,7 @@ int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
 
-    LaserScanner ls("/dev/ttyACM1");
+    LaserScanner ls("/dev/serial/by-id/usb-Hokuyo_Data_Flex_for_USB_URG-Series_USB_Driver-if00");
     ls.start();
 
     return app.exec();
