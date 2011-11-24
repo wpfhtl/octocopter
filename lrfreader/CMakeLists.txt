@@ -9,23 +9,10 @@ cmake_policy(SET CMP0015 NEW)
 SET(SRC_FILES
 main
 laserscanner
-#urg/src/cpp/urg/UrgCtrl
-#urg/src/cpp/urg/RangeSensor
-#urg/src/cpp/monitor/MonitorModeManager
-#urg/src/cpp/coordinate/Coordinate
-#urg/src/cpp/connection/Connection
-#urg/src/cpp/connection/SerialDevice
-#urg/src/cpp/urg/ScipHandler
-#urg/src/cpp/geometry/Angle
-#urg/src/cpp/system/Lock
-#urg/src/cpp/system/LockGuard
-#urg/src/cpp/system/Thread
-#urg/src/cpp/system/ticks
 )
 
 SET(INC_FILES
 laserscanner.h
-#UrgCtrl.h
 )
 
 SET(RESOURCE_FILES

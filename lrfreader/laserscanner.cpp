@@ -6,31 +6,27 @@ LaserScanner::LaserScanner(const QString &deviceFileName)
 
     mDeviceFileName = deviceFileName;
 
-    mSpeed = 2400.0f;
-    mAngleStart = 45.0f;
-    mAngleStop = 315.0f;
-    mAngleStep = 0.25f;
-
-    mTimerScan = 0;
-
-    mCurrentScanAngle = mAngleStart;
-
     if (! mScanner.connect(mDeviceFileName.toAscii().constData()))
     {
       qDebug() << "LaserScanner::LaserScanner(): connecting to" << mDeviceFileName << "failed: UrgCtrl::connect gave" << mScanner.what();
       exit(1);
     }
 
-    int scan_msec = mScanner.scanMsec();
     mScanner.setCaptureMode(IntensityCapture);
 
+    //setTime(0);
+}
 
+void LaserScanner::setTime(const quint32& time)
+{
+    int response_msec = 0;
+    int force_delay_msec = 0;
 
+    qDebug() << getTime() << "LaserScanner::setTime(): setting time to" << time;
 
+    bool ok = mScanner.setTimestamp(time, &response_msec, NULL);
 
-
-
-
+    qDebug() << getTime() << "LaserScanner::setTime(): success:" << ok << "response_msec is" << response_msec;
 }
 
 LaserScanner::~LaserScanner()
@@ -39,15 +35,16 @@ LaserScanner::~LaserScanner()
 
 }
 
+QString LaserScanner::getTime()
+{
+    return QTime::currentTime().toString("HH:mm:ss:zzz");
+}
+
 void LaserScanner::run()
 {
-    //    enum {
-    //      CaptureTimes = 10,
-    //    };
+    mStartUpTime = QDateTime::currentDateTime();
 
-    QTime timer;
-
-    forever/*(int i = 0; i < CaptureTimes; ++i)*/
+    while(true)
     {
       long timestamp = 0;
 
@@ -58,123 +55,13 @@ void LaserScanner::run()
 
       if(data_n > 0)
       {
-	int front_index = mScanner.rad2index(0.0);
-
-	// Display
-	// The distance data that are less than urg_minDistance() are shown as invalid value.
-        printf("%d %d: %ld [mm] (%ld), %ld [msec]\n", timer.restart(), front_index, mScanDistances[front_index], mScanIntensities[front_index], timestamp);
+        printf("runtime %4d [s]: utm30lx time %ld [msec]\n",
+               mStartUpTime.secsTo(QDateTime::currentDateTime()),
+               timestamp);
       }
       else
       {
-          qDebug() << "call took" << timer.restart() << "data_n was" << data_n << ", waiting" << mScanner.scanMsec()*1000 << "nanoseconds";
-          usleep(mScanner.scanMsec()*1000);
+        usleep(25000);
       }
     }
-}
-
-void LaserScanner::slotDoScan()
-{
-}
-
-
-void LaserScanner::slotSetScannerPose(const QVector3D &position, const QQuaternion &orientation)
-{
-    // This slot is called whenever the vehicle's position changes. Thus, we
-    // should be called at least 25, at most mSpeed/60 times per second.
-    QMutexLocker locker(&mMutex);
-    mPosition = position;
-    mOrientation = orientation;
-}
-
-void LaserScanner::slotPause(void)
-{
-    qDebug() << "LaserScanner::slotPause(): stopping scanner";
-    mTimerScan->stop();
-}
-
-void LaserScanner::slotStart(void)
-{
-    qDebug() << "LaserScanner::slotStart(): starting scanner timer in thread" << currentThreadId();
-    mTimerScan->start();
-}
-
-// Getters for the properties
-float LaserScanner::range(void) const
-{
-    return mRange;
-}
-
-int LaserScanner::speed(void) const
-{
-    return (int)mSpeed;
-}
-
-int LaserScanner::angleStart(void) const
-{
-    return mAngleStart;
-}
-
-int LaserScanner::angleStop(void) const
-{
-    return mAngleStop;
-}
-
-float LaserScanner::angleStep(void) const
-{
-    return mAngleStep;
-}
-
-// Setters for the properties
-void LaserScanner::setRange(float range)
-{
-    mRange = range;
-    mRangeSquared = pow(mRange, 2.0);
-}
-
-void LaserScanner::setSpeed(int speed)
-{
-    mSpeed = speed;
-}
-
-void LaserScanner::setAngleStart(int angleStart)
-{
-    mAngleStart = angleStart;
-}
-
-void LaserScanner::setAngleStop(int angleStop)
-{
-    mAngleStop = angleStop;
-}
-
-void LaserScanner::setAngleStep(float angleStep)
-{
-    mAngleStep = angleStep;
-}
-
-void LaserScanner::setPosition(const QVector3D &position)
-{
-    QMutexLocker locker(&mMutex);
-    mPosition = position;
-
-}
-
-void LaserScanner::setOrientation(const QQuaternion &orientation)
-{
-    QMutexLocker locker(&mMutex);
-    mOrientation = orientation;
-}
-
-QVector3D LaserScanner::getPosition(void)
-{
-    return mPosition;
-}
-
-QQuaternion LaserScanner::getOrientation(void)
-{
-    return mOrientation;
-}
-
-bool LaserScanner::isScanning(void) const
-{
-    return true;
 }

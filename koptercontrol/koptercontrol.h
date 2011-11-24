@@ -12,6 +12,7 @@
 #include "kopter.h"
 #include "camera.h"
 #include "gpsdevice.h"
+#include "sensorfuser.h"
 #include "laserscanner.h"
 #include "visualodometry.h"
 #include "baseconnection.h"
@@ -37,6 +38,7 @@ private:
 
     Kopter *mKopter;
     Camera* mCamera;
+    SensorFuser* mSensorFuser;
     FlightController *mFlightController;
     GpsDevice *mGpsDevice;
     LaserScanner *mLaserScanner;

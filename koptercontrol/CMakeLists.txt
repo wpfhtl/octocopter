@@ -12,6 +12,7 @@ koptermessage
 kopter
 camera
 visualodometry
+sensorfuser
 ../common/flightcontroller
 ../common/common
 ../common/pose
@@ -29,6 +30,7 @@ koptermessage.h
 kopter.h
 camera.h
 visualodometry.h
+sensorfuser.h
 ../common/flightcontroller.h
 ../common/common.h
 ../common/pose.h

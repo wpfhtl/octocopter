@@ -72,7 +72,7 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
         mSerialPortCom->close();
         qFatal("GpsDevice::GpsDevice(): Opening serial com port %s failed, exiting.", qPrintable(serialDeviceFileCom));
     }
-    mSerialPortCom->setBaudRate(AbstractSerial::BaudRate115200);
+    mSerialPortCom->setBaudRate(AbstractSerial::BaudRate460800);
     mSerialPortCom->setDataBits(AbstractSerial::DataBits8);
     mSerialPortCom->setParity(AbstractSerial::ParityNone);
     mSerialPortCom->setStopBits(AbstractSerial::StopBits1);
@@ -227,6 +227,9 @@ void GpsDevice::slotCommunicationSetup()
     // reset communications
     queueAsciiCommand("setDataInOut,all,CMD,none");
 
+    // increase com-port speed to 460800 for shorter latency
+    queueAsciiCommand("setComSettings,"+mSerialPortOnDeviceCom+",baud460800,bits8,No,bit1,none");
+
     // make the receiver output SBF blocks on both COM and USB connections
     queueAsciiCommand("setDataInOut,"+mSerialPortOnDeviceCom+",RTCMv3,SBF");
     queueAsciiCommand("setDataInOut,"+mSerialPortOnDeviceUsb+",CMD,SBF");
@@ -295,10 +298,7 @@ void GpsDevice::slotCommunicationSetup()
     queueAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus,sec1");
 
     // We want to know whenever a scan is finished.
-    queueAsciiCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceUsb+",ExtEvent,OnChange");
-
-    // We want to know whenever a scan is finished.
-    queueAsciiCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceUsb+",ExtEvent,OnChange");
+    queueAsciiCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceCom+",ExtEvent,OnChange");
 
     // We want to know what time it is
     queueAsciiCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
@@ -314,12 +314,7 @@ void GpsDevice::slotShutDown()
     qDebug() << "GpsDevice::slotShutDown(): starting shutdown sequence after" << mTimeStampStartup.secsTo(QDateTime::currentDateTime()) << "seconds runtime: disabling SBF streams, syncing clock, resetting dataInOut...";
     mDeviceIsInitialized = false;
 
-//    qDebug() << "GpsDevice::slotCommunicationStop(): ";
-//    mSerialPortUsb->write(QString("setSBFOutput,all,"+mSerialPortOnDeviceUsb+",none\r\n").toAscii());
-//    mSerialPortUsb->write(QString("setSBFOutput,all,"+mSerialPortOnDeviceCom+",none\r\n").toAscii());
-//    usleep(100000);
-//    QCoreApplication::processEvents();
-
+    queueAsciiCommand("setComSettings,all,baud115200,bits8,No,bit1,none");
     queueAsciiCommand("setSBFOutput,all,"+mSerialPortOnDeviceUsb+",none");
     queueAsciiCommand("setSBFOutput,all,"+mSerialPortOnDeviceCom+",none");
     queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime");
@@ -690,6 +685,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
                 // SecondsPerWeek - CurrentSecondInWeek is number of seconds till rollover
                 const quint32 secondsToRollOver = (7 * 86400) - (block->TOW / 1000);
 
+                // Apply 15000ms = 15 leapseconds offset? Only when we really sync to UTC, which we don't.
                 const qint32 offsetHostToGps = block->TOW - getCurrentGpsTowTime();
                 qDebug() << "GpsDevice::processSbfData(): time rollover in" << ((float)secondsToRollOver)/86400.0 << "d, offset host time" << getCurrentGpsTowTime() << "to gps time" << block->TOW << "is" << offsetHostToGps/1000 << "s and" << (offsetHostToGps%1000) << "ms";
 

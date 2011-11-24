@@ -80,11 +80,8 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     qDebug() << "KopterControl::KopterControl(): using laserscanner at" << deviceSerialLaserScanner;
     qDebug() << "KopterControl::KopterControl(): reading RSSI at interface" << networkInterface;
 
-    mBaseConnection = new BaseConnection(networkInterface);
-    mKopter = new Kopter(deviceSerialKopter, this);
-    mGpsDevice = new GpsDevice(deviceSerialGpsUsb, deviceSerialGpsCom, this);
-    mLaserScanner = new LaserScanner(
-                deviceSerialLaserScanner,
+    mFlightController = new FlightController();
+    mSensorFuser = new SensorFuser(
                 Pose(
                     QVector3D(      // Offset from Antenna to Laser Source. In Vehicle Reference Frame: Like OpenGL, red arm forward pointing to screen
                         +0.09,      // From antenna positive is right to laser
@@ -96,16 +93,18 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
                     10             // Use 10 msec TOW, so that the relative pose is always older than whatever new pose coming in. Don't use 0, as that would be set to current TOW, which might be newer due to clock offsets.
                     )
                 );
+    mBaseConnection = new BaseConnection(networkInterface);
+    mKopter = new Kopter(deviceSerialKopter, this);
+    mGpsDevice = new GpsDevice(deviceSerialGpsUsb, deviceSerialGpsCom, this);
+    mLaserScanner = new LaserScanner(deviceSerialLaserScanner);
 
-    mFlightController = new FlightController();
 //    mCamera = new Camera(deviceCamera, QSize(320, 240), QVector3D(), QQuaternion(), 15);
-
 //    mVisualOdometry = new VisualOdometry(mCamera);
 
-    connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
-    connect(mLaserScanner, SIGNAL(newScannedPoints(QVector3D,QVector<QVector3D>)), mBaseConnection, SLOT(slotNewScannedPoints(QVector3D,QVector<QVector3D>)));
 //    connect(mCamera, SIGNAL(imageReadyJpeg(QString,QSize,QVector3D,QQuaternion,const QByteArray*)), mBaseConnection, SLOT(slotNewCameraImage(QString,QSize,QVector3D,QQuaternion,const QByteArray*)));
 //    connect(mCamera, SIGNAL(imageReadyYCbCr(QString,QSize,QVector3D,QQuaternion,QByteArray)), mVisualOdometry, SLOT(slotProcessImage(QString,QSize,QVector3D,QQuaternion,QByteArray)));
+    connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
+    connect(mLaserScanner, SIGNAL(newScannedPoints(QVector3D,QVector<QVector3D>)), mBaseConnection, SLOT(slotNewScannedPoints(QVector3D,QVector<QVector3D>)));
     connect(mKopter, SIGNAL(kopterStatus(quint32, qint16, float)), mBaseConnection, SLOT(slotNewVehicleStatus(quint32, qint16, float)));
     connect(mLaserScanner, SIGNAL(bottomBeamLength(const float&)), mFlightController, SLOT(slotSetBottomBeamLength(const float&)));
     connect(mBaseConnection, SIGNAL(enableScanning(const bool&)), mLaserScanner, SLOT(slotEnableScanning(const bool&)));
@@ -116,15 +115,18 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     connect(mGpsDevice, SIGNAL(gpsTimeOfWeekEstablished(quint32)), mLaserScanner, SLOT(slotSetScannerTimeStamp(quint32)));
     connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mFlightController, SLOT(slotNewVehiclePose(Pose)));
-    connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mLaserScanner, SLOT(slotNewVehiclePose(Pose)));
     connect(mGpsDevice, SIGNAL(newVehiclePoseLowFreq(Pose)), mBaseConnection, SLOT(slotNewVehiclePose(Pose)));
-    connect(mGpsDevice, SIGNAL(scanFinished(quint32)), mLaserScanner, SLOT(slotScanFinished(quint32)));
     connect(
                 mGpsDevice,
                 SIGNAL(gpsStatus(const quint8&, const quint8&, const quint16&, const quint8&, const quint8&, const quint8&, const quint8&, const QString&)),
                 mBaseConnection,
                 SLOT(slotNewGpsStatus(const quint8&, const quint8&, const quint16&, const quint8&, const quint8&, const quint8&, const quint8&, const QString&))
-                );
+            );
+
+    // Feed sensor data into SensorFuser
+    connect(mGpsDevice, SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
+    connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
+    connect(mLaserScanner, SIGNAL(newScanData(quint32, std::vector<long>)), mSensorFuser, SLOT(slotNewScanData(quint32, std::vector<long>)));
 
     mTimerComputeMotion = new QTimer(this);
     mTimerComputeMotion->setInterval(50);
