@@ -16,6 +16,9 @@ class LaserScanner : public QObject
 private:
     QString mDeviceFileName;
 
+    // The scanner's pose relative to the vehicle frame
+    const Pose mRelativeScannerPose;
+
     QFile* mLogFileScanData;     // for unprocessed laserscanner values
 
     bool mIsEnabled;
@@ -27,15 +30,17 @@ private:
 
     qrk::UrgCtrl mScanner;
 
-    QVector3D getWorldPositionOfScannedPoint(const Pose& scannerPose, const quint16 scannerIndex, const float& distance) const;
-
 private slots:
     void slotSimulateScanning();
 
     void slotCaptureScanData();
 
 public:
-    LaserScanner(const QString &deviceFileName);
+    // The pose specifies translation from vehicle frame to the laser source, so the scanner's
+    // physical dimensions are ignored completely. Further down, this class receives high-
+    // frequency updates of the vehicle's poses. Using the vehicle-frame poses and its static
+    // offset defined in this constructor, it can emit scanpoints in world-coordinates.
+    LaserScanner(const QString &deviceFileName, const Pose &relativeScannerPose);
 
     ~LaserScanner();
 
@@ -45,8 +50,10 @@ public:
     // This depends on the laserscanner's pose relative to the vehicle, but is hardcoded ATM.
     const float getHeightAboveGround() const;
 
+    inline quint8 getScanDuration() {return 25;} const
+
     // This is defined in header to make it inlineable
-    inline QVector3D LaserScanner::getWorldPositionOfScannedPoint(const Pose& scannerPose, const quint16 scannerIndex, const float& distance) const
+    inline QVector3D getWorldPositionOfScannedPoint(const Pose& scannerPose, const quint16& scannerIndex, const float& distance) const
     {
         // Determine vector from LaserScanner to scanned point, using the normal OpenGl coordinate system as seen from scanner,
         // +x is right, -x is left, y is always 0, +z is back, -z is front,
@@ -74,9 +81,9 @@ public slots:
 
 signals:
     void bottomBeamLength(const float&);
-    void message(const LogImportance, const QString& source, const QString &text);
 
-    void newScanData(quint32, std::vector<long>);
+    // Emits new scan data, allocated on heap. Ownership is passed to receiver(s).
+    void newScanData(quint32, std::vector<long>*);
 
 
 };

@@ -9,12 +9,11 @@
 #include <sys/time.h> // for syncing time
 #include <common.h>
 #include <gpsstatusinformation.h>
+#include "pose.h"
+#include <math.h>
+#include <errno.h>
 
 #include <abstractserial.h>
-
-class Pose;
-//class QextSerialPort;
-
 
 static const quint16 CRC_16CCIT_LookUp[256] = {
 

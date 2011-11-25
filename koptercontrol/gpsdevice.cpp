@@ -1,7 +1,3 @@
-#include "pose.h"
-#include "qextserialport/src/qextserialport.h"
-#include <math.h>
-
 #include "gpsdevice.h"
 
 /*

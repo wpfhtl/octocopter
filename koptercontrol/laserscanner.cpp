@@ -4,7 +4,7 @@
 #include <iostream>
 #include <fstream>
 
-LaserScanner::LaserScanner(const QString &deviceFileName)
+LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeScannerPose) : QObject(), mRelativeScannerPose(relativeScannerPose)
 {
     qDebug() << "LaserScanner::LaserScanner(): initializing laserscanner";
 
@@ -23,7 +23,6 @@ LaserScanner::LaserScanner(const QString &deviceFileName)
     }
     else
     {
-        emit message(Error, "LaserScanner::LaserScanner()", "Connecting to " + mDeviceFileName + " failed: UrgCtrl::connect gave: " + QString(mScanner.what()));
         qDebug() << "LaserScanner::LaserScanner(): connecting to" << mDeviceFileName << "failed: UrgCtrl::connect gave" << mScanner.what();
         return;
     }
@@ -65,6 +64,11 @@ const bool LaserScanner::isScanning() const
     return mIsEnabled;
 }
 
+const Pose& LaserScanner::getRelativePose() const
+{
+    return mRelativeScannerPose;
+}
+
 const float LaserScanner::getHeightAboveGround() const
 {
     // WARNING: the index and offset can be calculated from the pose.
@@ -95,9 +99,8 @@ void LaserScanner::slotSetScannerTimeStamp(const quint32& timestamp)
     // setTimestamp() method, but that would power-cycle the laser and thus cause data loss.
     // So, we just call this method once and store a second local offset when this happens.
 
-    mOffsetTimeScannerToTow = timestamp;
-
-    mScanner.setTimestamp(2); // additional delay for buggy UrgCtrl::setTimestamp().
+    mOffsetTimeScannerToTow = timestamp + 2; // additional delay for buggy UrgCtrl::setTimestamp()
+    mScanner.setTimestamp(0);
 }
 
 void LaserScanner::slotEnableScanning(const bool& value)
@@ -118,8 +121,8 @@ void LaserScanner::slotCaptureScanData()
     Q_ASSERT(mIsEnabled && "scanning not enabled, but slotCaptureScanData() still called?!");
 
     long timestampScanner;
-    std::vector<long> distances;
-    const int numRays = mScanner.capture(distances, &timestampScanner);
+    std::vector<long>* distances = new std::vector<long>;
+    const int numRays = mScanner.capture(*distances, &timestampScanner);
 
     if(numRays <= 0)
     {
@@ -128,12 +131,13 @@ void LaserScanner::slotCaptureScanData()
     else
     {
         // Write log data: scan[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
+        const quint32 timestamp = timestampScanner + mOffsetTimeScannerToTow;
         QTextStream out(mLogFileScanData);
         out << "scan " << timestamp;
         std::vector<long>::iterator itr;
-        for(itr=mSavedScans[timeStampMiddleOfScan].begin();itr != mSavedScans[timeStampMiddleOfScan].end(); ++itr) out << " " << *itr;
+        for(itr=distances->begin();itr != distances->end(); ++itr) out << " " << *itr;
         out << "\n";
 
-        emit newScanData(timestampScanner, distances);
+        emit newScanData(timestamp, distances);
     }
 }

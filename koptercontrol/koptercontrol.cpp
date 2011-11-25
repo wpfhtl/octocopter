@@ -81,7 +81,8 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     qDebug() << "KopterControl::KopterControl(): reading RSSI at interface" << networkInterface;
 
     mFlightController = new FlightController();
-    mSensorFuser = new SensorFuser(
+    mLaserScanner = new LaserScanner(
+                deviceSerialLaserScanner,
                 Pose(
                     QVector3D(      // Offset from Antenna to Laser Source. In Vehicle Reference Frame: Like OpenGL, red arm forward pointing to screen
                         +0.09,      // From antenna positive is right to laser
@@ -93,10 +94,10 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
                     10             // Use 10 msec TOW, so that the relative pose is always older than whatever new pose coming in. Don't use 0, as that would be set to current TOW, which might be newer due to clock offsets.
                     )
                 );
+    mSensorFuser = new SensorFuser(mLaserScanner);
     mBaseConnection = new BaseConnection(networkInterface);
     mKopter = new Kopter(deviceSerialKopter, this);
     mGpsDevice = new GpsDevice(deviceSerialGpsUsb, deviceSerialGpsCom, this);
-    mLaserScanner = new LaserScanner(deviceSerialLaserScanner);
 
 //    mCamera = new Camera(deviceCamera, QSize(320, 240), QVector3D(), QQuaternion(), 15);
 //    mVisualOdometry = new VisualOdometry(mCamera);
@@ -126,7 +127,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     // Feed sensor data into SensorFuser
     connect(mGpsDevice, SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
     connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
-    connect(mLaserScanner, SIGNAL(newScanData(quint32, std::vector<long>)), mSensorFuser, SLOT(slotNewScanData(quint32, std::vector<long>)));
+    connect(mLaserScanner, SIGNAL(newScanData(quint32, std::vector<long>*)), mSensorFuser, SLOT(slotNewScanData(quint32, std::vector<long>*)));
 
     mTimerComputeMotion = new QTimer(this);
     mTimerComputeMotion->setInterval(50);
