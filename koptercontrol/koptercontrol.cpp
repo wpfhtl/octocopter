@@ -105,7 +105,6 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 //    connect(mCamera, SIGNAL(imageReadyJpeg(QString,QSize,QVector3D,QQuaternion,const QByteArray*)), mBaseConnection, SLOT(slotNewCameraImage(QString,QSize,QVector3D,QQuaternion,const QByteArray*)));
 //    connect(mCamera, SIGNAL(imageReadyYCbCr(QString,QSize,QVector3D,QQuaternion,QByteArray)), mVisualOdometry, SLOT(slotProcessImage(QString,QSize,QVector3D,QQuaternion,QByteArray)));
     connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
-    connect(mLaserScanner, SIGNAL(newScannedPoints(QVector3D,QVector<QVector3D>)), mBaseConnection, SLOT(slotNewScannedPoints(QVector3D,QVector<QVector3D>)));
     connect(mKopter, SIGNAL(kopterStatus(quint32, qint16, float)), mBaseConnection, SLOT(slotNewVehicleStatus(quint32, qint16, float)));
     connect(mLaserScanner, SIGNAL(bottomBeamLength(const float&)), mFlightController, SLOT(slotSetBottomBeamLength(const float&)));
     connect(mBaseConnection, SIGNAL(enableScanning(const bool&)), mLaserScanner, SLOT(slotEnableScanning(const bool&)));
@@ -117,6 +116,9 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mGpsDevice, SIGNAL(gpsTimeOfWeekEstablished(quint32)), mLaserScanner, SLOT(slotSetScannerTimeStamp(quint32)));
     connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mFlightController, SLOT(slotNewVehiclePose(Pose)));
     connect(mGpsDevice, SIGNAL(newVehiclePoseLowFreq(Pose)), mBaseConnection, SLOT(slotNewVehiclePose(Pose)));
+
+    connect(mGpsDevice, SIGNAL(newVehiclePoseLowFreq(Pose)), mLaserScanner, SLOT(slotEnableScanning()));
+
     connect(
                 mGpsDevice,
                 SIGNAL(gpsStatus(const quint8&, const quint8&, const quint16&, const quint8&, const quint8&, const quint8&, const quint8&, const QString&)),
@@ -127,7 +129,9 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     // Feed sensor data into SensorFuser
     connect(mGpsDevice, SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
     connect(mGpsDevice, SIGNAL(newVehiclePose(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
-    connect(mLaserScanner, SIGNAL(newScanData(quint32, std::vector<long>*)), mSensorFuser, SLOT(slotNewScanData(quint32, std::vector<long>*)));
+    connect(mLaserScanner, SIGNAL(newScanData(quint32, std::vector<long>*const)), mSensorFuser, SLOT(slotNewScanData(quint32,std::vector<long>*const)));
+
+    connect(mSensorFuser, SIGNAL(newScannedPoints(QVector3D,QVector<QVector3D>)), mBaseConnection, SLOT(slotNewScannedPoints(QVector3D,QVector<QVector3D>)));
 
     mTimerComputeMotion = new QTimer(this);
     mTimerComputeMotion->setInterval(50);
@@ -146,6 +150,18 @@ KopterControl::~KopterControl()
     delete mGpsDevice;
     delete mLaserScanner;
     delete snSignalPipe;
+
+    // Delete logfiles with a size of 0 (emtpty) or 100 (just ply header, no data)
+    const QFileInfoList list = QDir().entryInfoList((QStringList() << "scannerdata-*" << "pointcloud-*"), QDir::Files | QDir::NoSymLinks);
+    for(int i = 0; i < list.size(); ++i)
+    {
+        const QFileInfo fileInfo = list.at(i);
+        if(fileInfo.size() == 0 || fileInfo.size() == 100)
+        {
+            qDebug() << "LaserScanner::~LaserScanner(): moving useless logfile to /tmp:" << fileInfo.fileName();
+            QFile::rename(fileInfo.canonicalFilePath(), fileInfo.fileName().prepend("/tmp/"));
+        }
+    }
 }
 
 void KopterControl::slotDoSomething()
@@ -181,6 +197,7 @@ void KopterControl::slotHandleSignal()
     snSignalPipe->setEnabled(true);
 
     // shutdown orderly
+    mLaserScanner->slotEnableScanning(false);
     mGpsDevice->slotShutDown();
 
 //    quit();

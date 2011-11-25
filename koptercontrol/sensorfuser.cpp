@@ -2,64 +2,51 @@
 
 SensorFuser::SensorFuser(LaserScanner* const laserScanner) : QObject(), mLaserScanner(laserScanner)
 {
-    mNumberOfScanPoints = 0;
-    mLogFileScanData = new QFile(QString("scannerdata-fused-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
-    if(!mLogFileScanData->open(QIODevice::ReadWrite | QIODevice::Text))
-        qFatal("SensorFuser::SensorFuser(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFileScanData->fileName()));
+    mPointCloudSize = 0;
+
+    mLogFileRawData = new QFile(QString("scannerdata-raw-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
+    if(!mLogFileRawData->open(QIODevice::WriteOnly | QIODevice::Text))
+        qFatal("SensorFuser::SensorFuser(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFileRawData->fileName()));
+
+    mLogFileGlobalPoints = new QFile(QString("scannerdata-fused-%1-%2.ply").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
+    if(!mLogFileGlobalPoints->open(QIODevice::ReadWrite | QIODevice::Text))
+        qFatal("SensorFuser::SensorFuser(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFileGlobalPoints->fileName()));
 }
 
 SensorFuser::~SensorFuser()
 {
+    // We won't gather any new data, close raw logfile
+    mLogFileRawData->close();
+    mLogFileRawData->deleteLater();
+
     // If we have global data, write a new file in PLY format
-    if(mLogFileScanData->size())
+    if(mLogFileGlobalPoints->size())
     {
         QFile logFileDataPly(QString("pointcloud-%1-%2.ply").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
         if(!logFileDataPly.open(QIODevice::WriteOnly | QIODevice::Text))
             qFatal("SensorFuser::~SensorFuser(): Couldn't open logfile %s for writing, exiting.", qPrintable(logFileDataPly.fileName()));
 
         // Create ply header, "element vertex" requires count argument
-        logFileDataPly.write(QString("ply\nformat ascii 1.0\nelement vertex %1\nproperty float x\nproperty float y\nproperty float z\nend_header\n").arg(mNumberOfScanPoints).toAscii());
+        logFileDataPly.write(QString("ply\nformat ascii 1.0\nelement vertex %1\nproperty float x\nproperty float y\nproperty float z\nend_header\n").arg(mPointCloudSize).toAscii());
 
         // Read the processed scanned points, then write ply file
         // Seek to the file's beginning before reading it
-        qDebug() << "SensorFuser::~SensorFuser(): writing pointcloud file of about" << ((mNumberOfScanPoints*24.5f)/1000000.0f) << "mb, this might take some time...";
-        mLogFileScanData->reset();
-        while (!mLogFileScanData->atEnd())
+        qDebug() << "SensorFuser::~SensorFuser(): writing pointcloud file of about" << ((mPointCloudSize*24.5f)/1000000.0f) << "mb, this might take some time...";
+        mLogFileGlobalPoints->reset();
+        while (!mLogFileGlobalPoints->atEnd())
         {
-            const QByteArray line = mLogFileScanData->readLine();
-            if(!line.contains("comment")) logFileDataPly.write(line);
+            const QByteArray line = mLogFileGlobalPoints->readLine();
+            if(!line.contains("extevent") && !line.contains("scannerdata") && !line.contains("pointcloud"))
+                logFileDataPly.write(line);
         }
 
         logFileDataPly.close();
         qDebug() << "SensorFuser::~SensorFuser(): done writing ply file.";
     }
 
-    // Close other logfiles
-    mLogFileScanData->close();
-}
-
-void SensorFuser::slotNewVehiclePose(const Pose& pose)
-{
-//    qDebug() << "SensorFuser::slotNewVehiclePose(): received a gps pose" << pose;
-
-    // Write log data: pose[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
-//    QTextStream out(mLogFileDataRaw);
-//    out << "pose " << pose.timestamp << " x" << pose.position.x() << " y" << pose.position.y() << " z" << pose.position.z() << " p" << pose.getPitchDegrees() << " r" << pose.getRollDegrees() << " y" << pose.getYawDegrees() << "\n";
-
-    // Append pose to our list
-    mSavedPoses.append(Pose(pose + mLaserScanner->getRelativePose()));
-
-    Q_ASSERT(mSavedPoses.last().timestamp == pose.timestamp && "mangled pose timestamp is off.");
-
-    // Make sure the timestamp from the incoming pose has survived the mangling.
-    /*if(mSavedPoses.last().timestamp != pose.timestamp)
-        qDebug() << "SensorFuser::slotNewVehiclePose(): setting SensorFuser pose, incoming t" << pose.timestamp
-                 << "mRelativePose t" << mRelativeScannerPose.timestamp
-                 << "resulting t" << mSavedPoses.last().timestamp;*/
-
-    // Now that we have new data, try to match some laserscanner to gps timestamps, and, if sucessful, try more sensor fusion.
-    if(matchTimestamps())
-        transformScanData();
+    // Close global-point logfile
+    mLogFileGlobalPoints->close();
+    mLogFileGlobalPoints->deleteLater();
 }
 
 void SensorFuser::transformScanData()
@@ -140,7 +127,7 @@ void SensorFuser::transformScanData()
                             );
 
                 scannedPoints.append(mLaserScanner->getWorldPositionOfScannedPoint(interpolatedPose, index, distance));
-                mNumberOfScanPoints++;
+                mPointCloudSize++;
             }
 
             slotLogScannedPoints(posesForThisScan[1]->position, scannedPoints);
@@ -231,27 +218,81 @@ qint8 SensorFuser::matchTimestamps()
     return scansMatched;
 }
 
-
-void SensorFuser::slotScanFinished(const quint32 &timestamp)
+void SensorFuser::slotNewVehiclePose(const Pose& pose)
 {
-    qDebug() << t() << "SensorFuser::slotScanFinished(): gps says scanner finished a scan at time" << timestamp;
+    if(!mLaserScanner->isScanning())
+    {
+        qDebug() << t() << "SensorFuser::slotNewVehiclePose(): ignoring a received a gps pose, laserscanner isn't scanning at" << pose.timestamp;
+        return;
+    }
 
-    // Our gps board tells us that a scan is finished. The scan data itself might already be saved in mSavedScans - or it might not.
-    mSavedScansTimestampGps.insert(timestamp, 0);
-    mSavedScansTimestampGps.insert(timestamp - (mLaserScanner->getScanDuration() / 2), 0);
+    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a gps pose" << pose;
+
+    // Write log data: pose[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
+//    QTextStream out(mLogFileDataRaw);
+//    out << "pose " << pose.timestamp << " x" << pose.position.x() << " y" << pose.position.y() << " z" << pose.position.z() << " p" << pose.getPitchDegrees() << " r" << pose.getRollDegrees() << " y" << pose.getYawDegrees() << "\n";
+
+    // Append pose to our list
+    mSavedPoses.append(Pose(pose + mLaserScanner->getRelativePose()));
+
+    Q_ASSERT(mSavedPoses.last().timestamp == pose.timestamp && "mangled pose timestamp is off.");
+
+    // Make sure the timestamp from the incoming pose has survived the mangling.
+    /*if(mSavedPoses.last().timestamp != pose.timestamp)
+        qDebug() << "SensorFuser::slotNewVehiclePose(): setting SensorFuser pose, incoming t" << pose.timestamp
+                 << "mRelativePose t" << mRelativeScannerPose.timestamp
+                 << "resulting t" << mSavedPoses.last().timestamp;*/
+
+    // Now that we have new data, try to match some laserscanner to gps timestamps, and, if sucessful, try more sensor fusion.
+    if(matchTimestamps())
+        transformScanData();
 }
 
-
-void SensorFuser::slotNewScanData(const quint32& timestampScanner, std::vector<long> * const points)
+void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
 {
-    mSavedScansTimestampScanner.insert(timestampScanner, points);
+    if(!mSavedPoses.size() || mSavedPoses.last().timestamp < (timestampScanGps - 1000))
+    {
+        qDebug() << t() << "SensorFuser::slotScanFinished(): no/old poses, ignoring scanfinished gps signal at time" << timestampScanGps;
+        return;
+    }
+
+    qDebug() << t() << "SensorFuser::slotScanFinished(): gps says scanner finished a scan at time" << timestampScanGps;
+
+    // Our gps board tells us that a scan is finished. The scan data itself might already be saved in mSavedScans - or it might not.
+    mSavedScansTimestampGps.insert(timestampScanGps, 0);
+    mSavedScansTimestampGps.insert(timestampScanGps - (mLaserScanner->getScanDuration() / 2), 0);
+
+    QTextStream out(mLogFileRawData);
+    out << "extevent: scan finished at time " << timestampScanGps << " in gnss receiver timeframe\n";
+}
+
+void SensorFuser::slotNewScanData(const quint32& timestampScanScanner, std::vector<long> * const distances)
+{
+    if(!mSavedPoses.size() || mSavedPoses.last().timestamp < (timestampScanScanner - 1000))
+    {
+        qDebug() << t() << "SensorFuser::slotNewScanData(): no/old poses, ignoring scandata at time" << timestampScanScanner;
+        // We cannot ignore the scandata, we must at least delete() it!
+        delete distances;
+        return;
+    }
+
+    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values at scannertime" << timestampScanScanner;
+
+    mSavedScansTimestampScanner.insert(timestampScanScanner, distances);
+
+    // Write log data: scan[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
+    QTextStream out(mLogFileRawData);
+    out << "scannerdata: " << timestampScanScanner;
+    std::vector<long>::iterator itr;
+    for(itr=distances->begin();itr != distances->end(); ++itr) out << " " << *itr;
+    out << "\n";
 }
 
 void SensorFuser::slotLogScannedPoints(const QVector3D& vehiclePosition, const QVector<QVector3D>& points)
 {
     qDebug() << "SensorFuser::logScannedPoints(): logging" << points.size() << "points.";
-    QTextStream out(mLogFileScanData);
-    out << "comment: " << points.size() << " points scanned from world pos: " << vehiclePosition.x() << " " << vehiclePosition.y() << " " << vehiclePosition.z() << "\n";
+    QTextStream out(mLogFileRawData);
+    out << "pointcloud: " << points.size() << " points scanned from world pos: " << vehiclePosition.x() << " " << vehiclePosition.y() << " " << vehiclePosition.z() << "\n";
 
     for (int i = 0; i < points.size(); ++i)
         out << points.at(i).x() << " " << points.at(i).y() << " " << points.at(i).z() << "\n";

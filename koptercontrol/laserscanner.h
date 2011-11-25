@@ -15,24 +15,14 @@ class LaserScanner : public QObject
 
 private:
     QString mDeviceFileName;
-
-    // The scanner's pose relative to the vehicle frame
-    const Pose mRelativeScannerPose;
-
-    QFile* mLogFileScanData;     // for unprocessed laserscanner values
-
+    qrk::UrgCtrl mScanner;
+    const Pose mRelativeScannerPose; // The scanner's pose relative to the vehicle frame
     bool mIsEnabled;
-    quint64 mNumberOfScannedPoints;
-
     qint64 mOffsetTimeScannerToTow;
-
+    qint32 mLastScannerTimeStamp;
     QTimer* mTimerScan; // this calls capture() when needed;
 
-    qrk::UrgCtrl mScanner;
-
 private slots:
-    void slotSimulateScanning();
-
     void slotCaptureScanData();
 
 public:
@@ -74,7 +64,7 @@ public:
     }
 
 public slots:
-    void slotEnableScanning(const bool&);
+    void slotEnableScanning(const bool& = true);
     
     // To set the laserscanner's timestamp to the gps time. Hopefully.
     void slotSetScannerTimeStamp(const quint32& timestamp);
@@ -82,8 +72,11 @@ public slots:
 signals:
     void bottomBeamLength(const float&);
 
+    // log/status messages
+    void message(const LogImportance& importance, const QString&, const QString& message);
+
     // Emits new scan data, allocated on heap. Ownership is passed to receiver(s).
-    void newScanData(quint32, std::vector<long>*);
+    void newScanData(quint32 timestampScanner, std::vector<long> * const distances);
 
 
 };

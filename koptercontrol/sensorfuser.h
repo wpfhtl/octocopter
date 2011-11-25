@@ -9,8 +9,10 @@ class SensorFuser : public QObject
 {
     Q_OBJECT
 private:
-    quint32 mNumberOfScanPoints;
-    QFile* mLogFileScanData;  // poses and scanned points in global frame (processed)
+    quint32 mPointCloudSize;
+
+    QFile* mLogFileGlobalPoints;  // ply file format
+    QFile* mLogFileRawData;  // poses, scans and timestamps
 
     LaserScanner * const mLaserScanner; // used to retrieve relative pose and use LaserScanner::getWorldPositionOfScannedPoint(...)
 
@@ -58,7 +60,7 @@ public slots:
     void slotScanFinished(const quint32& timestamp);
 
     // Used to feed data from the laserscanner
-    void slotNewScanData(const quint32& timestampScanner, std::vector<long> * const points);
+    void slotNewScanData(const quint32& timestampScanner, std::vector<long> * const distances);
 };
 
 #endif // SENSORFUSER_H

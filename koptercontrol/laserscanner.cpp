@@ -9,13 +9,12 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
     qDebug() << "LaserScanner::LaserScanner(): initializing laserscanner";
 
     mDeviceFileName = deviceFileName;
-    mNumberOfScannedPoints = 0;
 
-    mLogFileScanData = new QFile(QString("scannerdata-raw-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
-    if(!mLogFileScanData->open(QIODevice::WriteOnly | QIODevice::Text))
-        qFatal("LaserScanner::LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFileScanData->fileName()));
+    mLastScannerTimeStamp = 0;
 
     mIsEnabled = false;
+
+    mOffsetTimeScannerToTow = 0;
 
     if(mScanner.connect(mDeviceFileName.toAscii().constData()))
     {
@@ -40,22 +39,7 @@ LaserScanner::~LaserScanner()
     mScanner.setLaserOutput(false);
     mScanner.stop();
     mScanner.disconnect();
-
-    mLogFileScanData->close();
-    mLogFileScanData->deleteLater();
-
-    // Delete logfiles with a size of 0 (emtpty) or 100 (just ply header, no data)
-    const QFileInfoList list = QDir().entryInfoList((QStringList() << "scannerdata-*" << "pointcloud-*"), QDir::Files | QDir::NoSymLinks);
-    for(int i = 0; i < list.size(); ++i)
-    {
-        const QFileInfo fileInfo = list.at(i);
-        if(fileInfo.size() == 0 || fileInfo.size() == 100)
-        {
-            qDebug() << "LaserScanner::~LaserScanner(): moving useless logfile to /tmp:" << fileInfo.fileName();
-            QFile::rename(fileInfo.canonicalFilePath(), fileInfo.fileName().prepend("/tmp/"));
-        }
-    }
-
+    mTimerScan->stop();
     mTimerScan->deleteLater();
 }
 
@@ -105,6 +89,12 @@ void LaserScanner::slotSetScannerTimeStamp(const quint32& timestamp)
 
 void LaserScanner::slotEnableScanning(const bool& value)
 {
+    if(mOffsetTimeScannerToTow == 0)
+    {
+        qDebug() << "LaserScanner::slotEnableScanning(): scannertime still unset, will not enable scanning.";
+        return;
+    }
+
     if(mIsEnabled != value)
     {
         mIsEnabled = value;
@@ -120,9 +110,29 @@ void LaserScanner::slotCaptureScanData()
 {
     Q_ASSERT(mIsEnabled && "scanning not enabled, but slotCaptureScanData() still called?!");
 
-    long timestampScanner;
+    long timestampScanner = 0;
     std::vector<long>* distances = new std::vector<long>;
     const int numRays = mScanner.capture(*distances, &timestampScanner);
+
+    // The scanner's timestamp randomly jumps by values of 2^^24 = 16.8M msecs. Fix it.
+    if(timestampScanner != 0 && mLastScannerTimeStamp != 0)
+    {
+        // If the scanner's value jumps positive, fix it by fixing the offset
+        if(timestampScanner - mLastScannerTimeStamp > 15000000)
+        {
+            mOffsetTimeScannerToTow -= 16777216;
+            qDebug() << "LaserScanner::slotCaptureScanData(): WARNING: SCANNER JUMPED +2^24";
+            emit message(Warning, "LaserScanner::slotCaptureScanData()", "Scanner timestamp jumped by +2^24");
+        }
+        else if(timestampScanner - mLastScannerTimeStamp < -15000000)
+        {
+            mOffsetTimeScannerToTow += 16777216;
+            qDebug() << "LaserScanner::slotCaptureScanData(): WARNING: SCANNER JUMPED -2^24";
+            emit message(Warning, "LaserScanner::slotCaptureScanData()", "Scanner timestamp jumped by -2^24");
+        }
+    }
+
+    mLastScannerTimeStamp = timestampScanner;
 
     if(numRays <= 0)
     {
@@ -130,14 +140,6 @@ void LaserScanner::slotCaptureScanData()
     }
     else
     {
-        // Write log data: scan[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
-        const quint32 timestamp = timestampScanner + mOffsetTimeScannerToTow;
-        QTextStream out(mLogFileScanData);
-        out << "scan " << timestamp;
-        std::vector<long>::iterator itr;
-        for(itr=distances->begin();itr != distances->end(); ++itr) out << " " << *itr;
-        out << "\n";
-
-        emit newScanData(timestamp, distances);
+        emit newScanData(mLastScannerTimeStamp + mOffsetTimeScannerToTow, distances);
     }
 }

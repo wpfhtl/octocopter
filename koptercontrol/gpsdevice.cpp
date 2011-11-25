@@ -236,11 +236,7 @@ void GpsDevice::slotCommunicationSetup()
     // we want to know the TOW, because we don't want it to roll over! Answer is parsed below and used to sync time.
     queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime");
     queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime");
-    queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime");
-    queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime");
 
-    queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceCom+",ReceiverTime");
-    queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceCom+",ReceiverTime");
     queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceCom+",ReceiverTime");
     queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceCom+",ReceiverTime");
 
@@ -326,7 +322,7 @@ void GpsDevice::slotShutDown()
 void GpsDevice::slotDataReadyOnCom()
 {
         mReceiveBufferCom.append(mSerialPortCom->readAll());
-        qDebug() << "GpsDevice::slotDataReadyOnCom(): size of SBF data is now" << mReceiveBufferCom.size() << "bytes, processing:" << mReceiveBufferCom;
+//        qDebug() << "GpsDevice::slotDataReadyOnCom(): size of SBF data is now" << mReceiveBufferCom.size() << "bytes, processing:" << mReceiveBufferCom;
         processSbfData(mReceiveBufferCom);
 }
 
@@ -387,7 +383,7 @@ void GpsDevice::slotDataReadyOnUsb()
         // talking to us on its own, which only happens after initializing it
         mDeviceIsInitialized = true;
         // We're not waiting for a reply to a command, this must be SBF data!
-        qDebug() << "GpsDevice::slotDataReadyOnUsb(): received" << mReceiveBufferUsb.size() << "bytes of SBF data, processing...";
+//        qDebug() << "GpsDevice::slotDataReadyOnUsb(): received" << mReceiveBufferUsb.size() << "bytes of SBF data, processing...";
         processSbfData(mReceiveBufferUsb);
     }
 }
@@ -444,7 +440,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
 
         if(receiveBuffer.size() < msgLength)
         {
-            qDebug() << t() << "GpsDevice::processSbfData(): message incomplete, we only have" << receiveBuffer.size() << "of" << msgLength << "bytes. Processing postponed..";
+//            qDebug() << t() << "GpsDevice::processSbfData(): message incomplete, we only have" << receiveBuffer.size() << "of" << msgLength << "bytes. Processing postponed..";
             return;
         }
 
@@ -498,6 +494,9 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
             {
                 qWarning() << "GpsDevice::processSbfData(): RxError is not 0 but" << block->RxError;
                 slotEmitCurrentGpsStatus(QString("Warning, RxError is not zero (%1)").arg(block->RxError));
+
+                // According to SBF guide pg. 102, this means software warning or error. Lets see what it is.
+                if(block->RxError == 8) queueAsciiCommand("lif, error");
             }
         }
         break;
@@ -656,7 +655,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
             // ReceiverTime
             const Sbf_ReceiverTime *block = (Sbf_ReceiverTime*)receiveBuffer.data();
 
-            qDebug() << t() << "GpsDevice::processSbfData(): received ReceiverTime block: msgid" << msgId << "msgIdBlock" << msgIdBlock << "msgLength" << msgLength << "revision" << msgIdRev;
+//            qDebug() << t() << "GpsDevice::processSbfData(): received ReceiverTime block: msgid" << msgId << "msgIdBlock" << msgIdBlock << "msgLength" << msgLength << "revision" << msgIdRev;
 
             if(block->TOW == 4294967295)
             {
@@ -682,7 +681,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
                 const quint32 secondsToRollOver = (7 * 86400) - (block->TOW / 1000);
 
                 // Apply 15000ms = 15 leapseconds offset? Only when we really sync to UTC, which we don't.
-                const qint32 offsetHostToGps = block->TOW - getCurrentGpsTowTime();
+                const qint32 offsetHostToGps = block->TOW - getCurrentGpsTowTime() + 7; // Oscilloscope indicates 7ms offset is a good value.
                 qDebug() << "GpsDevice::processSbfData(): time rollover in" << ((float)secondsToRollOver)/86400.0 << "d, offset host time" << getCurrentGpsTowTime() << "to gps time" << block->TOW << "is" << offsetHostToGps/1000 << "s and" << (offsetHostToGps%1000) << "ms";
 
                 // For small clock drifts AND when system is running, adjust clock. Else, set clock
@@ -738,7 +737,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
 
 	    if(block->TOW != 4294967295)
 	    {
-              qDebug() << "sys" << getCurrentGpsTowTime() << "gps" << block->TOW << "gps: SBF of" << sizeof(Sbf_ExtEvent) << "in" << receiveBuffer.size() << "bytes tells us scan finished";
+//                qDebug() << "sys" << getCurrentGpsTowTime() << "gps" << block->TOW << "gps: SBF of" << sizeof(Sbf_ExtEvent) << "in" << receiveBuffer.size() << "bytes tells us scan finished";
 		emit scanFinished(block->TOW);
 	    }
 	    else
@@ -767,8 +766,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
         receiveBuffer.remove(0, msgLength);
     }
 
-    if(receiveBuffer.size())
-        qDebug() << "GpsDevice::processSbfData(): done processing SBF data, bytes left in buffer:" << receiveBuffer.size() << "bytes:" << receiveBuffer;
+//    if(receiveBuffer.size()) qDebug() << "GpsDevice::processSbfData(): done processing SBF data, bytes left in buffer:" << receiveBuffer.size() << "bytes:" << receiveBuffer;
 
 }
 
