@@ -71,10 +71,11 @@ void SensorFuser::transformScanData()
     }
 
     // Now lets look at every scan...
-    QMap<qint32, std::vector<long>* >::iterator i = mSavedScansTimestampGps.begin();
-    while (i != mSavedScansTimestampGps.end())
+    QMap<qint32, std::vector<long>* >::iterator iteratorSavedScans = mSavedScansTimestampGps.begin();
+    while (iteratorSavedScans != mSavedScansTimestampGps.end())
     {
-        qint32 timestampMiddleOfScan = i.key() - 13; // timestamp is from end of scan, which lasts 25ms
+        qDebug() << "SensorFuser::transformScan(): trying to fuse scan from" << iteratorSavedScans.key();
+        qint32 timestampMiddleOfScan = iteratorSavedScans.key() - 13; // timestamp is from end of scan, which lasts 25ms
 
         // find poses in mSavedPoses with timestampScan-maximumMillisecondsBetweenPoseAndScan <= timestampScan <= timestampScan+maximumMillisecondsBetweenPoseAndScan
         QList<Pose*> posesForThisScan;
@@ -88,7 +89,7 @@ void SensorFuser::transformScanData()
         {
             QVector<QVector3D> scannedPoints;/*(mScanDistancesCurrent->size());*/ // Do not reserve full length, will be less poins due to reflections on the vehicle being filtered
 
-            std::vector<long>* scanDistances = i.value();
+            std::vector<long>* scanDistances = iteratorSavedScans.value();
 
             for(int index=0; index < scanDistances->size(); index++)
             {
@@ -135,8 +136,9 @@ void SensorFuser::transformScanData()
             emit newScannedPoints(posesForThisScan[1]->position, scannedPoints);
 
             // This scan has been processed. Delete it.
-            delete i.value();
-            i = mSavedScansTimestampGps.erase(i);
+            delete iteratorSavedScans.value();
+            mSavedScansTimestampGps.erase(iteratorSavedScans);
+            ++iteratorSavedScans;
         }
         else
         {
@@ -145,9 +147,14 @@ void SensorFuser::transformScanData()
             if(mSavedPoses.last().timestamp - timestampMiddleOfScan > maximumMillisecondsBetweenPoseAndScan)
             {
                 qDebug() << "SensorFuser::transformScan(): couldn't find 4 poses for scan from" << timestampMiddleOfScan << ", latest pose is from" << mSavedPoses.last().timestamp << ", deleting scan";
-                i = mSavedScansTimestampGps.erase(i);
+                delete iteratorSavedScans.value();
+                mSavedScansTimestampGps.erase(iteratorSavedScans);
             }
+
+            // We couldn't find 4 surrounding poses for this scan. Independantof whether we deleted this scan or not, advance the iterator
+            ++iteratorSavedScans;
         }
+
     }
 
     qDebug() << "SensorFuser::transformScan(): after processing all data, there's" << mSavedScansTimestampGps.size() << "scans and" << mSavedPoses.size() << "poses left.";
@@ -276,7 +283,7 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
 {
     if(!mSavedPoses.size() || mSavedPoses.last().timestamp < (timestampScanGps - 1000))
     {
-        qDebug() << t() << "SensorFuser::slotScanFinished(): no/old poses, ignoring scanfinished gps signal at time" << timestampScanGps;
+//        qDebug() << t() << "SensorFuser::slotScanFinished(): no/old poses, ignoring scanfinished gps signal at time" << timestampScanGps;
         return;
     }
 
@@ -284,7 +291,7 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
 
     // Our gps board tells us that a scan is finished. The scan data itself might already be saved in mSavedScans - or it might not.
     mSavedScansTimestampGps.insert(timestampScanGps, 0);
-    mSavedScansTimestampGps.insert(timestampScanGps - (mLaserScanner->getScanDuration() / 2), 0);
+    //mSavedScansTimestampGps.insert(timestampScanGps - (mLaserScanner->getScanDuration() / 2), 0);
 
     QTextStream out(mLogFileRawData);
     out << "extevent: scan finished at time " << timestampScanGps << " in gnss receiver timeframe\n";
@@ -294,7 +301,7 @@ void SensorFuser::slotNewScanData(const quint32& timestampScanScanner, std::vect
 {
     if(!mSavedPoses.size() || mSavedPoses.last().timestamp < (timestampScanScanner - 1000))
     {
-        qDebug() << t() << "SensorFuser::slotNewScanData(): no/old poses, ignoring scandata at time" << timestampScanScanner;
+//        qDebug() << t() << "SensorFuser::slotNewScanData(): no/old poses, ignoring scandata at time" << timestampScanScanner;
         // We cannot ignore the scandata, we must at least delete() it!
         delete distances;
         return;

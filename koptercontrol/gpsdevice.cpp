@@ -488,6 +488,9 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
             {
                 qWarning() << "GpsDevice::processSbfData(): ExtError is not 0 but" << block->ExtError;
                 slotEmitCurrentGpsStatus(QString("Warning, ExtError is not zero (%1)").arg(block->ExtError));
+
+                // According to SBF guide pg. 101, this means diff corr data error. Lets see what it is.
+                if(block->ExtError == 2) queueAsciiCommand("lif,DiffCorrError");
             }
 
             if(block->RxError != 0)
@@ -496,7 +499,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
                 slotEmitCurrentGpsStatus(QString("Warning, RxError is not zero (%1)").arg(block->RxError));
 
                 // According to SBF guide pg. 102, this means software warning or error. Lets see what it is.
-                if(block->RxError == 8) queueAsciiCommand("lif, error");
+                if(block->RxError == 8) queueAsciiCommand("lif,error");
             }
         }
         break;
