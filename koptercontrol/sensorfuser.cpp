@@ -155,6 +155,30 @@ void SensorFuser::transformScanData()
 
 qint8 SensorFuser::matchTimestamps()
 {
+    /* FIXME: it might be better to remove the first gps timestamp:
+"18:39:22:022" SensorFuser::slotNewVehiclePose(): received a gps pose pose t499162000 (-46.81/65.73/131.95) YPR (302.76/-1.66/-3.71)
+SensorFuser::matchTimestamps(): looking for a matching scanner timestamp for gps timestamp 499161507
+SensorFuser::matchTimestamps(): improved match between gps and laser timestamps to 499161521 msecs
+SensorFuser::matchTimestamps(): using data from scanner timestamp 499161521 to populate gps timestamp 499161507 clock error was 14
+SensorFuser::matchTimestamps(): looking for a matching scanner timestamp for gps timestamp 499161532
+SensorFuser::matchTimestamps(): improved match between gps and laser timestamps to 499161546 msecs
+SensorFuser::matchTimestamps(): using data from scanner timestamp 499161546 to populate gps timestamp 499161532 clock error was 14
+SensorFuser::matchTimestamps(): looking for a matching scanner timestamp for gps timestamp 499161557
+SensorFuser::matchTimestamps(): improved match between gps and laser timestamps to 499161571 msecs
+SensorFuser::matchTimestamps(): using data from scanner timestamp 499161571 to populate gps timestamp 499161557 clock error was 14
+SensorFuser::matchTimestamps(): looking for a matching scanner timestamp for gps timestamp 499161582
+SensorFuser::matchTimestamps(): improved match between gps and laser timestamps to 499161596 msecs
+SensorFuser::matchTimestamps(): using data from scanner timestamp 499161596 to populate gps timestamp 499161582 clock error was 14
+SensorFuser::matchTimestamps(): looking for a matching scanner timestamp for gps timestamp 499161607
+SensorFuser::matchTimestamps(): improved match between gps and laser timestamps to 499161621 msecs
+SensorFuser::matchTimestamps(): using data from scanner timestamp 499161621 to populate gps timestamp 499161607 clock error was 14
+SensorFuser::matchTimestamps(): looking for a matching scanner timestamp for gps timestamp 499161632
+SensorFuser::matchTimestamps(): improved match between gps and laser timestamps to 499161646 msecs
+SensorFuser::matchTimestamps(): using data from scanner timestamp 499161646 to populate gps timestamp 499161632 clock error was 14
+SensorFuser::matchTimestamps(): looking for a matching scanner timestamp for gps timestamp 499161657
+SensorFuser::matchTimestamps(): improved match between gps and laser timestamps to 499161671 msecs
+SensorFuser::matchTimestamps(): using data from scanner timestamp 499161671 to populate gps timestamp 499161657 clock error was 14
+*/
     qint8 scansMatched = 0;
     qint8 scansUnmatched = 0;
 
@@ -189,7 +213,7 @@ qint8 SensorFuser::matchTimestamps()
             }
 
             // If we found a close-enough match, use it.
-            if(smallestTimeDifference < 20)
+            if(smallestTimeDifference < 16)
             {
                 qDebug() << "SensorFuser::matchTimestamps(): using data from scanner timestamp" << bestFittingScannerTime << "to populate gps timestamp" << timestampGps << "clock error was" << bestFittingScannerTime - timestampGps;
 
@@ -243,7 +267,7 @@ void SensorFuser::slotNewVehiclePose(const Pose& pose)
                  << "mRelativePose t" << mRelativeScannerPose.timestamp
                  << "resulting t" << mSavedPoses.last().timestamp;*/
 
-    // Now that we have new data, try to match some laserscanner to gps timestamps, and, if sucessful, try more sensor fusion.
+    // Fuse pose and scans if it was possible to correct at least one lasertimestamp with a gps timestamp
     if(matchTimestamps())
         transformScanData();
 }

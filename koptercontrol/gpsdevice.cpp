@@ -284,7 +284,7 @@ void GpsDevice::slotCommunicationSetup()
 
     // output IntPVCart, IntAttEuler, and Event-position. ExtSensorMeas is direct IMU measurements
     // We want to know the pose 25 times a second
-    queueAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec500");
+    queueAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec50");
 
     // We want to know PVTCartesion (4006) for MeanCorrAge (average correction data age) only, so stream it slowly
     queueAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus,sec1");
@@ -415,9 +415,9 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
 	if(indexOfSyncMarker == -1)
 	{
 	    // The sync marker wasn't found! This means the whole buffer contains unusable data,
-            // because we cannot use any data without a sync-marker prepended. So the data must
-            // be non-SBF and should be consumed by someone else.
-            return;
+	    // because we cannot use any data without a sync-marker prepended. So the data must
+	    // be non-SBF and should be consumed by someone else.
+	    return;
 
             // This may happen when we send a exeSbfOnce command (e.g. for ReceiverTime). The
             // receiver then replies with the SBF and then the prompt. The prompt is processed
@@ -425,12 +425,12 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
             //qWarning() << "GpsDevice::processSbfData(): WARNING: SBF Sync marker not found in buffer of" << receiveBuffer.size() << "bytes. Clearing buffer:" << receiveBuffer;
             //receiveBuffer.clear();
             //return;
-	}
-	else if(indexOfSyncMarker != 0)
-	{
-	    qWarning() << "GpsDevice::processSbfData(): WARNING: SBF Sync Marker $@ was not at byte 0, but at" << indexOfSyncMarker;
-	    receiveBuffer.remove(0, indexOfSyncMarker);
-	}
+        }
+        else if(indexOfSyncMarker != 0)
+        {
+            qWarning() << "GpsDevice::processSbfData(): WARNING: SBF Sync Marker $@ was not at byte 0, but at" << indexOfSyncMarker;
+            receiveBuffer.remove(0, indexOfSyncMarker);
+        }
 
         const quint16 msgCrc = *(quint16*)(receiveBuffer.data() + 2);
         const quint16 msgId = *(quint16*)(receiveBuffer.data() + 4);
