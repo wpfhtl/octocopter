@@ -83,8 +83,19 @@ void LaserScanner::slotSetScannerTimeStamp(const quint32& timestamp)
     // setTimestamp() method, but that would power-cycle the laser and thus cause data loss.
     // So, we just call this method once and store a second local offset when this happens.
 
-    mOffsetTimeScannerToTow = timestamp + 2; // additional delay for buggy UrgCtrl::setTimestamp()
-    mScanner.setTimestamp(0);
+    // We only want to set the laserscanner's clock once on startup, because re-setting it
+    // means toggling laser power, hence causing data loss when flying. Also, the clock seems
+    // to be pretty stable, so that shouldn't be detrimental to data quality
+    if(mOffsetTimeScannerToTow == 0)
+    {
+        mOffsetTimeScannerToTow = timestamp + 2; // additional delay for buggy UrgCtrl::setTimestamp()
+        mScanner.setTimestamp(0);
+        qDebug() << "LaserScanner::slotSetScannerTimeStamp(): setting laserscanner time once.";
+    }
+    else
+    {
+        qDebug() << "LaserScanner::slotSetScannerTimeStamp(): not setting laserscanner time again.";
+    }
 }
 
 void LaserScanner::slotEnableScanning(const bool& value)
@@ -98,6 +109,7 @@ void LaserScanner::slotEnableScanning(const bool& value)
     if(mIsEnabled != value)
     {
         mIsEnabled = value;
+        qDebug() << "LaserScanner::slotEnableScanning(): setting enabled state to" << value;
 
         if(mIsEnabled)
             mTimerScan->start();

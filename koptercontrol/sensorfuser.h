@@ -40,6 +40,29 @@ private:
     // This method uses mSavedScans and mSavedPoses to create and emit world-cooridnate scanpoints.
     void transformScanData();
 
+    // Used for debugging only.
+    inline const QStringList getTimeStamps(const QMap<qint32, std::vector<long>* >& list) const
+    {
+        QStringList timeStamps;
+        QMap<qint32, std::vector<long>* >::const_iterator itr = list.constBegin();
+        while(itr != list.constEnd())
+        {
+            timeStamps << QString::number((uint)itr.key());
+            ++itr;
+        }
+        return timeStamps;
+    }
+
+    // Used for debugging only.
+    inline const QStringList getTimeStamps(const QList<Pose>& list) const
+    {
+        QStringList timeStamps;
+
+        for(int i = 0; i < list.size(); ++i) timeStamps << QString::number((uint)list.at(i).timestamp);
+
+        return timeStamps;
+    }
+
 public:
     SensorFuser(LaserScanner* const laserScanner);
     ~SensorFuser();

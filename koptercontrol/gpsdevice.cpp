@@ -589,7 +589,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
             // TODO: this might change often in regular usage, really notify?
             if(mLastGnssAgeFromDevice != block->GNSSage)
             {
-                qDebug() << t() << "GpsDevice::processSbfData(): GnssAge changed from" << mLastGnssAgeFromDevice << "to" << block->GNSSage;
+//                qDebug() << t() << "GpsDevice::processSbfData(): GnssAge changed from" << mLastGnssAgeFromDevice << "to" << block->GNSSage;
                 mLastGnssAgeFromDevice = block->GNSSage;
 //                slotEmitCurrentGpsStatus(QString("No GNSS-PVT for %1 seconds").arg(block->GNSSage));
             }
@@ -627,7 +627,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
                             block->TOW // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
                             );
 
-                qDebug() << "GpsDevice::processSbfData(): new" << p;
+//                qDebug() << "GpsDevice::processSbfData(): new" << p;
 
                 emit newVehiclePose(p);
 
