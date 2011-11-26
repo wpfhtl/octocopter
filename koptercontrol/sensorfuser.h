@@ -16,8 +16,11 @@ private:
 
     LaserScanner * const mLaserScanner; // used to retrieve relative pose and use LaserScanner::getWorldPositionOfScannedPoint(...)
 
+    // How much time difference from a scan to a pose (or vice versa) in past or future for the data to be usable for interpolation?
+    quint8 mMaximumTimeBetweenFusedPoseAndScanMsec;
+
 //    QVector<quint32> mScanTimestampsFromGps;
-    QList<Pose> mSavedPoses;
+    QList<Pose> mPoses;
 
     /*
       These two containers store a timestamp of a scan and a pointer to its scandata.
@@ -31,14 +34,17 @@ private:
       Instead of quint32, we use qint32 because we want to substract them from each
       other to see who came first.
       */
-    QMap<qint32, std::vector<long>* > mSavedScansTimestampScanner;
-    QMap<qint32, std::vector<long>* > mSavedScansTimestampGps;
+    QMap<qint32, std::vector<long>* > mScansTimestampScanner;
+    QMap<qint32, std::vector<long>* > mScansTimestampGps;
 
     // This method matches gps timestamps to laserscanner timestamps
     qint8 matchTimestamps();
 
     // This method uses mSavedScans and mSavedPoses to create and emit world-cooridnate scanpoints.
     void transformScanData();
+
+    // Cleans old data (mSaved, scanGps and mSavedPoses
+    void cleanUnusableData();
 
     // Used for debugging only.
     inline const QStringList getTimeStamps(const QMap<qint32, std::vector<long>* >& list) const
@@ -47,7 +53,12 @@ private:
         QMap<qint32, std::vector<long>* >::const_iterator itr = list.constBegin();
         while(itr != list.constEnd())
         {
-            timeStamps << QString::number((uint)itr.key());
+            // append an "e" for empty after entries with a 0-pointer as the value
+            if(itr.value() == 0)
+                timeStamps << QString::number((uint)itr.key()).append('e');
+            else
+                timeStamps << QString::number((uint)itr.key());
+
             ++itr;
         }
         return timeStamps;

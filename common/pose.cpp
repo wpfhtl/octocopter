@@ -109,13 +109,18 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
 
     // Check parameters. This should work fine even at the first call, because we only get called once all four poses are populated.
     Q_ASSERT(first->timestamp < before->timestamp);
-    Q_ASSERT(before->timestamp < time);
+    // not scan(middle)-times, but raytimes can go before the "before"-pose. TODO: Think of something.
+    //    Q_ASSERT(before->timestamp < time);
     Q_ASSERT(after->timestamp > before->timestamp);
     if(after->timestamp < time) qWarning("Pose::interpolateCubic(): interpolating pose for raytime %d, but aftertime is %d.", time, after->timestamp);
     if(last->timestamp < after->timestamp)  qWarning("Pose::interpolateCubic(): interpolating pose for raytime %d, but aftertime (%d) is after lasttime (%d).", time, after->timestamp, last->timestamp);
 
     // recreate mu from time argument
-    const float mu = (time - before->timestamp) / (after->timestamp - before->timestamp);
+    float mu = (time - before->timestamp) / (after->timestamp - before->timestamp);
+
+    // dirty hack, will give bad data.
+    mu = std::min(1.0f, mu);
+    mu = std::max(0.0f, mu);
 
     return interpolateCubic(first, before, after, last, mu);
 }
