@@ -1,6 +1,6 @@
 #include "pose.h"
 
-Pose::Pose(const QVector3D &position, const QQuaternion &orientation, const quint32& timestamp)
+Pose::Pose(const QVector3D &position, const QQuaternion &orientation, const qint32& timestamp)
 {
     this->position = position;
 
@@ -13,7 +13,7 @@ Pose::Pose(const QVector3D &position, const QQuaternion &orientation, const quin
     if(timestamp == 0) this->timestamp = getCurrentGpsTowTime();
 }
 
-Pose::Pose(const QVector3D &position, const float &yawDegrees, const float &pitchDegrees, const float &rollDegrees, const quint32& timestamp)
+Pose::Pose(const QVector3D &position, const float &yawDegrees, const float &pitchDegrees, const float &rollDegrees, const qint32& timestamp)
 {
     this->position = position;
 
@@ -104,24 +104,17 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
     return Pose(resultPosition, RAD2DEG(yaw), RAD2DEG(pitch), RAD2DEG(roll), timestamp);
 }
 
-Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before, const Pose * const after, const Pose * const last, const quint32& time)
+Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before, const Pose * const after, const Pose * const last, const qint32& time)
 {//                                             y0                        y1                         y2                        y3
 
-    // Check parameters. This should work fine even at the first call, because we only get called once all four poses are populated.
-    Q_ASSERT(first->timestamp < before->timestamp);
-    // not scan(middle)-times, but raytimes can go before the "before"-pose. TODO: Think of something.
-    //    Q_ASSERT(before->timestamp < time);
-    Q_ASSERT(after->timestamp > before->timestamp);
-    if(after->timestamp < time) qWarning("Pose::interpolateCubic(): interpolating pose for raytime %d, but aftertime is %d.", time, after->timestamp);
-    if(last->timestamp < after->timestamp)  qWarning("Pose::interpolateCubic(): interpolating pose for raytime %d, but aftertime (%d) is after lasttime (%d).", time, after->timestamp, last->timestamp);
+    // Check parameters.
+    Q_ASSERT(first->timestamp < before->timestamp && "Pose::interpolateCubic(): first < before didn't pass");
+    Q_ASSERT(before->timestamp < time && "Pose::interpolateCubic(): before < raytime didn't pass");
+    Q_ASSERT(after->timestamp > time && "Pose::interpolateCubic(): after > raytime didn't pass");
+    Q_ASSERT(last->timestamp > after->timestamp && "Pose::interpolateCubic(): last > after didn't pass");
 
     // recreate mu from time argument
-    float mu = (time - before->timestamp) / (after->timestamp - before->timestamp);
-
-    // dirty hack, will give bad data.
-    mu = std::min(1.0f, mu);
-    mu = std::max(0.0f, mu);
-
+    const float mu = (time - before->timestamp) / (after->timestamp - before->timestamp);
     return interpolateCubic(first, before, after, last, mu);
 }
 

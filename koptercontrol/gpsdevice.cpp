@@ -412,12 +412,12 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
 //        qDebug() << "GpsDevice::processSbfData(): more than 8 data bytes present, processing.";
         const int indexOfSyncMarker = receiveBuffer.indexOf("$@");
 
-	if(indexOfSyncMarker == -1)
-	{
-	    // The sync marker wasn't found! This means the whole buffer contains unusable data,
-	    // because we cannot use any data without a sync-marker prepended. So the data must
-	    // be non-SBF and should be consumed by someone else.
-	    return;
+        if(indexOfSyncMarker == -1)
+        {
+            // The sync marker wasn't found! This means the whole buffer contains unusable data,
+            // because we cannot use any data without a sync-marker prepended. So the data must
+            // be non-SBF and should be consumed by someone else.
+            return;
 
             // This may happen when we send a exeSbfOnce command (e.g. for ReceiverTime). The
             // receiver then replies with the SBF and then the prompt. The prompt is processed
@@ -738,32 +738,33 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
             // Laserscanner sync signal is soldered to both ports, but port 1 is broken. If it ever starts working again, I want to know.
             Q_ASSERT(block->Source == 2);
 
-	    if(block->TOW != 4294967295)
-	    {
-//                qDebug() << "sys" << getCurrentGpsTowTime() << "gps" << block->TOW << "gps: SBF of" << sizeof(Sbf_ExtEvent) << "in" << receiveBuffer.size() << "bytes tells us scan finished";
-		emit scanFinished(block->TOW);
-	    }
-	    else
-		qDebug() << "GpsDevice::processSbfData(): WARNING: scan finished, but TOW is set to do-not-use!";
-	}
-	    break;
-	case 4037:
-	{
-	    // ExtEventPvtCartesian
-	    qDebug() << "SBF: ExtEventPvtCartesian";
-	}
-	    break;
-	case 4050:
-	{
-	    // ExtSensorMeas
-	    qDebug() << "SBF: ExtSensorMeas";
-	}
-	    break;
-	default:
-	{
-	    qDebug() << "GpsDevice::processSbfData(): ignoring block id" << msgIdBlock;
-	}
-	}
+            if(block->TOW != 4294967295)
+            {
+                // Emit the time of the scan. The Scanner sets the pulse at the END of a scan,
+                // but our convention is to use times of a scans middle. Thus, decrement 12ms.
+                emit scanFinished(block->TOW - 12);
+            }
+            else
+                qDebug() << "GpsDevice::processSbfData(): WARNING: scan finished, but TOW is set to do-not-use!";
+        }
+            break;
+        case 4037:
+        {
+            // ExtEventPvtCartesian
+            qDebug() << "SBF: ExtEventPvtCartesian";
+        }
+            break;
+        case 4050:
+        {
+            // ExtSensorMeas
+            qDebug() << "SBF: ExtSensorMeas";
+        }
+            break;
+        default:
+        {
+            qDebug() << "GpsDevice::processSbfData(): ignoring block id" << msgIdBlock;
+        }
+        }
 
         // Remove the SBF block body from our incoming USB buffer, so it contains either nothing or the next SBF message
         receiveBuffer.remove(0, msgLength);

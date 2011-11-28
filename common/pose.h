@@ -29,8 +29,9 @@
   we pitch on the transformed/yawed x axis, and we roll on the twice-transformed (yawed and pitched)
   z axis. This *should* match the readings of our IMUs, who obviously sense local transformation data.
 
-  A Pose also contains an unsigned int32 timestamp which usually identifies the time at which some
-  sensor reading was taken.
+  A Pose also contains a signed int32 timestamp which usually identifies the time at which some
+  sensor reading was taken. Its signed so we can compare times and get negative values indicating one
+  time was before the other. Teh readings themselves will always be positive values.
 */
 
 class Pose
@@ -40,15 +41,16 @@ private:
     float mYaw, mPitch, mRoll;  // Angles in RADIANS!
 
 public:
-    Pose(const QVector3D &position, const QQuaternion &orientation, const quint32& timestamp = 0);
-    Pose(const QVector3D &position, const float &yawDegrees, const float &pitchDegrees, const float &rollDegrees, const quint32& timestamp = 0);
+    Pose(const QVector3D &position, const QQuaternion &orientation, const qint32& timestamp = 0);
+    Pose(const QVector3D &position, const float &yawDegrees, const float &pitchDegrees, const float &rollDegrees, const qint32& timestamp = 0);
     Pose();
 
     QVector3D position;
     const QQuaternion getOrientation() const;
 
     // This is the GPS Time-Of-Week, specified in milliseconds since last Sunday, 00:00:00 AM (midnight)
-    quint32 timestamp;
+    // Ben: changed this from quint32 to qint32 for comparison operations.
+    qint32 timestamp;
 
     static Pose interpolateLinear(const Pose &before, const Pose &after, const float &mu);
 
@@ -57,7 +59,7 @@ public:
 
     // Returns a pose between @before and @after, also needs @first and @last, as its bicubic.
     // This method takes a time argument instead of a float. @time must be between the times of @before and @after poses
-    static Pose interpolateCubic(const Pose * const first, const Pose * const before, const Pose * const after, const Pose * const last, const quint32& time);
+    static Pose interpolateCubic(const Pose * const first, const Pose * const before, const Pose * const after, const Pose * const last, const qint32& time);
 
     // Returns the shortest turn to an angle. For example:
     // 359 => -1
