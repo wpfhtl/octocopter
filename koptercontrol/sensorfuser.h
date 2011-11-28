@@ -18,6 +18,7 @@ private:
 
     // How much time difference from a scan to a pose (or vice versa) in past or future for the data to be usable for interpolation?
     quint8 mMaximumTimeBetweenFusedPoseAndScanMsec;
+    qint32 mMaximumTimeBetweenMatchingScans;
 
 //    QVector<quint32> mScanTimestampsFromGps;
     QList<Pose> mPoses;
