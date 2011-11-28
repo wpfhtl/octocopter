@@ -109,8 +109,10 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
 
     // Check parameters.
     Q_ASSERT(first->timestamp < before->timestamp && "Pose::interpolateCubic(): first < before didn't pass");
-    Q_ASSERT(before->timestamp < time && "Pose::interpolateCubic(): before < raytime didn't pass");
-    Q_ASSERT(after->timestamp > time && "Pose::interpolateCubic(): after > raytime didn't pass");
+
+    if(!(before->timestamp < time)) qDebug() << "Pose::interpolateCubic(): before" << before->timestamp << "< raytime" << time <<  "didn't pass";
+    if(!(after->timestamp > time)) qDebug() << "Pose::interpolateCubic(): after" << after->timestamp << "> raytime" << time <<  "didn't pass";
+
     Q_ASSERT(last->timestamp > after->timestamp && "Pose::interpolateCubic(): last > after didn't pass");
 
     // recreate mu from time argument

@@ -68,7 +68,7 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
         mSerialPortCom->close();
         qFatal("GpsDevice::GpsDevice(): Opening serial com port %s failed, exiting.", qPrintable(serialDeviceFileCom));
     }
-    mSerialPortCom->setBaudRate(AbstractSerial::BaudRate460800);
+    mSerialPortCom->setBaudRate(AbstractSerial::BaudRate115200);
     mSerialPortCom->setDataBits(AbstractSerial::DataBits8);
     mSerialPortCom->setParity(AbstractSerial::ParityNone);
     mSerialPortCom->setStopBits(AbstractSerial::StopBits1);
@@ -224,7 +224,7 @@ void GpsDevice::slotCommunicationSetup()
     queueAsciiCommand("setDataInOut,all,CMD,none");
 
     // increase com-port speed to 460800 for shorter latency
-    queueAsciiCommand("setComSettings,"+mSerialPortOnDeviceCom+",baud460800,bits8,No,bit1,none");
+    queueAsciiCommand("setComSettings,"+mSerialPortOnDeviceCom+",baud115200,bits8,No,bit1,none");
 
     // make the receiver output SBF blocks on both COM and USB connections
     queueAsciiCommand("setDataInOut,"+mSerialPortOnDeviceCom+",RTCMv3,SBF");
@@ -234,8 +234,8 @@ void GpsDevice::slotCommunicationSetup()
 //    sendAsciiCommand("setDataInOut,"+mSerialPortOnDeviceCom+",RTCMv3");
 
     // we want to know the TOW, because we don't want it to roll over! Answer is parsed below and used to sync time.
-    queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime");
-    queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime");
+//    queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime");
+//    queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime");
 
     queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceCom+",ReceiverTime");
     queueAsciiCommand("exeSBFOnce,"+mSerialPortOnDeviceCom+",ReceiverTime");
@@ -612,6 +612,9 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
                     && block->Pitch != -32768
                     && block->Roll != -32768
                     && block->TOW != 4294967295
+                    /*&& block->Mode == 2 // integrated solution, not sensor-only or gnss-only*/
+                    /*&& (block->GNSSPVTMode & 15) == 4 // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().*/
+                    && block->GNSSage < 100 // 100 * 0.01 sec interval of no GNSS PVT
                     )
             {
                 // TODO: we COULD read the sub-cm part, too...
@@ -642,6 +645,18 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
             else if(block->Heading == 65535)
             {
                 qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, heading do-not-use";
+            }
+            else if(block->Mode != 2)
+            {
+                qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, not integrated solution mode 2, but" << block->Mode;
+            }
+            else if((block->GNSSPVTMode & 15) != 4)
+            {
+                qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, not RTKFixed but" << (block->GNSSPVTMode & 15);
+            }
+            else if(block->GNSSage > 99)
+            {
+                qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, GNSSAge is" << block->GNSSage;
             }
             else
             {
@@ -742,6 +757,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
             {
                 // Emit the time of the scan. The Scanner sets the pulse at the END of a scan,
                 // but our convention is to use times of a scans middle. Thus, decrement 12ms.
+//                qDebug() << "GpsDevice::processSbfData(): emitting scanFinished with a scanTimeGps of" << block->TOW - 12;
                 emit scanFinished(block->TOW - 12);
             }
             else

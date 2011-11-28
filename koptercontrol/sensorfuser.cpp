@@ -4,7 +4,7 @@ SensorFuser::SensorFuser(LaserScanner* const laserScanner) : QObject(), mLaserSc
 {
     mPointCloudSize = 0;
     mMaximumTimeBetweenFusedPoseAndScanMsec = 101; // 2*poseInterval+1
-    mMaximumTimeBetweenMatchingScans = 10; // msecs maximum clock offset between scanner and gps device. Smaller means less data, moremeans worse data. Yes, we're screwed.
+    mMaximumTimeBetweenMatchingScans = 12; // msecs maximum clock offset between scanner and gps device. Smaller means less data, moremeans worse data. Yes, we're screwed.
 
     mLogFileRawData = new QFile(QString("scannerdata-raw-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
     if(!mLogFileRawData->open(QIODevice::WriteOnly | QIODevice::Text))
@@ -53,9 +53,9 @@ SensorFuser::~SensorFuser()
 
 void SensorFuser::cleanUnusableData()
 {
-    qDebug() << "SensorFuser::cleanUnusableData(): before scnr stamps:" << getTimeStamps(mScansTimestampScanner).join(",");
-    qDebug() << "SensorFuser::cleanUnusableData(): before gnss stamps:" << getTimeStamps(mScansTimestampGps).join(",");
-    qDebug() << "SensorFuser::cleanUnusableData(): before pose stamps:" << getTimeStamps(mPoses).join(",");
+//    qDebug() << "SensorFuser::cleanUnusableData(): before scnr stamps:" << getTimeStamps(mScansTimestampScanner).join(",");
+//    qDebug() << "SensorFuser::cleanUnusableData(): before gnss stamps:" << getTimeStamps(mScansTimestampGps).join(",");
+//    qDebug() << "SensorFuser::cleanUnusableData(): before pose stamps:" << getTimeStamps(mPoses).join(",");
 
     // Delete gps-scans that are far older than the first/oldest pose. These cannot be used anymore because we can only get newer poses from now on.
     while(mScansTimestampGps.size() && mPoses.at(0).timestamp - mMaximumTimeBetweenFusedPoseAndScanMsec > mScansTimestampGps.begin().key())
@@ -82,25 +82,39 @@ void SensorFuser::cleanUnusableData()
 
     // We can delete all EMPTY=UNMATCHED gnss scans with timestamps more than mMaximumTimeBetweenMatchingScans msecs older than
     // the first scanner-timestamp: as we'll only get newer scanner timestamps, these gps timestamps cannot ever be matched and become useful
-    while(mScansTimestampGps.constBegin().key() < mScansTimestampScanner.constBegin().key() - mMaximumTimeBetweenMatchingScans && mScansTimestampGps.constBegin().value() == 0)
+    while(
+          mScansTimestampScanner.size()
+          && mScansTimestampGps.size()
+          && mScansTimestampGps.constBegin().key() < mScansTimestampScanner.constBegin().key() - mMaximumTimeBetweenMatchingScans
+          && mScansTimestampGps.constBegin().value() == 0
+          )
     {
-        qDebug() << "SensorFuser::cleanUnusableData(): will never find scandata for gps timestamp" << timestampGps << "because first scandata is much later at" << mScansTimestampScanner.constBegin().value();
+        qDebug() << "SensorFuser::cleanUnusableData(): will never find scandata for gps timestamp" << mScansTimestampGps.constBegin().key() << "because first scandata is much later at" << mScansTimestampScanner.constBegin().value();
         mScansTimestampGps.remove(mScansTimestampGps.constBegin().key());
     }
 
     // This aproach is more brute-force: delete all data X milliseconds older than the newest data
     const qint32 maxAge = 500;
-    const qint32 minimumDataTimeToSurvive = std::max(std::max(mPoses.last().timestamp, mScansTimestampScanner.constEnd().key()), mScansTimestampGps.constEnd().key()) - maxAge;
+    const qint32 newestDataTime = std::max(
+                std::max(
+                    mPoses.size() ? mPoses.last().timestamp : 0,
+                    mScansTimestampScanner.size() ? mScansTimestampScanner.constEnd().key() : 0
+                    ),
+                mScansTimestampGps.size() ? mScansTimestampGps.constEnd().key() : 0);
+
+    const qint32 minimumDataTimeToSurvive = newestDataTime - maxAge;
 
     while(mPoses.size() && mPoses.first().timestamp < minimumDataTimeToSurvive)
     {
-        qDebug() << "SensorFuser::cleanUnusableData(): removing first pose from" << mPoses.first.timestamp << "because it is more than" << maxAge << "msec older than the newest data from" << newestDataTime;
+        qDebug() << "SensorFuser::cleanUnusableData(): removing first pose from" << mPoses.first().timestamp << "because it is more than" << maxAge << "msec older than the newest data from" << newestDataTime;
         mPoses.removeFirst();
     }
 
     while(mScansTimestampScanner.size() && mScansTimestampScanner.constBegin().key() < minimumDataTimeToSurvive)
     {
         qDebug() << "SensorFuser::cleanUnusableData(): removing first scanScanner from" << mScansTimestampScanner.constBegin().key() << "because it is more than" << maxAge << "msec older than the newest data from" << newestDataTime;
+
+        delete mScansTimestampScanner.value(mScansTimestampScanner.constBegin().key());
         mScansTimestampScanner.remove(mScansTimestampScanner.constBegin().key());
     }
 
@@ -133,8 +147,8 @@ void SensorFuser::transformScanData()
             continue;
         }
 
-        qDebug() << "SensorFuser::transformScanData(): trying to fuse scan from" << iteratorSavedScans.key();
         const qint32 timestampMiddleOfScan = iteratorSavedScans.key();
+        qDebug() << "SensorFuser::transformScanData(): trying to fuse scan from" << timestampMiddleOfScan;
 
         // Find Poses needed to fuse this scan. Scans are stored with the times their ray was in front, so for cubic
         // interpolation, we need two poses before and two poses after each *ray*. Hence, we need two poses before
@@ -155,11 +169,15 @@ void SensorFuser::transformScanData()
                 posesForThisScan.append(&mPoses[j]);
                 */
 
-            if(abs(timestampMiddleOfScan - mPoses.at(j).timestamp) < mMaximumTimeBetweenFusedPoseAndScanMsec + mLaserScanner->getScanDuration()/2)
+//            qDebug() << "SensorFuser::transformScanData(): timediff between gpsscan" << timestampMiddleOfScan << "and pose" << j << "is" << abs(timestampMiddleOfScan - mPoses.at(j).timestamp);
+            if(abs(timestampMiddleOfScan - mPoses.at(j).timestamp) < mMaximumTimeBetweenFusedPoseAndScanMsec + 12)
+            {
+//                qDebug() << "SensorFuser::transformScanData(): using pose from" << mPoses[j].timestamp << "for scan from" << timestampMiddleOfScan;
                 posesForThisScan.append(&mPoses[j]);
+            }
 
             // There's no scenario where we could use 6 poses for interpolation, so skip trying to look for more.
-            if(mPoses.size() >= 5) break;
+            if(posesForThisScan.size() >= 5) break;
         }
 
         // For debugging, show which poses could be found:
@@ -247,8 +265,8 @@ void SensorFuser::transformScanData()
             }
             else if(
                     posesForThisScan.size() >= 2
-                    && posesForThisScan.last().timestamp > timestampMiddleOfScan
-                    && posesForThisScan.at(posesForThisScan.size()-2) > timestampMiddleOfScan)
+                    && posesForThisScan.last()->timestamp > timestampMiddleOfScan
+                    && posesForThisScan.at(posesForThisScan.size()-2)->timestamp > timestampMiddleOfScan)
             {
                 // We can also delete scans if there's at least ONE pose AFTER them but not enough poses BEFORE them, because there will not be older poses coming in.
                 qDebug() << "SensorFuser::transformScanData(): deleting scan data with gps timestamp" << timestampMiddleOfScan << " - 2 poses after scan are present, failure must be missing pre-poses. Unfixable.";
@@ -392,16 +410,17 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
     // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
     if(!mPoses.size() || mPoses.last().timestamp < (timestampScanGps - 1000))
     {
-//        qDebug() << t() << "SensorFuser::slotScanFinished(): no/old poses, ignoring scanfinished gps signal for scantime" << timestampScanGps;
+//        qDebug() << t() << "SensorFuser::slotScanFinished(): " << mPoses.size() << "/old poses, ignoring scanfinished gps signal for scantime" << timestampScanGps;
         return;
     }
 
+    // will not work because qmap::end() ppoints to the imaginary item AFTER the last item in the map. key() will be 0.
     // Do not store data that we cannot fuse anyway, because the newest scanner data is very old (no data due to high system load)
-    if(!mScansTimestampScanner.size() || mScansTimestampScanner.end().key() < (timestampScanGps - 1000))
-    {
-//        qDebug() << t() << "SensorFuser::slotScanFinished(): no/old scandata, ignoring scanfinished gps signal for scantime" << timestampScanGps;
-        return;
-    }
+//    if(!mScansTimestampScanner.size() || mScansTimestampScanner.end().key() < (timestampScanGps - 1000))
+  //  {
+    //    qDebug() << t() << "SensorFuser::slotScanFinished(): " << mScansTimestampScanner.size() << "/old scandata, ignoring scanfinished gps signal for scantime" << timestampScanGps << "because last scna timestamp" << mScansTimestampScanner.end().key() << "is smaller than" << (timestampScanGps - 1000) << "=> older than 1 sec";
+//        return;
+    //}
 
     qDebug() << t() << "SensorFuser::slotScanFinished(): gps says scanner finished a scan at time" << timestampScanGps;
 
@@ -418,7 +437,7 @@ void SensorFuser::slotNewScanData(const quint32& timestampScanScanner, std::vect
     // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
     if(!mPoses.size() || mPoses.last().timestamp < (timestampScanScanner - 1000))
     {
-        qDebug() << t() << "SensorFuser::slotNewScanData(): no/old poses, ignoring scandata at time" << timestampScanScanner;
+        qDebug() << t() << "SensorFuser::slotNewScanData(): " << mPoses.size() << "/old poses, ignoring scandata at time" << timestampScanScanner;
         // We cannot ignore the scandata, we must at least delete() it, because it was new()ed in LaserScanner and we are now the owner.
         delete distances;
         return;
