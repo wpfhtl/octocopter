@@ -6,44 +6,15 @@ PROJECT(koptercontrol)
 
 cmake_policy(SET CMP0015 NEW)
 
-SET(SRC_FILES
-koptercontrol
-koptermessage
-kopter
-camera
-visualodometry
-sensorfuser
-../common/flightcontroller
-../common/common
-../common/pose
-../common/waypoint
-../common/lidarpoint
-../common/baseconnection
-../common/gpsstatusinformation
-gpsdevice
-laserscanner
-)
+FIND_PACKAGE(SDL REQUIRED)
+FIND_PACKAGE(Qt4 REQUIRED)
+SET(QT_USE_QTGUI 1)
+SET(QT_USE_QTXML 1)
+SET(QT_USE_QTNETWORK 1)
+INCLUDE(${QT_USE_FILE})
 
-SET(INC_FILES
-koptercontrol.h
-koptermessage.h
-kopter.h
-camera.h
-visualodometry.h
-sensorfuser.h
-../common/flightcontroller.h
-../common/common.h
-../common/pose.h
-../common/waypoint.h
-../common/lidarpoint.h
-../common/baseconnection.h
-../common/gpsstatusinformation.h
-gpsdevice.h
-laserscanner.h
-)
-
-SET(RESOURCE_FILES
-)
+SET(CMAKE_DEBUG_POSTFIX "_d")
+SET(CMAKE_BUILD_TYPE "Debug")
 
 SET(URG_LIBRARIES
     urg_connection
@@ -54,24 +25,6 @@ SET(URG_LIBRARIES
     urg_system
     urg
 )
-
-#"Sources" and "Headers" are the group names in Visual Studio.
-SOURCE_GROUP("Sources" FILES ${SRC_FILES})
-SOURCE_GROUP("Headers" FILES ${INC_FILES})
-
-FIND_PACKAGE(SDL REQUIRED)
-FIND_PACKAGE(Qt4 REQUIRED)
-SET(QT_USE_QTGUI 1)
-SET(QT_USE_QTXML 1)
-SET(QT_USE_QTNETWORK 1)
-INCLUDE(${QT_USE_FILE})
-
-QT4_WRAP_CPP(MOC_SRCS ${INC_FILES})
-QT4_WRAP_UI(UI_SRCS ${UI_FILES})
-QT4_ADD_RESOURCES(RESOURCE_SRCS ${RESOURCE_FILES})
-
-SET(CMAKE_DEBUG_POSTFIX "_d")
-SET(CMAKE_BUILD_TYPE "Debug")
 
 INCLUDE_DIRECTORIES(
     /usr/include
@@ -84,5 +37,87 @@ INCLUDE_DIRECTORIES(
 )
 
 LINK_DIRECTORIES(/usr/local/lib/)
-ADD_EXECUTABLE(koptercontrol ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES} -lqserialdevice -lcv -lhighgui)
+
+
+
+
+
+
+
+### koptercontrol
+
+SET(SRC_FILES_KOPTERCONTROL
+koptercontrol
+koptermessage
+kopter
+camera
+#visualodometry
+sensorfuser
+../common/flightcontroller
+../common/common
+../common/pose
+../common/waypoint
+../common/lidarpoint
+../common/baseconnection
+../common/gpsstatusinformation
+gpsdevice
+laserscanner
+)
+
+SET(INC_FILES_KOPTERCONTROL
+koptercontrol.h
+koptermessage.h
+kopter.h
+camera.h
+#visualodometry.h
+sensorfuser.h
+../common/flightcontroller.h
+../common/common.h
+../common/pose.h
+../common/waypoint.h
+../common/lidarpoint.h
+../common/baseconnection.h
+../common/gpsstatusinformation.h
+gpsdevice.h
+laserscanner.h
+)
+
+
+#"Sources" and "Headers" are the group names in Visual Studio.
+SOURCE_GROUP("Sources" FILES ${SRC_FILES_KOPTERCONTROL})
+SOURCE_GROUP("Headers" FILES ${INC_FILES_KOPTERCONTROL})
+
+QT4_WRAP_CPP(MOC_SRCS_KOPTERCONTROL ${INC_FILES_KOPTERCONTROL})
+
+
+ADD_EXECUTABLE(koptercontrol ${SRC_FILES_KOPTERCONTROL} ${MOC_SRCS_KOPTERCONTROL})
+TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES} -lqserialdevice)
+
+
+
+
+
+
+#### logreplay
+
+SET(SRC_FILES_LOGREPLAY
+logreplay
+sensorfuser
+../common/common
+../common/pose
+laserscanner
+)
+
+
+SET(INC_FILES_LOGREPLAY
+sensorfuser.h
+../common/common.h
+../common/pose.h
+laserscanner.h
+)
+
+QT4_WRAP_CPP(MOC_SRCS_LOGREPLAY ${INC_FILES_LOGREPLAY})
+
+ADD_EXECUTABLE(logreplay ${SRC_FILES_LOGREPLAY} ${MOC_SRCS_LOGREPLAY})
+TARGET_LINK_LIBRARIES(logreplay ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES} -lqserialdevice)
+

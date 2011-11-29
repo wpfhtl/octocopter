@@ -20,7 +20,9 @@ private:
     quint8 mMaximumTimeBetweenFusedPoseAndScanMsec;
     qint32 mMaximumTimeBetweenMatchingScans;
 
-//    QVector<quint32> mScanTimestampsFromGps;
+    Pose mLastInterpolatedPose; // Interpolated poses can be used for many consecutive rays sharing the same millisecond...
+    qint32 mLastRayTime; // .. and this var is used to store that msec of the last computed ray.
+
     QList<Pose> mPoses;
 
     /*
@@ -78,6 +80,12 @@ private:
 public:
     SensorFuser(LaserScanner* const laserScanner);
     ~SensorFuser();
+
+    // SensorFuser writes logfiles of the raw incoming data. These files can be read later-on and fed
+    // line-by-line to this method, which is equivalent to calling the respective slots.
+    bool processLogLine(const QString& line);
+
+    bool processLog(const QString& fileName);
 
 signals:
     void newScannedPoints(const QVector3D& scanPosition, const QVector<QVector3D>&);

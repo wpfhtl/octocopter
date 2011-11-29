@@ -10,7 +10,7 @@ SensorFuser::SensorFuser(LaserScanner* const laserScanner) : QObject(), mLaserSc
     if(!mLogFileRawData->open(QIODevice::WriteOnly | QIODevice::Text))
         qFatal("SensorFuser::SensorFuser(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFileRawData->fileName()));
 
-    mLogFileGlobalPoints = new QFile(QString("scannerdata-fused-%1-%2.ply").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
+    mLogFileGlobalPoints = new QFile(QString("scannerdata-fused-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
     if(!mLogFileGlobalPoints->open(QIODevice::ReadWrite | QIODevice::Text))
         qFatal("SensorFuser::SensorFuser(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFileGlobalPoints->fileName()));
 }
@@ -209,38 +209,42 @@ void SensorFuser::transformScanData()
                 // index 0540 is timestampMiddleOfScan
                 // index 1080 is timestampMiddleOfScan + 9.375ms
                 // Each ray takes 0.01736 milliseconds of time.
-                const qint32 timeOfThisRay = (qint32)((float)(timestampMiddleOfScan) - 9.375f + (((float)index) * 0.01736f));
+                const qint32 timeOfCurrentRay = (qint32)((float)(timestampMiddleOfScan) - 9.375f + (((float)index) * 0.01736f));
 
                 // For debugging, show which poses could be found:
 //                QStringList poseTimes;
 //                for(int i=0;i<posesForThisScan.size();i++) poseTimes << QString::number((uint)posesForThisScan.at(i)->timestamp);
 //                qDebug() << "SensorFuser::transformScanData(): scanmiddle at" << timestampMiddleOfScan << "ray-index is" << index << "raytime is" << timeOfThisRay << "posetimes:" << poseTimes.join(",");
 
-                Pose interpolatedPose;
-
-                // Now figure out which poses are needed for this ray
-                if(posesForThisScan.at(2)->timestamp < timeOfThisRay)
+                // Many consecutive rays share the same millisecond, so we only need to interpolate a new pose if that ray's millisecond has changed.
+                if(mLastRayTime != timeOfCurrentRay)
                 {
-                    interpolatedPose = Pose::interpolateCubic(
-                            posesForThisScan[1],
-                            posesForThisScan[2],
-                            posesForThisScan[3],
-                            posesForThisScan[4],
-                            timeOfThisRay
-                            );
-                }
-                else
-                {
-                    interpolatedPose = Pose::interpolateCubic(
-                            posesForThisScan[0],
-                            posesForThisScan[1],
-                            posesForThisScan[2],
-                            posesForThisScan[3],
-                            timeOfThisRay
-                            );
+                    // Now figure out which poses are needed for this ray
+                    if(posesForThisScan.at(2)->timestamp < timeOfCurrentRay)
+                    {
+                        mLastInterpolatedPose = Pose::interpolateCubic(
+                                posesForThisScan[1],
+                                posesForThisScan[2],
+                                posesForThisScan[3],
+                                posesForThisScan[4],
+                                timeOfCurrentRay
+                                );
+                    }
+                    else
+                    {
+                        mLastInterpolatedPose = Pose::interpolateCubic(
+                                posesForThisScan[0],
+                                posesForThisScan[1],
+                                posesForThisScan[2],
+                                posesForThisScan[3],
+                                timeOfCurrentRay
+                                );
+                    }
                 }
 
-                scannedPoints.append(mLaserScanner->getWorldPositionOfScannedPoint(interpolatedPose, index, distance));
+                mLastRayTime = timeOfCurrentRay;
+
+                scannedPoints.append(mLaserScanner->getWorldPositionOfScannedPoint(mLastInterpolatedPose, index, distance));
                 mPointCloudSize++;
             }
 
@@ -368,24 +372,23 @@ void SensorFuser::slotLogScannedPoints(const QVector3D& vehiclePosition, const Q
     QTextStream out(mLogFileGlobalPoints);
     out << "pointcloud: " << points.size() << " points scanned from world pos: " << vehiclePosition.x() << " " << vehiclePosition.y() << " " << vehiclePosition.z() << "\n";
 
-    for (int i = 0; i < points.size(); ++i)
-        out << points.at(i).x() << " " << points.at(i).y() << " " << points.at(i).z() << "\n";
+    for(int i = 0; i < points.size(); ++i)
+        out << points.at(i).x() << " " << points.at(i).y() << " " << points.at(i).z() << endl;
 }
 
 
 void SensorFuser::slotNewVehiclePose(const Pose& pose)
 {
+    // Always write pose to logfile
+    QTextStream(mLogFileRawData) << pose.toString() << endl;
+
     if(!mLaserScanner->isScanning())
     {
-        qDebug() << t() << "SensorFuser::slotNewVehiclePose(): ignoring a received gps pose, laserscanner isn't scanning at" << pose.timestamp;
+        qDebug() << t() << "SensorFuser::slotNewVehiclePose(): ignoring a received pose, laserscanner isn't scanning at" << pose.timestamp;
         return;
     }
 
-    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a gps" << pose;
-
-    // Write log data: pose[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
-//    QTextStream out(mLogFileDataRaw);
-//    out << "pose " << pose.timestamp << " x" << pose.position.x() << " y" << pose.position.y() << " z" << pose.position.z() << " p" << pose.getPitchDegrees() << " r" << pose.getRollDegrees() << " y" << pose.getYawDegrees() << "\n";
+    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a" << pose;
 
     // Append pose to our list
     mPoses.append(Pose(pose + mLaserScanner->getRelativePose()));
@@ -407,6 +410,9 @@ void SensorFuser::slotNewVehiclePose(const Pose& pose)
 
 void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
 {
+    // Log this event to file
+    QTextStream(mLogFileRawData) << "extevent: " << timestampScanGps << endl;
+
     // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
     if(!mPoses.size() || mPoses.last().timestamp < (timestampScanGps - 1000))
     {
@@ -427,13 +433,17 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
     // Our gps board tells us that a scan is finished. The scan data itself might already be saved in mSavedScans - or it might not.
     mScansTimestampGps.insert(timestampScanGps, 0);
     //mSavedScansTimestampGps.insert(timestampScanGps - (mLaserScanner->getScanDuration() / 2), 0);
-
-    QTextStream out(mLogFileRawData);
-    out << "extevent: scan middle at time " << timestampScanGps << " in gnss receiver timeframe\n";
 }
 
 void SensorFuser::slotNewScanData(const quint32& timestampScanScanner, std::vector<long> * const distances)
 {
+    // Always write log data for later replay: scannerdata:[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
+    QTextStream out(mLogFileRawData);
+    out << "scannerdata: " << timestampScanScanner;
+    std::vector<long>::iterator itr;
+    for(itr=distances->begin();itr != distances->end(); ++itr) out << " " << *itr;
+    out << endl;
+
     // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
     if(!mPoses.size() || mPoses.last().timestamp < (timestampScanScanner - 1000))
     {
@@ -447,12 +457,69 @@ void SensorFuser::slotNewScanData(const quint32& timestampScanScanner, std::vect
 
     mScansTimestampScanner.insert(timestampScanScanner, distances);
 
-    // Write log data: scan[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
-    QTextStream out(mLogFileRawData);
-    out << "scannerdata: " << timestampScanScanner;
-    std::vector<long>::iterator itr;
-    for(itr=distances->begin();itr != distances->end(); ++itr) out << " " << *itr;
-    out << "\n";
 
     cleanUnusableData();
+}
+
+bool SensorFuser::processLogLine(const QString& line)
+{
+    if(line.contains("scannerdata"))
+    {
+        const QStringList tokens = line.split(' ');
+        bool success = false;
+        const qint32 timestamp = tokens.at(1).toInt(&success);
+        if(!success) {qDebug() << "SensorFuser::processLogLine(): couldn't parse scannerdata-timestamp."; return false;}
+
+        std::vector<long>* data = new std::vector<long>(900);
+        for(int i=2;i<tokens.size();i++)
+        {
+            data->push_back(tokens.at(i).toInt(&success));
+            if(!success) {qDebug() << "SensorFuser::processLogLine(): couldn't parse scannerdata-distance at index" << i; return false;}
+        }
+
+        slotNewScanData(timestamp, data);
+    }
+    else if(line.contains("extevent"))
+    {
+        bool success = false;
+        slotScanFinished(line.split(' ').at(1).toInt(&success));
+        if(!success) {qDebug() << "SensorFuser::processLogLine(): couldn't parse extevent"; return false;}
+    }
+    else if(line.contains("pose"))
+    {
+        slotNewVehiclePose(Pose(line));
+    }
+    else
+    {
+        qDebug() << "SensorFuser::processLogLine(): couldn't parse line" << line; return false;
+    }
+}
+
+bool SensorFuser::processLog(const QString& fileName)
+{
+    QTime startTime;
+    startTime.start();
+
+    QFile file(fileName);
+    if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        qDebug() << "SensorFuser::processLog(): cannot open file" << fileName << "for reading.";
+        return false;
+    }
+
+    quint32 lineNumber = 0;
+    QTextStream in(&file);
+    while (!in.atEnd())
+    {
+        const QString line = in.readLine();
+        if(!processLogLine(line))
+        {
+            qDebug() << "SensorFuser::processLog(): trouble parsing" << fileName << "line" << lineNumber << ":" << line;
+            return false;
+        }
+        lineNumber++;
+    }
+
+    qDebug() << "SensorFuser::processLog(): processing time was" << startTime.elapsed() << "msecs";
+    return true;
 }

@@ -5,9 +5,6 @@
 #include <QVector3D>
 #include <QString>
 #include <QDateTime>
-#include <QCryptographicHash>
-
-#include <waypoint.h>
 
 #define RAD2DEG(RAD) ((RAD)*180/M_PI)
 #define DEG2RAD(DEG) ((DEG)*((M_PI)/(180.0)))
@@ -18,7 +15,7 @@
 #define Q(string) (string).toStdString().c_str()
 
 
-QString hash(QList<WayPoint> list);
+
 
 quint32 getCurrentGpsTowTime();
 

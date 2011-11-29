@@ -2,8 +2,10 @@
 #define POSE_H
 
 #include <QVector3D>
+#include <QVector2D>
 #include <QQuaternion>
 #include <QTime>
+#include <QStringList>
 #include <QDebug>
 
 #ifdef BASESTATION
@@ -43,7 +45,10 @@ private:
 public:
     Pose(const QVector3D &position, const QQuaternion &orientation, const qint32& timestamp = 0);
     Pose(const QVector3D &position, const float &yawDegrees, const float &pitchDegrees, const float &rollDegrees, const qint32& timestamp = 0);
+    Pose(const QString& poseString);
     Pose();
+
+    const QString& toString() const;
 
     QVector3D position;
     const QQuaternion getOrientation() const;

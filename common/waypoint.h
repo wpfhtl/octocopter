@@ -3,6 +3,7 @@
 
 #include <QVector2D>
 #include <QVector3D>
+#include <QCryptographicHash>
 
 // For now, this class is just a QVector3D, but it might
 // be extended to include orientation, timestamps etc.
@@ -21,12 +22,8 @@ public:
 
     WayPoint &operator=(const WayPoint& other);
 
+    static QString hash(QList<WayPoint> list);
     QVector2D getPositionOnPlane() const;
-
-//signals:
-
-//public slots:
-
 };
 
 #endif

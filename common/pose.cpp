@@ -117,7 +117,10 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
 
     // recreate mu from time argument
     const float mu = (time - before->timestamp) / (after->timestamp - before->timestamp);
-    return interpolateCubic(first, before, after, last, mu);
+    Pose p = interpolateCubic(first, before, after, last, mu);
+
+    if(p.timestamp != time) qDebug() << "Pose::interpolateCubic(): warning: incoming time is" << time << "interpolated-pose-time is" << p.timestamp;
+    return p;
 }
 
 
@@ -160,12 +163,6 @@ QVector2D Pose::getPlanarDirection() const
     return result;
 }
 
-/* unused
-Pose Pose::operator*(const float &factor)
-{
-    return Pose(...);
-}*/
-
 // No idea whether the order of orientation is correct
 const QQuaternion Pose::getOrientation() const
 {
@@ -203,15 +200,60 @@ Pose Pose::operator+(const Pose &p) const
 
 QDebug operator<<(QDebug dbg, const Pose &pose)
 {
-    dbg.nospace() << "pose t" << pose.timestamp
-                  << " (" << Q(QString::number(pose.position.x(), 'f', 2))
-                  << "/" << Q(QString::number(pose.position.y(), 'f', 2))
-                  << "/" << Q(QString::number(pose.position.z(), 'f', 2))
-                  << ") YPR (" << Q(QString::number(pose.getYawDegrees(), 'f', 2))
-                  << "/" << Q(QString::number(pose.getPitchDegrees(), 'f', 2))
-                  << "/" << Q(QString::number(pose.getRollDegrees(), 'f', 2)) << ")";
+    dbg.nospace() << pose.toString();
 
     return dbg.space();
+}
+
+const QString& Pose::toString() const
+{
+    return QString()
+            .append("pose t").append(QString::number(timestamp))
+            .append(" (").append(QString::number(position.x(), 'f', 2))
+            .append("/").append(QString::number(position.y(), 'f', 2))
+            .append("/").append(QString::number(position.z(), 'f', 2))
+            .append(") YPR (").append(QString::number(getYawDegrees(), 'f', 2))
+            .append("/").append(QString::number(getPitchDegrees(), 'f', 2))
+            .append("/").append(QString::number(getRollDegrees(), 'f', 2)).append(")");
+}
+
+// Must be able to process what operator<< writes above, for example:
+// pose t501171350 (-30.49/51.84/140.01) YPR (155.27/2.92/-1.03)
+Pose::Pose(const QString& poseString)
+{
+    QStringList tokens = poseString.split(' ');
+    Q_ASSERT(tokens.size() == 5 && "Pose::Pose(QString): token stringlist size is not 5.");
+    bool success = false;
+
+    // set time
+    const qint32 timestamp = tokens.value(1).remove(0, 1).toInt(&success, 10);
+    Q_ASSERT(success && "Pose::Pose(QString): couldn't convert time to int.");
+    this->timestamp = timestamp;
+
+    // set positions
+    QString positionString = tokens.value(2).remove(0, 1);
+    positionString.chop(1);
+    const QStringList positions = positionString.split('/');
+    position.setX(positions.at(0).toFloat(&success));
+    Q_ASSERT(success && "Pose::Pose(QString): couldn't convert X to float.");
+    position.setY(positions.at(1).toFloat(&success));
+    Q_ASSERT(success && "Pose::Pose(QString): couldn't convert Y to float.");
+    position.setZ(positions.at(2).toFloat(&success));
+    Q_ASSERT(success && "Pose::Pose(QString): couldn't convert Z to float.");
+
+    // set orientations
+    QString orientationString = tokens.value(4).remove(0, 1);
+    orientationString.chop(1);
+    const QStringList orientations = orientationString.split('/');
+    mYaw = orientations.at(0).toFloat(&success);
+    Q_ASSERT(success && "Pose::Pose(QString): couldn't convert yaw to float.");
+    mPitch = orientations.at(1).toFloat(&success);
+    Q_ASSERT(success && "Pose::Pose(QString): couldn't convert pitch to float.");
+    mRoll = orientations.at(2).toFloat(&success);
+    Q_ASSERT(success && "Pose::Pose(QString): couldn't convert roll to float.");
+
+    if(poseString != toString())
+        qFatal("Pose::Pose(QString): parsing failed: original %s, reconstructed %s.", qPrintable(poseString), qPrintable(toString()));
 }
 
 QDataStream& operator<<(QDataStream &out, const Pose &pose)

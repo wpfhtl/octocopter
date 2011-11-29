@@ -257,7 +257,7 @@ void BaseConnection::slotFlightControllerWayPointsChanged(const QList<WayPoint>&
     QDataStream stream(&data, QIODevice::WriteOnly);
 
     stream << QString("currentwaypointshash");
-    stream << hash(wayPoints);
+    stream << WayPoint::hash(wayPoints);
 
     slotSendData(data, false);
 }
