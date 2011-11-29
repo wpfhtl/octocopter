@@ -48,7 +48,7 @@ public:
     Pose(const QString& poseString);
     Pose();
 
-    const QString& toString() const;
+    const QString toString() const;
 
     QVector3D position;
     const QQuaternion getOrientation() const;

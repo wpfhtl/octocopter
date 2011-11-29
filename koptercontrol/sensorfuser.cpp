@@ -3,6 +3,7 @@
 SensorFuser::SensorFuser(LaserScanner* const laserScanner) : QObject(), mLaserScanner(laserScanner)
 {
     mPointCloudSize = 0;
+    mNewestDataTime = 0;
     mMaximumTimeBetweenFusedPoseAndScanMsec = 101; // 2*poseInterval+1
     mMaximumTimeBetweenMatchingScans = 12; // msecs maximum clock offset between scanner and gps device. Smaller means less data, moremeans worse data. Yes, we're screwed.
 
@@ -89,30 +90,24 @@ void SensorFuser::cleanUnusableData()
           && mScansTimestampGps.constBegin().value() == 0
           )
     {
-        qDebug() << "SensorFuser::cleanUnusableData(): will never find scandata for gps timestamp" << mScansTimestampGps.constBegin().key() << "because first scandata is much later at" << mScansTimestampScanner.constBegin().value();
-        mScansTimestampGps.remove(mScansTimestampGps.constBegin().key());
+        qDebug() << "SensorFuser::cleanUnusableData(): will never find scandata for gps timestamp" << mScansTimestampGps.constBegin().key() << "because first scandata is much later at" << mScansTimestampScanner.constBegin().key();
+        if(mScansTimestampGps.remove(mScansTimestampGps.constBegin().key() != 1))
+                qDebug() << "SensorFuser::cleanUnusableData(): couldn't remove scandata with gps timestamp" << mScansTimestampGps.constBegin().key();
     }
 
     // This aproach is more brute-force: delete all data X milliseconds older than the newest data
     const qint32 maxAge = 500;
-    const qint32 newestDataTime = std::max(
-                std::max(
-                    mPoses.size() ? mPoses.last().timestamp : 0,
-                    mScansTimestampScanner.size() ? mScansTimestampScanner.constEnd().key() : 0
-                    ),
-                mScansTimestampGps.size() ? mScansTimestampGps.constEnd().key() : 0);
-
-    const qint32 minimumDataTimeToSurvive = newestDataTime - maxAge;
+    const qint32 minimumDataTimeToSurvive = mNewestDataTime - maxAge;
 
     while(mPoses.size() && mPoses.first().timestamp < minimumDataTimeToSurvive)
     {
-        qDebug() << "SensorFuser::cleanUnusableData(): removing first pose from" << mPoses.first().timestamp << "because it is more than" << maxAge << "msec older than the newest data from" << newestDataTime;
+        qDebug() << "SensorFuser::cleanUnusableData(): removing first pose from" << mPoses.first().timestamp << "because it is more than" << maxAge << "msec older than the newest data from" << mNewestDataTime;
         mPoses.removeFirst();
     }
 
     while(mScansTimestampScanner.size() && mScansTimestampScanner.constBegin().key() < minimumDataTimeToSurvive)
     {
-        qDebug() << "SensorFuser::cleanUnusableData(): removing first scanScanner from" << mScansTimestampScanner.constBegin().key() << "because it is more than" << maxAge << "msec older than the newest data from" << newestDataTime;
+        qDebug() << "SensorFuser::cleanUnusableData(): removing first scanScanner from" << mScansTimestampScanner.constBegin().key() << "because it is more than" << maxAge << "msec older than the newest data from" << mNewestDataTime;
 
         delete mScansTimestampScanner.value(mScansTimestampScanner.constBegin().key());
         mScansTimestampScanner.remove(mScansTimestampScanner.constBegin().key());
@@ -120,7 +115,7 @@ void SensorFuser::cleanUnusableData()
 
     while(mScansTimestampGps.size() && mScansTimestampGps.constBegin().key() < minimumDataTimeToSurvive)
     {
-        qDebug() << "SensorFuser::cleanUnusableData(): removing first scanGps from" << mScansTimestampGps.constBegin().key() << "because it is more than" << maxAge << "msec older than the newest data from" << newestDataTime;
+        qDebug() << "SensorFuser::cleanUnusableData(): removing first scanGps from" << mScansTimestampGps.constBegin().key() << "because it is more than" << maxAge << "msec older than the newest data from" << mNewestDataTime;
         mScansTimestampGps.remove(mScansTimestampGps.constBegin().key());
     }
 
@@ -191,8 +186,8 @@ void SensorFuser::transformScanData()
         //  - The second pose is before rayStart
         if(posesForThisScan.size() >= 4 && posesForThisScan.at(1)->timestamp < rayStart && posesForThisScan.at(posesForThisScan.size()-2)->timestamp > rayEnd)
         {
-            qDebug() << "SensorFuser::transformScanData(): these" << posesForThisScan.size() << "poses are enough for data fusion, proceeding.";
             std::vector<long>* scanDistances = iteratorSavedScans.value();
+            qDebug() << "SensorFuser::transformScanData(): these" << posesForThisScan.size() << "poses are enough, fusing" << scanDistances->size() << "rays";
 
             QVector<QVector3D> scannedPoints(950); // Do not reserve full length, will be less poins due to reflections on the vehicle being filtered
 
@@ -379,8 +374,11 @@ void SensorFuser::slotLogScannedPoints(const QVector3D& vehiclePosition, const Q
 
 void SensorFuser::slotNewVehiclePose(const Pose& pose)
 {
+    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a pose" << pose;
+
     // Always write pose to logfile
-    QTextStream(mLogFileRawData) << pose.toString() << endl;
+    QTextStream out(mLogFileRawData);
+    out << pose.toString() << endl;
 
     if(!mLaserScanner->isScanning())
     {
@@ -388,12 +386,12 @@ void SensorFuser::slotNewVehiclePose(const Pose& pose)
         return;
     }
 
-    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a" << pose;
-
     // Append pose to our list
     mPoses.append(Pose(pose + mLaserScanner->getRelativePose()));
 
     Q_ASSERT(mPoses.last().timestamp == pose.timestamp && "mangled pose timestamp is off.");
+
+    mNewestDataTime = std::max(mNewestDataTime, pose.timestamp);
 
     // Make sure the timestamp from the incoming pose has survived the mangling.
     /*if(mSavedPoses.last().timestamp != pose.timestamp)
@@ -410,6 +408,8 @@ void SensorFuser::slotNewVehiclePose(const Pose& pose)
 
 void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
 {
+    qDebug() << t() << "SensorFuser::slotScanFinished(): gps says scanner finished a scan at time" << timestampScanGps;
+
     // Log this event to file
     QTextStream(mLogFileRawData) << "extevent: " << timestampScanGps << endl;
 
@@ -428,15 +428,15 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
 //        return;
     //}
 
-    qDebug() << t() << "SensorFuser::slotScanFinished(): gps says scanner finished a scan at time" << timestampScanGps;
-
     // Our gps board tells us that a scan is finished. The scan data itself might already be saved in mSavedScans - or it might not.
     mScansTimestampGps.insert(timestampScanGps, 0);
-    //mSavedScansTimestampGps.insert(timestampScanGps - (mLaserScanner->getScanDuration() / 2), 0);
+    mNewestDataTime = std::max((unsigned int)mNewestDataTime, timestampScanGps);
 }
 
 void SensorFuser::slotNewScanData(const quint32& timestampScanScanner, std::vector<long> * const distances)
 {
+    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
+
     // Always write log data for later replay: scannerdata:[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
     QTextStream out(mLogFileRawData);
     out << "scannerdata: " << timestampScanScanner;
@@ -453,10 +453,8 @@ void SensorFuser::slotNewScanData(const quint32& timestampScanScanner, std::vect
         return;
     }
 
-    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
-
     mScansTimestampScanner.insert(timestampScanScanner, distances);
-
+    mNewestDataTime = std::max((unsigned int)mNewestDataTime, timestampScanScanner);
 
     cleanUnusableData();
 }
@@ -491,8 +489,11 @@ bool SensorFuser::processLogLine(const QString& line)
     }
     else
     {
-        qDebug() << "SensorFuser::processLogLine(): couldn't parse line" << line; return false;
+        qDebug() << "SensorFuser::processLogLine(): couldn't parse line" << line;
+        return false;
     }
+
+    return true;
 }
 
 bool SensorFuser::processLog(const QString& fileName)

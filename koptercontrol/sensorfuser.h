@@ -20,6 +20,8 @@ private:
     quint8 mMaximumTimeBetweenFusedPoseAndScanMsec;
     qint32 mMaximumTimeBetweenMatchingScans;
 
+    qint32 mNewestDataTime;
+
     Pose mLastInterpolatedPose; // Interpolated poses can be used for many consecutive rays sharing the same millisecond...
     qint32 mLastRayTime; // .. and this var is used to store that msec of the last computed ray.
 

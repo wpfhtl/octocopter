@@ -94,12 +94,13 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
 
     // roll
 //    float  t0, t1, t2, t3;
-    const float t0 = last->timestamp - after->timestamp - first->timestamp + before->timestamp;
-    const float t1 = first->timestamp - before->timestamp - t0;
-    const float t2 = after->timestamp - first->timestamp;
-    const float t3 = before->timestamp;
+//    const float t0 = last->timestamp - after->timestamp - first->timestamp + before->timestamp;
+//    const float t1 = first->timestamp - before->timestamp - t0;
+//    const float t2 = after->timestamp - first->timestamp;
+//    const float t3 = before->timestamp;
 
-    const float timestamp = t0*mu*mu2+t1*mu2+t2*mu+t3;
+//    const float timestamp = t0*mu*mu2+t1*mu2+t2*mu+t3;
+    const float timestamp = before->timestamp + mu * (after->timestamp - before->timestamp);
 
     return Pose(resultPosition, RAD2DEG(yaw), RAD2DEG(pitch), RAD2DEG(roll), timestamp);
 }
@@ -110,8 +111,8 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
     // Check parameters.
     Q_ASSERT(first->timestamp < before->timestamp && "Pose::interpolateCubic(): first < before didn't pass");
 
-    if(!(before->timestamp < time)) qDebug() << "Pose::interpolateCubic(): before" << before->timestamp << "< raytime" << time <<  "didn't pass";
-    if(!(after->timestamp > time)) qDebug() << "Pose::interpolateCubic(): after" << after->timestamp << "> raytime" << time <<  "didn't pass";
+    if(!(before->timestamp <= time)) qDebug() << "Pose::interpolateCubic(): before" << before->timestamp << "<= raytime" << time <<  "didn't pass";
+    if(!(after->timestamp >= time)) qDebug() << "Pose::interpolateCubic(): after" << after->timestamp << ">= raytime" << time <<  "didn't pass";
 
     Q_ASSERT(last->timestamp > after->timestamp && "Pose::interpolateCubic(): last > after didn't pass");
 
@@ -205,7 +206,7 @@ QDebug operator<<(QDebug dbg, const Pose &pose)
     return dbg.space();
 }
 
-const QString& Pose::toString() const
+const QString Pose::toString() const
 {
     return QString()
             .append("pose t").append(QString::number(timestamp))
@@ -245,11 +246,11 @@ Pose::Pose(const QString& poseString)
     QString orientationString = tokens.value(4).remove(0, 1);
     orientationString.chop(1);
     const QStringList orientations = orientationString.split('/');
-    mYaw = orientations.at(0).toFloat(&success);
+    setYawDegrees(orientations.at(0).toFloat(&success));
     Q_ASSERT(success && "Pose::Pose(QString): couldn't convert yaw to float.");
-    mPitch = orientations.at(1).toFloat(&success);
+    setPitchDegrees(orientations.at(1).toFloat(&success));
     Q_ASSERT(success && "Pose::Pose(QString): couldn't convert pitch to float.");
-    mRoll = orientations.at(2).toFloat(&success);
+    setRollDegrees(orientations.at(2).toFloat(&success));
     Q_ASSERT(success && "Pose::Pose(QString): couldn't convert roll to float.");
 
     if(poseString != toString())

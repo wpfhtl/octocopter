@@ -153,7 +153,7 @@ void LaserScanner::slotCaptureScanData()
     else
     {
         // Emit the scandata and add 12msecs of time. The scanner PROBABLY sets the time to the beginning of
-        // each scan (ray in back) and our convention is to store the time of the middle of a  scan.
-        emit newScanData(mLastScannerTimeStamp + mOffsetTimeScannerToTow + 12, distances);
+        // each scan -135deg (0deg is front) and our convention is to store the time of the middle of a  scan.
+        emit newScanData(mLastScannerTimeStamp + mOffsetTimeScannerToTow + 9, distances);
     }
 }
