@@ -47,7 +47,7 @@ void BaseConnection::slotNewConnection()
 //    mSocketBuffers.insert(mTcpSocket, new QByteArray);
 
 //    qDebug() << "BaseConnection::slotNewConnection(): incoming connection from" << mTcpSocket->peerAddress() << "port" << mTcpSocket->peerPort() << "accepted";
-    
+
     // FIXME: mTcpServer->close() because we cannot handle a second connection, listen() in connectionEnded.
     mTcpServer->close();
 }
@@ -289,7 +289,7 @@ void BaseConnection::slotNewVehiclePose(const Pose& pose)
 }
 
 // called by rover to send lidarpoints to the basestation
-void BaseConnection::slotNewScannedPoints(const QVector3D& scanPosition, const QVector<QVector3D>& points)
+void BaseConnection::slotNewScannedPoints(const QVector<QVector3D>& points, const QVector3D& scanPosition)
 {
 //    qDebug() << "sending" << points.size() << "new lidarpoints to base";
     QByteArray data;

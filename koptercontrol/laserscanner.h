@@ -47,30 +47,30 @@ public:
     inline static QVector3D getWorldPositionOfScannedPoint(const Pose& scannerPose, const quint16& scannerIndex, const float& distance)
     {
 #ifdef false
-            // Version using QMatrix4x4
-            const QVector3D vectorScannerToPoint(
-                        sin(-0.0043633231299858238686f * (scannerIndex - 540)) * distance,  // X in meters
-                        0.0,                                                                // Y always 0
-                        cos(-0.0043633231299858238686f * (scannerIndex - 540)) * distance); // Z in meters
+        // Version using QMatrix4x4
+        const QVector3D vectorScannerToPoint(
+                    sin(-0.0043633231299858238686f * (scannerIndex - 540)) * distance,  // X in meters
+                    0.0,                                                                // Y always 0
+                    cos(-0.0043633231299858238686f * (scannerIndex - 540)) * distance); // Z in meters
 
-            QMatrix4x4 scannerOrientation;
-            scannerOrientation.rotate(scannerPose.getYawDegrees(), QVector3D(0,1,0));
-            scannerOrientation.rotate(scannerPose.getPitchDegrees(), QVector3D(1,0,0));
-            scannerOrientation.rotate(scannerPose.getRollDegrees(), QVector3D(0,0,1));
+        QMatrix4x4 scannerOrientation;
+        scannerOrientation.rotate(scannerPose.getYawDegrees(), QVector3D(0,1,0));
+        scannerOrientation.rotate(scannerPose.getPitchDegrees(), QVector3D(1,0,0));
+        scannerOrientation.rotate(scannerPose.getRollDegrees(), QVector3D(0,0,1));
 
-            return scannerPose.position + scannerOrientation * vectorScannerToPoint;
-#elsif
-            // This is short, but uses getOrientation(), which is expensive.
-            return QVector3D(
-                        scannerPose.position
-                        + scannerPose.getOrientation().rotatedVector(
-                            QVector3D(
-                                sin(-0.0043633231299858238686f * (scannerIndex - 540)) * distance,  // X in meters
-                                0.0,                                                                // Y always 0
-                                cos(-0.0043633231299858238686f * (scannerIndex - 540)) * distance   // Z in meters
-                                )
+        return scannerPose.position + scannerOrientation * vectorScannerToPoint;
+#else
+        // This is short, but uses getOrientation(), which is expensive.
+        return QVector3D(
+                    scannerPose.position
+                    + scannerPose.getOrientation().rotatedVector(
+                        QVector3D(
+                            sin(-0.0043633231299858238686f * (scannerIndex - 540)) * distance,  // X in meters
+                            0.0,                                                                // Y always 0
+                            cos(-0.0043633231299858238686f * (scannerIndex - 540)) * distance   // Z in meters
                             )
-                        );
+                        )
+                    );
 #endif
 
         /* Elaborate version, slightly slower?!

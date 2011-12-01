@@ -321,9 +321,9 @@ void SensorFuser::transformScanData()
                 mPointCloudSize++;
             }
 
-            if(mWriteLogs) slotLogScannedPoints(posesForThisScan[1]->position, scannedPoints);
+            if(mWriteLogs) slotLogScannedPoints(scannedPoints, posesForThisScan[2]->position);
 
-            emit newScannedPoints(posesForThisScan[1]->position, scannedPoints);
+            emit newScannedPoints(scannedPoints, posesForThisScan[2]->position);
 
             // This scan has been processed. Delete it.
             delete iteratorSavedScans.value();
@@ -333,7 +333,7 @@ void SensorFuser::transformScanData()
         {
             // We could NOT find enough poses for this scan. This may only happen if this scan is so new that the next poses required for interpolation haven't yet arrived.
             // Make sure that the last pose is not much later than this scan. If it is, we must have missed a pose for this scan, meaning we can delete it.
-            if(mPoses.last().timestamp - timestampMiddleOfScan > mMaximumTimeBetweenFusedPoseAndScanMsec + 10)
+            if(false && mPoses.last().timestamp - timestampMiddleOfScan > mMaximumTimeBetweenFusedPoseAndScanMsec + 10)
             {
                 qDebug() << "SensorFuser::transformScanData(): deleting scan data with gps timestamp" << timestampMiddleOfScan << "because the latest pose is MUCH later at" << mPoses.last().timestamp << "- so no new poses helping this scan.";
                 mStatsDiscardedScans++;
@@ -437,7 +437,7 @@ qint8 SensorFuser::matchTimestamps()
     return scansMatched;
 }
 
-void SensorFuser::slotLogScannedPoints(const QVector3D& vehiclePosition, const QVector<QVector3D>& points)
+void SensorFuser::slotLogScannedPoints(const QVector<QVector3D>& points, const QVector3D& vehiclePosition)
 {
     //qDebug() << "SensorFuser::logScannedPoints(): logging" << points.size() << "points.";
     QTextStream out(mLogFileGlobalPoints);
@@ -469,12 +469,6 @@ void SensorFuser::slotNewVehiclePose(const Pose& pose)
     mPoses.append(Pose(pose + mLaserScanner->getRelativePose()));
 
     mNewestDataTime = std::max(mNewestDataTime, pose.timestamp);
-
-    // Make sure the timestamp from the incoming pose has survived the mangling.
-    /*if(mSavedPoses.last().timestamp != pose.timestamp)
-        //qDebug() << "SensorFuser::slotNewVehiclePose(): setting SensorFuser pose, incoming t" << pose.timestamp
-                 << "mRelativePose t" << mRelativeScannerPose.timestamp
-                 << "resulting t" << mSavedPoses.last().timestamp;*/
 
     cleanUnusableData();
 

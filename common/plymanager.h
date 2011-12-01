@@ -7,6 +7,7 @@
 #include <QString>
 #include <QTextStream>
 #include <QDateTime>
+#include <QDebug>
 
 #ifdef BASESTATION
 #include <QWidget>
@@ -17,15 +18,17 @@
 //class FlightPlannerInterface;
 #endif
 
-#include <QDebug>
-
-
 class PlyManager : public QObject
 {
     Q_OBJECT
 
     enum IncludesNormals { NormalsIncluded, NormalsNotIncluded };
     enum IncludesDirection { DirectionIncluded, DirectionNotIncluded };
+
+    QFile* mFileRead;
+    QFile* mFileWrite;
+
+    quint32 mPointsWritten;
 
 private:
 #ifdef BASESTATION
@@ -36,7 +39,9 @@ private:
     static const QString createHeader(const quint32& vertexCount, const PlyManager::IncludesNormals& includesNormals = NormalsNotIncluded, const PlyManager::IncludesDirection& includesDirection = DirectionNotIncluded);
 
 public:
-    PlyManager();
+    enum DataDirection {DataRead, DataWrite};
+
+    PlyManager(const QString& fileName, const PlyManager::DataDirection&);
     ~PlyManager();
 
     // saves cloud from @points into @fileName
@@ -52,6 +57,10 @@ public:
     // loads cloud from @fileName into all the given @trees and @flightplanners
     static bool loadPly(QWidget* widget, const QList<Octree*>& trees, const QList<FlightPlannerInterface*>& flightPlanners, const QString &fileName);
 #endif
+
+public slots:
+    void slotNewPoints(const QVector<QVector3D>& points, const QVector3D& scanPosition);
+    void slotNewPoints(const QList<QVector3D>& points, const QVector3D& scanPosition);
 };
 
 #endif

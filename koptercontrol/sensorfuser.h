@@ -95,10 +95,10 @@ public:
     bool processLog(const QString& fileName);
 
 signals:
-    void newScannedPoints(const QVector3D& scanPosition, const QVector<QVector3D>&);
+    void newScannedPoints(const QVector<QVector3D>&, const QVector3D& scanPosition);
 
 private slots:
-    void slotLogScannedPoints(const QVector3D& vehiclePosition, const QVector<QVector3D>& points);
+    void slotLogScannedPoints(const QVector<QVector3D>& points, const QVector3D& vehiclePosition);
 
 public slots:
     // The pose also contains a timestamp (receiver-time) of when that pose was recorded.

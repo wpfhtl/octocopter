@@ -1,12 +1,90 @@
 #include "plymanager.h"
 
-PlyManager::PlyManager() : QObject()
+PlyManager::PlyManager(const QString& fileName, const PlyManager::DataDirection& direction) : QObject()
 {
-    qDebug() << "PlyManager::PlyManager()";
+    mFileWrite = 0;
+    mFileRead = 0;
+    mPointsWritten = 0;
+
+    if(direction == DataRead)
+    {
+        qDebug() << "PlyManager::PlyManager(): opening file" << fileName << "for reading data";
+        mFileRead = new QFile(fileName);
+        if(!mFileRead->open(QIODevice::ReadOnly | QIODevice::Text))
+            qFatal("PlyManager::PlyManager(): couldn't open file %s for reading, exiting.", qPrintable(mFileRead->fileName()));
+    }
+    else
+    {
+        qDebug() << "PlyManager::PlyManager(): opening file" << fileName << "for writing data";
+        mFileWrite = new QFile(fileName);
+        if(!mFileWrite->open(QIODevice::ReadWrite | QIODevice::Text))
+            qFatal("PlyManager::PlyManager(): couldn't open file %s for writing, exiting.", qPrintable(mFileWrite->fileName()));
+
+        // Create a ply-header in the file
+        QTextStream out(mFileWrite);
+        out << createHeader(0, PlyManager::NormalsNotIncluded, PlyManager::DirectionNotIncluded);
+    }
 }
 
 PlyManager::~PlyManager()
 {
+    if(mFileRead)
+    {
+        qDebug() << "PlyManager::~PlyManager(): closing file" << mFileRead->fileName();
+        mFileRead->close();
+        delete mFileRead;
+    }
+    if(mFileWrite)
+    {
+        qDebug() << "PlyManager::~PlyManager(): fixing vertex count in header of" << mFileWrite->fileName();
+        // fix "element vertex x" line in header
+        QTextStream stream(mFileWrite);
+        stream.seek(0);
+        while(!stream.atEnd())
+        {
+                    QString line = stream.readLine();
+                    if(line.contains("element vertex"))
+                    {
+                        stream.seek(stream.pos() - line.length() - 1);
+                        stream << QString("element vertex %1").arg(mPointsWritten, 7, 10, QChar(' ')) << endl;
+                        break;
+                    }
+        }
+        qDebug() << "PlyManager::~PlyManager(): done, closing file";
+
+        mFileWrite->flush();
+        mFileWrite->close();
+        delete mFileWrite;
+    }
+}
+
+void PlyManager::slotNewPoints(const QVector<QVector3D>& points, const QVector3D& scanPosition)
+{
+    Q_UNUSED(scanPosition);
+    Q_ASSERT(mFileWrite != 0 && mFileRead == 0 && "PlyManager::slotNewPoints(): fileWrite is 0 or fileRead is not 0");
+
+    QTextStream stream(mFileWrite);
+    stream.setRealNumberPrecision(3);
+    stream.setRealNumberNotation(QTextStream::FixedNotation);
+    for(int i = 0; i < points.size(); ++i)
+        stream << points.at(i).x() << " " << points.at(i).y() << " " << points.at(i).z() << endl;
+
+    mPointsWritten += points.size();
+}
+
+void PlyManager::slotNewPoints(const QList<QVector3D>& points, const QVector3D& scanPosition)
+{
+    Q_UNUSED(scanPosition);
+    Q_ASSERT(mFileWrite != 0 && mFileRead == 0 && "PlyManager::slotNewPoints(): fileWrite is 0 or fileRead is not 0");
+
+
+    QTextStream stream(mFileWrite);
+    stream.setRealNumberPrecision(3);
+    stream.setRealNumberNotation(QTextStream::FixedNotation);
+    for(int i = 0; i < points.size(); ++i)
+        stream << points.at(i).x() << " " << points.at(i).y() << " " << points.at(i).z() << endl;
+
+    mPointsWritten += points.size();
 }
 
 const QString PlyManager::createHeader(const quint32& vertexCount, const IncludesNormals& includesNormals, const IncludesDirection& includesDirection)
@@ -16,7 +94,7 @@ const QString PlyManager::createHeader(const quint32& vertexCount, const Include
     stream << QString("ply") << endl;
     stream << QString("format ascii 1.0") << endl;
     stream << QString("comment written by koptertools / ben adler on ").append(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")) << endl;
-    stream << QString("element vertex ").append(QString::number(vertexCount)) << endl;
+    stream << QString("element vertex %1").arg(vertexCount, 7, 10, QChar(' ')) << endl; // extra space for overwriting with bigger numbers later-on, meshlab doesn't mind.
     stream << QString("comment the coordinates of the point") << endl;
     stream << QString("property float x") << endl;
     stream << QString("property float y") << endl;
@@ -48,7 +126,7 @@ bool PlyManager::savePly(const QVector<QVector3D>& points, const QString &fileNa
         return false;
 
     QTextStream stream(&file);
-    stream.setRealNumberPrecision(6);
+    stream.setRealNumberPrecision(3);
     stream.setRealNumberNotation(QTextStream::FixedNotation);
 
     // write header
@@ -79,10 +157,6 @@ bool PlyManager::savePly(const QList<QVector3D>& points, const QString &fileName
         stream << point.x() << " " << point.y() << " " << point.z() << endl;
     }
 }
-
-
-
-
 
 #ifdef BASESTATION
 
