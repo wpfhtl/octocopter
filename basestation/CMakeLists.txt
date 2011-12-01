@@ -21,8 +21,8 @@ rtkfetcher
 controlwidget
 connectiondialog
 bulletdebugdrawergl
-plymanager
 voxelmanager
+../common/plymanager
 ../common/openglutilities
 ../common/lidarpoint
 ../common/waypoint
@@ -50,8 +50,8 @@ rtkfetcher.h
 controlwidget.h
 connectiondialog.h
 bulletdebugdrawergl.h
-plymanager.h
 voxelmanager.h
+../common/plymanager.h
 ../common/openglutilities.h
 ../common/lidarpoint.h
 ../common/waypoint.h

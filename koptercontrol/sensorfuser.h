@@ -11,6 +11,11 @@ class SensorFuser : public QObject
 private:
     quint32 mPointCloudSize;
 
+    bool mWriteLogs;
+
+    quint16 mStatsFusedScans;
+    quint16 mStatsDiscardedScans;
+
     QFile* mLogFileGlobalPoints;  // ply file format
     QFile* mLogFileRawData;  // poses, scans and timestamps
 
@@ -80,7 +85,7 @@ private:
     }
 
 public:
-    SensorFuser(LaserScanner* const laserScanner);
+    SensorFuser(LaserScanner* const laserScanner, const bool& writeLogs = true);
     ~SensorFuser();
 
     // SensorFuser writes logfiles of the raw incoming data. These files can be read later-on and fed

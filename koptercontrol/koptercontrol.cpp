@@ -149,6 +149,7 @@ KopterControl::~KopterControl()
     qDebug() << "KopterControl::~KopterControl(): shutting down, deleting objects.";
     delete mGpsDevice;
     delete mLaserScanner;
+    delete mSensorFuser;
     delete snSignalPipe;
 
     // Delete logfiles with a size of 0 (emtpty) or 100 (just ply header, no data)

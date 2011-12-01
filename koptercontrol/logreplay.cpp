@@ -213,6 +213,14 @@ int main(int argc, char **argv)
 
     const QStringList arguments = QCoreApplication::arguments();
 
+    qDebug() << sizeof(QVector3D);
+
+    printf("scanner::index2rad(): %.20g\n", LaserScanner::index2rad(720));
+    qDebug() << M_PI / 720.0;
+    qDebug() << 0.00436323 * (720 - 540);
+    qDebug() << (2.0 * M_PI) * (720 - 540 /*AFRT Area Front*/) / 1440.0 /*ARES Area Total*/;
+    qDebug() << "scanner" << LaserScanner::index2rad(720);
+
     if(arguments.size() != 2)
     {
         qDebug() << "main(): please specify a logfile for replaying sensor fusion as the only argument.";
@@ -233,12 +241,17 @@ int main(int argc, char **argv)
                     )
                 );
 
+
     // Otherwise, SensorFuser won't accept poses.
     mLaserScanner->slotEnableScanning(true);
 
-    SensorFuser* mSensorFuser = new SensorFuser(mLaserScanner);
+    SensorFuser* mSensorFuser = new SensorFuser(mLaserScanner, true);
 
     mSensorFuser->processLog(arguments.last());
+
+    delete mSensorFuser;
+
+    delete mLaserScanner;
 
     return 0;
 }

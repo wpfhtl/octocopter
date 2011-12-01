@@ -11,7 +11,7 @@
 */
 
 #include "ConditionVariable.h"
-
+#include <stddef.h>
 
 namespace qrk
 {

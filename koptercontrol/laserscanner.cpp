@@ -16,6 +16,10 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
 
     mOffsetTimeScannerToTow = 0;
 
+    mTimerScan = new QTimer(this);
+    mTimerScan->setInterval(mScanner.scanMsec());
+    connect(mTimerScan, SIGNAL(timeout()), SLOT(slotCaptureScanData()));
+
     if(mScanner.connect(mDeviceFileName.toAscii().constData()))
     {
         qDebug() << "LaserScanner::LaserScanner(): connecting to" << mDeviceFileName << "succeeded.";
@@ -28,9 +32,6 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
 
 //    mScanner.setCaptureMode(qrk::IntensityCapture);
 
-    mTimerScan = new QTimer(this);
-    mTimerScan->setInterval(mScanner.scanMsec());
-    connect(mTimerScan, SIGNAL(timeout()), SLOT(slotCaptureScanData()));
 }
 
 LaserScanner::~LaserScanner()
@@ -102,8 +103,8 @@ void LaserScanner::slotEnableScanning(const bool& value)
 {
     if(mOffsetTimeScannerToTow == 0)
     {
-        qDebug() << "LaserScanner::slotEnableScanning(): scannertime still unset, will not enable scanning.";
-        return;
+        qDebug() << "LaserScanner::slotEnableScanning(): scannertime still unset, should not enable scanning.";
+        // disable for logreplay: return;
     }
 
     if(mIsEnabled != value)

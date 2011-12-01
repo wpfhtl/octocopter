@@ -99,10 +99,11 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
 //    const float t2 = after->timestamp - first->timestamp;
 //    const float t3 = before->timestamp;
 
+    // too expensive.
 //    const float timestamp = t0*mu*mu2+t1*mu2+t2*mu+t3;
-    const float timestamp = before->timestamp + mu * (after->timestamp - before->timestamp);
+//    const qint32 timestamp = before->timestamp + (qint32)(mu * ((float)(after->timestamp - before->timestamp)));
 
-    return Pose(resultPosition, RAD2DEG(yaw), RAD2DEG(pitch), RAD2DEG(roll), timestamp);
+    return Pose(resultPosition, RAD2DEG(yaw), RAD2DEG(pitch), RAD2DEG(roll), 0);
 }
 
 Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before, const Pose * const after, const Pose * const last, const qint32& time)
@@ -117,10 +118,9 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
     Q_ASSERT(last->timestamp > after->timestamp && "Pose::interpolateCubic(): last > after didn't pass");
 
     // recreate mu from time argument
-    const float mu = (time - before->timestamp) / (after->timestamp - before->timestamp);
+    const float mu = (((float)(time - before->timestamp)) / ((float)(after->timestamp - before->timestamp)));
     Pose p = interpolateCubic(first, before, after, last, mu);
-
-    if(p.timestamp != time) qDebug() << "Pose::interpolateCubic(): warning: incoming time is" << time << "interpolated-pose-time is" << p.timestamp;
+    p.timestamp = time;
     return p;
 }
 

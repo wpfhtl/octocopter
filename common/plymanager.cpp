@@ -2,54 +2,142 @@
 
 PlyManager::PlyManager() : QObject()
 {
-    qDebug() << "CloudExporter::CloudExporter()";
+    qDebug() << "PlyManager::PlyManager()";
 }
 
 PlyManager::~PlyManager()
 {
 }
 
-bool PlyManager::savePly(QWidget* widget, const Octree* tree, const QString &fileName)
+const QString PlyManager::createHeader(const quint32& vertexCount, const IncludesNormals& includesNormals, const IncludesDirection& includesDirection)
 {
-        QFile file(fileName);
-        if(!file.open(QFile::WriteOnly | QFile::Truncate))
-                return false;
+    QString header;
+    QTextStream stream(&header);
+    stream << QString("ply") << endl;
+    stream << QString("format ascii 1.0") << endl;
+    stream << QString("comment written by koptertools / ben adler on ").append(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")) << endl;
+    stream << QString("element vertex ").append(QString::number(vertexCount)) << endl;
+    stream << QString("comment the coordinates of the point") << endl;
+    stream << QString("property float x") << endl;
+    stream << QString("property float y") << endl;
+    stream << QString("property float z") << endl;
 
-        QTextStream stream(&file);
-        stream.setRealNumberPrecision(6);
-        stream.setRealNumberNotation(QTextStream::FixedNotation);
-
-        QProgressDialog progress("Saving cloud...", "Cancel", 0, tree->getNumberOfItems(), widget);
-        progress.setWindowModality(Qt::WindowModal);
-
-        // write header
-        stream << QString("ply") << endl;
-        stream << QString("format ascii 1.0") << endl;
-        stream << QString("comment written by triangulator / ben adler on ").append(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")) << endl;
-        stream << QString("element vertex ").append(QString::number(tree->getNumberOfItems())) << endl;
-        stream << QString("comment the coordinates of the point") << endl;
-        stream << QString("property float x") << endl;
-        stream << QString("property float y") << endl;
-        stream << QString("property float z") << endl;
+    if(includesNormals == NormalsIncluded)
+    {
         stream << QString("comment the normalized vector back to the laserscanner") << endl;
         stream << QString("property float nx") << endl;
         stream << QString("property float ny") << endl;
         stream << QString("property float nz") << endl;
+    }
+
+    if(includesDirection == DirectionIncluded)
+    {
         stream << QString("comment squared distance") << endl;
         stream << QString("property float sqdist") << endl;
-        stream << QString("end_header") << endl;
+    }
 
-        if(savePly(tree->root(), &stream, &progress))
-        {
-            file.close();
-            return true;
-        }
-        else
-        {
-            file.close();
-            file.remove();
-            return false;
-        }
+    stream << QString("end_header") << endl;
+
+    return header;
+}
+
+bool PlyManager::savePly(const QVector<QVector3D>& points, const QString &fileName)
+{
+    QFile file(fileName);
+    if(!file.open(QFile::WriteOnly | QFile::Truncate))
+        return false;
+
+    QTextStream stream(&file);
+    stream.setRealNumberPrecision(6);
+    stream.setRealNumberNotation(QTextStream::FixedNotation);
+
+    // write header
+    stream << createHeader(points.size(), PlyManager::NormalsNotIncluded, PlyManager::DirectionNotIncluded);
+
+    foreach(const QVector3D& point, points)
+    {
+        stream << point.x() << " " << point.y() << " " << point.z() << endl;
+    }
+}
+
+
+bool PlyManager::savePly(const QList<QVector3D>& points, const QString &fileName)
+{
+    QFile file(fileName);
+    if(!file.open(QFile::WriteOnly | QFile::Truncate))
+        return false;
+
+    QTextStream stream(&file);
+    stream.setRealNumberPrecision(6);
+    stream.setRealNumberNotation(QTextStream::FixedNotation);
+
+    // write header
+    stream << createHeader(points.size(), PlyManager::NormalsNotIncluded, PlyManager::DirectionNotIncluded);
+
+    foreach(const QVector3D& point, points)
+    {
+        stream << point.x() << " " << point.y() << " " << point.z() << endl;
+    }
+}
+
+
+
+
+
+#ifdef BASESTATION
+
+bool PlyManager::savePly(const QVector<LidarPoint>& points, const QString &fileName)
+{
+    QFile file(fileName);
+    if(!file.open(QFile::WriteOnly | QFile::Truncate))
+        return false;
+
+    QTextStream stream(&file);
+    stream.setRealNumberPrecision(6);
+    stream.setRealNumberNotation(QTextStream::FixedNotation);
+
+    // write header
+    stream << createHeader(tree->getNumberOfItems(), PlyManager::NormalsIncluded, PlyManager::DirectionIncluded);
+
+    foreach(const LidarPoint& point, points)
+    {
+        const QVector3D normal = point.direction.normalized();
+
+        stream << point.position.x() << " " << point.position.y() << " " << point.position.z() << " ";
+        stream << normal.x() << " " << normal.y() << " " << normal.z() << " ";
+        stream << point.distance;
+        stream << endl;
+    }
+}
+
+
+bool PlyManager::savePly(QWidget* widget, const Octree* tree, const QString &fileName)
+{
+    QFile file(fileName);
+    if(!file.open(QFile::WriteOnly | QFile::Truncate))
+        return false;
+
+    QTextStream stream(&file);
+    stream.setRealNumberPrecision(6);
+    stream.setRealNumberNotation(QTextStream::FixedNotation);
+
+    QProgressDialog progress("Saving cloud...", "Cancel", 0, tree->getNumberOfItems(), widget);
+    progress.setWindowModality(Qt::WindowModal);
+
+    // write header
+    stream << createHeader(tree->getNumberOfItems(), NormalsIncluded, DirectionIncluded);
+
+    if(savePly(tree->root(), &stream, &progress))
+    {
+        file.close();
+        return true;
+    }
+    else
+    {
+        file.close();
+        file.remove();
+        return false;
+    }
 
 }
 
@@ -180,3 +268,5 @@ bool PlyManager::loadPly(QWidget* widget, const QList<Octree*>& trees, const QLi
         lineNumber++;
     }
 }
+
+#endif

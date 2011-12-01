@@ -14,7 +14,7 @@
 #include "gpsdevice.h"
 #include "sensorfuser.h"
 #include "laserscanner.h"
-#include "visualodometry.h"
+//#include "visualodometry.h"
 #include "baseconnection.h"
 #include "flightcontroller.h"
 
@@ -43,7 +43,7 @@ private:
     GpsDevice *mGpsDevice;
     LaserScanner *mLaserScanner;
     BaseConnection *mBaseConnection;
-    VisualOdometry* mVisualOdometry;
+//    VisualOdometry* mVisualOdometry;
 
     QSocketNotifier *snSignalPipe;
 

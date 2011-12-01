@@ -4,6 +4,8 @@
 CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
 PROJECT(koptercontrol)
 
+# Starting with gcc-4.6, we might need "-Wl,--no-as-needed in CMAKE_CXX_FLAGS"
+
 cmake_policy(SET CMP0015 NEW)
 
 FIND_PACKAGE(SDL REQUIRED)
@@ -55,6 +57,7 @@ camera
 sensorfuser
 ../common/flightcontroller
 ../common/common
+../common/plymanager
 ../common/pose
 ../common/waypoint
 ../common/lidarpoint
@@ -73,6 +76,7 @@ camera.h
 sensorfuser.h
 ../common/flightcontroller.h
 ../common/common.h
+../common/plymanager.h
 ../common/pose.h
 ../common/waypoint.h
 ../common/lidarpoint.h

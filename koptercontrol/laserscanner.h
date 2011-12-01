@@ -47,12 +47,14 @@ public:
     {
         // Determine vector from LaserScanner to scanned point, using the normal OpenGl coordinate system as seen from scanner,
         // +x is right, -x is left, y is always 0, +z is back, -z is front,
+        // We could use the UrgCtrl::index2rad(), but this seems a bit more optimized
         const QVector3D vectorScannerToPoint(
-                    sin(-mScanner.index2rad(scannerIndex)) * distance,  // X in meters
+                    sin(-index2rad(scannerIndex)) * distance,  // X in meters
                     0.0,                                                // Y always 0
-                    cos(-mScanner.index2rad(scannerIndex)) * distance); // Z in meters, zero when pointing forward.
+                    cos(-index2rad(scannerIndex)) * distance); // Z in meters, zero when pointing forward.
 
         // Create a scanpoint
+        // TODO: Pose::getOrientation() is computationally expensive. Can we optimize this?
         const QVector3D scannedPoint(scannerPose.position + scannerPose.getOrientation().rotatedVector(vectorScannerToPoint));
 
     //    qDebug() << "LaserScanner::getWorldPositionOfScannedPoint(): interpolated scanner pose is" << scannerPose;
@@ -63,9 +65,23 @@ public:
         return scannedPoint;
     }
 
+    // This is the static version of index2rad, valid only for UTM 30 LX.
+    static inline float index2rad(int index)
+    {
+        // Algorithm is: return (2.0 * M_PI) * (index - 540 /*AFRT Area Front*/) / 1440 /*ARES Area Total*/;
+
+        // The correct result for index 720 seems to be   0.785398163397448296348
+
+        // When returning double, result for index 720 is 0.785398163397448279   (error 0.000000000000000017348 = 2E-17)
+        //return 0.0043633231299858238686 * (index - 540);
+
+        // When returning float , result for index 720 is 0.78539818525314331055 (error 0.000000021855695014202 = 2E-8)
+        return 0.0043633231299858238686f * (index - 540);
+    }
+
 public slots:
     void slotEnableScanning(const bool& = true);
-    
+
     // To set the laserscanner's timestamp to the gps time. Hopefully.
     void slotSetScannerTimeStamp(const quint32& timestamp);
 
@@ -77,8 +93,6 @@ signals:
 
     // Emits new scan data, allocated on heap. Ownership is passed to receiver(s).
     void newScanData(quint32 timestampScanner, std::vector<long> * const distances);
-
-
 };
 
 #endif

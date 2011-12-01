@@ -11,6 +11,7 @@
 */
 
 #include <memory>
+#include <stddef.h>
 
 
 namespace qrk
