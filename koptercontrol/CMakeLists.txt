@@ -5,6 +5,7 @@ CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
 PROJECT(koptercontrol)
 
 # Starting with gcc-4.6, we might need "-Wl,--no-as-needed in CMAKE_CXX_FLAGS"
+SET(CMAKE_CXX_FLAGS "-Wl,--no-as-needed")
 
 cmake_policy(SET CMP0015 NEW)
 
@@ -16,7 +17,7 @@ SET(QT_USE_QTNETWORK 1)
 INCLUDE(${QT_USE_FILE})
 
 SET(CMAKE_DEBUG_POSTFIX "_d")
-SET(CMAKE_BUILD_TYPE "Debug")
+#SET(CMAKE_BUILD_TYPE "Debug")
 
 SET(URG_LIBRARIES
     urg_connection

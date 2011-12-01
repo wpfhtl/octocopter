@@ -2,6 +2,7 @@
 #define LASERSCANNER_H
 
 #include <QtCore>
+#include <QMatrix4x4>
 #include <urg/UrgCtrl.h>
 #include <pose.h>
 
@@ -43,18 +44,49 @@ public:
     inline quint8 getScanDuration() {return 25;} const
 
     // This is defined in header to make it inlineable
-    inline QVector3D getWorldPositionOfScannedPoint(const Pose& scannerPose, const quint16& scannerIndex, const float& distance) const
+    inline static QVector3D getWorldPositionOfScannedPoint(const Pose& scannerPose, const quint16& scannerIndex, const float& distance)
     {
+#ifdef false
+            // Version using QMatrix4x4
+            const QVector3D vectorScannerToPoint(
+                        sin(-0.0043633231299858238686f * (scannerIndex - 540)) * distance,  // X in meters
+                        0.0,                                                                // Y always 0
+                        cos(-0.0043633231299858238686f * (scannerIndex - 540)) * distance); // Z in meters
+
+            QMatrix4x4 scannerOrientation;
+            scannerOrientation.rotate(scannerPose.getYawDegrees(), QVector3D(0,1,0));
+            scannerOrientation.rotate(scannerPose.getPitchDegrees(), QVector3D(1,0,0));
+            scannerOrientation.rotate(scannerPose.getRollDegrees(), QVector3D(0,0,1));
+
+            return scannerPose.position + scannerOrientation * vectorScannerToPoint;
+#elsif
+            // This is short, but uses getOrientation(), which is expensive.
+            return QVector3D(
+                        scannerPose.position
+                        + scannerPose.getOrientation().rotatedVector(
+                            QVector3D(
+                                sin(-0.0043633231299858238686f * (scannerIndex - 540)) * distance,  // X in meters
+                                0.0,                                                                // Y always 0
+                                cos(-0.0043633231299858238686f * (scannerIndex - 540)) * distance   // Z in meters
+                                )
+                            )
+                        );
+#endif
+
+        /* Elaborate version, slightly slower?!
+
         // Determine vector from LaserScanner to scanned point, using the normal OpenGl coordinate system as seen from scanner,
         // +x is right, -x is left, y is always 0, +z is back, -z is front,
         // We could use the UrgCtrl::index2rad(), but this seems a bit more optimized
         const QVector3D vectorScannerToPoint(
                     sin(-index2rad(scannerIndex)) * distance,  // X in meters
                     0.0,                                                // Y always 0
-                    cos(-index2rad(scannerIndex)) * distance); // Z in meters, zero when pointing forward.
+                    cos(-index2rad(scannerIndex)) * distance); // Z in meters
+
+        // Or, even more optimized, as we cannot rely on gcc actually inlining what it marked as inline
+
 
         // Create a scanpoint
-        // TODO: Pose::getOrientation() is computationally expensive. Can we optimize this?
         const QVector3D scannedPoint(scannerPose.position + scannerPose.getOrientation().rotatedVector(vectorScannerToPoint));
 
     //    qDebug() << "LaserScanner::getWorldPositionOfScannedPoint(): interpolated scanner pose is" << scannerPose;
@@ -63,12 +95,14 @@ public:
     //    qDebug() << "LaserScanner::getWorldPositionOfScannedPoint(): point position   in world   frame is" << scannedPoint;
 
         return scannedPoint;
+        */
     }
-
+/*
     // This is the static version of index2rad, valid only for UTM 30 LX.
     static inline float index2rad(int index)
     {
-        // Algorithm is: return (2.0 * M_PI) * (index - 540 /*AFRT Area Front*/) / 1440 /*ARES Area Total*/;
+        // Algorithm is: return (2.0 * M_PI) * (index - 540) / 1440;
+        // Where 540 is ray-index of front rray AFRT in SCIP protocol) and 1440 is number of rays in 360° (ARES in SCIP protocol)
 
         // The correct result for index 720 seems to be   0.785398163397448296348
 
@@ -78,6 +112,7 @@ public:
         // When returning float , result for index 720 is 0.78539818525314331055 (error 0.000000021855695014202 = 2E-8)
         return 0.0043633231299858238686f * (index - 540);
     }
+*/
 
 public slots:
     void slotEnableScanning(const bool& = true);

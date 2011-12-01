@@ -67,6 +67,7 @@ SensorFuser::~SensorFuser()
     }
 
     qDebug() << "SensorFuser::~SensorFuser(): total scans:"  << mStatsFusedScans + mStatsDiscardedScans << "fused:" << mStatsFusedScans << "discarded:"<< mStatsDiscardedScans;
+    qDebug() << "SensorFuser::~SensorFuser(): leftover scanScanner:"  << mScansTimestampScanner.size() << "scanGps:" << mScansTimestampGps.size() << "poses:"<< mPoses.size();
 }
 
 void SensorFuser::cleanUnusableData()
@@ -151,6 +152,10 @@ void SensorFuser::cleanUnusableData()
         if(numRemoved != 1) qDebug() << "SensorFuser::cleanUnusableData(): couldn't remove gps scan from" << mScansTimestampGps.constBegin().key() << ", removed" << numRemoved;
     }
 
+
+
+
+
     // This aproach is more brute-force: delete all data X milliseconds older than the newest data
     const qint32 maxAge = 400;
     const qint32 minimumDataTimeToSurvive = mNewestDataTime - maxAge;
@@ -224,20 +229,17 @@ void SensorFuser::transformScanData()
         QList<Pose*> posesForThisScan;
         for(int j = 0; j < mPoses.size(); ++j)
         {
-            /* unnecessarily complex:
-            // Use poses that are 1) before rayStart and were 2) less than mMaximumTimeBetweenFusedPoseAndScanMsec before rayStart
-            if(rayStart - mPoses.at(j).timestamp > 0 && rayStart - mPoses.at(j).timestamp < mMaximumTimeBetweenFusedPoseAndScanMsec)
-                posesForThisScan.append(&mPoses[j]);
-            // Use poses that are 1) after rayEnd and were 2) less than mMaximumTimeBetweenFusedPoseAndScanMsec after rayEnd
-            else if(mPoses.at(j).timestamp - rayEnd > 0 && mPoses.at(j).timestamp - rayEnd < mMaximumTimeBetweenFusedPoseAndScanMsec)
-                posesForThisScan.append(&mPoses[j]);
-                */
-
 //            //qDebug() << "SensorFuser::transformScanData(): timediff between gpsscan" << timestampMiddleOfScan << "and pose" << j << "is" << abs(timestampMiddleOfScan - mPoses.at(j).timestamp);
             if(abs(timestampMiddleOfScan - mPoses.at(j).timestamp) < mMaximumTimeBetweenFusedPoseAndScanMsec + 12)
             {
 //                //qDebug() << "SensorFuser::transformScanData(): using pose from" << mPoses[j].timestamp << "for scan from" << timestampMiddleOfScan;
                 posesForThisScan.append(&mPoses[j]);
+            }
+            // Quit looking for newer poses if we're already looking at poses much newer (bigger timestamp) than this scan.
+            else if(mPoses.at(j).timestamp - mMaximumTimeBetweenFusedPoseAndScanMsec - 12 > timestampMiddleOfScan)
+            {
+//                qDebug() << "SensorFuser::transformScanData(): current pose" << j << "of" << mPoses.size() << "from" << mPoses[j].timestamp << "has much bigger timestamp than scan from" << timestampMiddleOfScan << "-> stopping search.";
+                break;
             }
 
             // There's no scenario where we could use 6 poses for interpolation, so skip trying to look for more.
@@ -245,8 +247,8 @@ void SensorFuser::transformScanData()
         }
 
         // For debugging, show which poses could be found:
-        QStringList poseTimes;
-        for(int i=0;i<posesForThisScan.size();i++) poseTimes << QString::number((uint)posesForThisScan.at(i)->timestamp);
+        //QStringList poseTimes;
+        //for(int i=0;i<posesForThisScan.size();i++) poseTimes << QString::number((uint)posesForThisScan.at(i)->timestamp);
         //qDebug() << "SensorFuser::transformScanData(): for scan from" << timestampMiddleOfScan << "we have" << posesForThisScan.size() << "poses from" << poseTimes.join(",");
 
         // We found enough poses if we found at least 4 poses and:
@@ -283,7 +285,8 @@ void SensorFuser::transformScanData()
 //                for(int i=0;i<posesForThisScan.size();i++) poseTimes << QString::number((uint)posesForThisScan.at(i)->timestamp);
 //                //qDebug() << "SensorFuser::transformScanData(): scanmiddle at" << timestampMiddleOfScan << "ray-index is" << index << "raytime is" << timeOfCurrentRay<< "posetimes:" << poseTimes.join(",");
 
-                // Many consecutive rays share the same millisecond, so we only need to interpolate a new pose if that ray's millisecond has changed.
+                // Many consecutive rays share the same millisecond, so we only need to interpolate a new pose if
+                // that ray's millisecond has changed. Pose::interpolateCubic() seems runtime-cheap anyway.
                 if(mLastRayTime != timeOfCurrentRay)
                 {
                     // Now figure out which poses are needed for this ray
@@ -428,7 +431,7 @@ qint8 SensorFuser::matchTimestamps()
 
     // TODO: iterate mSavedScansTimestampScanner and find really old data to delete. This data shouldn't exist,
     // because every scan must have caused a SBF-packet creating an entry in the GPS list
-    Q_ASSERT(mScansTimestampScanner.size() < 200);
+//    Q_ASSERT(mScansTimestampScanner.size() < 200);
 
     //qDebug() << "SensorFuser::matchTimestamps(): gps scans: matched" << scansMatched << "unmatched" << scansUnmatched << "total" << mScansTimestampGps.size();
     return scansMatched;
@@ -464,8 +467,6 @@ void SensorFuser::slotNewVehiclePose(const Pose& pose)
 
     // Append pose to our list
     mPoses.append(Pose(pose + mLaserScanner->getRelativePose()));
-
-    Q_ASSERT(mPoses.last().timestamp == pose.timestamp && "mangled pose timestamp is off.");
 
     mNewestDataTime = std::max(mNewestDataTime, pose.timestamp);
 
