@@ -1,69 +1,33 @@
 #include "sensorfuser.h"
 
-SensorFuser::SensorFuser(LaserScanner* const laserScanner, const bool& writeLogs) : QObject(), mLaserScanner(laserScanner)
+SensorFuser::SensorFuser(LaserScanner* const laserScanner, const bool& writeSensorLog) : QObject(), mLaserScanner(laserScanner)
 {
     mPointCloudSize = 0;
     mNewestDataTime = 0;
     mStatsFusedScans = 0;
     mStatsDiscardedScans = 0;
     mLastRayTime = -1000; // make sure first comparision fails
-    mWriteLogs = writeLogs;
+    mWriteSensorLog = writeSensorLog;
     mMaximumTimeBetweenFusedPoseAndScanMsec = 101; // 2*poseInterval+1
     mMaximumTimeBetweenMatchingScans = 12; // msecs maximum clock offset between scanner and gps device. Smaller means less data, moremeans worse data. Yes, we're screwed.
 
-    if(mWriteLogs)
+    if(mWriteSensorLog)
     {
         mLogFileRawData = new QFile(QString("scannerdata-raw-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
         if(!mLogFileRawData->open(QIODevice::WriteOnly | QIODevice::Text))
             qFatal("SensorFuser::SensorFuser(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFileRawData->fileName()));
-
-        mLogFileGlobalPoints = new QFile(QString("scannerdata-fused-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
-        if(!mLogFileGlobalPoints->open(QIODevice::ReadWrite | QIODevice::Text))
-            qFatal("SensorFuser::SensorFuser(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFileGlobalPoints->fileName()));
     }
 }
 
 SensorFuser::~SensorFuser()
 {
-    if(mWriteLogs)
+    if(mWriteSensorLog)
     {
         // We won't gather any new data, close raw logfile
         mLogFileRawData->close();
 
         // deleteLater() doesn't help, because the event-loop won't run again.
         delete mLogFileRawData;
-
-        // Seems file is zero-sized and thus not processed?!
-        mLogFileGlobalPoints->flush();
-
-        // If we have global data, write a new file in PLY format
-        if(mLogFileGlobalPoints->size())
-        {
-            QFile logFileDataPly(QString("pointcloud-%1-%2.ply").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
-            if(!logFileDataPly.open(QIODevice::WriteOnly | QIODevice::Text))
-                qFatal("SensorFuser::~SensorFuser(): Couldn't open logfile %s for writing, exiting.", qPrintable(logFileDataPly.fileName()));
-
-            // Create ply header, "element vertex" requires count argument
-            logFileDataPly.write(QString("ply\nformat ascii 1.0\nelement vertex %1\nproperty float x\nproperty float y\nproperty float z\nend_header\n").arg(mPointCloudSize).toAscii());
-
-            // Read the processed scanned points, then write ply file
-            // Seek to the file's beginning before reading it
-            //qDebug() << "SensorFuser::~SensorFuser(): writing pointcloud file of about" << ((mPointCloudSize*24.5f)/1000000.0f) << "mb, this might take some time...";
-            mLogFileGlobalPoints->reset();
-            while (!mLogFileGlobalPoints->atEnd())
-            {
-                const QByteArray line = mLogFileGlobalPoints->readLine();
-                if(!line.contains("extevent") && !line.contains("scannerdata") && !line.contains("pointcloud"))
-                    logFileDataPly.write(line);
-            }
-
-            logFileDataPly.close();
-            //qDebug() << "SensorFuser::~SensorFuser(): done writing ply file.";
-        }
-
-        // Close global-point logfile
-        mLogFileGlobalPoints->close();
-        delete mLogFileGlobalPoints;
     }
 
     qDebug() << "SensorFuser::~SensorFuser(): total scans:"  << mStatsFusedScans + mStatsDiscardedScans << "fused:" << mStatsFusedScans << "discarded:"<< mStatsDiscardedScans;
@@ -321,8 +285,6 @@ void SensorFuser::transformScanData()
                 mPointCloudSize++;
             }
 
-            if(mWriteLogs) slotLogScannedPoints(scannedPoints, posesForThisScan[2]->position);
-
             emit newScannedPoints(scannedPoints, posesForThisScan[2]->position);
 
             // This scan has been processed. Delete it.
@@ -437,22 +399,11 @@ qint8 SensorFuser::matchTimestamps()
     return scansMatched;
 }
 
-void SensorFuser::slotLogScannedPoints(const QVector<QVector3D>& points, const QVector3D& vehiclePosition)
-{
-    //qDebug() << "SensorFuser::logScannedPoints(): logging" << points.size() << "points.";
-    QTextStream out(mLogFileGlobalPoints);
-    out << "pointcloud: " << points.size() << " points scanned from world pos: " << vehiclePosition.x() << " " << vehiclePosition.y() << " " << vehiclePosition.z() << "\n";
-
-    for(int i = 0; i < points.size(); ++i)
-        out << points.at(i).x() << " " << points.at(i).y() << " " << points.at(i).z() << endl;
-}
-
-
 void SensorFuser::slotNewVehiclePose(const Pose& pose)
 {
     //qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a pose" << pose;
 
-    if(mWriteLogs)
+    if(mWriteSensorLog)
     {
         // Always write pose to logfile
         QTextStream out(mLogFileRawData);
@@ -481,7 +432,7 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
 {
     //qDebug() << t() << "SensorFuser::slotScanFinished(): gps says scanner finished a scan at time" << timestampScanGps;
 
-    if(mWriteLogs)
+    if(mWriteSensorLog)
     {
         // Log this event to file
         QTextStream(mLogFileRawData) << "extevent: " << timestampScanGps << endl;
@@ -511,7 +462,7 @@ void SensorFuser::slotNewScanData(const quint32& timestampScanScanner, std::vect
 {
     //qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
 
-    if(mWriteLogs)
+    if(mWriteSensorLog)
     {
         // Always write log data for later replay: scannerdata:[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
         QTextStream out(mLogFileRawData);
@@ -534,70 +485,4 @@ void SensorFuser::slotNewScanData(const quint32& timestampScanScanner, std::vect
     mNewestDataTime = std::max((unsigned int)mNewestDataTime, timestampScanScanner);
 
     cleanUnusableData();
-}
-
-bool SensorFuser::processLogLine(const QString& line)
-{
-    if(line.contains("scannerdata"))
-    {
-        const QStringList tokens = line.split(' ');
-        bool success = false;
-        const qint32 timestamp = tokens.at(1).toInt(&success);
-        if(!success) {qDebug() << "SensorFuser::processLogLine(): couldn't parse scannerdata-timestamp."; return false;}
-
-        std::vector<long>* data = new std::vector<long>;
-        for(int i=2;i<tokens.size();i++)
-        {
-            data->push_back(tokens.at(i).toInt(&success));
-            if(!success) {qDebug() << "SensorFuser::processLogLine(): couldn't parse scannerdata-distance at index" << i; return false;}
-        }
-
-        slotNewScanData(timestamp, data);
-    }
-    else if(line.contains("extevent"))
-    {
-        bool success = false;
-        slotScanFinished(line.split(' ').at(1).toInt(&success));
-        if(!success) {qDebug() << "SensorFuser::processLogLine(): couldn't parse extevent"; return false;}
-    }
-    else if(line.contains("pose"))
-    {
-        slotNewVehiclePose(Pose(line));
-    }
-    else
-    {
-        qDebug() << "SensorFuser::processLogLine(): couldn't parse line" << line;
-        return false;
-    }
-
-    return true;
-}
-
-bool SensorFuser::processLog(const QString& fileName)
-{
-    QTime startTime;
-    startTime.start();
-
-    QFile file(fileName);
-    if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
-    {
-        qDebug() << "SensorFuser::processLog(): cannot open file" << fileName << "for reading.";
-        return false;
-    }
-
-    quint32 lineNumber = 0;
-    QTextStream in(&file);
-    while (!in.atEnd())
-    {
-        const QString line = in.readLine();
-        if(!processLogLine(line))
-        {
-            qDebug() << "SensorFuser::processLog(): trouble parsing" << fileName << "line" << lineNumber << ":" << line;
-            return false;
-        }
-        lineNumber++;
-    }
-
-    qDebug() << "SensorFuser::processLog(): processing time was" << startTime.elapsed() << "msecs.";
-    return true;
 }

@@ -612,31 +612,14 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
                     && block->Pitch != -32768
                     && block->Roll != -32768
                     && block->TOW != 4294967295
-                    /*&& block->Mode == 2 // integrated solution, not sensor-only or gnss-only*/
-                    /*&& (block->GNSSPVTMode & 15) == 4 // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().*/
+                    && block->Mode == 2 // integrated solution, not sensor-only or gnss-only*/
+                    && (block->GNSSPVTMode & 15) == 4 // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().*/
                     && block->GNSSage < 100 // 100 * 0.01 sec interval of no GNSS PVT
                     )
             {
-                // TODO: we COULD read the sub-cm part, too...
-                const float  lon = ((float)block->Lon) / 10000000.0f;
-                const float  lat = ((float)block->Lat) / 10000000.0f;
-                const float  alt = ((float)block->Alt) / 1000.0f;
-
-                Pose p(
-                            convertGeodeticToCartesian(lon, lat, alt),
-                            ((float)block->Heading) * 0.01f,
-                            ((float)block->Pitch) * 0.01f,
-                            ((float)block->Roll) * 0.01f,
-                            block->TOW // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
-                            );
-
-//                qDebug() << "GpsDevice::processSbfData(): new" << p;
-
-                emit newVehiclePose(p);
-
+                setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
+                emit newVehiclePosePrecise(mLastPose);
                 mPoseClockDivisor++;
-                if(mPoseClockDivisor % 20 == 0) emit newVehiclePoseLowFreq(p);
-
             }
             else if(block->Error != 0)
             {
@@ -649,10 +632,16 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
             else if(block->Mode != 2)
             {
                 qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, not integrated solution mode 2, but" << block->Mode;
+                setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
+                emit newVehiclePose(mLastPose);
+                mPoseClockDivisor++;
             }
             else if((block->GNSSPVTMode & 15) != 4)
             {
                 qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, not RTKFixed but" << (block->GNSSPVTMode & 15);
+                setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
+                emit newVehiclePose(mLastPose);
+                mPoseClockDivisor++;
             }
             else if(block->GNSSage > 99)
             {
@@ -662,6 +651,8 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
             {
                 qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, do-not-use values found.";
             }
+
+            if(mPoseClockDivisor % 20 == 0) emit newVehiclePoseLowFreq(mLastPose);
 
 //            qDebug() << "SBF: IntAttEuler: Info" << block->Info << "Mode" << block->Mode << "Error" << block->Error << "TOW" << block->TOW << "WNc" << block->WNc << "HPR:" << block->Heading << block->Pitch << block->Roll;;
 //            qDebug() << "Info" << block->Info << "Mode" << block->Mode << "Error" << block->Error << "HPR:" << block->Heading << block->Pitch << block->Roll;;
@@ -787,7 +778,21 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
     }
 
 //    if(receiveBuffer.size()) qDebug() << "GpsDevice::processSbfData(): done processing SBF data, bytes left in buffer:" << receiveBuffer.size() << "bytes:" << receiveBuffer;
+}
 
+void GpsDevice::setPose(const qint32& lon, const qint32& lat, const qint32& alt, const quint16& heading, const qint16& pitch, const qint16& roll, const quint32& tow)
+{
+    const float  floatLon = ((float)lon) / 10000000.0l;
+    const float  floatLat = ((float)lat) / 10000000.0l;
+    const float  floatAlt = ((float)alt) / 1000.0l;
+
+    mLastPose = Pose(
+                convertGeodeticToCartesian(floatLon, floatLat, floatAlt),
+                ((float)heading) * 0.01l,
+                ((float)pitch) * 0.01l,
+                ((float)roll) * 0.01l,
+                (qint32)tow // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
+                );
 }
 
 void GpsDevice::slotSetRtkData(const QByteArray &data)
@@ -824,8 +829,8 @@ QVector3D GpsDevice::convertGeodeticToCartesian(const double &lon, const double 
 {
     QVector3D co;
     co.setY(elevation);
-    co.setZ(-(lat - 53.600669) * 111300.0);
-    co.setX((lon - 9.933817l) * 111300.0l * cos(M_PI / 180.0 * 53.600669l));
+    co.setZ(-(lat - 53.600515) * 111300.0);
+    co.setX((lon -  09.931478l) * 111300.0l * cos(M_PI / 180.0 * 53.600669l));
 
     return co;
 }

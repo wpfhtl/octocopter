@@ -11,13 +11,12 @@ class SensorFuser : public QObject
 private:
     quint32 mPointCloudSize;
 
-    bool mWriteLogs;
+    bool mWriteSensorLog;
 
     quint16 mStatsFusedScans;
     quint16 mStatsDiscardedScans;
 
-    QFile* mLogFileGlobalPoints;  // ply file format
-    QFile* mLogFileRawData;  // poses, scans and timestamps
+    QFile* mLogFileRawData;  // for poses, scans and scan-gps-timestamps
 
     LaserScanner * const mLaserScanner; // used to retrieve relative pose and use LaserScanner::getWorldPositionOfScannedPoint(...)
 
@@ -94,12 +93,6 @@ public:
 
     bool processLog(const QString& fileName);
 
-signals:
-    void newScannedPoints(const QVector<QVector3D>&, const QVector3D& scanPosition);
-
-private slots:
-    void slotLogScannedPoints(const QVector<QVector3D>& points, const QVector3D& vehiclePosition);
-
 public slots:
     // The pose also contains a timestamp (receiver-time) of when that pose was recorded.
     void slotNewVehiclePose(const Pose& pose);
@@ -111,6 +104,9 @@ public slots:
 
     // Used to feed data from the laserscanner
     void slotNewScanData(const quint32& timestampScanner, std::vector<long> * const distances);
+
+signals:
+    void newScannedPoints(const QVector<QVector3D>&, const QVector3D& scanPosition);
 };
 
 #endif // SENSORFUSER_H

@@ -104,10 +104,10 @@ TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_L
 
 
 
-#### logreplay
+#### LOGPLAYER
 
-SET(SRC_FILES_LOGREPLAY
-logreplay
+SET(SRC_FILES_LOGPLAYER
+logplayer
 sensorfuser
 ../common/common
 ../common/pose
@@ -116,7 +116,8 @@ laserscanner
 )
 
 
-SET(INC_FILES_LOGREPLAY
+SET(INC_FILES_LOGPLAYER
+logplayer.h
 sensorfuser.h
 ../common/common.h
 ../common/pose.h
@@ -124,8 +125,8 @@ sensorfuser.h
 laserscanner.h
 )
 
-QT4_WRAP_CPP(MOC_SRCS_LOGREPLAY ${INC_FILES_LOGREPLAY})
+QT4_WRAP_CPP(MOC_SRCS_LOGPLAYER ${INC_FILES_LOGPLAYER})
 
-ADD_EXECUTABLE(logreplay ${SRC_FILES_LOGREPLAY} ${MOC_SRCS_LOGREPLAY})
-TARGET_LINK_LIBRARIES(logreplay ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES} -lqserialdevice)
+ADD_EXECUTABLE(logplayer ${SRC_FILES_LOGPLAYER} ${MOC_SRCS_LOGPLAYER})
+TARGET_LINK_LIBRARIES(logplayer ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES} -lqserialdevice)
 

@@ -61,6 +61,7 @@ public:
     ~GpsDevice();
 
 private:
+    Pose mLastPose;
     quint8 mPoseClockDivisor; // for emitting a low-frequency pose for debugging
     quint8 mLastErrorFromDevice;
     quint8 mLastGnssAgeFromDevice; // seconds since last GNSS PVT solution
@@ -94,6 +95,9 @@ private:
 
     void processSbfData(QByteArray& receiveBuffer);
     quint16 getCrc(const void *buf, unsigned int length);
+
+    // Sets the internal pose according to the given GPS readings
+    void setPose(const qint32& lon, const qint32& lat, const qint32& alt, const quint16& heading, const qint16& pitch, const qint16& roll, const quint32& tow);
 
     // This method finds out how many seconds are left before the TOW (time-of-week)
     // value in the receiver rolls over, potentially screwing up our calculcations.
@@ -253,16 +257,10 @@ private:
 private slots:
     void slotSerialPortStatusChanged(const QString& status, const QDateTime& time);
     void slotCommunicationSetup();
-//    void slotCommunicationStop();
     quint8 slotFlushCommandQueue();
     void slotDataReadyOnUsb();
     void slotDataReadyOnCom();
     void slotDetermineSerialPortsOnDevice();
-
-    // For timestamp from the GPS device to work with timestamp from the
-    // system, we need to sync the system clock (and rtc?) with the gps
-    // clock.
-//    void setSystemTimeToGpsTime();
 
     void slotEmitCurrentGpsStatus(const QString& text = QString());
 
@@ -274,15 +272,14 @@ signals:
     // log/status messages
     void message(const LogImportance& importance, const QString&, const QString& message);
 
-    void newVehiclePose(const Pose&); // emitted at 20Hz
+    void newVehiclePose(const Pose&); // emitted at 20Hz, includes non-FixedRTK poses
+    void newVehiclePosePrecise(const Pose&); // emitted at 20Hz, FixedRTK and IntegratedAttitude, used for sensor-fusion
     void newVehiclePoseLowFreq(const Pose&); // emitted at ~1Hz;
 
     // Again, timestamp is number of milliseconds since last sunday 00:00:00 AM (midnight)
     void scanFinished(const quint32& timestamp);
 
     void gpsTimeOfWeekEstablished(const quint32& timestamp);
-
-//    void stateChanged(const GpsDevice::Status&, const QString&);
 
     void gpsStatus(
         const quint8& gnssMode,
