@@ -8,10 +8,31 @@
 class SensorFuser : public QObject
 {
     Q_OBJECT
+
+public:
+
+    enum Behavior
+    {
+        WriteRawLogs = 0x01,
+        FuseData     = 0x02
+    };
+
+    SensorFuser(LaserScanner* const laserScanner, SensorFuser::Behavior behavior);
+    ~SensorFuser();
+
+    // SensorFuser writes logfiles of the raw incoming data. These files can be read later-on and fed
+    // line-by-line to this method, which is equivalent to calling the respective slots.
+    bool processLogLine(const QString& line);
+
+    bool processLog(const QString& fileName);
+
+
 private:
     quint32 mPointCloudSize;
 
-    bool mWriteSensorLog;
+//    bool mWriteSensorLog;
+
+    Behavior mBehavior; // write raw logs? fuse data?
 
     quint16 mStatsFusedScans;
     quint16 mStatsDiscardedScans;
@@ -82,16 +103,6 @@ private:
 
         return timeStamps;
     }
-
-public:
-    SensorFuser(LaserScanner* const laserScanner, const bool& writeLogs = true);
-    ~SensorFuser();
-
-    // SensorFuser writes logfiles of the raw incoming data. These files can be read later-on and fed
-    // line-by-line to this method, which is equivalent to calling the respective slots.
-    bool processLogLine(const QString& line);
-
-    bool processLog(const QString& fileName);
 
 public slots:
     // The pose also contains a timestamp (receiver-time) of when that pose was recorded.

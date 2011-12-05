@@ -1,17 +1,17 @@
 #include "sensorfuser.h"
 
-SensorFuser::SensorFuser(LaserScanner* const laserScanner, const bool& writeSensorLog) : QObject(), mLaserScanner(laserScanner)
+SensorFuser::SensorFuser(LaserScanner* const laserScanner, SensorFuser::Behavior behavior) : QObject(), mLaserScanner(laserScanner)
 {
     mPointCloudSize = 0;
     mNewestDataTime = 0;
     mStatsFusedScans = 0;
     mStatsDiscardedScans = 0;
     mLastRayTime = -1000; // make sure first comparision fails
-    mWriteSensorLog = writeSensorLog;
+    mBehavior = behavior;
     mMaximumTimeBetweenFusedPoseAndScanMsec = 101; // 2*poseInterval+1
     mMaximumTimeBetweenMatchingScans = 12; // msecs maximum clock offset between scanner and gps device. Smaller means less data, moremeans worse data. Yes, we're screwed.
 
-    if(mWriteSensorLog)
+    if(mBehavior & SensorFuser::WriteRawLogs)
     {
         mLogFileRawData = new QFile(QString("scannerdata-raw-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
         if(!mLogFileRawData->open(QIODevice::WriteOnly | QIODevice::Text))
@@ -21,7 +21,7 @@ SensorFuser::SensorFuser(LaserScanner* const laserScanner, const bool& writeSens
 
 SensorFuser::~SensorFuser()
 {
-    if(mWriteSensorLog)
+    if(mBehavior & SensorFuser::WriteRawLogs)
     {
         // We won't gather any new data, close raw logfile
         mLogFileRawData->close();
@@ -403,66 +403,72 @@ void SensorFuser::slotNewVehiclePose(const Pose& pose)
 {
     //qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a pose" << pose;
 
-    if(mWriteSensorLog)
+    if(mBehavior & SensorFuser::WriteRawLogs)
     {
-        // Always write pose to logfile
+        // Write pose to logfile
         QTextStream out(mLogFileRawData);
         out << pose.toString() << endl;
     }
 
-    if(!mLaserScanner->isScanning())
+    if(mBehavior & SensorFuser::FuseData)
     {
-        //qDebug() << t() << "SensorFuser::slotNewVehiclePose(): ignoring a received pose, laserscanner isn't scanning at" << pose.timestamp;
-        return;
+        if(!mLaserScanner->isScanning())
+        {
+            //qDebug() << t() << "SensorFuser::slotNewVehiclePose(): ignoring a received pose, laserscanner isn't scanning at" << pose.timestamp;
+            return;
+        }
+
+        // Append pose to our list
+        mPoses.append(Pose(pose + mLaserScanner->getRelativePose()));
+
+        mNewestDataTime = std::max(mNewestDataTime, pose.timestamp);
+
+        cleanUnusableData();
+
+        // Fuse pose and scans if it was possible to correct at least one lasertimestamp with a gps timestamp
+        if(matchTimestamps())
+            transformScanData();
     }
-
-    // Append pose to our list
-    mPoses.append(Pose(pose + mLaserScanner->getRelativePose()));
-
-    mNewestDataTime = std::max(mNewestDataTime, pose.timestamp);
-
-    cleanUnusableData();
-
-    // Fuse pose and scans if it was possible to correct at least one lasertimestamp with a gps timestamp
-    if(matchTimestamps())
-        transformScanData();
 }
 
 void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
 {
     //qDebug() << t() << "SensorFuser::slotScanFinished(): gps says scanner finished a scan at time" << timestampScanGps;
 
-    if(mWriteSensorLog)
+    if(mBehavior & SensorFuser::WriteRawLogs)
     {
         // Log this event to file
         QTextStream(mLogFileRawData) << "extevent: " << timestampScanGps << endl;
     }
 
-    // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
-    if(!mPoses.size() || mPoses.last().timestamp < (timestampScanGps - 1000))
+    if(mBehavior & SensorFuser::FuseData)
     {
-//        //qDebug() << t() << "SensorFuser::slotScanFinished(): " << mPoses.size() << "/old poses, ignoring scanfinished gps signal for scantime" << timestampScanGps;
-        return;
+        // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
+        if(!mPoses.size() || mPoses.last().timestamp < (timestampScanGps - 1000))
+        {
+    //        //qDebug() << t() << "SensorFuser::slotScanFinished(): " << mPoses.size() << "/old poses, ignoring scanfinished gps signal for scantime" << timestampScanGps;
+            return;
+        }
+
+        // will not work because qmap::end() ppoints to the imaginary item AFTER the last item in the map. key() will be 0.
+        // Do not store data that we cannot fuse anyway, because the newest scanner data is very old (no data due to high system load)
+    //    if(!mScansTimestampScanner.size() || mScansTimestampScanner.end().key() < (timestampScanGps - 1000))
+      //  {
+        //    //qDebug() << t() << "SensorFuser::slotScanFinished(): " << mScansTimestampScanner.size() << "/old scandata, ignoring scanfinished gps signal for scantime" << timestampScanGps << "because last scna timestamp" << mScansTimestampScanner.end().key() << "is smaller than" << (timestampScanGps - 1000) << "=> older than 1 sec";
+    //        return;
+        //}
+
+        // Our gps board tells us that a scan is finished. The scan data itself might already be saved in mSavedScans - or it might not.
+        mScansTimestampGps.insert(timestampScanGps, 0);
+        mNewestDataTime = std::max((unsigned int)mNewestDataTime, timestampScanGps);
     }
-
-    // will not work because qmap::end() ppoints to the imaginary item AFTER the last item in the map. key() will be 0.
-    // Do not store data that we cannot fuse anyway, because the newest scanner data is very old (no data due to high system load)
-//    if(!mScansTimestampScanner.size() || mScansTimestampScanner.end().key() < (timestampScanGps - 1000))
-  //  {
-    //    //qDebug() << t() << "SensorFuser::slotScanFinished(): " << mScansTimestampScanner.size() << "/old scandata, ignoring scanfinished gps signal for scantime" << timestampScanGps << "because last scna timestamp" << mScansTimestampScanner.end().key() << "is smaller than" << (timestampScanGps - 1000) << "=> older than 1 sec";
-//        return;
-    //}
-
-    // Our gps board tells us that a scan is finished. The scan data itself might already be saved in mSavedScans - or it might not.
-    mScansTimestampGps.insert(timestampScanGps, 0);
-    mNewestDataTime = std::max((unsigned int)mNewestDataTime, timestampScanGps);
 }
 
 void SensorFuser::slotNewScanData(const quint32& timestampScanScanner, std::vector<long> * const distances)
 {
     //qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
 
-    if(mWriteSensorLog)
+    if(mBehavior & SensorFuser::WriteRawLogs)
     {
         // Always write log data for later replay: scannerdata:[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
         QTextStream out(mLogFileRawData);
@@ -472,17 +478,20 @@ void SensorFuser::slotNewScanData(const quint32& timestampScanScanner, std::vect
         out << endl;
     }
 
-    // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
-    if(!mPoses.size() || mPoses.last().timestamp < (timestampScanScanner - mMaximumTimeBetweenFusedPoseAndScanMsec - 13))
+    if(mBehavior & SensorFuser::FuseData)
     {
-        //qDebug() << t() << "SensorFuser::slotNewScanData(): " << mPoses.size() << "/old poses, ignoring scandata at time" << timestampScanScanner;
-        // We cannot ignore the scandata, we must at least delete() it, because it was new()ed in LaserScanner and we are now the owner.
-        delete distances;
-        return;
+        // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
+        if(!mPoses.size() || mPoses.last().timestamp < (timestampScanScanner - mMaximumTimeBetweenFusedPoseAndScanMsec - 13))
+        {
+            //qDebug() << t() << "SensorFuser::slotNewScanData(): " << mPoses.size() << "/old poses, ignoring scandata at time" << timestampScanScanner;
+            // We cannot ignore the scandata, we must at least delete() it, because it was new()ed in LaserScanner and we are now the owner.
+            delete distances;
+            return;
+        }
+
+        mScansTimestampScanner.insert(timestampScanScanner, distances);
+        mNewestDataTime = std::max((unsigned int)mNewestDataTime, timestampScanScanner);
+
+        cleanUnusableData();
     }
-
-    mScansTimestampScanner.insert(timestampScanScanner, distances);
-    mNewestDataTime = std::max((unsigned int)mNewestDataTime, timestampScanScanner);
-
-    cleanUnusableData();
 }

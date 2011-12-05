@@ -27,7 +27,7 @@ LogPlayer::LogPlayer(int argc, char **argv) : QCoreApplication(argc, argv)
     // Otherwise, LogPlayer won't accept poses.
     mLaserScanner->slotEnableScanning(true);
 
-    mSensorFuser = new SensorFuser(mLaserScanner, false);
+    mSensorFuser = new SensorFuser(mLaserScanner, static_cast<SensorFuser::Behavior>(SensorFuser::FuseData));
 
     mPlyManager = new PlyManager(arguments.at(2), PlyManager::DataWrite);
     connect(mSensorFuser, SIGNAL(newScannedPoints(QVector<QVector3D>, QVector3D)), mPlyManager, SLOT(slotNewPoints(QVector<QVector3D>, QVector3D)));
