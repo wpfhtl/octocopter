@@ -269,7 +269,7 @@ void GpsDevice::slotCommunicationSetup()
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,90,manual,0.07,0.07,0.33");
     // Leicht, jetzt wo IMU in der Mitte liegt und unter dem kopter hängt
     queueAsciiCommand("setExtSensorCalibration,COM2,manual,180,00,0,manual,-0.06,0.10,0.26");
-    // Sarah Dean says "seem to be ok" about 0 90 270
+    // Sarah Dean says "seems to be ok" about 0 90 270
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,270,manual,0.07,0.07,0.33");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
@@ -279,12 +279,12 @@ void GpsDevice::slotCommunicationSetup()
     // configure rover in standalone+rtk mode (use "RTKFixed" instead of "all"?)
     queueAsciiCommand("setPVTMode,Rover,all,auto,Loosely");
 
-    // explicitly allow rover to use all RTCMv3 corection messages
+    // explicitly allow rover to use all RTCMv3 correction messages
     queueAsciiCommand("setRTCMv3Usage,all");
 
     // output IntPVCart, IntAttEuler, and Event-position. ExtSensorMeas is direct IMU measurements
     // We want to know the pose 25 times a second
-    queueAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec50");
+    queueAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec40");
 
     // We want to know PVTCartesion (4006) for MeanCorrAge (average correction data age) only, so stream it slowly
     queueAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus,sec1");
@@ -612,7 +612,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
                     && block->Pitch != -32768
                     && block->Roll != -32768
                     && block->TOW != 4294967295
-                    && block->Mode == 2 // integrated solution, not sensor-only or gnss-only*/
+//                    && block->Mode == 2 // integrated solution, not sensor-only or gnss-only*/
                     && (block->GNSSPVTMode & 15) == 4 // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().*/
                     && block->GNSSage < 100 // 100 * 0.01 sec interval of no GNSS PVT
                     )
@@ -621,35 +621,49 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
                 emit newVehiclePosePrecise(mLastPose);
                 mPoseClockDivisor++;
             }
-            else if(block->Error != 0)
-            {
-                qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, error:" << block->Error << " " << GpsStatusInformation::getError(block->Error) ;
-            }
-            else if(block->Heading == 65535)
-            {
-                qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, heading do-not-use";
-            }
-            else if(block->Mode != 2)
-            {
-                qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, not integrated solution mode 2, but" << block->Mode;
-                setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
-                emit newVehiclePose(mLastPose);
-                mPoseClockDivisor++;
-            }
-            else if((block->GNSSPVTMode & 15) != 4)
-            {
-                qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, not RTKFixed but" << (block->GNSSPVTMode & 15);
-                setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
-                emit newVehiclePose(mLastPose);
-                mPoseClockDivisor++;
-            }
-            else if(block->GNSSage > 99)
-            {
-                qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, GNSSAge is" << block->GNSSage;
-            }
             else
             {
-                qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, do-not-use values found.";
+                if(block->Error != 0)
+                {
+                    qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, error:" << block->Error << " " << GpsStatusInformation::getError(block->Error) ;
+                }
+
+                if(block->Heading == 65535)
+                {
+                    qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, heading do-not-use";
+                }
+
+                if(block->Mode != 2)
+                {
+                    qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, not integrated solution, but" << GpsStatusInformation::getIntegrationMode(block->Mode);
+                    setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
+                    emit newVehiclePose(mLastPose);
+                    mPoseClockDivisor++;
+                }
+
+                if((block->GNSSPVTMode & 15) != 4)
+                {
+                    qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, GNSSMode is" << GpsStatusInformation::getGnssMode(block->GNSSPVTMode) << "corrAge is" << mLastMeanCorrAge;
+                    setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
+                    emit newVehiclePose(mLastPose);
+                    mPoseClockDivisor++;
+                }
+
+                if(block->GNSSage > 99)
+                {
+                    qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, GNSSAge is" << block->GNSSage;
+                }
+
+                if(
+                        block->Lat == -2147483648
+                        || block->Lon == -2147483648
+                        || block->Alt == -2147483648
+                        || block->Pitch == -32768
+                        || block->Roll == -32768
+                        || block->TOW == 4294967295)
+                {
+                    qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, do-not-use values found.";
+                }
             }
 
             if(mPoseClockDivisor % 20 == 0) emit newVehiclePoseLowFreq(mLastPose);
@@ -708,7 +722,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
                 }
                 else
                 {
-                    qDebug() << "GpsDevice::processSbfData(): offset larger than 10ms, using settimeofday to set clock...";
+                    qDebug() << "GpsDevice::processSbfData(): offset larger than 10ms or device startup, using settimeofday to set clock...";
                     system.tv_sec += offsetHostToGps/1000;
                     system.tv_usec += (offsetHostToGps%1000)*1000;
 

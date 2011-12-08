@@ -8,7 +8,7 @@ SensorFuser::SensorFuser(LaserScanner* const laserScanner, SensorFuser::Behavior
     mStatsDiscardedScans = 0;
     mLastRayTime = -1000; // make sure first comparision fails
     mBehavior = behavior;
-    mMaximumTimeBetweenFusedPoseAndScanMsec = 101; // 2*poseInterval+1
+    mMaximumTimeBetweenFusedPoseAndScanMsec = 81; // 2*poseInterval+1
     mMaximumTimeBetweenMatchingScans = 12; // msecs maximum clock offset between scanner and gps device. Smaller means less data, moremeans worse data. Yes, we're screwed.
 
     if(mBehavior & SensorFuser::WriteRawLogs)
@@ -401,7 +401,7 @@ qint8 SensorFuser::matchTimestamps()
 
 void SensorFuser::slotNewVehiclePose(const Pose& pose)
 {
-    //qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a pose" << pose;
+    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a precise" << pose;
 
     if(mBehavior & SensorFuser::WriteRawLogs)
     {

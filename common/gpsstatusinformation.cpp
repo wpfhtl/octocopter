@@ -8,7 +8,7 @@ QString GpsStatusInformation::getIntegrationMode(const quint8& integrationMode)
 {
     switch(integrationMode)
     {
-    case 0: return "Unavailable"; break;
+    case 0: return "Integrated PV Unavailable"; break;
     case 1: return "IMU only"; break;
     case 2: return "GPS + IMU"; break;
     default: return QString("Unknown IntMode %1").arg(integrationMode); break;

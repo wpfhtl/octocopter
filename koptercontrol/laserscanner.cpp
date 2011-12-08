@@ -17,7 +17,6 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
     mOffsetTimeScannerToTow = 0;
 
     mTimerScan = new QTimer(this);
-    mTimerScan->setInterval(mScanner.scanMsec());
     connect(mTimerScan, SIGNAL(timeout()), SLOT(slotCaptureScanData()));
 
     if(mScanner.connect(mDeviceFileName.toAscii().constData()))
@@ -29,6 +28,9 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
         qDebug() << "LaserScanner::LaserScanner(): connecting to" << mDeviceFileName << "failed: UrgCtrl::connect gave" << mScanner.what();
         return;
     }
+
+    // Do this after initializing hte scanner, otherwise the values might be off.
+    mTimerScan->setInterval(mScanner.scanMsec());
 
 //    mScanner.setCaptureMode(qrk::IntensityCapture);
 
