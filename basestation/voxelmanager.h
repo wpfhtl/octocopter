@@ -31,7 +31,8 @@ public:
 
     ~VoxelManager();
 
-    quint8* getBasePointer() {return mData;}
+    void setVolumeDataBasePointer(quint8* data) {mData = data;}
+    quint8** getVolumeDataBasePointer() {return &mData;}
 
     bool isOccupied(const QVector3D& position);
     void setVoxelValue(const QVector3D& position, const bool& value);

@@ -11,7 +11,7 @@ VoxelManager::VoxelManager(
     mResZ(resZ)
 {
     // WARNING: resX, Y and Z are tested only for powers-of-two!
-    qDebug() << "VoxelManager::VoxelManager(): resolution is" << resX << resY << resZ << "and needs" << (mResX * mResY * mResZ) / 8 / 1048576 << "MB memory.";
+    qDebug() << "VoxelManager::VoxelManager(): resolution is" << mResX << "x" << mResY << "x" << mResZ << "so volume data needs" << (mResX * mResY * mResZ) / 8 << "bytes of memory.";
 }
 
 VoxelManager::~VoxelManager()
@@ -74,11 +74,13 @@ void VoxelManager::slotSetScanVolume(const QVector3D& bBoxMin, const QVector3D& 
 {
     mBBoxMin = bBoxMin;
     mBBoxMax = bBoxMax;
-    initializeData();
+//    initializeData();
 }
 
-void VoxelManager::initializeData()
+/*void VoxelManager::initializeData()
 {
+    qDebug() << "VoxelManager::initializeData(): allocating cuda memory.";
+
     // Reserve and initialize memory for all our parentvoxels (=bytes). Each Parentvoxel
     // contains 8 subvoxels (leafs), which are the 8 bits of its byte.
     const quint64 dataSize = mResX * mResY * mResZ / 8;
@@ -87,6 +89,10 @@ void VoxelManager::initializeData()
 //    if(mData) delete[] mData;
 //    mData = new quint8[dataSize];
     if(mData) cudaFreeHost(mData);
-    if(cudaHostAlloc(&mData, dataSize, cudaHostAllocMapped | cudaHostAllocWriteCombined) != cudaSuccess) qFatal("VoxelManager::initializeData(): couldn't allocate %llu bytes of pinned memory, exiting.", dataSize);
+
+    if(cudaHostAlloc(&mData, dataSize, cudaHostAllocMapped | cudaHostAllocWriteCombined) != cudaSuccess)
+        qFatal("VoxelManager::initializeData(): couldn't allocate %llu bytes of pinned memory, exiting.", dataSize);
+
     memset(mData, 0, dataSize);
 }
+*/

@@ -7,6 +7,9 @@ FlightPlannerCuda::FlightPlannerCuda(QWidget* widget, Octree* pointCloud) : Flig
     cudaGetDeviceCount(&numberOfCudaDevices);
     Q_ASSERT(numberOfCudaDevices && "FlightPlannerCuda::FlightPlannerCuda(): No CUDA devices found, exiting.");
 
+    mCudaError = cudaSetDeviceFlags(cudaDeviceMapHost);// in order for the cudaHostAllocMapped flag to have any effect
+    if(mCudaError != cudaSuccess) qFatal("FlightPlannerCuda::FlightPlannerCuda(): couldn't set device flag: code %d, text %s, exiting.", mCudaError, cudaGetErrorString(mCudaError));
+
     int activeCudaDevice;
     cudaGetDevice(&activeCudaDevice);
 
@@ -17,27 +20,29 @@ FlightPlannerCuda::FlightPlannerCuda(QWidget* widget, Octree* pointCloud) : Flig
     cudaMemGetInfo(&memFree, &memTotal);
 
     qDebug() << "FlightPlannerCuda::FlightPlannerCuda(): device has"
-             << deviceProps.totalGlobalMem << "bytes mem,"
+             << memFree / 1000000 << "of" << deviceProps.totalGlobalMem / 1000000 << "mb free, has"
              << deviceProps.multiProcessorCount << "multiprocessors,"
-             << "is integrated:" << deviceProps.integrated
-             << "can map host memory:" << deviceProps.canMapHostMemory
-             << ", has" << deviceProps.memoryClockRate << "hz memory clock"
-             << deviceProps.memoryBusWidth << "memory bus width and"
-             << memFree / 1000000 << "of" << memTotal << "mb memory free";
+             << (deviceProps.integrated ? "is" : "is NOT" ) << "integrated,"
+             << (deviceProps.canMapHostMemory ? "can" : "can NOT") << "map host mem, has"
+             << deviceProps.memoryClockRate / 1000 << "Mhz mem clock and a"
+             << deviceProps.memoryBusWidth << "bit mem bus";
 
-    cudaSetDeviceFlags(cudaDeviceMapHost);// in order for the cudaHostAllocMapped flag to have any effect
 
-    mVoxelManager = new VoxelManager(256, 16, 256);
+    mVoxelManager = new VoxelManager(1024, 1024, 1024);
+
+    // Allocate data on host and device for the volume data
+    mCudaError = cudaHostAlloc(mVoxelManager->getVolumeDataBasePointer(), mVoxelManager->getVolumeDataSize(), cudaHostAllocMapped | cudaHostAllocWriteCombined);
+    if(mCudaError != cudaSuccess) qFatal("FlightPlannerCuda::FlightPlannerCuda(): couldn't allocate %llu bytes of pinned memory: code %d, text %s, exiting.", mVoxelManager->getVolumeDataSize(), mCudaError, cudaGetErrorString(mCudaError));
 
     mHostColumnOccupancyPixmapData = new unsigned char[mVoxelManager->getGroundPlanePixelCount()];
 
     // Allocate memory for volume data on device
-    cudaMalloc((void**)&mDeviceVolumeData, mVoxelManager->getVolumeDataSize());
+//    cudaMalloc((void**)&mDeviceVolumeData, mVoxelManager->getVolumeDataSize());
     cudaMalloc((void**)&mDeviceColumnOccupancyPixmapData, mVoxelManager->getGroundPlanePixelCount());
 
     cudaMemGetInfo(&memFree, &memTotal);
 
-    qDebug() << "FlightPlannerCuda::FlightPlannerCuda(): after allocating memory, device has" << memFree / 1000000 << "of" << memTotal << "mb memory free";
+    qDebug() << "FlightPlannerCuda::FlightPlannerCuda(): after allocating memory, device has" << memFree / 1000000 << "of" << memTotal / 1000000 << "mb memory free";
 
     // Create the GL buffer for vertices with a color (3 floats = 12 bytes and 4 bytes rgba color)
 //    glGenBuffers(1,&mVertexArray);
@@ -55,8 +60,10 @@ FlightPlannerCuda::~FlightPlannerCuda()
 {
     delete mVoxelManager;
 
+    delete mHostColumnOccupancyPixmapData;
+
     // Shutdown CUDA
-    cudaFree(mDeviceVolumeData);
+    cudaFreeHost(*mVoxelManager->getVolumeDataBasePointer());
 }
 
 void FlightPlannerCuda::insertPoint(LidarPoint* const point)
@@ -66,7 +73,7 @@ void FlightPlannerCuda::insertPoint(LidarPoint* const point)
 
 void FlightPlannerCuda::slotGenerateWaypoints()
 {
-    cudaMemcpyAsync(mDeviceVolumeData, mVoxelManager->getBasePointer(), mVoxelManager->getVolumeDataSize(), cudaMemcpyHostToDevice, 0);
+//    cudaMemcpyAsync(mDeviceVolumeData, mVoxelManager->getBasePointer(), mVoxelManager->getVolumeDataSize(), cudaMemcpyHostToDevice, 0);
 
     // Start kernel to check reachability, return pixmap
     //multiplyNumbersGPU<<<blockGridRows, threadBlockRows>>>(d_dataA, d_dataB, d_resultC);

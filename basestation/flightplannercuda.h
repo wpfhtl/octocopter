@@ -1,8 +1,8 @@
 #ifndef FLIGHTPLANNERCUDA_H
 #define FLIGHTPLANNERCUDA_H
 
-#include <GL/glew.h>
-#include <GL/freeglut.h>
+//#include <GL/glew.h>
+//#include <GL/freeglut.h>
 #include <cuda_runtime.h>
 
 #include "flightplannerinterface.h"
@@ -24,6 +24,8 @@ public:
     void insertPoint(LidarPoint* const point);
 
 private:
+    cudaError_t mCudaError;
+
     VoxelManager* mVoxelManager;
 
     GLuint mVertexArray;
@@ -32,7 +34,7 @@ private:
 
     unsigned char* mHostColumnOccupancyPixmapData; // the pointer to the host's copy of the kernel's result (the grayscale map of column traversability)
     unsigned char* mDeviceColumnOccupancyPixmapData; // the pointer to the device's copy of the kernel's result (the grayscale map of column traversability)
-    unsigned char* mDeviceVolumeData; // the pointer to the device#s copy of the volume data
+//    unsigned char* mDeviceVolumeData; // the pointer to the device#s copy of the volume data. UNUSED, we use mapped memory
 
 signals:
 

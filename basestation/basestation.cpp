@@ -2,6 +2,7 @@
 
 #include "flightplannerbasic.h"
 #include "flightplannerphysics.h"
+#include "flightplannercuda.h"
 
 BaseStation::BaseStation() : QMainWindow()
 {
@@ -66,7 +67,7 @@ BaseStation::BaseStation() : QMainWindow()
     mRtkFetcher = new RtkFetcher(mConnectionDialog->getHostNameRtkBase(), 4001, this);
     connect(mRtkFetcher, SIGNAL(rtkData(QByteArray)), SLOT(slotSendRtkDataToRover(QByteArray)));
 
-    mFlightPlanner = new FlightPlannerPhysics(this, mOctree);
+    mFlightPlanner = new FlightPlannerCuda(this, mOctree);
     mFlightPlanner->slotSetScanVolume(QVector3D(140, 70, 80), QVector3D(240, 120, 150));
     connect(this, SIGNAL(vehiclePoseChanged(Pose)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose)));
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
@@ -104,8 +105,11 @@ BaseStation::BaseStation() : QMainWindow()
     menuBar()->addAction("ViewFromSide", mGlWidget, SLOT(slotViewFromSide()));
     menuBar()->addAction("ViewFromTop", mGlWidget, SLOT(slotViewFromTop()));
 
+    menuBar()->addAction("TogglePlot", this, SLOT(slotTogglePlot()));
+
     mPlotWidget = new PlotWidget(this);
     mPlotWidget->setAllowedAreas(Qt::AllDockWidgetAreas);
+    mPlotWidget->setVisible(false);
     addDockWidget(Qt::LeftDockWidgetArea, mPlotWidget);
 
     mPlotWidget->createCurve("cPitch");
@@ -187,6 +191,11 @@ void BaseStation::slotImportCloud()
         mLogWidget->log(Error, "BaseStation::slotImportCloud()", "Failed saving cloud to file " + fileName);
         QMessageBox::information(this, "Cloud import", "Failed loading cloud from file\n\n" + fileName, "OK");
     }
+}
+
+void BaseStation::slotTogglePlot()
+{
+    mPlotWidget->setVisible(!mPlotWidget->isVisible());
 }
 
 void BaseStation::addRandomPoint()
@@ -366,7 +375,7 @@ void BaseStation::processPacket(QByteArray data)
         QString wayPointsHashFromRover;
         stream >> wayPointsHashFromRover;
 
-        if(hash(mFlightPlanner->getWayPoints()) != wayPointsHashFromRover)
+        if(WayPoint::hash(mFlightPlanner->getWayPoints()) != wayPointsHashFromRover)
         {
             mLogWidget->log(Warning, "BaseStation::processPacket()", QString("waypoints hash from rover does not match our hash, resending list"));
             slotRoverWayPointsSet(mFlightPlanner->getWayPoints());

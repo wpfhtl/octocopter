@@ -171,7 +171,7 @@ bool PlyManager::savePly(const QVector<LidarPoint>& points, const QString &fileN
     stream.setRealNumberNotation(QTextStream::FixedNotation);
 
     // write header
-    stream << createHeader(tree->getNumberOfItems(), PlyManager::NormalsIncluded, PlyManager::DirectionIncluded);
+    stream << createHeader(points.size(), PlyManager::NormalsIncluded, PlyManager::DirectionIncluded);
 
     foreach(const LidarPoint& point, points)
     {

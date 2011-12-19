@@ -15,7 +15,7 @@
 #include <octree.h>
 #include <flightplannerinterface.h>
 #include <lidarpoint.h>
-//class FlightPlannerInterface;
+class FlightPlannerInterface;
 #endif
 
 class PlyManager : public QObject

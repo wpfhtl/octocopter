@@ -84,6 +84,7 @@ private slots:
     void slotConnectToRover(void);
     void slotExportCloud(void);
     void slotImportCloud(void);
+    void slotTogglePlot(void);
 
     void slotRoverWayPointInsert(const quint16&, const WayPoint&);
     void slotRoverWayPointDelete(const quint16&);
