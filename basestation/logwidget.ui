@@ -10,11 +10,6 @@
     <height>905</height>
    </rect>
   </property>
-  <property name="font">
-   <font>
-    <pointsize>7</pointsize>
-   </font>
-  </property>
   <property name="allowedAreas">
    <set>Qt::BottomDockWidgetArea|Qt::TopDockWidgetArea</set>
   </property>
@@ -31,12 +26,6 @@
     </property>
     <item>
      <widget class="QTextEdit" name="mTextEdit">
-      <property name="font">
-       <font>
-        <family>Ubuntu</family>
-        <pointsize>6</pointsize>
-       </font>
-      </property>
       <property name="verticalScrollBarPolicy">
        <enum>Qt::ScrollBarAlwaysOn</enum>
       </property>

@@ -20,15 +20,14 @@ FlightPlannerCuda::FlightPlannerCuda(QWidget* widget, Octree* pointCloud) : Flig
     cudaMemGetInfo(&memFree, &memTotal);
 
     qDebug() << "FlightPlannerCuda::FlightPlannerCuda(): device has"
-             << memFree / 1000000 << "of" << deviceProps.totalGlobalMem / 1000000 << "mb free, has"
+             << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free, has"
              << deviceProps.multiProcessorCount << "multiprocessors,"
              << (deviceProps.integrated ? "is" : "is NOT" ) << "integrated,"
              << (deviceProps.canMapHostMemory ? "can" : "can NOT") << "map host mem, has"
              << deviceProps.memoryClockRate / 1000 << "Mhz mem clock and a"
              << deviceProps.memoryBusWidth << "bit mem bus";
 
-
-    mVoxelManager = new VoxelManager(1024, 1024, 1024);
+    mVoxelManager = new VoxelManager(4, 4, 4);
 
     // Allocate data on host and device for the volume data
     mCudaError = cudaHostAlloc(mVoxelManager->getVolumeDataBasePointer(), mVoxelManager->getVolumeDataSize(), cudaHostAllocMapped | cudaHostAllocWriteCombined);
@@ -42,7 +41,7 @@ FlightPlannerCuda::FlightPlannerCuda(QWidget* widget, Octree* pointCloud) : Flig
 
     cudaMemGetInfo(&memFree, &memTotal);
 
-    qDebug() << "FlightPlannerCuda::FlightPlannerCuda(): after allocating memory, device has" << memFree / 1000000 << "of" << memTotal / 1000000 << "mb memory free";
+    qDebug() << "FlightPlannerCuda::FlightPlannerCuda(): after allocating memory, device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb memory free";
 
     // Create the GL buffer for vertices with a color (3 floats = 12 bytes and 4 bytes rgba color)
 //    glGenBuffers(1,&mVertexArray);
@@ -64,6 +63,8 @@ FlightPlannerCuda::~FlightPlannerCuda()
 
     // Shutdown CUDA
     cudaFreeHost(*mVoxelManager->getVolumeDataBasePointer());
+
+    cudaDeviceReset();
 }
 
 void FlightPlannerCuda::insertPoint(LidarPoint* const point)
@@ -73,17 +74,23 @@ void FlightPlannerCuda::insertPoint(LidarPoint* const point)
 
 void FlightPlannerCuda::slotGenerateWaypoints()
 {
+    qDebug() << "FlightPlannerCuda::slotGenerateWaypoints(): uhh, cuda...";
 //    cudaMemcpyAsync(mDeviceVolumeData, mVoxelManager->getBasePointer(), mVoxelManager->getVolumeDataSize(), cudaMemcpyHostToDevice, 0);
 
     // Start kernel to check reachability, return pixmap
-    //multiplyNumbersGPU<<<blockGridRows, threadBlockRows>>>(d_dataA, d_dataB, d_resultC);
-    computeFreeColumns(mDeviceVolumeData, mHostColumnOccupancyPixmapData);
 
-//    int numBlocks = 1;
-//    dim3 threadsPerBlock(N, N);
-//    MatAdd<<<numBlocks, threadsPerBlock>>>(A, B, C);
+    quint8* deviceVolumeDataBasePointer = 0;
+    cudaHostGetDevicePointer(&deviceVolumeDataBasePointer, mVoxelManager->getVolumeDataBasePointer(), 0);
+    //multiplyNumbersGPU<<<blockGridRows, threadBlockRows>>>(d_dataA, d_dataB, d_resultC);
+    computeFreeColumns(deviceVolumeDataBasePointer, mHostColumnOccupancyPixmapData);
+
+    cudaDeviceSynchronize();
 
     // Now read the mem and show the picture!
+    qDebug() << "result next:";
+    for(int i=0;i<mVoxelManager->getVolumeDataSize();i++) printf("%d ", (*mVoxelManager->getVolumeDataBasePointer())[i]);
+    fflush(stdout);
+    qDebug() << "happy?";
 
 }
 

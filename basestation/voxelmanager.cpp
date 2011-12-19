@@ -11,7 +11,7 @@ VoxelManager::VoxelManager(
     mResZ(resZ)
 {
     // WARNING: resX, Y and Z are tested only for powers-of-two!
-    qDebug() << "VoxelManager::VoxelManager(): resolution is" << mResX << "x" << mResY << "x" << mResZ << "so volume data needs" << (mResX * mResY * mResZ) / 8 << "bytes of memory.";
+    qDebug() << "VoxelManager::VoxelManager(): resolution is" << mResX << "x" << mResY << "x" << mResZ << "so volume data needs" << ((mResX * mResY * mResZ) / 8) / 1048576 << "mb memory.";
 }
 
 VoxelManager::~VoxelManager()

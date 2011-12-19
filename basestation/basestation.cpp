@@ -10,7 +10,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     // We need a small font.
     QFont widgetFont = QApplication::font();
-    widgetFont.setPointSize(7);
+//    widgetFont.setPointSize(7);
     QApplication::setFont(widgetFont);
 
     mOctree = new Octree(

@@ -6,12 +6,23 @@ __global__ void kernelComputeFreeColumns(unsigned char* gridPointer, unsigned ch
 {
 int i = threadIdx.x;
 int j = threadIdx.y;
-//b[i] = A[i] + B[i];
+
+pixmap[i] = i*j;//gridPointer[i];
+pixmap[i] = i*j;//gridPointer[i];
+
+i = blockDim.x * blockIdx.x + threadIdx.x;
+
+gridPointer[i] = 5;
+pixmap[i] = 5;
 }
 
 void computeFreeColumns(unsigned char* gridPointer, unsigned char* pixmap)
 {
-    kernelComputeFreeColumns<<<1, 1>>>(gridPointer, pixmap);
+    //    int numBlocks = 1;
+    //    dim3 threadsPerBlock(N, N);
+    //    MatAdd<<<numBlocks, threadsPerBlock>>>(A, B, C);
+
+    kernelComputeFreeColumns<<<100, 10>>>(gridPointer, pixmap);
 }
 
 
