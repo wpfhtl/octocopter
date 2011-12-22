@@ -8,6 +8,7 @@
 #include <QTextStream>
 #include <QDateTime>
 #include <QDebug>
+#include <QMessageBox>
 
 #ifdef BASESTATION
 #include <QWidget>

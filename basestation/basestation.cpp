@@ -1,9 +1,5 @@
 #include "basestation.h"
 
-#include "flightplannerbasic.h"
-#include "flightplannerphysics.h"
-#include "flightplannercuda.h"
-
 BaseStation::BaseStation() : QMainWindow()
 {
     qDebug() << "BaseStation::BaseStation()";

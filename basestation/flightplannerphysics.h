@@ -1,6 +1,8 @@
 #ifndef FLIGHTPLANNERPHYSICS_H
 #define FLIGHTPLANNERPHYSICS_H
 
+#include <QApplication>
+
 #include "flightplannerinterface.h"
 #include "flightplannerphysicsdialog.h"
 #include "node.h"
@@ -26,7 +28,7 @@ public:
     qint64 getNumberOfPointsInCollisionOctree();
 
 private:
-    Octree* mOctree;
+    Octree* mOctreeCollisionObjects;
     FlightPlannerPhysicsDialog* mDialog;
     BulletDebugDrawerGl* mDbgDrawer;
     bool mPhysicsProcessingActive;

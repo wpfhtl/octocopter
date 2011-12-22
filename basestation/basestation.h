@@ -9,10 +9,13 @@
 #include <QTcpSocket>
 #include <QMutex>
 
+#include "flightplannercuda.h"
 #include "glwidget.h"
 #include "octree.h"
 #include "rtkfetcher.h"
 #include "lidarpoint.h"
+#include "flightplannerbasic.h"
+#include "flightplannerphysics.h"
 #include "flightplannerinterface.h"
 #include "camerawidget.h"
 #include "connectiondialog.h"

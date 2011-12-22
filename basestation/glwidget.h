@@ -1,6 +1,8 @@
 #ifndef GLWIDGET_H
 #define GLWIDGET_H
 
+#include "flightplannerinterface.h"
+
 #include <QtGui>
 #include <QColor>
 #include <QtOpenGL>
@@ -10,11 +12,10 @@
 #include "openglutilities.h"
 #include "octree.h"
 #include "pose.h"
-#include "flightplannerinterface.h"
-#include "basestation.h"
+//#include "basestation.h"
 
 class FlightPlannerInterface;
-class BaseStation;
+//class BaseStation;
 
 class GlWidget : public QGLWidget
 {
@@ -23,7 +24,7 @@ class GlWidget : public QGLWidget
 //    GLfloat rotQuad;
     Octree *mOctree;
     FlightPlannerInterface *mFlightPlanner;
-    BaseStation *mBaseStation;
+//    BaseStation *mBaseStation;
 //    void setShaders();
 
     QVector3D mCamLookAt;
@@ -51,7 +52,7 @@ class GlWidget : public QGLWidget
     QVector3D convertMouseToWorldPosition(const QPoint&);
 
 public:
-    GlWidget(BaseStation *baseStation, Octree* octree, FlightPlannerInterface* flightPlanner);
+    GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flightPlanner);
     void moveCamera(const QVector3D &pos);
 
     // Being called by the octree (as a callback) to visualize contents

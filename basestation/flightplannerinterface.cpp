@@ -2,6 +2,7 @@
 
 FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, Octree* pointCloud) : QObject()
 {
+    mOctree = pointCloud;
     mParentWidget = widget;
 //    mVehiclePose = pose;
     mWayPointsAhead = new QList<WayPoint>;
@@ -187,6 +188,11 @@ void FlightPlannerInterface::getScanVolume(QVector3D& min, QVector3D& max)
 
 void FlightPlannerInterface::slotVisualize() const
 {
+    // Draw the scanVolume
+    glDisable(GL_LIGHTING);
+    OpenGlUtilities::drawAabb(mScanVolumeMin, mScanVolumeMax, QColor(150, 150, 255, 150), 2);
+//    glEnable(GL_LIGHTING);
+
     // Draw line between future waypoints
     glLineWidth(1);
     glColor4f(1.0f, 1.0f, 0.0f, 0.8f);

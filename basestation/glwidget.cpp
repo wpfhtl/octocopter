@@ -1,15 +1,15 @@
-//#include <GL/glew.h>
+#include <GL/glew.h>
 #include "glwidget.h"
 
 //extern "C" {
 
-#include <GL/gl.h>
-#include <GL/glext.h>
+//#include <GL/gl.h>
+//#include <GL/glext.h>
 //}
 
 
-GlWidget::GlWidget(BaseStation *baseStation, Octree* octree, FlightPlannerInterface* flightPlanner) :
-    QGLWidget((QWidget*)baseStation),
+GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flightPlanner) :
+    QGLWidget(parent),
     mOctree(octree),
     mFlightPlanner(flightPlanner)
 {
@@ -22,7 +22,7 @@ GlWidget::GlWidget(BaseStation *baseStation, Octree* octree, FlightPlannerInterf
     setFormat(fmt);
 
 
-    mBaseStation = baseStation;
+//    mBaseStation = baseStation;
 
     //Wheel Scaling
     currentScaling = 2.0;

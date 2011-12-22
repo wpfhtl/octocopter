@@ -3,8 +3,9 @@
 
 #include <QObject>
 #include "octree.h"
-#include "glwidget.h"
+#include "openglutilities.h"
 #include <waypoint.h>
+#include <pose.h>
 
 class Pose;
 
@@ -14,6 +15,7 @@ class FlightPlannerInterface : public QObject
 private:
 
 protected:
+    Octree* mOctree;
     QVector3D mScanVolumeMin, mScanVolumeMax;
     QList<Pose> mVehiclePoses;
     QWidget* mParentWidget;
@@ -27,7 +29,10 @@ public:
     virtual ~FlightPlannerInterface();
 
     // Insert points from the laserscanners. Note that the points might also be inserted
-    // into Octree* pointCloud, this might be independent from the flightplanner.
+    // into Octree* pointCloud, this is independent from the flightplanner.
+    // Also note that some flightplanners may have more static datastructures than
+    // octrees, so they need to know the bounding box of all points (slotSetScanVolume())
+    // before you can insert any data. This is true for e.g. FlightPlannerCuda.
     virtual void insertPoint(LidarPoint* const point) = 0;
 
     const Pose getLastKnownVehiclePose(void) const;

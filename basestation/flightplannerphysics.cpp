@@ -4,7 +4,7 @@ FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, Octree* pointCloud) 
 {
     // The octree is initialized on arrival of the first point, with this point at its center.
     // We do this so we can drop spheres only within the octree's XZ plane.
-    mOctree = 0;
+    mOctreeCollisionObjects = 0;
 
     mPhysicsProcessingActive = false;
 
@@ -262,27 +262,27 @@ FlightPlannerPhysics::~FlightPlannerPhysics()
 
     delete mBtCollisionConfig;
 
-    if(mOctree) delete mOctree;
+    if(mOctreeCollisionObjects) delete mOctreeCollisionObjects;
 }
 
 void FlightPlannerPhysics::insertPoint(LidarPoint* const point)
 {
-    if(mOctree == 0)
+    if(mOctreeCollisionObjects == 0)
     {
         // Create the octree around the first arriving point.
-        mOctree = new Octree(
+        mOctreeCollisionObjects = new Octree(
                 point->position - QVector3D(10, 10, 10), // min
                 point->position + QVector3D(10, 10, 10),  // max
                 10);
 
-        mOctree->setMinimumPointDistance(1.0);
+        mOctreeCollisionObjects->setMinimumPointDistance(1.0);
 
-        mOctree->setPointHandler(OpenGlUtilities::drawPoint);
+        mOctreeCollisionObjects->setPointHandler(OpenGlUtilities::drawPoint);
 
-        connect(mOctree, SIGNAL(pointInserted(const LidarPoint*)), SLOT(slotPointInserted(const LidarPoint*)));
+        connect(mOctreeCollisionObjects, SIGNAL(pointInserted(const LidarPoint*)), SLOT(slotPointInserted(const LidarPoint*)));
     }
 
-    mOctree->insertPoint(point);
+    mOctreeCollisionObjects->insertPoint(point);
 }
 
 void FlightPlannerPhysics::slotGenerateWaypoints()
@@ -314,20 +314,16 @@ void FlightPlannerPhysics::slotPointInserted(const LidarPoint* lp)
 void FlightPlannerPhysics::slotVisualize() const
 {
 //    mBtWorld->debugDrawWorld();
-
-    // Draw the scanVolume
-    glDisable(GL_LIGHTING);
-    OpenGlUtilities::drawAabb(mScanVolumeMin, mScanVolumeMax, QColor(150, 150, 255, 150), 2);
-//    glEnable(GL_LIGHTING);
+    FlightPlannerInterface::slotVisualize();
 
     // Draw Octree
-    if(mOctree)
+    if(mOctreeCollisionObjects)
     {
         glPointSize(4);
         glColor4f(1.0f, 0.0f, 0.0f, 0.8f);
 //        glDisable(GL_LIGHTING);
         glBegin(GL_POINTS);
-        mOctree->handlePoints(); // => glVertex3f()...
+        mOctreeCollisionObjects->handlePoints(); // => glVertex3f()...
         glEnd();
 //        glEnable(GL_LIGHTING);
     }
@@ -346,7 +342,6 @@ void FlightPlannerPhysics::slotVisualize() const
         OpenGlUtilities::drawSphere(mWayPointsAhead->first(), 0.8, 20.0, QColor(255,0,0,100));
     }
 
-    FlightPlannerInterface::slotVisualize();
 
     const float radiusSampleGeometry = mShapeSampleSphere->getRadius();
     const float radiusWptScan = 1.5;
@@ -748,8 +743,8 @@ void FlightPlannerPhysics::slotVehiclePoseChanged(const Pose& pose)
 
 qint64 FlightPlannerPhysics::getNumberOfPointsInCollisionOctree()
 {
-    if(mOctree != 0)
-        return mOctree->getNumberOfItems();
+    if(mOctreeCollisionObjects != 0)
+        return mOctreeCollisionObjects->getNumberOfItems();
     else
         return 0;
 }

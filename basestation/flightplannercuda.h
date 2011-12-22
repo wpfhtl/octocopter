@@ -1,9 +1,10 @@
 #ifndef FLIGHTPLANNERCUDA_H
 #define FLIGHTPLANNERCUDA_H
 
-//#include <GL/glew.h>
-//#include <GL/freeglut.h>
 #include <cuda_runtime.h>
+#include <GL/glew.h>
+#include <cuda_gl_interop.h>
+#include <GL/freeglut.h>
 
 #include "flightplannerinterface.h"
 #include "node.h"
@@ -12,7 +13,7 @@
 #include <waypoint.h>
 #include "openglutilities.h"
 
-extern "C" void computeFreeColumns(unsigned char* gridPointer, unsigned char* pixmap);
+extern "C" void computeFreeColumns(unsigned char* gridPointer, unsigned char* pixmap, int x, int y, int z);
 
 class FlightPlannerCuda : public FlightPlannerInterface
 {
@@ -24,6 +25,7 @@ public:
     void insertPoint(LidarPoint* const point);
 
 private:
+
     cudaError_t mCudaError;
 
     VoxelManager* mVoxelManager;
@@ -35,6 +37,9 @@ private:
     unsigned char* mHostColumnOccupancyPixmapData; // the pointer to the host's copy of the kernel's result (the grayscale map of column traversability)
     unsigned char* mDeviceColumnOccupancyPixmapData; // the pointer to the device's copy of the kernel's result (the grayscale map of column traversability)
 //    unsigned char* mDeviceVolumeData; // the pointer to the device#s copy of the volume data. UNUSED, we use mapped memory
+
+    // To re-fill our datastructure when the boundingbox has changed.
+    bool insertPointsFromNode(const Node* node);
 
 signals:
 

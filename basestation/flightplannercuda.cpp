@@ -7,19 +7,26 @@ FlightPlannerCuda::FlightPlannerCuda(QWidget* widget, Octree* pointCloud) : Flig
     cudaGetDeviceCount(&numberOfCudaDevices);
     Q_ASSERT(numberOfCudaDevices && "FlightPlannerCuda::FlightPlannerCuda(): No CUDA devices found, exiting.");
 
-    mCudaError = cudaSetDeviceFlags(cudaDeviceMapHost);// in order for the cudaHostAllocMapped flag to have any effect
-    if(mCudaError != cudaSuccess) qFatal("FlightPlannerCuda::FlightPlannerCuda(): couldn't set device flag: code %d, text %s, exiting.", mCudaError, cudaGetErrorString(mCudaError));
-
     int activeCudaDevice;
-    cudaGetDevice(&activeCudaDevice);
+    mCudaError = cudaGetDevice(&activeCudaDevice);
+    if(mCudaError != cudaSuccess) qFatal("FlightPlannerCuda::FlightPlannerCuda(): couldn't get device: code %d: %s, exiting.", mCudaError, cudaGetErrorString(mCudaError));
+
+    mCudaError = cudaSetDeviceFlags(cudaDeviceMapHost);// in order for the cudaHostAllocMapped flag to have any effect
+    if(mCudaError != cudaSuccess) qFatal("FlightPlannerCuda::FlightPlannerCuda(): couldn't set device flag: code %d: %s, exiting.", mCudaError, cudaGetErrorString(mCudaError));
 
     cudaDeviceProp deviceProps;
     cudaGetDeviceProperties(&deviceProps, activeCudaDevice);
 
+
+
+    // Necessary for OpenGL graphics interop
+    mCudaError = cudaGLSetGLDevice(0);
+    if(mCudaError != cudaSuccess) qFatal("FlightPlannerCuda::FlightPlannerCuda(): couldn't set device to GL interop mode: code %d: %s, exiting.", mCudaError, cudaGetErrorString(mCudaError));
+
     size_t memTotal, memFree;
     cudaMemGetInfo(&memFree, &memTotal);
 
-    qDebug() << "FlightPlannerCuda::FlightPlannerCuda(): device has"
+    qDebug() << "FlightPlannerCuda::FlightPlannerCuda(): device" << deviceProps.name << "has compute capability" << deviceProps.major << deviceProps.minor << "and"
              << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free, has"
              << deviceProps.multiProcessorCount << "multiprocessors,"
              << (deviceProps.integrated ? "is" : "is NOT" ) << "integrated,"
@@ -27,21 +34,19 @@ FlightPlannerCuda::FlightPlannerCuda(QWidget* widget, Octree* pointCloud) : Flig
              << deviceProps.memoryClockRate / 1000 << "Mhz mem clock and a"
              << deviceProps.memoryBusWidth << "bit mem bus";
 
-    mVoxelManager = new VoxelManager(4, 4, 4);
+    mVoxelManager = new VoxelManager(64, 64, 64);
 
     // Allocate data on host and device for the volume data
     mCudaError = cudaHostAlloc(mVoxelManager->getVolumeDataBasePointer(), mVoxelManager->getVolumeDataSize(), cudaHostAllocMapped | cudaHostAllocWriteCombined);
-    if(mCudaError != cudaSuccess) qFatal("FlightPlannerCuda::FlightPlannerCuda(): couldn't allocate %llu bytes of pinned memory: code %d, text %s, exiting.", mVoxelManager->getVolumeDataSize(), mCudaError, cudaGetErrorString(mCudaError));
+    if(mCudaError != cudaSuccess) qFatal("FlightPlannerCuda::FlightPlannerCuda(): couldn't allocate %llu bytes of pinned memory: code %d: %s, exiting.", mVoxelManager->getVolumeDataSize(), mCudaError, cudaGetErrorString(mCudaError));
+
+    // Clear the voloume data
+    memset(*mVoxelManager->getVolumeDataBasePointer(), 0, mVoxelManager->getVolumeDataSize());
 
     mHostColumnOccupancyPixmapData = new unsigned char[mVoxelManager->getGroundPlanePixelCount()];
 
-    // Allocate memory for volume data on device
-//    cudaMalloc((void**)&mDeviceVolumeData, mVoxelManager->getVolumeDataSize());
-    cudaMalloc((void**)&mDeviceColumnOccupancyPixmapData, mVoxelManager->getGroundPlanePixelCount());
-
     cudaMemGetInfo(&memFree, &memTotal);
-
-    qDebug() << "FlightPlannerCuda::FlightPlannerCuda(): after allocating memory, device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb memory free";
+    qDebug() << "FlightPlannerCuda::FlightPlannerCuda(): after allocating pinned memory, device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb memory free";
 
     // Create the GL buffer for vertices with a color (3 floats = 12 bytes and 4 bytes rgba color)
 //    glGenBuffers(1,&mVertexArray);
@@ -49,6 +54,21 @@ FlightPlannerCuda::FlightPlannerCuda(QWidget* widget, Octree* pointCloud) : Flig
 //    glBufferData(GL_ARRAY_BUFFER, mNumVoxels * 16, NULL, GL_DYNAMIC_COPY);
 //    cudaGLRegisterBufferObject(mVertexArray);
 }
+
+
+void FlightPlannerCuda::slotGenerateWaypoints()
+{
+    qDebug() << "FlightPlannerCuda::slotGenerateWaypoints(): total occupancy is" << mVoxelManager->getTotalOccupancy();
+
+    // Start kernel to check reachability, return pixmap
+    computeFreeColumns(
+                *mVoxelManager->getVolumeDataBasePointer(),
+                mHostColumnOccupancyPixmapData,
+                mVoxelManager->getResolutionX(),
+                mVoxelManager->getResolutionY(),
+                mVoxelManager->getResolutionZ());
+}
+
 
 void FlightPlannerCuda::slotCreateSafePathToNextWayPoint()
 {
@@ -72,31 +92,12 @@ void FlightPlannerCuda::insertPoint(LidarPoint* const point)
     mVoxelManager->setVoxelValue(point->position, true);
 }
 
-void FlightPlannerCuda::slotGenerateWaypoints()
-{
-    qDebug() << "FlightPlannerCuda::slotGenerateWaypoints(): uhh, cuda...";
-//    cudaMemcpyAsync(mDeviceVolumeData, mVoxelManager->getBasePointer(), mVoxelManager->getVolumeDataSize(), cudaMemcpyHostToDevice, 0);
-
-    // Start kernel to check reachability, return pixmap
-
-    quint8* deviceVolumeDataBasePointer = 0;
-    cudaHostGetDevicePointer(&deviceVolumeDataBasePointer, mVoxelManager->getVolumeDataBasePointer(), 0);
-    //multiplyNumbersGPU<<<blockGridRows, threadBlockRows>>>(d_dataA, d_dataB, d_resultC);
-    computeFreeColumns(deviceVolumeDataBasePointer, mHostColumnOccupancyPixmapData);
-
-    cudaDeviceSynchronize();
-
-    // Now read the mem and show the picture!
-    qDebug() << "result next:";
-    for(int i=0;i<mVoxelManager->getVolumeDataSize();i++) printf("%d ", (*mVoxelManager->getVolumeDataBasePointer())[i]);
-    fflush(stdout);
-    qDebug() << "happy?";
-
-}
-
 // NOT in a glBegin()/glEnd() pair.
 void FlightPlannerCuda::slotVisualize() const
 {
+    FlightPlannerInterface::slotVisualize();
+
+    qDebug() << "FlightPlannerCuda::slotVisualize(): total occupancy:" << mVoxelManager->getTotalOccupancy();
     // Use CUDA?!
 //    void* vertexPointer;
     // Map the buffer to CUDA
@@ -124,8 +125,29 @@ void FlightPlannerCuda::slotSetScanVolume(const QVector3D min, const QVector3D m
     FlightPlannerInterface::slotSetScanVolume(min, max);
     mVoxelManager->slotSetScanVolume(min, max);
 
-    // TODO: re-fill VoxelManager's data from basestations octree.
+    // Re-fill VoxelManager's data from basestations octree.
+    if(mOctree) insertPointsFromNode(mOctree->root());
 }
+
+bool FlightPlannerCuda::insertPointsFromNode(const Node* node)
+{
+    if(node->isLeaf())
+    {
+        for(int i=0;i<node->data.size();i++)
+            insertPoint(node->data.at(i));
+    }
+    else
+    {
+        // invoke recursively for childnodes/leafs
+        const QList<const Node*> childNodes = node->getAllChildLeafs();
+        foreach(const Node* childNode, childNodes)
+            if(!insertPointsFromNode(childNode))
+                return false;
+    }
+
+    return true;
+}
+
 
 void FlightPlannerCuda::slotProcessPhysics(bool process)
 {
