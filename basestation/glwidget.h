@@ -9,6 +9,8 @@
 #include <QGLWidget>
 #include <QVector3D>
 
+#include <cuda_gl_interop.h>
+
 #include "openglutilities.h"
 #include "octree.h"
 #include "pose.h"
@@ -65,6 +67,7 @@ protected:
     void timerEvent ( QTimerEvent * event );
 
 signals:
+    void initializingInGlContext();
     void visualizeNow();
     void mouseClickedAtWorldPos(Qt::MouseButton, QVector3D);
 

@@ -49,6 +49,10 @@ public slots:
     void slotWayPointSwap(const quint16& i, const quint16& j);
     void slotWayPointsClear();
 
+    // Used in CUDA flightplanner, might be useful to others. Will be called
+    // soon after construction, but maybe after the first call to slotVisualize().
+    virtual void slotInitialize() = 0;
+
     virtual void slotWayPointReached(const WayPoint);
 
     virtual void slotSetScanVolume(const QVector3D min, const QVector3D max);

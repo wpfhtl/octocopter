@@ -35,6 +35,7 @@ private slots:
 public slots:
     void slotWayPointReached(const QVector3D);
     void slotVisualize() const;
+    void slotInitialize();
 
 };
 

@@ -2,6 +2,16 @@
 
 FlightPlannerCuda::FlightPlannerCuda(QWidget* widget, Octree* pointCloud) : FlightPlannerInterface(widget, pointCloud)
 {
+    mVoxelManager = new VoxelManager(64, 64, 64);
+    // Create the GL buffer for vertices with a color (3 floats = 12 bytes and 4 bytes rgba color)
+//    glGenBuffers(1,&mVertexArray);
+//    glBindBuffer(GL_ARRAY_BUFFER, mVertexArray);
+//    glBufferData(GL_ARRAY_BUFFER, mNumVoxels * 16, NULL, GL_DYNAMIC_COPY);
+//    cudaGLRegisterBufferObject(mVertexArray);
+}
+
+void FlightPlannerCuda::slotInitialize()
+{
     // Initialize CUDA
     int numberOfCudaDevices;
     cudaGetDeviceCount(&numberOfCudaDevices);
@@ -11,17 +21,16 @@ FlightPlannerCuda::FlightPlannerCuda(QWidget* widget, Octree* pointCloud) : Flig
     mCudaError = cudaGetDevice(&activeCudaDevice);
     if(mCudaError != cudaSuccess) qFatal("FlightPlannerCuda::FlightPlannerCuda(): couldn't get device: code %d: %s, exiting.", mCudaError, cudaGetErrorString(mCudaError));
 
+    // Necessary for OpenGL graphics interop
+//    mCudaError = cudaGLSetGLDevice(activeCudaDevice);
+//    if(mCudaError != cudaSuccess) qFatal("FlightPlannerCuda::FlightPlannerCuda(): couldn't set device to GL interop mode: code %d: %s, exiting.", mCudaError, cudaGetErrorString(mCudaError));
+
     mCudaError = cudaSetDeviceFlags(cudaDeviceMapHost);// in order for the cudaHostAllocMapped flag to have any effect
     if(mCudaError != cudaSuccess) qFatal("FlightPlannerCuda::FlightPlannerCuda(): couldn't set device flag: code %d: %s, exiting.", mCudaError, cudaGetErrorString(mCudaError));
 
     cudaDeviceProp deviceProps;
     cudaGetDeviceProperties(&deviceProps, activeCudaDevice);
 
-
-
-    // Necessary for OpenGL graphics interop
-    mCudaError = cudaGLSetGLDevice(0);
-    if(mCudaError != cudaSuccess) qFatal("FlightPlannerCuda::FlightPlannerCuda(): couldn't set device to GL interop mode: code %d: %s, exiting.", mCudaError, cudaGetErrorString(mCudaError));
 
     size_t memTotal, memFree;
     cudaMemGetInfo(&memFree, &memTotal);
@@ -34,7 +43,6 @@ FlightPlannerCuda::FlightPlannerCuda(QWidget* widget, Octree* pointCloud) : Flig
              << deviceProps.memoryClockRate / 1000 << "Mhz mem clock and a"
              << deviceProps.memoryBusWidth << "bit mem bus";
 
-    mVoxelManager = new VoxelManager(64, 64, 64);
 
     // Allocate data on host and device for the volume data
     mCudaError = cudaHostAlloc(mVoxelManager->getVolumeDataBasePointer(), mVoxelManager->getVolumeDataSize(), cudaHostAllocMapped | cudaHostAllocWriteCombined);
@@ -47,14 +55,7 @@ FlightPlannerCuda::FlightPlannerCuda(QWidget* widget, Octree* pointCloud) : Flig
 
     cudaMemGetInfo(&memFree, &memTotal);
     qDebug() << "FlightPlannerCuda::FlightPlannerCuda(): after allocating pinned memory, device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb memory free";
-
-    // Create the GL buffer for vertices with a color (3 floats = 12 bytes and 4 bytes rgba color)
-//    glGenBuffers(1,&mVertexArray);
-//    glBindBuffer(GL_ARRAY_BUFFER, mVertexArray);
-//    glBufferData(GL_ARRAY_BUFFER, mNumVoxels * 16, NULL, GL_DYNAMIC_COPY);
-//    cudaGLRegisterBufferObject(mVertexArray);
 }
-
 
 void FlightPlannerCuda::slotGenerateWaypoints()
 {

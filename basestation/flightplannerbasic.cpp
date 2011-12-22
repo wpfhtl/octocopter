@@ -16,6 +16,11 @@ void FlightPlannerBasic::slotWayPointReached(const QVector3D /*wayPoint*/)
     // gut!
 }
 
+void FlightPlannerBasic::slotInitialize()
+{
+    // nothing happens here
+}
+
 
 void FlightPlannerBasic::insertPoint(LidarPoint* const point)
 {

@@ -45,7 +45,7 @@ quint8* VoxelManager::getParentVoxelAndBitMask(const QVector3D& position, quint8
     const float posY = (position.y() - mBBoxMin.y()) / (mBBoxMax.y() - mBBoxMin.y()) * mResY;
     const float posZ = (position.z() - mBBoxMin.z()) / (mBBoxMax.z() - mBBoxMin.z()) * mResZ;
 
-    // Should never assert because position was within bounds
+    // Should never happen because position was within bounds
     if(posX > mResX) qDebug() << "VoxelManager::getParentVoxelAndBitMask(): point" << position << "in grid from" << mBBoxMin << "to" << mBBoxMax << "leads to grid posX" << posX << "of" << mResX;
     if(posY > mResY) qDebug() << "VoxelManager::getParentVoxelAndBitMask(): point" << position << "in grid from" << mBBoxMin << "to" << mBBoxMax << "leads to grid posY" << posY << "of" << mResY;
     if(posZ > mResZ) qDebug() << "VoxelManager::getParentVoxelAndBitMask(): point" << position << "in grid from" << mBBoxMin << "to" << mBBoxMax << "leads to grid posZ" << posZ << "of" << mResZ;
@@ -59,6 +59,8 @@ quint8* VoxelManager::getParentVoxelAndBitMask(const QVector3D& position, quint8
     if(posZ - (int)posZ > 0.5) bitShift += 4;
 
     bitMask = 1 << bitShift;
+
+    qDebug() << "VoxelManager::getParentVoxelAndBitMask(): posXYZ are" << posX << posY << posZ << "offset is" << offset;
 
     return mData + getVolumeDataSize() - offset;
 
@@ -85,6 +87,8 @@ bool VoxelManager::isOccupied(const QVector3D& position)
 
 bool VoxelManager::setVoxelValue(const QVector3D& position, const bool& value)
 {
+    qDebug() << "VoxelManager::setVoxelValue():" << position;
+
     quint8 bitMask;
     quint8* parentVoxel = getParentVoxelAndBitMask(position, bitMask);
 

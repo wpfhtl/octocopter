@@ -56,6 +56,8 @@ public slots:
     // Returns true if path was found, else false.
     void slotCreateSafePathToNextWayPoint();
 
+    void slotInitialize();
+
     // Overridden from base, create safe path to next waypoint whenever current one was reached.
     void slotWayPointReached(const WayPoint);
 

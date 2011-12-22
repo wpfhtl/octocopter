@@ -4,10 +4,10 @@ BaseStation::BaseStation() : QMainWindow()
 {
     qDebug() << "BaseStation::BaseStation()";
 
-    // We need a small font.
-    QFont widgetFont = QApplication::font();
+//    // We need a small font.
+//    QFont widgetFont = QApplication::font();
 //    widgetFont.setPointSize(7);
-    QApplication::setFont(widgetFont);
+//    QApplication::setFont(widgetFont);
 
     mOctree = new Octree(
             QVector3D(-100, -100, -100), // min
@@ -16,7 +16,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     mProgress = 0;
 
-    mHostNames << "atomboard.dyndns.org" << "localhost" << "192.168.1.1";
+    mHostNames << "kopter" << "localhost" << "192.168.1.1";
     mConnectionDialog = new ConnectionDialog(this);
     slotAskForConnectionHostNames();
 
@@ -63,8 +63,19 @@ BaseStation::BaseStation() : QMainWindow()
     mRtkFetcher = new RtkFetcher(mConnectionDialog->getHostNameRtkBase(), 4001, this);
     connect(mRtkFetcher, SIGNAL(rtkData(QByteArray)), SLOT(slotSendRtkDataToRover(QByteArray)));
 
+
+
+    // GlWidget and CUDA-based FlightPlanners have an intimate relationship because
+    // cudaGlSetGlDevice() needs to be called in GL context and before any other CUDA calls.
     mFlightPlanner = new FlightPlannerCuda(this, mOctree);
     mFlightPlanner->slotSetScanVolume(QVector3D(140, 70, 80), QVector3D(240, 120, 150));
+
+    mGlWidget = new GlWidget(this, mOctree, mFlightPlanner);
+    connect(mGlWidget, SIGNAL(initializingInGlContext()), mFlightPlanner, SLOT(slotInitialize())); // init CUDA when GlWidget inits
+    connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(update()));
+    connect(mGlWidget, SIGNAL(mouseClickedAtWorldPos(Qt::MouseButton, QVector3D)), mControlWidget, SLOT(slotSetWayPointCoordinateFields(Qt::MouseButton, QVector3D)));
+    setCentralWidget(mGlWidget);
+
     connect(this, SIGNAL(vehiclePoseChanged(Pose)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose)));
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
     connect(mControlWidget, SIGNAL(generateWaypoints()), mFlightPlanner, SLOT(slotGenerateWaypoints()));
@@ -88,10 +99,6 @@ BaseStation::BaseStation() : QMainWindow()
     menuBar()->addAction("Save Cloud", this, SLOT(slotExportCloud()));
     menuBar()->addAction("Load Cloud", this, SLOT(slotImportCloud()));
 
-    mGlWidget = new GlWidget(this, mOctree, mFlightPlanner);
-    connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(update()));
-    connect(mGlWidget, SIGNAL(mouseClickedAtWorldPos(Qt::MouseButton, QVector3D)), mControlWidget, SLOT(slotSetWayPointCoordinateFields(Qt::MouseButton, QVector3D)));
-    setCentralWidget(mGlWidget);
 
     connect(mGlWidget, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
     connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWidget, SLOT(updateGL()));

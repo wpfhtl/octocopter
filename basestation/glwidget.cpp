@@ -44,8 +44,8 @@ GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flig
 
 void GlWidget::initializeGL()
 {
-    // Set up the rendering context, define display lists etc.:
-
+    // Give e.g. FlightPlannerCuda a chance to initialize CUDA in a GL context
+    emit initializingInGlContext();
 
 
 /*    glClearColor(0.3, .3, .3, 0.0);
