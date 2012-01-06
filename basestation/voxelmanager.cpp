@@ -26,6 +26,7 @@ quint8* VoxelManager::getParentVoxelAndBitMask(const QVector3D& position, quint8
 {
     // Check that we are initialized
     Q_ASSERT(mData != 0);
+    Q_ASSERT(!mBBoxMin.isNull() && !mBBoxMax.isNull());
 
     // Check that position is within our bounds
     if(mBBoxMin.x() >= position.x() || mBBoxMin.y() >= position.y() || mBBoxMin.z() >= position.z())
@@ -50,8 +51,9 @@ quint8* VoxelManager::getParentVoxelAndBitMask(const QVector3D& position, quint8
     if(posY > mResY) qDebug() << "VoxelManager::getParentVoxelAndBitMask(): point" << position << "in grid from" << mBBoxMin << "to" << mBBoxMax << "leads to grid posY" << posY << "of" << mResY;
     if(posZ > mResZ) qDebug() << "VoxelManager::getParentVoxelAndBitMask(): point" << position << "in grid from" << mBBoxMin << "to" << mBBoxMax << "leads to grid posZ" << posZ << "of" << mResZ;
 
-    const qint32 offset = (posX*posY*posZ) + (posY*posX) + posY;
-    Q_ASSERT(offset < mResX * mResY * mResZ);
+    const qint32 offset = (((int)posX*(int)posY*(int)posZ) + ((int)posY*(int)posX) + (int)posY) / 8;
+    qDebug() << "VoxelManager::getParentVoxelAndBitMask(): bbox" << mBBoxMin << mBBoxMax << "posXYZ are" << posX << posY << posZ << "offset is" << offset;
+    Q_ASSERT(offset < mResX * mResY * mResZ / 8 && "offset is out of bounds!");
 
     quint8 bitShift = 0;
     if(posY - (int)posY > 0.5) bitShift += 1;
@@ -60,7 +62,6 @@ quint8* VoxelManager::getParentVoxelAndBitMask(const QVector3D& position, quint8
 
     bitMask = 1 << bitShift;
 
-    qDebug() << "VoxelManager::getParentVoxelAndBitMask(): posXYZ are" << posX << posY << posZ << "offset is" << offset;
 
     return mData + getVolumeDataSize() - offset;
 
@@ -92,7 +93,7 @@ bool VoxelManager::setVoxelValue(const QVector3D& position, const bool& value)
     quint8 bitMask;
     quint8* parentVoxel = getParentVoxelAndBitMask(position, bitMask);
 
-    if(!parentVoxel)
+    if(parentVoxel == 0)
     {
         qDebug() << "VoxelManager::setVoxelValue(): cannot set voxel value at" << position << "as my grid spans from" << mBBoxMin << "to" << mBBoxMax;
         return false;
@@ -108,6 +109,7 @@ bool VoxelManager::setVoxelValue(const QVector3D& position, const bool& value)
 
 void VoxelManager::slotSetScanVolume(const QVector3D& bBoxMin, const QVector3D& bBoxMax)
 {
+    qDebug() << "VoxelManager::slotSetScanVolume(): from" << mBBoxMin << "to" << mBBoxMax;
     mBBoxMin = bBoxMin;
     mBBoxMax = bBoxMax;
     initializeData();

@@ -13,7 +13,13 @@
 #include <waypoint.h>
 #include "openglutilities.h"
 
-extern "C" void computeFreeColumns(unsigned char* gridPointer, unsigned char* pixmap, int x, int y, int z);
+extern "C" void computeFreeColumns(
+    unsigned char* hostGridPointer,
+    unsigned char* pixmap,
+    float4* vertexPositions,
+    int resX, int resY, int resZ,
+    const QVector3D& bBoxMin,
+    const QVector3D& bBoxMax);
 
 class FlightPlannerCuda : public FlightPlannerInterface
 {
@@ -30,11 +36,15 @@ private:
 
     VoxelManager* mVoxelManager;
 
-    GLuint mVertexArray;
+    GLuint mSampleVertexArray; // VBO with vertices to be written from CUDA kernel.
+    cudaGraphicsResource* mSampleVertexArrayCudaResource; // the same VBO, represented as a CUDA graphics resource
 
     QList<WayPoint> mWayPointsGenerated, mWayPointsDetour;
 
-    unsigned char* mHostColumnOccupancyPixmapData; // the pointer to the host's copy of the kernel's result (the grayscale map of column traversability)
+    GLuint mColumnOccupancyTexture; // the texture to whch we'll write with CUDA
+    cudaGraphicsResource* mColumnOccupancyTextureCudaResource; // the same texture, represented as a CUDA graphics resource
+
+    QImage* mHostColumnOccupancyImage; // the pointer to the host's copy of the kernel's result (the grayscale map of column traversability)
     unsigned char* mDeviceColumnOccupancyPixmapData; // the pointer to the device's copy of the kernel's result (the grayscale map of column traversability)
 //    unsigned char* mDeviceVolumeData; // the pointer to the device#s copy of the volume data. UNUSED, we use mapped memory
 

@@ -44,53 +44,17 @@ GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flig
 
 void GlWidget::initializeGL()
 {
+    glewInit();
+
     // Give e.g. FlightPlannerCuda a chance to initialize CUDA in a GL context
     emit initializingInGlContext();
-
-
-/*    glClearColor(0.3, .3, .3, 0.0);
-//    glClearColor(1.0, 1.0, 1.0, 0.0);
-    glClearDepth(1.0f);
-    glEnable(GL_DEPTH_TEST);
-//    glEnable(GL_CULL_FACE);
-    glShadeModel(GL_SMOOTH);
-    glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHT0);
-//    glEnable(GL_MULTISAMPLE);
-    glEnable(GL_COLOR_MATERIAL);
-
-    // http://nehe.gamedev.net/data/lessons/lesson.asp?lesson=08
-    glEnable(GL_BLEND);		// Turn Blending On
-//    glDisable(GL_DEPTH_TEST); // ..and dt off, also for blend.
-
-    static GLfloat lightPosition[4] = { -0.5, -5.0, -7.0, -1.0 };
-    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
-
-
-    glHint(GL_LINE_SMOOTH_HINT, GL_NICEST); // antialias lines
-
-    glShadeModel(GL_SMOOTH);
-//    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-//    glClearDepth(1.0f);
-//    glEnable(GL_DEPTH_TEST);
-//    glDepthFunc(GL_LEQUAL);
-    */
-//    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-    /* we use resizeGL once to set up our initial perspective */
-//    resizeGL(width, height);
-    /* Reset the rotation angle of our object */
-//    rotQuad = 0;
-//    glFlush();
 
     // needed to convert mous epos to world pos, see
     // http://stackoverflow.com/questions/3089271/converting-mouse-position-to-world-position-opengl
     glEnable(GL_DEPTH);
 
-
-
     glShadeModel(GL_SMOOTH);						// Enable Smooth Shading
-//    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);					// Black Background
-//    glClearColor(0.5f, 0.5f, 0.5f, 0.0f);					// Black Background
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);					// Black Background
     glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// White Background
     glClearDepth(1.0f);							// Depth Buffer Setup
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);					// Set Line Antialiasing
@@ -125,57 +89,15 @@ void GlWidget::moveCamera(const QVector3D &pos)
 {
 //    qDebug() << "moveCamera to " << pos;
     camPos = pos;
-/*
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    gluPerspective(130.0, (GLfloat)width()/(GLfloat)height(), 10, +8000.0);
-    glTranslatef(camPos.x(), camPos.y(), camPos.z());
-    glMatrixMode(GL_MODELVIEW);
-    */
 }
 
 void GlWidget::paintGL()
 {
 //    setShaders();
 
-//    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-//    glLoadIdentity();
-//    glTranslatef(0.0f, 0.0f, -7.0f);
-//    glRotatef(rotQuad, 0.0f, 1.0f, 0.0f);
-
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     resizeGL(width(),height());
     glLoadIdentity();
-
-
-
-//    glTranslatef(camPos.x(), camPos.y(), camPos.z());
-
-//    drawAxes(1.25, 1.1, 1.25, 0.0, 1.0, 0.0);
-
-    //Wheel Scaling
-//    glScalef(currentScaling,currentScaling,currentScaling);
-
-    //Timer Animation
-//    GLfloat timerScaling = 0.5+pow(cos(0.025*t),2);
-//    glScalef(timerScaling,timerScaling,timerScaling);
-//    glRotatef(t,1,1,1);
-
-    static bool aimedAtOctreeCenter = false;
-//    QVector3D otc;
-//    if(mFlightPlanner->mOctree && !aimedAtOctreeCenter)
-//    {
-//        mCamLookAt = mFlightPlanner->mOctree->root()->center();
-//        mCamLookAt = QVector3D(180,80,120);
-//        aimedAtOctreeCenter = true;
-//        qDebug() << "centering around cloud center" << otc;
-//    }
-//    else
-//    {
-//        otc = mOctree->root()->center();
-//        otc = mCamLookAt;
-//        qDebug() << "centering around 0/0/0" << otc;
-//    }
 
     const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().position;
     mCamLookAt = vehiclePosition;
@@ -196,11 +118,10 @@ void GlWidget::paintGL()
 
     glTranslatef(-mCamLookAt.x(), -mCamLookAt.y(), -mCamLookAt.z());
 
-
-
     // Draw base plate for unProjecting
-    /*glEnable(GL_BLEND);
-        glDisable(GL_LIGHTING);
+    /*
+    glEnable(GL_BLEND);
+    glDisable(GL_LIGHTING);
     glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
     glBlendFunc(GL_CONSTANT_COLOR, GL_ONE_MINUS_SRC_ALPHA);
     glColor4f(1.0f, 1.0f, 1.0f, 0.0f);
@@ -211,34 +132,19 @@ void GlWidget::paintGL()
     glVertex3f(-1000, min.y()+15, -1000);
     glEnd();
     glEnable(GL_LIGHTING);
-    glDisable(GL_BLEND);*/
-
-
-
-//    glTranslatef(-0.0, -100.0, -0.0);
-
+    glDisable(GL_BLEND);
+    */
 
     // Draw vehicle position
-//    glEnable(GL_BLEND);							// Enable Blending
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);			// Type Of Blending To Use
     glDisable(GL_LIGHTING);
     OpenGlUtilities::drawSphere(mFlightPlanner->getLastKnownVehiclePose().position, 1.0, 20.0, QColor(0,0,0,200));
-//    glDisable(GL_BLEND);
     glEnable(GL_LIGHTING);
-
-    // Draw next waypoint
-    // Don't, let the flightplanners visualize themselves
-//    OpenGlUtilities::drawSphere(mBaseStation->getNextWayPoint(), 1.0, 20.0, QColor(255,255,255,100));
-
-//    glTranslatef(+0.0, +100.0, +0.0);
-
 
     drawAxes(20, 20, 20, 1.0, 1.0, 0.0);
 
     drawVehicleVelocity();
 
-
-//    mOctree->drawGl();
     glDisable(GL_LIGHTING);
     glPointSize(1);
     glColor4f(.5f, .5f, .5f, 0.7f);
@@ -247,8 +153,6 @@ void GlWidget::paintGL()
     glEnd();
     glEnable(GL_LIGHTING);
 
-    // draw
-//    mFlightPlanner->visualize();
     emit visualizeNow();
 }
 
@@ -421,10 +325,6 @@ QVector3D GlWidget::convertMouseToWorldPosition(const QPoint& point)
     GLfloat winX, winY, winZ;
     GLdouble posX, posY, posZ;
 
-
-
-
-
     glLoadIdentity();
     const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().position;
     mCamLookAt = vehiclePosition;
@@ -444,13 +344,6 @@ QVector3D GlWidget::convertMouseToWorldPosition(const QPoint& point)
     glRotatef(rotZ,0.0,0.0,1.0);
 
     glTranslatef(-mCamLookAt.x(), -mCamLookAt.y(), -mCamLookAt.z());
-
-
-
-
-
-
-
 
     glGetDoublev( GL_MODELVIEW_MATRIX, modelview );
     glGetDoublev( GL_PROJECTION_MATRIX, projection );
