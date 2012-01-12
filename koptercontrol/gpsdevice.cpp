@@ -24,7 +24,12 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
 {
     qDebug() << "GpsDevice::GpsDevice(): Using usb port" << serialDeviceFileUsb << "and com port" << serialDeviceFileCom;
 
+    mLogFileSbf = new QFile(QString("sbfdata-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
+    if(!mLogFileSbf->open(QIODevice::WriteOnly)) qFatal("GpsDevice::GpsDevice(): couldn't open sbf log file for writing, exiting");
+
     mDeviceIsInitialized = false;
+
+    mFirmwareBug_20120111_RtkWasEnabledAfterAttitudeDetermination = false;
 
     mTimeStampStartup = QDateTime::currentDateTime();
 
@@ -268,7 +273,9 @@ void GpsDevice::slotCommunicationSetup()
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,-90,0,270,manual,0.07,0.07,0.33");
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,90,manual,0.07,0.07,0.33");
     // Leicht, jetzt wo IMU in der Mitte liegt und unter dem kopter hängt
-    queueAsciiCommand("setExtSensorCalibration,COM2,manual,180,00,0,manual,-0.06,0.10,0.26");
+//    queueAsciiCommand("setExtSensorCalibration,COM2,manual,180,00,0,manual,-0.06,0.10,0.26");
+    // PPM empfohlen
+    queueAsciiCommand("setExtSensorCalibration,COM2,manual,180,00,0,manual,0.06,0.10,0.26");
     // Sarah Dean says "seems to be ok" about 0 90 270
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,270,manual,0.07,0.07,0.33");
 
@@ -276,8 +283,10 @@ void GpsDevice::slotCommunicationSetup()
     queueAsciiCommand("setEventParameters,EventA,High2Low");
     queueAsciiCommand("setEventParameters,EventB,High2Low");
 
-    // configure rover in standalone+rtk mode (use "RTKFixed" instead of "all"?)
-    queueAsciiCommand("setPVTMode,Rover,all,auto,Loosely");
+    // Usually, we'd configure as rover in standalone+rtk mode. Due to a firmware bug, the receiver only initializes the attitude
+    // correctly when it startsin NON-RTK mode. Thus, we start in non-RTK mode, and when init succeeded, we enable RTK.
+    //queueAsciiCommand("setPVTMode,Rover,all,auto,Loosely");
+    queueAsciiCommand("setPVTMode,Rover,StandAlone+SBAS+DGPS+PPP,auto,Loosely");
 
     // explicitly allow rover to use all RTCMv3 correction messages
     queueAsciiCommand("setRTCMv3Usage,all");
@@ -286,8 +295,8 @@ void GpsDevice::slotCommunicationSetup()
     // We want to know the pose 25 times a second
     queueAsciiCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec40");
 
-    // We want to know PVTCartesion (4006) for MeanCorrAge (average correction data age) only, so stream it slowly
-    queueAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus,sec1");
+    // We want to know PVTCartesion for MeanCorrAge (average correction data age), ReceiverStatus for CPU Load and IntAttCovEuler for Covariances (sigma-values)
+    queueAsciiCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus+IntAttCovEuler,sec1");
 
     // We want to know whenever a scan is finished.
     queueAsciiCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceCom+",ExtEvent,OnChange");
@@ -407,6 +416,8 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
 {
     //qDebug() << "GpsDevice::processSbfData():" << receiveBuffer.size() << "bytes present.";
 
+    QDataStream sbfLogStream(mLogFileSbf);
+
     while(receiveBuffer.size() > 8)
     {
 //        qDebug() << "GpsDevice::processSbfData(): more than 8 data bytes present, processing.";
@@ -418,17 +429,11 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
             // because we cannot use any data without a sync-marker prepended. So the data must
             // be non-SBF and should be consumed by someone else.
             return;
-
-            // This may happen when we send a exeSbfOnce command (e.g. for ReceiverTime). The
-            // receiver then replies with the SBF and then the prompt. The prompt is processed
-            // here and discarded. Thats ok.
-            //qWarning() << "GpsDevice::processSbfData(): WARNING: SBF Sync marker not found in buffer of" << receiveBuffer.size() << "bytes. Clearing buffer:" << receiveBuffer;
-            //receiveBuffer.clear();
-            //return;
         }
         else if(indexOfSyncMarker != 0)
         {
             qWarning() << "GpsDevice::processSbfData(): WARNING: SBF Sync Marker $@ was not at byte 0, but at" << indexOfSyncMarker;
+            sbfLogStream << receiveBuffer.left(indexOfSyncMarker); // save those bytes into the sbf log for later reference
             receiveBuffer.remove(0, indexOfSyncMarker);
         }
 
@@ -450,6 +455,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
             // Remove the SBF block body from our incoming USB buffer, so it contains either nothing or the next SBF message
             // Since the CRC is wrong, msgLength might also be off. Thus we delete just two bytes at the beginning, causing
             // a warning about spurious data in the next processing iteration, but thats still more safe.
+            sbfLogStream << receiveBuffer.left(2); // save those bytes into the sbf log for later reference
             receiveBuffer.remove(0, 2);
             continue;
         }
@@ -474,6 +480,18 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
         }
         break;
 
+
+
+
+        case 4072:
+        {
+            // IntAttCovEuler
+            const Sbf_IntAttCovEuler *block = (Sbf_IntAttCovEuler*)receiveBuffer.data();
+            qDebug() << "SBF: IntAttCovEuler: covariances for heading, pitch, roll:" << block->Cov_HeadHead << block->Cov_PitchPitch << block->Cov_RollRoll;
+        }
+        break;
+
+
         case 4014:
         {
             // ReceiverStatus
@@ -481,7 +499,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
             if(block->CPULoad > 80)
             {
                 qWarning() << "GpsDevice::processSbfData(): WARNING, receiver CPU load is" << block->CPULoad;
-                slotEmitCurrentGpsStatus(QString("Warning, CPU load is too high (%1%)").arg(block->CPULoad));
+                slotEmitCurrentGpsStatus(QString("Warning, CPU load is too high (%1 percent)").arg(block->CPULoad));
             }
 
             if(block->ExtError != 0)
@@ -612,7 +630,8 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
                     && block->Pitch != -32768
                     && block->Roll != -32768
                     && block->TOW != 4294967295
-//                    && block->Mode == 2 // integrated solution, not sensor-only or gnss-only*/
+                    && testBit(block->Info, 11) // Heading ambiguity is Fixed
+                    && block->Mode == 2 // integrated solution, not sensor-only or gnss-only*/
                     && (block->GNSSPVTMode & 15) == 4 // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().*/
                     && block->GNSSage < 100 // 100 * 0.01 sec interval of no GNSS PVT
                     )
@@ -623,6 +642,19 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
             }
             else
             {
+                // Special case for buggy firmware (no attitude in RTK-mode): if we're not in RTK-Mode, but the heading is correct
+                if(!mFirmwareBug_20120111_RtkWasEnabledAfterAttitudeDetermination && block->Heading != 65535 && block->Pitch != -32768 && block->Roll != -32768)
+                {
+                    qDebug() << t() << "GpsDevice::processSbfData(): enabling RTK after heading is determined.";
+                    mFirmwareBug_20120111_RtkWasEnabledAfterAttitudeDetermination = true;
+                    queueAsciiCommand("setPVTMode,Rover,all,auto,Loosely");
+                }
+
+                if(!testBit(block->Info, 11))
+                {
+                    qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, heading ambiguity is not fixed.";
+                }
+
                 if(block->Error != 0)
                 {
                     qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, error:" << block->Error << " " << GpsStatusInformation::getError(block->Error) ;
@@ -788,8 +820,11 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
         }
 
         // Remove the SBF block body from our incoming USB buffer, so it contains either nothing or the next SBF message
+        sbfLogStream << receiveBuffer.left(msgLength); // save those bytes into the sbf log for later reference
         receiveBuffer.remove(0, msgLength);
     }
+
+    mLogFileSbf->flush();
 
 //    if(receiveBuffer.size()) qDebug() << "GpsDevice::processSbfData(): done processing SBF data, bytes left in buffer:" << receiveBuffer.size() << "bytes:" << receiveBuffer;
 }
@@ -839,12 +874,21 @@ void GpsDevice::slotEmitCurrentGpsStatus(const QString& text)
                 );
 }
 
+// TODO: initialize offsets on startup, let the kopter start at 0/0/0
 QVector3D GpsDevice::convertGeodeticToCartesian(const double &lon, const double &lat, const float &elevation)
 {
     QVector3D co;
-    co.setY(elevation);
-    co.setZ(-(lat - 53.600515) * 111300.0);
-    co.setX((lon -  09.931478l) * 111300.0l * cos(M_PI / 180.0 * 53.600669l));
+
+    // FBI in Hamburg is 53.600515,09.931478 with elevation of about 70m
+//    co.setY(elevation - 0.0);
+//    co.setZ(-(lat - 53.600515) * 111300.0);
+//    co.setX((lon -  09.931478l) * 111300.0l * cos(M_PI / 180.0 * 53.600515));
+
+    // PPM in Penzberg is 47.757201,11.377133 with elevation of about 656m
+    // corrected o be in scanvol: 47.758459,11.374709
+    co.setY(elevation - 556.0);
+    co.setZ(-(lat - 47.758459) * 111300.0);
+    co.setX((lon -  11.374709l) * 111300.0l * cos(M_PI / 180.0 * 47.758459));
 
     return co;
 }

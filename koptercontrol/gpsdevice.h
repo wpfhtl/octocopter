@@ -61,6 +61,8 @@ public:
     ~GpsDevice();
 
 private:
+    QFile* mLogFileSbf;
+    bool mFirmwareBug_20120111_RtkWasEnabledAfterAttitudeDetermination;
     Pose mLastPose;
     quint8 mPoseClockDivisor; // for emitting a low-frequency pose for debugging
     quint8 mLastErrorFromDevice;
@@ -127,6 +129,24 @@ private:
       qint8         DeltaLS;
       quint8        SyncLevel;
       quint8        Reserved[2];
+    };
+
+    struct Sbf_IntAttCovEuler
+    {
+      Sbf_Header  Header;
+
+      quint32       TOW;
+      quint16       WNc;
+
+      quint8        Mode;
+      quint8        Error;
+
+      float          Cov_HeadHead;
+      float          Cov_PitchPitch;
+      float          Cov_RollRoll;
+      float          Cov_HeadPitch;
+      float          Cov_HeadRoll;
+      float          Cov_PitchRoll;
     };
 
     struct Sbf_ExtEvent

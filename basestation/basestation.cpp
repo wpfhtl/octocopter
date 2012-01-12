@@ -16,7 +16,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     mProgress = 0;
 
-    mHostNames << "kopter" << "localhost" << "192.168.1.1";
+    mHostNames << "atomboard.dyndns.org" << "localhost" << "192.168.1.1" << "192.168.100.198" << "134.100.13.169";
     mConnectionDialog = new ConnectionDialog(this);
     slotAskForConnectionHostNames();
 
@@ -60,14 +60,14 @@ BaseStation::BaseStation() : QMainWindow()
     addDockWidget(Qt::BottomDockWidgetArea, mLogWidget);
     menuBar()->addAction("Save Log", mLogWidget, SLOT(save()));
 
-    mRtkFetcher = new RtkFetcher(mConnectionDialog->getHostNameRtkBase(), 4001, this);
+    mRtkFetcher = new RtkFetcher(mConnectionDialog->getHostNameRtkBase(), 2101, this);
     connect(mRtkFetcher, SIGNAL(rtkData(QByteArray)), SLOT(slotSendRtkDataToRover(QByteArray)));
 
-
-
+    mFlightPlanner = new FlightPlannerPhysics(this, mOctree);
     // GlWidget and CUDA-based FlightPlanners have an intimate relationship because
     // cudaGlSetGlDevice() needs to be called in GL context and before any other CUDA calls.
-    mFlightPlanner = new FlightPlannerCuda(this, mOctree);
+//    mFlightPlanner = new FlightPlannerCuda(this, mOctree);
+
     mFlightPlanner->slotSetScanVolume(QVector3D(140, 70, 80), QVector3D(240, 120, 150));
 
     mGlWidget = new GlWidget(this, mOctree, mFlightPlanner);

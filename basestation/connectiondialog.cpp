@@ -9,7 +9,7 @@ ConnectionDialog::ConnectionDialog(QWidget *parent) :
     ui->setupUi(this);
 
     QStringList hostNames;
-    hostNames << "kopter" << "localhost" << "192.168.1.1" << "tams9" << "134.100.13.169";
+    hostNames << "kopter" << "localhost" << "192.168.1.1" << "tams9" << "134.100.13.169" << "80.153.240.55";
 
     QCompleter *completer = new QCompleter(hostNames, this);
     completer->setCaseSensitivity(Qt::CaseInsensitive);

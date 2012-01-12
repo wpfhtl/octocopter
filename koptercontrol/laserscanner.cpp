@@ -157,6 +157,7 @@ void LaserScanner::slotCaptureScanData()
     {
         // Emit the scandata and add 12msecs of time. The scanner PROBABLY sets the time to the beginning of
         // each scan -135deg (0deg is front) and our convention is to store the time of the middle of a  scan.
+        //emit bottomBeamLength((*distances)[540]/1000.0f);
         emit newScanData(mLastScannerTimeStamp + mOffsetTimeScannerToTow + 9, distances);
     }
 }

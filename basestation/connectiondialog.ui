@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>311</width>
-    <height>89</height>
+    <height>96</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -38,7 +38,7 @@
    <item row="1" column="2">
     <widget class="QLineEdit" name="mLineEditHostNameRtkBase">
      <property name="text">
-      <string>134.100.13.169</string>
+      <string>80.153.240.55</string>
      </property>
     </widget>
    </item>
