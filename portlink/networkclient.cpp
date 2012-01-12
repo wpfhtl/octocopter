@@ -45,6 +45,7 @@ void NetworkClient::slotStateChanged(QAbstractSocket::SocketState state)
 
 void NetworkClient::slotReadSocket(bool lockMutex)
 {
+//qDebug() << "data";
     emit data(mTcpSocket->readAll());
 }
 
@@ -56,5 +57,6 @@ void NetworkClient::write(const QByteArray &data)
         return;
     }
 
+//qDebug() << "data write";
     mTcpSocket->write(data);
 }

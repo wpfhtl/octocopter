@@ -273,9 +273,10 @@ void GpsDevice::slotCommunicationSetup()
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,-90,0,270,manual,0.07,0.07,0.33");
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,90,manual,0.07,0.07,0.33");
     // Leicht, jetzt wo IMU in der Mitte liegt und unter dem kopter hängt
+//    queueAsciiCommand("setExtSensorCalibration,COM2,manual,180,00,0,manual,0.0,0.0,-0.63");
 //    queueAsciiCommand("setExtSensorCalibration,COM2,manual,180,00,0,manual,-0.06,0.10,0.26");
     // PPM empfohlen
-    queueAsciiCommand("setExtSensorCalibration,COM2,manual,180,00,0,manual,0.06,0.10,0.26");
+    queueAsciiCommand("setExtSensorCalibration,COM2,manual,180,0,0,manual,0.00,0.00,-0.26");
     // Sarah Dean says "seems to be ok" about 0 90 270
     //sendAsciiCommand("setExtSensorCalibration,COM2,manual,0,90,270,manual,0.07,0.07,0.33");
 
@@ -286,7 +287,7 @@ void GpsDevice::slotCommunicationSetup()
     // Usually, we'd configure as rover in standalone+rtk mode. Due to a firmware bug, the receiver only initializes the attitude
     // correctly when it startsin NON-RTK mode. Thus, we start in non-RTK mode, and when init succeeded, we enable RTK.
     //queueAsciiCommand("setPVTMode,Rover,all,auto,Loosely");
-    queueAsciiCommand("setPVTMode,Rover,StandAlone+SBAS+DGPS+PPP,auto,Loosely");
+    queueAsciiCommand("setPVTMode,Rover,StandAlone+SBAS+DGPS,auto,Loosely");
 
     // explicitly allow rover to use all RTCMv3 correction messages
     queueAsciiCommand("setRTCMv3Usage,all");
@@ -631,7 +632,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
                     && block->Roll != -32768
                     && block->TOW != 4294967295
                     && testBit(block->Info, 11) // Heading ambiguity is Fixed
-                    && block->Mode == 2 // integrated solution, not sensor-only or gnss-only*/
+                    //&& block->Mode == 2 // integrated solution, not sensor-only or gnss-only*/
                     && (block->GNSSPVTMode & 15) == 4 // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().*/
                     && block->GNSSage < 100 // 100 * 0.01 sec interval of no GNSS PVT
                     )
@@ -643,7 +644,12 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
             else
             {
                 // Special case for buggy firmware (no attitude in RTK-mode): if we're not in RTK-Mode, but the heading is correct
-                if(!mFirmwareBug_20120111_RtkWasEnabledAfterAttitudeDetermination && block->Heading != 65535 && block->Pitch != -32768 && block->Roll != -32768)
+                if(!mFirmwareBug_20120111_RtkWasEnabledAfterAttitudeDetermination
+                        && block->Heading != 65535
+                        && block->Pitch != -32768
+                        && block->Roll != -32768
+                        && testBit(block->Info, 11)
+                        )
                 {
                     qDebug() << t() << "GpsDevice::processSbfData(): enabling RTK after heading is determined.";
                     mFirmwareBug_20120111_RtkWasEnabledAfterAttitudeDetermination = true;
@@ -657,17 +663,17 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
 
                 if(block->Error != 0)
                 {
-                    qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, error:" << block->Error << " " << GpsStatusInformation::getError(block->Error) ;
+                    qDebug() << t() << "GpsDevice::processSbfData(): invalid pose, error:" << block->Error << " " << GpsStatusInformation::getError(block->Error) ;
                 }
 
                 if(block->Heading == 65535)
                 {
-                    qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, heading do-not-use";
+                    qDebug() << t() << "GpsDevice::processSbfData(): invalid pose, heading do-not-use";
                 }
 
                 if(block->Mode != 2)
                 {
-                    qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, not integrated solution, but" << GpsStatusInformation::getIntegrationMode(block->Mode);
+                    qDebug() << t() << "GpsDevice::processSbfData(): invalid pose, not integrated solution, but" << GpsStatusInformation::getIntegrationMode(block->Mode);
                     setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
                     emit newVehiclePose(mLastPose);
                     mPoseClockDivisor++;
@@ -675,7 +681,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
 
                 if((block->GNSSPVTMode & 15) != 4)
                 {
-                    qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, GNSSMode is" << GpsStatusInformation::getGnssMode(block->GNSSPVTMode) << "corrAge is" << mLastMeanCorrAge;
+                    qDebug() << t() << "GpsDevice::processSbfData(): invalid pose, GNSSMode is" << GpsStatusInformation::getGnssMode(block->GNSSPVTMode) << "corrAge:" << mLastMeanCorrAge * 100 << "msec";
                     setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
                     emit newVehiclePose(mLastPose);
                     mPoseClockDivisor++;
@@ -683,7 +689,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
 
                 if(block->GNSSage > 99)
                 {
-                    qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, GNSSAge is" << block->GNSSage;
+                    qDebug() << t() << "GpsDevice::processSbfData(): invalid pose, GNSSAge is" << block->GNSSage;
                 }
 
                 if(
@@ -694,7 +700,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
                         || block->Roll == -32768
                         || block->TOW == 4294967295)
                 {
-                    qDebug() << t() << "GpsDevice::processSbfData(): pose from PVAAGeod not valid, do-not-use values found.";
+                    qDebug() << t() << "GpsDevice::processSbfData(): invalid pose, do-not-use values found.";
                 }
             }
 

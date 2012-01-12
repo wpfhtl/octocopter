@@ -34,6 +34,7 @@ KopterMessage::KopterMessage(QByteArray* receiveBuffer) : QObject()
 
 //        qDebug() << "KopterMessage::KopterMessage(): from stream:" << toString();
 
+        // FIXME: this fails at times. Do not crash, but rather discard the message.
         Q_ASSERT(isValid());
     }
     else

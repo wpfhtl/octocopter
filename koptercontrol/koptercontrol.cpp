@@ -94,7 +94,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
                     10             // Use 10 msec TOW, so that the relative pose is always older than whatever new pose coming in. Don't use 0, as that would be set to current TOW, which might be newer due to clock offsets.
                     )
                 );
-    mSensorFuser = new SensorFuser(mLaserScanner, static_cast<SensorFuser::Behavior>(SensorFuser::WriteRawLogs | SensorFuser::FuseData));
+    mSensorFuser = new SensorFuser(mLaserScanner, static_cast<SensorFuser::Behavior>(SensorFuser::WriteRawLogs/* | SensorFuser::FuseData*/));
     mBaseConnection = new BaseConnection(networkInterface);
     mKopter = new Kopter(deviceSerialKopter, this);
     mGpsDevice = new GpsDevice(deviceSerialGpsUsb, deviceSerialGpsCom, this);
