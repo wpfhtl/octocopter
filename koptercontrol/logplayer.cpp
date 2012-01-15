@@ -4,10 +4,9 @@ LogPlayer::LogPlayer(int argc, char **argv) : QCoreApplication(argc, argv)
 {
     const QStringList arguments = QCoreApplication::arguments();
 
-    if(arguments.size() != 3)
+    if(arguments.size() != 3 && arguments.size() != 4)
     {
-        qDebug() << "LogPlayer::LogPlayer() usage:" << arguments.at(0) << "inputfile outputfile";
-        exit(0);
+        qFatal("LogPlayer::LogPlayer() usage: %s inputfile outputfile-basename [MaxRayLength (mm)]", qPrintable(arguments.at(0)));
     }
 
     mLaserScanner = new LaserScanner(
@@ -29,8 +28,17 @@ LogPlayer::LogPlayer(int argc, char **argv) : QCoreApplication(argc, argv)
 
     mSensorFuser = new SensorFuser(mLaserScanner, static_cast<SensorFuser::Behavior>(SensorFuser::FuseData));
 
-    mPlyManager = new PlyManager(arguments.at(2), PlyManager::DataWrite);
-    connect(mSensorFuser, SIGNAL(newScannedPoints(QVector<QVector3D>, QVector3D)), mPlyManager, SLOT(slotNewPoints(QVector<QVector3D>, QVector3D)));
+    if(argc == 4)
+    {
+        const float maxRayLength = arguments.at(3).toInt() / 1000.0;
+        qDebug() << "LogPlayer::LogPlayer() only fusing laser rays up to a length of" << maxRayLength << "meters.";
+        mSensorFuser->setMaximumFusableRayLength(maxRayLength);
+    }
+
+    mPlyManagerTrajectory = new PlyManager(QString(arguments.at(2)).append("_trajectory.ply"), PlyManager::DataWrite);
+
+    mPlyManagerCloud = new PlyManager(QString(arguments.at(2)).append("_cloud.ply"), PlyManager::DataWrite);
+    connect(mSensorFuser, SIGNAL(newScannedPoints(QVector<QVector3D>, QVector3D)), mPlyManagerCloud, SLOT(slotNewPoints(QVector<QVector3D>, QVector3D)));
 
     slotProcessLog(arguments.at(1));
 }
@@ -39,7 +47,8 @@ LogPlayer::~LogPlayer()
 {
     delete mLaserScanner;
     delete mSensorFuser;
-    delete mPlyManager;
+    delete mPlyManagerCloud;
+    delete mPlyManagerTrajectory;
 }
 
 bool LogPlayer::slotProcessLogLine(const QString& line)
@@ -68,7 +77,11 @@ bool LogPlayer::slotProcessLogLine(const QString& line)
     }
     else if(line.contains("pose"))
     {
-        mSensorFuser->slotNewVehiclePose(Pose(line));
+        const Pose p(line);
+        mSensorFuser->slotNewVehiclePose(p);
+        QList<QVector3D> positions;
+        positions << p.position;
+        mPlyManagerTrajectory->slotNewPoints(positions, QVector3D());
     }
     else
     {

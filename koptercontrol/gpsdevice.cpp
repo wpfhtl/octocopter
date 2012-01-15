@@ -29,6 +29,11 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
 
     mDeviceIsInitialized = false;
 
+    // Will be set on first PVT reception and is used to let the rover start at cartesian 0/0/0
+    mOriginLongitude = 10e20;
+    mOriginLatitude = 10e20;
+    mOriginElevation = 10e20;
+
     mFirmwareBug_20120111_RtkWasEnabledAfterAttitudeDetermination = false;
 
     mTimeStampStartup = QDateTime::currentDateTime();
@@ -637,6 +642,7 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
                     && block->GNSSage < 100 // 100 * 0.01 sec interval of no GNSS PVT
                     )
             {
+                // Todo: check sigma-values
                 setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
                 emit newVehiclePosePrecise(mLastPose);
                 mPoseClockDivisor++;
@@ -651,9 +657,9 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
                         && testBit(block->Info, 11)
                         )
                 {
-                    qDebug() << t() << "GpsDevice::processSbfData(): enabling RTK after heading is determined.";
-                    mFirmwareBug_20120111_RtkWasEnabledAfterAttitudeDetermination = true;
+                    qDebug() << t() << "GpsDevice::processSbfData(): enabling RTK after heading is determined and ambiguity is fixed.";
                     queueAsciiCommand("setPVTMode,Rover,all,auto,Loosely");
+                    mFirmwareBug_20120111_RtkWasEnabledAfterAttitudeDetermination = true;
                 }
 
                 if(!testBit(block->Info, 11))
@@ -835,21 +841,6 @@ void GpsDevice::processSbfData(QByteArray& receiveBuffer)
 //    if(receiveBuffer.size()) qDebug() << "GpsDevice::processSbfData(): done processing SBF data, bytes left in buffer:" << receiveBuffer.size() << "bytes:" << receiveBuffer;
 }
 
-void GpsDevice::setPose(const qint32& lon, const qint32& lat, const qint32& alt, const quint16& heading, const qint16& pitch, const qint16& roll, const quint32& tow)
-{
-    const float  floatLon = ((float)lon) / 10000000.0l;
-    const float  floatLat = ((float)lat) / 10000000.0l;
-    const float  floatAlt = ((float)alt) / 1000.0l;
-
-    mLastPose = Pose(
-                convertGeodeticToCartesian(floatLon, floatLat, floatAlt),
-                ((float)heading) * 0.01l,
-                ((float)pitch) * 0.01l,
-                ((float)roll) * 0.01l,
-                (qint32)tow // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
-                );
-}
-
 void GpsDevice::slotSetRtkData(const QByteArray &data)
 {
     if(mDeviceIsInitialized)
@@ -880,21 +871,40 @@ void GpsDevice::slotEmitCurrentGpsStatus(const QString& text)
                 );
 }
 
-// TODO: initialize offsets on startup, let the kopter start at 0/0/0
+void GpsDevice::setPose(const qint32& lon, const qint32& lat, const qint32& alt, const quint16& heading, const qint16& pitch, const qint16& roll, const quint32& tow)
+{
+    const double floatLon = ((double)lon) / 10000000.0l;
+    const double floatLat = ((double)lat) / 10000000.0l;
+    const double floatAlt = ((double)alt) / 1000.0l;
+
+    mLastPose = Pose(
+                convertGeodeticToCartesian(floatLon, floatLat, floatAlt),
+                ((double)heading) * 0.01l,
+                ((double)pitch) * 0.01l,
+                ((double)roll) * 0.01l,
+                (qint32)tow // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
+                );
+}
+
 QVector3D GpsDevice::convertGeodeticToCartesian(const double &lon, const double &lat, const float &elevation)
 {
+    // Set longitude, latitude and elevation of first GNSS fix to let the rover start at cartesian 0/0/0
+    if(mOriginLongitude > 10e19 && mOriginLatitude > 10e19 && mOriginElevation > 10e19)
+    {
+        mOriginLongitude = lon;
+        mOriginLatitude = lat;
+        mOriginElevation = elevation;
+    }
+
+    // Doesn't matter, as offset isn't hardcoded anymore this is just for historical reference :)
+    // FBI in Hamburg is 53.600515,09.931478 with elevation of about 70m
+    // PPM in Penzberg is 47.757201,11.377133 with elevation of about 656m
+
     QVector3D co;
 
-    // FBI in Hamburg is 53.600515,09.931478 with elevation of about 70m
-//    co.setY(elevation - 0.0);
-//    co.setZ(-(lat - 53.600515) * 111300.0);
-//    co.setX((lon -  09.931478l) * 111300.0l * cos(M_PI / 180.0 * 53.600515));
-
-    // PPM in Penzberg is 47.757201,11.377133 with elevation of about 656m
-    // corrected o be in scanvol: 47.758459,11.374709
-    co.setY(elevation - 556.0);
-    co.setZ(-(lat - 47.758459) * 111300.0);
-    co.setX((lon -  11.374709l) * 111300.0l * cos(M_PI / 180.0 * 47.758459));
+    co.setY(elevation - mOriginElevation);
+    co.setZ(-(lat - mOriginLatitude) * 111300.0l);
+    co.setX((lon -  mOriginLongitude) * 111300.0l * cos((double(M_PI)) / 180.0l * mOriginLatitude));
 
     return co;
 }

@@ -13,7 +13,8 @@ class LogPlayer : public QCoreApplication
 private:
     LaserScanner* mLaserScanner;
     SensorFuser* mSensorFuser;
-    PlyManager* mPlyManager;
+    PlyManager* mPlyManagerCloud;
+    PlyManager* mPlyManagerTrajectory;
 
 public:
     LogPlayer(int argc, char **argv);

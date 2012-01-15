@@ -26,6 +26,8 @@ public:
 
     bool processLog(const QString& fileName);
 
+    void setMaximumFusableRayLength(const float& rayLength) {mMaximumFusableRayLength = rayLength;}
+
 
 private:
     quint32 mPointCloudSize;
@@ -44,6 +46,8 @@ private:
     // How much time difference from a scan to a pose (or vice versa) in past or future for the data to be usable for interpolation?
     quint8 mMaximumTimeBetweenFusedPoseAndScanMsec;
     qint32 mMaximumTimeBetweenMatchingScans;
+
+    float mMaximumFusableRayLength;
 
     qint32 mNewestDataTime;
 

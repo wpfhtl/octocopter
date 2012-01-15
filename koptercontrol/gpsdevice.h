@@ -61,6 +61,7 @@ public:
     ~GpsDevice();
 
 private:
+    double mOriginLongitude, mOriginLatitude, mOriginElevation;
     QFile* mLogFileSbf;
     bool mFirmwareBug_20120111_RtkWasEnabledAfterAttitudeDetermination;
     Pose mLastPose;

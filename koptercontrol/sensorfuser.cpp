@@ -4,6 +4,7 @@ SensorFuser::SensorFuser(LaserScanner* const laserScanner, SensorFuser::Behavior
 {
     mPointCloudSize = 0;
     mNewestDataTime = 0;
+    mMaximumFusableRayLength = 20.0;
     mStatsFusedScans = 0;
     mStatsDiscardedScans = 0;
     mLastRayTime = -1000; // make sure first comparision fails
@@ -222,7 +223,7 @@ void SensorFuser::transformScanData()
         if(posesForThisScan.size() >= 4 && posesForThisScan.at(1)->timestamp < rayStart && posesForThisScan.at(posesForThisScan.size()-2)->timestamp > rayEnd)
         {
             std::vector<long>* scanDistances = iteratorSavedScans.value();
-            //qDebug() << "SensorFuser::transformScanData(): these" << posesForThisScan.size() << "poses are enough, fusing" << scanDistances->size() << "rays";
+            qDebug() << "SensorFuser::transformScanData(): these" << posesForThisScan.size() << "poses are enough, fusing" << scanDistances->size() << "rays";
 
             mStatsFusedScans++;
 
@@ -232,7 +233,7 @@ void SensorFuser::transformScanData()
             for(int index=0; index < scanDistances->size(); index++)
             {
                 // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
-                if((*scanDistances)[index] < 500) continue;
+                if((*scanDistances)[index] < 500 || (*scanDistances)[index] > mMaximumFusableRayLength * 1000) continue;
 
                 // Convert millimeters to meters.
                 const float distance = (*scanDistances)[index] / 1000.0f;
@@ -256,6 +257,10 @@ void SensorFuser::transformScanData()
                     // Now figure out which poses are needed for this ray
                     if(posesForThisScan.at(2)->timestamp < timeOfCurrentRay)
                     {
+                        // Use nearest neighbor for now
+                        mLastInterpolatedPose = Pose(*(posesForThisScan[2]));
+
+                        /*
                         mLastInterpolatedPose = Pose::interpolateCubic(
                                 posesForThisScan[1],
                                 posesForThisScan[2],
@@ -263,9 +268,15 @@ void SensorFuser::transformScanData()
                                 posesForThisScan[4],
                                 timeOfCurrentRay
                                 );
+                                */
                     }
                     else
                     {
+
+                        // use nearest neighbor for now
+                        mLastInterpolatedPose = Pose(*(posesForThisScan[2]));
+
+                        /*
                         mLastInterpolatedPose = Pose::interpolateCubic(
                                 posesForThisScan[0],
                                 posesForThisScan[1],
@@ -273,6 +284,8 @@ void SensorFuser::transformScanData()
                                 posesForThisScan[3],
                                 timeOfCurrentRay
                                 );
+
+                                */
                     }
 //                    //qDebug() << "SensorFuser::transformScanData(): interpolated pose to be used:" << mLastInterpolatedPose;
                 }
