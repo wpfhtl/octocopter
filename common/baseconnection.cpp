@@ -328,16 +328,7 @@ void BaseConnection::slotNewVehicleStatus(
 }
 
 // called by rover to send new gps status to basestation
-void BaseConnection::slotNewGpsStatus(
-    const quint8& gnssMode,
-    const quint8& integrationMode,
-    const quint16& info,
-    const quint8& error,
-    const quint8& numSatellitesTracked,
-    const quint8& lastPvtAge,
-    const quint8& meanCorrAge,
-    const QString& status
-    )
+void BaseConnection::slotNewGpsStatus(const GpsStatusInformation::GpsStatus& gpsStatus)
 {
 /*    qDebug() << t() << "BaseConnection::slotNewGpsStatus(): -> base:"
              << "gnssMode" << gnssMode
@@ -353,14 +344,7 @@ void BaseConnection::slotNewGpsStatus(
     QDataStream stream(&data, QIODevice::WriteOnly);
 
     stream << QString("gpsstatus");
-    stream << gnssMode;
-    stream << integrationMode;
-    stream << info;
-    stream << error;
-    stream << numSatellitesTracked;
-    stream << lastPvtAge;
-    stream << meanCorrAge;
-    stream << status;
+    stream << gpsStatus;
     slotSendData(data, false);
 }
 

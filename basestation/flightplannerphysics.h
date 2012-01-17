@@ -86,6 +86,7 @@ signals:
 private slots:
     void slotPointInserted(const LidarPoint*);
     void slotGenerateWaypoints();
+    void slotInitialize();
     void slotCreateSampleGeometry();
     void slotDeleteSampleGeometry();
     void slotProcessPhysics(bool);

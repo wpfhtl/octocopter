@@ -58,6 +58,7 @@ camera
 #visualodometry
 sensorfuser
 ../common/flightcontroller
+../common/sbfparser
 ../common/common
 ../common/plymanager
 ../common/pose
@@ -77,6 +78,7 @@ camera.h
 #visualodometry.h
 sensorfuser.h
 ../common/flightcontroller.h
+../common/sbfparser.h
 ../common/common.h
 ../common/plymanager.h
 ../common/pose.h

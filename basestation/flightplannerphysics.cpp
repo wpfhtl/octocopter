@@ -223,6 +223,10 @@ void FlightPlannerPhysics::slotCreateSafePathToNextWayPoint()
 //    mBtWorld->setGravity(gravityOld);
 }
 
+void FlightPlannerPhysics::slotInitialize()
+{
+}
+
 FlightPlannerPhysics::~FlightPlannerPhysics()
 {
     // Cleanup in the reverse order of creation/initialization

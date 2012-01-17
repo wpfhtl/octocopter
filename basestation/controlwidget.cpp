@@ -1,16 +1,11 @@
 #include "controlwidget.h"
 
-ControlWidget::ControlWidget(BaseStation* baseStation) : QDockWidget((QWidget*)baseStation)
+ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
 {
     setupUi(this);
 
     // this removes the title bar. No more dragging, but saves space
     setTitleBarWidget(new QWidget());
-
-    // Wire up the time-box
-//    connect(mSpinBoxTimeFactor, SIGNAL(valueChanged(double)), SIGNAL(timeFactorChanged(double)));
-//    connect(mBtnStart, SIGNAL(clicked()), SLOT(slotSimulationStarted()));
-//    connect(mBtnPause, SIGNAL(clicked()), SLOT(slotSimulationPaused()));
 
     initWayPointTable();
     mTimerRtkIndicator.setInterval(3100);
@@ -35,15 +30,6 @@ ControlWidget::ControlWidget(BaseStation* baseStation) : QDockWidget((QWidget*)b
     connect(mBtnGenerateWaypoints, SIGNAL(clicked()), SIGNAL(generateWaypoints()));
 
     connect(mBtnSetScanVolume, SIGNAL(clicked()), SLOT(slotSetScanVolume()));
-
-    mBaseStation = baseStation;
-//    mCoordinateConverter = mSimulator->mCoordinateConverter;
-//    mBattery = mSimulator->mBattery;
-
-//    connect(mBattery, SIGNAL(chargeStatusChanged(int)), SLOT(slotUpdateBattery(int)));
-
-//    mLabelBatteryVoltage->setText(QString::number(mBattery->voltage(), 'g', 2) + " V");
-//    mLabelBatteryEnergy->setText(QString::number(mBattery->capacity(), 'g', 2) + " Ah");
 
     mCompass->setStyle(new QPlastiqueStyle);
 
@@ -91,19 +77,19 @@ void ControlWidget::slotUpdateRoverConnection(bool connected)
 {
     if(connected)
     {
-        if(mLabelRoverIndicator->styleSheet() == "background-color:#55ff55;")
-            mLabelRoverIndicator->setStyleSheet("background-color:#22aa22;");
+        if(mLabelRoverIndicator->styleSheet() == getBackgroundCss(false, false))
+            mLabelRoverIndicator->setStyleSheet(getBackgroundCss(false, true));
         else
-            mLabelRoverIndicator->setStyleSheet("background-color:#55ff55;");
+            mLabelRoverIndicator->setStyleSheet(getBackgroundCss(false, false));
 
         mLabelRoverIndicator->setText("OK");
     }
     else
     {
-        if(mLabelRoverIndicator->styleSheet() == "background-color:#ff5555;")
-            mLabelRoverIndicator->setStyleSheet("background-color:#aa2222;");
+        if(mLabelRoverIndicator->styleSheet() == getBackgroundCss(true, false))
+            mLabelRoverIndicator->setStyleSheet(getBackgroundCss(true, true));
         else
-            mLabelRoverIndicator->setStyleSheet("background-color:#ff5555;");
+            mLabelRoverIndicator->setStyleSheet(getBackgroundCss(true, false));
 
         mLabelRoverIndicator->setText("ERR");
     }
@@ -114,10 +100,10 @@ void ControlWidget::slotUpdateRtkStatus(bool working)
 {
     if(working)
     {
-        if(mLabelRtkIndicator->styleSheet() == "background-color:#55ff55;")
-            mLabelRtkIndicator->setStyleSheet("background-color:#22aa22;");
+        if(mLabelRtkIndicator->styleSheet() == getBackgroundCss(false, false))
+            mLabelRtkIndicator->setStyleSheet(getBackgroundCss(false, true));
         else
-            mLabelRtkIndicator->setStyleSheet("background-color:#55ff55;");
+            mLabelRtkIndicator->setStyleSheet(getBackgroundCss(false, false));
 
         mLabelRtkIndicator->setText("OK");
 
@@ -126,10 +112,10 @@ void ControlWidget::slotUpdateRtkStatus(bool working)
     }
     else
     {
-        if(mLabelRtkIndicator->styleSheet() == "background-color:#ff5555;")
-            mLabelRtkIndicator->setStyleSheet("background-color:#aa2222;");
+        if(mLabelRtkIndicator->styleSheet() == getBackgroundCss(true, false))
+            mLabelRtkIndicator->setStyleSheet(getBackgroundCss(true, true));
         else
-            mLabelRtkIndicator->setStyleSheet("background-color:#ff5555;");
+            mLabelRtkIndicator->setStyleSheet(getBackgroundCss(true, false));
 
         mLabelRtkIndicator->setText("ERR");
     }
@@ -138,7 +124,7 @@ void ControlWidget::slotUpdateRtkStatus(bool working)
 void ControlWidget::slotUpdateBattery(const float& voltageCurrent)
 {
     mLabelBatteryVoltage->setText(QString::number(voltageCurrent, 'f', 2) + " V");
-    if(voltageCurrent > 13.5) mLabelBatteryVoltage->setStyleSheet(""); else mLabelBatteryVoltage->setStyleSheet("background-color:#ff5555;");
+    if(voltageCurrent > 13.5) mLabelBatteryVoltage->setStyleSheet(""); else mLabelBatteryVoltage->setStyleSheet(getBackgroundCss(true, false));
 }
 
 void ControlWidget::slotUpdatePose(const Pose &pose)
@@ -184,41 +170,36 @@ void ControlWidget::slotUpdateWirelessRssi(const qint8& wirelessRssi)
     }
 }
 
-void ControlWidget::slotUpdateGpsStatus(const quint8& gnssMode,
-                                        const quint8& integrationMode,
-                                        const quint16& info,
-                                        const quint8& error,
-                                        const quint8& numSatellitesTracked,
-                                        const quint8& lastPvtAge,
-                                        const quint8& meanCorrAge,
-                                        const QString& status)
+QString ControlWidget::getBackgroundCss(const bool& error, const bool& dark)
 {
-    mLabelGpsGnssMode->setText(GpsStatusInformation::getGnssMode(gnssMode));
-    if(gnssMode == 4) mLabelGpsGnssMode->setStyleSheet(""); else mLabelGpsGnssMode->setStyleSheet("background-color:#ff5555;");
+    QColor bgColor = error ? QColor(255,80,80) : QColor(80,255,80);
 
-    mLabelGpsIntegrationMode->setText(GpsStatusInformation::getIntegrationMode(integrationMode));
-    if(integrationMode == 2) mLabelGpsIntegrationMode->setStyleSheet(""); else mLabelGpsIntegrationMode->setStyleSheet("background-color:#ff5555;");
+    if(dark) bgColor = bgColor.darker(150);
 
-    mLabelGpsInfo->setText(GpsStatusInformation::getInfoRichText(info));
+    return QString("background-color:%1;").arg(bgColor.name());
+}
 
-    mLabelGpsError->setText(GpsStatusInformation::getError(error));
-    if(error == 0) mLabelGpsError->setStyleSheet(""); else mLabelGpsError->setStyleSheet("background-color:#ff5555;");
+void ControlWidget::slotUpdateGpsStatus(const GpsStatusInformation::GpsStatus& gpsStatus)
+{
+    mLabelGpsGnssMode->setText(GpsStatusInformation::getGnssMode(gpsStatus.gnssMode));
+    if(gpsStatus.gnssMode == 4) mLabelGpsGnssMode->setStyleSheet(""); else mLabelGpsGnssMode->setStyleSheet(getBackgroundCss());
 
-    mLabelGpsNumSats->setText(QString::number(numSatellitesTracked));
-    if(numSatellitesTracked > 5) mLabelGpsNumSats->setStyleSheet(""); else mLabelGpsNumSats->setStyleSheet("background-color:#ff5555;");
+    mLabelGpsIntegrationMode->setText(GpsStatusInformation::getIntegrationMode(gpsStatus.integrationMode));
+    if(gpsStatus.integrationMode == 2) mLabelGpsIntegrationMode->setStyleSheet(""); else mLabelGpsIntegrationMode->setStyleSheet(getBackgroundCss());
 
-    mLabelGpsPvtAge->setText(QString::number(lastPvtAge));
-    if(lastPvtAge < 1) mLabelGpsPvtAge->setStyleSheet(""); else mLabelGpsPvtAge->setStyleSheet("background-color:#ff5555;");
+    mLabelGpsInfo->setText(GpsStatusInformation::getInfoRichText(gpsStatus.info));
 
-    mLabelGpsCorrAge->setText(QString::number(((float)meanCorrAge) / 10.0));
-    if(((float)meanCorrAge)/10.0 < 5) mLabelGpsCorrAge->setStyleSheet(""); else mLabelGpsCorrAge->setStyleSheet("background-color:#ff5555;");
+    mLabelGpsError->setText(GpsStatusInformation::getError(gpsStatus.error));
+    if(gpsStatus.error == 0) mLabelGpsError->setStyleSheet(""); else mLabelGpsError->setStyleSheet(getBackgroundCss());
 
-    if(!status.isEmpty())
-    {
-        mTextEditGpsStatus->appendPlainText(status);
-        mTextEditGpsStatus->moveCursor(QTextCursor::End);
-        mTextEditGpsStatus->moveCursor(QTextCursor::StartOfLine);
-    }
+    mLabelGpsNumSats->setText(QString::number(gpsStatus.numSatellitesUsed));
+    if(gpsStatus.numSatellitesUsed > 5) mLabelGpsNumSats->setStyleSheet(""); else mLabelGpsNumSats->setStyleSheet(getBackgroundCss());
+
+    mLabelGpsPvtAge->setText(QString::number(gpsStatus.lastPvtAge));
+    if(gpsStatus.lastPvtAge < 1) mLabelGpsPvtAge->setStyleSheet(""); else mLabelGpsPvtAge->setStyleSheet(getBackgroundCss());
+
+    mLabelGpsCorrAge->setText(QString::number(((float)gpsStatus.meanCorrAge) / 10.0));
+    if(((float)gpsStatus.meanCorrAge)/10.0 < 5) mLabelGpsCorrAge->setStyleSheet(""); else mLabelGpsCorrAge->setStyleSheet(getBackgroundCss());
 }
 
 void ControlWidget::slotUpdateBarometricHeight(const qint16& barometricHeight)
