@@ -13,6 +13,10 @@ private:
     QString mRemoteHost;
     int mRemotePort;
 
+    // When we get a packet indicating that the connection is alive, we re-start this timer,
+    // which will switch to failure after no packet arrived for some seconds
+    QTimer mTimerConnectionWatchdog;
+
     int mNumberOfRemainingReplies;
     QByteArray mLastCommandToDevice;
     QString mSerialPortOnDevice;
@@ -28,6 +32,7 @@ private:
 
 
 private slots:
+    void slotEmitConnectionTimedOut(void);
     void slotConnectToRtkBase();
     void slotSocketDataReady();
     void slotSocketStateChanged(QAbstractSocket::SocketState);
@@ -43,6 +48,7 @@ public:
 
 signals:
     void rtkData(const QByteArray& data);
+    void connectionStatus(const bool& connected);
 };
 
 #endif

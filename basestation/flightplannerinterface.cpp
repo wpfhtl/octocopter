@@ -20,6 +20,19 @@ void FlightPlannerInterface::slotSetScanVolume(const QVector3D min, const QVecto
     mScanVolumeMax = max;
 }
 
+void FlightPlannerInterface::slotCheckWayPointsHashFromRover(const QString &hash)
+{
+    if(WayPoint::hash(getWayPoints()) != hash)
+    {
+        emit message(
+                    Warning,
+                    QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
+                    QString("Waypoints hash from rover does not match our hash, resending list"));
+
+        emit wayPointsSetOnRover(getWayPoints());
+    }
+}
+
 void FlightPlannerInterface::sortToShortestPath(QList<WayPoint> &wayPoints, const QVector3D &currentVehiclePosition)
 {
 //    qDebug() << "FlightPlannerInterface::sortToShortestPath(): vehicle is at" << currentVehiclePosition;
@@ -126,6 +139,11 @@ void FlightPlannerInterface::slotWayPointInsertedByRover(const quint16& index, c
         return;
     }
 
+    emit message(
+                Information,
+                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
+                QString("Waypoint appended by rover: %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
+
     mWayPointsAhead->insert(index, wpt);
     emit wayPointInserted(index, wpt);
     emit suggestVisualization();
@@ -162,13 +180,18 @@ void FlightPlannerInterface::slotWayPointsClear()
     emit suggestVisualization();
 }
 
-void FlightPlannerInterface::slotWayPointReached(const WayPoint)
+void FlightPlannerInterface::slotWayPointReached(const WayPoint& wpt)
 {
     if(!mWayPointsAhead->size())
     {
         qWarning() << "FlightPlannerInterface::slotWayPointReached(): mWayPointsAhead is empty, how can you reach a waypoint?";
         return;
     }
+
+    emit message(
+                Information,
+                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
+                QString("Reached waypoint %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
 
     mWayPointsPassed->append(mWayPointsAhead->takeAt(0));
     emit wayPointDeleted(0);

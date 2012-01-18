@@ -10,6 +10,10 @@ RtkFetcher::RtkFetcher(const QString &hostName, const uint &port, QObject* paren
       mRemoteHost = hostName;
       mRemotePort = port;
 
+      mTimerConnectionWatchdog.setInterval(2000);
+      mTimerConnectionWatchdog.start();
+      connect(&mTimerConnectionWatchdog, SIGNAL(timeout()), SLOT(slotEmitConnectionTimedOut()));
+
       mTcpSocket = new QTcpSocket(this);
 
       connect(mTcpSocket, SIGNAL(readyRead()), SLOT(slotSocketDataReady()));
@@ -23,6 +27,16 @@ RtkFetcher::~RtkFetcher()
 {
       qDebug() << "RtkFetcher::~RtkFetcher()";
 }
+
+
+void RtkFetcher::slotEmitConnectionTimedOut()
+{
+    // This method is called only by a timer, which is reset whenever a packet comes in.
+    // So, as lsong as we receive packets within intervals smaller than the timer's, we
+    // should never emit a broken connection.
+    emit connectionStatus(false);
+}
+
 
 void RtkFetcher::slotConnectToRtkBase()
 {
@@ -69,6 +83,10 @@ void RtkFetcher::slotSocketDataReady()
 //        {
             emit rtkData(mReceiveBuffer);
             mReceiveBuffer.clear();
+
+            // Restart the timer, so we don't get a timeout.
+            mTimerConnectionWatchdog.start();
+            emit connectionStatus(true);
 //        }
     }
 }
@@ -93,7 +111,7 @@ void RtkFetcher::slotSocketError(QAbstractSocket::SocketError socketError)
       qWarning() << "RtkFetcher::slotSocketError(): will try to re-connect in 5s.";
 
       mTcpSocket->abort();
-      QTimer::singleShot(5000, this, SLOT(slotConnectToRtkBase()));
+      QTimer::singleShot(2000, this, SLOT(slotConnectToRtkBase()));
 }
 
 bool RtkFetcher::isReceiving(void) const

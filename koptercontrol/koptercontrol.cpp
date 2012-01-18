@@ -99,11 +99,11 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     mKopter = new Kopter(deviceSerialKopter, this);
     mGpsDevice = new GpsDevice(deviceSerialGpsUsb, deviceSerialGpsCom, this);
 
-//    mCamera = new Camera(deviceCamera, QSize(320, 240), QVector3D(), QQuaternion(), 15);
+//    mCamera = new Camera(deviceCamera, QSize(320, 240), Pose(), 15);
 //    mVisualOdometry = new VisualOdometry(mCamera);
 
-//    connect(mCamera, SIGNAL(imageReadyJpeg(QString,QSize,QVector3D,QQuaternion,const QByteArray*)), mBaseConnection, SLOT(slotNewCameraImage(QString,QSize,QVector3D,QQuaternion,const QByteArray*)));
-//    connect(mCamera, SIGNAL(imageReadyYCbCr(QString,QSize,QVector3D,QQuaternion,QByteArray)), mVisualOdometry, SLOT(slotProcessImage(QString,QSize,QVector3D,QQuaternion,QByteArray)));
+//    connect(mCamera, SIGNAL(imageReadyJpeg(QString,QSize,Pose,QQuaternion,const QByteArray*)), mBaseConnection, SLOT(slotNewCameraImage(QString,QSize,Pose,const QByteArray*)));
+//    connect(mCamera, SIGNAL(imageReadyYCbCr(QString,QSize,Pose,QByteArray)), mVisualOdometry, SLOT(slotProcessImage(QString,QSize,Pose,QByteArray)));
     connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mKopter, SIGNAL(kopterStatus(quint32, qint16, float)), mBaseConnection, SLOT(slotNewVehicleStatus(quint32, qint16, float)));
     connect(mLaserScanner, SIGNAL(bottomBeamLength(const float&)), mFlightController, SLOT(slotSetBottomBeamLength(const float&)));

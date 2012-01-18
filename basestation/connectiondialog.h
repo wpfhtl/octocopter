@@ -2,6 +2,7 @@
 #define CONNECTIONDIALOG_H
 
 #include <QDialog>
+#include <QKeyEvent>
 
 namespace Ui {
     class ConnectionDialog;
@@ -15,11 +16,15 @@ public:
     ConnectionDialog(QWidget *parent = 0);
     ~ConnectionDialog();
 
-    QString getHostNameRover() const;
-    QString getHostNameRtkBase() const;
+    QString getRoverHostName() const;
+    quint16 getRoverPort() const;
+    QString getRtkBaseHostName() const;
+    quint16 getRtkBasePort() const;
 
 private:
     Ui::ConnectionDialog *ui;
+
+    void keyPressEvent(QKeyEvent* event);
 };
 
 #endif // CONNECTIONDIALOG_H

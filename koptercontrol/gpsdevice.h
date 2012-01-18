@@ -76,7 +76,7 @@ public slots:
     void slotShutDown(); // just calls communicationStop. To be called from the main program's signal handler.
 
 signals:
-    void message(const LogImportance& importance, const QString&, const QString& message);
+    void message(const LogImportance& importance, const QString& source, const QString& message);
 };
 
 #endif // GPSDEVICE_H

@@ -19,7 +19,6 @@ class ControlWidget : public QDockWidget, public Ui::ControlWidget
 Q_OBJECT
 private:
     BaseStation *mBaseStation;
-    QTimer mTimerRtkIndicator;
 
     QString getBackgroundCss(const bool& error = true, const bool& dark = false);
 
@@ -36,8 +35,8 @@ public slots:
     void slotUpdateWirelessRssi(const qint8& wirelessRssi);
     void slotUpdateBarometricHeight(const qint16& barometricHeight);
     void slotUpdateGpsStatus(const GpsStatusInformation::GpsStatus& gpsStatus);
-    void slotUpdateRtkStatus(bool working = false);
-    void slotUpdateRoverConnection(bool connected);
+    void slotUpdateConnectionRtk(bool working);
+    void slotUpdateConnectionRover(bool connected);
 
     void slotSetWayPointCoordinateFields(Qt::MouseButton, QVector3D);
 
@@ -48,9 +47,6 @@ public slots:
     void slotWayPointsCleared();
 
 private slots:
-    void slotSimulationStarted();
-    void slotSimulationPaused();
-
     // Called when buttons are pressed, simply emit signals to be processed by FlightPlanner
     void slotWayPointPrepend();
     void slotWayPointAppend();

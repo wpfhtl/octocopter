@@ -23,12 +23,30 @@ ConnectionDialog::~ConnectionDialog()
     delete ui;
 }
 
-QString ConnectionDialog::getHostNameRover() const
+void ConnectionDialog::keyPressEvent(QKeyEvent* event)
+{
+    if(event->key() == Qt::Key_Enter || event->key() == Qt::Key_Return)
+        ui->mPushButtonConnect->click();
+    else if(event->key() == Qt::Key_Escape)
+        ui->mPushButtonWorkOffline->click();
+}
+
+QString ConnectionDialog::getRoverHostName() const
 {
     return ui->mLineEditHostNameRover->text();
 }
 
-QString ConnectionDialog::getHostNameRtkBase() const
+QString ConnectionDialog::getRtkBaseHostName() const
 {
     return ui->mLineEditHostNameRtkBase->text();
+}
+
+quint16 ConnectionDialog::getRoverPort() const
+{
+    return ui->mSpinBoxPortRover->value();
+}
+
+quint16 ConnectionDialog::getRtkBasePort() const
+{
+    return ui->mSpinBoxPortRtkBase->value();
 }

@@ -1,13 +1,12 @@
 #include "camera.h"
 
-Camera::Camera(const QString& device, const QSize& imageSize, const QVector3D position, const QQuaternion& orientation, quint8 fps): QObject()
+Camera::Camera(const QString& device, const QSize& imageSize, const Pose& pose, quint8 fps): QObject()
 {
     mFileDescriptor = -1;
     mBufferCount = 0;
     mFps = fps;
     mImageSize = imageSize;
-    mPosition = position;
-    mOrientation = orientation;
+    mPose = pose;
     mDeviceFile = device;
     mImageData = new QByteArray(mImageSize.width() * mImageSize.height() * 3, 0); // RGB buffer, filled with zeroes
 
@@ -407,10 +406,10 @@ void Camera::slotReadAndEmitCurrentFrame()
     buffer.open(QIODevice::WriteOnly);
     image.save(&buffer, "JPG", 40);
     qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "Camera::slotReadAndEmitCurrentFrame(): sending image after compressing" << frame.length << "YCbCr bytes down to" << imageDataEncoded.size() << "jpg bytes";
-    emit imageReadyJpg(mDeviceFile, mImageSize, mPosition, mOrientation, &imageDataEncoded);
+    emit imageReadyJpg(mDeviceFile, mImageSize, mPose, &imageDataEncoded);
     */
 
-    emit imageReadyYCbCr(mDeviceFile, mImageSize, mPosition, mOrientation, QByteArray::fromRawData((const char*)frame.start, frame.length));
+    emit imageReadyYCbCr(mDeviceFile, mImageSize, mPose, QByteArray::fromRawData((const char*)frame.start, frame.length));
 
 
 }

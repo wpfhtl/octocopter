@@ -16,22 +16,11 @@ BaseStation::BaseStation() : QMainWindow()
 
     mProgress = 0;
 
-    mHostNames << "atomboard.dyndns.org" << "localhost" << "192.168.1.1" << "192.168.100.198" << "134.100.13.169";
     mConnectionDialog = new ConnectionDialog(this);
-    slotAskForConnectionHostNames();
+    mConnectionDialog->exec();
 
     mOctree->setMinimumPointDistance(0.0001f);
     mOctree->setPointHandler(OpenGlUtilities::drawPoint);
-
-    mIncomingDataBuffer.clear();
-
-    menuBar()->addAction("Connect", this, SLOT(slotConnectToRover()));
-
-    mTcpSocket = new QTcpSocket(this);
-    connect(mTcpSocket, SIGNAL(readyRead()), SLOT(slotReadSocket()));
-    connect(mTcpSocket, SIGNAL(error(QAbstractSocket::SocketError)), SLOT(slotSocketError(QAbstractSocket::SocketError)));
-    connect(mTcpSocket, SIGNAL(connected()), SLOT(slotSocketConnected()));
-    connect(mTcpSocket, SIGNAL(disconnected()), SLOT(slotSocketDisconnected()));
 
     mTimerStats = new QTimer(this);
     mTimerStats->setInterval(1000);
@@ -50,7 +39,6 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mTimerStats, SIGNAL(timeout()), SLOT(slotWriteStats()));
 
     mControlWidget = new ControlWidget(this);
-    connect(this, SIGNAL(vehiclePoseChanged(Pose)), mControlWidget, SLOT(slotUpdatePose(Pose)));
     addDockWidget(Qt::RightDockWidgetArea, mControlWidget);
 
     mWirelessDevice = new WirelessDevice("wlan0");
@@ -60,9 +48,6 @@ BaseStation::BaseStation() : QMainWindow()
     addDockWidget(Qt::BottomDockWidgetArea, mLogWidget);
     menuBar()->addAction("Save Log", mLogWidget, SLOT(save()));
 
-    mRtkFetcher = new RtkFetcher(mConnectionDialog->getHostNameRtkBase(), 2101, this);
-    connect(mRtkFetcher, SIGNAL(rtkData(QByteArray)), SLOT(slotSendRtkDataToRover(QByteArray)));
-
     mFlightPlanner = new FlightPlannerPhysics(this, mOctree);
     // GlWidget and CUDA-based FlightPlanners have an intimate relationship because
     // cudaGlSetGlDevice() needs to be called in GL context and before any other CUDA calls.
@@ -70,13 +55,16 @@ BaseStation::BaseStation() : QMainWindow()
 
     mFlightPlanner->slotSetScanVolume(QVector3D(140, 70, 80), QVector3D(240, 120, 150));
 
+    // Just for adding a line to the log file for marking a new waypoint generation iteration
+    connect(mFlightPlanner, SIGNAL(wayPointsSetOnRover(QList<WayPoint>)), SLOT(slotAddLogFileMarkForPaper(QList<WayPoint>)));
+    connect(mFlightPlanner, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
+
     mGlWidget = new GlWidget(this, mOctree, mFlightPlanner);
     connect(mGlWidget, SIGNAL(initializingInGlContext()), mFlightPlanner, SLOT(slotInitialize())); // init CUDA when GlWidget inits
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(update()));
     connect(mGlWidget, SIGNAL(mouseClickedAtWorldPos(Qt::MouseButton, QVector3D)), mControlWidget, SLOT(slotSetWayPointCoordinateFields(Qt::MouseButton, QVector3D)));
     setCentralWidget(mGlWidget);
 
-    connect(this, SIGNAL(vehiclePoseChanged(Pose)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose)));
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
     connect(mControlWidget, SIGNAL(generateWaypoints()), mFlightPlanner, SLOT(slotGenerateWaypoints()));
 
@@ -88,17 +76,8 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mFlightPlanner, SIGNAL(wayPoints(QList<WayPoint>)), mControlWidget, SLOT(slotSetWayPoints(QList<WayPoint>)));
     connect(mFlightPlanner, SIGNAL(wayPointInserted(quint16,WayPoint)), mControlWidget, SLOT(slotWayPointInserted(quint16,WayPoint)));
 
-    // When FlightPlanner wants us to send waypoint updates to the rover...
-    connect(mFlightPlanner, SIGNAL(wayPointInsertOnRover(quint16,WayPoint)), SLOT(slotRoverWayPointInsert(quint16,WayPoint)));
-    connect(mFlightPlanner, SIGNAL(wayPointDeleteOnRover(quint16)), SLOT(slotRoverWayPointDelete(quint16)));
-    connect(mFlightPlanner, SIGNAL(wayPointsSetOnRover(QList<WayPoint>)), SLOT(slotRoverWayPointsSet(QList<WayPoint>)));
-
-    // Just for adding a line to the log file for marking a new waypoint generation iteration
-    connect(mFlightPlanner, SIGNAL(wayPointsSetOnRover(QList<WayPoint>)), SLOT(slotAddLogFileMarkForPaper(QList<WayPoint>)));
-
     menuBar()->addAction("Save Cloud", this, SLOT(slotExportCloud()));
     menuBar()->addAction("Load Cloud", this, SLOT(slotImportCloud()));
-
 
     connect(mGlWidget, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
     connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWidget, SLOT(updateGL()));
@@ -109,6 +88,11 @@ BaseStation::BaseStation() : QMainWindow()
     menuBar()->addAction("ViewFromTop", mGlWidget, SLOT(slotViewFromTop()));
 
     menuBar()->addAction("TogglePlot", this, SLOT(slotTogglePlot()));
+
+    mLogPlayer = new LogPlayer(this);
+    mLogPlayer->setAllowedAreas(Qt::AllDockWidgetAreas);
+    addDockWidget(Qt::BottomDockWidgetArea, mLogPlayer);
+    // TODO: connect LogPlayer
 
     mPlotWidget = new PlotWidget(this);
     mPlotWidget->setAllowedAreas(Qt::AllDockWidgetAreas);
@@ -124,9 +108,45 @@ BaseStation::BaseStation() : QMainWindow()
     mPlotWidget->createCurve("pRoll");
     mPlotWidget->createCurve("pYaw");
 
-    mLogWidget->log(Information, "BaseStation::BaseStation()", "startup finished, ready.");
 
-    slotConnectToRover();
+    // Only start RTK fetcher and RoverConnection if we're not working offline
+    if(mConnectionDialog->result() == QDialog::Accepted)
+    {
+        mRoverConnection = new RoverConnection(mConnectionDialog->getRoverHostName(), mConnectionDialog->getRoverPort(), this);
+        connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mControlWidget, SLOT(slotUpdatePose(Pose)));
+        connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose)));
+        connect(mRoverConnection, SIGNAL(connectionStatusRover(bool)), mControlWidget, SLOT(slotUpdateConnectionRover(bool)));
+
+        connect(mRoverConnection, SIGNAL(scanData(QVector3D,QList<QVector3D>)), this, SLOT(slotNewScanData(QVector3D,QList<QVector3D>)));
+        connect(mRoverConnection, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
+        connect(mRoverConnection, SIGNAL(gpsStatus(GpsStatusInformation::GpsStatus)), mControlWidget, SLOT(slotUpdateGpsStatus(GpsStatusInformation::GpsStatus)));
+        connect(mRoverConnection, SIGNAL(controllerValues(QVector<float>)), mPlotWidget, SLOT(slotAppendData(QVector<float>)));
+
+        connect(mRoverConnection, SIGNAL(wayPointsHashFromRover(QString)), mFlightPlanner, SLOT(slotCheckWayPointsHashFromRover(QString)));
+        connect(mRoverConnection, SIGNAL(wayPointReachedByRover(WayPoint)), mFlightPlanner, SLOT(slotWayPointReached(WayPoint)));
+        connect(mRoverConnection, SIGNAL(wayPointInsertedByRover(quint16,WayPoint)), mFlightPlanner, SLOT(slotWayPointInsertedByRover(quint16,WayPoint)));
+
+        // When FlightPlanner wants us to send waypoint updates to the rover...
+        connect(mFlightPlanner, SIGNAL(wayPointInsertOnRover(quint16,WayPoint)), mRoverConnection, SLOT(slotRoverWayPointInsert(quint16,WayPoint)));
+        connect(mFlightPlanner, SIGNAL(wayPointDeleteOnRover(quint16)), mRoverConnection, SLOT(slotRoverWayPointDelete(quint16)));
+        connect(mFlightPlanner, SIGNAL(wayPointsSetOnRover(QList<WayPoint>)), mRoverConnection, SLOT(slotRoverWayPointsSet(QList<WayPoint>)));
+
+        mLogWidget->log(Information, "BaseStation::BaseStation()", "Working online, initialized RoverConnection and RtkFetcher, now connecting...");
+
+        mRtkFetcher = new RtkFetcher(mConnectionDialog->getRtkBaseHostName(), mConnectionDialog->getRtkBasePort(), this);
+        connect(mRtkFetcher, SIGNAL(rtkData(QByteArray)), mRoverConnection, SLOT(slotSendRtkDataToRover(QByteArray)));
+        connect(mRtkFetcher, SIGNAL(connectionStatus(bool)), mControlWidget, SLOT(slotUpdateConnectionRtk(bool)));
+
+        menuBar()->addAction("Connect", mRoverConnection, SLOT(slotConnectToRover()));
+
+        mRoverConnection->slotConnectToRover();
+    }
+    else
+    {
+        mLogWidget->log(Information, "BaseStation::BaseStation()", "Working offline, RoverConnection and RtkFetcher not available.");
+    }
+
+    mLogWidget->log(Information, "BaseStation::BaseStation()", "Startup finished, ready.");
 }
 
 BaseStation::~BaseStation()
@@ -134,24 +154,61 @@ BaseStation::~BaseStation()
     mStatsFile->close();
 }
 
-void BaseStation::slotSocketDisconnected()
+void BaseStation::slotNewVehicleStatus(const quint32& missionRunTime, const float& batteryVoltage, const qint16& barometricHeight, const qint8& wirelessRssi)
 {
-    qDebug() << "BaseStation::slotConnectionEnded()";
-
-    mLogWidget->log(Warning, "BaseStation::slotSocketDisconnected()", "connection closed, retrying...");
-
-    mControlWidget->slotUpdateRoverConnection(false);
-
-    slotConnectToRover();
+    mControlWidget->slotUpdateMissionRunTime(missionRunTime);
+    mControlWidget->slotUpdateBattery(batteryVoltage);
+    mControlWidget->slotUpdateBarometricHeight(barometricHeight);
+    // Really, or use our local RSSI?
+    mControlWidget->slotUpdateWirelessRssi(wirelessRssi);
 }
 
-void BaseStation::slotSocketConnected()
+void BaseStation::slotNewImage(const QString& cameraName, const QSize& imageSize, const Pose& cameraPose, const QByteArray& imageData)
 {
-    qDebug() << "BaseStation::slotSocketConnected()";
+    //qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "camera" << cameraName << "pos" << cameraPosition << "orientation" << cameraOrientation << "image bytearray size is" << imageData.size();
 
-    mLogWidget->log(Information, "BaseStation::slotSocketConnected()", "connection established.");
+    CameraWidget *widget;
 
-    mControlWidget->slotUpdateRoverConnection(true);
+    if(!mCameraWidgets.contains(cameraName))
+    {
+        widget = new CameraWidget(this, cameraName);
+        mCameraWidgets.insert(cameraName, widget);
+        addDockWidget(Qt::RightDockWidgetArea, widget);
+    }
+    else
+    {
+        widget = mCameraWidgets.value(cameraName);
+    }
+
+    widget->slotSetPixmapData(imageData);
+}
+
+void BaseStation::slotNewScanData(const QVector3D& scannerPosition, const QList<QVector3D>& pointList)
+{
+    int i=0;
+    foreach(const QVector3D &p, pointList)
+    {
+//            qDebug() << p;
+        mOctree->insertPoint(new LidarPoint(p, (p-scannerPosition).normalized(), (p-scannerPosition).lengthSquared()));
+        if(i%10 == 0)
+            mFlightPlanner->insertPoint(new LidarPoint(p, (p-scannerPosition).normalized(), (p-scannerPosition).lengthSquared()));
+        i++;
+    }
+
+    // We only run/stats/logs for efficiency (paper) when scanning is in progress
+    mDateTimeLastLidarInput = QDateTime::currentDateTime();
+
+    mGlWidget->update();
+
+    mLogWidget->log(
+                Information,
+                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
+                QString("%1 points using %2 MB, %3 nodes, %4 points added.")
+                .arg(mOctree->getNumberOfItems())
+                .arg((mOctree->getNumberOfItems()*sizeof(LidarPoint))/1000000.0, 2, 'g')
+                .arg(mOctree->getNumberOfNodes()).arg(pointList.size()));
+
+    qDebug() << "RoverConnection::processPacket(): appended" << pointList.size() << "points to octree.";
 }
 
 void BaseStation::slotExportCloud()
@@ -201,377 +258,11 @@ void BaseStation::slotTogglePlot()
     mPlotWidget->setVisible(!mPlotWidget->isVisible());
 }
 
-void BaseStation::addRandomPoint()
-{
-    QVector3D scannerPosition(0, 0, 0);
-    QVector3D point(rand()%199 - 100, rand()%199 - 100, rand()%199 - 100);
-    mOctree->insertPoint(
-            new LidarPoint(
-                    point,
-                    scannerPosition-point,
-                    (rand()%20+1)
-                    )
-            );
-
-    mLogWidget->log(Information, "BaseStation::addRandomPoint()", "added random point.");
-}
-
 void BaseStation::keyPressEvent(QKeyEvent* event)
 {
-    if(event->key() == Qt::Key_Space)
-        addRandomPoint();
+//    if(event->key() == Qt::Key_Space)
+//        addRandomPoint();
 }
-
-void BaseStation::slotReadSocket()
-{
-//    qDebug() << "BaseStation::slotReadSocket()";
-
-    mIncomingDataBuffer.append(mTcpSocket->readAll());
-
-    if(mIncomingDataBuffer.size() < 8) return;
-
-//    mIncomingDataBuffer.remove(mIncomingDataBuffer.indexOf(QString("$KPROT").toAscii()), 6);
-
-    QDataStream stream(mIncomingDataBuffer); // byteArray is const!
-    quint32 packetLength;
-    stream >> packetLength;
-
-//    qDebug() << "BaseStation::slotReadSocket(): packetLength is" << packetLength << "buffersize is" << mIncomingDataBuffer.size();
-
-    if(mIncomingDataBuffer.size() >= packetLength)
-    {
-        // strip the length from the beginning
-        mIncomingDataBuffer.remove(0, sizeof(quint32));
-
-        // pass the packet
-        processPacket(mIncomingDataBuffer.left(packetLength - sizeof(quint32)));
-
-        // now remove the packet from our incoming buffer
-        mIncomingDataBuffer.remove(0, packetLength - sizeof(quint32));
-
-        // see whether there's another packet lurking around in the array...
-        slotReadSocket();
-    }
-}
-
-
-void BaseStation::processPacket(QByteArray data)
-{
-//    qDebug() << "BaseStation::processPacket(): processing bytes:" << data.size();
-
-    QDataStream stream(data);
-
-    QString packetType;
-    stream >> packetType;
-
-    if(packetType == "lidarpoints")
-    {
-        QVector3D scannerPosition;
-        QList<QVector3D> pointList;
-        stream >> scannerPosition;
-        stream >> pointList;
-
-        int i=0;
-        foreach(const QVector3D &p, pointList)
-        {
-//            qDebug() << p;
-            mOctree->insertPoint(new LidarPoint(p, (p-scannerPosition).normalized(), (p-scannerPosition).lengthSquared()));
-            if(i%10 == 0)
-                mFlightPlanner->insertPoint(new LidarPoint(p, (p-scannerPosition).normalized(), (p-scannerPosition).lengthSquared()));
-            i++;
-        }
-
-        // We only run/stats/logs for efficiency (paper) when scanning is in progress
-        mDateTimeLastLidarInput = QDateTime::currentDateTime();
-
-        mGlWidget->update();
-
-        mLogWidget->log(Information, "BaseStation::processPacket()", QString("%1 points using %2 MB, %3 nodes, %4 points added.").arg(mOctree->getNumberOfItems()).arg((mOctree->getNumberOfItems()*sizeof(LidarPoint))/1000000.0, 2, 'g').arg(mOctree->getNumberOfNodes()).arg(pointList.size()));
-
-        qDebug() << "BaseStation::processPacket(): appended" << pointList.size() << "points to octree.";
-    }
-    else if(packetType == "image")
-    {
-        QString cameraName;
-        QSize imageSize;
-        QVector3D cameraPosition;
-        QQuaternion cameraOrientation;
-        QByteArray imageData;
-
-        stream >> cameraName;
-        stream >> imageSize;
-        stream >> cameraPosition;
-        stream >> cameraOrientation;
-        stream >> imageData;
-
-//        qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss:zzz") << "camera" << cameraName << "pos" << cameraPosition << "orientation" << cameraOrientation << "image bytearray size is" << imageData.size();
-
-        CameraWidget *widget;
-
-        if(!mCameraWidgets.contains(cameraName))
-        {
-            widget = new CameraWidget(this, cameraName);
-            mCameraWidgets.insert(cameraName, widget);
-            addDockWidget(Qt::RightDockWidgetArea, widget);
-        }
-        else
-        {
-            widget = mCameraWidgets.value(cameraName);
-        }
-
-        widget->slotSetPixmapData(imageData);
-    }
-    else if(packetType == "vehiclestatus")
-    {
-        quint32 missionRunTime;
-        float batteryVoltage;
-        qint16 barometricHeight;
-        qint8 wirelessRssi;
-
-        stream >> missionRunTime;
-        stream >> barometricHeight;
-        stream >> batteryVoltage;
-        stream >> wirelessRssi;
-
-        mControlWidget->slotUpdateMissionRunTime(missionRunTime);
-        mControlWidget->slotUpdateBattery(batteryVoltage);
-        mControlWidget->slotUpdateBarometricHeight(barometricHeight);
-
-        // It seems impossible to read the RSSI of the basestation's signal if the rover
-        // is the access-point. At least hostapd seems to have no feature for querying
-        // an STAs RSSI. Thus, we read the RSSI of the rover's signal at the base...
-//        mControlWidget->slotUpdateWirelessRssi(wirelessRssi);
-    }
-    else if(packetType == "gpsstatus")
-    {
-        GpsStatusInformation::GpsStatus gpsStatus;
-
-        stream >> gpsStatus;
-
-        mLogWidget->log(
-                    gpsStatus.error == 0 && gpsStatus.gnssMode & 15 == 4 && gpsStatus.integrationMode == 2 && gpsStatus.lastPvtAge == 0 && gpsStatus.numSatellitesUsed > 5 ? Information : Error,
-                    QString("GpsDevice"),
-                    GpsStatusInformation::getStatusText(gpsStatus));
-
-        mControlWidget->slotUpdateGpsStatus(gpsStatus);
-    }
-    else if(packetType == "posechanged")
-    {
-        Pose vehiclePose;
-        stream >> vehiclePose;
-
-        emit vehiclePoseChanged(vehiclePose);
-    }
-    else if(packetType == "currentwaypointshash")
-    {
-        QString wayPointsHashFromRover;
-        stream >> wayPointsHashFromRover;
-
-        if(WayPoint::hash(mFlightPlanner->getWayPoints()) != wayPointsHashFromRover)
-        {
-            mLogWidget->log(Warning, "BaseStation::processPacket()", QString("waypoints hash from rover does not match our hash, resending list"));
-            slotRoverWayPointsSet(mFlightPlanner->getWayPoints());
-        }
-    }
-    else if(packetType == "waypointreached")
-    {
-        WayPoint wpt;
-        stream >> wpt;
-
-        mFlightPlanner->slotWayPointReached(wpt);
-
-        qDebug() << "process packet: wpt reached:" << QString("reached waypoint %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z());
-
-        mLogWidget->log(Information, "BaseStation::processPacket()", QString("reached waypoint %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
-    }
-    else if(packetType == "waypointinserted")
-    {
-        // This happens when the rover reached the last waypoint and appended its own landing waypoint (probably just below the last one)
-        quint16 index;
-        stream >> index;
-
-        WayPoint wpt;
-        stream >> wpt;
-
-        mFlightPlanner->slotWayPointInsertedByRover(index, wpt);
-
-        qDebug() << "process packet: wpt appended by rover:" << QString("waypoint appended by rover: %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z());
-
-        mLogWidget->log(Information, "BaseStation::processPacket()", QString("waypoint appended by rover: %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
-    }
-    else if(packetType == "logmessage")
-    {
-        quint8 importance;
-        QString source, text;
-
-        stream >> source;
-        stream >> importance;
-        stream >> text;
-
-        mLogWidget->log((LogImportance)importance, ">" + source, text);
-    }
-    else if(packetType == "controllervalues")
-    {
-        Pose pose;
-        quint8 thrust;
-        qint8 pitch, roll, yaw, height;
-
-        stream >> pose;
-        stream >> thrust;
-        stream >> pitch;
-        stream >> roll;
-        stream >> yaw;
-        stream >> height;
-
-        // Normalize poseYaw between -180 and 180 for better graphing
-        float poseYaw = pose.getYawDegrees() <= 180.0 ? pose.getYawDegrees() : pose.getYawDegrees() - 360.0;
-
-        QVector<float> values;
-        values << pitch << roll << thrust << yaw;
-        values << pose.getPitchDegrees() << pose.getRollDegrees() << poseYaw;
-
-        mPlotWidget->slotAppendData(values);
-    }
-    else
-    {
-        qDebug() << "BaseStation::processPacket(): unknown packetType" << packetType;
-        mLogWidget->log(Error, "BaseStation::processPacket()", "unknown packetType: " + packetType);
-        mIncomingDataBuffer.clear();
-    }
-}
-
-void BaseStation::slotRoverWayPointsSet(const QList<WayPoint>& wayPoints)
-{
-    QByteArray data;
-    QDataStream stream(&data, QIODevice::WriteOnly);
-
-    stream << QString("waypoints");
-    stream << wayPoints;
-
-    mLogWidget->log(Information, "BaseStation::slotSetWayPoints()", QString("transmitting %1 waypoints to rover").arg(wayPoints.size()));
-
-    slotSendData(data);
-}
-
-void BaseStation::slotRoverWayPointInsert(const quint16& index, const WayPoint& wayPoint)
-{
-    qDebug() << "BaseStation::slotRoverWayPointInsert(): telling rover to insert wpt" << wayPoint << "before index" << index;
-
-    QByteArray data;
-    QDataStream stream(&data, QIODevice::WriteOnly);
-
-    stream << QString("waypointinsert");
-//    stream << hash;
-    stream << index;
-    stream << wayPoint;
-
-    mLogWidget->log(Information, "BaseStation::slotRoverWayPointInsert()", QString("inserting 1 waypoint at index %2").arg(index));
-
-    slotSendData(data);
-}
-
-void BaseStation::slotRoverWayPointDelete(const quint16& index)
-{
-    QByteArray data;
-    QDataStream stream(&data, QIODevice::WriteOnly);
-
-    qDebug() << "BaseStation::slotRoverWayPointDelete(): telling rover to delete wpt" << index;
-
-    stream << QString("waypointdelete");
-//    stream << hash;
-    stream << index;
-
-    mLogWidget->log(Information, "BaseStation::slotRoverWayPointDelete()", QString("deleting waypoint at index %1").arg(index));
-
-    slotSendData(data);
-}
-
-void BaseStation::slotSendRtkDataToRover(const QByteArray& rtkData)
-{
-    QByteArray data;
-    QDataStream stream(&data, QIODevice::WriteOnly);
-
-    stream << QString("rtkdata");
-    stream << rtkData;
-
-    mLogWidget->log(Information, "BaseStation::slotSendRtkDataToRover()", QString("sending %1 bytes of rtk data to rover").arg(rtkData.size()));
-
-    slotSendData(data);
-
-    mControlWidget->slotUpdateRtkStatus(true);
-}
-
-void BaseStation::slotSendData(const QByteArray &data)
-{
-//    qDebug() << "BaseStation::slotSendData():" << data << mTcpSocket->state();
-//    qDebug() << "BaseStation::slotSendData():" << mTcpSocket->errorString();
-
-    QByteArray dataToSend;
-    QDataStream streamDataToSend(&dataToSend, QIODevice::WriteOnly);
-//    streamDataToSend << QString("$KPROT").toAscii();
-    streamDataToSend << (quint32)(data.length() + sizeof(quint32));
-
-    dataToSend.append(data);
-
-    mTcpSocket->write(dataToSend);
-}
-
-void BaseStation::slotAskForConnectionHostNames()
-{
-    mConnectionDialog->show();
-    mConnectionDialog->exec();
-}
-
-void BaseStation::slotConnectToRover()
-{
-    while(mConnectionDialog->getHostNameRover().isEmpty())
-        slotAskForConnectionHostNames();
-
-    qDebug() << "BaseStation::slotConnectToRover(): aborting and reconnecting...";
-
-    mTcpSocket->abort();
-    mTcpSocket->connectToHost(mConnectionDialog->getHostNameRover(), 12345);
-
-    qDebug() << "BaseStation::slotConnectToRover(): aborting and reconnecting done.";
-}
-
-void BaseStation::slotSocketError(QAbstractSocket::SocketError socketError)
-{
-    qDebug() << "BaseStation::slotSocketError():" << socketError;
-
-    mControlWidget->slotUpdateRoverConnection(false);
-
-    if(socketError == QAbstractSocket::ConnectionRefusedError)
-        QTimer::singleShot(2000, this, SLOT(slotConnectToRover()));
-}
-
-/*const WayPoint BaseStation::getNextWayPoint(void) const
-{
-    QList<WayPoint> waypoints = mFlightPlanner->getWayPoints();
-
-    if(waypoints.size())
-        return waypoints.first();
-    else
-        return WayPoint();
-}*/
-
-/*void BaseStation::slotFlightPlannerProcessing(const QString& text, const quint8& progress)
-{
-    if(!mProgress)
-    {
-        mProgress = new QProgressDialog(text, "Abort", 0, 100, this);
-//        mProgress->setWindowModality(Qt::WindowModal);
-    }
-
-    mProgress->setValue(progress);
-
-    if(progress == 100)
-    {
-        mProgress->hide();
-        mProgress->deleteLater();
-        mProgress = 0;
-    }
-}*/
 
 void BaseStation::slotWriteStats()
 {

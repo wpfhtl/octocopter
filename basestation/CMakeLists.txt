@@ -11,6 +11,7 @@ main
 basestation
 glwidget
 logwidget
+logplayer
 camerawidget
 flightplannerinterface
 flightplannerbasic
@@ -20,6 +21,7 @@ flightplannerphysicsdialog
 rtkfetcher
 controlwidget
 connectiondialog
+roverconnection
 bulletdebugdrawergl
 voxelmanager
 ../common/plymanager
@@ -40,6 +42,7 @@ SET(INC_FILES
 basestation.h
 glwidget.h
 logwidget.h
+logplayer.h
 camerawidget.h
 flightplannerinterface.h
 flightplannerbasic.h
@@ -49,6 +52,7 @@ flightplannerphysicsdialog.h
 rtkfetcher.h
 controlwidget.h
 connectiondialog.h
+roverconnection.h
 bulletdebugdrawergl.h
 voxelmanager.h
 ../common/plymanager.h
@@ -66,6 +70,7 @@ voxelmanager.h
 
 SET(UI_FILES
 controlwidget.ui
+logplayer.ui
 logwidget.ui
 connectiondialog.ui
 flightplannerphysicsdialog.ui

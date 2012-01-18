@@ -8,13 +8,9 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
     setTitleBarWidget(new QWidget());
 
     initWayPointTable();
-    mTimerRtkIndicator.setInterval(3100);
-    mTimerRtkIndicator.start();
 
     // To enable colored text
     mLabelGpsInfo->setTextFormat(Qt::RichText);
-
-    connect(&mTimerRtkIndicator, SIGNAL(timeout()), SLOT(slotUpdateRtkStatus()));
 
     connect(mBtnWptPrepend, SIGNAL(clicked()), SLOT(slotWayPointPrepend()));
     connect(mBtnWptAppend, SIGNAL(clicked()), SLOT(slotWayPointAppend()));
@@ -35,14 +31,11 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
 
     mBarWirelessRssi->setRange(0, 100);
 
-//    mDialogConfiguration = new DialogConfiguration(mSimulator);
-
     resize(minimumSizeHint());
 }
 
 ControlWidget::~ControlWidget()
 {
-//    delete mDialogConfiguration;
 }
 
 void ControlWidget::initWayPointTable()
@@ -57,23 +50,7 @@ void ControlWidget::initWayPointTable()
     mWayPointTable->setColumnWidth(2, 53);
 }
 
-void ControlWidget::slotSimulationStarted()
-{
-//    mBtnPause->setEnabled(true);
-//    mBtnStart->setEnabled(false);
-
-    emit simulationStart();
-}
-
-void ControlWidget::slotSimulationPaused()
-{
-//    mBtnPause->setEnabled(false);
-//    mBtnStart->setEnabled(true);
-
-    emit simulationPause();
-}
-
-void ControlWidget::slotUpdateRoverConnection(bool connected)
+void ControlWidget::slotUpdateConnectionRover(bool connected)
 {
     if(connected)
     {
@@ -93,31 +70,27 @@ void ControlWidget::slotUpdateRoverConnection(bool connected)
 
         mLabelRoverIndicator->setText("ERR");
     }
-
 }
 
-void ControlWidget::slotUpdateRtkStatus(bool working)
+void ControlWidget::slotUpdateConnectionRtk(bool working)
 {
     if(working)
     {
+        mLabelRtkIndicator->setText("OK");
+
         if(mLabelRtkIndicator->styleSheet() == getBackgroundCss(false, false))
             mLabelRtkIndicator->setStyleSheet(getBackgroundCss(false, true));
         else
             mLabelRtkIndicator->setStyleSheet(getBackgroundCss(false, false));
-
-        mLabelRtkIndicator->setText("OK");
-
-        mTimerRtkIndicator.stop();
-        mTimerRtkIndicator.start();
     }
     else
     {
+        mLabelRtkIndicator->setText("ERR");
+
         if(mLabelRtkIndicator->styleSheet() == getBackgroundCss(true, false))
             mLabelRtkIndicator->setStyleSheet(getBackgroundCss(true, true));
         else
             mLabelRtkIndicator->setStyleSheet(getBackgroundCss(true, false));
-
-        mLabelRtkIndicator->setText("ERR");
     }
 }
 

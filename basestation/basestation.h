@@ -3,14 +3,12 @@
 
 #include <QtCore>
 #include <QtGui>
-#include <QtNetwork>
 #include <QDebug>
 #include <QInputDialog>
-#include <QTcpSocket>
-#include <QMutex>
 
 #include "flightplannercuda.h"
 #include "glwidget.h"
+#include "logplayer.h"
 #include "octree.h"
 #include "rtkfetcher.h"
 #include "lidarpoint.h"
@@ -22,6 +20,7 @@
 #include "controlwidget.h"
 #include "logwidget.h"
 #include "plymanager.h"
+#include "roverconnection.h"
 #include "wirelessdevice.h"
 #include <plotwidget.h>
 #include <waypoint.h>
@@ -36,16 +35,13 @@ class BaseStation : public QMainWindow
     Q_OBJECT
 
 private:
-    QTcpSocket* mTcpSocket;
     //Pose mVehiclePose;
 
     WirelessDevice* mWirelessDevice;
 
     ConnectionDialog* mConnectionDialog;
 
-    QStringList mHostNames;
-
-    QByteArray mIncomingDataBuffer;
+    RoverConnection* mRoverConnection;
 
     FlightPlannerInterface* mFlightPlanner;
 
@@ -53,6 +49,7 @@ private:
     ControlWidget* mControlWidget;
     LogWidget* mLogWidget;
     PlotWidget* mPlotWidget;
+    LogPlayer* mLogPlayer;
 
     // a container for collected rays, or rather the world coordinates of where they ended
     Octree* mOctree;
@@ -63,7 +60,6 @@ private:
     QFile *mStatsFile;
     QDateTime mDateTimeLastLidarInput;
 
-    void addRandomPoint();
     void keyPressEvent(QKeyEvent* event);
 
     void processIncomingPoints();
@@ -73,37 +69,25 @@ private:
 
     QProgressDialog* mProgress;
 
-    void processPacket(QByteArray data);
-
 signals:
-    void vehiclePoseChanged(Pose);
+
 
 private slots:
-    void slotAskForConnectionHostNames();
-    void slotSocketConnected(void);
-    void slotSocketDisconnected(void);
-    void slotReadSocket(void);
-    void slotSocketError(QAbstractSocket::SocketError socketError);
-    void slotConnectToRover(void);
     void slotExportCloud(void);
     void slotImportCloud(void);
     void slotTogglePlot(void);
 
-    void slotRoverWayPointInsert(const quint16&, const WayPoint&);
-    void slotRoverWayPointDelete(const quint16&);
-    void slotRoverWayPointsSet(const QList<WayPoint>&);
-
-    void slotSendRtkDataToRover(const QByteArray& rtkData);
-    void slotSendData(const QByteArray &data);
-
     void slotWriteStats();
     void slotAddLogFileMarkForPaper(QList<WayPoint> wptList);
+
+    // These are called by ConnectionRover when new data arrived
+    void slotNewScanData(const QVector3D& scannerPosition, const QList<QVector3D>& pointList);
+    void slotNewImage(const QString& cameraName, const QSize& imageSize, const Pose& cameraPose, const QByteArray& imageData);
+    void slotNewVehicleStatus(const quint32& missionRunTime, const float& batteryVoltage, const qint16& barometricHeight, const qint8& wirelessRssi);
 
 public:
     BaseStation(void);
     ~BaseStation();
-
-//    const WayPoint getNextWayPoint(void) const;
 };
 
 #endif

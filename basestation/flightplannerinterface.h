@@ -49,11 +49,13 @@ public slots:
     void slotWayPointSwap(const quint16& i, const quint16& j);
     void slotWayPointsClear();
 
+    void slotCheckWayPointsHashFromRover(const QString& hash);
+
     // Used in CUDA flightplanner, might be useful to others. Will be called
     // soon after construction, but maybe after the first call to slotVisualize().
     virtual void slotInitialize() = 0;
 
-    virtual void slotWayPointReached(const WayPoint);
+    virtual void slotWayPointReached(const WayPoint&);
 
     virtual void slotSetScanVolume(const QVector3D min, const QVector3D max);
     virtual void slotGenerateWaypoints() = 0;
@@ -62,6 +64,8 @@ public slots:
     void slotVehiclePoseChanged(const Pose& pose);
 
 signals:
+    void message(const LogImportance& importance, const QString& source, const QString& message);
+
     // Emitted to tell other classes that waypoint @wpt was inserted at index @index
     void wayPointInserted(const quint16& index, const WayPoint& wpt);
 

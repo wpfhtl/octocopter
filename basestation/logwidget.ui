@@ -6,9 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>235</width>
+    <width>264</width>
     <height>905</height>
    </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
   </property>
   <property name="allowedAreas">
    <set>Qt::BottomDockWidgetArea|Qt::TopDockWidgetArea</set>
@@ -17,6 +23,12 @@
    <string>Logger</string>
   </property>
   <widget class="QWidget" name="dockWidgetContents">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
    <layout class="QVBoxLayout" name="verticalLayout">
     <property name="spacing">
      <number>0</number>
@@ -26,6 +38,12 @@
     </property>
     <item>
      <widget class="QTextEdit" name="mTextEdit">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
       <property name="verticalScrollBarPolicy">
        <enum>Qt::ScrollBarAlwaysOn</enum>
       </property>

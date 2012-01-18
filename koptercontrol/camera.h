@@ -15,6 +15,8 @@
 #include <QQuaternion>
 #include <QImage>
 
+#include <pose.h>
+
 typedef struct
 {
     void *start;
@@ -27,7 +29,7 @@ class Camera : public QObject
     Q_OBJECT
 
 public:
-    Camera(const QString& device, const QSize& imageSize, const QVector3D position, const QQuaternion& orientaiton, quint8 fps);
+    Camera(const QString& device, const QSize& imageSize, const Pose& pose, quint8 fps);
     ~Camera();
     const QSize getImageSize() const;
     int retrieveFrame(Frame *frame);
@@ -72,8 +74,7 @@ public:
 
 private:
     QSize mImageSize;
-    QVector3D mPosition;
-    QQuaternion mOrientation;
+    Pose mPose;
     QTimer* mCaptureTimer;
     QString mDeviceFile;
     int mFileDescriptor;
@@ -95,9 +96,9 @@ private slots:
 
 signals:
     // Here, the imagedata is INvalid after the emit, so copy it immediately.
-    void imageReadyJpeg(const QString& name, const QSize& imageSize, const QVector3D& position, const QQuaternion& orientation, const QByteArray* image);
+    void imageReadyJpeg(const QString& name, const QSize& imageSize, const Pose& pose, const QByteArray* image);
     // Here, the imagedata is valid until the next frame is taken
-    void imageReadyYCbCr(const QString& name, const QSize& imageSize, const QVector3D& position, const QQuaternion& orientation, const QByteArray image);
+    void imageReadyYCbCr(const QString& name, const QSize& imageSize, const Pose& pose, const QByteArray image);
 };
 
 #endif // CAMERA_SOURCE_H
