@@ -9,24 +9,19 @@ LogPlayer::LogPlayer(int argc, char **argv) : QCoreApplication(argc, argv)
         qFatal("LogPlayer::LogPlayer() usage: %s inputfile outputfile-basename [MaxRayLength (mm)]", qPrintable(arguments.at(0)));
     }
 
-    mLaserScanner = new LaserScanner(
-                QString("/does/not/exist"),
+    mSensorFuser = new SensorFuser;
+    mSensorFuser->setLaserScannerRelativePose(
                 Pose(
                     QVector3D(      // Offset from Antenna to Laser Source. In Vehicle Reference Frame: Like OpenGL, red arm forward pointing to screen
-                        +0.09,      // From antenna positive is right to laser
-                        -0.38,      // From Antenna negative is down to laser
-                        -0.11),     // From Antenna negative forward to laser
+                                    +0.09,      // From antenna positive is right to laser
+                                    -0.38,      // From Antenna negative is down to laser
+                                    -0.11),     // From Antenna negative forward to laser
                     +000.0,         // No yawing
                     -090.0,         // 90 deg pitched down
                     +000.0,         // No rolling
                     10             // Use 10 msec TOW, so that the relative pose is always older than whatever new pose coming in. Don't use 0, as that would be set to current TOW, which might be newer due to clock offsets.
                     )
                 );
-
-    // Otherwise, LogPlayer won't accept poses.
-    mLaserScanner->slotEnableScanning(true);
-
-    mSensorFuser = new SensorFuser(mLaserScanner, static_cast<SensorFuser::Behavior>(SensorFuser::FuseData));
 
     if(argc == 4)
     {
@@ -45,7 +40,6 @@ LogPlayer::LogPlayer(int argc, char **argv) : QCoreApplication(argc, argv)
 
 LogPlayer::~LogPlayer()
 {
-    delete mLaserScanner;
     delete mSensorFuser;
     delete mPlyManagerCloud;
     delete mPlyManagerTrajectory;

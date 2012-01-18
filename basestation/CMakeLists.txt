@@ -24,6 +24,8 @@ connectiondialog
 roverconnection
 bulletdebugdrawergl
 voxelmanager
+../common/sbfparser
+../common/sensorfuser
 ../common/plymanager
 ../common/openglutilities
 ../common/lidarpoint
@@ -55,6 +57,8 @@ connectiondialog.h
 roverconnection.h
 bulletdebugdrawergl.h
 voxelmanager.h
+../common/sbfparser.h
+../common/sensorfuser.h
 ../common/plymanager.h
 ../common/openglutilities.h
 ../common/lidarpoint.h

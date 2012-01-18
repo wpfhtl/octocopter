@@ -3,7 +3,6 @@
 
 #include <QtCore>
 #include "pose.h"
-#include "laserscanner.h"
 
 class SensorFuser : public QObject
 {
@@ -11,13 +10,14 @@ class SensorFuser : public QObject
 
 public:
 
+    /*
     enum Behavior
     {
         WriteRawLogs = 0x01,
         FuseData     = 0x02
     };
-
-    SensorFuser(LaserScanner* const laserScanner, SensorFuser::Behavior behavior);
+*/
+    SensorFuser(/*SensorFuser::Behavior behavior*/);
     ~SensorFuser();
 
     // SensorFuser writes logfiles of the raw incoming data. These files can be read later-on and fed
@@ -28,20 +28,19 @@ public:
 
     void setMaximumFusableRayLength(const float& rayLength) {mMaximumFusableRayLength = rayLength;}
 
+    void setLaserScannerRelativePose(const Pose& pose) {mLaserScannerRelativePose = pose;}
 
 private:
     quint32 mPointCloudSize;
 
-//    bool mWriteSensorLog;
+    Pose mLaserScannerRelativePose;
 
-    Behavior mBehavior; // write raw logs? fuse data?
+//    Behavior mBehavior; // write raw logs? fuse data?
 
     quint16 mStatsFusedScans;
     quint16 mStatsDiscardedScans;
 
     QFile* mLogFileRawData;  // for poses, scans and scan-gps-timestamps
-
-    LaserScanner * const mLaserScanner; // used to retrieve relative pose and use LaserScanner::getWorldPositionOfScannedPoint(...)
 
     // How much time difference from a scan to a pose (or vice versa) in past or future for the data to be usable for interpolation?
     quint8 mMaximumTimeBetweenFusedPoseAndScanMsec;

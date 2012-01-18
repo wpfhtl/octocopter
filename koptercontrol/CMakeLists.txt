@@ -56,7 +56,7 @@ koptermessage
 kopter
 camera
 #visualodometry
-sensorfuser
+../common/sensorfuser
 ../common/flightcontroller
 ../common/sbfparser
 ../common/common
@@ -76,7 +76,7 @@ koptermessage.h
 kopter.h
 camera.h
 #visualodometry.h
-sensorfuser.h
+../common/sensorfuser.h
 ../common/flightcontroller.h
 ../common/sbfparser.h
 ../common/common.h
@@ -110,7 +110,7 @@ TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_L
 
 SET(SRC_FILES_LOGPLAYER
 logplayer
-sensorfuser
+../common/sensorfuser
 ../common/common
 ../common/pose
 ../common/plymanager
@@ -120,7 +120,7 @@ laserscanner
 
 SET(INC_FILES_LOGPLAYER
 logplayer.h
-sensorfuser.h
+../common/sensorfuser.h
 ../common/common.h
 ../common/pose.h
 ../common/plymanager.h

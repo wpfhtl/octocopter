@@ -1,6 +1,6 @@
 #include "sensorfuser.h"
 
-SensorFuser::SensorFuser(LaserScanner* const laserScanner, SensorFuser::Behavior behavior) : QObject(), mLaserScanner(laserScanner)
+SensorFuser::SensorFuser(/*SensorFuser::Behavior behavior*/) : QObject()
 {
     mPointCloudSize = 0;
     mNewestDataTime = 0;
@@ -8,28 +8,28 @@ SensorFuser::SensorFuser(LaserScanner* const laserScanner, SensorFuser::Behavior
     mStatsFusedScans = 0;
     mStatsDiscardedScans = 0;
     mLastRayTime = -1000; // make sure first comparision fails
-    mBehavior = behavior;
+//    mBehavior = behavior;
     mMaximumTimeBetweenFusedPoseAndScanMsec = 81; // 2*poseInterval+1
     mMaximumTimeBetweenMatchingScans = 12; // msecs maximum clock offset between scanner and gps device. Smaller means less data, moremeans worse data. Yes, we're screwed.
 
-    if(mBehavior & SensorFuser::WriteRawLogs)
+    /*if(mBehavior & SensorFuser::WriteRawLogs)
     {
         mLogFileRawData = new QFile(QString("scannerdata-raw-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
         if(!mLogFileRawData->open(QIODevice::WriteOnly | QIODevice::Text))
             qFatal("SensorFuser::SensorFuser(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFileRawData->fileName()));
-    }
+    }*/
 }
 
 SensorFuser::~SensorFuser()
 {
-    if(mBehavior & SensorFuser::WriteRawLogs)
+/*    if(mBehavior & SensorFuser::WriteRawLogs)
     {
         // We won't gather any new data, close raw logfile
         mLogFileRawData->close();
 
         // deleteLater() doesn't help, because the event-loop won't run again.
         delete mLogFileRawData;
-    }
+    }*/
 
     qDebug() << "SensorFuser::~SensorFuser(): total scans:"  << mStatsFusedScans + mStatsDiscardedScans << "fused:" << mStatsFusedScans << "discarded:"<< mStatsDiscardedScans;
     qDebug() << "SensorFuser::~SensorFuser(): leftover scanScanner:"  << mScansTimestampScanner.size() << "scanGps:" << mScansTimestampGps.size() << "poses:"<< mPoses.size();
@@ -293,7 +293,7 @@ void SensorFuser::transformScanData()
 
                 mLastRayTime = timeOfCurrentRay;
 
-                scannedPoints.append(mLaserScanner->getWorldPositionOfScannedPoint(mLastInterpolatedPose, index, distance));
+                scannedPoints.append(getWorldPositionOfScannedPoint(mLastInterpolatedPose, index, distance));
 
                 mPointCloudSize++;
             }
@@ -415,24 +415,26 @@ qint8 SensorFuser::matchTimestamps()
 void SensorFuser::slotNewVehiclePose(const Pose& pose)
 {
     qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a precise" << pose;
-
+/*
     if(mBehavior & SensorFuser::WriteRawLogs)
     {
         // Write pose to logfile
         QTextStream out(mLogFileRawData);
         out << pose.toString() << endl;
-    }
+    }*/
 
-    if(mBehavior & SensorFuser::FuseData)
-    {
-        if(!mLaserScanner->isScanning())
-        {
-            //qDebug() << t() << "SensorFuser::slotNewVehiclePose(): ignoring a received pose, laserscanner isn't scanning at" << pose.timestamp;
-            return;
-        }
+//    if(mBehavior & SensorFuser::FuseData)
+//    {
+//        // This was nice, but we don't keep a laserscanner anymore'
+//        // Warning, this was commented without thinking much
+//        if(!mLaserScanner->isScanning())
+//        {
+//            qDebug() << t() << "SensorFuser::slotNewVehiclePose(): ignoring a received pose, laserscanner isn't scanning at" << pose.timestamp;
+//            return;
+//        }
 
         // Append pose to our list
-        mPoses.append(Pose(pose + mLaserScanner->getRelativePose()));
+        mPoses.append(Pose(pose + mLaserScannerRelativePose));
 
         mNewestDataTime = std::max(mNewestDataTime, pose.timestamp);
 
@@ -441,21 +443,21 @@ void SensorFuser::slotNewVehiclePose(const Pose& pose)
         // Fuse pose and scans if it was possible to correct at least one lasertimestamp with a gps timestamp
         if(matchTimestamps())
             transformScanData();
-    }
+//    }
 }
 
 void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
 {
     //qDebug() << t() << "SensorFuser::slotScanFinished(): gps says scanner finished a scan at time" << timestampScanGps;
 
-    if(mBehavior & SensorFuser::WriteRawLogs)
+/*    if(mBehavior & SensorFuser::WriteRawLogs)
     {
         // Log this event to file
         QTextStream(mLogFileRawData) << "extevent: " << timestampScanGps << endl;
-    }
+    }*/
 
-    if(mBehavior & SensorFuser::FuseData)
-    {
+//    if(mBehavior & SensorFuser::FuseData)
+//    {
         // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
         if(!mPoses.size() || mPoses.last().timestamp < (timestampScanGps - 1000))
         {
@@ -474,13 +476,13 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
         // Our gps board tells us that a scan is finished. The scan data itself might already be saved in mSavedScans - or it might not.
         mScansTimestampGps.insert(timestampScanGps, 0);
         mNewestDataTime = std::max((unsigned int)mNewestDataTime, timestampScanGps);
-    }
+//    }
 }
 
 void SensorFuser::slotNewScanData(const quint32& timestampScanScanner, std::vector<long> * const distances)
 {
     //qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
-
+/*
     if(mBehavior & SensorFuser::WriteRawLogs)
     {
         // Always write log data for later replay: scannerdata:[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
@@ -490,9 +492,9 @@ void SensorFuser::slotNewScanData(const quint32& timestampScanScanner, std::vect
         for(itr=distances->begin();itr != distances->end(); ++itr) out << " " << *itr;
         out << endl;
     }
-
-    if(mBehavior & SensorFuser::FuseData)
-    {
+*/
+//    if(mBehavior & SensorFuser::FuseData)
+//    {
         // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
         if(!mPoses.size() || mPoses.last().timestamp < (timestampScanScanner - mMaximumTimeBetweenFusedPoseAndScanMsec - 13))
         {
@@ -506,5 +508,5 @@ void SensorFuser::slotNewScanData(const quint32& timestampScanScanner, std::vect
         mNewestDataTime = std::max((unsigned int)mNewestDataTime, timestampScanScanner);
 
         cleanUnusableData();
-    }
+//    }
 }

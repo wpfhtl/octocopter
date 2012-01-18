@@ -53,7 +53,7 @@ BaseStation::BaseStation() : QMainWindow()
     // cudaGlSetGlDevice() needs to be called in GL context and before any other CUDA calls.
 //    mFlightPlanner = new FlightPlannerCuda(this, mOctree);
 
-    mFlightPlanner->slotSetScanVolume(QVector3D(140, 70, 80), QVector3D(240, 120, 150));
+    mFlightPlanner->slotSetScanVolume(QVector3D(-50, -10, -35), QVector3D(50, 40, 35));
 
     // Just for adding a line to the log file for marking a new waypoint generation iteration
     connect(mFlightPlanner, SIGNAL(wayPointsSetOnRover(QList<WayPoint>)), SLOT(slotAddLogFileMarkForPaper(QList<WayPoint>)));
@@ -92,7 +92,13 @@ BaseStation::BaseStation() : QMainWindow()
     mLogPlayer = new LogPlayer(this);
     mLogPlayer->setAllowedAreas(Qt::AllDockWidgetAreas);
     addDockWidget(Qt::BottomDockWidgetArea, mLogPlayer);
-    // TODO: connect LogPlayer
+    connect(mLogPlayer, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
+    connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mControlWidget, SLOT(slotUpdatePose(Pose)));
+    connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose)));
+    connect(mLogPlayer, SIGNAL(scanData(QList<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QList<QVector3D>,QVector3D)));
+//    connect(mLogPlayer, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
+    connect(mLogPlayer, SIGNAL(gpsStatus(GpsStatusInformation::GpsStatus)), mControlWidget, SLOT(slotUpdateGpsStatus(GpsStatusInformation::GpsStatus)));
+//    connect(mLogPlayer, SIGNAL(controllerValues(QVector<float>)), mPlotWidget, SLOT(slotAppendData(QVector<float>)));
 
     mPlotWidget = new PlotWidget(this);
     mPlotWidget->setAllowedAreas(Qt::AllDockWidgetAreas);
@@ -117,7 +123,7 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose)));
         connect(mRoverConnection, SIGNAL(connectionStatusRover(bool)), mControlWidget, SLOT(slotUpdateConnectionRover(bool)));
 
-        connect(mRoverConnection, SIGNAL(scanData(QVector3D,QList<QVector3D>)), this, SLOT(slotNewScanData(QVector3D,QList<QVector3D>)));
+        connect(mRoverConnection, SIGNAL(scanData(QList<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QList<QVector3D>,QVector3D)));
         connect(mRoverConnection, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
         connect(mRoverConnection, SIGNAL(gpsStatus(GpsStatusInformation::GpsStatus)), mControlWidget, SLOT(slotUpdateGpsStatus(GpsStatusInformation::GpsStatus)));
         connect(mRoverConnection, SIGNAL(controllerValues(QVector<float>)), mPlotWidget, SLOT(slotAppendData(QVector<float>)));
@@ -183,7 +189,7 @@ void BaseStation::slotNewImage(const QString& cameraName, const QSize& imageSize
     widget->slotSetPixmapData(imageData);
 }
 
-void BaseStation::slotNewScanData(const QVector3D& scannerPosition, const QList<QVector3D>& pointList)
+void BaseStation::slotNewScanData(const QList<QVector3D>& pointList, const QVector3D& scannerPosition)
 {
     int i=0;
     foreach(const QVector3D &p, pointList)

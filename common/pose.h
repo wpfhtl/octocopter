@@ -4,6 +4,7 @@
 #include <QVector3D>
 #include <QVector2D>
 #include <QQuaternion>
+#include <QMatrix4x4>
 #include <QTime>
 #include <QStringList>
 #include <QDebug>
@@ -119,8 +120,72 @@ public:
 // for using qDebug() << myPose;
 QDebug operator<<(QDebug dbg, const Pose &pose);
 
-// for streaming
+// for streaming poses
 QDataStream& operator<<(QDataStream &out, const Pose &pose);
 QDataStream& operator>>(QDataStream &in, Pose &pose);
+
+
+
+
+
+
+// This belongs to laserscanner, but we don't want to introduce a laserscanner-dependency into basestation
+// This is defined in header to make it inlineable
+inline QVector3D getWorldPositionOfScannedPoint(const Pose& scannerPose, const quint16& scannerIndex, const float& distance)
+{
+#ifdef false
+    // Version using QMatrix4x4
+    const QVector3D vectorScannerToPoint(
+                sin(-0.0043633231299858238686f * (scannerIndex - 540)) * distance,  // X in meters
+                0.0,                                                                // Y always 0
+                cos(-0.0043633231299858238686f * (scannerIndex - 540)) * distance); // Z in meters
+
+    QMatrix4x4 scannerOrientation;
+    scannerOrientation.rotate(scannerPose.getYawDegrees(), QVector3D(0,1,0));
+    scannerOrientation.rotate(scannerPose.getPitchDegrees(), QVector3D(1,0,0));
+    scannerOrientation.rotate(scannerPose.getRollDegrees(), QVector3D(0,0,1));
+
+    return scannerPose.position + scannerOrientation * vectorScannerToPoint;
+#else
+    // This is short, but uses getOrientation(), which is expensive.
+    return QVector3D(
+                scannerPose.position
+                + scannerPose.getOrientation().rotatedVector(
+                    QVector3D(
+                        sin(-0.0043633231299858238686f * (scannerIndex - 540)) * distance,  // X in meters
+                        0.0,                                                                // Y always 0
+                        cos(-0.0043633231299858238686f * (scannerIndex - 540)) * distance   // Z in meters
+                        )
+                    )
+                );
+#endif
+
+    /* Elaborate version, slightly slower?!
+
+    // Determine vector from LaserScanner to scanned point, using the normal OpenGl coordinate system as seen from scanner,
+    // +x is right, -x is left, y is always 0, +z is back, -z is front,
+    // We could use the UrgCtrl::index2rad(), but this seems a bit more optimized
+    const QVector3D vectorScannerToPoint(
+                sin(-index2rad(scannerIndex)) * distance,  // X in meters
+                0.0,                                                // Y always 0
+                cos(-index2rad(scannerIndex)) * distance); // Z in meters
+
+    // Or, even more optimized, as we cannot rely on gcc actually inlining what it marked as inline
+
+
+    // Create a scanpoint
+    const QVector3D scannedPoint(scannerPose.position + scannerPose.getOrientation().rotatedVector(vectorScannerToPoint));
+
+//    qDebug() << "LaserScanner::getWorldPositionOfScannedPoint(): interpolated scanner pose is" << scannerPose;
+//    qDebug() << "LaserScanner::getWorldPositionOfScannedPoint(): distance is" << distance << "and index" << scannerIndex << "=>" << mScanner.index2deg(scannerIndex) << "degrees";
+//    qDebug() << "LaserScanner::getWorldPositionOfScannedPoint(): scanner to point in scanner frame is" << vectorScannerToPoint;
+//    qDebug() << "LaserScanner::getWorldPositionOfScannedPoint(): point position   in world   frame is" << scannedPoint;
+
+    return scannedPoint;
+    */
+}
+
+
+
 
 #endif // POSE_H
