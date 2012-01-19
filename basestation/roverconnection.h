@@ -32,7 +32,7 @@ signals:
 
     void message(const LogImportance& importance, const QString& source, const QString& message);
 
-    void scanData(const QVector3D& scannerPosition, const QList<QVector3D>& pointList);
+    void scanData(const QVector<QVector3D>& pointList, const QVector3D& scannerPosition);
     void image(const QString& cameraName, const QSize& imageSize, const Pose& cameraPose, const QByteArray& imageData);
     void vehicleStatus(const quint32& missionRunTime, const float& batteryVoltage, const qint16& barometricHeight, const qint8& wirelessRssi);
     void gpsStatus(GpsStatusInformation::GpsStatus);

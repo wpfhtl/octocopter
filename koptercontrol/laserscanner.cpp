@@ -10,6 +10,10 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
 
     mDeviceFileName = deviceFileName;
 
+    mLogFile = new QFile(QString("scannerdata-raw-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
+    if(!mLogFile->open(QIODevice::WriteOnly | QIODevice::Text))
+        qFatal("LaserScanner::LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
+
     mLastScannerTimeStamp = 0;
 
     mIsEnabled = false;
@@ -158,6 +162,14 @@ void LaserScanner::slotCaptureScanData()
         // Emit the scandata and add 12msecs of time. The scanner PROBABLY sets the time to the beginning of
         // each scan -135deg (0deg is front) and our convention is to store the time of the middle of a  scan.
         //emit bottomBeamLength((*distances)[540]/1000.0f);
-        emit newScanData(mLastScannerTimeStamp + mOffsetTimeScannerToTow + 9, distances);
+        qint32 timeStampScanMiddle = mLastScannerTimeStamp + mOffsetTimeScannerToTow + 9;
+        emit newScanData(timeStampScanMiddle, distances);
+
+        // Always write log data for later replay: scannerdata:[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
+        QTextStream out(mLogFile);
+        out << timeStampScanMiddle;
+        std::vector<long>::iterator itr;
+        for(itr=distances->begin();itr != distances->end(); ++itr) out << " " << *itr;
+        out << endl;
     }
 }

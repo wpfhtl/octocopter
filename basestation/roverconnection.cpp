@@ -102,11 +102,11 @@ void RoverConnection::processPacket(QByteArray data)
     if(packetType == "lidarpoints")
     {
         QVector3D scannerPosition;
-        QList<QVector3D> pointList;
+        QVector<QVector3D> points;
+        stream >> points;
         stream >> scannerPosition;
-        stream >> pointList;
 
-        emit scanData(scannerPosition, pointList);
+        emit scanData(points, scannerPosition);
     }
     else if(packetType == "image")
     {

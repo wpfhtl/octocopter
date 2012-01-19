@@ -32,6 +32,8 @@ private:
     QTimer* mTimerAnimation;
 
 private slots:
+    void slotLaserScannerRelativePoseChanged();
+
     bool slotOpenLogFiles();
     void slotStepForward();
     void slotStepBack();
@@ -42,7 +44,7 @@ signals:
     void message(const LogImportance& importance, const QString& source, const QString& message);
 
     void vehiclePose(Pose);
-    void scanData(QList<QVector3D>, QVector3D);
+    void scanData(QVector<QVector3D>,QVector3D);
     void vehicleStatus(quint32,float,qint16,qint8);
     void gpsStatus(GpsStatusInformation::GpsStatus);
 };

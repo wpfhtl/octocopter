@@ -95,7 +95,7 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mLogPlayer, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
     connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mControlWidget, SLOT(slotUpdatePose(Pose)));
     connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose)));
-    connect(mLogPlayer, SIGNAL(scanData(QList<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QList<QVector3D>,QVector3D)));
+    connect(mLogPlayer, SIGNAL(scanData(QVector<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QVector<QVector3D>,QVector3D)));
 //    connect(mLogPlayer, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
     connect(mLogPlayer, SIGNAL(gpsStatus(GpsStatusInformation::GpsStatus)), mControlWidget, SLOT(slotUpdateGpsStatus(GpsStatusInformation::GpsStatus)));
 //    connect(mLogPlayer, SIGNAL(controllerValues(QVector<float>)), mPlotWidget, SLOT(slotAppendData(QVector<float>)));
@@ -123,7 +123,7 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose)));
         connect(mRoverConnection, SIGNAL(connectionStatusRover(bool)), mControlWidget, SLOT(slotUpdateConnectionRover(bool)));
 
-        connect(mRoverConnection, SIGNAL(scanData(QList<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QList<QVector3D>,QVector3D)));
+        connect(mRoverConnection, SIGNAL(scanData(QVector<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QVector<QVector3D>,QVector3D)));
         connect(mRoverConnection, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
         connect(mRoverConnection, SIGNAL(gpsStatus(GpsStatusInformation::GpsStatus)), mControlWidget, SLOT(slotUpdateGpsStatus(GpsStatusInformation::GpsStatus)));
         connect(mRoverConnection, SIGNAL(controllerValues(QVector<float>)), mPlotWidget, SLOT(slotAppendData(QVector<float>)));
@@ -189,7 +189,7 @@ void BaseStation::slotNewImage(const QString& cameraName, const QSize& imageSize
     widget->slotSetPixmapData(imageData);
 }
 
-void BaseStation::slotNewScanData(const QList<QVector3D>& pointList, const QVector3D& scannerPosition)
+void BaseStation::slotNewScanData(const QVector<QVector3D>& pointList, const QVector3D& scannerPosition)
 {
     int i=0;
     foreach(const QVector3D &p, pointList)

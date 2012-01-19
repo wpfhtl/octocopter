@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>266</width>
+    <width>261</width>
     <height>142</height>
    </rect>
   </property>
@@ -78,7 +78,7 @@
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="QDoubleSpinBox" name="doubleSpinBox_2">
+       <widget class="QDoubleSpinBox" name="mSpinBoxLaserScannerX">
         <property name="minimum">
          <double>-1.000000000000000</double>
         </property>
@@ -101,7 +101,7 @@
        </widget>
       </item>
       <item row="0" column="3">
-       <widget class="QDoubleSpinBox" name="doubleSpinBox_3">
+       <widget class="QDoubleSpinBox" name="mSpinBoxLaserScannerY">
         <property name="minimum">
          <double>-1.000000000000000</double>
         </property>
@@ -124,7 +124,7 @@
        </widget>
       </item>
       <item row="0" column="5">
-       <widget class="QDoubleSpinBox" name="doubleSpinBox_4">
+       <widget class="QDoubleSpinBox" name="mSpinBoxLaserScannerZ">
         <property name="minimum">
          <double>-1.000000000000000</double>
         </property>
@@ -147,7 +147,7 @@
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="QDoubleSpinBox" name="doubleSpinBox_5">
+       <widget class="QDoubleSpinBox" name="mSpinBoxLaserScannerYaw">
         <property name="decimals">
          <number>0</number>
         </property>
@@ -170,7 +170,7 @@
        </widget>
       </item>
       <item row="1" column="3">
-       <widget class="QDoubleSpinBox" name="doubleSpinBox_6">
+       <widget class="QDoubleSpinBox" name="mSpinBoxLaserScannerPitch">
         <property name="decimals">
          <number>0</number>
         </property>
@@ -196,7 +196,7 @@
        </widget>
       </item>
       <item row="1" column="5">
-       <widget class="QDoubleSpinBox" name="doubleSpinBox_7">
+       <widget class="QDoubleSpinBox" name="mSpinBoxLaserScannerRoll">
         <property name="decimals">
          <number>0</number>
         </property>
@@ -218,7 +218,7 @@
       <item>
        <widget class="QPushButton" name="mPushButtonRewind">
         <property name="text">
-         <string>&lt;&lt;</string>
+         <string>Rewind</string>
         </property>
        </widget>
       </item>

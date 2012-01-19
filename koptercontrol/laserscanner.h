@@ -2,7 +2,6 @@
 #define LASERSCANNER_H
 
 #include <QtCore>
-#include <QMatrix4x4>
 #include <urg/UrgCtrl.h>
 #include <pose.h>
 
@@ -15,6 +14,7 @@ class LaserScanner : public QObject
     Q_OBJECT
 
 private:
+    QFile* mLogFile;
     QString mDeviceFileName;
     qrk::UrgCtrl mScanner;
     const Pose mRelativeScannerPose; // The scanner's pose relative to the vehicle frame

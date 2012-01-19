@@ -81,7 +81,7 @@ private slots:
     void slotAddLogFileMarkForPaper(QList<WayPoint> wptList);
 
     // These are called by ConnectionRover when new data arrived
-    void slotNewScanData(const QList<QVector3D>& pointList, const QVector3D& scannerPosition);
+    void slotNewScanData(const QVector<QVector3D>& pointList, const QVector3D& scannerPosition);
     void slotNewImage(const QString& cameraName, const QSize& imageSize, const Pose& cameraPose, const QByteArray& imageData);
     void slotNewVehicleStatus(const quint32& missionRunTime, const float& batteryVoltage, const qint16& barometricHeight, const qint8& wirelessRssi);
 

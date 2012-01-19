@@ -40,20 +40,20 @@ PlotWidget::PlotWidget(QWidget *parent) // : QDockWidget(parent)
 
     mNumberOfRowsStored = 0;
 
-    mFile = new QFile(QString("plotwidget-data-%1.txt").arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")));
-    if(!mFile->open(QIODevice::WriteOnly | QIODevice::Text))
-        qFatal("Cannot open plotwidget data file for writing");
+//    mFile = new QFile(QString("plotwidget-data-%1.txt").arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")));
+//    if(!mFile->open(QIODevice::WriteOnly | QIODevice::Text))
+//        qFatal("Cannot open plotwidget data file for writing");
 
-    mFileStream = new QTextStream(mFile);
+//    mFileStream = new QTextStream(mFile);
 
     mPlot->replot();
 }
 
 PlotWidget::~PlotWidget()
 {
-    mFileStream->flush();
-    delete mFileStream;
-    mFile->close();
+//    mFileStream->flush();
+//    delete mFileStream;
+//    mFile->close();
 
 
 //    QMapIterator<QString, QVector<double>* > x(mCurveDataX);
@@ -138,7 +138,7 @@ void PlotWidget::slotAppendData(const QVector<float>& data)
 
     int column = 0;
 
-    *mFileStream << QString::number(mNumberOfRowsStored) << ":";
+//    *mFileStream << QString::number(mNumberOfRowsStored) << ":";
 
     QMapIterator<QString, QwtPlotCurve* > i(mCurves);
     while(i.hasNext())
@@ -164,17 +164,17 @@ void PlotWidget::slotAppendData(const QVector<float>& data)
                      VECTOR_SIZE
                      );
 
-         *mFileStream << " " << data.at(column);
+//         *mFileStream << " " << data.at(column);
 
          column++;
     }
 
     mNumberOfRowsStored++;
 
-    *mFileStream << "\n";
+//    *mFileStream << "\n";
 
-    mFileStream->flush();
-    mFile->flush();
+//    mFileStream->flush();
+//    mFile->flush();
 
     if(isVisible()) mPlot->replot();
 }
