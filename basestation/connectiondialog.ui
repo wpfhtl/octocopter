@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>336</width>
-    <height>90</height>
+    <height>100</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -25,6 +25,18 @@
      </item>
      <item row="0" column="1">
       <widget class="QLineEdit" name="mLineEditHostNameRover">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>120</width>
+         <height>0</height>
+        </size>
+       </property>
        <property name="text">
         <string>kopter</string>
        </property>
@@ -41,9 +53,12 @@
       <widget class="QSpinBox" name="mSpinBoxPortRover">
        <property name="minimumSize">
         <size>
-         <width>60</width>
+         <width>70</width>
          <height>0</height>
         </size>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
        </property>
        <property name="minimum">
         <number>1</number>
@@ -65,8 +80,20 @@
      </item>
      <item row="1" column="1">
       <widget class="QLineEdit" name="mLineEditHostNameRtkBase">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>120</width>
+         <height>0</height>
+        </size>
+       </property>
        <property name="text">
-        <string>80.153.240.55</string>
+        <string>134.100.13.169</string>
        </property>
       </widget>
      </item>
@@ -81,9 +108,12 @@
       <widget class="QSpinBox" name="mSpinBoxPortRtkBase">
        <property name="minimumSize">
         <size>
-         <width>60</width>
+         <width>70</width>
          <height>0</height>
         </size>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
        </property>
        <property name="minimum">
         <number>1</number>
@@ -92,7 +122,7 @@
         <number>65535</number>
        </property>
        <property name="value">
-        <number>4002</number>
+        <number>4001</number>
        </property>
       </widget>
      </item>
