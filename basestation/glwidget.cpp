@@ -103,7 +103,7 @@ void GlWidget::paintGL()
     mCamLookAt = vehiclePosition;
     QVector3D min, max;
     mFlightPlanner->getScanVolume(min, max);
-    mCamLookAt = min + (max - min)/2.0;
+//    mCamLookAt = min + (max - min)/2.0;
 
     gluLookAt(0.0, 500.0, 500.0,
               mCamLookAt.x(), mCamLookAt.y(), mCamLookAt.z(),
@@ -135,14 +135,15 @@ void GlWidget::paintGL()
     glDisable(GL_BLEND);
     */
 
-    // Draw vehicle position
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);			// Type Of Blending To Use
-    glDisable(GL_LIGHTING);
-    OpenGlUtilities::drawSphere(mFlightPlanner->getLastKnownVehiclePose().position, 1.0, 20.0, QColor(0,0,0,200));
-    glEnable(GL_LIGHTING);
-
     drawAxes(20, 20, 20, 1.0, 1.0, 0.0);
 
+    // Draw vehicle position
+//    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);			// Type Of Blending To Use
+//    glDisable(GL_LIGHTING);
+//    OpenGlUtilities::drawSphere(mFlightPlanner->getLastKnownVehiclePose().position, 1.0, 20.0, QColor(0,0,0,200));
+//    glEnable(GL_LIGHTING);
+
+    drawVehicle();
     drawVehicleVelocity();
 
     glDisable(GL_LIGHTING);
@@ -154,6 +155,62 @@ void GlWidget::paintGL()
     glEnable(GL_LIGHTING);
 
     emit visualizeNow();
+}
+
+void GlWidget::drawVehicle() const
+{
+    // draw vehicle velocity as vector
+    const Pose pose = mFlightPlanner->getLastKnownVehiclePose();
+    const QVector3D vehiclePosition = pose.position;
+
+    const QVector3D armFront = pose.getOrientation().rotatedVector(QVector3D(0.0, 0.0, -1.0));
+    const QVector3D armBack = pose.getOrientation().rotatedVector(QVector3D(0.0, 0.0, 1.0));
+    const QVector3D armLeft = pose.getOrientation().rotatedVector(QVector3D(-1.0, 0.0, 0.0));
+    const QVector3D armRight = pose.getOrientation().rotatedVector(QVector3D(1.0, 0.0, 0.0));
+
+    const QVector3D landingLegFront = pose.getOrientation().rotatedVector(QVector3D(0.0, -0.5, -0.5));
+    const QVector3D landingLegBack = pose.getOrientation().rotatedVector(QVector3D(0.0, -0.5, 0.5));
+    const QVector3D landingLegLeft = pose.getOrientation().rotatedVector(QVector3D(-0.5, -0.5, 0.0));
+    const QVector3D landingLegRight = pose.getOrientation().rotatedVector(QVector3D(0.5, -0.5, 0.0));
+
+    OpenGlUtilities::drawSphere(vehiclePosition, 0.1, 20.0, QColor(80,80,80,200));
+    glDisable(GL_LIGHTING);
+
+    glLineWidth(3);
+    glBegin(GL_LINES);
+    glColor3f(1.0, 0.2, 0.2);
+
+    // draw arms
+    glVertexVector(vehiclePosition);
+    glVertexVector(vehiclePosition + armFront);
+
+    glColor3f(0.4, 0.4, 0.4);
+    glVertexVector(vehiclePosition);
+    glVertexVector(vehiclePosition + armBack);
+
+    glVertexVector(vehiclePosition);
+    glVertexVector(vehiclePosition + armLeft);
+
+    glVertexVector(vehiclePosition);
+    glVertexVector(vehiclePosition + armRight);
+
+    glColor3f(0.7, 0.7, 0.7);
+
+    // draw landing legs
+    glVertexVector(vehiclePosition + armFront * 0.5);
+    glVertexVector(vehiclePosition + landingLegFront);
+
+    glVertexVector(vehiclePosition + armBack * 0.5);
+    glVertexVector(vehiclePosition + landingLegBack);
+
+    glVertexVector(vehiclePosition + armLeft * 0.5);
+    glVertexVector(vehiclePosition + landingLegLeft);
+
+    glVertexVector(vehiclePosition + armRight * 0.5);
+    glVertexVector(vehiclePosition + landingLegRight);
+
+    glEnd();
+    glEnable(GL_LIGHTING);
 }
 
 void GlWidget::drawVehicleVelocity() const

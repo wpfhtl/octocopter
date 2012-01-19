@@ -156,7 +156,7 @@ void DialogConfiguration::slotReadConfigurationLaserScanner()
         laserScanners->append(newLaserScanner);
 
         connect(newLaserScanner, SIGNAL(scanFinished(quint32)), mSimulator->mFlightController, SLOT(slotScanningInProgress(quint32)));
-        connect(newLaserScanner, SIGNAL(newLidarPoints(const QVector3D&, const QVector<QVector3D>&)), mSimulator->mBaseConnection, SLOT(slotNewScannedPoints(const QVector3D&, const QVector<QVector3D>&)));
+        connect(newLaserScanner, SIGNAL(newLidarPoints(const QVector<QVector3D>&, const QVector3D&)), mSimulator->mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector3D>,QVector3D)));
 
         // Now create a row in the LaserScannerTable
         mTableWidgetLaserScanners->blockSignals(true);
@@ -435,7 +435,7 @@ void DialogConfiguration::slotLaserScannerAdd()
     mTableWidgetLaserScanners->blockSignals(false);
 
     connect(newLaserScanner, SIGNAL(scanFinished(quint32)), mSimulator->mFlightController, SLOT(slotScanningInProgress(quint32)));
-    connect(newLaserScanner, SIGNAL(newLidarPoints(const QVector3D&, const QVector<QVector3D>&)), mSimulator->mBaseConnection, SLOT(slotNewScannedPoints(const QVector3D&, const QVector<QVector3D>&)));
+    connect(newLaserScanner, SIGNAL(newLidarPoints(const QVector<QVector3D>&, const QVector3D&)), mSimulator->mBaseConnection, SLOT(slotNewScannedPoints(const QVector<QVector3D>&, const QVector3D&)));
 
     newLaserScanner->start();
     mOgreWidget->update();

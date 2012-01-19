@@ -90,7 +90,7 @@
           </size>
          </property>
          <property name="text">
-          <string>Unavailable</string>
+          <string>Offline</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
@@ -121,7 +121,7 @@
        <item row="1" column="3">
         <widget class="QLabel" name="mLabelRoverIndicator">
          <property name="text">
-          <string>Unavailable</string>
+          <string>Offline</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
@@ -1045,7 +1045,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>140.000000000000000</double>
+            <double>-50.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1061,7 +1061,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>70.000000000000000</double>
+            <double>-10.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1077,7 +1077,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>80.000000000000000</double>
+            <double>-35.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1104,7 +1104,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>240.000000000000000</double>
+            <double>50.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1120,7 +1120,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>120.000000000000000</double>
+            <double>40.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1136,7 +1136,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>150.000000000000000</double>
+            <double>35.000000000000000</double>
            </property>
           </widget>
          </item>

@@ -238,14 +238,17 @@ void LaserScanner::slotDoScan()
 //    const long long timeDiff = (timeNow.tv_sec - timeStart.tv_sec) * 1000000 + (timeNow.tv_usec - timeStart.tv_usec);
 //    qDebug() << "LaserScanner::slotDoScan(): took" << timeDiff << "us, should have been" << (long long)(realTimeBetweenRaysUS * ((mAngleStop - mAngleStart)/mAngleStep));
 
-    emit scanFinished(mSimulator->getSimulationTime());
+    if(scanContainer.size())
+    {
+        emit scanFinished(mSimulator->getSimulationTime());
 
-//    qDebug() << "LaserScanner::doScan(): emitting" << scanContainer.size() << "points.";
+        //    qDebug() << "LaserScanner::doScan(): emitting" << scanContainer.size() << "points.";
 
-    emit newLidarPoints(
-                QVector3D(mScannerPosition.x, mScannerPosition.y, mScannerPosition.z),
-                scanContainer
-                );
+        emit newLidarPoints(
+                    scanContainer,
+                    QVector3D(mScannerPosition.x, mScannerPosition.y, mScannerPosition.z)
+                    );
+    }
 
     // Set mCurrentScanAngle for the next scan to mAngleStart
     mCurrentScanAngle = mAngleStart;

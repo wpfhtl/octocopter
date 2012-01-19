@@ -5,7 +5,7 @@ RoverConnection::RoverConnection(const QString& hostName, const quint16& port, Q
     mHostName = hostName;
     mPort = port;
 
-    mTimerConnectionWatchdog.setInterval(2000);
+    mTimerConnectionWatchdog.setInterval(5000);
     mTimerConnectionWatchdog.start();
     connect(&mTimerConnectionWatchdog, SIGNAL(timeout()), SLOT(slotEmitConnectionTimedOut()));
 
@@ -28,7 +28,7 @@ void RoverConnection::slotEmitConnectionTimedOut()
 
 void RoverConnection::slotSocketDisconnected()
 {
-    qDebug() << "RoverConnection::slotConnectionEnded()";
+    qDebug() << "RoverConnection::slotSocketDisconnected()";
 
     emit message(
                 Warning,
@@ -134,7 +134,7 @@ void RoverConnection::processPacket(QByteArray data)
         stream >> batteryVoltage;
         stream >> wirelessRssi;
 
-        emit vehicleStatus(missionRunTime, barometricHeight, batteryVoltage, wirelessRssi);
+        emit vehicleStatus(missionRunTime, batteryVoltage, barometricHeight, wirelessRssi);
     }
     else if(packetType == "gpsstatus")
     {
@@ -300,8 +300,6 @@ void RoverConnection::slotSendRtkDataToRover(const QByteArray& rtkData)
                 QString("sending %1 bytes of rtk data to rover").arg(rtkData.size()));
 
     slotSendData(data);
-
-    emit connectionStatusRover(true);
 }
 
 void RoverConnection::slotSendData(const QByteArray &data)
@@ -324,12 +322,13 @@ void RoverConnection::slotConnectToRover()
 {
     Q_ASSERT(!mHostName.isEmpty() && mPort != 0 && "RoverConnection::slotConnectToRover(): hostname or port not set.");
 
-    qDebug() << "RoverConnection::slotConnectToRover(): aborting and reconnecting...";
-
     mTcpSocket->abort();
     mTcpSocket->connectToHost(mHostName, mPort);
 
-    qDebug() << "RoverConnection::slotConnectToRover(): aborting and reconnecting done.";
+    emit message(
+                Information,
+                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
+                "Trying to connect to rover...");
 }
 
 void RoverConnection::slotSocketError(QAbstractSocket::SocketError socketError)
@@ -338,20 +337,10 @@ void RoverConnection::slotSocketError(QAbstractSocket::SocketError socketError)
 
     emit connectionStatusRover(false);
 
-    if(socketError == QAbstractSocket::ConnectionRefusedError)
-    {
-        emit message(
-                    Error,
-                    QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                    "Connection refused: " + mTcpSocket->errorString() + ", retrying...");
+    emit message(
+                Error,
+                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
+                "Connection failed: " + mTcpSocket->errorString() + ", retrying...");
 
-        QTimer::singleShot(1000, this, SLOT(slotConnectToRover()));
-    }
-    else
-    {
-        emit message(
-                    Error,
-                    QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                    "Connection failed: " + mTcpSocket->errorString() + ", will not retry.");
-    }
+    QTimer::singleShot(2000, this, SLOT(slotConnectToRover()));
 }

@@ -69,14 +69,16 @@ class RigidBodyState : public QObject, public btMotionState
                 Ogre::Radian yaw, pitch, roll;
                 mat.ToEulerAnglesYXZ(yaw, pitch, roll);
 
-                emit newPose(
-                            Pose(
-                                QVector3D(pos.x(), pos.y(), pos.z()),
-                                fmod(yaw.valueRadians() + Ogre::Degree(360.0).valueRadians(), 360.0*M_PI/180.0),
-                                -pitch.valueRadians(),
-                                roll.valueRadians()
-                                )
+                Pose p(
+                            QVector3D(pos.x(), pos.y(), pos.z()),
+                            //fmod(yaw.valueRadians() + Ogre::Degree(360.0).valueRadians(), 360.0*M_PI/180.0),
+                            fmod(yaw.valueDegrees() + Ogre::Degree(360.0).valueDegrees(), 360.0),
+                            pitch.valueDegrees(),
+                            roll.valueDegrees()
                             );
+
+//                qDebug() << "RigidBodyState::setWorldTransform(): new" << p;
+                emit newPose(p);
             }
 
         }

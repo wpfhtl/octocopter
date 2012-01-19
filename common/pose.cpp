@@ -170,7 +170,7 @@ const QQuaternion Pose::getOrientation() const
     return
             QQuaternion::fromAxisAndAngle(QVector3D(0,1,0), getYawDegrees())
             * QQuaternion::fromAxisAndAngle(QVector3D(1,0,0), getPitchDegrees())
-            * QQuaternion::fromAxisAndAngle(QVector3D(0,0,1), getRollDegrees());
+            * QQuaternion::fromAxisAndAngle(QVector3D(0,0,1), getRollDegrees()); // without this -, the roll doesn't match the simulator orientation??!?
 }
 
 Pose Pose::operator+(const Pose &p) const

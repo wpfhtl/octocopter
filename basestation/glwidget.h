@@ -44,6 +44,9 @@ class GlWidget : public QGLWidget
     GLdouble    currentScaling;
     GLdouble    mZoomFactor;
 
+    // small helper
+    static void glVertexVector(QVector3D a) { glVertex3f(a.x(), a.y(), a.z()); }
+
     void mouseDoubleClickEvent(QMouseEvent *event);
     void mousePressEvent(QMouseEvent *event);
     void mouseMoveEvent(QMouseEvent *event);
@@ -51,6 +54,7 @@ class GlWidget : public QGLWidget
     void zoom(double zoomFactor);
     void drawAxes(const GLfloat& x, const GLfloat& y, const GLfloat& z, const GLfloat& red, const GLfloat& green, const GLfloat& blue) const;
     void drawVehicleVelocity() const;
+    void drawVehicle() const;
     QVector3D convertMouseToWorldPosition(const QPoint&);
 
 public:

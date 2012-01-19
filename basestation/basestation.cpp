@@ -95,6 +95,7 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mLogPlayer, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
     connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mControlWidget, SLOT(slotUpdatePose(Pose)));
     connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose)));
+    connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mGlWidget, SLOT(update()));
     connect(mLogPlayer, SIGNAL(scanData(QVector<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QVector<QVector3D>,QVector3D)));
 //    connect(mLogPlayer, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
     connect(mLogPlayer, SIGNAL(gpsStatus(GpsStatusInformation::GpsStatus)), mControlWidget, SLOT(slotUpdateGpsStatus(GpsStatusInformation::GpsStatus)));
@@ -119,8 +120,14 @@ BaseStation::BaseStation() : QMainWindow()
     if(mConnectionDialog->result() == QDialog::Accepted)
     {
         mRoverConnection = new RoverConnection(mConnectionDialog->getRoverHostName(), mConnectionDialog->getRoverPort(), this);
+
+        connect(mRoverConnection, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
+
         connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mControlWidget, SLOT(slotUpdatePose(Pose)));
         connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose)));
+
+        connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mGlWidget, SLOT(update()));
+
         connect(mRoverConnection, SIGNAL(connectionStatusRover(bool)), mControlWidget, SLOT(slotUpdateConnectionRover(bool)));
 
         connect(mRoverConnection, SIGNAL(scanData(QVector<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QVector<QVector3D>,QVector3D)));

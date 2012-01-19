@@ -138,7 +138,7 @@ public slots:
 signals:
     void bottomBeamLength(const float&);
 
-    void newLidarPoints(const QVector3D&, const QVector<QVector3D>&);
+    void newLidarPoints(const QVector<QVector3D>&, const QVector3D&);
 
     void scanFinished(const quint32&);
 };

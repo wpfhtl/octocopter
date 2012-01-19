@@ -543,10 +543,6 @@ void Physics::slotUpdatePhysics(void)
             scannerNode->_update(false, true);
         ls->slotSetScannerPose(scannerNode->_getDerivedPosition(), scannerNode->_getDerivedOrientation());
     }
-
-    // TODO: If we loop with more than 25fps, update more slowly
-    // TODO: why the fuck does a timer in vehicle drive the gl update?
-    //mOgreWidget->update();
 }
 
 QVector3D Physics::getVehicleLinearVelocity() const

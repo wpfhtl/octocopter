@@ -43,11 +43,9 @@ Simulator::Simulator(void) :
     mBattery = new Battery(this, 16.8, 5.0);
     mBattery->charge();
 
-
     mUpdateTimer = new QTimer(this);
     mUpdateTimer->setInterval(1000/60);
     connect(mUpdateTimer, SIGNAL(timeout()), SLOT(slotUpdate()));
-
 
     mFlightController = new FlightController;
 

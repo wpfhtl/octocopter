@@ -79,15 +79,15 @@ void RtkFetcher::slotSocketDataReady()
 //        qDebug() << "RtkFetcher::slotSocketDataReady(): emitting" << mReceiveBuffer.size() << "bytes of correction data.";
 
         // This if causes only big packets to be sent, thus delaying correction data. Disable it for now.
-//        if(mReceiveBuffer.size() > 500)
-//        {
+        if(mReceiveBuffer.size() > 100)
+        {
             emit rtkData(mReceiveBuffer);
             mReceiveBuffer.clear();
 
             // Restart the timer, so we don't get a timeout.
             mTimerConnectionWatchdog.start();
             emit connectionStatus(true);
-//        }
+        }
     }
 }
 

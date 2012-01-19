@@ -315,7 +315,6 @@ void BaseConnection::slotNewVehicleStatus(
 //                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
 //                QString("sending vehicle status to base: voltage: %1, baro-height: %2, rssi %3.").arg(batteryVoltage).arg(barometricHeight).arg(wirelessRssi)
 //                );
-
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
