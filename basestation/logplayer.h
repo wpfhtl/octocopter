@@ -24,12 +24,17 @@ public:
     ~LogPlayer();
 
 private:
+    enum Direction { Direction_Forward, Direction_Backward };
+    enum DataSource {DataSource_SBF, DataSource_Laser };
+
     Ui::LogPlayer *ui;
     SbfParser* mSbfParser;
     SensorFuser* mSensorFuser;
     QByteArray mDataSbf, mDataLaser;
     qint32 mIndexSbf, mIndexLaser; // our seek positions in the two bytearrays above
     QTimer* mTimerAnimation;
+
+    QByteArray getPacket(const LogPlayer::DataSource& source, const LogPlayer::Direction& direction);
 
 private slots:
     void slotLaserScannerRelativePoseChanged();

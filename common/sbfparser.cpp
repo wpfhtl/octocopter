@@ -30,7 +30,12 @@ qint32 SbfParser::peekNextTow(const QByteArray& sbfData)
 {
     qint32 tow = -1;
 
-    if(sbfData.length() >= 12 && sbfData.left(2) == "$@") tow = (qint32)(*(sbfData.constData()+8));
+    if(sbfData.length() >= 12 && sbfData.left(2) == "$@")
+    {
+        tow = (quint32)(*(sbfData.constData()+8));
+        const Sbf_ReceiverTime *block = (Sbf_ReceiverTime*)sbfData.data();
+        return block->TOW;
+    }
 
     return tow;
 }
@@ -338,8 +343,8 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
             mGpsStatus.error = block->Error;
         }
 
-        // Check the GnssPvtMode-field and emit states if it changes
-        if(mGpsStatus.gnssMode != block->GNSSPVTMode)
+        // Check the GnssPvtMode-field and emit states if it changes AND if its not DO-NOT-USE
+        if(mGpsStatus.gnssMode != block->GNSSPVTMode && block->GNSSPVTMode != 255)
         {
             qDebug() << t() << "SbfParser::processSbfData(): GnssPvtMode changed from" << mGpsStatus.gnssMode << "to" << block->GNSSPVTMode << "at TOW" << block->TOW;
 
@@ -416,6 +421,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
                 mFirmwareBug_20120111_RtkWasEnabledAfterAttitudeDeterminationSucceeded = true;
             }
 
+            // this whole section is logically weak. Get this sorted!
             if(!testBit(block->Info, 11))
             {
                 qDebug() << t() << block->TOW << "SbfParser::processSbfData(): pose from PVAAGeod not valid, heading ambiguity is not fixed.";
@@ -429,22 +435,6 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
             if(block->Heading == 65535)
             {
                 qDebug() << t() << block->TOW << "SbfParser::processSbfData(): invalid pose, heading do-not-use";
-            }
-
-            if(block->Mode != 2)
-            {
-                qDebug() << t() << block->TOW << "SbfParser::processSbfData(): invalid pose, not integrated solution, but" << GpsStatusInformation::getIntegrationMode(block->Mode);
-                setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
-                emit newVehiclePose(mLastPose);
-                mPoseClockDivisor++;
-            }
-
-            if((block->GNSSPVTMode & 15) != 4)
-            {
-                qDebug() << t() << block->TOW << "SbfParser::processSbfData(): invalid pose, GnssPvtMode is" << GpsStatusInformation::getGnssMode(block->GNSSPVTMode) << "corrAge:" << mGpsStatus.meanCorrAge << "sec";
-                setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
-                emit newVehiclePose(mLastPose);
-                mPoseClockDivisor++;
             }
 
             if(block->GNSSage > 1)
@@ -461,6 +451,20 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
                     || block->TOW == 4294967295)
             {
                 qDebug() << t() << block->TOW << "SbfParser::processSbfData(): invalid pose, do-not-use values found.";
+            }
+            else if(block->Mode != 2)
+            {
+                qDebug() << t() << block->TOW << "SbfParser::processSbfData(): invalid pose, not integrated solution, but" << GpsStatusInformation::getIntegrationMode(block->Mode);
+                setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
+                emit newVehiclePose(mLastPose);
+                mPoseClockDivisor++;
+            }
+            else if((block->GNSSPVTMode & 15) != 4)
+            {
+                qDebug() << t() << block->TOW << "SbfParser::processSbfData(): invalid pose, GnssPvtMode is" << GpsStatusInformation::getGnssMode(block->GNSSPVTMode) << "corrAge:" << mGpsStatus.meanCorrAge << "sec";
+                setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
+                emit newVehiclePose(mLastPose);
+                mPoseClockDivisor++;
             }
         }
 

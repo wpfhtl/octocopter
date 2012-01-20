@@ -61,7 +61,7 @@ void LogPlayer::slotLaserScannerRelativePoseChanged()
 
 bool LogPlayer::slotOpenLogFiles()
 {
-    const QString fileNameSbf = QFileDialog::getOpenFileName(this, "Select SBF log", QString(), "*.sbf");
+    const QString fileNameSbf = QFileDialog::getOpenFileName(this, "Select SBF log", QString(), "SBF Data (*.sbf)");
     if(fileNameSbf.isEmpty()) return false;
 
     QFile fileSbf(fileNameSbf);
@@ -74,9 +74,10 @@ bool LogPlayer::slotOpenLogFiles()
 
     emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Reading SBF log file...");
     mDataSbf = fileSbf.readAll();
-    mIndexSbf = 0;
+    // The file doesn't always start with valid sbf, so lets seek to the first packet
+    mIndexSbf = mDataSbf.indexOf("$@", 0);
 
-    const QString fileNameLaser = QFileDialog::getOpenFileName(this, "Select laser log", QString(), "*.laser");
+    const QString fileNameLaser = QFileDialog::getOpenFileName(this, "Select laser log", QString(), "Laser Data (*.lsr)");
     QFile fileLaser(fileNameLaser);
     if(!fileLaser.open(QIODevice::ReadOnly))
     {
@@ -94,20 +95,62 @@ bool LogPlayer::slotOpenLogFiles()
     return true;
 }
 
-void LogPlayer::slotStepForward()
+QByteArray LogPlayer::getPacket(const LogPlayer::DataSource& source, const LogPlayer::Direction& direction)
 {
     // check uninitialized and out-of-bounds conditions
-    if(mIndexSbf < 0 || mIndexSbf >= mDataSbf.size() || !mDataSbf.size() || mIndexLaser < 0 || mIndexLaser >= mDataLaser.size() || !mDataLaser.size())
-        return;
+    if(
+            direction == Direction_Forward &&
+            (mIndexSbf < 0 || mIndexSbf >= mDataSbf.size() || !mDataSbf.size() || mIndexLaser < 0 || mIndexLaser >= mDataLaser.size() || !mDataLaser.size())
+            )
+        return QByteArray();
 
-    // We're stepping forward, so feed the temporally-next data into sensorfuser.
-    // First, find out whether the next data comes from SBF or LaserScanner
-    qint32 towSbf = 0;
-    qint32 towLaser = 0;
-    QByteArray nextPacketSbf, nextPacketLaser;
+    if(
+            direction == Direction_Backward &&
+            (mIndexSbf <= 0 || !mDataSbf.size() || mIndexLaser <= 0 || !mDataLaser.size())
+            )
+        return QByteArray();
+
+    if(source = DataSource_SBF && direction == Direction_Forward)
+    {
+        const int indexEndOfNextPacketSbf = mDataSbf.indexOf("$@", mIndexSbf + 1);
+        if(indexEndOfNextPacketSbf > 0)
+            return QByteArray(mDataSbf.data() + mIndexSbf, indexEndOfNextPacketSbf - mIndexSbf);
+    }
+
+    if(source = DataSource_SBF && direction == Direction_Backward)
+    {
+        const int indexBeginningOfPreviousPacketSbf = mDataSbf.lastIndexOf("$@", mIndexSbf - 1);
+        if(indexBeginningOfPreviousPacketSbf > 0)
+            return QByteArray(mDataSbf.data() + indexBeginningOfPreviousPacketSbf, mIndexSbf - indexBeginningOfPreviousPacketSbf);
+    }
+
+    if(source = DataSource_Laser && direction == Direction_Forward)
+    {
+        const int indexEndOfNextPacketLaser = mDataLaser.indexOf("\n", mIndexLaser + 1);
+        if(indexEndOfNextPacketLaser > 0)
+            return QByteArray(mDataLaser.data() + mIndexLaser, indexEndOfNextPacketLaser - mIndexLaser);
+    }
+
+    if(source = DataSource_Laser && direction == Direction_Backward)
+    {
+        const int indexBeginningOfPreviousPacketLaser = mDataLaser.lastIndexOf("\n", mIndexLaser - 1); // the -1 is to skip the newline
+        if(indexBeginningOfPreviousPacketLaser > 0)
+            return QByteArray(mDataLaser.data() + indexBeginningOfPreviousPacketLaser, mIndexLaser - indexBeginningOfPreviousPacketLaser);
+    }
+
+    return QByteArray();
+}
+
+void LogPlayer::slotStepForward()
+{
+    QByteArray nextPacketSbf = getPacket(DataSource_SBF, Direction_Forward);
+    QByteArray nextPacketLaser = getPacket(DataSource_Laser, Direction_Forward);
+
+    qint32 towSbf = getPacketTow(DataSource_SBF, Direction_Forward);
+    qint32 towLaser =
 
     // To do this, extract the next SBF packet and its TOW
-    const int indexEndOfNextPacketSbf = mDataSbf.indexOf("$@", mIndexSbf);
+    const int indexEndOfNextPacketSbf = mDataSbf.indexOf("$@", mIndexSbf + 1);
     if(indexEndOfNextPacketSbf > 0)
     {
         nextPacketSbf = QByteArray(mDataSbf.data() + mIndexSbf, indexEndOfNextPacketSbf - mIndexSbf);
@@ -115,7 +158,7 @@ void LogPlayer::slotStepForward()
     }
 
     // Now fetch the next LaserScan
-    const int indexEndOfNextPacketLaser = mDataLaser.indexOf("\n", mIndexLaser);
+    const int indexEndOfNextPacketLaser = mDataLaser.indexOf("\n", mIndexLaser + 1);
     if(indexEndOfNextPacketLaser > 0)
     {
         nextPacketLaser = QByteArray(mDataLaser.data() + mIndexLaser, indexEndOfNextPacketLaser - mIndexLaser);
@@ -127,12 +170,14 @@ void LogPlayer::slotStepForward()
     if(towSbf < towLaser && towSbf != 0)
     {
         // process SBF
+        qDebug() << "LogPlayer::slotStepForward(): processing SBF data...";
         mIndexSbf = indexEndOfNextPacketSbf;
         mSbfParser->processSbfData(nextPacketSbf);
     }
     else if(towLaser != 0)
     {
         // process laser data
+        qDebug() << "LogPlayer::slotStepForward(): processing laser data...";
         mIndexLaser = indexEndOfNextPacketLaser + 1; // skip the newline (\n)
 
         const QList<QByteArray> laserScanData = nextPacketLaser.split(' ');
@@ -166,7 +211,7 @@ void LogPlayer::slotStepBack()
     QByteArray previousPacketSbf, previousPacketLaser;
 
     // To do this, extract the previous SBF packet and its TOW
-    const int indexBeginningOfPreviousPacketSbf = mDataSbf.lastIndexOf("$@", mIndexSbf);
+    const int indexBeginningOfPreviousPacketSbf = mDataSbf.lastIndexOf("$@", mIndexSbf - 1);
     if(indexBeginningOfPreviousPacketSbf > 0)
     {
         previousPacketSbf = QByteArray(mDataSbf.data() + indexBeginningOfPreviousPacketSbf, mIndexSbf - indexBeginningOfPreviousPacketSbf);
@@ -211,6 +256,8 @@ void LogPlayer::slotStepBack()
         slotPause();
     }
 }
+
+
 
 void LogPlayer::slotPlay()
 {
