@@ -29,7 +29,7 @@ class GlWidget : public QGLWidget
 //    BaseStation *mBaseStation;
 //    void setShaders();
 
-    QVector3D mCamLookAt;
+    QVector3D mCamLookAtOffset;
 
     // Timer
     GLint timerId;
@@ -54,6 +54,7 @@ class GlWidget : public QGLWidget
     void zoom(double zoomFactor);
     void drawAxes(const GLfloat& x, const GLfloat& y, const GLfloat& z, const GLfloat& red, const GLfloat& green, const GLfloat& blue) const;
     void drawVehicleVelocity() const;
+    void drawVehiclePath() const;
     void drawVehicle() const;
     QVector3D convertMouseToWorldPosition(const QPoint&);
 

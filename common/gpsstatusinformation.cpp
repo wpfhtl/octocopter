@@ -117,14 +117,14 @@ QString GpsStatusInformation::getStatusText(const GpsStatusInformation::GpsStatu
     .arg(status.info)
     .arg(status.error)
     .arg(status.numSatellitesUsed)
-    .arg(status.lastPvtAge)
+    .arg(status.gnssAge)
     .arg(status.meanCorrAge);
 }
 
 // for streaming
 QDataStream& operator<<(QDataStream &out, const GpsStatusInformation::GpsStatus &status)
 {
-    out << status.gnssMode << status.integrationMode << status.info << status.error << status.numSatellitesUsed << status.lastPvtAge << status.meanCorrAge << status.cpuLoad << status.covariances;
+    out << status.gnssMode << status.integrationMode << status.info << status.error << status.numSatellitesUsed << status.gnssAge << status.meanCorrAge << status.cpuLoad << status.covariances;
     return out;
 }
 
@@ -135,7 +135,7 @@ QDataStream& operator>>(QDataStream &in, GpsStatusInformation::GpsStatus& status
     in >> status.info;
     in >> status.error;
     in >> status.numSatellitesUsed;
-    in >> status.lastPvtAge;
+    in >> status.gnssAge;
     in >> status.meanCorrAge;
     in >> status.cpuLoad;
     in >> status.covariances;

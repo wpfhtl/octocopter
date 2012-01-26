@@ -28,16 +28,14 @@ SbfParser::~SbfParser()
 
 qint32 SbfParser::peekNextTow(const QByteArray& sbfData)
 {
-    qint32 tow = -1;
-
     if(sbfData.length() >= 12 && sbfData.left(2) == "$@")
     {
-        tow = (quint32)(*(sbfData.constData()+8));
+//        tow = (quint32)(*(sbfData.constData()+8));
         const Sbf_ReceiverTime *block = (Sbf_ReceiverTime*)sbfData.data();
         return block->TOW;
     }
 
-    return tow;
+    return 0;
 }
 
 /*void SbfParser::slotEmitCurrentGpsStatus(const QString& text)
@@ -136,7 +134,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
 
     if(sbfData.size() < msgLength)
     {
-//        qDebug() << t() << "SbfParser::processSbfData(): message incomplete, we only have" << sbfData.size() << "of" << msgLength << "bytes. Processing postponed..";
+        qDebug() << t() << "SbfParser::processSbfData(): message incomplete, we only have" << sbfData.size() << "of" << msgLength << "bytes. Processing postponed..";
         return false;
     }
 
@@ -153,6 +151,8 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
     // Save our current gpsStatus in a const place, so we can check whether it changed after processing the whole packet
     const GpsStatusInformation::GpsStatus previousGpsStatus = mGpsStatus;
 
+    qDebug() << "LogPlayer::slotStepForward(): processing" << sbfData.size() << "bytes SBF data with ID" << msgId << "from TOW" << ((Sbf_PVTCartesian*)sbfData.data())->TOW;
+
     // Process the message if we're interested.
     //qDebug() << "received sbf block" << msgIdBlock;
     switch(msgIdBlock)
@@ -162,9 +162,8 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
     {
         // PVTCartesian
         const Sbf_PVTCartesian *block = (Sbf_PVTCartesian*)sbfData.data();
-        //qDebug() << "SBF: PVTCartesian: MeanCorrAge in seconds:" << ((float)block->MeanCorrAge)/100.0;
+        qDebug() << "SBF: PVTCartesian: MeanCorrAge in seconds:" << ((float)block->MeanCorrAge)/100.0;
         mGpsStatus.meanCorrAge = std::min(block->MeanCorrAge / 10, 255);
-//        emit status(mGpsStatus);
     }
     break;
 
@@ -187,8 +186,10 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         // ReceiverStatus
         const Sbf_ReceiverStatus *block = (Sbf_ReceiverStatus*)sbfData.data();
 
+        qDebug() << "SBF: ReceiverStatus: CPU Load:" << block->CPULoad;
+
         // Only emit changes when CPU load changes a lot.
-        if(abs(mGpsStatus.cpuLoad - block->CPULoad) > 5)
+        if(abs(mGpsStatus.cpuLoad - block->CPULoad) > 0)
         {
             mGpsStatus.cpuLoad = block->CPULoad;
 //            emit status(mGpsStatus);
@@ -232,6 +233,8 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
     {
         // IntPVAAGeod
         const Sbf_PVAAGeod *block = (Sbf_PVAAGeod*)sbfData.data();
+
+        qDebug() << "SBF: IntPVAAGeod";
 
         // Check the Info-field and emit states if it changes
         if(mGpsStatus.info != block->Info)
@@ -358,16 +361,16 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
             mGpsStatus.gnssMode = block->GNSSPVTMode;
         }
 
-        if(mGpsStatus.lastPvtAge != block->GNSSage)
+        if(mGpsStatus.gnssAge != block->GNSSage)
         {
-            qDebug() << t() << "SbfParser::processSbfData(): GnssAge changed from" << mGpsStatus.lastPvtAge << "to" << block->GNSSage << "at TOW" << block->TOW;
+            qDebug() << t() << "SbfParser::processSbfData(): GnssAge changed from" << mGpsStatus.gnssAge << "to" << block->GNSSage << "at TOW" << block->TOW;
 
             emit message(
                         block->GNSSage > 0 ? Information : Error,
                         QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                         QString("No GNSS PVT for %1 seconds").arg(block->GNSSage));
 
-            mGpsStatus.lastPvtAge = block->GNSSage;
+            mGpsStatus.gnssAge = block->GNSSage;
         }
 
         const quint8 numberOfSatellitesUsed = (block->NrSVAnt & 31);
@@ -393,10 +396,10 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
                 && block->Roll != -32768
                 && block->TOW != 4294967295
                 && testBit(block->Info, 11) // Heading ambiguity is Fixed
-                && block->Mode == 2 // integrated solution, not sensor-only or gnss-only
+                //&& block->Mode == 2 // integrated solution, not sensor-only or gnss-only
                 && (block->GNSSPVTMode & 15) == 4 // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().
-                && block->GNSSage < 1 // seconds interval of no GNSS PVT
-                && mGpsStatus.covariances < 0.1 // make sure the filter is happy with itself
+                //&& block->GNSSage < 1 // seconds interval of no GNSS PVT
+                && mGpsStatus.covariances < 1.0 // make sure the filter is happy with itself
                 )
         {
             setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
@@ -466,6 +469,13 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
                 emit newVehiclePose(mLastPose);
                 mPoseClockDivisor++;
             }
+            else if(mGpsStatus.covariances > 1.0f)
+            {
+                qDebug() << t() << block->TOW << "SbfParser::processSbfData(): invalid pose, covariances are" << mGpsStatus.covariances;
+                setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
+                emit newVehiclePose(mLastPose);
+                mPoseClockDivisor++;
+            }
         }
 
         if(mPoseClockDivisor % 20 == 0) emit newVehiclePoseLowFreq(mLastPose);
@@ -479,6 +489,8 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
     {
         // ReceiverTime
         const Sbf_ReceiverTime *block = (Sbf_ReceiverTime*)sbfData.data();
+
+        qDebug() << "SBF: ReceiverTime: TOW:" << block->TOW;
 
         //qDebug() << t() << block->TOW << "SbfParser::processSbfData(): received ReceiverTime block: msgid" << msgId << "msgIdBlock" << msgIdBlock << "msgLength" << msgLength << "revision" << msgIdRev;
 
@@ -509,7 +521,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
     case 5924:
     {
         // ExtEvent
-        //qDebug() << "SBF: ExtEvent";
+        qDebug() << "SBF: ExtEvent";
         const Sbf_ExtEvent *block = (Sbf_ExtEvent*)sbfData.data();
 
         // Laserscanner sync signal is soldered to both ports, but port 1 is broken. If it ever starts working again, I want to know.

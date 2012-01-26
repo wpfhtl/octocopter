@@ -17,7 +17,7 @@ private:
 protected:
     Octree* mOctree;
     QVector3D mScanVolumeMin, mScanVolumeMax;
-    QList<Pose> mVehiclePoses;
+    QVector<Pose> mVehiclePoses;
     QWidget* mParentWidget;
     QList<WayPoint>* mWayPointsAhead, *mWayPointsPassed;
 
@@ -34,6 +34,8 @@ public:
     // octrees, so they need to know the bounding box of all points (slotSetScanVolume())
     // before you can insert any data. This is true for e.g. FlightPlannerCuda.
     virtual void insertPoint(LidarPoint* const point) = 0;
+
+    const QVector<Pose>& getVehiclePoses() { return mVehiclePoses; }
 
     const Pose getLastKnownVehiclePose(void) const;
     const QVector3D getCurrentVehicleVelocity() const;

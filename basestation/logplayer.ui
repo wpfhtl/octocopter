@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>261</width>
+    <width>226</width>
     <height>142</height>
    </rect>
   </property>
@@ -60,7 +60,7 @@
        </widget>
       </item>
       <item>
-       <widget class="QDoubleSpinBox" name="doubleSpinBox">
+       <widget class="QDoubleSpinBox" name="mSpinBoxTimeFactor">
         <property name="value">
          <double>1.000000000000000</double>
         </property>
@@ -218,19 +218,26 @@
       <item>
        <widget class="QPushButton" name="mPushButtonRewind">
         <property name="text">
-         <string>Rewind</string>
+         <string>|&lt;</string>
         </property>
        </widget>
       </item>
       <item>
        <widget class="QPushButton" name="mPushButtonStepBack">
         <property name="text">
-         <string>&lt;</string>
+         <string>+&lt;</string>
         </property>
        </widget>
       </item>
       <item>
        <widget class="QPushButton" name="mPushButtonStepForward">
+        <property name="text">
+         <string>&gt;+</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="mPushButtonPlay">
         <property name="text">
          <string>&gt;</string>
         </property>
@@ -239,14 +246,7 @@
       <item>
        <widget class="QPushButton" name="mPushButtonPause">
         <property name="text">
-         <string>Pause</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="mPushButtonPlay">
-        <property name="text">
-         <string>Play</string>
+         <string>I I</string>
         </property>
        </widget>
       </item>

@@ -29,7 +29,7 @@ public:
 
 private:
     QFile* mLogFileSbf;
-//    QDataStream mLogStreamSbf;
+    QFile* mLogFileCmd;
 
     SbfParser* mSbfParser;
 

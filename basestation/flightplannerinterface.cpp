@@ -7,6 +7,9 @@ FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, Octree* pointClo
 //    mVehiclePose = pose;
     mWayPointsAhead = new QList<WayPoint>;
     mWayPointsPassed = new QList<WayPoint>;
+
+    mVehiclePoses.reserve(25 * 60 * 10); // enough poses for 10 minutes, sizeof(Pose) should be < 30
+
     qDebug() << "FlightPlannerInterface c'tor.";
 }
 
@@ -86,19 +89,22 @@ const Pose FlightPlannerInterface::getLastKnownVehiclePose(void) const
 void FlightPlannerInterface::slotVehiclePoseChanged(const Pose& pose)
 {
     mVehiclePoses.append(pose);
-    if(mVehiclePoses.size() > 2) mVehiclePoses.takeFirst();
+//    if(mVehiclePoses.size() > 2) mVehiclePoses.takeFirst();
 }
 
 const QVector3D FlightPlannerInterface::getCurrentVehicleVelocity() const
 {
     if(mVehiclePoses.size() < 2) return QVector3D();
 
-    const quint32 timeDiffMs = mVehiclePoses.last().timestamp - mVehiclePoses.first().timestamp;
+    const Pose& last = mVehiclePoses.last();
+    const Pose& secondLast = mVehiclePoses.at(mVehiclePoses.size() - 2);
+
+    const quint32 timeDiffMs = last.timestamp - secondLast.timestamp;
 
     if(timeDiffMs == 0)
         return QVector3D();
     else
-        return (mVehiclePoses.last().position - mVehiclePoses.first().position) * (1000 / timeDiffMs);
+        return (last.position - secondLast.position) * (1000 / timeDiffMs);
 }
 
 void FlightPlannerInterface::slotWayPointDelete(const quint16& index)

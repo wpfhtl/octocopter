@@ -31,17 +31,22 @@ private:
     SbfParser* mSbfParser;
     SensorFuser* mSensorFuser;
     QByteArray mDataSbf, mDataLaser;
-    qint32 mIndexSbf, mIndexLaser; // our seek positions in the two bytearrays above
+    qint32 mIndexSbf; // always points to 1) a "$" from the "$@" sbf-sync marker or 2) behind the QByteArray's last byte
+    qint32 mIndexLaser; // points to either 1) the beginning, 2) a byte after a \n or 3) behind the QByteArray's last byte (which should equal 2))
     QTimer* mTimerAnimation;
 
+    qint32 getSmallestValidTow(const qint32& towA, const qint32& towB);
     QByteArray getPacket(const LogPlayer::DataSource& source, const LogPlayer::Direction& direction);
+    qint32 getPacketTow(const LogPlayer::DataSource& source, const LogPlayer::Direction& direction);
+    void processLaserData(const QByteArray& packetLaser);
 
 private slots:
     void slotLaserScannerRelativePoseChanged();
 
     bool slotOpenLogFiles();
-    void slotStepForward();
-    void slotStepBack();
+    bool slotStepForward();
+    bool slotStepBack();
+    void slotRewind();
     void slotPlay();
     void slotPause();
 

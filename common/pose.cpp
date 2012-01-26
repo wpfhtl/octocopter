@@ -31,6 +31,9 @@ Pose::Pose(const QVector3D &position, const float &yawDegrees, const float &pitc
 
 Pose::Pose()
 {
+    mYaw = 0.0f;
+    mPitch = 0.0f;
+    mRoll = 0.0f;
     this->timestamp = 0;
 }
 

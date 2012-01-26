@@ -143,7 +143,7 @@ void RoverConnection::processPacket(QByteArray data)
         stream >> gpsStatusInformation;
 
         emit message(
-                    gpsStatusInformation.error == 0 && gpsStatusInformation.gnssMode & 15 == 4 && gpsStatusInformation.integrationMode == 2 && gpsStatusInformation.lastPvtAge == 0 && gpsStatusInformation.numSatellitesUsed > 5 ? Information : Error,
+                    gpsStatusInformation.error == 0 && gpsStatusInformation.gnssMode & 15 == 4 && gpsStatusInformation.integrationMode == 2 && gpsStatusInformation.gnssAge == 0 && gpsStatusInformation.numSatellitesUsed > 5 ? Information : Error,
                     QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                     GpsStatusInformation::getStatusText(gpsStatusInformation));
 

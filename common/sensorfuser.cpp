@@ -1,7 +1,9 @@
 #include "sensorfuser.h"
 
-SensorFuser::SensorFuser(/*SensorFuser::Behavior behavior*/) : QObject()
+SensorFuser::SensorFuser(const quint8& stridePoint, const quint8& strideScan) : QObject()
 {
+    mStridePoint = stridePoint;
+    mStrideScan = strideScan; // TODO: implement
     mPointCloudSize = 0;
     mNewestDataTime = 0;
     mMaximumFusableRayLength = 20.0;
@@ -232,6 +234,9 @@ void SensorFuser::transformScanData()
 
             for(int index=0; index < scanDistances->size(); index++)
             {
+                // Only process every mStridePoint'th point
+                if(index % mStridePoint != 0) continue;
+
                 // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
                 if((*scanDistances)[index] < 500 || (*scanDistances)[index] > mMaximumFusableRayLength * 1000) continue;
 
@@ -408,7 +413,7 @@ qint8 SensorFuser::matchTimestamps()
     // because every scan must have caused a SBF-packet creating an entry in the GPS list
 //    Q_ASSERT(mScansTimestampScanner.size() < 200);
 
-    //qDebug() << "SensorFuser::matchTimestamps(): gps scans: matched" << scansMatched << "unmatched" << scansUnmatched << "total" << mScansTimestampGps.size();
+    qDebug() << "SensorFuser::matchTimestamps(): gps scans: matched" << scansMatched << "unmatched" << scansUnmatched << "total" << mScansTimestampGps.size();
     return scansMatched;
 }
 
@@ -448,7 +453,7 @@ void SensorFuser::slotNewVehiclePose(const Pose& pose)
 
 void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
 {
-    //qDebug() << t() << "SensorFuser::slotScanFinished(): gps says scanner finished a scan at time" << timestampScanGps;
+//    qDebug() << t() << "SensorFuser::slotScanFinished(): gps says scanner finished a scan at time" << timestampScanGps;
 
 /*    if(mBehavior & SensorFuser::WriteRawLogs)
     {
@@ -481,7 +486,7 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
 
 void SensorFuser::slotNewScanData(const quint32& timestampScanScanner, std::vector<long> * const distances)
 {
-    //qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
+    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
 /*
     if(mBehavior & SensorFuser::WriteRawLogs)
     {

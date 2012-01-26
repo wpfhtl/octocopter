@@ -19,7 +19,7 @@ public:
         quint16 info;
         quint8 error;
         quint8 numSatellitesUsed;
-        quint8 lastPvtAge;
+        quint8 gnssAge;
         quint8 meanCorrAge;
         quint8 cpuLoad;
         float covariances;
@@ -32,18 +32,23 @@ public:
             info = 0;
             gnssMode = 0;
             numSatellitesUsed = 0;
-            lastPvtAge = 255;
+            gnssAge = 255;
             covariances = 10.0f;
         }
 
         bool operator!=(const GpsStatus& b)
+        {
+            return !(*(this) == b);
+        }
+
+        bool operator==(const GpsStatus& b)
         {
             return gnssMode == b.gnssMode
                     && integrationMode == b.integrationMode
                     && info == b.info
                     && error == b.error
                     && numSatellitesUsed == b.numSatellitesUsed
-                    && lastPvtAge == b.lastPvtAge
+                    && gnssAge == b.gnssAge
                     && meanCorrAge == b.meanCorrAge
                     && cpuLoad == b.cpuLoad
                     && covariances == b.covariances;

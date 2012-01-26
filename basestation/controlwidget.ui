@@ -527,12 +527,12 @@
          <item>
           <widget class="QLabel" name="label_13">
            <property name="text">
-            <string>PvtAge</string>
+            <string>GnssAge</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QLabel" name="mLabelGpsPvtAge">
+          <widget class="QLabel" name="mLabelGnssAge">
            <property name="text">
             <string>-1</string>
            </property>
@@ -605,6 +605,12 @@
          </item>
          <item>
           <widget class="QLabel" name="mLabelGpsCovariances">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>0</height>
+            </size>
+           </property>
            <property name="text">
             <string>-1</string>
            </property>

@@ -24,8 +24,11 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
 {
     qDebug() << "GpsDevice::GpsDevice(): Using usb port" << serialDeviceFileUsb << "and com port" << serialDeviceFileCom;
 
-    mLogFileSbf = new QFile(QString("sbfdata-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz")));
+    mLogFileSbf = new QFile(QString("sbfdata-%1-%2.sbf").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")));
     if(!mLogFileSbf->open(QIODevice::WriteOnly)) qFatal("GpsDevice::GpsDevice(): couldn't open sbf log file for writing, exiting");
+
+    mLogFileCmd = new QFile(QString("cmddata-%1-%2.txt").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")));
+    if(!mLogFileCmd->open(QIODevice::WriteOnly)) qFatal("GpsDevice::GpsDevice(): couldn't open cmd log file for writing, exiting");
 
 //    mLogStreamSbf = QDataStream(mLogFileSbf);
 
@@ -110,6 +113,9 @@ quint8 GpsDevice::slotFlushCommandQueue()
         usleep(100000);
         mSerialPortUsb->write(mLastCommandToDeviceUsb);
         mNumberOfRemainingRepliesUsb++;
+
+        QTextStream commandLog(mLogFileCmd);
+        commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss") << "HOST -> DEV: " << mLastCommandToDeviceUsb << endl;
     }
     else if(mNumberOfRemainingRepliesUsb)
     {
@@ -269,6 +275,14 @@ void GpsDevice::slotCommunicationSetup()
     slotQueueCommand("setEventParameters,EventA,High2Low"); // Hokuyo
     slotQueueCommand("setEventParameters,EventB,High2Low"); // Camera
 
+    // From Geert Dierckx:
+    // By default, the parameter is set to Moderate (Let’s say moving vehicles like cars,
+    // boats, trucks). Low is for pedestrian applications. In your case, it seems to be an
+    // airplane-application, which may need the setting to be on High. In my opinion, it
+    // will less smooth and take into account more the real movement of the application.
+    // Just as a test, you could run the Max-value (as explained above, take care!).
+    slotQueueCommand("setReceiverDynamics,High");
+
     // Usually, we'd configure as rover in standalone+rtk mode. Due to a firmware bug, the receiver only initializes the attitude
     // correctly when it starts in NON-RTK mode. Thus, we start in non-RTK mode, and when init succeeded, we enable RTK later.
     //slotQueueAsciiCommand("setPVTMode,Rover,all,auto,Loosely");
@@ -289,6 +303,9 @@ void GpsDevice::slotCommunicationSetup()
 
     // We want to know what time it is
     slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
+
+    // show current config
+    slotQueueCommand("lstConfigFile,Current");
 
     qDebug() << "GpsDevice::setupCommunication(): done setting up communication";
 }
@@ -328,7 +345,8 @@ void GpsDevice::slotDataReadyOnUsb()
     //qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb()";
 
     // Copy all new bytes into our log
-    QDataStream s(mLogFileSbf); s << mSerialPortUsb->peek(mSerialPortUsb->bytesAvailable());
+    QDataStream s(mLogFileSbf);
+    s << mSerialPortUsb->peek(mSerialPortUsb->bytesAvailable());
 
     // Move all new bytes into our SBF buffer
     mReceiveBufferUsb.append(mSerialPortUsb->readAll());
@@ -350,6 +368,9 @@ void GpsDevice::slotDataReadyOnUsb()
         {
             const int positionEndOfReply = mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QString(">")) + 5;
             qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): received reply to:" << mLastCommandToDeviceUsb.trimmed() << ":" << mReceiveBufferUsb.size() << "bytes:" << mReceiveBufferUsb.left(positionEndOfReply).trimmed();
+
+            QTextStream commandLog(mLogFileCmd);
+            commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss") << "DEV -> HOST: " << mReceiveBufferUsb.left(positionEndOfReply).trimmed() << endl;
 
             // After sending/receiving the SetPvtMode command, the rover needs to be static for better alignment. Tell the user to wait!
             if(QString(mReceiveBufferUsb.left(positionEndOfReply)).contains("SetPvtMode", Qt::CaseInsensitive))

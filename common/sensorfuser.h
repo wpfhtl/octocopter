@@ -17,7 +17,7 @@ public:
         FuseData     = 0x02
     };
 */
-    SensorFuser(/*SensorFuser::Behavior behavior*/);
+    SensorFuser(const quint8& stridePoint = 1, const quint8& strideScan = 1);
     ~SensorFuser();
 
     // SensorFuser writes logfiles of the raw incoming data. These files can be read later-on and fed
@@ -31,6 +31,7 @@ public:
     void setLaserScannerRelativePose(const Pose& pose) {mLaserScannerRelativePose = pose;}
 
 private:
+    quint8 mStridePoint, mStrideScan;
     quint32 mPointCloudSize;
 
     Pose mLaserScannerRelativePose;

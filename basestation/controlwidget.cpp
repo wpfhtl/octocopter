@@ -168,11 +168,17 @@ void ControlWidget::slotUpdateGpsStatus(const GpsStatusInformation::GpsStatus& g
     mLabelGpsNumSats->setText(QString::number(gpsStatus.numSatellitesUsed));
     if(gpsStatus.numSatellitesUsed > 5) mLabelGpsNumSats->setStyleSheet(""); else mLabelGpsNumSats->setStyleSheet(getBackgroundCss());
 
-    mLabelGpsPvtAge->setText(QString::number(gpsStatus.lastPvtAge));
-    if(gpsStatus.lastPvtAge < 1) mLabelGpsPvtAge->setStyleSheet(""); else mLabelGpsPvtAge->setStyleSheet(getBackgroundCss());
+    mLabelGnssAge->setText(QString::number(gpsStatus.gnssAge));
+    if(gpsStatus.gnssAge < 1) mLabelGnssAge->setStyleSheet(""); else mLabelGnssAge->setStyleSheet(getBackgroundCss());
 
     mLabelGpsCorrAge->setText(QString::number(((float)gpsStatus.meanCorrAge) / 10.0));
     if(((float)gpsStatus.meanCorrAge)/10.0 < 5) mLabelGpsCorrAge->setStyleSheet(""); else mLabelGpsCorrAge->setStyleSheet(getBackgroundCss());
+
+    mLabelGpsCpuLoad->setText(QString::number(gpsStatus.cpuLoad));
+    if(gpsStatus.cpuLoad < 80) mLabelGpsCpuLoad->setStyleSheet(""); else mLabelGpsCpuLoad->setStyleSheet(getBackgroundCss());
+
+    mLabelGpsCovariances->setText(QString::number(gpsStatus.covariances, 'f', 2));
+    if(gpsStatus.covariances < 1.0) mLabelGpsCovariances->setStyleSheet(""); else mLabelGpsCovariances->setStyleSheet(getBackgroundCss());
 }
 
 void ControlWidget::slotUpdateBarometricHeight(const qint16& barometricHeight)
