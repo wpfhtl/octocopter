@@ -293,7 +293,9 @@ void GpsDevice::slotCommunicationSetup()
 
     // Send IntPVAAGeod on Stream1. First slowly, then with 25 Hz when things are initialized and fixed.
     // We want to know the pose 25 times a second
-    slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec200");
+    // old, for firmware bug and without septentrio-support messages
+    //slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec200");
+    slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",ExtSensMeas+AttEuler+IntPVAAGeod,msec40");
 
     // We want to know PVTCartesion for MeanCorrAge (average correction data age), ReceiverStatus for CPU Load and IntAttCovEuler for Covariances (sigma-values)
     slotQueueCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus+IntAttCovEuler,sec1");
@@ -302,7 +304,9 @@ void GpsDevice::slotCommunicationSetup()
     slotQueueCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceCom+",ExtEvent,OnChange");
 
     // We want to know what time it is
-    slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
+//    slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
+// record support messages for septentrio
+    slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceUsb+",Support,msec100");
 
     // show current config
     slotQueueCommand("lstConfigFile,Current");
