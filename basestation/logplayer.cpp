@@ -320,7 +320,7 @@ void LogPlayer::slotPlay()
     if(!slotStepForward())
     {
         // Playback failed, we're probably at the end
-//        qDebug() << "LogPlayer::slotPlay(): slotStepForward() failed, we're probably at the end, stopping timer.";
+        qDebug() << "LogPlayer::slotPlay(): slotStepForward() failed, we're probably at the end, stopping timer.";
         emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Stepping forward failed, stopping playback timer.");
         mTimerAnimation->stop();
         return;
@@ -336,14 +336,14 @@ void LogPlayer::slotPlay()
         // Packets in the SBF stream are not guaranteed to be in chronological order, especially
         // ExtEvent-packets don't let this assumption hold. For this reason, we might have to deal
         // with negative intervals, which we just set to 0 here.
-//        qDebug() << "LogPlayer::slotPlay(): slotStepForward() succeeded, sleeping from minTowBefore" << minTowBefore << "until minTowAfter" << minTowAfter;
+        qDebug() << "LogPlayer::slotPlay(): slotStepForward() succeeded, sleeping from minTowBefore" << minTowBefore << "until minTowAfter" << minTowAfter;
         mTimerAnimation->setInterval(ui->mSpinBoxTimeFactor->value() * std::max(0, minTowAfter - minTowBefore));
         mTimerAnimation->start();
     }
     else
     {
         emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Playback reached end of logfile, stopping.");
-//        qDebug() << "LogPlayer::slotPlay(): not restarting playtimer, next sbf tow" << getPacketTow(DataSource_SBF, Direction_Forward) << "next lsr tow" << getPacketTow(DataSource_Laser, Direction_Forward);
+        qDebug() << "LogPlayer::slotPlay(): not restarting playtimer, next sbf tow" << getPacketTow(DataSource_SBF, Direction_Forward) << "next lsr tow" << getPacketTow(DataSource_Laser, Direction_Forward);
     }
 }
 

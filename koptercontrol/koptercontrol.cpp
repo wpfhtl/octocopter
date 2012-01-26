@@ -37,6 +37,10 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     snSignalPipe = new QSocketNotifier(signalFd[1], QSocketNotifier::Read, this);
     connect(snSignalPipe, SIGNAL(activated(int)), SLOT(slotHandleSignal()));
 
+    // make sure logging dir exists
+    if(!QDir::current().mkpath("log"))
+        qFatal("KopterControl::KopterControl(): couldn't create log/ subdirectory, please do it for me!");
+
     QString networkInterface = "wlan0";
     QString deviceCamera = "/dev/video0";
     QString deviceSerialKopter = "/dev/ttyUSB0";

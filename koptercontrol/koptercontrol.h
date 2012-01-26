@@ -7,6 +7,7 @@
 #include <QCoreApplication>
 #include <QList>
 #include <QTimer>
+#include <QDir>
 #include <QStringList>
 
 #include "kopter.h"

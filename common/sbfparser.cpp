@@ -138,7 +138,8 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         return false;
     }
 
-    if(getCrc(sbfData.data()+4, msgLength-4) != msgCrc)
+    // We limit the length to the buffer's size, because for broken packets, msgLength might be a random value
+    if(getCrc(sbfData.data()+4, std::min(sbfData.size()-4, msgLength-4)) != msgCrc)
     {
         qWarning() << "SbfParser::processSbfData(): WARNING: CRC in msg" << msgCrc << "computed" << getCrc(sbfData.data()+4, msgLength-4) << "msgIdBlock" << msgIdBlock;
         // Remove the SBF block body from the buffer, so it contains either nothing or the next SBF message
@@ -388,9 +389,9 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         // Only emit a pose if the values are not set to the do-not-use values.
         if(
                 block->Error == 0
-                && block->Lat != -2147483648
-                && block->Lon != -2147483648
-                && block->Alt != -2147483648
+                && block->Lat != -2147483648L
+                && block->Lon != -2147483648L
+                && block->Alt != -2147483648L
                 && block->Heading != 65535 // This is not to the erroneous (off-by-one) spec (SBF Ref Guide, p. 80).
                 && block->Pitch != -32768
                 && block->Roll != -32768
@@ -446,9 +447,9 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
             }
 
             if(
-                    block->Lat == -2147483648
-                    || block->Lon == -2147483648
-                    || block->Alt == -2147483648
+                    block->Lat == -2147483648L
+                    || block->Lon == -2147483648L
+                    || block->Alt == -2147483648L
                     || block->Pitch == -32768
                     || block->Roll == -32768
                     || block->TOW == 4294967295)

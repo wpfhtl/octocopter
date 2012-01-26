@@ -24,10 +24,10 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
 {
     qDebug() << "GpsDevice::GpsDevice(): Using usb port" << serialDeviceFileUsb << "and com port" << serialDeviceFileCom;
 
-    mLogFileSbf = new QFile(QString("log-%1-%2-gnss.sbf").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")));
+    mLogFileSbf = new QFile(QString("log/log-%1-%2-gnss.sbf").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")));
     if(!mLogFileSbf->open(QIODevice::WriteOnly)) qFatal("GpsDevice::GpsDevice(): couldn't open sbf log file for writing, exiting");
 
-    mLogFileCmd = new QFile(QString("log-%1-%2-cmd.txt").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")));
+    mLogFileCmd = new QFile(QString("log/log-%1-%2-cmd.txt").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")));
     if(!mLogFileCmd->open(QIODevice::WriteOnly)) qFatal("GpsDevice::GpsDevice(): couldn't open cmd log file for writing, exiting");
 
 //    mLogStreamSbf = QDataStream(mLogFileSbf);
@@ -295,7 +295,7 @@ void GpsDevice::slotCommunicationSetup()
     // We want to know the pose 25 times a second
     // old, for firmware bug and without septentrio-support messages
     //slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec200");
-    slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",ExtSensMeas+AttEuler+IntPVAAGeod,msec40");
+    slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",ExtSensorMeas+AttEuler+IntPVAAGeod,msec40");
 
     // We want to know PVTCartesion for MeanCorrAge (average correction data age), ReceiverStatus for CPU Load and IntAttCovEuler for Covariances (sigma-values)
     slotQueueCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus+IntAttCovEuler,sec1");
@@ -305,7 +305,7 @@ void GpsDevice::slotCommunicationSetup()
 
     // We want to know what time it is
 //    slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
-// record support messages for septentrio
+    // Instead, for now, record support messages for septentrio
     slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceUsb+",Support,msec100");
 
     // show current config
@@ -348,12 +348,10 @@ void GpsDevice::slotDataReadyOnUsb()
 {
     //qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb()";
 
-    // Copy all new bytes into our log
-    QDataStream s(mLogFileSbf);
-    s << mSerialPortUsb->peek(mSerialPortUsb->bytesAvailable());
+    const QByteArray incomingData = mSerialPortUsb->readAll();
 
     // Move all new bytes into our SBF buffer
-    mReceiveBufferUsb.append(mSerialPortUsb->readAll());
+    mReceiveBufferUsb.append(incomingData);
 
     if(mNumberOfRemainingRepliesUsb != 0)
     {
@@ -409,6 +407,11 @@ void GpsDevice::slotDataReadyOnUsb()
         // We're receiving from the device, and it is not a reply to some request we sent ourselves. Thus, the device is
         // talking to us on its own, which only happens after initializing it
         mDeviceIsInitialized = true;
+
+        // Copy all new SBF bytes into our log
+        QDataStream s(mLogFileSbf);
+        s << incomingData;
+
         // We're not waiting for a reply to a command, this must be SBF data!
 //        qDebug() << "GpsDevice::slotDataReadyOnUsb(): received" << mReceiveBufferUsb.size() << "bytes of SBF data, processing...";
         while(mSbfParser->processSbfData(mReceiveBufferUsb));

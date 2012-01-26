@@ -10,11 +10,14 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
 
     mDeviceFileName = deviceFileName;
 
-    mLogFile = new QFile(QString("log-%1-%2-scannerdata.lsr").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")));
+    mLogFile = new QFile(QString("log/log-%1-%2-scannerdata.lsr").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")));
     if(!mLogFile->open(QIODevice::WriteOnly | QIODevice::Text))
         qFatal("LaserScanner::LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
     else
         qDebug() << "LaserScanner::LaserScanner(): Successfully opened logfile" << mLogFile->fileName() << "for writing";
+
+    QTextStream out(mLogFile);
+    out << "first line test!" << endl;
 
     mLastScannerTimeStamp = 0;
 
@@ -167,11 +170,14 @@ void LaserScanner::slotCaptureScanData()
         qint32 timeStampScanMiddle = mLastScannerTimeStamp + mOffsetTimeScannerToTow + 9;
 
         // Always write log data for later replay: scannerdata:[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
+        Q_ASSERT(mLogFile->isOpen());
         QTextStream out(mLogFile);
         out << timeStampScanMiddle;
         std::vector<long>::iterator itr;
         for(itr=distances->begin();itr != distances->end(); ++itr) out << " " << *itr;
         out << endl;
+
+        qDebug() << "LaserScanner::slotCaptureScanData(): wrote" << distances->size() << "scanned values to file, emitting now...";
 
         // With this call, we GIVE UP OWNERSHIP of the data. It might get deleted immediately!
         emit newScanData(timeStampScanMiddle, distances);
