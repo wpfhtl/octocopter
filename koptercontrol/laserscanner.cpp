@@ -10,7 +10,7 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
 
     mDeviceFileName = deviceFileName;
 
-    mLogFile = new QFile(QString("scannerdata-raw-%1-%2.log").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")));
+    mLogFile = new QFile(QString("log-%1-%2-scannerdata.lsr").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")));
     if(!mLogFile->open(QIODevice::WriteOnly | QIODevice::Text))
         qFatal("LaserScanner::LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
 
