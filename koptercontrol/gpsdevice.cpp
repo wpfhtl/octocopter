@@ -447,7 +447,7 @@ void GpsDevice::slotSerialPortStatusChanged(const QString& status, const QDateTi
     }
 }
 
-void GpsDevice::slotSetSystemTime(const quint32& tow)
+void GpsDevice::slotSetSystemTime(const qint32& tow)
 {
     // First, what time is it now?
     struct timeval system;

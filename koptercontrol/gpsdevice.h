@@ -69,7 +69,7 @@ private slots:
     void slotDetermineSerialPortsOnDevice();
 
     // Call this method with a valid TOW and it'll sync the system time to this time.
-    void slotSetSystemTime(const quint32& tow);
+    void slotSetSystemTime(const qint32& tow);
 
 public slots:
     void slotSetRtkData(const QByteArray &data);
