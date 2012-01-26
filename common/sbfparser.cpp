@@ -154,7 +154,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
     // Save our current gpsStatus in a const place, so we can check whether it changed after processing the whole packet
     const GpsStatusInformation::GpsStatus previousGpsStatus = mGpsStatus;
 
-    qDebug() << "LogPlayer::slotStepForward(): processing" << sbfData.size() << "bytes SBF data with ID" << msgId << "from TOW" << ((Sbf_PVTCartesian*)sbfData.data())->TOW;
+    qDebug() << "SbfParser::processSbfData(): processing" << sbfData.size() << "bytes SBF data with ID" << msgId << "from TOW" << ((Sbf_PVTCartesian*)sbfData.data())->TOW;
 
     // Process the message if we're interested.
     //qDebug() << "received sbf block" << msgIdBlock;

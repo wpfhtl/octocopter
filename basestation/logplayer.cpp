@@ -337,7 +337,8 @@ void LogPlayer::slotPlay()
         // ExtEvent-packets don't let this assumption hold. For this reason, we might have to deal
         // with negative intervals, which we just set to 0 here.
         qDebug() << "LogPlayer::slotPlay(): slotStepForward() succeeded, sleeping from minTowBefore" << minTowBefore << "until minTowAfter" << minTowAfter;
-        mTimerAnimation->setInterval(ui->mSpinBoxTimeFactor->value() * std::max(0, minTowAfter - minTowBefore));
+        // Wait between 0 and 5 secs, scaled by timefactor
+        mTimerAnimation->setInterval(ui->mSpinBoxTimeFactor->value() * std::min(5000, std::max(0, minTowAfter - minTowBefore)));
         mTimerAnimation->start();
     }
     else

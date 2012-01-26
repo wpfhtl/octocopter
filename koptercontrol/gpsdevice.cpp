@@ -24,10 +24,10 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
 {
     qDebug() << "GpsDevice::GpsDevice(): Using usb port" << serialDeviceFileUsb << "and com port" << serialDeviceFileCom;
 
-    mLogFileSbf = new QFile(QString("log/log-%1-%2-gnss.sbf").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")));
+    mLogFileSbf = new QFile(QString("log/kopterlog-%1-%2-gnssdata.sbf").arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmm00")).arg(QString::number(QCoreApplication::applicationPid())));
     if(!mLogFileSbf->open(QIODevice::WriteOnly)) qFatal("GpsDevice::GpsDevice(): couldn't open sbf log file for writing, exiting");
 
-    mLogFileCmd = new QFile(QString("log/log-%1-%2-cmd.txt").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")));
+    mLogFileCmd = new QFile(QString("log/kopterlog-%1-%2-gnsscommands.txt").arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmm00")).arg(QString::number(QCoreApplication::applicationPid())));
     if(!mLogFileCmd->open(QIODevice::WriteOnly)) qFatal("GpsDevice::GpsDevice(): couldn't open cmd log file for writing, exiting");
 
     mSbfParser = new SbfParser;
