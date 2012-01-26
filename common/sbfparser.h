@@ -265,6 +265,8 @@ signals:
     void newVehiclePosePrecise(const Pose&); // emitted at 20Hz, FixedRTK and IntegratedAttitude, used for sensor-fusion
     void newVehiclePoseLowFreq(const Pose&); // emitted at ~1Hz;
 
+    void processedPacket(const QByteArray& sbfPacket);
+
 //    void newInfo(const quint16&);
 //    void newInfoText(const QString&);
 

@@ -121,6 +121,8 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
     else if(indexOfSyncMarker != 0)
     {
         qWarning() << "SbfParser::processSbfData(): WARNING: SBF Sync Marker $@ was not at byte 0, but at" << indexOfSyncMarker;
+        // Log this data for later error analysis
+        emit processedPacket(sbfData.left(indexOfSyncMarker));
         sbfData.remove(0, indexOfSyncMarker);
         // Tell our caller that he can call us again to try to parse everything after the junk we just removed.
         return true;
@@ -395,9 +397,9 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
                 && block->Heading != 65535 // This is not to the erroneous (off-by-one) spec (SBF Ref Guide, p. 80).
                 && block->Pitch != -32768
                 && block->Roll != -32768
-                && block->TOW != 4294967295
+                && block->TOW != 4294967295L
                 && testBit(block->Info, 11) // Heading ambiguity is Fixed
-                //&& block->Mode == 2 // integrated solution, not sensor-only or gnss-only
+                //&& block->Mode == 2 // integrated solution, not sensor-only or GNSS-only
                 && (block->GNSSPVTMode & 15) == 4 // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().
                 //&& block->GNSSage < 1 // seconds interval of no GNSS PVT
                 && mGpsStatus.covariances < 1.0 // make sure the filter is happy with itself
@@ -409,6 +411,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         }
         else
         {
+            /* hopefully not necessary anymore, firmware is fixed.
             // Special case for buggy firmware (no attitude in RTK-mode): if we're not in RTK-Mode, but the heading is correct
             if(!mFirmwareBug_20120111_RtkWasEnabledAfterAttitudeDeterminationSucceeded
                     && block->Heading != 65535
@@ -423,7 +426,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
                 // Now we want to know the precise pose 25 times a second
                 receiverCommand("setSBFOutput,Stream1,#USB#,IntPVAAGeod,msec40");
                 mFirmwareBug_20120111_RtkWasEnabledAfterAttitudeDeterminationSucceeded = true;
-            }
+            }*/
 
             // this whole section is logically weak. Get this sorted!
             if(!testBit(block->Info, 11))
@@ -452,7 +455,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
                     || block->Alt == -2147483648L
                     || block->Pitch == -32768
                     || block->Roll == -32768
-                    || block->TOW == 4294967295)
+                    || block->TOW == 4294967295L)
             {
                 qDebug() << t() << block->TOW << "SbfParser::processSbfData(): invalid pose, do-not-use values found.";
             }
@@ -479,7 +482,10 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
             }
         }
 
-        if(mPoseClockDivisor % 20 == 0) emit newVehiclePoseLowFreq(mLastPose);
+        // If the last pose is valid (i.e. not default-constructed), emit it now.
+        // On the first time, this will start the laserscanner.
+        if(mPoseClockDivisor % 20 == 0 && mLastPose.timestamp != 0)
+            emit newVehiclePoseLowFreq(mLastPose);
 
         //qDebug() << "SBF: IntAttEuler: Info" << block->Info << "Mode" << block->Mode << "Error" << block->Error << "TOW" << block->TOW << "WNc" << block->WNc << "HPR:" << block->Heading << block->Pitch << block->Roll;;
         //qDebug() << "Info" << block->Info << "Mode" << block->Mode << "Error" << block->Error << "HPR:" << block->Heading << block->Pitch << block->Roll;;
@@ -495,7 +501,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
 
         //qDebug() << t() << block->TOW << "SbfParser::processSbfData(): received ReceiverTime block: msgid" << msgId << "msgIdBlock" << msgIdBlock << "msgLength" << msgLength << "revision" << msgIdRev;
 
-        if(block->TOW == 4294967295)
+        if(block->TOW == 4294967295L)
         {
             emit message(
                         Error,
@@ -528,7 +534,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         // Laserscanner sync signal is soldered to both ports, but port 1 is broken. If it ever starts working again, I want to know.
         Q_ASSERT(block->Source == 2);
 
-        if(block->TOW != 4294967295)
+        if(block->TOW != 4294967295L)
         {
             // Emit the time of the scan. The Scanner sets the pulse at the END of a scan,
             // but our convention is to use times of a scans middle. Thus, decrement 12ms.
@@ -560,13 +566,14 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
     // emit new status if it changed.
     if(mGpsStatus != previousGpsStatus) emit status(mGpsStatus);
 
+    // Announce what packet we just processed. Might be used for logging.
+    emit processedPacket(sbfData.left(msgLength));
+
     // Remove the SBF block body from our incoming USB buffer, so it contains either nothing or the next SBF message
     sbfData.remove(0, msgLength);
 
     //if(sbfData.size()) qDebug() << "SbfParser::processSbfData(): done processing SBF data, bytes left in buffer:" << sbfData.size() << "bytes:" << sbfData;
 
-    if(sbfData.size() > 8)
-        return true;
-    else
-        return false;
+    // Tell the caller whether we'd be able to process another packet in this buffer.
+    return sbfData.size() > 8;
 }

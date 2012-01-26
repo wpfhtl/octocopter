@@ -13,11 +13,6 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
     mLogFile = new QFile(QString("log/log-%1-%2-scannerdata.lsr").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")));
     if(!mLogFile->open(QIODevice::WriteOnly | QIODevice::Text))
         qFatal("LaserScanner::LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
-    else
-        qDebug() << "LaserScanner::LaserScanner(): Successfully opened logfile" << mLogFile->fileName() << "for writing";
-
-    QTextStream out(mLogFile);
-    out << "first line test!" << endl;
 
     mLastScannerTimeStamp = 0;
 

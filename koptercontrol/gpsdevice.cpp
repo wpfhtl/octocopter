@@ -30,12 +30,15 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
     mLogFileCmd = new QFile(QString("log/log-%1-%2-cmd.txt").arg(QString::number(QCoreApplication::applicationPid())).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")));
     if(!mLogFileCmd->open(QIODevice::WriteOnly)) qFatal("GpsDevice::GpsDevice(): couldn't open cmd log file for writing, exiting");
 
-//    mLogStreamSbf = QDataStream(mLogFileSbf);
-
     mSbfParser = new SbfParser;
     // If our SBF parser has a question to the device, forward it.
     connect(mSbfParser, SIGNAL(receiverCommand(QString)), SLOT(slotQueueCommand(QString)));
     connect(mSbfParser, SIGNAL(gpsTimeOfWeekEstablished(quint32)), SLOT(slotSetSystemTime(qint32)));
+
+    // We first feed SBF data to SbfParser, then we get it back from it via the signal below. A little complicated,
+    // but the alternative is to watch two ports for incoming SBF, which might lead to mixing of SBF in between
+    // packets.
+    connect(mSbfParser, SIGNAL(processedPacket(QByteArray)), SLOT(slotLogProcessedSbfPacket(QByteArray)));
 
     mDeviceIsInitialized = false;
 
@@ -88,6 +91,9 @@ GpsDevice::~GpsDevice()
     mSerialPortUsb->close();
     mSerialPortCom->close();
 
+    mLogFileCmd->flush();
+    mLogFileCmd->close();
+
     mLogFileSbf->flush();
     mLogFileSbf->close();
 
@@ -127,6 +133,13 @@ quint8 GpsDevice::slotFlushCommandQueue()
     }
 
     return mCommandQueueUsb.size();
+}
+
+void GpsDevice::slotLogProcessedSbfPacket(const QByteArray& sbfPacket)
+{
+    // Copy all new SBF bytes into our log
+    QDataStream s(mLogFileSbf);
+    s << sbfPacket;
 }
 
 void GpsDevice::slotDetermineSerialPortsOnDevice()
@@ -332,9 +345,6 @@ void GpsDevice::slotShutDown()
 
 void GpsDevice::slotDataReadyOnCom()
 {
-    // Copy all new bytes into our log
-    QDataStream s(mLogFileSbf); s << mSerialPortCom->peek(mSerialPortCom->bytesAvailable());
-
     // Move all new bytes into our SBF buffer
     mReceiveBufferCom.append(mSerialPortCom->readAll());
 
@@ -348,10 +358,8 @@ void GpsDevice::slotDataReadyOnUsb()
 {
     //qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb()";
 
-    const QByteArray incomingData = mSerialPortUsb->readAll();
-
     // Move all new bytes into our SBF buffer
-    mReceiveBufferUsb.append(incomingData);
+    mReceiveBufferUsb.append(mSerialPortUsb->readAll());
 
     if(mNumberOfRemainingRepliesUsb != 0)
     {
@@ -407,10 +415,6 @@ void GpsDevice::slotDataReadyOnUsb()
         // We're receiving from the device, and it is not a reply to some request we sent ourselves. Thus, the device is
         // talking to us on its own, which only happens after initializing it
         mDeviceIsInitialized = true;
-
-        // Copy all new SBF bytes into our log
-        QDataStream s(mLogFileSbf);
-        s << incomingData;
 
         // We're not waiting for a reply to a command, this must be SBF data!
 //        qDebug() << "GpsDevice::slotDataReadyOnUsb(): received" << mReceiveBufferUsb.size() << "bytes of SBF data, processing...";
