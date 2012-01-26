@@ -165,18 +165,15 @@ void LaserScanner::slotCaptureScanData()
         // each scan -135deg (0deg is front) and our convention is to store the time of the middle of a  scan.
         //emit bottomBeamLength((*distances)[540]/1000.0f);
         qint32 timeStampScanMiddle = mLastScannerTimeStamp + mOffsetTimeScannerToTow + 9;
-        emit newScanData(timeStampScanMiddle, distances);
 
         // Always write log data for later replay: scannerdata:[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
         QTextStream out(mLogFile);
         out << timeStampScanMiddle;
         std::vector<long>::iterator itr;
-        int rayNum = 0;
-        for(itr=distances->begin();itr != distances->end(); ++itr)
-        {
-            rayNum++;
-            out << " " << *itr;
-        }
+        for(itr=distances->begin();itr != distances->end(); ++itr) out << " " << *itr;
         out << endl;
+
+        // With this call, we GIVE UP OWNERSHIP of the data. It might get deleted immediately!
+        emit newScanData(timeStampScanMiddle, distances);
     }
 }
