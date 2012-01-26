@@ -42,13 +42,7 @@ INCLUDE_DIRECTORIES(
 
 LINK_DIRECTORIES(/usr/local/lib/)
 
-
-
-
-
-
-
-### koptercontrol
+### koptercontrol binary
 
 SET(SRC_FILES_KOPTERCONTROL
 koptercontrol
@@ -97,38 +91,5 @@ SOURCE_GROUP("Headers" FILES ${INC_FILES_KOPTERCONTROL})
 
 QT4_WRAP_CPP(MOC_SRCS_KOPTERCONTROL ${INC_FILES_KOPTERCONTROL})
 
-
 ADD_EXECUTABLE(koptercontrol ${SRC_FILES_KOPTERCONTROL} ${MOC_SRCS_KOPTERCONTROL})
 TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES} -lqserialdevice)
-
-
-
-
-
-
-#### LOGPLAYER
-
-SET(SRC_FILES_LOGPLAYER
-logplayer
-../common/sensorfuser
-../common/common
-../common/pose
-../common/plymanager
-laserscanner
-)
-
-
-SET(INC_FILES_LOGPLAYER
-logplayer.h
-../common/sensorfuser.h
-../common/common.h
-../common/pose.h
-../common/plymanager.h
-laserscanner.h
-)
-
-QT4_WRAP_CPP(MOC_SRCS_LOGPLAYER ${INC_FILES_LOGPLAYER})
-
-ADD_EXECUTABLE(logplayer ${SRC_FILES_LOGPLAYER} ${MOC_SRCS_LOGPLAYER})
-TARGET_LINK_LIBRARIES(logplayer ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES} -lqserialdevice)
-
