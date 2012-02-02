@@ -121,7 +121,9 @@ quint8 GpsDevice::slotFlushCommandQueue()
         mNumberOfRemainingRepliesUsb++;
 
         QTextStream commandLog(mLogFileCmd);
-        commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss") << " HOST -> DEV: " << mLastCommandToDeviceUsb << endl;
+        commandLog << endl << "################################################################################" << endl << endl;
+        commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << " HOST -> DEV: " << mLastCommandToDeviceUsb << endl;
+        commandLog << endl << "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" << endl << endl;
     }
     else if(mNumberOfRemainingRepliesUsb)
     {
@@ -380,7 +382,8 @@ void GpsDevice::slotDataReadyOnUsb()
             qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): received reply to:" << mLastCommandToDeviceUsb.trimmed() << ":" << mReceiveBufferUsb.size() << "bytes:" << mReceiveBufferUsb.left(positionEndOfReply).trimmed();
 
             QTextStream commandLog(mLogFileCmd);
-            commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss") << " DEV -> HOST: " << mReceiveBufferUsb.left(positionEndOfReply).trimmed() << endl;
+            commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << " DEV -> HOST: " << mReceiveBufferUsb.left(positionEndOfReply).trimmed() << endl;
+            commandLog << endl << "################################################################################" << endl << endl;
 
             // After sending/receiving the SetPvtMode command, the rover needs to be static for better alignment. Tell the user to wait!
             if(QString(mReceiveBufferUsb.left(positionEndOfReply)).contains("SetPvtMode", Qt::CaseInsensitive))

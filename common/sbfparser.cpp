@@ -136,7 +136,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
 
     if(sbfData.size() < msgLength)
     {
-        qDebug() << t() << "SbfParser::processSbfData(): message incomplete, we only have" << sbfData.size() << "of" << msgLength << "bytes. Processing postponed..";
+//        qDebug() << t() << "SbfParser::processSbfData(): message incomplete, we only have" << sbfData.size() << "of" << msgLength << "bytes. Processing postponed..";
         return false;
     }
 
@@ -154,7 +154,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
     // Save our current gpsStatus in a const place, so we can check whether it changed after processing the whole packet
     const GpsStatusInformation::GpsStatus previousGpsStatus = mGpsStatus;
 
-    qDebug() << "SbfParser::processSbfData(): processing" << sbfData.size() << "bytes SBF data with ID" << msgId << "from TOW" << ((Sbf_PVTCartesian*)sbfData.data())->TOW;
+//    qDebug() << "SbfParser::processSbfData(): processing" << sbfData.size() << "bytes SBF data with ID" << msgId << "from TOW" << ((Sbf_PVTCartesian*)sbfData.data())->TOW;
 
     // Process the message if we're interested.
     //qDebug() << "received sbf block" << msgIdBlock;
@@ -165,7 +165,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
     {
         // PVTCartesian
         const Sbf_PVTCartesian *block = (Sbf_PVTCartesian*)sbfData.data();
-        qDebug() << "SBF: PVTCartesian: MeanCorrAge in seconds:" << ((float)block->MeanCorrAge)/100.0;
+//        qDebug() << "SBF: PVTCartesian: MeanCorrAge in seconds:" << ((float)block->MeanCorrAge)/100.0;
         mGpsStatus.meanCorrAge = std::min(block->MeanCorrAge / 10, 255);
     }
     break;
@@ -174,7 +174,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
     {
         // IntAttCovEuler
         const Sbf_IntAttCovEuler *block = (Sbf_IntAttCovEuler*)sbfData.data();
-        qDebug() << "SBF: IntAttCovEuler: covariances for heading, pitch, roll:" << block->Cov_HeadHead << block->Cov_PitchPitch << block->Cov_RollRoll;
+//        qDebug() << "SBF: IntAttCovEuler: covariances for heading, pitch, roll:" << block->Cov_HeadHead << block->Cov_PitchPitch << block->Cov_RollRoll;
         float newCovarianceValue = std::max(std::max(block->Cov_HeadHead, block->Cov_PitchPitch), block->Cov_RollRoll);
         if(abs(mGpsStatus.covariances - newCovarianceValue) > 0.02)
         {
@@ -189,7 +189,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         // ReceiverStatus
         const Sbf_ReceiverStatus *block = (Sbf_ReceiverStatus*)sbfData.data();
 
-        qDebug() << "SBF: ReceiverStatus: CPU Load:" << block->CPULoad;
+//        qDebug() << "SBF: ReceiverStatus: CPU Load:" << block->CPULoad;
 
         // Only emit changes when CPU load changes a lot.
         if(abs(mGpsStatus.cpuLoad - block->CPULoad) > 0)
@@ -237,7 +237,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         // IntPVAAGeod
         const Sbf_PVAAGeod *block = (Sbf_PVAAGeod*)sbfData.data();
 
-        qDebug() << "SBF: IntPVAAGeod";
+//        qDebug() << "SBF: IntPVAAGeod";
 
         // Check the Info-field and emit states if it changes
         if(mGpsStatus.info != block->Info)
@@ -335,7 +335,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         // Check the Error-field and emit states if it changes
         if(mGpsStatus.error != block->Error)
         {
-            qDebug() << t() << "SbfParser::processSbfData(): error changed from" << mGpsStatus.error << "to" << block->Error << "at TOW" << block->TOW;
+//            qDebug() << t() << "SbfParser::processSbfData(): error changed from" << mGpsStatus.error << "to" << block->Error << "at TOW" << block->TOW;
 
             emit message(
                         block->Error == 0 ? Information : Error,
@@ -352,7 +352,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         // Check the GnssPvtMode-field and emit states if it changes AND if its not DO-NOT-USE
         if(mGpsStatus.gnssMode != block->GNSSPVTMode && block->GNSSPVTMode != 255)
         {
-            qDebug() << t() << "SbfParser::processSbfData(): GnssPvtMode changed from" << mGpsStatus.gnssMode << "to" << block->GNSSPVTMode << "at TOW" << block->TOW;
+//            qDebug() << t() << "SbfParser::processSbfData(): GnssPvtMode changed from" << mGpsStatus.gnssMode << "to" << block->GNSSPVTMode << "at TOW" << block->TOW;
 
             emit message(
                         block->GNSSPVTMode & 15 == 4 ? Information : Warning,
@@ -366,7 +366,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
 
         if(mGpsStatus.gnssAge != block->GNSSage)
         {
-            qDebug() << t() << "SbfParser::processSbfData(): GnssAge changed from" << mGpsStatus.gnssAge << "to" << block->GNSSage << "at TOW" << block->TOW;
+//            qDebug() << t() << "SbfParser::processSbfData(): GnssAge changed from" << mGpsStatus.gnssAge << "to" << block->GNSSage << "at TOW" << block->TOW;
 
             emit message(
                         block->GNSSage > 0 ? Information : Error,
@@ -379,7 +379,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         const quint8 numberOfSatellitesUsed = (block->NrSVAnt & 31);
         if(mGpsStatus.numSatellitesUsed != numberOfSatellitesUsed)
         {
-            qDebug() << t() << "SbfParser::processSbfData(): numSats changed from" << mGpsStatus.numSatellitesUsed << "to" << numberOfSatellitesUsed;
+//            qDebug() << t() << "SbfParser::processSbfData(): numSats changed from" << mGpsStatus.numSatellitesUsed << "to" << numberOfSatellitesUsed;
             emit message(
                         numberOfSatellitesUsed > 5 ? Information : Warning,
                         QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
@@ -528,7 +528,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
     case 5924:
     {
         // ExtEvent
-        qDebug() << "SBF: ExtEvent";
+//        qDebug() << "SBF: ExtEvent";
         const Sbf_ExtEvent *block = (Sbf_ExtEvent*)sbfData.data();
 
         // Laserscanner sync signal is soldered to both ports, but port 1 is broken. If it ever starts working again, I want to know.
