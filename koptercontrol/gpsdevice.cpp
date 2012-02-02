@@ -243,6 +243,12 @@ void GpsDevice::slotCommunicationSetup()
     // show current config
     slotQueueCommand("lstConfigFile,Current");
 
+    slotQueueCommand("lstInternalFile,Identification");
+
+    slotQueueCommand("lstInternalFile,Permissions");
+
+    slotQueueCommand("lstInternalFile,Debug");
+
     // reset communications
     slotQueueCommand("setDataInOut,all,CMD,none");
 
@@ -298,19 +304,15 @@ void GpsDevice::slotCommunicationSetup()
     // Just as a test, you could run the Max-value (as explained above, take care!).
     slotQueueCommand("setReceiverDynamics,High");
 
-    // Usually, we'd configure as rover in standalone+rtk mode. Due to a firmware bug, the receiver only initializes the attitude
-    // correctly when it starts in NON-RTK mode. Thus, we start in non-RTK mode, and when init succeeded, we enable RTK later.
-    //slotQueueAsciiCommand("setPVTMode,Rover,all,auto,Loosely");
-    slotQueueCommand("setPVTMode,Rover,StandAlone+SBAS+DGPS,auto,Loosely");
+    // Configure as rover in StandAlone+RTK mode.
+    slotQueueAsciiCommand("setPVTMode,Rover,all,auto,Loosely");
 
     // explicitly allow rover to use all RTCMv3 correction messages
     slotQueueCommand("setRTCMv3Usage,all");
 
     // Send IntPVAAGeod on Stream1. First slowly, then with 25 Hz when things are initialized and fixed.
     // We want to know the pose 25 times a second
-    // old, for firmware bug and without septentrio-support messages
-    //slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec200");
-    slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",ExtSensorMeas+AttEuler+IntPVAAGeod,msec40");
+    slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec40");
 
     // We want to know PVTCartesion for MeanCorrAge (average correction data age), ReceiverStatus for CPU Load and IntAttCovEuler for Covariances (sigma-values)
     slotQueueCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus+IntAttCovEuler,sec1");
@@ -319,9 +321,11 @@ void GpsDevice::slotCommunicationSetup()
     slotQueueCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceCom+",ExtEvent,OnChange");
 
     // We want to know what time it is
-//    slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
-    // Instead, for now, record support messages for septentrio
-    slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceUsb+",Support,msec100");
+    slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
+
+    // For now, record support messages for septentrio
+    slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,msec100");
+    slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",ExtSensorMeas+AttEuler,msec20");
 
     // show current config
     slotQueueCommand("lstConfigFile,Current");
