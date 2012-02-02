@@ -305,7 +305,7 @@ void GpsDevice::slotCommunicationSetup()
     slotQueueCommand("setReceiverDynamics,High");
 
     // Configure as rover in StandAlone+RTK mode.
-    slotQueueAsciiCommand("setPVTMode,Rover,all,auto,Loosely");
+    slotQueueCommand("setPVTMode,Rover,all,auto,Loosely");
 
     // explicitly allow rover to use all RTCMv3 correction messages
     slotQueueCommand("setRTCMv3Usage,all");
