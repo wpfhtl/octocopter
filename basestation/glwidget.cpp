@@ -28,7 +28,7 @@ GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flig
 
     //Wheel Scaling
     currentScaling = 2.0;
-    mZoomFactor = 1.0;
+    mZoomFactor = 0.5;
 
     //Mouse Move Rotations
     rotX = 0;

@@ -39,6 +39,10 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     connect(mSbfParser, SIGNAL(newVehiclePosePrecise(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
     connect(mSbfParser, SIGNAL(newVehiclePosePrecise(Pose)), SIGNAL(vehiclePose(Pose)));
     connect(mSbfParser, SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
+
+    // Actually invoke slotLaserScannerRelativePoseChanged() AFTER our parent
+    // has connected our signals, so the values are propagated to sensorfuser.
+    QTimer::singleShot(1000, this, SLOT(slotLaserScannerRelativePoseChanged()));
 }
 
 LogPlayer::~LogPlayer()

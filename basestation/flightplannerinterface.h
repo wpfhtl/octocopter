@@ -51,6 +51,9 @@ public slots:
     void slotWayPointSwap(const quint16& i, const quint16& j);
     void slotWayPointsClear();
 
+    // Called by UI to clear the drawn trajectory
+    void slotClearVehiclePoses();
+
     void slotCheckWayPointsHashFromRover(const QString& hash);
 
     // Used in CUDA flightplanner, might be useful to others. Will be called

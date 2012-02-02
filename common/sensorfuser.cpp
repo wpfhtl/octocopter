@@ -441,6 +441,8 @@ void SensorFuser::slotNewVehiclePose(const Pose& pose)
         // Append pose to our list
         mPoses.append(Pose(pose + mLaserScannerRelativePose));
 
+        qDebug() << "SensorFuser::slotNewVehiclePose(): vehicle" << pose << "relative scanner" << mLaserScannerRelativePose << "result" << mPoses.last();
+
         mNewestDataTime = std::max(mNewestDataTime, pose.timestamp);
 
         cleanUnusableData();

@@ -89,6 +89,8 @@ BaseStation::BaseStation() : QMainWindow()
 
     menuBar()->addAction("TogglePlot", this, SLOT(slotTogglePlot()));
 
+    menuBar()->addAction("Clear Trajectory", mFlightPlanner, SLOT(slotClearVehiclePoses()));
+
     mLogPlayer = new LogPlayer(this);
     mLogPlayer->setAllowedAreas(Qt::AllDockWidgetAreas);
     addDockWidget(Qt::BottomDockWidgetArea, mLogPlayer);

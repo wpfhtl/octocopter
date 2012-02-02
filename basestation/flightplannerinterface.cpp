@@ -23,6 +23,11 @@ void FlightPlannerInterface::slotSetScanVolume(const QVector3D min, const QVecto
     mScanVolumeMax = max;
 }
 
+void FlightPlannerInterface::slotClearVehiclePoses()
+{
+    mVehiclePoses.clear();
+}
+
 void FlightPlannerInterface::slotCheckWayPointsHashFromRover(const QString &hash)
 {
     if(WayPoint::hash(getWayPoints()) != hash)

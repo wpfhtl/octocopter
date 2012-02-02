@@ -124,11 +124,6 @@ QDebug operator<<(QDebug dbg, const Pose &pose);
 QDataStream& operator<<(QDataStream &out, const Pose &pose);
 QDataStream& operator>>(QDataStream &in, Pose &pose);
 
-
-
-
-
-
 // This belongs to laserscanner, but we don't want to introduce a laserscanner-dependency into basestation
 // This is defined in header to make it inlineable
 inline QVector3D getWorldPositionOfScannedPoint(const Pose& scannerPose, const quint16& scannerIndex, const float& distance)
@@ -154,11 +149,13 @@ inline QVector3D getWorldPositionOfScannedPoint(const Pose& scannerPose, const q
                     QVector3D(
                         sin(-0.0043633231299858238686f * (scannerIndex - 540)) * distance,  // X in meters
                         0.0,                                                                // Y always 0
-                        cos(-0.0043633231299858238686f * (scannerIndex - 540)) * distance   // Z in meters
+                        -cos(-0.0043633231299858238686f * (scannerIndex - 540)) * distance   // Z in meters
                         )
                     )
                 );
 #endif
+
+
 
     /* Elaborate version, slightly slower?!
 
@@ -168,7 +165,7 @@ inline QVector3D getWorldPositionOfScannedPoint(const Pose& scannerPose, const q
     const QVector3D vectorScannerToPoint(
                 sin(-index2rad(scannerIndex)) * distance,  // X in meters
                 0.0,                                                // Y always 0
-                cos(-index2rad(scannerIndex)) * distance); // Z in meters
+                -cos(-index2rad(scannerIndex)) * distance); // Z in meters
 
     // Or, even more optimized, as we cannot rely on gcc actually inlining what it marked as inline
 
@@ -181,8 +178,7 @@ inline QVector3D getWorldPositionOfScannedPoint(const Pose& scannerPose, const q
 //    qDebug() << "LaserScanner::getWorldPositionOfScannedPoint(): scanner to point in scanner frame is" << vectorScannerToPoint;
 //    qDebug() << "LaserScanner::getWorldPositionOfScannedPoint(): point position   in world   frame is" << scannedPoint;
 
-    return scannedPoint;
-    */
+    return scannedPoint; */
 }
 
 
