@@ -9,22 +9,8 @@ class SensorFuser : public QObject
     Q_OBJECT
 
 public:
-
-    /*
-    enum Behavior
-    {
-        WriteRawLogs = 0x01,
-        FuseData     = 0x02
-    };
-*/
     SensorFuser(const quint8& stridePoint = 1, const quint8& strideScan = 1);
     ~SensorFuser();
-
-    // SensorFuser writes logfiles of the raw incoming data. These files can be read later-on and fed
-    // line-by-line to this method, which is equivalent to calling the respective slots.
-    bool processLogLine(const QString& line);
-
-    bool processLog(const QString& fileName);
 
     void setMaximumFusableRayLength(const float& rayLength) {mMaximumFusableRayLength = rayLength;}
 
@@ -36,20 +22,17 @@ private:
 
     Pose mLaserScannerRelativePose;
 
-//    Behavior mBehavior; // write raw logs? fuse data?
-
     quint16 mStatsFusedScans;
     quint16 mStatsDiscardedScans;
-
-    QFile* mLogFileRawData;  // for poses, scans and scan-gps-timestamps
 
     // How much time difference from a scan to a pose (or vice versa) in past or future for the data to be usable for interpolation?
     quint8 mMaximumTimeBetweenFusedPoseAndScanMsec;
     qint32 mMaximumTimeBetweenMatchingScans;
 
-    float mMaximumFusableRayLength;
+    float mMaximumFusableRayLength; // rays longer than this will be ignored (because they introduce too much error due to orientation errors)
 
-    qint32 mNewestDataTime;
+    qint32 mNewestDataTime; // used to clear data older than X ms
+    qint32 mLastScanMiddleTow; // the last time the GNSS told us about the TOW of a scanSweepMiddle.
 
     Pose mLastInterpolatedPose; // Interpolated poses can be used for many consecutive rays sharing the same millisecond...
     qint32 mLastRayTime; // .. and this var is used to store that msec of the last computed ray.
