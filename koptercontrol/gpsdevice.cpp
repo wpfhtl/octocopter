@@ -121,9 +121,9 @@ quint8 GpsDevice::slotFlushCommandQueue()
         mNumberOfRemainingRepliesUsb++;
 
         QTextStream commandLog(mLogFileCmd);
-        commandLog << endl << "################################################################################" << endl << endl;
+        commandLog << endl << endl << "################################################################################" << endl << endl;
         commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << " HOST -> DEV: " << mLastCommandToDeviceUsb << endl;
-        commandLog << endl << "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" << endl << endl;
+        commandLog << "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" << endl << endl;
     }
     else if(mNumberOfRemainingRepliesUsb)
     {
@@ -310,7 +310,6 @@ void GpsDevice::slotCommunicationSetup()
     // explicitly allow rover to use all RTCMv3 correction messages
     slotQueueCommand("setRTCMv3Usage,all");
 
-    // Send IntPVAAGeod on Stream1. First slowly, then with 25 Hz when things are initialized and fixed.
     // We want to know the pose 25 times a second
     slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec40");
 
@@ -387,7 +386,7 @@ void GpsDevice::slotDataReadyOnUsb()
 
             QTextStream commandLog(mLogFileCmd);
             commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << " DEV -> HOST: " << mReceiveBufferUsb.left(positionEndOfReply).trimmed() << endl;
-            commandLog << endl << "################################################################################" << endl << endl;
+            commandLog << endl << "################################################################################" << endl << endl << endl;
 
             // After sending/receiving the SetPvtMode command, the rover needs to be static for better alignment. Tell the user to wait!
             if(QString(mReceiveBufferUsb.left(positionEndOfReply)).contains("SetPvtMode", Qt::CaseInsensitive))
