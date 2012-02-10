@@ -30,7 +30,7 @@ qint32 SbfParser::peekNextTow(const QByteArray& sbfData)
 
 void SbfParser::slotEmitCurrentGpsStatus()
 {
-    emit gpsStatus(mGpsStatus);
+    emit status(mGpsStatus);
 }
 
 quint16 SbfParser::getCrc(const void *buf, unsigned int length)
