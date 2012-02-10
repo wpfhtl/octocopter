@@ -336,8 +336,8 @@ void GpsDevice::slotCommunicationSetup()
     slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
 
     // For now, record support messages for septentrio
-    slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,msec100");
-    slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",ExtSensorMeas+AttEuler,msec20");
+    slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,msec500"); // msec 100
+    slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",ExtSensorMeas+AttEuler,msec500"); // msec20
 
     // show current config
     slotQueueCommand("lstConfigFile,Current");
