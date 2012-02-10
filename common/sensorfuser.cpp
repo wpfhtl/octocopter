@@ -480,7 +480,7 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
     }
 }
 
-void SensorFuser::slotNewScanData(const quint32& timestampScanScanner, std::vector<long> * const distances)
+void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, std::vector<long> * const distances)
 {
     qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
 
@@ -494,7 +494,7 @@ void SensorFuser::slotNewScanData(const quint32& timestampScanScanner, std::vect
     }
 
     mScansTimestampScanner.insert(timestampScanScanner, distances);
-    mNewestDataTime = std::max((unsigned int)mNewestDataTime, timestampScanScanner);
+    mNewestDataTime = std::max(mNewestDataTime, timestampScanScanner);
 
     cleanUnusableData();
 }

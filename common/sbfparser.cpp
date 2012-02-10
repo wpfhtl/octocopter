@@ -54,11 +54,12 @@ void SbfParser::setPose(const qint32& lon, const qint32& lat, const qint32& alt,
     const double floatLat = ((double)lat) / 10000000.0l;
     const double floatAlt = ((double)alt) / 1000.0l;
 
+    // Please look at the septentrio "Firmware user manual", page 47ff for conversion rules.
     mLastPose = Pose(
                 convertGeodeticToCartesian(floatLon, floatLat, floatAlt),
-                ((double)heading) * 0.01l,
+                -((double)heading) * 0.01l, // Z axis points down in VehicleReferenceFrame, values from 0 to 360, both point north
                 ((double)pitch) * 0.01l,
-                ((double)roll) * 0.01l,
+                -((double)roll) * 0.01l, // their roll axis points forward from the vehicle. We have it OpenGL-style with Z pointing backwards
                 (qint32)tow // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
                 );
 }

@@ -101,7 +101,7 @@ public slots:
     void slotScanFinished(const quint32& timestamp);
 
     // Used to feed data from the laserscanner
-    void slotNewScanData(const quint32& timestampScanner, std::vector<long> * const distances);
+    void slotNewScanData(const qint32& timestampScanner, std::vector<long> * const distances);
 
 signals:
     void newScannedPoints(const QVector<QVector3D>&, const QVector3D& scanPosition);

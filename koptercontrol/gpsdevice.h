@@ -24,7 +24,7 @@ public:
     GpsDevice(const QString &serialDeviceUsb, const QString &serialDeviceCom, QString logFilePrefix, QObject *parent = 0);
     ~GpsDevice();
 
-    // Our parent (koptercontrol) needs a handle to conect SbfParser to BaseConnection
+    // Our parent (koptercontrol) needs a handle to conect SbfParser to BaseConnection and LaserScanner (to set time)
     SbfParser* getSbfParser(void) {return mSbfParser;}
 
 private:
@@ -53,7 +53,7 @@ private:
 
 
     // Sets the internal pose according to the given GPS readings
-    void setPose(const qint32& lon, const qint32& lat, const qint32& alt, const quint16& heading, const qint16& pitch, const qint16& roll, const quint32& tow);
+//    void setPose(const qint32& lon, const qint32& lat, const qint32& alt, const quint16& heading, const qint16& pitch, const qint16& roll, const qint32& tow);
 
     // This method finds out how many seconds are left before the TOW (time-of-week)
     // value in the receiver rolls over, potentially screwing up our calculcations.

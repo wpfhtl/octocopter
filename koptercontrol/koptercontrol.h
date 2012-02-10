@@ -3,6 +3,8 @@
 
 #include <sys/socket.h>
 #include <signal.h>
+#include <unistd.h> // getuid()
+#include <sys/types.h> // getuid()
 
 #include <QCoreApplication>
 #include <QList>

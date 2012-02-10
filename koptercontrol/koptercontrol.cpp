@@ -130,8 +130,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     connect(mGpsDevice->getSbfParser(), SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mGpsDevice, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
-
-    connect(mGpsDevice->getSbfParser(), SIGNAL(gpsTimeOfWeekEstablished(quint32)), mLaserScanner, SLOT(slotSetScannerTimeStamp(quint32)));
+    connect(mGpsDevice->getSbfParser(), SIGNAL(gpsTimeOfWeekEstablished(qint32)), mLaserScanner, SLOT(slotSetScannerTimeStamp(qint32)));
 
     connect(mGpsDevice->getSbfParser(),SIGNAL(status(GpsStatusInformation::GpsStatus)), mBaseConnection, SLOT(slotNewGpsStatus(GpsStatusInformation::GpsStatus)));
 
@@ -141,7 +140,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePoseLowFreq(Pose)), mBaseConnection, SLOT(slotNewVehiclePose(Pose)));
     connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePoseLowFreq(Pose)), mLaserScanner, SLOT(slotEnableScanning()));
     connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePosePrecise(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
-    connect(mLaserScanner, SIGNAL(newScanData(quint32, std::vector<long>*const)), mSensorFuser, SLOT(slotNewScanData(quint32,std::vector<long>*const)));
+    connect(mLaserScanner, SIGNAL(newScanData(qint32, std::vector<long>*const)), mSensorFuser, SLOT(slotNewScanData(qint32,std::vector<long>*const)));
     connect(mSensorFuser, SIGNAL(newScannedPoints(QVector<QVector3D>,QVector3D)), mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector3D>,QVector3D)));
 
     mTimerComputeMotion = new QTimer(this);
@@ -217,6 +216,8 @@ void KopterControl::slotHandleSignal()
 
 int main(int argc, char **argv)
 {
+    if(getuid() != 0) qFatal("I must be run as root so I can synchronize system time to GNSS time. Bye.");
+
     setupUnixSignalHandlers();
 
     KopterControl KopterControl(argc, argv);

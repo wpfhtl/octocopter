@@ -83,19 +83,21 @@ bool LogPlayer::slotOpenLogFiles()
     // The file doesn't always start with valid sbf, so lets seek to the first packet
     mIndexSbf = mDataSbf.indexOf("$@", 0);
 
+    // We try to open the laser log. But even if this fails, do not abort, as SBF only is still something we can work with for playing back
     const QString fileNameLaser = QFileDialog::getOpenFileName(this, "Select laser log", QString(), "Laser Data (*.lsr)");
     QFile fileLaser(fileNameLaser);
     if(!fileLaser.open(QIODevice::ReadOnly))
     {
-        if(fileNameLaser.isEmpty()) return false;
-        emit message(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Unable to open Laser log file");
-        QMessageBox::critical(this, "Error opening file", "Unable to open Laser log file");
-        mDataSbf.clear();
-        return false;
+        //if(fileNameLaser.isEmpty()) return false;
+        emit message(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Unable to open Laser log file %1").arg(fileNameLaser));
+        //mDataSbf.clear();
+    }
+    else
+    {
+        emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Reading Laser log file %1...").arg(fileNameLaser));
+        mDataLaser = fileLaser.readAll();
     }
 
-    emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Reading Laser log file %1...").arg(fileNameLaser));
-    mDataLaser = fileLaser.readAll();
     mIndexLaser = 0;
 
     return true;

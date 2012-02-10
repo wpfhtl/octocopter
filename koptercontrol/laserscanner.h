@@ -43,28 +43,11 @@ public:
 
     inline static quint8 getScanDuration() {return 25;}
 
-/*
-    // This is the static version of index2rad, valid only for UTM 30 LX.
-    static inline float index2rad(int index)
-    {
-        // Algorithm is: return (2.0 * M_PI) * (index - 540) / 1440;
-        // Where 540 is ray-index of front rray AFRT in SCIP protocol) and 1440 is number of rays in 360° (ARES in SCIP protocol)
-
-        // The correct result for index 720 seems to be   0.785398163397448296348
-
-        // When returning double, result for index 720 is 0.785398163397448279   (error 0.000000000000000017348 = 2E-17)
-        //return 0.0043633231299858238686 * (index - 540);
-
-        // When returning float , result for index 720 is 0.78539818525314331055 (error 0.000000021855695014202 = 2E-8)
-        return 0.0043633231299858238686f * (index - 540);
-    }
-*/
-
 public slots:
     void slotEnableScanning(const bool& = true);
 
     // To set the laserscanner's timestamp to the gps time. Hopefully.
-    void slotSetScannerTimeStamp(const quint32& timestamp);
+    void slotSetScannerTimeStamp(const qint32& timestamp);
 
 signals:
     void bottomBeamLength(const float&);
@@ -73,7 +56,7 @@ signals:
     void message(const LogImportance& importance, const QString&, const QString& message);
 
     // Emits new scan data, allocated on heap. Ownership is passed to receiver(s).
-    void newScanData(quint32 timestampScanner, std::vector<long> * const distances);
+    void newScanData(qint32 timestampScanner, std::vector<long> * const distances);
 };
 
 #endif
