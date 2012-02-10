@@ -21,7 +21,7 @@ class GpsDevice : public QObject
     Q_OBJECT
 
 public:
-    GpsDevice(QString &serialDeviceUsb, QString &serialDeviceCom, QObject *parent = 0);
+    GpsDevice(const QString &serialDeviceUsb, const QString &serialDeviceCom, QString logFilePrefix, QObject *parent = 0);
     ~GpsDevice();
 
     // Our parent (koptercontrol) needs a handle to conect SbfParser to BaseConnection
@@ -30,6 +30,9 @@ public:
 private:
     QFile* mLogFileSbf;
     QFile* mLogFileCmd;
+
+    // To emit status in regular intervals
+    QTimer* mStatusTimer;
 
     SbfParser* mSbfParser;
 

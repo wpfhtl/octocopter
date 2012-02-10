@@ -56,8 +56,6 @@ class SbfParser : public QObject
 {
     Q_OBJECT
 private:
-    bool mFirmwareBug_20120111_RtkWasEnabledAfterAttitudeDeterminationSucceeded;
-
     Pose mLastPose;
 
     GpsStatusInformation::GpsStatus mGpsStatus;
@@ -67,9 +65,6 @@ private:
     quint8 mPoseClockDivisor; // for emitting a low-frequency pose for debugging
 
     double mOriginLongitude, mOriginLatitude, mOriginElevation;
-
-    // To emit status in regular intervals
-//    QTimer* mStatusTimer;
 
     struct Sbf_Header
     {
@@ -267,23 +262,6 @@ signals:
 
     void processedPacket(const QByteArray& sbfPacket);
 
-//    void newInfo(const quint16&);
-//    void newInfoText(const QString&);
-
-//    void newIntegrationMode(const quint8&);
-//    void newIntegrationModeText(const QString&);
-
-//    void newGnssMode(const quint8&);
-//    void newGnssModeText(const QString&);
-
-//    void newError(const quint8&);
-//    void newErrorText(const QString&);
-
-//    void newCpuLoad(const quint8&);
-//    void newMeanCorrAge(const quint8&);
-//    void newCovariances(const float& maxCov);
-//    void newTimeOfWeek(qint32& tow);
-
     // log/status messages
     void message(const LogImportance& importance, const QString&, const QString& message);
     void status(const GpsStatusInformation::GpsStatus&);
@@ -293,10 +271,11 @@ signals:
     // Again, timestamp is number of milliseconds since last sunday 00:00:00 AM (midnight)
     void scanFinished(const quint32& timestamp);
 
-    void gpsTimeOfWeekEstablished(const quint32& timestamp);
+    void gpsTimeOfWeekEstablished(const qint32& timestamp);
 
-private slots:
-//    void slotEmitCurrentGpsStatus(const QString& text = QString());
+public slots:
+    // Can be called on rover by GpsDevice to ensure base is up to date even when few things change in the fields
+    void slotEmitCurrentGpsStatus();
 
 
 };

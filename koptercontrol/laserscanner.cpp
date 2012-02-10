@@ -4,13 +4,13 @@
 #include <iostream>
 #include <fstream>
 
-LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeScannerPose) : QObject(), mRelativeScannerPose(relativeScannerPose)
+LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeScannerPose, QString logFilePrefix) : QObject(), mRelativeScannerPose(relativeScannerPose)
 {
     qDebug() << "LaserScanner::LaserScanner(): initializing laserscanner";
 
     mDeviceFileName = deviceFileName;
 
-    mLogFile = new QFile(QString("log/kopterlog-%1-%2-scannerdata.lsr").arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmm00")).arg(QString::number(QCoreApplication::applicationPid())));
+    mLogFile = new QFile(logFilePrefix + QString("scannerdata.lsr"));
     if(!mLogFile->open(QIODevice::WriteOnly | QIODevice::Text))
         qFatal("LaserScanner::LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
 

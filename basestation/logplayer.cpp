@@ -78,7 +78,7 @@ bool LogPlayer::slotOpenLogFiles()
         return false;
     }
 
-    emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Reading SBF log file...");
+    emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Reading SBF log file %1...").arg(fileNameSbf));
     mDataSbf = fileSbf.readAll();
     // The file doesn't always start with valid sbf, so lets seek to the first packet
     mIndexSbf = mDataSbf.indexOf("$@", 0);
@@ -94,7 +94,7 @@ bool LogPlayer::slotOpenLogFiles()
         return false;
     }
 
-    emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Reading Laser log file...");
+    emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Reading Laser log file %1...").arg(fileNameLaser));
     mDataLaser = fileLaser.readAll();
     mIndexLaser = 0;
 

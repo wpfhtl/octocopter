@@ -10,20 +10,10 @@ SbfParser::SbfParser(QObject *parent) : QObject(parent)
     mTimeStampStartup = QDateTime::currentDateTime();
 
     mPoseClockDivisor = 0;
-
-    mFirmwareBug_20120111_RtkWasEnabledAfterAttitudeDeterminationSucceeded = false;
-
-//    mStatusTimer = new QTimer(this);
-//    mStatusTimer->setInterval(1000);
-//    connect(mStatusTimer, SIGNAL(timeout()), SLOT(slotEmitCurrentGpsStatus()));
-//    mStatusTimer->start(); // emit status signal periodically.
 }
 
 SbfParser::~SbfParser()
 {
-    // no need to update status of a disabled device
-//    mStatusTimer->stop();
-//    mStatusTimer->deleteLater();
 }
 
 qint32 SbfParser::peekNextTow(const QByteArray& sbfData)
@@ -38,15 +28,10 @@ qint32 SbfParser::peekNextTow(const QByteArray& sbfData)
     return 0;
 }
 
-/*void SbfParser::slotEmitCurrentGpsStatus(const QString& text)
+void SbfParser::slotEmitCurrentGpsStatus()
 {
-    emit gpsStatus(mLastGpsStatus, text);
-
-    emit message(
-                Information,
-                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                );
-}*/
+    emit gpsStatus(mGpsStatus);
+}
 
 quint16 SbfParser::getCrc(const void *buf, unsigned int length)
 {
@@ -165,6 +150,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
     {
         // PVTCartesian
         const Sbf_PVTCartesian *block = (Sbf_PVTCartesian*)sbfData.data();
+        // block->MeanCorrAge is quint16 in hundreds of a second
 //        qDebug() << "SBF: PVTCartesian: MeanCorrAge in seconds:" << ((float)block->MeanCorrAge)/100.0;
         mGpsStatus.meanCorrAge = std::min(block->MeanCorrAge / 10, 255);
     }
@@ -191,12 +177,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
 
 //        qDebug() << "SBF: ReceiverStatus: CPU Load:" << block->CPULoad;
 
-        // Only emit changes when CPU load changes a lot.
-        if(abs(mGpsStatus.cpuLoad - block->CPULoad) > 0)
-        {
-            mGpsStatus.cpuLoad = block->CPULoad;
-//            emit status(mGpsStatus);
-        }
+        mGpsStatus.cpuLoad = block->CPULoad;
 
         if(block->CPULoad > 80)
         {
@@ -520,7 +501,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         {
             // Set system time to gps time. Adding a roundtrip-timer is not a good idea, as the board waits until the
             // second leaps, meaning the time from request to output doesn't equal the time from output to reception.
-            emit gpsTimeOfWeekEstablished(block->TOW);
+            emit gpsTimeOfWeekEstablished((qint32)block->TOW);
         }
     }
     break;
@@ -563,8 +544,8 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
     }
     }
 
-    // emit new status if it changed.
-    if(mGpsStatus != previousGpsStatus) emit status(mGpsStatus);
+    // emit new status if it changed significantly.
+    if(mGpsStatus.differentOrInterestingComparedTo(previousGpsStatus)) emit status(mGpsStatus);
 
     // Announce what packet we just processed. Might be used for logging.
     emit processedPacket(sbfData.left(msgLength));

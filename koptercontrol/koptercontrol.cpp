@@ -31,15 +31,23 @@ void setupUnixSignalHandlers()
 
 KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, argv)
 {
-    // set up signal handling
+    // Set up signal handling
     if (::socketpair(AF_UNIX, SOCK_STREAM, 0, signalFd)) qFatal("Couldn't create INT socketpair");
 
     snSignalPipe = new QSocketNotifier(signalFd[1], QSocketNotifier::Read, this);
     connect(snSignalPipe, SIGNAL(activated(int)), SLOT(slotHandleSignal()));
 
-    // make sure logging dir exists
+    // Make sure logging dir exists
     if(!QDir::current().mkpath("log"))
         qFatal("KopterControl::KopterControl(): couldn't create log/ subdirectory, please do it for me!");
+
+    // Create a logfile-prefix
+    QString logFilePrefix = QString("log/kopterlog-%1-%2-")
+            .arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss"))
+            .arg(QString::number(QCoreApplication::applicationPid()));
+    const QStringList args = QCoreApplication::arguments();
+    if(args.size() == 2) logFilePrefix.append(QString("%1-").arg(args.last()));
+    qDebug() << "KopterControl::KopterControl(): logfile prefix is" << logFilePrefix;
 
     QString networkInterface = "wlan0";
     QString deviceCamera = "/dev/video0";
@@ -96,10 +104,11 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
                     -090.0,         // 90 deg pitched down
                     +000.0,         // No rolling
                     10             // Use 10 msec TOW, so that the relative pose is always older than whatever new pose coming in. Don't use 0, as that would be set to current TOW, which might be newer due to clock offsets.
-                    )
+                    ),
+                logFilePrefix
                 );
-    mGpsDevice = new GpsDevice(deviceSerialGpsUsb, deviceSerialGpsCom, this);
-    mSensorFuser = new SensorFuser;//(static_cast<SensorFuser::Behavior>(SensorFuser::WriteRawLogs/* | SensorFuser::FuseData*/));
+    mGpsDevice = new GpsDevice(deviceSerialGpsUsb, deviceSerialGpsCom, logFilePrefix, this);
+    mSensorFuser = new SensorFuser;
     mSensorFuser->setLaserScannerRelativePose(mLaserScanner->getRelativePose());
 
     mBaseConnection = new BaseConnection(networkInterface);

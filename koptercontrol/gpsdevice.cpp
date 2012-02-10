@@ -20,20 +20,20 @@
  *
  */
 
-GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom, QObject *parent) : QObject(parent)
+GpsDevice::GpsDevice(const QString &serialDeviceFileUsb, const QString &serialDeviceFileCom, QString logFilePrefix, QObject *parent) : QObject(parent)
 {
     qDebug() << "GpsDevice::GpsDevice(): Using usb port" << serialDeviceFileUsb << "and com port" << serialDeviceFileCom;
 
-    mLogFileSbf = new QFile(QString("log/kopterlog-%1-%2-gnssdata.sbf").arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmm00")).arg(QString::number(QCoreApplication::applicationPid())));
+    mLogFileSbf = new QFile(logFilePrefix + QString("gnssdata.sbf"));
     if(!mLogFileSbf->open(QIODevice::WriteOnly)) qFatal("GpsDevice::GpsDevice(): couldn't open sbf log file for writing, exiting");
 
-    mLogFileCmd = new QFile(QString("log/kopterlog-%1-%2-gnsscommands.txt").arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmm00")).arg(QString::number(QCoreApplication::applicationPid())));
+    mLogFileCmd = new QFile(logFilePrefix + QString("gnsscommands.txt"));
     if(!mLogFileCmd->open(QIODevice::WriteOnly)) qFatal("GpsDevice::GpsDevice(): couldn't open cmd log file for writing, exiting");
 
     mSbfParser = new SbfParser;
     // If our SBF parser has a question to the device, forward it.
     connect(mSbfParser, SIGNAL(receiverCommand(QString)), SLOT(slotQueueCommand(QString)));
-    connect(mSbfParser, SIGNAL(gpsTimeOfWeekEstablished(quint32)), SLOT(slotSetSystemTime(qint32)));
+    connect(mSbfParser, SIGNAL(gpsTimeOfWeekEstablished(qint32)), SLOT(slotSetSystemTime(qint32)));
 
     // We first feed SBF data to SbfParser, then we get it back from it via the signal below. A little complicated,
     // but the alternative is to watch two ports for incoming SBF, which might lead to mixing of SBF in between
@@ -41,7 +41,6 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
     connect(mSbfParser, SIGNAL(processedPacket(QByteArray)), SLOT(slotLogProcessedSbfPacket(QByteArray)));
 
     mDeviceIsInitialized = false;
-
 
     mNumberOfRemainingRepliesUsb = 0; // Should never be > 1 as we wait with sending until last command is replied to.
     mRtkDataCounter = 0;
@@ -81,6 +80,10 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
     mSerialPortCom->setFlowControl(AbstractSerial::FlowControlOff);
     connect(mSerialPortCom, SIGNAL(readyRead()), SLOT(slotDataReadyOnCom()));
 
+    mStatusTimer = new QTimer(this);
+    mStatusTimer->setInterval(1000);
+    connect(mStatusTimer, SIGNAL(timeout()), mSbfParser, SLOT(slotEmitCurrentGpsStatus()));
+    mStatusTimer->start(); // emit status signal periodically.
 
     // initialize the device whenever we get time to do this. By doing it asynchronously, we can give our creator time to connect our signals and fetch them.
     QTimer::singleShot(0, this, SLOT(slotDetermineSerialPortsOnDevice()));
@@ -89,13 +92,23 @@ GpsDevice::GpsDevice(QString &serialDeviceFileUsb, QString &serialDeviceFileCom,
 GpsDevice::~GpsDevice()
 {
     mSerialPortUsb->close();
+    mSerialPortUsb->deleteLater();
+
     mSerialPortCom->close();
+    mSerialPortCom->deleteLater();
 
     mLogFileCmd->flush();
     mLogFileCmd->close();
+    mLogFileCmd->deleteLater();
 
     mLogFileSbf->flush();
     mLogFileSbf->close();
+    mLogFileSbf->deleteLater();
+
+    mStatusTimer->stop();
+    mStatusTimer->deleteLater();
+
+    mSbfParser->deleteLater();
 
     qDebug() << "GpsDevice::~GpsDevice(): ports closed, SBF file flushed, destructed.";
 }
@@ -386,7 +399,7 @@ void GpsDevice::slotDataReadyOnUsb()
 
             QTextStream commandLog(mLogFileCmd);
             commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << " DEV -> HOST: " << mReceiveBufferUsb.left(positionEndOfReply).trimmed() << endl;
-            commandLog << endl << "################################################################################" << endl << endl << endl;
+            commandLog << endl << "################################################################################" << endl << endl << endl << endl;
 
             // After sending/receiving the SetPvtMode command, the rover needs to be static for better alignment. Tell the user to wait!
             if(QString(mReceiveBufferUsb.left(positionEndOfReply)).contains("SetPvtMode", Qt::CaseInsensitive))

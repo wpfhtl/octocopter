@@ -3,6 +3,7 @@
 
 #include <QDebug>
 #include <QString>
+#include <math.h>
 
 #include <common.h>
 
@@ -19,9 +20,9 @@ public:
         quint16 info;
         quint8 error;
         quint8 numSatellitesUsed;
-        quint8 gnssAge;
-        quint8 meanCorrAge;
-        quint8 cpuLoad;
+        quint8 gnssAge; // septentrio is still unsure whether its milliseconds or seconds
+        quint8 meanCorrAge; // tenths of a second, giving 0.0 - 25.5 seconds
+        quint8 cpuLoad; // in percent
         float covariances;
 
         GpsStatus()
@@ -54,6 +55,19 @@ public:
                     && covariances == b.covariances;
         }
 
+        bool differentOrInterestingComparedTo(const GpsStatus& b)
+        {
+            return gnssMode != b.gnssMode
+                    || integrationMode != b.integrationMode
+                    || info != b.info
+                    || error != b.error
+                    || abs(numSatellitesUsed - b.numSatellitesUsed) > 1
+                    || abs(gnssAge - b.gnssAge) > 6
+                    || meanCorrAge > 30
+                    || cpuLoad > 80
+                    || abs(cpuLoad - b.cpuLoad) > 1
+                    || fabs(covariances - b.covariances) > 0.1;
+        }
 
     };
 
