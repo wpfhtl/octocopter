@@ -245,8 +245,12 @@ public:
     SbfParser(QObject *parent = 0);
     ~SbfParser();
 
-    // Returns the TOW of the next SBF packet in @sbfData, or -1 of there is no packet at the beginning of @sbfData
-    qint32 peekNextTow(const QByteArray& sbfData);
+
+    // Returns the TOW of the next SBF packet in @sbfData, or -1 in case of errors
+    qint32 extractTow(const QByteArray& sbfData);
+
+    // Returns the packet's length as specified in its header. Has no error-checking!
+    qint32 extractLengthFromHeader(const QByteArray& sbfData);
 
     // Tries to process a single SBF packet in @sbfData, even if @sbfData contains many SBF packets.
     // This method also removes processed packet-data from @sbfData.

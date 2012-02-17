@@ -323,6 +323,11 @@ void GpsDevice::slotCommunicationSetup()
     // explicitly allow rover to use all RTCMv3 correction messages
     slotQueueCommand("setRTCMv3Usage,all");
 
+    // Possible intervals:
+    //  msec: 10, 20, 40, 50, 100, 200, 500
+    //  sec:  1, 2, 5, 10, 15, 30, 60
+    //  min:  2, 5, 10, 15, 30, 60
+
     // We want to know the pose 25 times a second
     slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec40");
 
@@ -336,8 +341,8 @@ void GpsDevice::slotCommunicationSetup()
     slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
 
     // For now, record support messages for septentrio
-    slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,msec500"); // msec 100
-    slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",ExtSensorMeas+AttEuler,msec500"); // msec20
+    slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,msec500"); // septentrio wants msec100, but that kills the cpu
+    slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",ExtSensorMeas+AttEuler,msec500"); // septentrio wants msec20, but that kills the cpu
 
     // show current config
     slotQueueCommand("lstConfigFile,Current");

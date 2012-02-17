@@ -80,8 +80,6 @@ bool LogPlayer::slotOpenLogFiles()
 
     emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Reading SBF log file %1...").arg(fileNameSbf));
     mDataSbf = fileSbf.readAll();
-    // The file doesn't always start with valid sbf, so lets seek to the first packet
-    mIndexSbf = mDataSbf.indexOf("$@", 0);
 
     // We try to open the laser log. But even if this fails, do not abort, as SBF only is still something we can work with for playing back
     const QString fileNameLaser = QFileDialog::getOpenFileName(this, "Select laser log", QString(), "Laser Data (*.lsr)");
@@ -98,53 +96,51 @@ bool LogPlayer::slotOpenLogFiles()
         mDataLaser = fileLaser.readAll();
     }
 
-    mIndexLaser = 0;
+    slotRewind();
 
     return true;
 }
 
 void LogPlayer::slotRewind()
 {
+    // The file doesn't always start with valid sbf, so lets seek to the first packet
     mIndexSbf = mDataSbf.indexOf("$@", 0);
     mIndexLaser = 0;
 }
 
-qint32 LogPlayer::getPacketTow(const LogPlayer::DataSource& source, const LogPlayer::Direction& direction)
+qint32 LogPlayer::getPacketTow(const LogPlayer::DataSource& source)
 {
-    qint32 tow = 0;
+    qint32 tow = -1;
     if(source == DataSource_SBF)
     {
-        /*const*/ QByteArray nextPacketSbf = getPacket(source, direction);
+        /*const*/ QByteArray nextPacketSbf = getPacket(source);
         if(nextPacketSbf.size())
-            tow = mSbfParser->peekNextTow(nextPacketSbf);
+            tow = mSbfParser->extractTow(nextPacketSbf);
 
         // sanity check
         if(tow < 0)
         {
-//            qDebug() << "LogPlayer::getPacketTow(): tow is" << tow << "packet has"<< nextPacketSbf.size() << "bytes:" << nextPacketSbf;
+            qDebug() << "LogPlayer::getPacketTow(): tow is" << tow << "packet has"<< nextPacketSbf.size() << "bytes:" << nextPacketSbf;
 //            qDebug() << "processing to see contents:";
 //            mSbfParser->processSbfData(nextPacketSbf);
-            //Q_ASSERT(false);
+            Q_ASSERT(false);
         }
     }
     else if(source == DataSource_Laser)
     {
-        const QByteArray nextPacketLaser = getPacket(source, direction);
+        const QByteArray nextPacketLaser = getPacket(source);
+
+        // If we can extract something, fine. If not, we might just not have any laser data at all.
         if(nextPacketLaser.size())
             tow = nextPacketLaser.split(' ').at(0).toInt();
-
-        // sanity check
-        if(tow < 0)
-        {
-            qDebug() << "LogPlayer::getPacketTow(): tow is" << tow << "packet is" << nextPacketLaser;
-            Q_ASSERT(false);
-        }
+        else
+            Q_ASSERT(!mDataLaser.size());
     }
 
     return tow;
 }
 
-QByteArray LogPlayer::getPacket(const LogPlayer::DataSource& source, const LogPlayer::Direction& direction)
+QByteArray LogPlayer::getPacket(const LogPlayer::DataSource& source)
 {
 //    qDebug() << "LogPlayer::getPacket(): index sbf:" << mIndexSbf << "lsr:" << mIndexLaser;
     QByteArray result;
@@ -156,24 +152,42 @@ QByteArray LogPlayer::getPacket(const LogPlayer::DataSource& source, const LogPl
             )
         return result;
 
-    if(
-            direction == Direction_Backward &&
-            ((source == DataSource_SBF && (mIndexSbf <= 0 || !mDataSbf.size())) || (source == DataSource_Laser && (mIndexLaser <= 0 || !mDataLaser.size())))
-            )
-        return result;
-
-    if(source == DataSource_SBF && direction == Direction_Forward)
+    if(source == DataSource_SBF)
     {
         const int indexEndOfNextPacketSbf = mDataSbf.indexOf("$@", mIndexSbf + 1);
-        if(indexEndOfNextPacketSbf > 0)
+        if(indexEndOfNextPacketSbf < 0)
+        {
+            // If we cannot find another occurence, enlarge our packet to the last
+            // byte of our SBF data. This code should only be reached for the last
+            // SBF packet in a stream.
+            result = QByteArray(mDataSbf.data() + mIndexSbf, mDataSbf.size() - mIndexSbf);
+        }
+        else
+        {
             result = QByteArray(mDataSbf.data() + mIndexSbf, indexEndOfNextPacketSbf - mIndexSbf);
-    }
 
-    if(source == DataSource_SBF && direction == Direction_Backward)
-    {
-        const int indexBeginningOfPreviousPacketSbf = mDataSbf.lastIndexOf("$@", mIndexSbf - 1);
-        if(indexBeginningOfPreviousPacketSbf > 0)
-            result = QByteArray(mDataSbf.data() + indexBeginningOfPreviousPacketSbf, mIndexSbf - indexBeginningOfPreviousPacketSbf);
+            // @result is probably correct, except when an SBF packet contains the $@-string IN ITS DATA!
+            // In that case, we haven't fetched enough data to make up a complete packet. So, enlarge the
+            // packet to the next occurence of $@...
+            while(mSbfParser->extractTow(result) < 0)
+            {
+                const int nextIndexEndOfNextPacketSbf = mDataSbf.indexOf("$@", mIndexSbf + 1 + result.size());
+
+                if(nextIndexEndOfNextPacketSbf < 0)
+                {
+                    // If we cannot find another occurence, enlarge our packet to the last
+                    // byte of our SBF data. This is a cornercase.
+                    result = QByteArray(mDataSbf.data() + mIndexSbf, mDataSbf.size() - mIndexSbf);
+                    break;
+                }
+                else
+                {
+                    // Extend @result up to the next occurence of $@... Then peekNextTow (which checks the
+                    // packet's CRCs should return a valid TOW.
+                    result = QByteArray(mDataSbf.data() + mIndexSbf, nextIndexEndOfNextPacketSbf - mIndexSbf);
+                }
+            }
+        }
     }
 
     if(source == DataSource_Laser && direction == Direction_Forward)
@@ -222,19 +236,19 @@ QByteArray LogPlayer::getPacket(const LogPlayer::DataSource& source, const LogPl
 
 bool LogPlayer::slotStepForward()
 {
-    QByteArray packetSbf = getPacket(DataSource_SBF, Direction_Forward);
-    QByteArray packetLaser = getPacket(DataSource_Laser, Direction_Forward);
+    QByteArray packetSbf = getPacket(DataSource_SBF);
+    QByteArray packetLaser = getPacket(DataSource_Laser);
 
-    qint32 towSbf = mSbfParser->peekNextTow(packetSbf);
-    qint32 towLaser = packetLaser.left(15).split(' ').at(0).toInt(); // tow is in first 9 bytes, use 15 to be sure. QByteArray::toInt() returns 0 on failure
+    qint32 towSbf = getPacketTow(DataSource_SBF);//mSbfParser->extractTow(packetSbf);
+    qint32 towLaser = getPacketTow(DataSource_Laser);//packetLaser.left(15).split(' ').at(0).toInt(); // tow is in first 9 bytes, use 15 to be sure. QByteArray::toInt() returns 0 on failure
 
-    if(towSbf != 0 && (towSbf < towLaser || towLaser == 0))
+    if(towSbf > 0 && (towSbf < towLaser || towLaser == -1))
     {
         // process SBF
         mIndexSbf += packetSbf.size();
         mSbfParser->processSbfData(packetSbf);
     }
-    else if(towLaser != 0)
+    else if(towLaser >= 0)
     {
         // process laser data
 //        qDebug() << "LogPlayer::slotStepForward(): processing LSR data from TOW" << towLaser;
@@ -244,49 +258,14 @@ bool LogPlayer::slotStepForward()
     }
     else if(towSbf < 0)
     {
-//        qDebug() << "LogPlayer::slotStepForward(): caught negative TOW in SBF packet, ignoring packet of size" << packetSbf.size();
+        Q_ASSERT(false);
+        qDebug() << "LogPlayer::slotStepForward(): caught negative TOW in SBF packet, ignoring packet of size" << packetSbf.size();
         mIndexSbf += packetSbf.size();
     }
     else
     {
 //        qDebug() << "LogPlayer::slotStepForward(): seems I'm at the end, cannot fetch further SBF or Laser packets from logs.";
         emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Reached end of log data.");
-        return false;
-    }
-
-    return true;
-}
-
-bool LogPlayer::slotStepBack()
-{
-//    qDebug() << "stepping backwards: indexSbf" << mIndexSbf << "indexLsr" << mIndexLaser;
-    QByteArray packetSbf = getPacket(DataSource_SBF, Direction_Backward);
-    QByteArray packetLaser = getPacket(DataSource_Laser, Direction_Backward);
-
-    qint32 towSbf = mSbfParser->peekNextTow(packetSbf);
-    qint32 towLaser = packetLaser.left(15).split(' ').at(0).toInt(); // tow is in first 9 bytes, use 15 to be sure. QByteArray::toInt() returns 0 on failure
-
-//    qDebug() << "stepping backwards: sbf has tow" << towSbf << "and" << packetSbf.size() << "bytes, lsr has tow" << towLaser << "and" << packetLaser.size() << "bytes";
-
-    if(towSbf > towLaser || (towLaser == 0 && towSbf != 0))
-    {
-        // process SBF
-//        qDebug() << "LogPlayer::slotStepForward(): processing SBF data...";
-        mIndexSbf -= packetSbf.size();
-        mSbfParser->processSbfData(packetSbf);
-    }
-    else if(towLaser != 0)
-    {
-        // process laser data
-//        qDebug() << "LogPlayer::slotStepForward(): processing laser data...";
-        mIndexLaser -= packetLaser.size() + 1;
-        processLaserData(packetLaser);
-    }
-    else
-    {
-//        qDebug() << "LogPlayer::slotStepBack(): seems I'm at the start, cannot fetch further SBF or Laser packets from logs.";
-        emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Reached beginning of log data.");
-        slotPause();
         return false;
     }
 
@@ -308,7 +287,7 @@ void LogPlayer::processLaserData(const QByteArray& packetLaser)
     mSensorFuser->slotNewScanData(laserScanData.at(0).toInt(), data);
 }
 
-qint32 LogPlayer::getSmallestValidTow(const qint32& towA, const qint32& towB)
+qint32 LogPlayer::getEarliestValidTow(const qint32& towA, const qint32& towB) const
 {
     if(towA <= 0)
         return towB;
@@ -318,10 +297,11 @@ qint32 LogPlayer::getSmallestValidTow(const qint32& towA, const qint32& towB)
         return std::min(towA, towB);
 }
 
-
 void LogPlayer::slotPlay()
 {
-    const qint32 minTowBefore = getSmallestValidTow(getPacketTow(DataSource_SBF, Direction_Forward), getPacketTow(DataSource_Laser, Direction_Forward));
+    const qint32 towBeforeSbf = getPacketTow(DataSource_SBF);
+    const qint32 towBeforeLsr = getPacketTow(DataSource_Laser);
+    const qint32 minTowBefore = getEarliestValidTow(towBeforeSbf, towBeforeLsr);
 
     if(!slotStepForward())
     {
@@ -332,11 +312,12 @@ void LogPlayer::slotPlay()
         return;
     }
 
-    const qint32 minTowAfter = getSmallestValidTow(getPacketTow(DataSource_SBF, Direction_Forward), getPacketTow(DataSource_Laser, Direction_Forward));
+    const qint32 towAfterSbf = getPacketTow(DataSource_SBF);
+    const qint32 towAfterLsr = getPacketTow(DataSource_Laser);
+    const qint32 minTowAfter = getEarliestValidTow(towAfterSbf, towAfterLsr);
 
     mTimerAnimation->stop();
 
-    // There
     if(minTowAfter != 0)
     {
         // Packets in the SBF stream are not guaranteed to be in chronological order, especially
@@ -344,7 +325,7 @@ void LogPlayer::slotPlay()
         // with negative intervals, which we just set to 0 here.
         qDebug() << "LogPlayer::slotPlay(): slotStepForward() succeeded, sleeping from minTowBefore" << minTowBefore << "until minTowAfter" << minTowAfter;
         // Wait between 0 and 5 secs, scaled by timefactor
-        mTimerAnimation->setInterval(ui->mSpinBoxTimeFactor->value() * std::min(5000, std::max(0, minTowAfter - minTowBefore)));
+        mTimerAnimation->setInterval(ui->mSpinBoxTimeFactor->value() * qBound(0, minTowAfter - minTowBefore, 1000));
         mTimerAnimation->start();
     }
     else

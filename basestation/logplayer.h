@@ -24,7 +24,7 @@ public:
     ~LogPlayer();
 
 private:
-    enum Direction { Direction_Forward, Direction_Backward };
+    //enum Direction { Direction_Forward, Direction_Backward };
     enum DataSource {DataSource_SBF, DataSource_Laser };
 
     Ui::LogPlayer *ui;
@@ -35,9 +35,11 @@ private:
     qint32 mIndexLaser; // points to either 1) the beginning, 2) a byte after a \n or 3) behind the QByteArray's last byte (which should equal 2))
     QTimer* mTimerAnimation;
 
-    qint32 getSmallestValidTow(const qint32& towA, const qint32& towB);
-    QByteArray getPacket(const LogPlayer::DataSource& source, const LogPlayer::Direction& direction);
-    qint32 getPacketTow(const LogPlayer::DataSource& source, const LogPlayer::Direction& direction);
+    qint32 getEarliestValidTow(const qint32& towA, const qint32& towB) const;
+
+    // Retrieves the next valid packet from the private data, or an empty packet if that
+    QByteArray getPacket(const LogPlayer::DataSource& source);
+    qint32 getPacketTow(const LogPlayer::DataSource& source);
     void processLaserData(const QByteArray& packetLaser);
 
 private slots:
@@ -45,7 +47,6 @@ private slots:
 
     bool slotOpenLogFiles();
     bool slotStepForward();
-    bool slotStepBack();
     void slotRewind();
     void slotPlay();
     void slotPause();

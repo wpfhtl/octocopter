@@ -16,16 +16,51 @@ SbfParser::~SbfParser()
 {
 }
 
-qint32 SbfParser::peekNextTow(const QByteArray& sbfData)
+qint32 SbfParser::extractTow(const QByteArray& sbfData)
 {
     if(sbfData.length() >= 12 && sbfData.left(2) == "$@")
     {
-//        tow = (quint32)(*(sbfData.constData()+8));
+        const quint16 msgCrc = *(quint16*)(sbfData.data() + 2);
+        const quint16 msgId = *(quint16*)(sbfData.data() + 4);
+        const quint16 msgIdBlock = msgId & 0x1fff;
+        const quint16 msgIdRev = msgId >> 13;
+        const quint16 msgLength = *(quint16*)(sbfData.data() + 6);
+
+        // We limit the length range:[0|buffer's size], because for broken packets, msgLength might be a random value (also negative)
+        if(getCrc(sbfData.data()+4, std::max(0, std::min(sbfData.size()-4, msgLength-4))) != msgCrc)
+        {
+            qDebug() << "SbfParser::extractTow(): CRC doesn't match, returning -1.";
+            return -1;
+        }
+
+        // We can use any SBF block here, as the header is always the same
         const Sbf_ReceiverTime *block = (Sbf_ReceiverTime*)sbfData.data();
         return block->TOW;
     }
 
-    return 0;
+    qDebug() << "SbfParser::extractTow(): packet size is" << sbfData.size() << "and starts with" << sbfData.left(2) << ": malformed. Retuning -1.";
+    return -1;
+}
+
+qint32 SbfParser::extractLengthFromHeader(const QByteArray& sbfData)
+{
+    if(sbfData.length() >= 12 && sbfData.left(2) == "$@")
+    {
+        const quint16 msgCrc = *(quint16*)(sbfData.data() + 2);
+        const quint16 msgLength = *(quint16*)(sbfData.data() + 6);
+
+        // We limit the length range:[0|buffer's size], because for broken packets, msgLength might be a random value (also negative)
+        if(getCrc(sbfData.data()+4, std::max(0, std::min(sbfData.size()-4, msgLength-4))) != msgCrc)
+        {
+            qDebug() << "SbfParser::extractPacketLength(): CRC doesn't match, returning -1.";
+            Q_ASSERT(false);
+        }
+        return msgLength;
+    }
+
+    qDebug() << "SbfParser::extractPacketLength(): packet size is" << sbfData.size() << "and starts with" << sbfData.left(2) << ": malformed. Retuning -1.";
+    Q_ASSERT(false);
+    return -1;
 }
 
 void SbfParser::slotEmitCurrentGpsStatus()
@@ -126,8 +161,8 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         return false;
     }
 
-    // We limit the length to the buffer's size, because for broken packets, msgLength might be a random value
-    if(getCrc(sbfData.data()+4, std::min(sbfData.size()-4, msgLength-4)) != msgCrc)
+    // We limit the length range:[0|buffer's size], because for broken packets, msgLength might be a random value (also negative)
+    if(getCrc(sbfData.data()+4, std::max(0, std::min(sbfData.size()-4, msgLength-4))) != msgCrc)
     {
         qWarning() << "SbfParser::processSbfData(): WARNING: CRC in msg" << msgCrc << "computed" << getCrc(sbfData.data()+4, msgLength-4) << "msgIdBlock" << msgIdBlock;
         // Remove the SBF block body from the buffer, so it contains either nothing or the next SBF message
