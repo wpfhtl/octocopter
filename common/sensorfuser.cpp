@@ -445,6 +445,13 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
       We also compute the drift and cause an alarm if it becomes too high, neccessitating a shorter ratio.
       */
 
+    // If we subscribe to ExtEvent and Support in different streams, we'll get the same ExtEvent from both
+    // subscriptions. Make sure to only process an ExtEvent once, even if it comes in N times.
+    if(mLastScanMiddleTow >= timestampScanGps) return;
+
+    //TODO: delete me after testing
+    //if(mLastScanMiddleTow + 80 >= timestampScanGps) return;
+
     //qDebug() << t() << "SensorFuser::slotScanFinished(): gps says scanner finished a scan at time" << timestampScanGps;
 
     // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
@@ -456,7 +463,6 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
 
     // Our gps board tells us that a scan is finished. The scan data itself might already be saved in mSavedScans.
     const qint32 intervalBetweenSyncPackets = timestampScanGps - mLastScanMiddleTow;
-    mLastScanMiddleTow = timestampScanGps;
     if(intervalBetweenSyncPackets > 3000)
     {
         qDebug() << t() << "SensorFuser::slotScanFinished(): interval between sync packets is" << intervalBetweenSyncPackets << "- this should ony happen during intialization.";
@@ -468,21 +474,25 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
         qDebug() << t() << "SensorFuser::slotScanFinished(): last sync packet" << mLastScanMiddleTow << "now" << timestampScanGps << "interval" << intervalBetweenSyncPackets << "ms, ratio is" << ratio << "and drift is" << driftMs;
 
         // For every $ratio (=2^X) scans, we get a packet. Insert the correct scantimes into our data structure
-        for(int i=-ratio/2; i<ratio/2; i++)
+        // For ratio 32, insert from -16*
+        for(int i=-ratio/2; i<ceil(ratio/2.0f); i++)
         {
-            const qint32 scanMiddleTow = timestampScanGps + i*ratio;
+            const qint32 scanMiddleTow = timestampScanGps + i*25;
             qDebug() << t() << "SensorFuser::slotScanFinished(): inserting scanMiddleTow" << i << ":" << scanMiddleTow;
             mScansTimestampGps.insert(scanMiddleTow, 0);
 
             // update the latest data time
-            if(i == ratio/2 - 1) mNewestDataTime = std::max(mNewestDataTime, scanMiddleTow);
+            if(i == ceil(ratio/2.0f) - 1) mNewestDataTime = std::max(mNewestDataTime, scanMiddleTow);
         }
     }
+    mLastScanMiddleTow = timestampScanGps;
 }
 
 void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, std::vector<long> * const distances)
 {
     qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
+
+    slotScanFinished(timestampScanScanner);
 
     // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
     if(!mPoses.size() || mPoses.last().timestamp < (timestampScanScanner - mMaximumTimeBetweenFusedPoseAndScanMsec - 13))

@@ -24,22 +24,19 @@ public:
     ~LogPlayer();
 
 private:
-    //enum Direction { Direction_Forward, Direction_Backward };
-    enum DataSource {DataSource_SBF, DataSource_Laser };
-
     Ui::LogPlayer *ui;
     SbfParser* mSbfParser;
     SensorFuser* mSensorFuser;
-    QByteArray mDataSbf, mDataLaser;
-    qint32 mIndexSbf; // always points to 1) a "$" from the "$@" sbf-sync marker or 2) behind the QByteArray's last byte
+    QByteArray mDataSbf, mDataLaser, mDataSbfCopy; // We don't copy the laser array, as it can be several hundred megabytes in size!
     qint32 mIndexLaser; // points to either 1) the beginning, 2) a byte after a \n or 3) behind the QByteArray's last byte (which should equal 2))
     QTimer* mTimerAnimation;
 
     qint32 getEarliestValidTow(const qint32& towA, const qint32& towB) const;
 
     // Retrieves the next valid packet from the private data, or an empty packet if that
-    QByteArray getPacket(const LogPlayer::DataSource& source);
-    qint32 getPacketTow(const LogPlayer::DataSource& source);
+    QByteArray getNextPacketLaser();
+    // Returns the TOW of the next Laser-Packet/Line, or -1 when there's no more packet available.
+    qint32 getNextTowLaser();
     void processLaserData(const QByteArray& packetLaser);
 
 private slots:

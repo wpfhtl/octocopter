@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>226</width>
+    <width>241</width>
     <height>142</height>
    </rect>
   </property>
@@ -218,35 +218,28 @@
       <item>
        <widget class="QPushButton" name="mPushButtonRewind">
         <property name="text">
-         <string>|&lt;</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="mPushButtonStepBack">
-        <property name="text">
-         <string>+&lt;</string>
+         <string>Rewind</string>
         </property>
        </widget>
       </item>
       <item>
        <widget class="QPushButton" name="mPushButtonStepForward">
         <property name="text">
-         <string>&gt;+</string>
+         <string>Step</string>
         </property>
        </widget>
       </item>
       <item>
        <widget class="QPushButton" name="mPushButtonPlay">
         <property name="text">
-         <string>&gt;</string>
+         <string>Play</string>
         </property>
        </widget>
       </item>
       <item>
        <widget class="QPushButton" name="mPushButtonPause">
         <property name="text">
-         <string>I I</string>
+         <string>Pause</string>
         </property>
        </widget>
       </item>

@@ -245,19 +245,17 @@ public:
     SbfParser(QObject *parent = 0);
     ~SbfParser();
 
+    // This method analyzes @sbfData, looking for the next valid SBF packet. A packet is valid when
+    // its checksum is correct. If it finds a valid packet, it writes the offset from the beginning of
+    // @sbfData to the valid packet into @offset and writes the packet's TOW into @tow.
+    // If it doesn't find a valid packet in all of @sbfData, it returns false.
+    bool getNextValidPacketInfo(const QByteArray& sbfData, quint32* offset = 0, qint32* tow = 0);
 
-    // Returns the TOW of the next SBF packet in @sbfData, or -1 in case of errors
-    qint32 extractTow(const QByteArray& sbfData);
-
-    // Returns the packet's length as specified in its header. Has no error-checking!
-    qint32 extractLengthFromHeader(const QByteArray& sbfData);
-
-    // Tries to process a single SBF packet in @sbfData, even if @sbfData contains many SBF packets.
-    // This method also removes processed packet-data from @sbfData.
-    // Returns true when more packets can be processed in @sbfData, false otherwise.
+    // Tries to process the next valid SBF packet in @sbfData, even if @sbfData contains many (corrupt)
+    // SBF packets. This method also removes processed packet-data from @sbfData.
     // This method does not return errors when it encounters corrupt SBF, as there's no way to fix
     // corrupt SBF anyway.
-    bool processSbfData(QByteArray& sbfData);
+    void processNextValidPacket(QByteArray& sbfData);
 
 signals:
     void newVehiclePose(const Pose&); // emitted at 20Hz, includes non-FixedRTK poses

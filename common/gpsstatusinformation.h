@@ -55,7 +55,7 @@ public:
                     && covariances == b.covariances;
         }
 
-        bool differentOrInterestingComparedTo(const GpsStatus& b)
+        bool interestingOrDifferentComparedTo(const GpsStatus& b)
         {
             return gnssMode != b.gnssMode
                     || integrationMode != b.integrationMode

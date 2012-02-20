@@ -15,7 +15,7 @@ SbfParser::SbfParser(QObject *parent) : QObject(parent)
 SbfParser::~SbfParser()
 {
 }
-
+/*
 qint32 SbfParser::extractTow(const QByteArray& sbfData)
 {
     if(sbfData.length() >= 12 && sbfData.left(2) == "$@")
@@ -61,6 +61,62 @@ qint32 SbfParser::extractLengthFromHeader(const QByteArray& sbfData)
     qDebug() << "SbfParser::extractPacketLength(): packet size is" << sbfData.size() << "and starts with" << sbfData.left(2) << ": malformed. Retuning -1.";
     Q_ASSERT(false);
     return -1;
+}
+*/
+
+bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offset, qint32* tow)
+{
+    // We try to stay as close as possible to Septentrio's SBF reference guide pg. 13/14.
+
+    Sbf_Header *sbfHeader;
+    qint32 offsetToValidPacket = -2; // Set to -2, as we start searching from (offsetToValidPacket + sizeof(header.sync)), yielding a first try from 0.
+    quint16 calculatedCrc;
+
+    forever
+    {
+        // Look for a Sync-field ("$@") in the data, but start one byte after where we found a field the last time
+        offsetToValidPacket = sbfData.indexOf("$@", (offsetToValidPacket + sizeof(sbfHeader->Sync)));
+
+        // If the sync field "$@" was not found at all, no valid packet can be present. Quit.
+        if(offsetToValidPacket < 0) return false;
+
+        // Make sure that we have at least 8 bytes (the header size) to read (including the sync field)
+        if(sbfData.size() < offsetToValidPacket + sizeof(Sbf_Header)) return false;
+
+        sbfHeader = (Sbf_Header*)(sbfData.data() + offsetToValidPacket);
+
+        // If sbfData doesn't hold enough bytes for an SBF block with the specified Length, it can have two reasons:
+        //  a) the packet isn't received completely yet
+        //  b) the packet's header->Length is corrupt
+        // If it was a), we could return false, but we cannot be sure its not b), as we haven't checksummed yet. Thus,
+        // instead of returning false, we need to look for further packets to guarantee working even in condition b)
+        if(sbfHeader->Length > sbfData.size() - offsetToValidPacket) continue;
+
+        // If the length is not a multiple of 4, its not a valid packet. Continue searching for another packet
+        if(sbfHeader->Length % 4 != 0) continue;
+
+        // Calculate the packet's checksum. For corrupt packets, the Length field might be random, so we bound
+        // the bytes-to-be-checksummed to be between 0 and the buffer's remaining bytes after Sync and Crc fields.
+        calculatedCrc = getCrc(
+                    (void*)(sbfData.data() + offsetToValidPacket + sizeof(sbfHeader->Sync) + sizeof(sbfHeader->CRC)),
+                    qBound(
+                        (qint32)0,
+                        (qint32)(sbfHeader->Length - sizeof(sbfHeader->Sync) - sizeof(sbfHeader->CRC)),
+                        (qint32)(sbfData.size() - offsetToValidPacket - sizeof(sbfHeader->Sync) - sizeof(sbfHeader->CRC))
+                        )
+                    );
+
+        // Quit searching if we found a valid packet.
+        if(sbfHeader->CRC == calculatedCrc) break;
+    }
+
+    // If we're here, we have a valid SBF packet starting at offsetToValidPacket
+    if(offset) *offset = offsetToValidPacket;
+
+    const Sbf_PVTCartesian *block = (Sbf_PVTCartesian*)(sbfData.data()+offsetToValidPacket);
+    if(tow) *tow = block->TOW;
+
+    return true;
 }
 
 void SbfParser::slotEmitCurrentGpsStatus()
@@ -122,31 +178,25 @@ QVector3D SbfParser::convertGeodeticToCartesian(const double &lon, const double 
     return co;
 }
 
-bool SbfParser::processSbfData(QByteArray& sbfData)
+void SbfParser::processNextValidPacket(QByteArray& sbfData)
 {
-    //qDebug() << "SbfParser::processSbfData():" << sbfData.size() << "bytes present.";
+    //qDebug() << "SbfParser::processNextValidPacket():" << sbfData.size() << "bytes present.";
 
-    if(sbfData.size() <= 8)
-        return false;
+    quint32 offsetToValidPacket;
 
-    //qDebug() << "SbfParser::processSbfData(): more than 8 data bytes present, processing.";
-    const int indexOfSyncMarker = sbfData.indexOf("$@");
-
-    if(indexOfSyncMarker == -1)
+    if(getNextValidPacketInfo(sbfData, &offsetToValidPacket) == false)
     {
-        // The sync marker wasn't found! This means the buffer contains unusable data,
-        // because we cannot use any data not starting with a sync-marker. So the data must
-        // be non-SBF and should be consumed by someone else.
-        return false;
+        qDebug() << "SbfParser::processNextValidPacket(): no more valid packets in sbf data of size" << sbfData.size();
+        return;
     }
-    else if(indexOfSyncMarker != 0)
+
+    // If there's garbage before the next valid packet, save it into sbf log and log a warning
+    if(offsetToValidPacket != 0)
     {
-        qWarning() << "SbfParser::processSbfData(): WARNING: SBF Sync Marker $@ was not at byte 0, but at" << indexOfSyncMarker;
+        qWarning() << "SbfParser::processNextValidPacket(): WARNING: SBF Sync Marker $@ was not at byte 0, but at" << offsetToValidPacket;
         // Log this data for later error analysis
-        emit processedPacket(sbfData.left(indexOfSyncMarker));
-        sbfData.remove(0, indexOfSyncMarker);
-        // Tell our caller that he can call us again to try to parse everything after the junk we just removed.
-        return true;
+        emit processedPacket(sbfData.left(offsetToValidPacket));
+        sbfData.remove(0, offsetToValidPacket);
     }
 
     const quint16 msgCrc = *(quint16*)(sbfData.data() + 2);
@@ -155,27 +205,10 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
     const quint16 msgIdRev = msgId >> 13;
     const quint16 msgLength = *(quint16*)(sbfData.data() + 6);
 
-    if(sbfData.size() < msgLength)
-    {
-//        qDebug() << t() << "SbfParser::processSbfData(): message incomplete, we only have" << sbfData.size() << "of" << msgLength << "bytes. Processing postponed..";
-        return false;
-    }
-
-    // We limit the length range:[0|buffer's size], because for broken packets, msgLength might be a random value (also negative)
-    if(getCrc(sbfData.data()+4, std::max(0, std::min(sbfData.size()-4, msgLength-4))) != msgCrc)
-    {
-        qWarning() << "SbfParser::processSbfData(): WARNING: CRC in msg" << msgCrc << "computed" << getCrc(sbfData.data()+4, msgLength-4) << "msgIdBlock" << msgIdBlock;
-        // Remove the SBF block body from the buffer, so it contains either nothing or the next SBF message
-        // Since the CRC is wrong, msgLength might also be off. Thus we delete just two bytes at the beginning, causing
-        // a warning about spurious data in the next processing iteration, but thats still more safe.
-        sbfData.remove(0, 2);
-        return true;
-    }
-
     // Save our current gpsStatus in a const place, so we can check whether it changed after processing the whole packet
     const GpsStatusInformation::GpsStatus previousGpsStatus = mGpsStatus;
 
-//    qDebug() << "SbfParser::processSbfData(): processing" << sbfData.size() << "bytes SBF data with ID" << msgId << "from TOW" << ((Sbf_PVTCartesian*)sbfData.data())->TOW;
+//    qDebug() << "SbfParser::processNextValidPacket(): processing" << sbfData.size() << "bytes SBF data with ID" << msgId << "from TOW" << ((Sbf_PVTCartesian*)sbfData.data())->TOW;
 
     // Process the message if we're interested.
     //qDebug() << "received sbf block" << msgIdBlock;
@@ -198,7 +231,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         const Sbf_IntAttCovEuler *block = (Sbf_IntAttCovEuler*)sbfData.data();
 //        qDebug() << "SBF: IntAttCovEuler: covariances for heading, pitch, roll:" << block->Cov_HeadHead << block->Cov_PitchPitch << block->Cov_RollRoll;
         float newCovarianceValue = std::max(std::max(block->Cov_HeadHead, block->Cov_PitchPitch), block->Cov_RollRoll);
-        if(abs(mGpsStatus.covariances - newCovarianceValue) > 0.02)
+        if(fabs(mGpsStatus.covariances - newCovarianceValue) > 0.02)
         {
             mGpsStatus.covariances = newCovarianceValue;
 //            emit status(mGpsStatus);
@@ -217,7 +250,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
 
         if(block->CPULoad > 80)
         {
-            qWarning() << "SbfParser::processSbfData(): WARNING, receiver CPU load is" << block->CPULoad;
+            qWarning() << "SbfParser::processNextValidPacket(): WARNING, receiver CPU load is" << block->CPULoad;
             emit message(Warning,
                          QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                          QString("Warning, CPU load is too high (%1 percent)").arg(block->CPULoad));
@@ -225,7 +258,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
 
         if(block->ExtError != 0)
         {
-            qWarning() << "SbfParser::processSbfData(): ExtError is not 0 but" << block->ExtError;
+            qWarning() << "SbfParser::processNextValidPacket(): ExtError is not 0 but" << block->ExtError;
             emit message(
                         Warning,
                         QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
@@ -237,7 +270,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
 
         if(block->RxError != 0)
         {
-            qWarning() << "SbfParser::processSbfData(): RxError is not 0 but" << block->RxError;
+            qWarning() << "SbfParser::processNextValidPacket(): RxError is not 0 but" << block->RxError;
             emit message(
                         Warning,
                         QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
@@ -259,7 +292,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         // Check the Info-field and emit states if it changes
         if(mGpsStatus.info != block->Info)
         {
-            //qDebug() << t() << "SbfParser::processSbfData(): info changed from" << mGpsStatus.info << "to" << block->Info;
+            //qDebug() << t() << "SbfParser::processNextValidPacket(): info changed from" << mGpsStatus.info << "to" << block->Info;
 
             if(!testBitEqual(mGpsStatus.info, block->Info, 0))
                 emit message(
@@ -312,7 +345,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         // Check the Mode-field and emit states if it changes
         if(mGpsStatus.integrationMode != block->Mode)
         {
-            //qDebug() << t() << "SbfParser::processSbfData(): mode changed from" << mGpsStatus.integrationMode << "to" << block->Mode;
+            //qDebug() << t() << "SbfParser::processNextValidPacket(): mode changed from" << mGpsStatus.integrationMode << "to" << block->Mode;
 
             switch(block->Mode)
             {
@@ -338,7 +371,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
                 break;
 
             default:
-                qWarning() << "SbfParser::processSbfData(): WARNING: unknown mode code" << block->Mode << "at TOW" << block->TOW;
+                qWarning() << "SbfParser::processNextValidPacket(): WARNING: unknown mode code" << block->Mode << "at TOW" << block->TOW;
                 emit message(
                             Error,
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
@@ -352,7 +385,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         // Check the Error-field and emit states if it changes
         if(mGpsStatus.error != block->Error)
         {
-//            qDebug() << t() << "SbfParser::processSbfData(): error changed from" << mGpsStatus.error << "to" << block->Error << "at TOW" << block->TOW;
+//            qDebug() << t() << "SbfParser::processNextValidPacket(): error changed from" << mGpsStatus.error << "to" << block->Error << "at TOW" << block->TOW;
 
             emit message(
                         block->Error == 0 ? Information : Error,
@@ -369,7 +402,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         // Check the GnssPvtMode-field and emit states if it changes AND if its not DO-NOT-USE
         if(mGpsStatus.gnssMode != block->GNSSPVTMode && block->GNSSPVTMode != 255)
         {
-//            qDebug() << t() << "SbfParser::processSbfData(): GnssPvtMode changed from" << mGpsStatus.gnssMode << "to" << block->GNSSPVTMode << "at TOW" << block->TOW;
+//            qDebug() << t() << "SbfParser::processNextValidPacket(): GnssPvtMode changed from" << mGpsStatus.gnssMode << "to" << block->GNSSPVTMode << "at TOW" << block->TOW;
 
             emit message(
                         block->GNSSPVTMode & 15 == 4 ? Information : Warning,
@@ -383,7 +416,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
 
         if(mGpsStatus.gnssAge != block->GNSSage)
         {
-//            qDebug() << t() << "SbfParser::processSbfData(): GnssAge changed from" << mGpsStatus.gnssAge << "to" << block->GNSSage << "at TOW" << block->TOW;
+//            qDebug() << t() << "SbfParser::processNextValidPacket(): GnssAge changed from" << mGpsStatus.gnssAge << "to" << block->GNSSage << "at TOW" << block->TOW;
 
             emit message(
                         block->GNSSage > 0 ? Information : Error,
@@ -396,7 +429,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         const quint8 numberOfSatellitesUsed = (block->NrSVAnt & 31);
         if(mGpsStatus.numSatellitesUsed != numberOfSatellitesUsed)
         {
-//            qDebug() << t() << "SbfParser::processSbfData(): numSats changed from" << mGpsStatus.numSatellitesUsed << "to" << numberOfSatellitesUsed;
+//            qDebug() << t() << "SbfParser::processNextValidPacket(): numSats changed from" << mGpsStatus.numSatellitesUsed << "to" << numberOfSatellitesUsed;
             emit message(
                         numberOfSatellitesUsed > 5 ? Information : Warning,
                         QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
@@ -437,7 +470,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
                     && testBit(mGpsStatus.info, 11)
                     )
             {
-                qDebug() << t() << "SbfParser::processSbfData(): enabling RTK after heading is determined and ambiguity is fixed.";
+                qDebug() << t() << "SbfParser::processNextValidPacket(): enabling RTK after heading is determined and ambiguity is fixed.";
                 // Enable RTK Mode for 2cm precision
                 receiverCommand("setPVTMode,Rover,all,auto,Loosely");
                 // Now we want to know the precise pose 25 times a second
@@ -448,22 +481,22 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
             // this whole section is logically weak. Get this sorted!
             if(!testBit(block->Info, 11))
             {
-                qDebug() << t() << block->TOW << "SbfParser::processSbfData(): pose from PVAAGeod not valid, heading ambiguity is not fixed.";
+                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): pose from PVAAGeod not valid, heading ambiguity is not fixed.";
             }
 
             if(block->Error != 0)
             {
-                qDebug() << t() << block->TOW << "SbfParser::processSbfData(): invalid pose, error:" << block->Error << "" << GpsStatusInformation::getError(block->Error) ;
+                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, error:" << block->Error << "" << GpsStatusInformation::getError(block->Error) ;
             }
 
             if(block->Heading == 65535)
             {
-                qDebug() << t() << block->TOW << "SbfParser::processSbfData(): invalid pose, heading do-not-use";
+                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, heading do-not-use";
             }
 
             if(block->GNSSage > 1)
             {
-                qDebug() << t() << block->TOW << "SbfParser::processSbfData(): invalid pose, GNSSAge is" << block->GNSSage;
+                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, GNSSAge is" << block->GNSSage;
             }
 
             if(
@@ -474,25 +507,25 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
                     || block->Roll == -32768
                     || block->TOW == 4294967295L)
             {
-                qDebug() << t() << block->TOW << "SbfParser::processSbfData(): invalid pose, do-not-use values found.";
+                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, do-not-use values found.";
             }
             else if(block->Mode != 2)
             {
-                qDebug() << t() << block->TOW << "SbfParser::processSbfData(): invalid pose, not integrated solution, but" << GpsStatusInformation::getIntegrationMode(block->Mode);
+                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, not integrated solution, but" << GpsStatusInformation::getIntegrationMode(block->Mode);
                 setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
                 emit newVehiclePose(mLastPose);
                 mPoseClockDivisor++;
             }
             else if((block->GNSSPVTMode & 15) != 4)
             {
-                qDebug() << t() << block->TOW << "SbfParser::processSbfData(): invalid pose, GnssPvtMode is" << GpsStatusInformation::getGnssMode(block->GNSSPVTMode) << "corrAge:" << mGpsStatus.meanCorrAge << "sec";
+                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, GnssPvtMode is" << GpsStatusInformation::getGnssMode(block->GNSSPVTMode) << "corrAge:" << mGpsStatus.meanCorrAge << "sec";
                 setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
                 emit newVehiclePose(mLastPose);
                 mPoseClockDivisor++;
             }
             else if(mGpsStatus.covariances > 1.0f)
             {
-                qDebug() << t() << block->TOW << "SbfParser::processSbfData(): invalid pose, covariances are" << mGpsStatus.covariances;
+                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, covariances are" << mGpsStatus.covariances;
                 setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
                 emit newVehiclePose(mLastPose);
                 mPoseClockDivisor++;
@@ -516,7 +549,7 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
 
         qDebug() << "SBF: ReceiverTime: TOW:" << block->TOW;
 
-        //qDebug() << t() << block->TOW << "SbfParser::processSbfData(): received ReceiverTime block: msgid" << msgId << "msgIdBlock" << msgIdBlock << "msgLength" << msgLength << "revision" << msgIdRev;
+        //qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): received ReceiverTime block: msgid" << msgId << "msgIdBlock" << msgIdBlock << "msgLength" << msgLength << "revision" << msgIdRev;
 
         if(block->TOW == 4294967295L)
         {
@@ -525,11 +558,11 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
                         QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                         QString("GPS Receiver TOW is at its do-not-use-value, give it time to initialize."));
 
-            qWarning() << "SbfParser::processSbfData(): GPS Receiver TOW is at its do-not-use-value, give it time to initialize.";
+            qWarning() << "SbfParser::processNextValidPacket(): GPS Receiver TOW is at its do-not-use-value, give it time to initialize.";
 
             if(mTimeStampStartup.secsTo(QDateTime::currentDateTime()) < 15)
             {
-                qWarning() << "SbfParser::processSbfData(): GPS Receiver TOW is at its do-not-use-value during startup - quitting.";
+                qWarning() << "SbfParser::processNextValidPacket(): GPS Receiver TOW is at its do-not-use-value during startup - quitting.";
                 QCoreApplication::quit();
             }
         }
@@ -555,11 +588,11 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
         {
             // Emit the time of the scan. The Scanner sets the pulse at the END of a scan,
             // but our convention is to use times of a scans middle. Thus, decrement 12ms.
-            //qDebug() << "SbfParser::processSbfData(): emitting scanFinished with a scanTimeGps of" << block->TOW - 12;
+            //qDebug() << "SbfParser::processNextValidPacket(): emitting scanFinished with a scanTimeGps of" << block->TOW - 12;
             emit scanFinished(block->TOW - 12);
         }
         else
-            qDebug() << "SbfParser::processSbfData(): WARNING: scan finished, but TOW is set to do-not-use!";
+            qDebug() << "SbfParser::processNextValidPacket(): WARNING: scan finished, but TOW is set to do-not-use!";
     }
     break;
     case 4037:
@@ -576,21 +609,19 @@ bool SbfParser::processSbfData(QByteArray& sbfData)
     break;
     default:
     {
-        qDebug() << "SbfParser::processSbfData(): ignoring block id" << msgIdBlock;
+        qDebug() << "SbfParser::processNextValidPacket(): ignoring block id" << msgIdBlock;
     }
     }
 
     // emit new status if it changed significantly.
-    if(mGpsStatus.differentOrInterestingComparedTo(previousGpsStatus)) emit status(mGpsStatus);
+    if(mGpsStatus.interestingOrDifferentComparedTo(previousGpsStatus)) emit status(mGpsStatus);
 
     // Announce what packet we just processed. Might be used for logging.
     emit processedPacket(sbfData.left(msgLength));
 
-    // Remove the SBF block body from our incoming USB buffer, so it contains either nothing or the next SBF message
-    sbfData.remove(0, msgLength);
+    // Remove the SBF block body from our incoming buffer, so it contains either nothing or the next SBF message
+    //sbfData.remove(0, msgLength); // this does not remove the padding bytes after the current packet
+    sbfData.remove(0, sbfData.indexOf("$@", offsetToValidPacket+1)); // removes the packet and the padding bytes before the next $@-sync-field from the next packet
 
-    //if(sbfData.size()) qDebug() << "SbfParser::processSbfData(): done processing SBF data, bytes left in buffer:" << sbfData.size() << "bytes:" << sbfData;
-
-    // Tell the caller whether we'd be able to process another packet in this buffer.
-    return sbfData.size() > 8;
+    //if(sbfData.size()) qDebug() << "SbfParser::processNextValidPacket(): done processing SBF data, bytes left in buffer:" << sbfData.size() << "bytes:" << sbfData;
 }
