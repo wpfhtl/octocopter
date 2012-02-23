@@ -59,15 +59,38 @@ void Kopter::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& 
 
     qDebug() << "Kopter::slotSetMotion(): setting motion" << thrust << yaw << pitch << roll << height;
 
+    /*
+      The kopter has different conventions, at least with default settings (which I intent to keep):
+       - Positive pitch makes it pitch forward, nose-down.
+         This is opposite to our expectations, because we have the right-handed X axis pointing right
+
+       - Positive roll makes it roll its left side down, which matches our conventions
+
+       - Positive yaw makes it rotate CW, as seen from the top.
+         This is opposite to our expectations, because we have the right-handed Y axis pointing upwards
+
+      For this reason, we send negative pitch and yaw values.
+
+      For the Extern(al)Control commands to take effect, Poti7 has to be > 128 on the kopter (as con-
+      figured in "Stick"). And Poti7 is assigned to channel 7 (as configured in "Kanäle"), which maps
+      to switch SW1 on the remote control, which then has to be switched DOWN to active ExternalControl.
+
+      Even with ExternalControl enabled, the kopter's gas value is always upper-bound by the remote-
+      control's value. This seems to make a lot of sense.
+
+      Under "Verschiedenes/Miscellaneous", max gas is configured to 200, which might also apply to
+      ExternalControl. I don't know.
+      */
+
     if(mPendingReplies.contains('b')) qWarning() << "Still waiting for a 'B', should not send right now!";
 
     mStructExternControl.Frame = 1;
 
     mStructExternControl.Config = 1;
-    mStructExternControl.Nick = pitch;
+    mStructExternControl.Nick = -pitch;
     mStructExternControl.Roll = roll;
     mStructExternControl.Gas = thrust;
-    mStructExternControl.Gier = yaw;
+    mStructExternControl.Gier = -yaw;
     mStructExternControl.Height = height;
 
     KopterMessage message(1, 'b', QByteArray((const char *)&mStructExternControl, sizeof(mStructExternControl)));

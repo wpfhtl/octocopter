@@ -355,7 +355,7 @@ void RoverConnection::slotConnectToRover()
 
 void RoverConnection::slotSocketError(QAbstractSocket::SocketError socketError)
 {
-    qDebug() << "RoverConnection::slotSocketError():" << socketError;
+//    qDebug() << "RoverConnection::slotSocketError():" << socketError;
 
     emit connectionStatusRover(false);
 

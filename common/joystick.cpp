@@ -181,7 +181,7 @@ void Joystick::slotEmitMotionCommands()
     emit motion(
                 ((((float)-r)/32768.0) + 1.0) * 128.0, // thrust 0-255
                 (((float)-z)/32768.0) * 127.0, // qint8 yaw   -127-+127
-                (((float)-y)/32768.0) * 127.0 * 0.8, // qint8 pitch -127-+127
+                (((float)y)/32768.0) * 127.0 * 0.8, // qint8 pitch -127-+127
                 (((float)-x)/32768.0) * 127.0 * 0.8, // qint8 roll  -127-+127
                 128 // height is dummy, unused
                 );
