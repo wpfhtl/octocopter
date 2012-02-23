@@ -374,7 +374,8 @@ void GpsDevice::slotDataReadyOnCom()
     //qDebug() << "GpsDevice::slotDataReadyOnCom(): size of SBF data is now" << mReceiveBufferCom.size() << "bytes, processing:" << mReceiveBufferCom;
 
     // Process as much SBF as possible.
-    while(mSbfParser->processSbfData(mReceiveBufferCom));
+    while(mSbfParser->getNextValidPacketInfo(mReceiveBufferCom))
+          mSbfParser->processNextValidPacket(mReceiveBufferCom);
 }
 
 void GpsDevice::slotDataReadyOnUsb()
@@ -390,8 +391,9 @@ void GpsDevice::slotDataReadyOnUsb()
         if(mReceiveBufferUsb.left(2) == QString("$@").toAscii())
         {
             qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): device replied to a request with SBF, processing" << mReceiveBufferUsb.size() << "SBF bytes.";
-            //Q_ASSERT(mReceiveBufferUsb.indexOf("$@") == 0);
-            while(mSbfParser->processSbfData(mReceiveBufferUsb));
+
+            while(mSbfParser->getNextValidPacketInfo(mReceiveBufferUsb))
+                  mSbfParser->processNextValidPacket(mReceiveBufferUsb);
 
             // Its quite possible that AFTER the SBF-data, there was the exeSBFOnce command reply. If so, this reply
             // is still in the buffer and needs to be processed. Luckily, this is done in the while-loop below.
@@ -442,7 +444,9 @@ void GpsDevice::slotDataReadyOnUsb()
 
         // We're not waiting for a reply to a command, this must be SBF data!
 //        qDebug() << "GpsDevice::slotDataReadyOnUsb(): received" << mReceiveBufferUsb.size() << "bytes of SBF data, processing...";
-        while(mSbfParser->processSbfData(mReceiveBufferUsb));
+
+        while(mSbfParser->getNextValidPacketInfo(mReceiveBufferUsb))
+              mSbfParser->processNextValidPacket(mReceiveBufferUsb);
     }
 }
 

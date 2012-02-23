@@ -22,26 +22,35 @@
   like OpenGL, so for our vehicle this means:
 
     - positive yaw turns CCW as seen from the top.
-    - positive pitch turns CCW as seen from the right / pulls up.
-    - positive roll turns CCW as seen from the back / turns left
+    - positive pitch turns CCW as seen from the right / pilot pulls up.
+    - positive roll turns CCW as seen from the back / pilot rotates left
 
   As a pose also represents a transformation (from origin to current position and orientation,
   we need to agree that translation always comes first, then rotation.
 
   Also, when we yaw, pitch, roll, we interpret these operations like a pilot of the vehicle, that is
   we pitch on the transformed/yawed x axis, and we roll on the twice-transformed (yawed and pitched)
-  z axis. This *should* match the readings of our IMUs, who obviously sense local transformation data.
+  z axis. This *should* match the readings of our IMUs, which obviously sense local transformation data.
 
   A Pose also contains a signed int32 timestamp which usually identifies the time at which some
   sensor reading was taken. Its signed so we can compare times and get negative values indicating one
   time was before the other. Teh readings themselves will always be positive values.
+
+  The rotations in this pose will always be constrained from [-3.14, 3.14] or [-180, 180].
+  At least for pitch and roll, this means we should never reach a situation where -179 suddenly
+  wraps to 179.
+
+  For yaw/heading, we'll have to make sure that when this happens (pointing south), no problems
+  arise from this.
 */
 
 class Pose
 {
 
 private:
-    float mYaw, mPitch, mRoll;  // Angles in RADIANS!
+    // These are the angles in RADIANS, and they are ALWAYS between [-3.14, 3.14],
+    // which is the degree-equivalent of [-180, 180].
+    float mYaw, mPitch, mRoll;
 
 public:
     Pose(const QVector3D &position, const QQuaternion &orientation, const qint32& timestamp = 0);
@@ -67,12 +76,14 @@ public:
     // This method takes a time argument instead of a float. @time must be between the times of @before and @after poses
     static Pose interpolateCubic(const Pose * const first, const Pose * const before, const Pose * const after, const Pose * const last, const qint32& time);
 
-    // Returns the shortest turn to an angle. For example:
+    // Returns the shortest turn to an angle by transforming any input to the range [-180,180]. For example:
     // 359 => -1
     // 181 => -179
     // -270 => 90
-    static float getShortestTurnRadians(const float& angle);
-    static float getShortestTurnDegrees(const float& angle);
+    static float getShortestTurnRadians(float angle);
+    static float getShortestTurnDegrees(float angle);
+
+    static float keepWithinRangeDegrees(float angleDegrees);
     static float keepWithinRangeRadians(float angleRadians);
 
 //    Pose operator*(const float &factor);
@@ -100,22 +111,19 @@ public:
     float getRollDegrees() const {return RAD2DEG(mRoll);}
     float getYawDegrees() const {return RAD2DEG(mYaw);}
 
-    void setPitchDegrees(const float& pitch) {mPitch = DEG2RAD(pitch);}
-    void setRollDegrees(const float& roll) {mRoll = DEG2RAD(roll);}
-    void setYawDegrees(const float& yaw) {mYaw = DEG2RAD(yaw);}
+    void setPitchDegrees(const float& pitch) {mPitch = DEG2RAD(keepWithinRangeDegrees(pitch));}
+    void setRollDegrees(const float& roll) {mRoll = DEG2RAD(keepWithinRangeDegrees(roll));}
+    void setYawDegrees(const float& yaw) {mYaw = DEG2RAD(keepWithinRangeDegrees(yaw));}
 
-    void setPitchRadians(const float& pitch) {mPitch = /*normalizeAngleRadians*/(pitch);}
-    void setRollRadians(const float& roll) {mRoll = /*normalizeAngleRadians*/(roll);}
-    void setYawRadians(const float& yaw) {mYaw = /*normalizeAngleRadians*/(yaw);}
+    void setPitchRadians(const float& pitch) {mPitch = keepWithinRangeRadians(pitch);}
+    void setRollRadians(const float& roll) {mRoll = keepWithinRangeRadians(roll);}
+    void setYawRadians(const float& yaw) {mYaw = keepWithinRangeRadians(yaw);}
 
 #ifdef BASESTATION
     btTransform getTransform() const {return btTransform(btQuaternion(mYaw, mPitch, mRoll), btVector3(position.x(), position.y(), position.z()));}
 #endif
 
 };
-
-// For establishing a total order on poses. Needed for storage in QMap. WRONG, only needed for key, pose is a value.
-//inline bool operator<(const Pose &p1, const Pose &p2) {return p1.timestamp < p2.timestamp;}
 
 // for using qDebug() << myPose;
 QDebug operator<<(QDebug dbg, const Pose &pose);

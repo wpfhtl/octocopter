@@ -61,7 +61,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     mGlWidget = new GlWidget(this, mOctree, mFlightPlanner);
     connect(mGlWidget, SIGNAL(initializingInGlContext()), mFlightPlanner, SLOT(slotInitialize())); // init CUDA when GlWidget inits
-    connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(update()));
+    connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(slotUpdateView()));
     connect(mGlWidget, SIGNAL(mouseClickedAtWorldPos(Qt::MouseButton, QVector3D)), mControlWidget, SLOT(slotSetWayPointCoordinateFields(Qt::MouseButton, QVector3D)));
     setCentralWidget(mGlWidget);
 
@@ -80,7 +80,7 @@ BaseStation::BaseStation() : QMainWindow()
     menuBar()->addAction("Load Cloud", this, SLOT(slotImportCloud()));
 
     connect(mGlWidget, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
-    connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWidget, SLOT(updateGL()));
+    connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWidget, SLOT(slotUpdateView()));
 
     menuBar()->addAction("Screenshot", mGlWidget, SLOT(slotSaveImage()));
 
@@ -91,13 +91,18 @@ BaseStation::BaseStation() : QMainWindow()
 
     menuBar()->addAction("Clear Trajectory", mFlightPlanner, SLOT(slotClearVehiclePoses()));
 
+    QAction* actionRotateView = new QAction("Rotate View", this);
+    actionRotateView->setCheckable(true);
+    connect(actionRotateView, SIGNAL(triggered(bool)), mGlWidget, SLOT(slotEnableTimerRotation(bool)));
+    menuBar()->addAction(actionRotateView);
+
     mLogPlayer = new LogPlayer(this);
     mLogPlayer->setAllowedAreas(Qt::AllDockWidgetAreas);
     addDockWidget(Qt::BottomDockWidgetArea, mLogPlayer);
     connect(mLogPlayer, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
     connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mControlWidget, SLOT(slotUpdatePose(Pose)));
     connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose)));
-    connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mGlWidget, SLOT(update()));
+    connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mGlWidget, SLOT(slotUpdateView()));
     connect(mLogPlayer, SIGNAL(scanData(QVector<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QVector<QVector3D>,QVector3D)));
 //    connect(mLogPlayer, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
     connect(mLogPlayer, SIGNAL(gpsStatus(GpsStatusInformation::GpsStatus)), mControlWidget, SLOT(slotUpdateGpsStatus(GpsStatusInformation::GpsStatus)));
@@ -122,6 +127,20 @@ BaseStation::BaseStation() : QMainWindow()
     if(mConnectionDialog->result() == QDialog::Accepted)
     {
         mRoverConnection = new RoverConnection(mConnectionDialog->getRoverHostName(), mConnectionDialog->getRoverPort(), this);
+
+        mJoystick = new Joystick;
+        if(!mJoystick->isValid())
+        {
+            QMessageBox::warning(this, "Joystick not found", "Joystick initialization failed, using manual control will be impossible.");
+        }
+        else
+        {
+            connect(mJoystick, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mRoverConnection, SLOT(slotSendMotionToKopter(quint8,qint8,qint8,qint8,qint8)));
+            connect(mJoystick, SIGNAL(buttonStateChanged(quint8,bool)), SLOT(slotManageJoystick(quint8,bool)));
+            mTimerJoystick = new QTimer(this);
+            mTimerJoystick->setInterval(100);
+            connect(mTimerJoystick, SIGNAL(timeout()), mJoystick, SLOT(slotEmitMotionCommands()));
+        }
 
         connect(mRoverConnection, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
 
@@ -169,6 +188,17 @@ BaseStation::~BaseStation()
     mStatsFile->close();
 }
 
+void BaseStation::slotManageJoystick(quint8 button, bool pressed)
+{
+    if(button == 0)
+    {
+        if(pressed && !mTimerJoystick->isActive())
+            mTimerJoystick->start();
+        else if(!pressed && mTimerJoystick->isActive())
+            mTimerJoystick->stop();
+    }
+}
+
 void BaseStation::slotNewVehicleStatus(const quint32& missionRunTime, const float& batteryVoltage, const qint16& barometricHeight, const qint8& wirelessRssi)
 {
     mControlWidget->slotUpdateMissionRunTime(missionRunTime);
@@ -213,7 +243,7 @@ void BaseStation::slotNewScanData(const QVector<QVector3D>& pointList, const QVe
     // We only run/stats/logs for efficiency (paper) when scanning is in progress
     mDateTimeLastLidarInput = QDateTime::currentDateTime();
 
-    mGlWidget->update();
+    mGlWidget->slotUpdateView();
 
     mLogWidget->log(
                 Information,
@@ -303,3 +333,4 @@ void BaseStation::slotAddLogFileMarkForPaper(QList<WayPoint> wptList)
     QTextStream out(mStatsFile);
     out << "# Generated" << wptList.size() << "waypoints\n";
 }
+

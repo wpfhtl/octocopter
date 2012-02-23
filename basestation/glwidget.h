@@ -14,40 +14,35 @@
 #include "openglutilities.h"
 #include "octree.h"
 #include "pose.h"
-//#include "basestation.h"
 
 class FlightPlannerInterface;
-//class BaseStation;
+
 
 class GlWidget : public QGLWidget
 {
     Q_OBJECT
 
-//    GLfloat rotQuad;
     Octree *mOctree;
     FlightPlannerInterface *mFlightPlanner;
-//    BaseStation *mBaseStation;
-//    void setShaders();
 
     QVector3D mCamLookAtOffset;
 
     // Timer
-    GLint timerId;
-    GLfloat t;
+    int mTimerIdZoom, mTimerIdRotate;
+    QDateTime mTimeOfLastExternalUpdate;
 
     // Mouse Rotations
     QPoint      lastPos;
     QVector3D   camPos;
     GLfloat     rotX, rotY, rotZ;
 
-    // Wheel Scaling
-    GLdouble    currentScaling;
-    GLdouble    mZoomFactor;
+    // Wheel Zooming. For smooth zooming, mZoomFactorCurrent converges toward mZoomFactorTarget
+    GLdouble    mZoomFactorTarget, mZoomFactorCurrent;
 
     // small helper
     static void glVertexVector(QVector3D a) { glVertex3f(a.x(), a.y(), a.z()); }
 
-    void mouseDoubleClickEvent(QMouseEvent *event);
+    //void mouseDoubleClickEvent(QMouseEvent *event);
     void mousePressEvent(QMouseEvent *event);
     void mouseMoveEvent(QMouseEvent *event);
     void wheelEvent(QWheelEvent *event);
@@ -62,9 +57,6 @@ public:
     GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flightPlanner);
     void moveCamera(const QVector3D &pos);
 
-    // Being called by the octree (as a callback) to visualize contents
-//    static void drawPoint(const QVector3D &point);
-
 protected:
     void initializeGL();
     void resizeGL(int w, int h);
@@ -77,6 +69,13 @@ signals:
     void mouseClickedAtWorldPos(Qt::MouseButton, QVector3D);
 
 public slots:
+    // When this is called, we take notte of the time of last external update. Because when zooming/rotating
+    // is also active, the redraws caused by those actions overlap with the external redraws, causing
+    // superfluous and slow redrawing. So, by only redrawing for rotation/zoom when there hasn't been an
+    // external redraw in a while, we can save CPU cycles.
+    void slotUpdateView();
+
+    void slotEnableTimerRotation(const bool& enable);
     void slotViewFromTop();
     void slotViewFromSide();
     void slotSaveImage();

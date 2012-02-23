@@ -76,7 +76,7 @@ private slots:
     void slotSerialPortDataReady();
 
 public slots:
-    void slotSetMotion(const quint8& thrust, const qint8& nick, const qint8& roll, const qint8& yaw, const qint8& height);
+    void slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& pitch, const qint8& roll, const qint8& height);
     void slotTestMotors(const QList<unsigned char> &speeds);
     void slotReset();
     void slotGetVersion();
@@ -86,9 +86,7 @@ public slots:
     void slotSubscribeDebugValues(int interval = -1);
 
 signals:
-//    void voltage(float);
-//    void height(qint16);
-    void kopterStatus(const quint32 missionRunTime, const qint16& baroheight, const float& voltage);
+    void kopterStatus(const quint32 missionRunTimeMsecs, const qint16& baroheight, const float& voltage);
     void externControlReplyReceived();
 
 };

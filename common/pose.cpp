@@ -4,9 +4,9 @@ Pose::Pose(const QVector3D &position, const QQuaternion &orientation, const qint
 {
     this->position = position;
 
-    mYaw = getYawRadians(orientation, true);
-    mPitch = getPitchRadians(orientation, true);
-    mRoll = getRollRadians(orientation, true);
+    mYaw = keepWithinRangeRadians(getYawRadians(orientation, true));
+    mPitch = keepWithinRangeRadians(getPitchRadians(orientation, true));
+    mRoll = keepWithinRangeRadians(getRollRadians(orientation, true));
 
     this->timestamp = timestamp;
 
@@ -17,9 +17,9 @@ Pose::Pose(const QVector3D &position, const float &yawDegrees, const float &pitc
 {
     this->position = position;
 
-    mYaw = DEG2RAD(yawDegrees);
-    mPitch = DEG2RAD(pitchDegrees);
-    mRoll = DEG2RAD(rollDegrees);
+    mYaw = keepWithinRangeRadians(DEG2RAD(yawDegrees));
+    mPitch = keepWithinRangeRadians(DEG2RAD(pitchDegrees));
+    mRoll = keepWithinRangeRadians(DEG2RAD(rollDegrees));
 
     this->timestamp = timestamp;
 
@@ -43,9 +43,9 @@ Pose Pose::interpolateLinear(const Pose &before, const Pose &after, const float 
 
     return Pose(
                 before.position * (1.0 - mu) + after.position * mu,
-                before.mYaw * (1.0 - mu) + after.mYaw * mu,
-                before.mPitch * (1.0 - mu) + after.mPitch * mu,
-                before.mRoll * (1.0 - mu) + after.mRoll * mu,
+                RAD2DEG(before.mYaw * (1.0 - mu) + after.mYaw * mu),
+                RAD2DEG(before.mPitch * (1.0 - mu) + after.mPitch * mu),
+                RAD2DEG(before.mRoll * (1.0 - mu) + after.mRoll * mu),
                 before.timestamp * (1.0 - mu) + after.timestamp * mu
                 );
 }
@@ -60,7 +60,6 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
     const double mu2 = mu*mu;
 
     // position
-//    QVector3D po0, po1, po2, po3;
     const QVector3D po0 = last->position - after->position - first->position + before->position;
     const QVector3D po1 = first->position - before->position - po0;
     const QVector3D po2 = after->position - first->position;
@@ -68,8 +67,7 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
 
     QVector3D resultPosition = po0*mu*mu2+po1*mu2+po2*mu+po3;
 
-    // yaw
-//    float  y0, y1, y2, y3;
+    // yaw - what happens with values around +-180?!r
     const float y0 = last->mYaw - after->mYaw - first->mYaw + before->mYaw;
     const float y1 = first->mYaw - before->mYaw - y0;
     const float y2 = after->mYaw - first->mYaw;
@@ -78,7 +76,6 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
     const float yaw = y0*mu*mu2+y1*mu2+y2*mu+y3;
 
     // pitch
-//    float  p0, p1, p2, p3;
     const float p0 = last->mPitch - after->mPitch - first->mPitch + before->mPitch;
     const float p1 = first->mPitch - before->mPitch - p0;
     const float p2 = after->mPitch - first->mPitch;
@@ -87,7 +84,6 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
     const float pitch = p0*mu*mu2+p1*mu2+p2*mu+p3;
 
     // roll
-//    float  r0, r1, r2, r3;
     const float r0 = last->mRoll - after->mRoll - first->mRoll + before->mRoll;
     const float r1 = first->mRoll - before->mRoll - r0;
     const float r2 = after->mRoll - first->mRoll;
@@ -128,28 +124,31 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
 }
 
 
-float Pose::getShortestTurnRadians(const float& angle)
+float Pose::getShortestTurnRadians(float angle)
 {
     return DEG2RAD(getShortestTurnDegrees(RAD2DEG(angle)));
 }
 
-float Pose::getShortestTurnDegrees(const float& angle)
+float Pose::getShortestTurnDegrees(float angle)
 {
-    float angleNew = angle;
-    while(angleNew <= -180.0) angleNew += 360.0;
-    while(angleNew > 180.0) angleNew -= 360.0;
-    return angleNew;
+    while(angle <= -180.0) angle += 360.0;
+    while(angle > 180.0) angle -= 360.0;
+    return angle;
+}
+
+float Pose::keepWithinRangeDegrees(float angleDegrees)
+{
+    // When two angles are added, e.g. 270 + 270 deg, we arrive at 540,
+    // which can be simplified to 180 degrees.
+    while(angleDegrees > 180.0f) angleDegrees -= 360.0f;
+    while(angleDegrees < -180.0f) angleDegrees += 360.0f;
+
+    return angleDegrees;
 }
 
 float Pose::keepWithinRangeRadians(float angleRadians)
 {
-    // When two angles are added, e.g. 270 + 270 deg, we arrive at 540,
-    // which can be simplified to 180 degrees.
-    // This is DIFFERENT from normalizeAngle, please see its description
-    while(angleRadians > DEG2RAD(360.0)) angleRadians -= DEG2RAD(360.0);
-    while(angleRadians < DEG2RAD(-360.0)) angleRadians += DEG2RAD(360.0);
-
-    return angleRadians;
+    return DEG2RAD(keepWithinRangeDegrees(RAD2DEG(angleRadians)));
 }
 
 QVector2D Pose::getPlanarPosition() const
@@ -181,26 +180,13 @@ Pose Pose::operator+(const Pose &p) const
     // The following two should be the same
     return Pose(
                 position + getOrientation().rotatedVector(p.position),
-                RAD2DEG(keepWithinRangeRadians(mYaw + p.getYawRadians())),
-                RAD2DEG(keepWithinRangeRadians(mPitch + p.getPitchRadians())),
-                RAD2DEG(keepWithinRangeRadians(mRoll + p.getRollRadians())),
+                RAD2DEG(mYaw) + p.getYawDegrees(),
+                RAD2DEG(mPitch) + p.getPitchRadians(),
+                RAD2DEG(mRoll) + p.getRollRadians(),
                 // use the latest timestamp, needed in LaserScanner::slotNewVehiclePose(const Pose& pose)
                 std::max(timestamp,p.timestamp)
                 );
-
-    /*return Pose(
-                position + getOrientation().rotatedVector(p.position),
-                p.getOrientation() * getOrientation(),
-                // use the latest timestamp, needed in LaserScanner::slotNewVehiclePose(const Pose& pose)
-                std::max(timestamp,p.timestamp)
-                );*/
 }
-
-/*const Pose Pose::operator-(const Pose &p) const
-{
-    Q_ASSERT(false);
-}*/
-
 
 QDebug operator<<(QDebug dbg, const Pose &pose)
 {

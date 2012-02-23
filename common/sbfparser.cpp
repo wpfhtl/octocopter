@@ -10,59 +10,13 @@ SbfParser::SbfParser(QObject *parent) : QObject(parent)
     mTimeStampStartup = QDateTime::currentDateTime();
 
     mPoseClockDivisor = 0;
+
+    mMaxCovariances = 1.0f;
 }
 
 SbfParser::~SbfParser()
 {
 }
-/*
-qint32 SbfParser::extractTow(const QByteArray& sbfData)
-{
-    if(sbfData.length() >= 12 && sbfData.left(2) == "$@")
-    {
-        const quint16 msgCrc = *(quint16*)(sbfData.data() + 2);
-        const quint16 msgId = *(quint16*)(sbfData.data() + 4);
-        const quint16 msgIdBlock = msgId & 0x1fff;
-        const quint16 msgIdRev = msgId >> 13;
-        const quint16 msgLength = *(quint16*)(sbfData.data() + 6);
-
-        // We limit the length range:[0|buffer's size], because for broken packets, msgLength might be a random value (also negative)
-        if(getCrc(sbfData.data()+4, std::max(0, std::min(sbfData.size()-4, msgLength-4))) != msgCrc)
-        {
-            qDebug() << "SbfParser::extractTow(): CRC doesn't match, returning -1.";
-            return -1;
-        }
-
-        // We can use any SBF block here, as the header is always the same
-        const Sbf_ReceiverTime *block = (Sbf_ReceiverTime*)sbfData.data();
-        return block->TOW;
-    }
-
-    qDebug() << "SbfParser::extractTow(): packet size is" << sbfData.size() << "and starts with" << sbfData.left(2) << ": malformed. Retuning -1.";
-    return -1;
-}
-
-qint32 SbfParser::extractLengthFromHeader(const QByteArray& sbfData)
-{
-    if(sbfData.length() >= 12 && sbfData.left(2) == "$@")
-    {
-        const quint16 msgCrc = *(quint16*)(sbfData.data() + 2);
-        const quint16 msgLength = *(quint16*)(sbfData.data() + 6);
-
-        // We limit the length range:[0|buffer's size], because for broken packets, msgLength might be a random value (also negative)
-        if(getCrc(sbfData.data()+4, std::max(0, std::min(sbfData.size()-4, msgLength-4))) != msgCrc)
-        {
-            qDebug() << "SbfParser::extractPacketLength(): CRC doesn't match, returning -1.";
-            Q_ASSERT(false);
-        }
-        return msgLength;
-    }
-
-    qDebug() << "SbfParser::extractPacketLength(): packet size is" << sbfData.size() << "and starts with" << sbfData.left(2) << ": malformed. Retuning -1.";
-    Q_ASSERT(false);
-    return -1;
-}
-*/
 
 bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offset, qint32* tow)
 {
@@ -312,19 +266,19 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                             QString("Heading ambiguity fixed: %1").arg(testBit(block->Info, 11) ? "true" : "false"));
 
-            if(!testBitEqual(mGpsStatus.info, block->Info, 12))
+            if(false && !testBitEqual(mGpsStatus.info, block->Info, 12)) // FIXME: until firmware works
                 emit message(
                             testBit(block->Info, 12) ? Error : Information, // We don't use this, should be 0
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                             QString("Zero constraint used: %1").arg(testBit(block->Info, 12) ? "true" : "false"));
 
-            if(!testBitEqual(mGpsStatus.info, block->Info, 13))
+            if(false && !testBitEqual(mGpsStatus.info, block->Info, 13)) // FIXME: until firmware works
                 emit message(
                             testBit(block->Info, 13) ? Information : Error,
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                             QString("GNSS position used: %1").arg(testBit(block->Info, 13) ? "true" : "false"));
 
-            if(!testBitEqual(mGpsStatus.info, block->Info, 14))
+            if(false && !testBitEqual(mGpsStatus.info, block->Info, 14)) // FIXME: until firmware works
                 emit message(
                             testBit(block->Info, 14) ? Information : Error,
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
@@ -343,7 +297,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         }
 
         // Check the Mode-field and emit states if it changes
-        if(mGpsStatus.integrationMode != block->Mode)
+        if(mGpsStatus.integrationMode != block->Mode                     && block->Mode == 2) // FIXME: until firmware works?!
         {
             //qDebug() << t() << "SbfParser::processNextValidPacket(): mode changed from" << mGpsStatus.integrationMode << "to" << block->Mode;
 
@@ -414,7 +368,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
             mGpsStatus.gnssMode = block->GNSSPVTMode;
         }
 
-        if(mGpsStatus.gnssAge != block->GNSSage)
+        if(mGpsStatus.gnssAge != block->GNSSage             && block->GNSSage == 0) // FIXME: until firmware works?!
         {
 //            qDebug() << t() << "SbfParser::processNextValidPacket(): GnssAge changed from" << mGpsStatus.gnssAge << "to" << block->GNSSage << "at TOW" << block->TOW;
 
@@ -430,10 +384,10 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         if(mGpsStatus.numSatellitesUsed != numberOfSatellitesUsed)
         {
 //            qDebug() << t() << "SbfParser::processNextValidPacket(): numSats changed from" << mGpsStatus.numSatellitesUsed << "to" << numberOfSatellitesUsed;
-            emit message(
+            /*emit message(
                         numberOfSatellitesUsed > 5 ? Information : Warning,
                         QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                        QString("Number of used satellites changed from %1 to %2").arg(mGpsStatus.numSatellitesUsed).arg(numberOfSatellitesUsed));
+                        QString("Number of used satellites changed from %1 to %2").arg(mGpsStatus.numSatellitesUsed).arg(numberOfSatellitesUsed));*/
 
             mGpsStatus.numSatellitesUsed = numberOfSatellitesUsed;
         }
@@ -452,7 +406,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                 //&& block->Mode == 2 // integrated solution, not sensor-only or GNSS-only
                 && (block->GNSSPVTMode & 15) == 4 // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().
                 //&& block->GNSSage < 1 // seconds interval of no GNSS PVT
-                && mGpsStatus.covariances < 1.0 // make sure the filter is happy with itself
+                && mGpsStatus.covariances < mMaxCovariances // make sure the filter is happy with itself
                 )
         {
             setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
@@ -494,10 +448,11 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                 qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, heading do-not-use";
             }
 
+            /* Not an error! Wait until firmware is fixed?!
             if(block->GNSSage > 1)
             {
                 qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, GNSSAge is" << block->GNSSage;
-            }
+            }*/
 
             if(
                     block->Lat == -2147483648L
@@ -509,13 +464,14 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
             {
                 qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, do-not-use values found.";
             }
+            /* Not an error! Wait until firmware is fixed?!
             else if(block->Mode != 2)
             {
                 qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, not integrated solution, but" << GpsStatusInformation::getIntegrationMode(block->Mode);
                 setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
                 emit newVehiclePose(mLastPose);
                 mPoseClockDivisor++;
-            }
+            }*/
             else if((block->GNSSPVTMode & 15) != 4)
             {
                 qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, GnssPvtMode is" << GpsStatusInformation::getGnssMode(block->GNSSPVTMode) << "corrAge:" << mGpsStatus.meanCorrAge << "sec";
@@ -523,7 +479,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                 emit newVehiclePose(mLastPose);
                 mPoseClockDivisor++;
             }
-            else if(mGpsStatus.covariances > 1.0f)
+            else if(mGpsStatus.covariances > mMaxCovariances)
             {
                 qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, covariances are" << mGpsStatus.covariances;
                 setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
@@ -604,12 +560,12 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     case 4050:
     {
         // ExtSensorMeas
-        qDebug() << "SBF: ExtSensorMeas";
+//        qDebug() << "SBF: ExtSensorMeas";
     }
     break;
     default:
     {
-        qDebug() << "SbfParser::processNextValidPacket(): ignoring block id" << msgIdBlock;
+//        qDebug() << "SbfParser::processNextValidPacket(): ignoring block id" << msgIdBlock;
     }
     }
 
@@ -620,8 +576,17 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     emit processedPacket(sbfData.left(msgLength));
 
     // Remove the SBF block body from our incoming buffer, so it contains either nothing or the next SBF message
-    //sbfData.remove(0, msgLength); // this does not remove the padding bytes after the current packet
-    sbfData.remove(0, sbfData.indexOf("$@", offsetToValidPacket+1)); // removes the packet and the padding bytes before the next $@-sync-field from the next packet
+    const int indexOfNextPacket = sbfData.indexOf("$@", offsetToValidPacket+1);
+    if(indexOfNextPacket == -1)
+    {
+        // There is no next packet, so remove the packet, possibly without the padding bytes at the end.
+        sbfData.remove(0, msgLength); // this does not remove the padding bytes after the current packet
+    }
+    else
+    {
+        // A next packet was found, so remove everything up to its start (including padding bytes from our current packet)
+        sbfData.remove(0, indexOfNextPacket);
+    }
 
     //if(sbfData.size()) qDebug() << "SbfParser::processNextValidPacket(): done processing SBF data, bytes left in buffer:" << sbfData.size() << "bytes:" << sbfData;
 }

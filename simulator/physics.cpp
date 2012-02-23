@@ -339,7 +339,7 @@ Physics::~Physics()
     delete mBtBroadphase;
 }
 
-void Physics::slotSetMotion(const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height)
+void Physics::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& pitch, const qint8& roll, const qint8& height)
 {
 //    qDebug() << "Physics::slotSetMotion(): updating physics forces with thrust" << thrust << "pitch" << pitch << "roll" << roll << "yaw" << yaw;
 
@@ -352,7 +352,7 @@ void Physics::slotSetMotion(const quint8& thrust, const qint8& pitch, const qint
          negative values. The higher the value, the faster it will rotate.
 
        - For pitch, the given qint8 is close to the angle the kopter will assume. For example, a value
-         of 90 will make it pitch almost 90 degrees forward and HOLD that orientation until the value changes.
+         of 90 will make it pitch almost 90 degrees and HOLD that orientation until the value changes.
 
        - Same for roll.
 
@@ -382,6 +382,7 @@ void Physics::slotSetMotion(const quint8& thrust, const qint8& pitch, const qint
     // Yaw!
     // Let us wildly assume that the motors go 2000rpm faster/slower on maximum yaw
     const double torqueScalarYaw = mEngine.calculateTorque(2000 * (((float)yaw) / 128.0));
+    //qDebug() << "Physics::slotSetMotion(): torqueScalarYaw is" << torqueScalarYaw;
     Ogre::Vector3 torqueVectorYaw = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0.0, torqueScalarYaw, 0.0);
     mVehicleBody->applyTorque(btVector3(torqueVectorYaw.x, torqueVectorYaw.y, torqueVectorYaw.z));
 

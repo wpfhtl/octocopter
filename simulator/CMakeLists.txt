@@ -30,7 +30,7 @@ battery
 ../common/lidarpoint
 ../common/waypoint
 engine
-joystick
+../common/joystick
 laserscanner
 camera
 statuswidget
@@ -54,7 +54,7 @@ battery.h
 ../common/lidarpoint.h
 ../common/waypoint.h
 engine.h
-joystick.h
+../common/joystick.h
 laserscanner.h
 camera.h
 statuswidget.h

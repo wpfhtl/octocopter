@@ -231,6 +231,28 @@ void RoverConnection::processPacket(QByteArray data)
     }
 }
 
+void RoverConnection::slotSendMotionToKopter(const quint8& thrust, const qint8& yaw, const qint8& pitch, const qint8& roll, const qint8& height)
+{
+    qDebug() << "RoverConnection::processPacket(): slotSendMotionToKopter: values:" << thrust << pitch << roll << yaw << height;
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    stream << QString("motionvalues");
+    stream << thrust;
+    stream << yaw;
+    stream << pitch;
+    stream << roll;
+    stream << height;
+
+    /*emit message(
+                Information,
+                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
+                QString("Transmitting motion values to rover"));*/
+
+    slotSendData(data);
+}
+
+
 void RoverConnection::slotRoverWayPointsSet(const QList<WayPoint>& wayPoints)
 {
     QByteArray data;

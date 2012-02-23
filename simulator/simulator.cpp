@@ -49,7 +49,6 @@ Simulator::Simulator(void) :
 
     mFlightController = new FlightController;
 
-    // We now are probably in a state where we can service the basestation, so lets go ahead and create the connection.
     mBaseConnection = new BaseConnection("eth0");
     connect(mBaseConnection, SIGNAL(wayPointInsert(quint16,WayPoint)), mFlightController, SLOT(slotWayPointInsert(quint16,WayPoint)));
     connect(mBaseConnection, SIGNAL(wayPointDelete(quint16)), mFlightController, SLOT(slotWayPointDelete(quint16)));
@@ -318,11 +317,9 @@ void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enab
 
 void Simulator::slotUpdate()
 {
-//    qDebug() << "Simulator::slotUpdate()";
-
     if(mJoystickEnabled && mJoystick->isValid())
     {
-        mJoystick->emitMotionCommands();
+        mJoystick->slotEmitMotionCommands();
     }
     else
     {

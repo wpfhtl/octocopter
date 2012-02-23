@@ -13,22 +13,16 @@ GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flig
     mOctree(octree),
     mFlightPlanner(flightPlanner)
 {
-//    rotQuad = 0.0f;
-//    startTimer(25);
     QGLFormat fmt;
     fmt.setSamples(2);
     fmt.setSampleBuffers(true);
     QGLFormat::setDefaultFormat(fmt);
     setFormat(fmt);
 
-
-//    mBaseStation = baseStation;
-
     mCamLookAtOffset = QVector3D(0.0, 0.0, 0.0);
 
-    //Wheel Scaling
-    currentScaling = 2.0;
-    mZoomFactor = 0.5;
+    mZoomFactorCurrent = 0.5;
+    mZoomFactorTarget = 0.5;
 
     //Mouse Move Rotations
     rotX = 0;
@@ -36,10 +30,10 @@ GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flig
     rotZ = 0;
 
     //Timer Animation
-    timerId = 0;
-    t = 0.0;
+    mTimerIdZoom = 0;
+    mTimerIdRotate = 0;
 
-//    camPos = QVector3D(0, 500, -500);
+    mTimeOfLastExternalUpdate = QDateTime::currentDateTime();
 
     setMinimumSize(320, 240);
 }
@@ -75,12 +69,13 @@ void GlWidget::initializeGL()
 
 void GlWidget::resizeGL(int w, int h)
 {
+    qDebug() << "GlWidget::resizeGL(): resizing gl viewport to" << w << h;
     // setup viewport, projection etc.
     glViewport(0, 0, w, h);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-//    gluPerspective(50.0*mZoomFactor, (GLfloat)w/(GLfloat)h, 10, +8000.0);
-    glOrtho(-w/2 * mZoomFactor, w/2 * mZoomFactor, -h/2 * mZoomFactor, h/2 * mZoomFactor, 1, 10000);
+//    gluPerspective(50.0*mZoomFactorCurrent, (GLfloat)w/(GLfloat)h, 10, +8000.0);
+    glOrtho(-w/2 * mZoomFactorCurrent, w/2 * mZoomFactorCurrent, -h/2 * mZoomFactorCurrent, h/2 * mZoomFactorCurrent, 1, 10000);
     glTranslatef(camPos.x(), camPos.y(), camPos.z());
     glMatrixMode(GL_MODELVIEW);
 }
@@ -93,7 +88,24 @@ void GlWidget::moveCamera(const QVector3D &pos)
 
 void GlWidget::paintGL()
 {
-//    setShaders();
+    // Here we make mZoomFactorCurrent converge to mZoomFactorTarget for smooth zooming
+    float step = 0.0f;
+    if(mZoomFactorTarget > (mZoomFactorCurrent + 0.0001f))
+        step = (mZoomFactorTarget - mZoomFactorCurrent) / 10.0f;
+    else if((mZoomFactorTarget + 0.0001f) < mZoomFactorCurrent)
+        step = -(mZoomFactorCurrent - mZoomFactorTarget) / 10.0f;
+
+    if(fabs(step) > 0.00001f)
+    {
+        if(mTimerIdZoom == 0) mTimerIdZoom = startTimer(20);
+        mZoomFactorCurrent += step;
+    }
+    else if(mTimerIdZoom != 0)
+    {
+        killTimer(mTimerIdZoom);
+        mTimerIdZoom = 0;
+    }
+
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     resizeGL(width(),height());
@@ -137,12 +149,6 @@ void GlWidget::paintGL()
 
     drawAxes(10, 10, 10, 0.8, 0.8, 0.8);
 
-    // Draw vehicle position
-//    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);			// Type Of Blending To Use
-//    glDisable(GL_LIGHTING);
-//    OpenGlUtilities::drawSphere(mFlightPlanner->getLastKnownVehiclePose().position, 1.0, 20.0, QColor(0,0,0,200));
-//    glEnable(GL_LIGHTING);
-
     drawVehiclePath();
     drawVehicle();
     drawVehicleVelocity();
@@ -162,8 +168,8 @@ void GlWidget::drawVehiclePath() const
 {
     const QVector<Pose> path = mFlightPlanner->getVehiclePoses();
 
-    glPointSize(2);
-    glBegin(GL_POINTS);
+    glLineWidth(2);
+    glBegin(GL_LINE_STRIP);
     glColor3f(0.0, 1.0, 0.0);
     for(int i = 0; i < path.size(); i++)
         glVertexVector(path.at(i).position);
@@ -176,19 +182,19 @@ void GlWidget::drawVehicle() const
     const Pose pose = mFlightPlanner->getLastKnownVehiclePose();
     const QVector3D vehiclePosition = pose.position;
 
-    const QVector3D armFront = pose.getOrientation().rotatedVector(QVector3D(0.0, 0.0, -1.0));
-    const QVector3D armBack = pose.getOrientation().rotatedVector(QVector3D(0.0, 0.0, 1.0));
-    const QVector3D armLeft = pose.getOrientation().rotatedVector(QVector3D(-1.0, 0.0, 0.0));
-    const QVector3D armRight = pose.getOrientation().rotatedVector(QVector3D(1.0, 0.0, 0.0));
+    const QVector3D armFront = pose.getOrientation().rotatedVector(QVector3D(0.0, 0.0, -0.4));
+    const QVector3D armBack = pose.getOrientation().rotatedVector(QVector3D(0.0, 0.0, 0.4));
+    const QVector3D armLeft = pose.getOrientation().rotatedVector(QVector3D(-0.4, 0.0, 0.0));
+    const QVector3D armRight = pose.getOrientation().rotatedVector(QVector3D(0.4, 0.0, 0.0));
 
-    const QVector3D landingLegFront = pose.getOrientation().rotatedVector(QVector3D(0.0, -0.5, -0.5));
-    const QVector3D landingLegBack = pose.getOrientation().rotatedVector(QVector3D(0.0, -0.5, 0.5));
-    const QVector3D landingLegLeft = pose.getOrientation().rotatedVector(QVector3D(-0.5, -0.5, 0.0));
-    const QVector3D landingLegRight = pose.getOrientation().rotatedVector(QVector3D(0.5, -0.5, 0.0));
+    const QVector3D landingLegFront = pose.getOrientation().rotatedVector(QVector3D(0.0, -0.2, -0.2));
+    const QVector3D landingLegBack = pose.getOrientation().rotatedVector(QVector3D(0.0, -0.2, 0.2));
+    const QVector3D landingLegLeft = pose.getOrientation().rotatedVector(QVector3D(-0.2, -0.2, 0.0));
+    const QVector3D landingLegRight = pose.getOrientation().rotatedVector(QVector3D(0.2, -0.2, 0.0));
 
-    glTranslatef(0.0f, 0.4f, 0.0f);
+    glTranslatef(0.0f, 0.2f, 0.0f);
 
-    OpenGlUtilities::drawSphere(vehiclePosition, 0.1, 20.0, QColor(80,80,80,200));
+    OpenGlUtilities::drawSphere(vehiclePosition, 0.03, 10.0, QColor(80,80,80,200));
     glDisable(GL_LIGHTING);
 
 
@@ -272,7 +278,7 @@ void GlWidget::drawAxes(
     glEnable(GL_LIGHTING);
 }
 
-//Mouse Handlers
+/*//Mouse Handlers
 void GlWidget::mouseDoubleClickEvent(QMouseEvent *event)
 {
     if(event->button() != Qt::LeftButton)
@@ -286,6 +292,21 @@ void GlWidget::mouseDoubleClickEvent(QMouseEvent *event)
     {
         killTimer(timerId);
         timerId = 0;
+    }
+}*/
+
+void GlWidget::slotEnableTimerRotation(const bool& enable)
+{
+    if(enable && mTimerIdRotate == 0)
+    {
+        qDebug() << "GlWidget::slotEnableTimerRotation(): enabling timer";
+        mTimerIdRotate = startTimer(30);
+    }
+    else if(!enable && mTimerIdRotate != 0)
+    {
+        qDebug() << "GlWidget::slotEnableTimerRotation(): disabing timer";
+        killTimer(mTimerIdRotate);
+        mTimerIdRotate = 0;
     }
 }
 
@@ -325,21 +346,42 @@ void GlWidget::mouseMoveEvent(QMouseEvent *event)
 
 //    qDebug() << "mCamLookAtOffset: " << mCamLookAtOffset << "rotXYZ:" << rotX << rotY << rotZ;
 
-    updateGL();
+    update();
 }
 
 void GlWidget::wheelEvent(QWheelEvent *event)
 {
-    event->delta() > 0 ? mZoomFactor *= 1.2f : mZoomFactor *= 0.8f;
+    event->delta() > 0 ? mZoomFactorTarget *= 1.5f : mZoomFactorTarget *= 0.5f;
+    mZoomFactorTarget = qBound(0.002f, (float)mZoomFactorTarget, 1.0f);
 //    qDebug() << "zoomFactor" << mZoomFactor;
+    update();
+}
+
+void GlWidget::slotUpdateView()
+{
+    mTimeOfLastExternalUpdate = QDateTime::currentDateTime();
     update();
 }
 
 void GlWidget::timerEvent ( QTimerEvent * event )
 {
-    if(event->timerId() == timerId)
+    if(event->timerId() == mTimerIdRotate)
     {
-        t += 0.25; updateGL();
+//        qDebug() << "GlWidget::timerEvent(): rotating...";
+        rotY -= 180 * 0.001;
+    }
+    else if(event->timerId() == mTimerIdZoom)
+    {
+//        qDebug() << "GlWidget::timerEvent(): zooming...";
+    }
+
+    // We should redraw for both zooming and rotating. But if the helicopter is flying, that will mean
+    // two sources causing redraws all the time, which is slow. So, only update if there was recent update.
+    const int interval = mTimeOfLastExternalUpdate.msecsTo(QDateTime::currentDateTime());
+    if(interval > 60)
+    {
+//        qDebug() << "GlWidget::timerEvent(): last external update was" << interval << "ms ago, updating";
+        update();
     }
 }
 
@@ -348,8 +390,8 @@ void GlWidget::slotViewFromTop()
     rotX = 49.58;
     rotY = -17.71;
     rotZ = 19.67;
-    mZoomFactor = 0.4;
-    mZoomFactor = 0.6;
+    mZoomFactorCurrent = 0.6;
+    mZoomFactorTarget = 0.6;
     updateGL();
 }
 
@@ -363,8 +405,8 @@ void GlWidget::slotViewFromSide()
     rotY = -3.54;
     rotZ = -10.7;
 
-    mZoomFactor = 0.4;
-    mZoomFactor = 0.6;
+    mZoomFactorCurrent = 0.6;
+    mZoomFactorTarget = 0.6;
     updateGL();
 }
 

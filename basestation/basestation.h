@@ -10,6 +10,7 @@
 #include "glwidget.h"
 #include "logplayer.h"
 #include "octree.h"
+#include "joystick.h"
 #include "rtkfetcher.h"
 #include "lidarpoint.h"
 #include "flightplannerbasic.h"
@@ -35,7 +36,7 @@ class BaseStation : public QMainWindow
     Q_OBJECT
 
 private:
-    //Pose mVehiclePose;
+    QTimer* mTimerJoystick;
 
     WirelessDevice* mWirelessDevice;
 
@@ -44,6 +45,8 @@ private:
     RoverConnection* mRoverConnection;
 
     FlightPlannerInterface* mFlightPlanner;
+
+    Joystick* mJoystick;
 
     RtkFetcher* mRtkFetcher;
     ControlWidget* mControlWidget;
@@ -76,6 +79,9 @@ private slots:
     void slotExportCloud(void);
     void slotImportCloud(void);
     void slotTogglePlot(void);
+
+    // Send motion commands to rover WHILE button 1 is pressed
+    void slotManageJoystick(quint8 button, bool pressed);
 
     void slotWriteStats();
     void slotAddLogFileMarkForPaper(QList<WayPoint> wptList);

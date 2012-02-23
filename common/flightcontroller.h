@@ -63,12 +63,15 @@ private:
     QTime mLastKnownBottomBeamLengthTimestamp;
     float mLastKnownBottomBeamLength;
 
-    // Upon reaching a waypoint, we rotate. This helps to keep track of that rotation
-    float mDesiredYaw;
-
     void wayPointReached();
     WayPoint getLandingWayPoint() const;
     void setFlightState(const FlightState&);
+
+    // In the first controller iteration, we don't want to build derivatives, they'd be waaayy off and destabilize the controller
+    bool mFirstControllerRun;
+
+    // Just in case we reach an undefined state, we emit safe control values. Used instead of asserting.
+    void emitSafeControlValues();
 
 signals:
     // used to set the motor-speeds
@@ -104,14 +107,6 @@ public slots:
 
     // Called by LaserScanner to set the last known distance of the ray pointing down in vehicle frame
     void slotSetBottomBeamLength(const float&);
-
-    // Why does the FlightController give a &%$§ whether the laserscanner is active? While scanning,
-    // we want to yaw constantly, so that the lidar can see more terrain (similar to creating
-    // panorama photos). Unfortunately, this constant rotating confuses the human pilot, so we only
-    // yaw when the lidar actually needs this.
-    // If this slot is NOT called for a specified period of time (in the order of e.g. 500ms), we
-    // stop rotating.
-    void slotScanningInProgress(const quint32& timestamp);
 
     void slotFreeze();
 };

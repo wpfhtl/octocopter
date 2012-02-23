@@ -24,6 +24,7 @@ connectiondialog
 roverconnection
 bulletdebugdrawergl
 voxelmanager
+../common/joystick
 ../common/sbfparser
 ../common/sensorfuser
 ../common/plymanager
@@ -57,6 +58,7 @@ connectiondialog.h
 roverconnection.h
 bulletdebugdrawergl.h
 voxelmanager.h
+../common/joystick.h
 ../common/sbfparser.h
 ../common/sensorfuser.h
 ../common/plymanager.h

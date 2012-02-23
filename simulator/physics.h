@@ -88,7 +88,7 @@ signals:
 public slots:
 //    void start(void);
 //    void stop(void);
-    void slotSetMotion(const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height);
+    void slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& pitch, const qint8& roll, const qint8& height);
     void slotSetWindSetting(const bool& enable, const float& factor);
     void slotSetTotalVehicleWeight(const float&);
     void slotUpdatePhysics(void);

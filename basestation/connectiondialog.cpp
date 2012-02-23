@@ -16,6 +16,8 @@ ConnectionDialog::ConnectionDialog(QWidget *parent) :
 
     ui->mLineEditHostNameRover->setCompleter(completer);
     ui->mLineEditHostNameRtkBase->setCompleter(completer);
+
+    ui->mLineEditHostNameRover->selectAll();
 }
 
 ConnectionDialog::~ConnectionDialog()

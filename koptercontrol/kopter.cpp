@@ -11,21 +11,6 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     mSerialPortFlightCtrl->setStopBits(AbstractSerial::StopBits1);
     mSerialPortFlightCtrl->setFlowControl(AbstractSerial::FlowControlOff);
 
-    /* QExtSerialPort
-    mSerialPortFlightCtrl = new QextSerialPort(serialDeviceFile, QextSerialPort::EventDriven);
-    mSerialPortFlightCtrl->setBaudRate(BAUD57600);
-    mSerialPortFlightCtrl->setFlowControl(FLOW_OFF);
-    mSerialPortFlightCtrl->setParity(PAR_NONE);
-    mSerialPortFlightCtrl->setDataBits(DATA_8);
-    mSerialPortFlightCtrl->setStopBits(STOP_1);
-    mSerialPortFlightCtrl->setTimeout(5000);
-    mSerialPortFlightCtrl->open(QIODevice::ReadWrite | QIODevice::Unbuffered);
-    if(!mSerialPortFlightCtrl->isOpen())
-    {
-        qDebug() << "Kopter::Kopter(): Opening serial port" << serialDeviceFile << "failed:" << mSerialPortFlightCtrl->errorString() << "Exiting.";
-        exit(1);
-    }*/
-
     qDebug() << "Kopter::Kopter(): Opening serial port" << serialDeviceFile << "succeeded, flowControl is" << mSerialPortFlightCtrl->flowControl();
 
     connect(mSerialPortFlightCtrl, SIGNAL(readyRead()), SLOT(slotSerialPortDataReady()));
@@ -68,16 +53,18 @@ void Kopter::slotTestMotors(const QList<unsigned char> &speeds)
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
 }
 
-void Kopter::slotSetMotion(const quint8& thrust, const qint8& nick, const qint8& roll, const qint8& yaw, const qint8& height)
+void Kopter::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& pitch, const qint8& roll, const qint8& height)
 {
     if(!mMissionStartTime.isValid()) mMissionStartTime = QTime::currentTime();
+
+    qDebug() << "Kopter::slotSetMotion(): setting motion" << thrust << yaw << pitch << roll << height;
 
     if(mPendingReplies.contains('b')) qWarning() << "Still waiting for a 'B', should not send right now!";
 
     mStructExternControl.Frame = 1;
 
     mStructExternControl.Config = 1;
-    mStructExternControl.Nick = nick;
+    mStructExternControl.Nick = pitch;
     mStructExternControl.Roll = roll;
     mStructExternControl.Gas = thrust;
     mStructExternControl.Gier = yaw;

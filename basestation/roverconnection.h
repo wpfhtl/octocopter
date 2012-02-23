@@ -51,6 +51,8 @@ public slots:
 
     void slotSendRtkDataToRover(const QByteArray& rtkData);
 
+    void slotSendMotionToKopter(const quint8& thrust, const qint8& yaw, const qint8& pitch, const qint8& roll, const qint8& height);
+
 private slots:
     void slotSocketConnected(void);
     void slotSocketDisconnected(void);

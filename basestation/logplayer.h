@@ -29,7 +29,11 @@ private:
     SensorFuser* mSensorFuser;
     QByteArray mDataSbf, mDataLaser, mDataSbfCopy; // We don't copy the laser array, as it can be several hundred megabytes in size!
     qint32 mIndexLaser; // points to either 1) the beginning, 2) a byte after a \n or 3) behind the QByteArray's last byte (which should equal 2))
+
+    // Stuff needed for realtime-playback
     QTimer* mTimerAnimation;
+    QTime mTimePlaybackStartReal;
+    qint32 mTimePlaybackStartTow;
 
     qint32 getEarliestValidTow(const qint32& towA, const qint32& towB) const;
 

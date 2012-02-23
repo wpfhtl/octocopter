@@ -65,6 +65,7 @@ private:
     quint8 mPoseClockDivisor; // for emitting a low-frequency pose for debugging
 
     double mOriginLongitude, mOriginLatitude, mOriginElevation;
+    float mMaxCovariances;
 
     struct Sbf_Header
     {

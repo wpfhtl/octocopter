@@ -8,7 +8,7 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     mTimerAnimation = new QTimer(this);
     connect(mTimerAnimation, SIGNAL(timeout()), SLOT(slotPlay()));
 
-    mSensorFuser = new SensorFuser(3);
+    mSensorFuser = new SensorFuser(1);
     mSbfParser = new SbfParser(this);
 
     mIndexLaser = -1;
@@ -103,6 +103,7 @@ void LogPlayer::slotRewind()
     // The file doesn't always start with valid sbf, so lets seek to the first packet
     mDataSbf = mDataSbfCopy;
     mIndexLaser = 0;
+    mTimePlaybackStartReal = QTime(); // set invalid
 }
 
 qint32 LogPlayer::getNextTowLaser()
@@ -147,7 +148,6 @@ bool LogPlayer::slotStepForward()
     if(!mSbfParser->getNextValidPacketInfo(mDataSbf, 0, &towSbf)) towSbf = -1;
 
     qint32 towLaser = getNextTowLaser();
-
 
     if(towSbf > 0 && (towSbf < towLaser || towLaser == -1))
     {
@@ -199,10 +199,20 @@ qint32 LogPlayer::getEarliestValidTow(const qint32& towA, const qint32& towB) co
 
 void LogPlayer::slotPlay()
 {
+
     qint32 towBeforeSbf;
     if(!mSbfParser->getNextValidPacketInfo(mDataSbf, 0, &towBeforeSbf)) towBeforeSbf = -1;
     const qint32 towBeforeLsr = getNextTowLaser();
     const qint32 minTowBefore = getEarliestValidTow(towBeforeSbf, towBeforeLsr);
+
+
+    if(!mTimePlaybackStartReal.isValid())
+    {
+        // The first time slotPlay() has been called after loading/rewinding logdata.
+        // Take note of GNSS-TOW and real time, so we can synchronize them
+        mTimePlaybackStartReal = QTime::currentTime();
+        mTimePlaybackStartTow = minTowBefore;
+    }
 
     if(!slotStepForward())
     {
@@ -225,9 +235,15 @@ void LogPlayer::slotPlay()
         // Packets in the SBF stream are not guaranteed to be in chronological order, especially
         // ExtEvent-packets don't let this assumption hold. For this reason, we might have to deal
         // with negative intervals, which we just set to 0 here.
-        //qDebug() << "LogPlayer::slotPlay(): slotStepForward() succeeded, sleeping from minTowBefore" << minTowBefore << "until minTowAfter" << minTowAfter;
+
+        qint32 towElapsedAtNextPacket = minTowAfter - mTimePlaybackStartTow;
+        QTime timeOfNextPacketReal = mTimePlaybackStartReal.addMSecs(towElapsedAtNextPacket);
+        const qint32 timeToSleep = QTime::currentTime().msecsTo(timeOfNextPacketReal) * ui->mSpinBoxTimeFactor->value();
+
+        qDebug() << "LogPlayer::slotPlay(): slotStepForward() succeeded, sleeping for" << timeToSleep;
+
         // Wait between 0 and 1 secs, scaled by timefactor
-        mTimerAnimation->setInterval(ui->mSpinBoxTimeFactor->value() * qBound(0, minTowAfter - minTowBefore, 1000));
+        mTimerAnimation->setInterval(qBound(0, timeToSleep, 5000));
         mTimerAnimation->start();
     }
     else
@@ -239,5 +255,6 @@ void LogPlayer::slotPlay()
 
 void LogPlayer::slotPause()
 {
+    mTimePlaybackStartReal = QTime();
     mTimerAnimation->stop();
 }
