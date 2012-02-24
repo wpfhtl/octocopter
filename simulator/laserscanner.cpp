@@ -117,9 +117,9 @@ void LaserScanner::slotDoScan()
         return;
     }
 
-    // emit bottomBeamLength on every 40th scan
+    // emit bottomBeamLength twice a second. mSpeed is rounds per minute
     mBottomBeamClockDivisor++;
-    mBottomBeamClockDivisor %= 40;
+    mBottomBeamClockDivisor %= mSpeed < 120.0f ? 1 : ((quint16)mSpeed)/120;
 
     const long long realTimeBetweenRaysUS = (1000000.0 / 6.0 / mSpeed * mAngleStep) * (1.0 / mTimeFactor);
 
@@ -215,7 +215,12 @@ void LaserScanner::slotDoScan()
         {
             const Ogre::Vector3 point = mLaserBeam.getPoint(distanceFinal);
 
-            if(mBottomBeamClockDivisor == 0 && mCurrentScanAngle == 123.0 /*FIXME!*/) emit bottomBeamLength(distanceFinal);
+            if(mBottomBeamClockDivisor == 0)
+            {
+                static Ogre::Vector3 vectorDownWorld = Ogre::Vector3::NEGATIVE_UNIT_Y;
+                if(fabs(vectorDownWorld.angleBetween(mLaserBeam.getDirection()).valueDegrees()) < 0.3f)
+                    emit heightOverGround(distanceFinal);
+            }
 
             scanContainer << QVector3D(point.x, point.y, point.z);
         }

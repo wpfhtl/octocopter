@@ -49,7 +49,7 @@ void Kopter::slotTestMotors(const QList<unsigned char> &speeds)
         payload[i] = speeds.at(i);
     }
 
-    KopterMessage message(1, 't', payload);
+    KopterMessage message(KopterMessage::Address_FC, 't', payload);
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
 }
 
@@ -61,6 +61,7 @@ void Kopter::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& 
 
     /*
       The kopter has different conventions, at least with default settings (which I intent to keep):
+
        - Positive pitch makes it pitch forward, nose-down.
          This is opposite to our expectations, because we have the right-handed X axis pointing right
 
@@ -80,7 +81,7 @@ void Kopter::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& 
 
       Under "Verschiedenes/Miscellaneous", max gas is configured to 200, which might also apply to
       ExternalControl. I don't know.
-      */
+    */
 
     if(mPendingReplies.contains('b')) qWarning() << "Still waiting for a 'B', should not send right now!";
 
@@ -93,13 +94,13 @@ void Kopter::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& 
     mStructExternControl.Gier = -yaw;
     mStructExternControl.Height = height;
 
-    KopterMessage message(1, 'b', QByteArray((const char *)&mStructExternControl, sizeof(mStructExternControl)));
+    KopterMessage message(KopterMessage::Address_FC, 'b', QByteArray((const char *)&mStructExternControl, sizeof(mStructExternControl)));
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
 }
 
 void Kopter::slotReset()
 {
-    KopterMessage message(1, 'R', QByteArray());
+    KopterMessage message(KopterMessage::Address_FC, 'R', QByteArray());
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
 }
 
@@ -107,13 +108,19 @@ void Kopter::slotGetDebugLabels(quint8 index)
 {
     Q_ASSERT(index < 32);
 
-    KopterMessage message(1, 'a', QByteArray((const char*)&index, 1));
+    KopterMessage message(KopterMessage::Address_FC, 'a', QByteArray((const char*)&index, 1));
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
 }
 
 void Kopter::slotGetVersion()
 {
-    KopterMessage message(1, 'v', QByteArray());
+    KopterMessage message(KopterMessage::Address_FC, 'v', QByteArray());
+    message.send(mSerialPortFlightCtrl, &mPendingReplies);
+}
+
+void Kopter::slotGetPpmChannelValues()
+{
+    KopterMessage message(KopterMessage::Address_FC, 'p', QByteArray());
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
 }
 
@@ -205,28 +212,21 @@ void Kopter::slotSerialPortDataReady()
                                 debugOut->Analog[5],
                                 (float)(debugOut->Analog[9])/10.0
                                 );
+                }
+                else if(message.getId() == 'P')
+                {
+                    // Read ppm channels request reply.
+                    QByteArray payload = message.getPayload();
+                    const qint16* ppmChannels = (qint16*)payload.data();
 
-                    /*
-                    for(int i=0;i<32;i++)
+                    for(int i=0; i < payload.size()/2; i++)
                     {
-                        qDebug() << QTime::currentTime() << "Kopter::slotSerialPortDataReady(): value" << i<< mAnalogValueLabels.value(i) << "is" << debugOut->Analog[i];
-
-                        switch(i)
-                        {
-                        // Here you can emit values you're interested in.
-                        case 5:
-                            qDebug() << "kopter height is" << debugOut->Analog[i];
-                            emit height(debugOut->Analog[i]);
-                            break;
-                        case 9:
-                            emit voltage((float)(debugOut->Analog[i])/10);
-                            break;
-                        }
+                        qDebug() << "Kopter::slotSerialPortDataReady(): ppm channel" << i << ":" << ppmChannels[i];
                     }
-                    */
                 }
                 else if(message.getId() == 'T')
                 {
+                    // engine test reply, contains no data
                 }
                 else if(message.getId() == 'V')
                 {

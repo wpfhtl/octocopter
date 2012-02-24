@@ -205,13 +205,13 @@ void RoverConnection::processPacket(QByteArray data)
 
         stream >> pose;
         stream >> thrust;
+        stream >> yaw;
         stream >> pitch;
         stream >> roll;
-        stream >> yaw;
         stream >> height;
 
         // Normalize poseYaw between -180 and 180 for better graphing
-        float poseYaw = pose.getYawDegrees() <= 180.0 ? pose.getYawDegrees() : pose.getYawDegrees() - 360.0;
+        float poseYaw = pose.getYawDegrees();
 
         QVector<float> values;
         values << pitch << roll << thrust << yaw;

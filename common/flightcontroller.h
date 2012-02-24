@@ -75,14 +75,14 @@ private:
 
 signals:
     // used to set the motor-speeds
-    void motion(const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height);
+    void motion(const quint8& thrust, const qint8& yaw, const qint8& pitch, const qint8& roll, const qint8& height);
 
     void debugValues(
         const Pose& usedPose,
         const quint8& thrust,
+        const qint8& yaw,
         const qint8& pitch,
         const qint8& roll,
-        const qint8& yaw,
         const qint8& height);
 
     // emitted when a waypoint is reached
@@ -106,7 +106,7 @@ public slots:
     void slotComputeMotionCommands();
 
     // Called by LaserScanner to set the last known distance of the ray pointing down in vehicle frame
-    void slotSetBottomBeamLength(const float&);
+    void slotSetHeightOverGround(const float&);
 
     void slotFreeze();
 };

@@ -20,6 +20,8 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
 
     mOffsetTimeScannerToTow = 0;
 
+    mHeightOverGroundClockDivisor = 0;
+
     mTimerScan = new QTimer(this);
     connect(mTimerScan, SIGNAL(timeout()), SLOT(slotCaptureScanData()));
 
@@ -60,13 +62,14 @@ const Pose& LaserScanner::getRelativePose() const
     return mRelativeScannerPose;
 }
 
+/*
 const float LaserScanner::getHeightAboveGround() const
 {
     // WARNING: the index and offset can be calculated from the pose.
     const int index = mScanner.deg2index(180);
     // FIXME: need data!
     return -1.0;
-}
+}*/
 
 void LaserScanner::slotSetScannerTimeStamp(const qint32& timestamp)
 {
@@ -127,7 +130,10 @@ void LaserScanner::slotEnableScanning(const bool& value)
 
 void LaserScanner::slotCaptureScanData()
 {
-    Q_ASSERT(mIsEnabled && "scanning not enabled, but slotCaptureScanData() still called?!");
+    if(!mIsEnabled) qDebug() << "LaserScanner::slotCaptureScanData(): scanning not enabled, but slotCaptureScanData() still called. Expect trouble.";
+
+    mHeightOverGroundClockDivisor++;
+    mHeightOverGroundClockDivisor %= (500 / mTimerScan->interval()); // Emit heightOverGround twice per second
 
     long timestampScanner = 0;
     std::vector<long>* distances = new std::vector<long>;
@@ -165,14 +171,13 @@ void LaserScanner::slotCaptureScanData()
         qint32 timeStampScanMiddle = mLastScannerTimeStamp + mOffsetTimeScannerToTow + 9;
 
         // Always write log data for later replay: scannerdata:[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
-        Q_ASSERT(mLogFile->isOpen());
         QTextStream out(mLogFile);
         out << timeStampScanMiddle;
         std::vector<long>::iterator itr;
         for(itr=distances->begin();itr != distances->end(); ++itr) out << " " << *itr;
         out << endl;
 
-        qDebug() << "LaserScanner::slotCaptureScanData(): wrote" << distances->size() << "scanned values to file, emitting now...";
+        if(mHeightOverGroundClockDivisor == 0) emit heightOverGround(distances->at(540));
 
         // With this call, we GIVE UP OWNERSHIP of the data. It might get deleted immediately!
         emit newScanData(timeStampScanMiddle, distances);

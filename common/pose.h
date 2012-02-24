@@ -92,6 +92,9 @@ public:
 
     QVector2D getPlanarPosition() const;
 
+    static QVector2D getPlanarPosition(const Pose& p) { return QVector2D(p.position.x(), p.position.z()); }
+    static QVector2D getPlanarPosition(const QVector3D& p) { return QVector2D(p.x(), p.z()); }
+
     // Assuming that we rotate on Y CCW (right-handed coordinate system):
     // - 000 deg == NEGATIVE_Z
     // - 090 deg == NEGATIVE_X

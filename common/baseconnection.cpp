@@ -358,7 +358,7 @@ void BaseConnection::slotNewGpsStatus(const GpsStatusInformation::GpsStatus& gps
     slotSendData(data, false);
 }
 
-void BaseConnection::slotNewControllerDebugValues(const Pose& pose, const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height)
+void BaseConnection::slotNewControllerDebugValues(const Pose& pose, const quint8& thrust, const qint8& yaw, const qint8& pitch, const qint8& roll, const qint8& height)
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
@@ -366,9 +366,9 @@ void BaseConnection::slotNewControllerDebugValues(const Pose& pose, const quint8
     stream << QString("controllervalues");
     stream << pose;
     stream << thrust;
+    stream << yaw;
     stream << pitch;
     stream << roll;
-    stream << yaw;
     stream << height;
 
     slotSendData(data, false);

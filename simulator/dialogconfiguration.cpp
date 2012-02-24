@@ -146,17 +146,22 @@ void DialogConfiguration::slotReadConfigurationLaserScanner()
                 );
 
         // set scanner orientation from form values
+        Ogre::Quaternion yaw(Ogre::Degree(mSettings.value("rotYaw", 0.0).toReal()), Ogre::Vector3::UNIT_Y);
         Ogre::Quaternion pitch(Ogre::Degree(mSettings.value("rotPitch", 0.0).toReal()), Ogre::Vector3::UNIT_X);
         Ogre::Quaternion roll(Ogre::Degree(mSettings.value("rotRoll", 0.0).toReal()), Ogre::Vector3::UNIT_Z);
-        Ogre::Quaternion yaw(Ogre::Degree(mSettings.value("rotYaw", 0.0).toReal()), Ogre::Vector3::UNIT_Y);
-        newLaserScanner->setOrientation(pitch * roll * yaw);
+        newLaserScanner->setOrientation(yaw * pitch * roll);
+
+        qDebug() << "SimulationControlWidget::slotReadConfigurationLaserScanner(): scanner" << i << "orientation YPR:"
+                 << mSettings.value("rotYaw", 0.0).toReal()
+                 << mSettings.value("rotPitch", 0.0).toReal()
+                 << mSettings.value("rotRoll", 0.0).toReal();
 
         newLaserScanner->start();
 
         laserScanners->append(newLaserScanner);
 
-        connect(newLaserScanner, SIGNAL(scanFinished(quint32)), mSimulator->mFlightController, SLOT(slotScanningInProgress(quint32)));
         connect(newLaserScanner, SIGNAL(newLidarPoints(const QVector<QVector3D>&, const QVector3D&)), mSimulator->mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector3D>,QVector3D)));
+        connect(newLaserScanner, SIGNAL(heightOverGround(float)), mSimulator->mFlightController, SLOT(slotSetHeightOverGround(float)));
 
         // Now create a row in the LaserScannerTable
         mTableWidgetLaserScanners->blockSignals(true);
@@ -164,9 +169,9 @@ void DialogConfiguration::slotReadConfigurationLaserScanner()
         mTableWidgetLaserScanners->setItem(i, 1, new QTableWidgetItem(mSettings.value("posY", 0.0).toString()));
         mTableWidgetLaserScanners->setItem(i, 2, new QTableWidgetItem(mSettings.value("posZ", 0.0).toString()));
 
-        mTableWidgetLaserScanners->setItem(i, 3, new QTableWidgetItem(mSettings.value("rotPitch", 0.0).toString()));
-        mTableWidgetLaserScanners->setItem(i, 4, new QTableWidgetItem(mSettings.value("rotRoll", 0.0).toString()));
-        mTableWidgetLaserScanners->setItem(i, 5, new QTableWidgetItem(mSettings.value("rotYaw", 0.0).toString()));
+        mTableWidgetLaserScanners->setItem(i, 3, new QTableWidgetItem(mSettings.value("rotYaw", 0.0).toString()));
+        mTableWidgetLaserScanners->setItem(i, 4, new QTableWidgetItem(mSettings.value("rotPitch", 0.0).toString()));
+        mTableWidgetLaserScanners->setItem(i, 5, new QTableWidgetItem(mSettings.value("rotRoll", 0.0).toString()));
 
         mTableWidgetLaserScanners->setItem(i, 6, new QTableWidgetItem(mSettings.value("range", 20.0).toString()));
         mTableWidgetLaserScanners->setItem(i, 7, new QTableWidgetItem(mSettings.value("speed", 100).toString()));
@@ -249,10 +254,10 @@ void DialogConfiguration::slotReadConfigurationCamera()
                 );
 
         // set scanner orientation from form values
+        Ogre::Quaternion yaw(Ogre::Degree(mSettings.value("rotYaw", 0.0).toReal()), Ogre::Vector3::UNIT_Y);
         Ogre::Quaternion pitch(Ogre::Degree(mSettings.value("rotPitch", 0.0).toReal()), Ogre::Vector3::UNIT_X);
         Ogre::Quaternion roll(Ogre::Degree(mSettings.value("rotRoll", 0.0).toReal()), Ogre::Vector3::UNIT_Z);
-        Ogre::Quaternion yaw(Ogre::Degree(mSettings.value("rotYaw", 0.0).toReal()), Ogre::Vector3::UNIT_Y);
-        newCamera->setOrientation(pitch * roll * yaw);
+        newCamera->setOrientation(yaw * pitch * roll);
 
         cameras->append(newCamera);
 
@@ -262,9 +267,9 @@ void DialogConfiguration::slotReadConfigurationCamera()
         mTableWidgetCameras->setItem(i, 1, new QTableWidgetItem(mSettings.value("posY", 0.0).toString()));
         mTableWidgetCameras->setItem(i, 2, new QTableWidgetItem(mSettings.value("posZ", 0.0).toString()));
 
-        mTableWidgetCameras->setItem(i, 3, new QTableWidgetItem(mSettings.value("rotPitch", 0.0).toString()));
-        mTableWidgetCameras->setItem(i, 4, new QTableWidgetItem(mSettings.value("rotRoll", 0.0).toString()));
-        mTableWidgetCameras->setItem(i, 5, new QTableWidgetItem(mSettings.value("rotYaw", 0.0).toString()));
+        mTableWidgetCameras->setItem(i, 3, new QTableWidgetItem(mSettings.value("rotYaw", 0.0).toString()));
+        mTableWidgetCameras->setItem(i, 4, new QTableWidgetItem(mSettings.value("rotPitch", 0.0).toString()));
+        mTableWidgetCameras->setItem(i, 5, new QTableWidgetItem(mSettings.value("rotRoll", 0.0).toString()));
 
         mTableWidgetCameras->setItem(i, 6, new QTableWidgetItem(mSettings.value("width", 800).toString()));
         mTableWidgetCameras->setItem(i, 7, new QTableWidgetItem(mSettings.value("height", 600).toString()));
@@ -299,9 +304,9 @@ void DialogConfiguration::slotSaveConfigurationCamera()
         mSettings.setValue("posY", cameras->at(i)->getPosition().y);
         mSettings.setValue("posZ", cameras->at(i)->getPosition().z);
 
+        mSettings.setValue("rotYaw", cameras->at(i)->getOrientation().getYaw(false).valueDegrees());
         mSettings.setValue("rotPitch", cameras->at(i)->getOrientation().getPitch(false).valueDegrees());
         mSettings.setValue("rotRoll", cameras->at(i)->getOrientation().getRoll(false).valueDegrees());
-        mSettings.setValue("rotYaw", cameras->at(i)->getOrientation().getYaw(false).valueDegrees());
 
         mSettings.setValue("width", cameras->at(i)->imageSize().width());
         mSettings.setValue("height", cameras->at(i)->imageSize().height());
@@ -328,10 +333,10 @@ void DialogConfiguration::slotLaserScannerDetailChanged(QTableWidgetItem* item)
             mTableWidgetLaserScanners->item(item->row(), 2)->text().toFloat()
             ));
 
-    Ogre::Quaternion pitch(Ogre::Degree(mTableWidgetLaserScanners->item(item->row(), 3)->text().toFloat()), Ogre::Vector3::UNIT_X);
-    Ogre::Quaternion roll(Ogre::Degree(mTableWidgetLaserScanners->item(item->row(), 4)->text().toFloat()), Ogre::Vector3::UNIT_Z);
-    Ogre::Quaternion yaw(Ogre::Degree(mTableWidgetLaserScanners->item(item->row(), 5)->text().toFloat()), Ogre::Vector3::UNIT_Y);
-    scanner->setOrientation(pitch * roll * yaw);
+    Ogre::Quaternion yaw(Ogre::Degree(mTableWidgetLaserScanners->item(item->row(), 3)->text().toFloat()), Ogre::Vector3::UNIT_Y);
+    Ogre::Quaternion pitch(Ogre::Degree(mTableWidgetLaserScanners->item(item->row(), 4)->text().toFloat()), Ogre::Vector3::UNIT_X);
+    Ogre::Quaternion roll(Ogre::Degree(mTableWidgetLaserScanners->item(item->row(), 5)->text().toFloat()), Ogre::Vector3::UNIT_Z);
+    scanner->setOrientation(yaw * pitch * roll);
 
     scanner->setRange(mTableWidgetLaserScanners->item(item->row(), 6)->text().toFloat());
     scanner->setSpeed(mTableWidgetLaserScanners->item(item->row(), 7)->text().toInt());
@@ -357,7 +362,7 @@ void DialogConfiguration::slotCameraDetailChanged(QTableWidgetItem* item)
     Ogre::Quaternion pitch(Ogre::Degree(mTableWidgetCameras->item(item->row(), 3)->text().toFloat()), Ogre::Vector3::UNIT_X);
     Ogre::Quaternion roll(Ogre::Degree(mTableWidgetCameras->item(item->row(), 4)->text().toFloat()), Ogre::Vector3::UNIT_Z);
     Ogre::Quaternion yaw(Ogre::Degree(mTableWidgetCameras->item(item->row(), 5)->text().toFloat()), Ogre::Vector3::UNIT_Y);
-    camera->setOrientation(pitch * roll * yaw);
+    camera->setOrientation(yaw * pitch * roll);
 
     camera->setImageSize(QSize(mTableWidgetCameras->item(item->row(), 6)->text().toInt(), mTableWidgetCameras->item(item->row(), 7)->text().toInt()));
     camera->setFovY(mTableWidgetCameras->item(item->row(), 8)->text().toFloat());
@@ -378,25 +383,23 @@ void DialogConfiguration::slotSaveConfigurationLaserScanner()
 
     mSettings.beginWriteArray("scanners");
 
-    for(int i = 0; i < scanners->size(); ++i)
+    for(int i= 0; i < mTableWidgetLaserScanners->rowCount(); i++)
     {
-        // write settings for this scanner into config file
-        qDebug() << "DialogConfiguration::slotSaveConfigurationLaserScanner(): now saving scanner-config" << i;
         mSettings.setArrayIndex(i);
 
-        mSettings.setValue("posX", scanners->at(i)->getPosition().x);
-        mSettings.setValue("posY", scanners->at(i)->getPosition().y);
-        mSettings.setValue("posZ", scanners->at(i)->getPosition().z);
+        mSettings.setValue("posX", mTableWidgetLaserScanners->item(i, 0)->text().toFloat());
+        mSettings.setValue("posY", mTableWidgetLaserScanners->item(i, 1)->text().toFloat());
+        mSettings.setValue("posZ", mTableWidgetLaserScanners->item(i, 2)->text().toFloat());
 
-        mSettings.setValue("rotPitch", scanners->at(i)->getOrientation().getPitch(false).valueDegrees());
-        mSettings.setValue("rotRoll", scanners->at(i)->getOrientation().getRoll(false).valueDegrees());
-        mSettings.setValue("rotYaw", scanners->at(i)->getOrientation().getYaw(false).valueDegrees());
+        mSettings.setValue("rotYaw", mTableWidgetLaserScanners->item(i, 3)->text().toFloat());
+        mSettings.setValue("rotPitch", mTableWidgetLaserScanners->item(i, 4)->text().toFloat());
+        mSettings.setValue("rotRoll", mTableWidgetLaserScanners->item(i, 5)->text().toFloat());
 
-        mSettings.setValue("range", scanners->at(i)->range());
-        mSettings.setValue("speed", scanners->at(i)->speed());
-        mSettings.setValue("angleStart", scanners->at(i)->angleStart());
-        mSettings.setValue("angleStop", scanners->at(i)->angleStop());
-        mSettings.setValue("angleStep", scanners->at(i)->angleStep());
+        mSettings.setValue("range", mTableWidgetLaserScanners->item(i, 6)->text().toFloat());
+        mSettings.setValue("speed", mTableWidgetLaserScanners->item(i, 7)->text().toFloat());
+        mSettings.setValue("angleStart", mTableWidgetLaserScanners->item(i, 8)->text().toFloat());
+        mSettings.setValue("angleStop", mTableWidgetLaserScanners->item(i, 9)->text().toFloat());
+        mSettings.setValue("angleStep", mTableWidgetLaserScanners->item(i, 10)->text().toFloat());
     }
 
     mSettings.endArray();
@@ -434,8 +437,8 @@ void DialogConfiguration::slotLaserScannerAdd()
     mTableWidgetLaserScanners->setItem(row, 10,new QTableWidgetItem("0.25"));
     mTableWidgetLaserScanners->blockSignals(false);
 
-    connect(newLaserScanner, SIGNAL(scanFinished(quint32)), mSimulator->mFlightController, SLOT(slotScanningInProgress(quint32)));
     connect(newLaserScanner, SIGNAL(newLidarPoints(const QVector<QVector3D>&, const QVector3D&)), mSimulator->mBaseConnection, SLOT(slotNewScannedPoints(const QVector<QVector3D>&, const QVector3D&)));
+    connect(newLaserScanner, SIGNAL(heightOverGround(float)), mSimulator->mFlightController, SLOT(slotSetHeightOverGround(float)));
 
     newLaserScanner->start();
     mOgreWidget->update();
@@ -449,7 +452,6 @@ void DialogConfiguration::slotLaserScannerDel()
     LaserScanner* scanner = mSimulator->getLaserScannerList()->takeAt(row);
     scanner->quit();
     scanner->wait();
-//    delete scanner;
     scanner->deleteLater();
 
     mOgreWidget->update();

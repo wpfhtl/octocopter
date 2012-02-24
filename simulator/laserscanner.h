@@ -136,7 +136,7 @@ public slots:
     void slotSetScannerPose(const Ogre::Vector3 &position, const Ogre::Quaternion &orientation);
 
 signals:
-    void bottomBeamLength(const float&);
+    void heightOverGround(const float&);
 
     void newLidarPoints(const QVector<QVector3D>&, const QVector3D&);
 

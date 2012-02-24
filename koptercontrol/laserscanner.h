@@ -19,6 +19,7 @@ private:
     qrk::UrgCtrl mScanner;
     const Pose mRelativeScannerPose; // The scanner's pose relative to the vehicle frame
     bool mIsEnabled;
+    quint8 mHeightOverGroundClockDivisor;
     qint64 mOffsetTimeScannerToTow;
     qint32 mLastScannerTimeStamp;
     QTimer* mTimerScan; // this calls capture() when needed;
@@ -39,7 +40,7 @@ public:
     const Pose& getRelativePose() const;
 
     // This depends on the laserscanner's pose relative to the vehicle, but is hardcoded ATM.
-    const float getHeightAboveGround() const;
+//    const float getHeightAboveGround() const;
 
     inline static quint8 getScanDuration() {return 25;}
 
@@ -50,7 +51,7 @@ public slots:
     void slotSetScannerTimeStamp(const qint32& timestamp);
 
 signals:
-    void bottomBeamLength(const float&);
+    void heightOverGround(const float&);
 
     // log/status messages
     void message(const LogImportance& importance, const QString&, const QString& message);

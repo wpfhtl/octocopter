@@ -31,22 +31,22 @@ class Kopter : public QObject
 
     struct VersionInfo
     {
-      unsigned char SWMajor;
-      unsigned char SWMinor;
-      unsigned char ProtoMajor;
-      unsigned char ProtoMinor;
-      unsigned char SWPatch;
-      unsigned char HardwareError[5];
+        unsigned char SWMajor;
+        unsigned char SWMinor;
+        unsigned char ProtoMajor;
+        unsigned char ProtoMinor;
+        unsigned char SWPatch;
+        unsigned char HardwareError[5];
 
-      VersionInfo() {};
+        VersionInfo() {};
     };
 
     struct DebugOut
     {
-     unsigned char Status[2];
-     qint16 Analog[32];    // Debugwerte
+        unsigned char Status[2];
+        qint16 Analog[32];    // Debugwerte
 
-     DebugOut() {};
+        DebugOut() {};
     };
 
 public:
@@ -79,6 +79,8 @@ public slots:
     void slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& pitch, const qint8& roll, const qint8& height);
     void slotTestMotors(const QList<unsigned char> &speeds);
     void slotReset();
+    // The PPM Channels have the values from the human-remote-control
+    void slotGetPpmChannelValues();
     void slotGetVersion();
     void slotGetDebugLabels(quint8 index);
 
@@ -87,6 +89,7 @@ public slots:
 
 signals:
     void kopterStatus(const quint32 missionRunTimeMsecs, const qint16& baroheight, const float& voltage);
+    void ppmChannelValues();
     void externControlReplyReceived();
 
 };

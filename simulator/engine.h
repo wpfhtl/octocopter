@@ -8,10 +8,6 @@
 
 #include "btBulletDynamicsCommon.h"
 
-// probably not the right place to put this
-#define deg2rad(x) (x)*M_PI/180.0
-#define rad2deg(x) (x)*180.0/M_PI
-
 // Read http://www.mikrokopter.de/ucwiki/FlugZeit#Flugzeit_.2BAPw-ber_Nutzlast
 
 class Engine : public QObject

@@ -1,18 +1,5 @@
 #include "engine.h"
 
-/*
-Engine::Engine(const btTransform &pose, QObject *parent) : QObject(parent)
-{
-    mPose = pose;
-//    mRotationDirection = rotationDirection;
-
-    initializePropellers();
-
-    Q_ASSERT(setPropeller("GRP_SPD_5543"));
-
-//    Q_ASSERT(calculateThrust(12500) > 2.3 && calculateThrust(12500) < 2.4);
-}*/
-
 Engine::Engine(void) : QObject()
 {
 //    mPose = pose;

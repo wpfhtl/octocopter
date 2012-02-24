@@ -8,11 +8,12 @@ Physics::Physics(Simulator *simulator, OgreWidget *ogreWidget) :
     mSimulator = simulator;
     mOgreWidget = ogreWidget;
 
-    mTotalVehicleWeight = 2.270;
+    mTotalVehicleWeight = 2.350;
 
     initializeWind();
 
     mErrorIntegralPitch = mErrorIntegralRoll = 0.0;
+    mPrevErrorPitch = mPrevErrorRoll = 0.0;
 
     // Bullet initialisation.
     mBtBroadphase = new btAxisSweep3(btVector3(-10000,-10000,-10000), btVector3(10000,10000,10000), 1024);
@@ -44,7 +45,7 @@ Physics::Physics(Simulator *simulator, OgreWidget *ogreWidget) :
     else
         mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", &mVehicleEntity, Ogre::Vector3(10, 100, 10), Ogre::Quaternion::IDENTITY);
 
-    mVehicleNode->setPosition(140,90,150);
+    mVehicleNode->setPosition(140,90,130);
 
     mVehicleNode->attachObject(mVehicleEntity);
 
@@ -341,7 +342,7 @@ Physics::~Physics()
 
 void Physics::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& pitch, const qint8& roll, const qint8& height)
 {
-//    qDebug() << "Physics::slotSetMotion(): updating physics forces with thrust" << thrust << "pitch" << pitch << "roll" << roll << "yaw" << yaw;
+    qDebug() << "Physics::slotSetMotion(): updating physics forces with thrust" << thrust << "pitch" << pitch << "roll" << roll << "yaw" << yaw;
 
     /*
       The MikroKopter moves in his own ways, this is how it translates the given externControls into motion:
@@ -363,27 +364,27 @@ void Physics::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8&
        requested orientation.
       */
 
-    // The Kopter weighs 1750g with full load (gps, atomboard, hokuyo),
-    // and the 500mAh 4S weighs 520g, adding up to 2270g. According to
+    // The Kopter weighs 1850g with full load (gps, atomboard, hokuyo),
+    // and the 500mAh 4S weighs 520g, adding up to 2370g. According to
     // http://gallery.mikrokopter.de/main.php/v/tech/Okto2_5000_Payload.gif.html?g2_imageViewsIndex=1,
 
-    // Apply general thrust. A value of 255 means 100% thrust, which means around 10A at full battery
-    const float thrustCurrent = (((float)thrust) / 255.0) * 10.0 * (mSimulator->mBattery->voltageCurrent() / mSimulator->mBattery->voltageMax());
-    const float thrustScalar = mEngine.calculateThrust(thrustCurrent) * 8;
-    const Ogre::Vector3 thrustVectorOgre = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0, thrustScalar, 0);
+    // Apply general thrust. A value of 255 means 100% thrust, which means around 4.5A per single motor at full battery
+    const float thrustCurrent = (((float)thrust) / 255.0f) * 4.5f * (mSimulator->mBattery->voltageCurrent() / mSimulator->mBattery->voltageMax());
+    const float thrustScalar = mEngine.calculateThrust(thrustCurrent) * 8.0f;
+    const Ogre::Vector3 thrustVectorOgre = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0, thrustScalar, 0.0f);
     mVehicleBody->applyCentralForce(btVector3(thrustVectorOgre.x, thrustVectorOgre.y, thrustVectorOgre.z));
 
     // Discharge Battery:
     // When we yaw, pitch or roll, we always take x RPM from one pair of motors and add it to another pair. Since
     // the rpm/current-curve is pretty linear for small changes, we assume that yawing, pitching and rolling do
     // not really affect overall current consumption. Not really valid, but good enough for us.
-    mSimulator->mBattery->slotSetDischargeCurrent(thrustCurrent * 8);
+    mSimulator->mBattery->slotSetDischargeCurrent(thrustCurrent * 8.0f);
 
     // Yaw!
     // Let us wildly assume that the motors go 2000rpm faster/slower on maximum yaw
-    const double torqueScalarYaw = mEngine.calculateTorque(2000 * (((float)yaw) / 128.0));
+    const float torqueScalarYaw = mEngine.calculateTorque(2000.0f * (((float)yaw) / 128.0f));
     //qDebug() << "Physics::slotSetMotion(): torqueScalarYaw is" << torqueScalarYaw;
-    Ogre::Vector3 torqueVectorYaw = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0.0, torqueScalarYaw, 0.0);
+    Ogre::Vector3 torqueVectorYaw = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0.0f, torqueScalarYaw, 0.0f);
     mVehicleBody->applyTorque(btVector3(torqueVectorYaw.x, torqueVectorYaw.y, torqueVectorYaw.z));
 
     // Controller for pitch and roll: First, we need to know the current pitch and roll:
@@ -392,33 +393,34 @@ void Physics::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8&
     Ogre::Radian currentYaw, currentPitch, currentRoll;
     mat.ToEulerAnglesYXZ(currentYaw, currentPitch, currentRoll);
 
-    const float timeDiff = std::min(0.2, (float)(mSimulator->getSimulationTime() - mTimeOfLastControllerUpdate) / 1000.0); // elapsed time since last call in seconds
-    static float Kp = 2.1;
-    static float Ki = 0.4;
-    static float Kd = 2.0;
+    const float timeDiff = std::min(0.2f, (float)(mSimulator->getSimulationTime() - mTimeOfLastControllerUpdate) / 1000.0f); // elapsed time since last call in seconds
+
+    const float mikrokopterPitchRollP = 6.0f;
+    const float mikrokopterPitchRollI = 0.0f;
+    const float mikrokopterPitchRollD = 10.0f;
 
     // Pitch
-    const float errorPitch = 0.9*((float)pitch) + currentPitch.valueDegrees();
+    const float errorPitch = ((float)pitch) - currentPitch.valueDegrees();
     mErrorIntegralPitch += errorPitch*timeDiff;
-    const float derivativePitch = (errorPitch - mPrevErrorPitch + 0.00001)/timeDiff;
-    const float outputPitch = (Kp*errorPitch) + (Ki*mErrorIntegralPitch) + (Kd*derivativePitch);
+    const float derivativePitch = (errorPitch - mPrevErrorPitch + 0.00001f)/timeDiff;
+    const float outputPitch = (mikrokopterPitchRollP * errorPitch) + (mikrokopterPitchRollI * mErrorIntegralPitch) + (mikrokopterPitchRollD * derivativePitch);
     mPrevErrorPitch = errorPitch;
 
-    Ogre::Vector3 torqueVectorPitch = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(-outputPitch/10.0, 0.0, 0.0);
+    Ogre::Vector3 torqueVectorPitch = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(outputPitch/600.0f, 0.0f, 0.0f);
     mVehicleBody->applyTorque(btVector3(torqueVectorPitch.x, torqueVectorPitch.y, torqueVectorPitch.z));
 
     // Roll
-    const float errorRoll = 0.9*((float)roll) - currentRoll.valueDegrees();
+    const float errorRoll = ((float)roll) - currentRoll.valueDegrees();
     mErrorIntegralRoll += errorRoll*timeDiff;
-    double derivativeRoll = (errorRoll - mPrevErrorRoll + 0.00001)/timeDiff;
-    double outputRoll = (Kp*errorRoll) + (Ki*mErrorIntegralRoll) + (Kd*derivativeRoll);
+    const float derivativeRoll = (errorRoll - mPrevErrorRoll + 0.00001f)/timeDiff;
+    const float outputRoll = (mikrokopterPitchRollP * errorRoll) + (mikrokopterPitchRollI * mErrorIntegralRoll) + (mikrokopterPitchRollD * derivativeRoll);
     mPrevErrorRoll = errorRoll;
 
-    Ogre::Vector3 torqueVectorRoll = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0.0, 0.0, outputRoll/10.0);
+    Ogre::Vector3 torqueVectorRoll = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0.0f, 0.0f, outputRoll/600.0f);
     mVehicleBody->applyTorque(btVector3(torqueVectorRoll.x, torqueVectorRoll.y, torqueVectorRoll.z));
 
-//    qDebug() << "llctrlout p should" << pitch << "is" << currentPitch.valueDegrees() << "error" << errorPitch << "derivative" << derivativePitch << "output" << outputPitch;
-//    qDebug() << "llctrlout r should" << roll << "is" << currentRoll.valueDegrees() << "error" << errorRoll << "derivative" << derivativeRoll << "output" << outputRoll;
+    qDebug() << "llctrlout p should" << pitch << "is" << currentPitch.valueDegrees() << "error" << errorPitch << "derivative" << derivativePitch << "output" << outputPitch;
+    qDebug() << "llctrlout r should" << roll << "is" << currentRoll.valueDegrees() << "error" << errorRoll << "derivative" << derivativeRoll << "output" << outputRoll;
 
     // Don't forget to rotate motors according to thrust
     for(int i=0;i<mEngineNodes.size();i++)
