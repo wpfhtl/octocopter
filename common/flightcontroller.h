@@ -5,6 +5,8 @@
 #include <QVector3D>
 #include <QTime>
 
+#include <math.h> // ceil and floor
+
 #include <common.h>
 #include "waypoint.h"
 #include <laserscanner.h>

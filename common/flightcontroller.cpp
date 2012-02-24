@@ -113,11 +113,12 @@ void FlightController::slotComputeMotionCommands()
         mPrevErrorHeight = errorHeight;
 
         out_thrust = (quint8)qBound(90.0f, outputThrust, 200.0f);
-        out_yaw = (qint8)qBound(-127.0f, outputYaw > 0.0f ? std::ceil(outputYaw) : std::floor(outputYaw), 127.0f);
-        out_pitch = (qint8)qBound(-127.0f, outputPitch, 127.0f);
-        out_roll = (qint8)qBound(-127.0f, outputRoll, 127.0f);
+        out_yaw = (qint8)qBound(-127.0, outputYaw > 0.0f ? ceil(outputYaw) : floor(outputYaw), 127.0);
+        out_pitch = (qint8)qBound(-20.0f, outputPitch, 20.0f);
+        out_roll = (qint8)qBound(-20.0f, outputRoll, 20.0f);
 
-        //out_roll = 0;
+        // For safety, we don't need it right now.
+        out_roll = 0;
 
         qDebug() << "FlightController::slotComputeMotionCommands(): motion is" << out_thrust << out_yaw << out_pitch << out_roll;
 

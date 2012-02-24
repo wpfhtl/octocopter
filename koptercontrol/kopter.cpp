@@ -186,14 +186,7 @@ void Kopter::slotSerialPortDataReady()
             if(message.getId() == 'B') maxreplytime = std::max(maxreplytime, timeOfRequest.msecsTo(QTime::currentTime()));
 
             //qDebug() << "Kopter::slotSerialPortDataReady(): received reply to" << message.getId().toLower() << "after ms:" << timeOfRequest.msecsTo(QTime::currentTime()) << "worst" << maxreplytime;
-                }
-                else if(message.getId() == 'P')
-                {
-                    // Read ppm channels request reply.
-                    QByteArray payload = message.getPayload();
-                    const qint16* ppmChannels = (qint16*)payload.data();
 
-<<<<<<< .mine
             if(message.getId() == 'A')
             {
                 QByteArray payload = message.getPayload();
@@ -218,42 +211,36 @@ void Kopter::slotSerialPortDataReady()
                             debugOut->Analog[5],
                             (float)(debugOut->Analog[9])/10.0
                             );
-=======
-                    for(int i=0; i < payload.size()/2; i++)
-                    {
-                        qDebug() << "Kopter::slotSerialPortDataReady(): ppm channel" << i << ":" << ppmChannels[i];
-                    }
-                }
-                else if(message.getId() == 'T')
-                {
-                    // engine test reply, contains no data
-                }
-                else if(message.getId() == 'V')
-                {
-                    QByteArray payload = message.getPayload();
-                    const VersionInfo* versionInfo = (VersionInfo*)payload.data();
-//                    memcpy(&mStructVersionInfo, payload.data(), sizeof(mStructVersionInfo));
-                    qDebug() << "Kopter::slotSerialPortDataReady(): MK protocol version is" << versionInfo->ProtoMajor << versionInfo->ProtoMinor;
-                    qDebug() << "Kopter::slotSerialPortDataReady(): MK software version is" << versionInfo->SWMajor << versionInfo->SWMinor << versionInfo->SWPatch;
+            }
+            else if(message.getId() == 'P')
+            {
+                // Read ppm channels request reply.
+                QByteArray payload = message.getPayload();
+                const qint16* ppmChannels = (qint16*)payload.data();
 
-                    if(versionInfo->ProtoMajor != 11 || versionInfo->ProtoMinor != 0) qFatal("Kopter::slotSerialPortDataReady(): MK protocol version mismatch, exiting.");
-                    if(versionInfo->SWMajor != 0 || versionInfo->SWMinor != 86 || versionInfo->SWPatch != 3) qFatal("Kopter::slotSerialPortDataReady(): MK software version mismatch, this is untested, exiting.");
+                for(int i=0; i < payload.size()/2; i++)
+                {
+                    qDebug() << "Kopter::slotSerialPortDataReady(): ppm channel" << i << ":" << ppmChannels[i];
                 }
->>>>>>> .r1228
             }
             else if(message.getId() == 'T')
             {
+                // engine test reply, contains no data
             }
             else if(message.getId() == 'V')
             {
                 QByteArray payload = message.getPayload();
                 const VersionInfo* versionInfo = (VersionInfo*)payload.data();
-                //memcpy(&mStructVersionInfo, payload.data(), sizeof(mStructVersionInfo));
+                //                    memcpy(&mStructVersionInfo, payload.data(), sizeof(mStructVersionInfo));
                 qDebug() << "Kopter::slotSerialPortDataReady(): MK protocol version is" << versionInfo->ProtoMajor << versionInfo->ProtoMinor;
                 qDebug() << "Kopter::slotSerialPortDataReady(): MK software version is" << versionInfo->SWMajor << versionInfo->SWMinor << versionInfo->SWPatch;
 
                 if(versionInfo->ProtoMajor != 11 || versionInfo->ProtoMinor != 0) qFatal("Kopter::slotSerialPortDataReady(): MK protocol version mismatch, exiting.");
                 if(versionInfo->SWMajor != 0 || versionInfo->SWMinor != 86 || versionInfo->SWPatch != 3) qFatal("Kopter::slotSerialPortDataReady(): MK software version mismatch, this is untested, exiting.");
+            }
+            else
+            {
+                qWarning() << "Kopter::slotSerialPortDataReady(): got KopterMessage with unknown id:" << message.getId();
             }
         }
         else
