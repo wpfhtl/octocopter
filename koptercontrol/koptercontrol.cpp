@@ -148,7 +148,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     mTimerComputeMotion = new QTimer(this);
     mTimerComputeMotion->setInterval(50);
-    mTimerComputeMotion->start();
+    //mTimerComputeMotion->start();
     connect(mTimerComputeMotion, SIGNAL(timeout()), mFlightController, SLOT(slotComputeMotionCommands()));
 
     mKopter->slotGetPpmChannelValues();

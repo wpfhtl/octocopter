@@ -534,7 +534,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     case 5924:
     {
         // ExtEvent
-//        qDebug() << "SBF: ExtEvent";
+        qDebug() << "SBF: ExtEvent";
         const Sbf_ExtEvent *block = (Sbf_ExtEvent*)sbfData.data();
 
         // Laserscanner sync signal is soldered to both ports, but port 1 is broken. If it ever starts working again, I want to know.

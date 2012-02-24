@@ -29,25 +29,21 @@ void Kopter::initialize()
     slotGetVersion();
 
     for(int i=0;i<32;i++)
-    {
         slotGetDebugLabels(i);
-    }
-
-    // The client decides about the debugvalue frequency, not ourselves.
-//    slotSubscribeDebugValues(2000);
 }
 
 void Kopter::slotTestMotors(const QList<unsigned char> &speeds)
 {
-    Q_ASSERT(speeds.size() == 16);
+    if(speeds.size() != 16)
+    {
+        qDebug() << "Kopter::slotTestMotors(): 16 values required, ignoring request";
+        return;
+    }
 
     QByteArray payload;
-//    payload.resize(16);
 
     for(int i=0;i<16;i++)
-    {
         payload[i] = speeds.at(i);
-    }
 
     KopterMessage message(KopterMessage::Address_FC, 't', payload);
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
@@ -106,7 +102,8 @@ void Kopter::slotReset()
 
 void Kopter::slotGetDebugLabels(quint8 index)
 {
-    Q_ASSERT(index < 32);
+    if(index >= 32)
+        qDebug() << "Kopter::slotGetDebugLabels(): received impossible index" << index;
 
     KopterMessage message(KopterMessage::Address_FC, 'a', QByteArray((const char*)&index, 1));
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
@@ -126,7 +123,8 @@ void Kopter::slotGetPpmChannelValues()
 
 void Kopter::slotSubscribeDebugValues(int interval)
 {
-    Q_ASSERT(interval < 2551);
+    if(interval > 2550)
+        qDebug() << "Kopter::slotSubscribeDebugValues(): illegal interval:" << interval;
 
     // If this method is called directly (and not recursively), remember the
     // desired debug interval.
@@ -142,7 +140,7 @@ void Kopter::slotSubscribeDebugValues(int interval)
     // milliseconds to make up for the small range of a uint8.
     // Using 0 will disable debug output.
     quint8 interval_byte = std::min(255, mDesiredDebugDataInterval/10);
-//    qDebug() << "Kopter::slotSubscribeDebugValues(): effective subscription in ms" << ((int)interval_byte)*10;
+    //qDebug() << "Kopter::slotSubscribeDebugValues(): effective subscription in ms" << ((int)interval_byte)*10;
     KopterMessage message(1, 'd', QByteArray((const char*)&interval_byte));
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
 
@@ -153,19 +151,19 @@ void Kopter::slotSubscribeDebugValues(int interval)
     {
         const int maximumSubscriptionDuration = 4000;
         const int timeToNextSubscription = maximumSubscriptionDuration - (maximumSubscriptionDuration % mDesiredDebugDataInterval) + mDesiredDebugDataInterval;
-//        qDebug() << "Kopter::slotSubscribeDebugValues(): interval" << mDesiredDebugDataInterval << "refreshing subscription in" << timeToNextSubscription;
+        //qDebug() << "Kopter::slotSubscribeDebugValues(): interval" << mDesiredDebugDataInterval << "refreshing subscription in" << timeToNextSubscription;
         QTimer::singleShot(timeToNextSubscription, this, SLOT(slotSubscribeDebugValues()));
     }
 }
 
 void Kopter::slotSerialPortDataReady()
 {
-//    usleep(100000); // wait for the later bytes of this message to come on in...
     mReceiveBuffer.append(mSerialPortFlightCtrl->readAll());
 
+    // Remove crap before the message starts
     while(!mReceiveBuffer.startsWith('#')) mReceiveBuffer.remove(0, 1);
 
-//    qDebug() << "Kopter::slotSerialPortDataReady(): bytes:" << mReceiveBuffer.size() << "data:" << mReceiveBuffer.replace("\r", " ");
+    //qDebug() << "Kopter::slotSerialPortDataReady(): bytes:" << mReceiveBuffer.size() << "data:" << mReceiveBuffer.replace("\r", " ");
 
     while(mReceiveBuffer.indexOf('\r') != -1)
     {
@@ -174,44 +172,20 @@ void Kopter::slotSerialPortDataReady()
         if(!message.isValid())
         {
             qWarning() << "Kopter::slotSerialPortDataReady(): got invalid KopterMessage:" << message.toString();
+            continue;
         }
-        else
+
+
+        if(message.getAddress() == KopterMessage::Address_FC)
         {
-            if(message.getAddress() == KopterMessage::Address_FC)
-            {
-                // Remove the record of the pending reply
-                QTime timeOfRequest = mPendingReplies.take(message.getId().toLower());
-//                if(timeOfRequest.isNull()) qWarning() << "Kopter::slotSerialPortDataReady(): got a reply to an unsent message:" << message.toString();
-//                if(mPendingReplies.contains(message.getId().toLower()))  qWarning() << "Kopter::slotSerialPortDataReady(): there's another pending message of type" << message.getId().toLower();
+            // Remove the record of the pending reply
+            QTime timeOfRequest = mPendingReplies.take(message.getId().toLower());
+            //if(timeOfRequest.isNull()) qWarning() << "Kopter::slotSerialPortDataReady(): got a reply to an unsent message:" << message.toString();
+            //if(mPendingReplies.contains(message.getId().toLower()))  qWarning() << "Kopter::slotSerialPortDataReady(): there's another pending message of type" << message.getId().toLower();
 
-                if(message.getId() == 'B') maxreplytime = std::max(maxreplytime, timeOfRequest.msecsTo(QTime::currentTime()));
+            if(message.getId() == 'B') maxreplytime = std::max(maxreplytime, timeOfRequest.msecsTo(QTime::currentTime()));
 
-//                qDebug() << "Kopter::slotSerialPortDataReady(): received reply to" << message.getId().toLower() << "after ms:" << timeOfRequest.msecsTo(QTime::currentTime()) << "worst" << maxreplytime;
-
-                if(message.getId() == 'A')
-                {
-                    QByteArray payload = message.getPayload();
-                    char labelChar[16];
-                    memcpy(labelChar, payload.data()+1, 15);
-//                    qDebug() << "Kopter::slotSerialPortDataReady(): label" << (quint8)payload[0] << "is" << QString(labelChar).simplified();
-                    mAnalogValueLabels.insert((quint8)payload[0], QString(labelChar).simplified());
-                }
-                else if(message.getId() == 'B')
-                {
-//                    qDebug() << "Kopter::slotSerialPortDataReady(): received confirmation for externalControl frame:" << (quint8)message.getPayload()[0];
-                    // why here? Q_ASSERT(!mPendingReplies.contains('b'));
-                    emit externControlReplyReceived();
-                }
-                else if(message.getId() == 'D')
-                {
-                    QByteArray payload = message.getPayload();
-                    const DebugOut* debugOut = (DebugOut*)payload.data();
-
-                    emit kopterStatus(
-                                mMissionStartTime.isValid() ? (quint32)mMissionStartTime.msecsTo(QTime::currentTime()) : 0,
-                                debugOut->Analog[5],
-                                (float)(debugOut->Analog[9])/10.0
-                                );
+            //qDebug() << "Kopter::slotSerialPortDataReady(): received reply to" << message.getId().toLower() << "after ms:" << timeOfRequest.msecsTo(QTime::currentTime()) << "worst" << maxreplytime;
                 }
                 else if(message.getId() == 'P')
                 {
@@ -219,6 +193,32 @@ void Kopter::slotSerialPortDataReady()
                     QByteArray payload = message.getPayload();
                     const qint16* ppmChannels = (qint16*)payload.data();
 
+<<<<<<< .mine
+            if(message.getId() == 'A')
+            {
+                QByteArray payload = message.getPayload();
+                char labelChar[16];
+                memcpy(labelChar, payload.data()+1, 15);
+                //qDebug() << "Kopter::slotSerialPortDataReady(): label" << (quint8)payload[0] << "is" << QString(labelChar).simplified();
+                mAnalogValueLabels.insert((quint8)payload[0], QString(labelChar).simplified());
+            }
+            else if(message.getId() == 'B')
+            {
+                //qDebug() << "Kopter::slotSerialPortDataReady(): received confirmation for externalControl frame:" << (quint8)message.getPayload()[0];
+                // why here? Q_ASSERT(!mPendingReplies.contains('b'));
+                emit externControlReplyReceived();
+            }
+            else if(message.getId() == 'D')
+            {
+                QByteArray payload = message.getPayload();
+                const DebugOut* debugOut = (DebugOut*)payload.data();
+
+                emit kopterStatus(
+                            mMissionStartTime.isValid() ? (quint32)mMissionStartTime.msecsTo(QTime::currentTime()) : 0,
+                            debugOut->Analog[5],
+                            (float)(debugOut->Analog[9])/10.0
+                            );
+=======
                     for(int i=0; i < payload.size()/2; i++)
                     {
                         qDebug() << "Kopter::slotSerialPortDataReady(): ppm channel" << i << ":" << ppmChannels[i];
@@ -239,11 +239,29 @@ void Kopter::slotSerialPortDataReady()
                     if(versionInfo->ProtoMajor != 11 || versionInfo->ProtoMinor != 0) qFatal("Kopter::slotSerialPortDataReady(): MK protocol version mismatch, exiting.");
                     if(versionInfo->SWMajor != 0 || versionInfo->SWMinor != 86 || versionInfo->SWPatch != 3) qFatal("Kopter::slotSerialPortDataReady(): MK software version mismatch, this is untested, exiting.");
                 }
+>>>>>>> .r1228
             }
-            else
+            else if(message.getId() == 'T')
             {
-//                qWarning() << "Kopter::slotSerialPortDataReady(): got KopterMessage from ignored address:" << message.getAddress();
+            }
+            else if(message.getId() == 'V')
+            {
+                QByteArray payload = message.getPayload();
+                const VersionInfo* versionInfo = (VersionInfo*)payload.data();
+                //memcpy(&mStructVersionInfo, payload.data(), sizeof(mStructVersionInfo));
+                qDebug() << "Kopter::slotSerialPortDataReady(): MK protocol version is" << versionInfo->ProtoMajor << versionInfo->ProtoMinor;
+                qDebug() << "Kopter::slotSerialPortDataReady(): MK software version is" << versionInfo->SWMajor << versionInfo->SWMinor << versionInfo->SWPatch;
+
+                if(versionInfo->ProtoMajor != 11 || versionInfo->ProtoMinor != 0) qFatal("Kopter::slotSerialPortDataReady(): MK protocol version mismatch, exiting.");
+                if(versionInfo->SWMajor != 0 || versionInfo->SWMinor != 86 || versionInfo->SWPatch != 3) qFatal("Kopter::slotSerialPortDataReady(): MK software version mismatch, this is untested, exiting.");
             }
         }
+        else
+        {
+            qWarning() << "Kopter::slotSerialPortDataReady(): got KopterMessage from ignored address:" << message.getAddress();
+        }
+
+
+
     }
 }

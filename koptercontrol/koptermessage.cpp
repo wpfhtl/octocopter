@@ -35,7 +35,8 @@ KopterMessage::KopterMessage(QByteArray* receiveBuffer) : QObject()
 //        qDebug() << "KopterMessage::KopterMessage(): from stream:" << toString();
 
         // FIXME: this fails at times. Do not crash, but rather discard the message.
-        Q_ASSERT(isValid());
+        if(!isValid())
+            qDebug() << "KopterMessage::KopterMessage(): warning, incoming message with address" << mAddress << "id" << mId << "is invalid";
     }
     else
     {
