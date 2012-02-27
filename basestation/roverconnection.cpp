@@ -5,8 +5,7 @@ RoverConnection::RoverConnection(const QString& hostName, const quint16& port, Q
     mHostName = hostName;
     mPort = port;
 
-    mTimerConnectionWatchdog.setInterval(5000);
-    mTimerConnectionWatchdog.start();
+    mTimerConnectionWatchdog.start(5000);
     connect(&mTimerConnectionWatchdog, SIGNAL(timeout()), SLOT(slotEmitConnectionTimedOut()));
 
     mIncomingDataBuffer.clear();

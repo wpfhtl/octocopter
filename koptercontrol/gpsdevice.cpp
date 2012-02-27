@@ -81,9 +81,8 @@ GpsDevice::GpsDevice(const QString &serialDeviceFileUsb, const QString &serialDe
     connect(mSerialPortCom, SIGNAL(readyRead()), SLOT(slotDataReadyOnCom()));
 
     mStatusTimer = new QTimer(this);
-    mStatusTimer->setInterval(1000);
     connect(mStatusTimer, SIGNAL(timeout()), mSbfParser, SLOT(slotEmitCurrentGpsStatus()));
-    mStatusTimer->start(); // emit status signal periodically.
+    mStatusTimer->start(1000); // emit status signal periodically.
 
     // initialize the device whenever we get time to do this. By doing it asynchronously, we can give our creator time to connect our signals and fetch them.
     QTimer::singleShot(0, this, SLOT(slotDetermineSerialPortsOnDevice()));
@@ -332,7 +331,7 @@ void GpsDevice::slotCommunicationSetup()
     slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec40");
 
     // We want to know PVTCartesion for MeanCorrAge (average correction data age), ReceiverStatus for CPU Load and IntAttCovEuler for Covariances (sigma-values)
-    slotQueueCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus+IntAttCovEuler,sec1");
+    slotQueueCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus+IntAttCovEuler,msec500");
 
     // We want to know whenever a scan is finished.
     slotQueueCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceCom+",ExtEvent,OnChange");

@@ -40,8 +40,7 @@ Joystick::Joystick() : QObject()
 
     mPollTimer = new QTimer;
     connect(mPollTimer, SIGNAL(timeout()), SLOT(updateValues()));
-    mPollTimer->setInterval(200);
-    mPollTimer->start();
+    mPollTimer->start(200);
 
     // use non-blocking mode
     fcntl(fd, F_SETFL, O_NONBLOCK);

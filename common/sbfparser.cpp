@@ -21,7 +21,6 @@ SbfParser::~SbfParser()
 bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offset, qint32* tow)
 {
     // We try to stay as close as possible to Septentrio's SBF reference guide pg. 13/14.
-
     Sbf_Header *sbfHeader;
     qint32 offsetToValidPacket = -2; // Set to -2, as we start searching from (offsetToValidPacket + sizeof(header.sync)), yielding a first try from 0.
     quint16 calculatedCrc;
@@ -395,58 +394,37 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         // Only emit a pose if the values are not set to the do-not-use values.
         if(
                 block->Error == 0
+                && block->TOW != 4294967295L
                 && block->Lat != -2147483648L
                 && block->Lon != -2147483648L
-                && block->Alt != -2147483648L
-                && block->Heading != 65535 // This is not to the erroneous (off-by-one) spec (SBF Ref Guide, p. 80).
-                && block->Pitch != -32768
-                && block->Roll != -32768
-                && block->TOW != 4294967295L
-                && testBit(block->Info, 11) // Heading ambiguity is Fixed
-                //&& block->Mode == 2 // integrated solution, not sensor-only or GNSS-only
-                && (block->GNSSPVTMode & 15) == 4 // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().
-                //&& block->GNSSage < 1 // seconds interval of no GNSS PVT
-                && mGpsStatus.covariances < mMaxCovariances // make sure the filter is happy with itself
-                )
+                && block->Alt != -2147483648L)
         {
             setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
-            emit newVehiclePosePrecise(mLastPose);
-            mPoseClockDivisor++;
-        }
-        else
-        {
-            /* hopefully not necessary anymore, firmware is fixed.
-            // Special case for buggy firmware (no attitude in RTK-mode): if we're not in RTK-Mode, but the heading is correct
-            if(!mFirmwareBug_20120111_RtkWasEnabledAfterAttitudeDeterminationSucceeded
-                    && block->Heading != 65535
-                    && block->Pitch != -32768
-                    && block->Roll != -32768
-                    && testBit(mGpsStatus.info, 11)
-                    )
-            {
-                qDebug() << t() << "SbfParser::processNextValidPacket(): enabling RTK after heading is determined and ambiguity is fixed.";
-                // Enable RTK Mode for 2cm precision
-                receiverCommand("setPVTMode,Rover,all,auto,Loosely");
-                // Now we want to know the precise pose 25 times a second
-                receiverCommand("setSBFOutput,Stream1,#USB#,IntPVAAGeod,msec40");
-                mFirmwareBug_20120111_RtkWasEnabledAfterAttitudeDeterminationSucceeded = true;
-            }*/
 
-            // this whole section is logically weak. Get this sorted!
-            if(!testBit(block->Info, 11))
-            {
-                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): pose from PVAAGeod not valid, heading ambiguity is not fixed.";
-            }
+            mLastPose.covariances = mGpsStatus.covariances;
 
-            if(block->Error != 0)
-            {
-                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, error:" << block->Error << "" << GpsStatusInformation::getError(block->Error) ;
-            }
+            if(block->Heading != 65535 && block->Pitch != -32768 && block->Roll != -32768)
+                mLastPose.precision |= Pose::AttitudeAvailable;
+//            else
+//                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, YPR do-not-use";
 
-            if(block->Heading == 65535)
-            {
-                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, heading do-not-use";
-            }
+            if(testBit(block->Info, 11)) // Heading ambiguity is Fixed
+                mLastPose.precision |= Pose::HeadingFixed;
+//            else
+//                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): pose from PVAAGeod not valid, heading ambiguity is not fixed.";
+
+            if(block->Mode == 2) // integrated solution, not sensor-only or GNSS-only
+                mLastPose.precision |= Pose::ModeIntegrated;
+//            else
+//                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, not integrated solution, but" << GpsStatusInformation::getIntegrationMode(block->Mode);
+
+            if((block->GNSSPVTMode & 15) == 4) // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().
+                mLastPose.precision |= Pose::RtkFixed;
+//            else
+//                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, GnssPvtMode is" << GpsStatusInformation::getGnssMode(block->GNSSPVTMode) << "corrAge:" << mGpsStatus.meanCorrAge << "sec";
+
+            if(mGpsStatus.meanCorrAge < 20) // thats two seconds
+                mLastPose.precision |= Pose::CorrectionAgeLow;
 
             /* Not an error! Wait until firmware is fixed?!
             if(block->GNSSage > 1)
@@ -454,47 +432,22 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                 qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, GNSSAge is" << block->GNSSage;
             }*/
 
-            if(
-                    block->Lat == -2147483648L
-                    || block->Lon == -2147483648L
-                    || block->Alt == -2147483648L
-                    || block->Pitch == -32768
-                    || block->Roll == -32768
-                    || block->TOW == 4294967295L)
-            {
-                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, do-not-use values found.";
-            }
-            /* Not an error! Wait until firmware is fixed?!
-            else if(block->Mode != 2)
-            {
-                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, not integrated solution, but" << GpsStatusInformation::getIntegrationMode(block->Mode);
-                setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
-                emit newVehiclePose(mLastPose);
-                mPoseClockDivisor++;
-            }*/
-            else if((block->GNSSPVTMode & 15) != 4)
-            {
-                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, GnssPvtMode is" << GpsStatusInformation::getGnssMode(block->GNSSPVTMode) << "corrAge:" << mGpsStatus.meanCorrAge << "sec";
-                setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
-                emit newVehiclePose(mLastPose);
-                mPoseClockDivisor++;
-            }
-            else if(mGpsStatus.covariances > mMaxCovariances)
-            {
-                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, covariances are" << mGpsStatus.covariances;
-                setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
-                emit newVehiclePose(mLastPose);
-                mPoseClockDivisor++;
-            }
+            emit newVehiclePose(mLastPose);
+            mPoseClockDivisor++;
+        }
+        else if(block->Error != 0)
+        {
+            qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, error:" << block->Error << "" << GpsStatusInformation::getError(block->Error) ;
+        }
+        else
+        {
+            qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, do-not-use values found in elementary fields.";
         }
 
         // If the last pose is valid (i.e. not default-constructed), emit it now.
         // On the first time, this will start the laserscanner.
-        if(mPoseClockDivisor % 20 == 0 && mLastPose.timestamp != 0)
+        if(mPoseClockDivisor % 25 == 0 && mLastPose.timestamp != 0)
             emit newVehiclePoseLowFreq(mLastPose);
-
-        //qDebug() << "SBF: IntAttEuler: Info" << block->Info << "Mode" << block->Mode << "Error" << block->Error << "TOW" << block->TOW << "WNc" << block->WNc << "HPR:" << block->Heading << block->Pitch << block->Roll;;
-        //qDebug() << "Info" << block->Info << "Mode" << block->Mode << "Error" << block->Error << "HPR:" << block->Heading << block->Pitch << block->Roll;;
     }
     break;
 

@@ -58,6 +58,15 @@ public:
     Pose(const QString& poseString);
     Pose();
 
+    enum Precision
+    {
+        RtkFixed = 1,
+        HeadingFixed = 2,
+        ModeIntegrated = 4,
+        AttitudeAvailable = 8,
+        CorrectionAgeLow = 16
+    };
+
     const QString toString() const;
 
     QVector3D position;
@@ -66,6 +75,10 @@ public:
     // This is the GPS Time-Of-Week, specified in milliseconds since last Sunday, 00:00:00 AM (midnight)
     // Ben: changed this from quint32 to qint32 for comparison operations.
     qint32 timestamp;
+
+    float covariances;
+
+    quint8 precision;
 
     static Pose interpolateLinear(const Pose &before, const Pose &after, const float &mu);
 
@@ -106,13 +119,13 @@ public:
     static float getRollRadians(const QQuaternion& orientation, bool reprojectAxis);
     static float getYawRadians(const QQuaternion& orientation, bool reprojectAxis);
 
+    float getYawRadians() const {return mYaw;}
     float getPitchRadians() const {return mPitch;}
     float getRollRadians() const {return mRoll;}
-    float getYawRadians() const {return mYaw;}
 
+    float getYawDegrees() const {return RAD2DEG(mYaw);}
     float getPitchDegrees() const {return RAD2DEG(mPitch);}
     float getRollDegrees() const {return RAD2DEG(mRoll);}
-    float getYawDegrees() const {return RAD2DEG(mYaw);}
 
     void setPitchDegrees(const float& pitch) {mPitch = DEG2RAD(keepWithinRangeDegrees(pitch));}
     void setRollDegrees(const float& roll) {mRoll = DEG2RAD(keepWithinRangeDegrees(roll));}

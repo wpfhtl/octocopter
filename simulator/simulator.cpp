@@ -44,7 +44,6 @@ Simulator::Simulator(void) :
     mBattery->charge();
 
     mUpdateTimer = new QTimer(this);
-    mUpdateTimer->setInterval(1000/60);
     connect(mUpdateTimer, SIGNAL(timeout()), SLOT(slotUpdate()));
 
     mFlightController = new FlightController;
@@ -152,7 +151,7 @@ void Simulator::slotSimulationStart(void)
     }
 
     // Set the timer to update mOgreWidget every 25th of a second.
-    mUpdateTimer->start();
+    mUpdateTimer->start(1000/60);
 }
 
 void Simulator::slotSimulationPause(void)

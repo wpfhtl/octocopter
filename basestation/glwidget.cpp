@@ -69,7 +69,7 @@ void GlWidget::initializeGL()
 
 void GlWidget::resizeGL(int w, int h)
 {
-    qDebug() << "GlWidget::resizeGL(): resizing gl viewport to" << w << h;
+//    qDebug() << "GlWidget::resizeGL(): resizing gl viewport to" << w << h;
     // setup viewport, projection etc.
     glViewport(0, 0, w, h);
     glMatrixMode(GL_PROJECTION);
@@ -88,6 +88,8 @@ void GlWidget::moveCamera(const QVector3D &pos)
 
 void GlWidget::paintGL()
 {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
     // Here we make mZoomFactorCurrent converge to mZoomFactorTarget for smooth zooming
     float step = 0.0f;
     if(mZoomFactorTarget > (mZoomFactorCurrent + 0.0001f))
@@ -99,6 +101,7 @@ void GlWidget::paintGL()
     {
         if(mTimerIdZoom == 0) mTimerIdZoom = startTimer(20);
         mZoomFactorCurrent += step;
+        resizeGL(width(),height());
     }
     else if(mTimerIdZoom != 0)
     {
@@ -106,9 +109,6 @@ void GlWidget::paintGL()
         mTimerIdZoom = 0;
     }
 
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    resizeGL(width(),height());
     glLoadIdentity();
 
     const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().position;

@@ -6,8 +6,7 @@ WirelessDevice::WirelessDevice(const QString& interfaceName) : QObject()
 
     mUpdateTimer = new QTimer;
     connect(mUpdateTimer, SIGNAL(timeout()), SLOT(slotEmitRssi()));
-    mUpdateTimer->setInterval(250);
-    mUpdateTimer->start();
+    mUpdateTimer->start(250);
 }
 
 qint8 WirelessDevice::getRssi()

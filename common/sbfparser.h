@@ -260,7 +260,6 @@ public:
 
 signals:
     void newVehiclePose(const Pose&); // emitted at 20Hz, includes non-FixedRTK poses
-    void newVehiclePosePrecise(const Pose&); // emitted at 20Hz, FixedRTK and IntegratedAttitude, used for sensor-fusion
     void newVehiclePoseLowFreq(const Pose&); // emitted at ~1Hz;
 
     void processedPacket(const QByteArray& sbfPacket);

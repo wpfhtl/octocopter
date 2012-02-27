@@ -23,8 +23,7 @@ BaseStation::BaseStation() : QMainWindow()
     mOctree->setPointHandler(OpenGlUtilities::drawPoint);
 
     mTimerStats = new QTimer(this);
-    mTimerStats->setInterval(1000);
-    mTimerStats->start();
+    mTimerStats->start(1000);
 
     //mDateTimeProgramStart = QDateTime::currentDateTime();
 
@@ -138,7 +137,6 @@ BaseStation::BaseStation() : QMainWindow()
             connect(mJoystick, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mRoverConnection, SLOT(slotSendMotionToKopter(quint8,qint8,qint8,qint8,qint8)));
             connect(mJoystick, SIGNAL(buttonStateChanged(quint8,bool)), SLOT(slotManageJoystick(quint8,bool)));
             mTimerJoystick = new QTimer(this);
-            mTimerJoystick->setInterval(100);
             connect(mTimerJoystick, SIGNAL(timeout()), mJoystick, SLOT(slotEmitMotionCommands()));
         }
 
@@ -193,7 +191,7 @@ void BaseStation::slotManageJoystick(quint8 button, bool pressed)
     if(button == 0)
     {
         if(pressed && !mTimerJoystick->isActive())
-            mTimerJoystick->start();
+            mTimerJoystick->start(100);
         else if(!pressed && mTimerJoystick->isActive())
             mTimerJoystick->stop();
     }

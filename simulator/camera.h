@@ -33,8 +33,6 @@ private:
     // We need singleShot functionality, but we also need to be able to pause when simulation is paused.
     QTimer* mTimerShutter;
 
-    double mTimeFactor;
-
     // We need to be careful with this, as the targets live in other threads
     Ogre::SceneNode *mCameraNode;
     Ogre::Camera *mCamera;

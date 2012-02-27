@@ -6,7 +6,7 @@ SensorFuser::SensorFuser(const quint8& stridePoint, const quint8& strideScan) : 
     mStrideScan = strideScan; // TODO: implement
     mPointCloudSize = 0;
     mNewestDataTime = 0;
-    mMaximumFusableRayLength = 20.0;
+    mMaximumFusableRayLength = 200.0;
     mStatsFusedScans = 0;
     mStatsDiscardedScans = 0;
     mLastRayTime = -1000; // make sure first comparision fails
@@ -205,7 +205,7 @@ void SensorFuser::transformScanData()
         if(posesForThisScan.size() >= 4 && posesForThisScan.at(1)->timestamp < rayStart && posesForThisScan.at(posesForThisScan.size()-2)->timestamp > rayEnd)
         {
             std::vector<long>* scanDistances = iteratorSavedScans.value();
-            qDebug() << "SensorFuser::transformScanData(): these" << posesForThisScan.size() << "poses are enough, fusing" << scanDistances->size() << "rays";
+//            qDebug() << "SensorFuser::transformScanData(): these" << posesForThisScan.size() << "poses are enough, fusing" << scanDistances->size() << "rays";
 
             mStatsFusedScans++;
 
@@ -397,14 +397,36 @@ qint8 SensorFuser::matchTimestamps()
     return scansMatched;
 }
 
+void SensorFuser::setLaserScannerRelativePose(const Pose& pose)
+{
+    mLaserScannerRelativePose = pose;
+
+    // We can assign perfect precision, as it will be ANDed with the vehicle's precision lateron.
+    mLaserScannerRelativePose.precision = 255;
+    mLaserScannerRelativePose.covariances = 0.0f;
+}
+
 void SensorFuser::slotNewVehiclePose(const Pose& pose)
 {
-    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a precise" << pose;
+    if(!(
+            pose.precision & Pose::AttitudeAvailable &&
+            pose.precision & Pose::RtkFixed &&
+            pose.precision & Pose::CorrectionAgeLow &&
+            pose.precision & Pose::HeadingFixed &&
+            //pose.precision & Pose::ModeIntegrated &&
+            pose.covariances < 1.0
+            ))
+    {
+//        qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received pose is not precise enough for fusing, ignoring it";
+        return;
+    }
+
+//    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a " << pose;
 
     // Append pose to our list
     mPoses.append(Pose(pose + mLaserScannerRelativePose));
 
-    qDebug() << "SensorFuser::slotNewVehiclePose(): vehicle" << pose << "relative scanner" << mLaserScannerRelativePose << "result" << mPoses.last();
+//    qDebug() << "SensorFuser::slotNewVehiclePose(): vehicle" << pose << "relative scanner" << mLaserScannerRelativePose << "result" << mPoses.last();
 
     mNewestDataTime = std::max(mNewestDataTime, pose.timestamp);
 
@@ -465,20 +487,20 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
     const qint32 intervalBetweenSyncPackets = timestampScanGps - mLastScanMiddleTow;
     if(intervalBetweenSyncPackets > 3000)
     {
-        qDebug() << t() << "SensorFuser::slotScanFinished(): interval between sync packets is" << intervalBetweenSyncPackets << "- this should ony happen during intialization.";
+//        qDebug() << t() << "SensorFuser::slotScanFinished(): interval between sync packets is" << intervalBetweenSyncPackets << "- this should ony happen during intialization.";
     }
     else
     {
         const quint8 ratio = (quint8)round(intervalBetweenSyncPackets / 25.0f);
         const qint8 driftMs = intervalBetweenSyncPackets - (ratio * 25);
-        qDebug() << t() << "SensorFuser::slotScanFinished(): last sync packet" << mLastScanMiddleTow << "now" << timestampScanGps << "interval" << intervalBetweenSyncPackets << "ms, ratio is" << ratio << "and drift is" << driftMs;
+//        qDebug() << t() << "SensorFuser::slotScanFinished(): last sync packet" << mLastScanMiddleTow << "now" << timestampScanGps << "interval" << intervalBetweenSyncPackets << "ms, ratio is" << ratio << "and drift is" << driftMs;
 
         // For every $ratio (=2^X) scans, we get a packet. Insert the correct scantimes into our data structure
         // For ratio 32, insert from -16*
         for(int i=-ratio/2; i<ceil(ratio/2.0f); i++)
         {
             const qint32 scanMiddleTow = timestampScanGps + i*25;
-            qDebug() << t() << "SensorFuser::slotScanFinished(): inserting scanMiddleTow" << i << ":" << scanMiddleTow;
+//            qDebug() << t() << "SensorFuser::slotScanFinished(): inserting scanMiddleTow" << i << ":" << scanMiddleTow;
             mScansTimestampGps.insert(scanMiddleTow, 0);
 
             // update the latest data time
@@ -490,7 +512,7 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
 
 void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, std::vector<long> * const distances)
 {
-    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
+//    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
 
     slotScanFinished(timestampScanScanner);
 

@@ -109,7 +109,6 @@ void Camera::slotStart(void)
 void Camera::slotSetTimeFactor(double timeFactor)
 {
     QMutexLocker locker(&mMutex);
-    mTimeFactor = timeFactor;
     mTimerShutter->setInterval(mInterval * (1.0 / mSimulator->getTimeFactor()));
 }
 

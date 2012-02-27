@@ -8,7 +8,8 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     mTimerAnimation = new QTimer(this);
     connect(mTimerAnimation, SIGNAL(timeout()), SLOT(slotPlay()));
 
-    mSensorFuser = new SensorFuser(1);
+    mSensorFuser = new SensorFuser(3);
+    //mSensorFuser->setMaximumFusableRayLength(20.0f);
     mSbfParser = new SbfParser(this);
 
     mIndexLaser = -1;
@@ -34,8 +35,8 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     connect(mSbfParser, SIGNAL(message(LogImportance,QString,QString)), SIGNAL(message(LogImportance,QString,QString)));
     connect(mSbfParser, SIGNAL(newVehiclePose(Pose)), SIGNAL(vehiclePose(Pose)));
 
-    connect(mSbfParser, SIGNAL(newVehiclePosePrecise(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
-    connect(mSbfParser, SIGNAL(newVehiclePosePrecise(Pose)), SIGNAL(vehiclePose(Pose)));
+    connect(mSbfParser, SIGNAL(newVehiclePose(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
+    connect(mSbfParser, SIGNAL(newVehiclePose(Pose)), SIGNAL(vehiclePose(Pose)));
     connect(mSbfParser, SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
 
     // Actually invoke slotLaserScannerRelativePoseChanged() AFTER our parent
@@ -202,9 +203,7 @@ void LogPlayer::slotPlay()
 
     qint32 towBeforeSbf;
     if(!mSbfParser->getNextValidPacketInfo(mDataSbf, 0, &towBeforeSbf)) towBeforeSbf = -1;
-    const qint32 towBeforeLsr = getNextTowLaser();
-    const qint32 minTowBefore = getEarliestValidTow(towBeforeSbf, towBeforeLsr);
-
+    const qint32 minTowBefore = getEarliestValidTow(towBeforeSbf, getNextTowLaser());
 
     if(!mTimePlaybackStartReal.isValid())
     {
@@ -225,8 +224,7 @@ void LogPlayer::slotPlay()
 
     qint32 towAfterSbf;
     if(!mSbfParser->getNextValidPacketInfo(mDataSbf, 0, &towAfterSbf)) towAfterSbf = -1;
-    const qint32 towAfterLsr = getNextTowLaser();
-    const qint32 minTowAfter = getEarliestValidTow(towAfterSbf, towAfterLsr);
+    const qint32 minTowAfter = getEarliestValidTow(towAfterSbf, getNextTowLaser());
 
     mTimerAnimation->stop();
 
@@ -240,11 +238,10 @@ void LogPlayer::slotPlay()
         QTime timeOfNextPacketReal = mTimePlaybackStartReal.addMSecs(towElapsedAtNextPacket);
         const qint32 timeToSleep = QTime::currentTime().msecsTo(timeOfNextPacketReal) * ui->mSpinBoxTimeFactor->value();
 
-        qDebug() << "LogPlayer::slotPlay(): slotStepForward() succeeded, sleeping for" << timeToSleep;
+        //qDebug() << "LogPlayer::slotPlay(): slotStepForward() succeeded, sleeping for" << timeToSleep;
 
         // Wait between 0 and 1 secs, scaled by timefactor
-        mTimerAnimation->setInterval(qBound(0, timeToSleep, 5000));
-        mTimerAnimation->start();
+        mTimerAnimation->start(qBound(0, timeToSleep, 5000));
     }
     else
     {

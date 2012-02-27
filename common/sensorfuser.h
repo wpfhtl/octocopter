@@ -14,7 +14,7 @@ public:
 
     void setMaximumFusableRayLength(const float& rayLength) {mMaximumFusableRayLength = rayLength;}
 
-    void setLaserScannerRelativePose(const Pose& pose) {mLaserScannerRelativePose = pose;}
+    void setLaserScannerRelativePose(const Pose& pose);
 
 private:
     quint8 mStridePoint, mStrideScan;

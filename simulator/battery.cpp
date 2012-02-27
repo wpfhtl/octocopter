@@ -9,7 +9,6 @@ Battery::Battery(Simulator* simulator, const double &voltage, const double &capa
     mChargeStatusInPercent(100)
 {
     mSimulator = simulator;
-    mUpdateTimer.setInterval(500); // 2 times per second shall be enough to get a realistically discharging battery.
 
     connect(&mUpdateTimer, SIGNAL(timeout()), SLOT(slotUpdate()));
 }
@@ -68,7 +67,8 @@ void Battery::charge(void)
 
 void Battery::slotStart()
 {
-    mUpdateTimer.start();
+    // Once a second shall be enough to get a realistically discharging battery.
+    mUpdateTimer.start(1000);
     mSimulationTimeOfLastUpdate = mSimulator->getSimulationTime();
 }
 

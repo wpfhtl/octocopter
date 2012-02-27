@@ -10,6 +10,9 @@ Pose::Pose(const QVector3D &position, const QQuaternion &orientation, const qint
 
     this->timestamp = timestamp;
 
+    precision = 0;
+    covariances = 100.0f;
+
     if(timestamp == 0) this->timestamp = getCurrentGpsTowTime();
 }
 
@@ -23,6 +26,9 @@ Pose::Pose(const QVector3D &position, const float &yawDegrees, const float &pitc
 
     this->timestamp = timestamp;
 
+    precision = 0;
+    covariances = 100.0f;
+
     if(timestamp == 0)
     {
         this->timestamp = getCurrentGpsTowTime();
@@ -34,6 +40,9 @@ Pose::Pose()
     mYaw = 0.0f;
     mPitch = 0.0f;
     mRoll = 0.0f;
+
+    precision = 0;
+    covariances = 100.0f;
     this->timestamp = 0;
 }
 
@@ -41,13 +50,18 @@ Pose Pose::interpolateLinear(const Pose &before, const Pose &after, const float 
 {
     Q_ASSERT(mu <= 0.0 && mu <= 1.0);
 
-    return Pose(
+    Pose p(
                 before.position * (1.0 - mu) + after.position * mu,
                 RAD2DEG(before.mYaw * (1.0 - mu) + after.mYaw * mu),
                 RAD2DEG(before.mPitch * (1.0 - mu) + after.mPitch * mu),
                 RAD2DEG(before.mRoll * (1.0 - mu) + after.mRoll * mu),
                 before.timestamp * (1.0 - mu) + after.timestamp * mu
                 );
+
+    p.covariances = before.covariances * (1.0 - mu) + after.covariances * mu;
+    p.precision = before.precision & after.precision;
+
+    return p;
 }
 
 // http://paulbourke.net/miscellaneous/interpolation/
@@ -102,7 +116,12 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
 //    const float timestamp = t0*mu*mu2+t1*mu2+t2*mu+t3;
 //    const qint32 timestamp = before->timestamp + (qint32)(mu * ((float)(after->timestamp - before->timestamp)));
 
-    return Pose(resultPosition, RAD2DEG(yaw), RAD2DEG(pitch), RAD2DEG(roll), 0);
+    Pose p(resultPosition, RAD2DEG(yaw), RAD2DEG(pitch), RAD2DEG(roll), 0);
+
+    p.covariances = (before->covariances + after->covariances) / 2.0f;
+    p.precision = before->precision & after->precision;
+
+    return p;
 }
 
 Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before, const Pose * const after, const Pose * const last, const qint32& time)
@@ -172,20 +191,25 @@ const QQuaternion Pose::getOrientation() const
     return
             QQuaternion::fromAxisAndAngle(QVector3D(0,1,0), getYawDegrees())
             * QQuaternion::fromAxisAndAngle(QVector3D(1,0,0), getPitchDegrees())
-            * QQuaternion::fromAxisAndAngle(QVector3D(0,0,1), getRollDegrees()); // without this -, the roll doesn't match the simulator orientation??!?
+            * QQuaternion::fromAxisAndAngle(QVector3D(0,0,1), getRollDegrees());
 }
 
 Pose Pose::operator+(const Pose &p) const
 {
     // The following two should be the same
-    return Pose(
+    Pose a(
                 position + getOrientation().rotatedVector(p.position),
-                RAD2DEG(mYaw) + p.getYawDegrees(),
-                RAD2DEG(mPitch) + p.getPitchRadians(),
-                RAD2DEG(mRoll) + p.getRollRadians(),
+                RAD2DEG(mYaw + p.getYawRadians()),
+                RAD2DEG(mPitch + p.getPitchRadians()),
+                RAD2DEG(mRoll + p.getRollRadians()),
                 // use the latest timestamp, needed in LaserScanner::slotNewVehiclePose(const Pose& pose)
                 std::max(timestamp,p.timestamp)
                 );
+
+    a.covariances = (covariances + p.covariances) / 2.0f;
+    a.precision = precision & p.precision;
+
+    return a;
 }
 
 QDebug operator<<(QDebug dbg, const Pose &pose)
@@ -204,15 +228,17 @@ const QString Pose::toString() const
             .append("/").append(QString::number(position.z(), 'f', 2))
             .append(") YPR (").append(QString::number(getYawDegrees(), 'f', 2))
             .append("/").append(QString::number(getPitchDegrees(), 'f', 2))
-            .append("/").append(QString::number(getRollDegrees(), 'f', 2)).append(")");
+            .append("/").append(QString::number(getRollDegrees(), 'f', 2)).append(")")
+            .append(" pr ").append(QString::number(precision))
+            .append(" co ").append(QString::number(covariances, 'f', 2));
 }
 
 // Must be able to process what operator<< writes above, for example:
-// pose t501171350 (-30.49/51.84/140.01) YPR (155.27/2.92/-1.03)
+// pose t501171350 (-30.49/51.84/140.01) YPR (155.27/2.92/-1.03) pr 17 co 2.34
 Pose::Pose(const QString& poseString)
 {
     QStringList tokens = poseString.split(' ');
-    Q_ASSERT(tokens.size() == 5 && "Pose::Pose(QString): token stringlist size is not 5.");
+    if(tokens.size() != 9) qDebug() << "Pose::Pose(QString): token stringlist size is not 5!";
     bool success = false;
 
     // set time
@@ -225,30 +251,37 @@ Pose::Pose(const QString& poseString)
     positionString.chop(1);
     const QStringList positions = positionString.split('/');
     position.setX(positions.at(0).toFloat(&success));
-    Q_ASSERT(success && "Pose::Pose(QString): couldn't convert X to float.");
+    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert X to float.";
     position.setY(positions.at(1).toFloat(&success));
-    Q_ASSERT(success && "Pose::Pose(QString): couldn't convert Y to float.");
+    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert Y to float.";
     position.setZ(positions.at(2).toFloat(&success));
-    Q_ASSERT(success && "Pose::Pose(QString): couldn't convert Z to float.");
+    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert Z to float.";
 
     // set orientations
     QString orientationString = tokens.value(4).remove(0, 1);
     orientationString.chop(1);
     const QStringList orientations = orientationString.split('/');
     setYawDegrees(orientations.at(0).toFloat(&success));
-    Q_ASSERT(success && "Pose::Pose(QString): couldn't convert yaw to float.");
+    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert yaw to float.";
     setPitchDegrees(orientations.at(1).toFloat(&success));
-    Q_ASSERT(success && "Pose::Pose(QString): couldn't convert pitch to float.");
+    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert pitch to float.";
     setRollDegrees(orientations.at(2).toFloat(&success));
-    Q_ASSERT(success && "Pose::Pose(QString): couldn't convert roll to float.");
+    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert roll to float.";
+
+    // set precision and covariances
+    precision = tokens.value(6).toInt(&success);
+    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert precision to int.";
+
+    covariances = tokens.value(8).toFloat(&success);
+    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert covariances to float.";
 
     if(poseString != toString())
-        qFatal("Pose::Pose(QString): parsing failed: original %s, reconstructed %s.", qPrintable(poseString), qPrintable(toString()));
+        qDebug() << "Pose::Pose(QString): parsing failed: original:" << poseString << "reconstructed" << toString();
 }
 
 QDataStream& operator<<(QDataStream &out, const Pose &pose)
 {
-    out << pose.position << pose.getYawRadians() << pose.getPitchRadians() << pose.getRollRadians() << pose.timestamp;
+    out << pose.position << pose.getYawRadians() << pose.getPitchRadians() << pose.getRollRadians() << pose.timestamp << pose.precision << pose.covariances;
     return out;
 }
 
@@ -260,6 +293,8 @@ QDataStream& operator>>(QDataStream &in, Pose &pose)
     in >> pitch;
     in >> roll;
     in >> pose.timestamp;
+    in >> pose.precision;
+    in >> pose.covariances;
 
 //    qDebug() << "reconstructing pose with YPR:" << yaw << pitch << roll;
 

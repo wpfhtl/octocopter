@@ -11,7 +11,6 @@ Camera::Camera(const QString& device, const QSize& imageSize, const Pose& pose, 
     mImageData = new QByteArray(mImageSize.width() * mImageSize.height() * 3, 0); // RGB buffer, filled with zeroes
 
     mCaptureTimer = new QTimer(this);
-    mCaptureTimer->setInterval(1000 / fps);
     connect(mCaptureTimer, SIGNAL(timeout()), SLOT(slotReadAndEmitCurrentFrame()));
 
     if (-1 == initDevice()) { exit(EXIT_FAILURE); }
@@ -225,7 +224,7 @@ int Camera::startCapturing()
         return -1;
     }
 
-    mCaptureTimer->start();
+    mCaptureTimer->start(1000 / mFps);
 
     qDebug() << "Camera::startCapturing(): done.";
 

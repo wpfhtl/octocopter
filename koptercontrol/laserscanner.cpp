@@ -35,9 +35,6 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
         return;
     }
 
-    // Do this after initializing hte scanner, otherwise the values might be off.
-    mTimerScan->setInterval(mScanner.scanMsec());
-
 //    mScanner.setCaptureMode(qrk::IntensityCapture);
 
 }
@@ -122,7 +119,7 @@ void LaserScanner::slotEnableScanning(const bool& value)
         qDebug() << "LaserScanner::slotEnableScanning(): setting enabled state to" << value;
 
         if(mIsEnabled)
-            mTimerScan->start();
+            mTimerScan->start(mScanner.scanMsec());
         else
             mTimerScan->stop();
     }
