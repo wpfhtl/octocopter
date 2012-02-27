@@ -104,6 +104,9 @@ public slots:
     void slotWayPointDelete(const quint16& index);
     void slotSetWayPoints(const QList<WayPoint>&);
 
+    // This signal comes from Kopter (the MK's serial connection), and we use it only to derive the flightstate from the RemoteControl's externalControl-switch
+    void slotNewPpmChannelValues(const quint8 thrust, const qint8 yaw, const qint8 pitch, const qint8 roll, const bool motorSafety, const bool externalControl);
+
     // Called regularly by our parent, we compute the motion commands then and emit motion(...).
     void slotComputeMotionCommands();
 

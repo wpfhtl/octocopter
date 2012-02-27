@@ -58,8 +58,6 @@ private:
 
     QMap<quint8, QString> mAnalogValueLabels;
     struct ExternControl mStructExternControl;
-//    struct VersionInfo mStructVersionInfo;
-//    struct DebugOut mStructDebugOut;
 
     QMap<QChar,QTime> mPendingReplies;
 
@@ -69,8 +67,7 @@ private:
     AbstractSerial *mSerialPortFlightCtrl;
     QByteArray mReceiveBuffer;
     QTime mMissionStartTime;
-
-    void initialize();
+    QTimer* mTimerPpmChannelPublisher;
 
 private slots:
     void slotSerialPortDataReady();
@@ -89,7 +86,7 @@ public slots:
 
 signals:
     void kopterStatus(const quint32 missionRunTimeMsecs, const qint16& baroheight, const float& voltage);
-    void ppmChannelValues();
+    void ppmChannelValues(quint8 thrust, qint8 yaw, qint8 pitch, qint8 roll, bool motorSafety, bool externalControl);
     void externControlReplyReceived();
 
 };

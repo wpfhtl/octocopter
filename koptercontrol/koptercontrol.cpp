@@ -124,6 +124,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 //    connect(mCamera, SIGNAL(imageReadyYCbCr(QString,QSize,Pose,QByteArray)), mVisualOdometry, SLOT(slotProcessImage(QString,QSize,Pose,QByteArray)));
     connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mKopter, SIGNAL(kopterStatus(quint32, qint16, float)), mBaseConnection, SLOT(slotNewVehicleStatus(quint32, qint16, float)));
+    connect(mKopter, SIGNAL(ppmChannelValues(quint8,qint8,qint8,qint8,bool,bool)), mFlightController, SLOT(slotNewPpmChannelValues(quint8,qint8,qint8,qint8,bool,bool)));
     connect(mLaserScanner, SIGNAL(heightOverGround(float)), mFlightController, SLOT(slotSetHeightOverGround(float)));
     connect(mBaseConnection, SIGNAL(enableScanning(const bool&)), mLaserScanner, SLOT(slotEnableScanning(const bool&)));
     connect(mBaseConnection, SIGNAL(rtkDataReady(const QByteArray&)), mGpsDevice, SLOT(slotSetRtkData(const QByteArray&)));
@@ -149,9 +150,6 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     mTimerComputeMotion = new QTimer(this);
     //mTimerComputeMotion->start(50);
     connect(mTimerComputeMotion, SIGNAL(timeout()), mFlightController, SLOT(slotComputeMotionCommands()));
-
-    mKopter->slotGetPpmChannelValues();
-    mKopter->slotSubscribeDebugValues(500);
 }
 
 KopterControl::~KopterControl()

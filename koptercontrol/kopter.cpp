@@ -15,21 +15,22 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
 
     connect(mSerialPortFlightCtrl, SIGNAL(readyRead()), SLOT(slotSerialPortDataReady()));
 
-    initialize();
+    mTimerPpmChannelPublisher = new QTimer(this);
+    mTimerPpmChannelPublisher->start(500);
+    connect(mTimerPpmChannelPublisher, SIGNAL(timeout()), SLOT(slotGetPpmChannelValues()));
+
+    slotGetVersion();
+
+    slotSubscribeDebugValues(500);
+
+    for(int i=0;i<32;i++)
+        slotGetDebugLabels(i);
 }
 
 Kopter::~Kopter()
 {
     qDebug() << "Kopter::~Kopter(): closing serial port";
     mSerialPortFlightCtrl->close();
-}
-
-void Kopter::initialize()
-{
-    slotGetVersion();
-
-    for(int i=0;i<32;i++)
-        slotGetDebugLabels(i);
 }
 
 void Kopter::slotTestMotors(const QList<unsigned char> &speeds)
@@ -65,6 +66,9 @@ void Kopter::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& 
 
        - Positive yaw makes it rotate CW, as seen from the top.
          This is opposite to our expectations, because we have the right-handed Y axis pointing upwards
+
+         WARNING: This is weird, as ppmChannels[4] below contradicts this. But as long as we're clear
+         to the outside, we should be fine.
 
       For this reason, we send negative pitch and yaw values.
 
@@ -123,9 +127,6 @@ void Kopter::slotGetPpmChannelValues()
 
 void Kopter::slotSubscribeDebugValues(int interval)
 {
-    if(interval > 2550)
-        qDebug() << "Kopter::slotSubscribeDebugValues(): illegal interval:" << interval;
-
     // If this method is called directly (and not recursively), remember the
     // desired debug interval.
     if(interval != -1)
@@ -134,19 +135,18 @@ void Kopter::slotSubscribeDebugValues(int interval)
         mDesiredDebugDataInterval = interval;
     }
 
-    if(mDesiredDebugDataInterval > 2550) qWarning() << "Kopter::slotSubscribeDebugValues(): Cannot get debug every" << mDesiredDebugDataInterval << "subscribing every 2550ms instead.";
+    if(mDesiredDebugDataInterval > 2550) qWarning() << "Kopter::slotSubscribeDebugValues(): Cannot get debug data every" << mDesiredDebugDataInterval << "ms, subscribing every 2550ms instead.";
 
     // In the MK, the interval value is multiplied by ten and then used as
     // milliseconds to make up for the small range of a uint8.
     // Using 0 will disable debug output.
     quint8 interval_byte = std::min(255, mDesiredDebugDataInterval/10);
     //qDebug() << "Kopter::slotSubscribeDebugValues(): effective subscription in ms" << ((int)interval_byte)*10;
-    KopterMessage message(1, 'd', QByteArray((const char*)&interval_byte));
+    KopterMessage message(KopterMessage::Address_FC, 'd', QByteArray((const char*)&interval_byte));
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
 
-    // The subscription only lasts for 4 seconds as defined by ABO_TIMEOUT
-    // in the FC source. To make up for this, we call ourselves periodically
-    // to re-subscribe.
+    // The subscription only lasts for 4 seconds as defined by ABO_TIMEOUT in the FC source.
+    // To make up for this, we call ourselves periodically to re-subscribe.
     if(mDesiredDebugDataInterval > 0)
     {
         const int maximumSubscriptionDuration = 4000;
@@ -218,10 +218,23 @@ void Kopter::slotSerialPortDataReady()
                 QByteArray payload = message.getPayload();
                 const qint16* ppmChannels = (qint16*)payload.data();
 
-                for(int i=0; i < payload.size()/2; i++)
-                {
-                    qDebug() << "Kopter::slotSerialPortDataReady(): ppm channel" << i << ":" << ppmChannels[i];
-                }
+                for(int i=0; i < payload.size()/2; i++) qDebug() << "Kopter::slotSerialPortDataReady(): ppm channel" << i << ":" << ppmChannels[i];
+
+                // ppmChannels[1] is Thrust: -127 is min, 14 is max
+                // ppmChannels[2] is Roll: 93 is max (left on R/C), -93 is min (right on R/C). Positive rolls positive on the Z axis.
+                // ppmChannels[3] is Pitch: 94 is max (up on R/C), -94 is min (down on R/C). Positive pitches negative on the X axis.
+                // ppmChannels[4] is Yaw: 96 is max (left on R/C), -90 is min (right on R/C). Positive yaws positive on the Y axis
+                // ppmChannels[5] is MotorSafety. -122 is disabled (motors can be toggled), 127 is enabled (motor switching blocked)
+                // ppmChannels[7] is ExternalControl. -122 is disabled, 127 is enabled
+
+                // signature is thrust, yaw, pitch, roll, motorSafety, externalControl
+                emit ppmChannelValues(
+                            (quint8)(ppmChannels[1]+127), // offset to convert to [0;255]
+                            (qint8)ppmChannels[4],
+                            (qint8)ppmChannels[3],
+                            (qint8)ppmChannels[2],
+                            ppmChannels[5] > 0,
+                            ppmChannels[7] > 0);
             }
             else if(message.getId() == 'T')
             {
@@ -245,7 +258,7 @@ void Kopter::slotSerialPortDataReady()
         }
         else
         {
-            //qWarning() << "Kopter::slotSerialPortDataReady(): got KopterMessage from ignored address:" << message.getAddress();
+            //qWarning() << "Kopter::slotSerialPortDataReady(): got KopterMessage with id" <<  message.getId() << "from ignored address:" << message.getAddress();
         }
 
 

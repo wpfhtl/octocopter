@@ -8,14 +8,12 @@ FlightController::FlightController() : QObject(), mFlightState(Idle)
     mTimeOfLastControllerUpdate = QTime::currentTime();
     mFirstControllerRun = true;
 
-    // For testing in simulator
+    /*// For testing in simulator
     mWayPoints.append(WayPoint(QVector3D(130,90,110)));
     mWayPoints.append(WayPoint(QVector3D(140,80,130)));
     mWayPoints.append(WayPoint(QVector3D(120,90,120)));
     mWayPoints.append(WayPoint(QVector3D(150,80,150)));
-    setFlightState(ApproachingNextWayPoint);
-
-    emit currentWayPoints(mWayPoints);
+    setFlightState(ApproachingNextWayPoint);*/
 }
 
 FlightController::~FlightController()
@@ -314,6 +312,8 @@ void FlightController::setFlightState(const FlightState& flightState)
     {
         if(flightState == ApproachingNextWayPoint)
         {
+            Problem: if externalcontrol becomes 1, this code is called. What if no waypoint is present?
+
             // We're going to use the controllers, so make sure to initialize them
             mPrevErrorPitch = 0.1f;
             mPrevErrorRoll = 0.1f;
@@ -349,4 +349,12 @@ void FlightController::emitSafeControlValues()
 {
     qDebug() << "FlightController::emitSafeControlValues()";
     emit motion(110, 0, 0, 0, 0);
+}
+
+void FlightController::slotNewPpmChannelValues(const quint8 thrust, const qint8 yaw, const qint8 pitch, const qint8 roll, const bool motorSafety, const bool externalControl)
+{
+    if(externalControl)
+        setFlightState(ApproachingNextWayPoint);
+    else
+        setFlightState(ManualControl);
 }
