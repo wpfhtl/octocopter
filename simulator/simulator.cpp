@@ -36,7 +36,7 @@ Simulator::Simulator(void) :
     mJoystick = new Joystick;
     if(!mJoystick->isValid()) QMessageBox::warning(this, "Joystick not found", "Joystick initialization failed, using manual control will be impossible.");
     connect(mJoystick, SIGNAL(buttonStateChanged(quint8,bool)), SLOT(slotJoystickButtonChanged(quint8, bool)));
-    mJoystickEnabled = true;
+    mJoystickEnabled = false;
 
     connect(mOgreWidget, SIGNAL(setupFinished()), SLOT(slotOgreInitialized()), Qt::QueuedConnection);
 
@@ -54,7 +54,9 @@ Simulator::Simulator(void) :
     connect(mBaseConnection, SIGNAL(wayPoints(QList<WayPoint>)), mFlightController, SLOT(slotSetWayPoints(QList<WayPoint>)));
 
     connect(mFlightController, SIGNAL(wayPointReached(WayPoint)), mBaseConnection, SLOT(slotWayPointReached(WayPoint)));
+    connect(mFlightController, SIGNAL(wayPointInserted(quint16,WayPoint)), mBaseConnection, SLOT(slotRoverWayPointInserted(quint16,WayPoint)));
     connect(mFlightController, SIGNAL(currentWayPoints(QList<WayPoint>)), mBaseConnection, SLOT(slotFlightControllerWayPointsChanged(QList<WayPoint>)));
+    connect(mFlightController, SIGNAL(flightStateChanged(FlightState)), mBaseConnection, SLOT(slotFlightStateChanged(FlightState)));
 
     mStatusWidget = new StatusWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mStatusWidget);

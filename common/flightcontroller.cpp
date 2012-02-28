@@ -31,18 +31,30 @@ void FlightController::slotComputeMotionCommands()
     // TODO: Do we still need this flightstate? how do we detect that manual control is activated?
     if(getFlightState() == ManualControl)
     {
-        qDebug() << "FlightController::slotComputeMotionCommands(): FlightState: ManualControl";
+        qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState: ManualControl";
 
-        // We do not emit motion commands, as they should be ignored anyway.
+        // If for whatever reason our commands are not ignored, emit safe-hover-values
+        emitSafeControlValues();
+    }
+    if(getFlightState() == Freezing)
+    {
+        qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState: Freezing. PANIC! Emitting safeControlValues()";
+
+        // Emit safe-hover-values
         emitSafeControlValues();
     }
     else if(getFlightState() == ApproachingNextWayPoint)
     {
-        Q_ASSERT(mWayPoints.size() > 0);
+        if(mWayPoints.size() < 1)
+        {
+            qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState: ApproachingNextWayPoint: Cannot approach, no waypoints present!";
+            emitSafeControlValues();
+            return;
+        }
 
         if(getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp > 500)
         {
-            qDebug() << "FlightController::slotComputeMotionCommands(): vehicle pose update is more than 500ms ago, skipping motion computation, emitting safe control values";
+            qDebug() << t() << "FlightController::slotComputeMotionCommands(): vehicle pose update is more than 500ms ago, skipping motion computation, emitting safe control values";
             emitSafeControlValues();
             return;
         }
@@ -89,11 +101,16 @@ void FlightController::slotComputeMotionCommands()
         const float derivativeRoll = mFirstControllerRun ? 0.0f : (errorRoll - mPrevErrorRoll + 0.00001f)/timeDiff;
         const float outputRoll = planarDistanceFactor * (6.0f * errorRoll) + (0.3f * mErrorIntegralRoll) + (0.0f * derivativeRoll);
 
-        const float outputHover = 120.0;
+        const float outputHover = 115.0;
         const float errorHeight = nextWayPoint.y() - mLastKnownVehiclePose.position.y();
         mErrorIntegralHeight += errorHeight*timeDiff;
+
+        // We do need to use the I-controller, but we should clear the integrated error once we have crossed the height of a waypoint.
+        // Otherwise, the integral will grow large while ascending and then keep the kopter above the waypoint for a loooong time.
+        if((mPrevErrorHeight > 0.0f && errorHeight < 0.0f) || (mPrevErrorHeight < 0.0f && errorHeight > 0.0f)) mErrorIntegralHeight /= 3.0f;
+
         const float derivativeHeight = mFirstControllerRun ? 0.0f : (errorHeight - mPrevErrorHeight + 0.00001f)/timeDiff;
-        const float outputThrust = outputHover + (15.0f * errorHeight) + (0.0f * mErrorIntegralHeight) + (1.0f * derivativeHeight);
+        const float outputThrust = outputHover + (25.0f * errorHeight) + (0.01f * mErrorIntegralHeight) + (1.0f * derivativeHeight);
 
         qDebug() << "no wpts" << mWayPoints.size() << "next wpt height" << nextWayPoint.y() << "curr height" << mLastKnownVehiclePose.position.y() << "thrust" << outputThrust;
 
@@ -110,7 +127,7 @@ void FlightController::slotComputeMotionCommands()
         mPrevErrorYaw = errorYaw;
         mPrevErrorHeight = errorHeight;
 
-        out_thrust = (quint8)qBound(90.0f, outputThrust, 200.0f);
+        out_thrust = (quint8)qBound(90.0f, outputThrust, 150.0f);
         out_yaw = (qint8)qBound(-127.0, outputYaw > 0.0f ? ceil(outputYaw) : floor(outputYaw), 127.0);
         out_pitch = (qint8)qBound(-20.0f, outputPitch, 20.0f);
         out_roll = (qint8)qBound(-20.0f, outputRoll, 20.0f);
@@ -124,80 +141,57 @@ void FlightController::slotComputeMotionCommands()
         emit debugValues(mLastKnownVehiclePose, out_thrust, out_yaw, out_pitch, out_roll, 0);
 
         // See whether we've reached the waypoint
-        if(mLastKnownVehiclePose.position.distanceToLine(nextWayPoint, QVector3D()) < 0.25) // close to wp
+        if(mLastKnownVehiclePose.position.distanceToLine(nextWayPoint, QVector3D()) < 0.25f) // close to wp
         {
-            wayPointReached();
+            nextWayPointReached();
         }
 
         mFirstControllerRun = false;
     }
     else if(mFlightState == Idle)
     {
-        emit motion(0, 0, 0, 0, 0);
+        qDebug() << t() << "FlightController::slotComputeMotionCommands(): flightstate idle.";
+        emit motion(90, 0, 0, 0, 0);
     }
     else
     {
-        Q_ASSERT(false && "FlightState not defined!");
+        qDebug() << t() << "FlightController::slotComputeMotionCommands(): FLIGHTSTATE NOT DEFINED!";
     }
 
     mTimeOfLastControllerUpdate = QTime::currentTime();
 }
 
-
-
-void FlightController::wayPointReached()
+void FlightController::nextWayPointReached()
 {
-    // The current waypoint has been reached.
+    // The next waypoint has been reached.
     mWayPointsPassed.append(mWayPoints.takeFirst());
 
-    qDebug() << "FlightController::wayPointReached(): reached waypoint" << mWayPointsPassed.last();
+    qDebug() << "FlightController::nextWayPointReached(): reached waypoint" << mWayPointsPassed.last();
 
     if(getFlightState() != ApproachingNextWayPoint)
-        qDebug() << "FlightController::wayPointReached(): reached waypoint" << mWayPointsPassed.last() << "but am not in ApproachingNextWayPoint state. Expect trouble!";
+        qDebug() << "FlightController::nextWayPointReached(): reached waypoint" << mWayPointsPassed.last() << "but am not in ApproachingNextWayPoint state. Expect trouble!";
 
-    if(mWayPoints.size())
-    {
-        emit message(QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), Information, "waypoint reached, more waypoints present, approaching");
-        qDebug() << "FlightController::wayPointReached(): approaching next waypoint" << mWayPoints.first();
-        mFirstControllerRun = true; // to tame the derivatives
-    }
-    else if(mLastKnownBottomBeamLength < 0.3)
-    {
-        qDebug() << "FlightController::wayPointReached(): reached waypoint, no more, we're low, idling";
-        setFlightState(Idle);
-        emit message(QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), Information, "waypoint reached, no more wayPoints, HeightAboveGround low, idling");
-    }
-    else
-    {
-        mWayPoints.append(getLandingWayPoint());
-        emit message(QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), Information, QString("ManualControl disabled, no further wayPoints, HeightAboveGround high (" + QString::number(mLastKnownBottomBeamLength) + "m), now landing"));
-        qDebug() << "FlightController::wayPointReached(): reached waypoint, no more, we're NOT low, adding landing wpt.";
-        mFirstControllerRun = true; // to tame the derivatives
-    }
-
+    // First emit this signal for the base to sync the list, THEN call ensureSafeFlightAfterWaypointsChanged(),
+    // which might append more waypoints.
     emit wayPointReached(mWayPointsPassed.last());
-    emit currentWayPoints(mWayPoints);
-}
 
-void FlightController::clearWayPoints()
-{
-    mWayPoints.clear();
+    ensureSafeFlightAfterWaypointsChanged();
+
     emit currentWayPoints(mWayPoints);
 }
 
 void FlightController::slotWayPointInsert(const quint16& index, const WayPoint& wayPoint)
 {
-    qDebug() << "FlightController::slotWayPointInsert(): trying to insert waypoint at index" << index;
-    qDebug() << "FlightController::slotSetNextWayPoint(): state is" << getFlightStateString() << "inserting waypoint into index" << index;
+    qDebug() << "FlightController::slotSetNextWayPoint(): state is" << getFlightStateString(mFlightState) << "inserting waypoint into index" << index;
     mWayPoints.insert(index, wayPoint);
     emit currentWayPoints(mWayPoints);
 
-    // Just in case we were idle (or landing, which is the same) before...
-    if(mFlightState == Idle) setFlightState(ApproachingNextWayPoint);
-    //else Q_ASSERT(false && "hashfailure in slotWayPointInsert");
-    //    qDebug() <<  "FlightController::slotWayPointInsert():" << hashValue << index << wayPoint << "hash failure";
-
-//    emit currentWayPoints(mWayPoints);
+    // Just in case we were idle before...
+    if(mFlightState == Idle)
+    {
+        qDebug() << t() << "FlightController::slotWayPointInsert(): we were idle, switching to ApproachingNextWayPoint";
+        setFlightState(ApproachingNextWayPoint);
+    }
 }
 
 void FlightController::slotWayPointDelete(const quint16& index)
@@ -212,22 +206,7 @@ void FlightController::slotWayPointDelete(const quint16& index)
         mWayPoints.removeAt(index);
 
         // The list might now be empty, so me might have to land.
-        if(mWayPoints.size() == 0 && getFlightState() == ApproachingNextWayPoint)
-        {
-            // The list is now empty and we are flying. Insert a landing-waypoint if we're not close to the ground;
-            if(mLastKnownBottomBeamLength > 0.2)
-            {
-                // Insert landing-waypoint, keep approaching
-                qDebug() << "FlightController::slotWayPointDelete(): after deleting wpt, list is empty, inserting landing wpt";
-                mWayPoints.append(getLandingWayPoint());
-            }
-            else
-            {
-                // We're low anyway, just got to idle mode.
-                qDebug() << "FlightController::slotWayPointDelete(): after deleting wpt, list is empty, we're low with beamlength of" << mLastKnownBottomBeamLength << ", idling";
-                setFlightState(Idle);
-            }
-        }
+        ensureSafeFlightAfterWaypointsChanged();
     }
     qDebug() << "FlightController::slotWayPointDelete(): after deleting wpt, emitting new wpt list of size" << mWayPoints.size();
     emit currentWayPoints(mWayPoints);
@@ -235,28 +214,17 @@ void FlightController::slotWayPointDelete(const quint16& index)
 
 void FlightController::slotSetWayPoints(const QList<WayPoint>& wayPoints)
 {
-    mWayPoints.clear();
     mWayPoints = wayPoints;
 
-    // The list might now be empty, so we might have to land.
-    if(mWayPoints.size() == 0 && getFlightState() == ApproachingNextWayPoint)
+    // Just in case we were idle before...
+    if(mFlightState == Idle && mWayPoints.size())
     {
-        // The list is now empty and we are flying. Insert a landing-waypoint if we're not close to the ground;
-        if(mLastKnownBottomBeamLength > 0.2)
-        {
-            // Insert landing-waypoint, keep approaching
-            mWayPoints.append(getLandingWayPoint());
-        }
-        else
-        {
-            // We're low anyway, just got to idle mode.
-            setFlightState(Idle);
-        }
-    }
-    else if(mWayPoints.size() > 0 && mFlightState == Idle)
-    {
+        qDebug() << t() << "FlightController::slotSetWayPoints(): we were idle, switching to ApproachingNextWayPoint";
         setFlightState(ApproachingNextWayPoint);
     }
+
+    // The list might now be empty, so we might have to land.
+    ensureSafeFlightAfterWaypointsChanged();
 
     emit currentWayPoints(mWayPoints);
 }
@@ -271,27 +239,7 @@ QList<WayPoint> FlightController::getWayPoints()
     return mWayPoints;
 }
 
-WayPoint FlightController::getLandingWayPoint() const
-{
-    // naive implementation, WARNING: make sure kopter is straight in the air!
-    qDebug() << "FlightController::getLandingWayPoint(): kopter is at" << mLastKnownVehiclePose.position << " lastKnownBottomBeamLength is from" << mLastKnownBottomBeamLengthTimestamp << "and is" << mLastKnownBottomBeamLength << "so returning a waypoint at curPos - BeamLength.";
-    return WayPoint(mLastKnownVehiclePose.position - QVector3D(0.0, mLastKnownBottomBeamLength, 0.0));
-}
-
-FlightController::FlightState FlightController::getFlightState(void) const { return mFlightState; }
-
-QString FlightController::getFlightStateString(void) const
-{
-    switch(mFlightState)
-    {
-    case ManualControl: return "ManualControl"; break;
-    case ApproachingNextWayPoint: return "ApproachingNextWayPoint"; break;
-    case Freezing: return "Freezing"; break;
-    case Idle: return "Idle"; break;
-    }
-
-    Q_ASSERT(false && "FLIGHTSTATE UNDEFINED!");
-}
+FlightState FlightController::getFlightState(void) const { return mFlightState; }
 
 void FlightController::slotNewVehiclePose(const Pose& pose)
 {
@@ -302,25 +250,22 @@ void FlightController::slotNewVehiclePose(const Pose& pose)
 void FlightController::slotFreeze()
 {
     setFlightState(Freezing);
-    mWayPoints.clear();
-    emit currentWayPoints(mWayPoints);
 }
 
-void FlightController::setFlightState(const FlightState& flightState)
+void FlightController::setFlightState(FlightState newFlightState)
 {
-    if(mFlightState != flightState)
+    if(mFlightState != newFlightState)
     {
-        if(flightState == ApproachingNextWayPoint)
-        {
-            Problem: if externalcontrol becomes 1, this code is called. What if no waypoint is present?
+        qDebug() << t() << "FlightController::setFlightState():" << getFlightStateString(mFlightState) << "=>" << getFlightStateString(newFlightState);
 
+        if(newFlightState == ApproachingNextWayPoint)
+        {
             // We're going to use the controllers, so make sure to initialize them
             mPrevErrorPitch = 0.1f;
             mPrevErrorRoll = 0.1f;
             mPrevErrorYaw = 0.1f;
             mPrevErrorHeight = 0.1f;
 
-            // clear the error integrals, so we don't get spikes after releasing the joystick
             mErrorIntegralPitch = 0.1f;
             mErrorIntegralRoll = 0.1f;
             mErrorIntegralYaw = 0.1f;
@@ -332,16 +277,70 @@ void FlightController::setFlightState(const FlightState& flightState)
             mFirstControllerRun = true;
         }
 
-        mFlightState = flightState;
-        emit flightStateChanged(flightState);
+        if(newFlightState == Freezing)
+        {
+            qDebug() << t() << "FlightController::setFlightState(): deleted waypoints, emitted empty list, now freezing";
+            mWayPoints.clear();
+            emit currentWayPoints(mWayPoints);
+        }
+
+        if(newFlightState == ManualControl)
+        {
+        }
+
+        if(newFlightState == Idle)
+        {
+        }
+
+        mFlightState = newFlightState;
+        emit flightStateChanged(newFlightState);
     }
 }
 
 void FlightController::slotSetHeightOverGround(const float& beamLength)
 {
-    qDebug() << "FlightController::slotSetHeightOverGround()" << beamLength;
-    mLastKnownBottomBeamLengthTimestamp = QTime::currentTime();
-    mLastKnownBottomBeamLength = beamLength;
+    qDebug() << t() << "FlightController::slotSetHeightOverGround()" << beamLength;
+    mLastKnownHeightOverGroundTimestamp = QTime::currentTime();
+    mLastKnownHeightOverGround = beamLength;
+}
+
+bool FlightController::isHeightOverGroundValueRecent() const
+{
+    qDebug() << t() << "FlightController::isHeightOverGroundValueRecent(): age of last heightOverGround measurement is" << mLastKnownHeightOverGroundTimestamp.msecsTo(QTime::currentTime()) << "msecs";
+    return mLastKnownHeightOverGroundTimestamp.msecsTo(QTime::currentTime()) < 750;
+}
+
+// To be called after waypoints have changed to check for dangerous states:
+// If wpt list is empty and state is ApproachingNextWayPoint, will either
+//  - idle if low
+//  - get a landing waypoint if heightOverGround is known and up-to-date
+//  - descend slowly if heightOverGround is unknown
+void FlightController::ensureSafeFlightAfterWaypointsChanged()
+{
+    mFirstControllerRun = true; // to tame the derivatives
+
+    if(mWayPoints.size() == 0 && mFlightState == ApproachingNextWayPoint)
+    {
+        // The list is now empty and we are flying. Insert a landing-waypoint if we're not close to the ground;
+        if(isHeightOverGroundValueRecent() && mLastKnownHeightOverGround < 0.3f)
+        {
+            // We're low anyway, just got to idle mode.
+            qDebug() << "FlightController::ensureSafeFlightAfterWaypointsChanged(): wpt list is empty, we're low with valid heightOverGround of" << mLastKnownHeightOverGround << ", idling";
+            setFlightState(Idle);
+        }
+        else if(isHeightOverGroundValueRecent())
+        {
+            qDebug() << "FlightController::ensureSafeFlightAfterWaypointsChanged(): wpt list is empty, heightOverGround is known to be" << mLastKnownHeightOverGround << "inserting landing wpt 0.2m above";
+            mWayPoints.append(WayPoint(mLastKnownVehiclePose.position - QVector3D(0.0, mLastKnownHeightOverGround - 0.2, 0.0)));
+            emit wayPointInserted(mWayPoints.size()-1, mWayPoints.last());
+        }
+        else
+        {
+            qDebug() << "FlightController::ensureSafeFlightAfterWaypointsChanged(): wpt list is empty, heightOverGround unknown, WARNING, next wpt is 0.5m below us.";
+            mWayPoints.append(WayPoint(mLastKnownVehiclePose.position - QVector3D(0.0, 0.5, 0.0)));
+            emit wayPointInserted(mWayPoints.size()-1, mWayPoints.last());
+        }
+    }
 }
 
 
@@ -351,10 +350,30 @@ void FlightController::emitSafeControlValues()
     emit motion(110, 0, 0, 0, 0);
 }
 
-void FlightController::slotNewPpmChannelValues(const quint8 thrust, const qint8 yaw, const qint8 pitch, const qint8 roll, const bool motorSafety, const bool externalControl)
+void FlightController::slotExternalControlStatusChanged(bool externalControl)
 {
+    qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): external control " << externalControl;
+
+    if(mFlightState == Freezing)
+    {
+        qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): external control " << externalControl << "but we're FREEZING, won't change flightState";
+        return;
+    }
+
+    // We might be in any FlightState and the user switched SW1 to enable or disable externalControl (=computer control)
     if(externalControl)
+    {
+        // The user tells us to control the kopter.
+        if(mFlightState != ManualControl)
+            qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): externalControl activated, but previous flightState is" << getFlightStateString(mFlightState) << "- WARNING. Still switching to ApproachingNextWayPoint";
+
         setFlightState(ApproachingNextWayPoint);
+        ensureSafeFlightAfterWaypointsChanged();
+    }
     else
+    {
+        // This one is easy. When the user disallows computer control, switch to ManualControl
+        qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): externalControl deactivated, switching to ManualControl.";
         setFlightState(ManualControl);
+    }
 }

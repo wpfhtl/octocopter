@@ -117,9 +117,9 @@ void LaserScanner::slotDoScan()
         return;
     }
 
-    // emit bottomBeamLength twice a second. mSpeed is rounds per minute
+    // emit bottomBeamLength four times a second. mSpeed is rounds per minute
     mBottomBeamClockDivisor++;
-    mBottomBeamClockDivisor %= mSpeed < 120.0f ? 1 : ((quint16)mSpeed)/120;
+    mBottomBeamClockDivisor %= mSpeed < 120.0f ? 1 : ((quint16)mSpeed)/240;
 
     const long long realTimeBetweenRaysUS = (1000000.0 / 6.0 / mSpeed * mAngleStep) * (1.0 / mTimeFactor);
 
@@ -143,7 +143,7 @@ void LaserScanner::slotDoScan()
         // Build a quaternion that represents the laserbeam's current rotation
         Ogre::Quaternion quatBeamRotation(Ogre::Degree(mCurrentScanAngle), Ogre::Vector3::UNIT_Y);
         QMutexLocker locker(&mMutex);
-        mLaserBeam.setOrigin(mScannerPosition/* - Ogre::Vector3(0.0, 0.1, 0.0)*/);
+        mLaserBeam.setOrigin(mScannerPosition);
         mLaserBeam.setDirection(mScannerOrientation * quatBeamRotation * Ogre::Vector3::NEGATIVE_UNIT_Z);
         locker.unlock();
 
@@ -218,8 +218,11 @@ void LaserScanner::slotDoScan()
             if(mBottomBeamClockDivisor == 0)
             {
                 static Ogre::Vector3 vectorDownWorld = Ogre::Vector3::NEGATIVE_UNIT_Y;
-                if(fabs(vectorDownWorld.angleBetween(mLaserBeam.getDirection()).valueDegrees()) < 0.3f)
+                if(fabs(vectorDownWorld.angleBetween(mLaserBeam.getDirection()).valueDegrees()) < 0.2f)
+                {
+//                    qDebug() << t() << "LaserScanner::slotDoScan(): currentScanAngle" << mCurrentScanAngle << "emitting heightOverGround, angle is" << vectorDownWorld.angleBetween(mLaserBeam.getDirection()).valueDegrees();
                     emit heightOverGround(distanceFinal);
+                }
             }
 
             scanContainer << QVector3D(point.x, point.y, point.z);

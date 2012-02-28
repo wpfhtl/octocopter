@@ -124,7 +124,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 //    connect(mCamera, SIGNAL(imageReadyYCbCr(QString,QSize,Pose,QByteArray)), mVisualOdometry, SLOT(slotProcessImage(QString,QSize,Pose,QByteArray)));
     connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mKopter, SIGNAL(kopterStatus(quint32, qint16, float)), mBaseConnection, SLOT(slotNewVehicleStatus(quint32, qint16, float)));
-    connect(mKopter, SIGNAL(ppmChannelValues(quint8,qint8,qint8,qint8,bool,bool)), mFlightController, SLOT(slotNewPpmChannelValues(quint8,qint8,qint8,qint8,bool,bool)));
+    connect(mKopter, SIGNAL(slotExternalControlStatusChanged(bool)), mFlightController, SLOT(slotExternalControlStatusChanged(bool)));
     connect(mLaserScanner, SIGNAL(heightOverGround(float)), mFlightController, SLOT(slotSetHeightOverGround(float)));
     connect(mBaseConnection, SIGNAL(enableScanning(const bool&)), mLaserScanner, SLOT(slotEnableScanning(const bool&)));
     connect(mBaseConnection, SIGNAL(rtkDataReady(const QByteArray&)), mGpsDevice, SLOT(slotSetRtkData(const QByteArray&)));
@@ -146,6 +146,8 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePose(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
     connect(mLaserScanner, SIGNAL(newScanData(qint32, std::vector<long>*const)), mSensorFuser, SLOT(slotNewScanData(qint32,std::vector<long>*const)));
     connect(mSensorFuser, SIGNAL(newScannedPoints(QVector<QVector3D>,QVector3D)), mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector3D>,QVector3D)));
+
+    connect(mFlightController, SIGNAL(flightStateChanged(FlightState)), mBaseConnection, SLOT(slotFlightStateChanged(FlightState)));
 
     mTimerComputeMotion = new QTimer(this);
     //mTimerComputeMotion->start(50);

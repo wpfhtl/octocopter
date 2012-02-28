@@ -5,6 +5,7 @@
 #include <QVector3D>
 #include <QString>
 #include <QDateTime>
+#include <QDebug>
 
 #define RAD2DEG(RAD) ((RAD)*180/M_PI)
 #define DEG2RAD(DEG) ((DEG)*((M_PI)/(180.0)))
@@ -36,6 +37,16 @@ inline int ipow(int base, int exp)
 }
 
 QString t();
+
+enum FlightState
+{
+    ManualControl,
+    ApproachingNextWayPoint,
+    Freezing,
+    Idle
+};
+
+QString getFlightStateString(const FlightState);
 
 enum LogImportance
 {

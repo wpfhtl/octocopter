@@ -146,7 +146,7 @@ void FlightPlannerInterface::slotWayPointInsertedByRover(const quint16& index, c
 {
     if(index > mWayPointsAhead->size())
     {
-        qWarning() << "FlightPlannerInterface::slotWayPointInsert(): cannot delete waypoint at index" << index << ", size is only" << mWayPointsAhead->size();
+        qWarning() << "FlightPlannerInterface::slotWayPointInsertedByRover(): cannot delete waypoint at index" << index << ", size is only" << mWayPointsAhead->size();
         return;
     }
 
@@ -193,6 +193,8 @@ void FlightPlannerInterface::slotWayPointsClear()
 
 void FlightPlannerInterface::slotWayPointReached(const WayPoint& wpt)
 {
+    qDebug() << "FlightPlannerInterface::slotWayPointReached(): rover->baseconnection->flightplanner waypoint reached, so appending first element of mWayPointsAhead to mWayPointsPassed";
+
     if(!mWayPointsAhead->size())
     {
         qWarning() << "FlightPlannerInterface::slotWayPointReached(): mWayPointsAhead is empty, how can you reach a waypoint?";
@@ -206,6 +208,7 @@ void FlightPlannerInterface::slotWayPointReached(const WayPoint& wpt)
 
     mWayPointsPassed->append(mWayPointsAhead->takeAt(0));
     emit wayPointDeleted(0);
+    qDebug() << "FlightPlannerInterface::slotWayPointReached(): rover->baseconnection->flightplanner waypoint reached, emitted wayPointDeleted(0)";
     emit suggestVisualization();
 }
 

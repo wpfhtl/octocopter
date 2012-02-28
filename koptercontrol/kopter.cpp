@@ -11,6 +11,8 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     mSerialPortFlightCtrl->setStopBits(AbstractSerial::StopBits1);
     mSerialPortFlightCtrl->setFlowControl(AbstractSerial::FlowControlOff);
 
+    mExternalControlActivated = false;
+
     qDebug() << "Kopter::Kopter(): Opening serial port" << serialDeviceFile << "succeeded, flowControl is" << mSerialPortFlightCtrl->flowControl();
 
     connect(mSerialPortFlightCtrl, SIGNAL(readyRead()), SLOT(slotSerialPortDataReady()));
@@ -227,14 +229,20 @@ void Kopter::slotSerialPortDataReady()
                 // ppmChannels[5] is MotorSafety. -122 is disabled (motors can be toggled), 127 is enabled (motor switching blocked)
                 // ppmChannels[7] is ExternalControl. -122 is disabled, 127 is enabled
 
+                if(ppmChannels[7] > 0 != mExternalControlActivated)
+                {
+                    mExternalControlActivated = ppmChannels[7] > 0;
+                    emit slotExternalControlStatusChanged(mExternalControlActivated);
+                }
+
                 // signature is thrust, yaw, pitch, roll, motorSafety, externalControl
                 emit ppmChannelValues(
-                            (quint8)(ppmChannels[1]+127), // offset to convert to [0;255]
-                            (qint8)ppmChannels[4],
-                            (qint8)ppmChannels[3],
-                            (qint8)ppmChannels[2],
-                            ppmChannels[5] > 0,
-                            ppmChannels[7] > 0);
+                            (quint8)(ppmChannels[1]+127),   // thrust, offset to convert to [0;255]
+                            (qint8)ppmChannels[4],          // yaw
+                            (qint8)ppmChannels[3],          // pitch
+                            (qint8)ppmChannels[2],          // roll
+                            ppmChannels[5] > 0,             // motorSafety enabled
+                            ppmChannels[7] > 0);            // externalControl allowed?
             }
             else if(message.getId() == 'T')
             {

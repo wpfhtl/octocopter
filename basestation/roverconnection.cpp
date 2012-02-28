@@ -175,6 +175,7 @@ void RoverConnection::processPacket(QByteArray data)
     else if(packetType == "waypointinserted")
     {
         // This happens when the rover reached the last waypoint and appended its own landing waypoint (probably just below the last one)
+        // ... or for collision avoidance
         quint16 index;
         stream >> index;
 
@@ -218,6 +219,14 @@ void RoverConnection::processPacket(QByteArray data)
 
         emit controllerValues(values);
     }
+    else if(packetType == "flightstate")
+    {
+        quint8 fs;
+        FlightState flightState;
+        stream >> fs;
+        flightState = (FlightState)fs;
+        emit flightStateChanged(flightState);
+    }
     else
     {
         qDebug() << "RoverConnection::processPacket(): unknown packetType" << packetType;
@@ -254,6 +263,8 @@ void RoverConnection::slotSendMotionToKopter(const quint8& thrust, const qint8& 
 
 void RoverConnection::slotRoverWayPointsSet(const QList<WayPoint>& wayPoints)
 {
+    qDebug() << "RoverConnection::slotRoverWayPointsSet(): sending" << wayPoints.size() << "waypoints";
+
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 

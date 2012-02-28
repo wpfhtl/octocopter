@@ -243,12 +243,12 @@ void BaseConnection::slotFlushWriteQueue()
 
 
 
-// called when the rover has changed the waypoints list, will be sent to base
+// called when the rover has inserted a waypoint into the list, will be sent to base
 // Disabled: Why should the rover ever send waypoints?
 // Update: Because it can cretae its own ladning-waypoint, the base will want to know!
 void BaseConnection::slotRoverWayPointInserted(const quint16& index, const WayPoint& wayPoint)
 {
-    qDebug() << "sending new waypoints to base:" << wayPoint;
+    qDebug() << "BaseConnection::slotRoverWayPointInserted(): sending waypoint" << wayPoint << "inserted at index" << index << "to base";
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
@@ -273,7 +273,10 @@ void BaseConnection::slotFlightControllerWayPointsChanged(const QList<WayPoint>&
     slotSendData(data, false);
 }
 
-// called by rover when it has reached a waypoint, notifies basestation
+// Called by rover when it has reached a waypoint, notifies basestation
+// The basestation is responsible for deducing that the last waypoint thus
+// needs to be removed from the waypoint-list. Otherwise, the soon-to-follow
+// waypoints-hash-list from rover will not match.
 void BaseConnection::slotWayPointReached(const WayPoint& wpt)
 {
     qDebug() << "BaseConnection::slotWayPointReached(): reached" << wpt;
@@ -355,6 +358,17 @@ void BaseConnection::slotNewGpsStatus(const GpsStatusInformation::GpsStatus& gps
 
     stream << QString("gpsstatus");
     stream << gpsStatus;
+    slotSendData(data, false);
+}
+
+void BaseConnection::slotFlightStateChanged(FlightState flightState)
+{
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    stream << QString("flightstate");
+    const quint8 fs = (quint8)flightState;
+    stream << fs;
     slotSendData(data, false);
 }
 

@@ -37,6 +37,7 @@ signals:
     void vehicleStatus(const quint32& missionRunTime, const float& batteryVoltage, const qint16& barometricHeight, const qint8& wirelessRssi);
     void gpsStatus(GpsStatusInformation::GpsStatus);
     void controllerValues(QVector<float>);
+    void flightStateChanged(FlightState);
 
     void wayPointsHashFromRover(const QString& hash);
     void wayPointReachedByRover(const WayPoint& wpt);

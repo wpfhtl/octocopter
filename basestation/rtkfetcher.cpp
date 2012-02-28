@@ -53,7 +53,7 @@ void RtkFetcher::slotConnectToRtkBase()
 
 void RtkFetcher::slotSocketDataReady()
 {
-    usleep(100000); // wait for the later bytes of this message to come on in...
+    //usleep(100000); // wait for the later bytes of this message to come on in...
     mReceiveBuffer.append(mTcpSocket->readAll());
 
 //    qDebug() << "RtkFetcher::slotSocketDataReady():" << mReceiveBuffer;

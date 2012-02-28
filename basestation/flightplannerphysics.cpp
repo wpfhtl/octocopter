@@ -343,7 +343,7 @@ void FlightPlannerPhysics::slotVisualize() const
     if(mWayPointsAhead->size())
     {
     //        qDebug() << "drawing next wpt at" << mWayPointsAhead->first();
-        OpenGlUtilities::drawSphere(mWayPointsAhead->first(), 0.8, 20.0, QColor(255,0,0,100));
+        OpenGlUtilities::drawSphere(mWayPointsAhead->first(), 0.2, 20.0, QColor(255,0,0,100));
     }
 
 

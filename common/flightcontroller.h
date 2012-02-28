@@ -33,20 +33,11 @@ public:
     FlightController();
     ~FlightController();
 
-    enum FlightState
-    {
-        ManualControl,
-        ApproachingNextWayPoint,
-        Freezing,
-        Idle
-    };
-
     FlightState getFlightState(void) const;
-    QString getFlightStateString(void) const;
+
 
     Pose getLastKnownPose(void) const;
     QList<WayPoint> getWayPoints();
-    void clearWayPoints();
 
     static int wayPointComponentsEqual(const QVector3D &wpt1, const QVector3D &wpt2);
 
@@ -62,18 +53,22 @@ private:
 
     Pose mLastKnownVehiclePose;
 
-    QTime mLastKnownBottomBeamLengthTimestamp;
-    float mLastKnownBottomBeamLength;
+    QTime mLastKnownHeightOverGroundTimestamp;
+    float mLastKnownHeightOverGround;
 
-    void wayPointReached();
-    WayPoint getLandingWayPoint() const;
-    void setFlightState(const FlightState&);
+    bool isHeightOverGroundValueRecent() const;
+
+    void nextWayPointReached();
+//    WayPoint getLandingWayPoint() const;
+    void setFlightState(FlightState);
 
     // In the first controller iteration, we don't want to build derivatives, they'd be waaayy off and destabilize the controller
     bool mFirstControllerRun;
 
     // Just in case we reach an undefined state, we emit safe control values. Used instead of asserting.
     void emitSafeControlValues();
+
+    void ensureSafeFlightAfterWaypointsChanged();
 
 signals:
     // used to set the motor-speeds
@@ -90,6 +85,10 @@ signals:
     // emitted when a waypoint is reached
     void wayPointReached(const WayPoint&);
 
+    // emitted when flightcontroller inserts a waypoint. Can be at the end (for landing) or in between
+    // for collision avoidance etc.
+    void wayPointInserted(quint16 index, const WayPoint& wayPoint);
+
     // emitted when the flightState changed
     void flightStateChanged(FlightState);
 
@@ -105,7 +104,7 @@ public slots:
     void slotSetWayPoints(const QList<WayPoint>&);
 
     // This signal comes from Kopter (the MK's serial connection), and we use it only to derive the flightstate from the RemoteControl's externalControl-switch
-    void slotNewPpmChannelValues(const quint8 thrust, const qint8 yaw, const qint8 pitch, const qint8 roll, const bool motorSafety, const bool externalControl);
+    void slotExternalControlStatusChanged(bool externalControl);
 
     // Called regularly by our parent, we compute the motion commands then and emit motion(...).
     void slotComputeMotionCommands();

@@ -100,6 +100,12 @@ void ControlWidget::slotUpdateBattery(const float& voltageCurrent)
     if(voltageCurrent > 13.5) mLabelBatteryVoltage->setStyleSheet(""); else mLabelBatteryVoltage->setStyleSheet(getBackgroundCss(true, false));
 }
 
+void ControlWidget::slotFlightStateChanged(FlightState fs)
+{
+    mLabelFlightState->setText(getFlightStateString(fs));
+    if(fs != Freezing) mLabelFlightState->setStyleSheet(""); else mLabelFlightState->setStyleSheet(getBackgroundCss(true, false));
+}
+
 void ControlWidget::slotUpdatePose(const Pose &pose)
 {
     mLabelPoseOgreX->setText(QString("%1").arg(pose.position.x(), 4, 'f', 2, '0'));
@@ -220,7 +226,7 @@ void ControlWidget::slotWayPointDelete()
 
 void ControlWidget::slotWayPointChange(int row, int /*column*/)
 {
-    QVector3D wpt(
+    const QVector3D wpt(
                 mWayPointTable->item(row, 0)->text().toFloat(),
                 mWayPointTable->item(row, 1)->text().toFloat(),
                 mWayPointTable->item(row, 2)->text().toFloat());
@@ -269,6 +275,7 @@ void ControlWidget::slotWayPointDown()
 
 void ControlWidget::slotWayPointInserted(const quint16& index, const WayPoint& waypoint)
 {
+    qDebug() << "ControlWidget::slotWayPointInserted(): waypoint" << waypoint << "inserted into index" << index << "by rover or flightplanner";
     mWayPointTable->blockSignals(true);
     mWayPointTable->insertRow(index);
 
@@ -285,12 +292,14 @@ void ControlWidget::slotWayPointInserted(const quint16& index, const WayPoint& w
 
 void ControlWidget::slotWayPointDeleted(const quint16& index)
 {
+    qDebug() << "ControlWidget::slotWayPointInserted(): waypoint deleted at index" << index << "by rover or flightplanner";
     mWayPointTable->removeRow(index);
     mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
 }
 
 void ControlWidget::slotSetWayPoints(QList<WayPoint> wayPoints)
 {
+    qDebug() << "ControlWidget::slotSetWayPoints():" << wayPoints.size() << "waypoints set by rover or flightplanner";
     mWayPointTable->clear();
     mWayPointTable->setRowCount(0);
 

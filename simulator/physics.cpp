@@ -342,7 +342,7 @@ Physics::~Physics()
 
 void Physics::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& pitch, const qint8& roll, const qint8& height)
 {
-    qDebug() << "Physics::slotSetMotion(): updating physics forces with thrust" << thrust << "pitch" << pitch << "roll" << roll << "yaw" << yaw;
+    //qDebug() << "Physics::slotSetMotion(): updating physics forces with thrust" << thrust << "pitch" << pitch << "roll" << roll << "yaw" << yaw;
 
     /*
       The MikroKopter moves in his own ways, this is how it translates the given externControls into motion:
@@ -419,8 +419,8 @@ void Physics::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8&
     Ogre::Vector3 torqueVectorRoll = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0.0f, 0.0f, outputRoll/600.0f);
     mVehicleBody->applyTorque(btVector3(torqueVectorRoll.x, torqueVectorRoll.y, torqueVectorRoll.z));
 
-    qDebug() << "llctrlout p should" << pitch << "is" << currentPitch.valueDegrees() << "error" << errorPitch << "derivative" << derivativePitch << "output" << outputPitch;
-    qDebug() << "llctrlout r should" << roll << "is" << currentRoll.valueDegrees() << "error" << errorRoll << "derivative" << derivativeRoll << "output" << outputRoll;
+//    qDebug() << "llctrlout p should" << pitch << "is" << currentPitch.valueDegrees() << "error" << errorPitch << "derivative" << derivativePitch << "output" << outputPitch;
+//    qDebug() << "llctrlout r should" << roll << "is" << currentRoll.valueDegrees() << "error" << errorRoll << "derivative" << derivativeRoll << "output" << outputRoll;
 
     // Don't forget to rotate motors according to thrust
     for(int i=0;i<mEngineNodes.size();i++)

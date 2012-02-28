@@ -29,6 +29,7 @@ public:
     ~ControlWidget();
 
 public slots:
+    void slotFlightStateChanged(FlightState);
     void slotUpdatePose(const Pose &pose);
     void slotUpdateMissionRunTime(const quint32& time);
     void slotUpdateBattery(const float& voltageCurrent);
@@ -69,6 +70,7 @@ signals:
 
     void generateWaypoints();
 
+    // These signals are emitted when the controlwidget wants waypoints to be changed on the kopter
     void wayPointInsert(const quint16& index, const WayPoint&);
     void wayPointDelete(const quint16& index);
     void wayPointSwap(const quint16& i, const quint16& j);
