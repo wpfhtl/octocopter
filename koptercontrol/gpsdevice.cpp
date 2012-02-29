@@ -314,7 +314,7 @@ void GpsDevice::slotCommunicationSetup()
     // airplane-application, which may need the setting to be on High. In my opinion, it
     // will less smooth and take into account more the real movement of the application.
     // Just as a test, you could run the Max-value (as explained above, take care!).
-    slotQueueCommand("setReceiverDynamics,High");
+    slotQueueCommand("setReceiverDynamics,Moderate");
 
     // Configure as rover in StandAlone+RTK mode.
     slotQueueCommand("setPVTMode,Rover,all,auto,Loosely");
