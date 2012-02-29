@@ -68,15 +68,22 @@ void FlightController::slotComputeMotionCommands()
 //        qDebug() << "mLastKnownVehiclePose.getPlanarPosition()" << mLastKnownVehiclePose.getPlanarPosition();
 //        qDebug() << "nextWayPoint.getPositionOnPlane():" << nextWayPoint.getPositionOnPlane();
 //        qDebug() << "directionVectorToNextWayPoint:" << directionVectorToNextWayPoint;
-        qDebug() << "timediff:" << timeDiff;
         qDebug() << "directionToWayPoint:" << RAD2DEG(directionToWayPointRadians);
         qDebug() << "angleToTurnToWayPoint: turn" << (angleToTurnToWayPoint < 0 ? "right" : "left") << RAD2DEG(angleToTurnToWayPoint);
 
         // http://en.wikipedia.org/wiki/PID_controller, thanks Minorsky!
 
         // If the planar distance to the next waypoint is very small (this happens when only the height is off),
-        // we don't wnat to yaw and pitch. So, we introduce a factor [0;1], which becomes 0 with small distance
-        const float planarDistanceFactor = qBound(0.0f, (float)(mLastKnownVehiclePose.getPlanarPosition() - Pose::getPlanarPosition(nextWayPoint)).length() * 2.0f, 1.0f);
+        // we don't want to yaw and pitch. So, we introduce a factor [0;1], which becomes 0 with small distance
+        const float factorPlanarDistance = qBound(0.0f, (float)(mLastKnownVehiclePose.getPlanarPosition() - Pose::getPlanarPosition(nextWayPoint)).length() * 2.0f, 1.0f);
+
+        // If the height very small (this happens during liftoff and landing),
+        // we don't want to yaw and pitch. So, we introduce a factor [0;1], which becomes 0 with small distance
+        // We don't check for mLastKnownHeightOverGroundTimestamp, as an old value means that the scanner hasn't
+        // seen anything for a long time, which SHOULD mean we're high up.
+        const float factorHeight = qBound(0.0f, mLastKnownHeightOverGround, 1.0f);
+
+        qDebug() << "timediff:" << timeDiff << "factorPlanarDistance" << factorPlanarDistance << "factorHeight" << factorHeight;
 
         // If angleToTurnToWayPoint is:
         // - positive, we need to rotate CCW, which needs a negative yaw value.
@@ -84,7 +91,7 @@ void FlightController::slotComputeMotionCommands()
         const float errorYaw = RAD2DEG(angleToTurnToWayPoint);
         mErrorIntegralYaw += errorYaw*timeDiff;
         const float derivativeYaw = mFirstControllerRun ? 0.0f : (errorYaw - mPrevErrorYaw + 0.00001f)/timeDiff;
-        const float outputYaw = planarDistanceFactor * (1.0f * errorYaw) + (0.0f * mErrorIntegralYaw) + (0.5f * derivativeYaw);
+        const float outputYaw = factorHeight * factorPlanarDistance * (1.0f * errorYaw) + (0.0f * mErrorIntegralYaw) + (0.5f * derivativeYaw);
 
         // adjust pitch/roll to reach target, maximum pitch is -20 degrees (forward)
         float desiredRoll = 0.0f;
@@ -94,12 +101,12 @@ void FlightController::slotComputeMotionCommands()
         const float errorPitch = desiredPitch - mLastKnownVehiclePose.getPitchDegrees();
         mErrorIntegralPitch += errorPitch*timeDiff;
         const float derivativePitch = mFirstControllerRun ? 0.0f : (errorPitch - mPrevErrorPitch + 0.00001f)/timeDiff;
-        const float outputPitch = planarDistanceFactor * (6.0f * errorPitch) + (0.3f * mErrorIntegralPitch) + (0.0f * derivativePitch);
+        const float outputPitch = factorHeight * factorPlanarDistance * (6.0f * errorPitch) + (0.3f * mErrorIntegralPitch) + (0.0f * derivativePitch);
 
         const float errorRoll = desiredRoll - mLastKnownVehiclePose.getRollDegrees();
         mErrorIntegralRoll += errorRoll*timeDiff;
         const float derivativeRoll = mFirstControllerRun ? 0.0f : (errorRoll - mPrevErrorRoll + 0.00001f)/timeDiff;
-        const float outputRoll = planarDistanceFactor * (6.0f * errorRoll) + (0.3f * mErrorIntegralRoll) + (0.0f * derivativeRoll);
+        const float outputRoll = factorHeight * factorPlanarDistance * (6.0f * errorRoll) + (0.3f * mErrorIntegralRoll) + (0.0f * derivativeRoll);
 
         const float outputHover = 115.0;
         const float errorHeight = nextWayPoint.y() - mLastKnownVehiclePose.position.y();
@@ -182,7 +189,7 @@ void FlightController::nextWayPointReached()
 
 void FlightController::slotWayPointInsert(const quint16& index, const WayPoint& wayPoint)
 {
-    qDebug() << "FlightController::slotSetNextWayPoint(): state is" << getFlightStateString(mFlightState) << "inserting waypoint into index" << index;
+    qDebug() << "FlightController::slotSetNextWayPoint(): state is" << getFlightStateString(mFlightState) << "inserting waypoint" << wayPoint << "into index" << index;
     mWayPoints.insert(index, wayPoint);
     emit currentWayPoints(mWayPoints);
 

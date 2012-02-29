@@ -220,7 +220,7 @@ void Kopter::slotSerialPortDataReady()
                 QByteArray payload = message.getPayload();
                 const qint16* ppmChannels = (qint16*)payload.data();
 
-                for(int i=0; i < payload.size()/2; i++) qDebug() << "Kopter::slotSerialPortDataReady(): ppm channel" << i << ":" << ppmChannels[i];
+                //for(int i=0; i < payload.size()/2; i++) qDebug() << "Kopter::slotSerialPortDataReady(): ppm channel" << i << ":" << ppmChannels[i];
 
                 // ppmChannels[1] is Thrust: -127 is min, 14 is max
                 // ppmChannels[2] is Roll: 93 is max (left on R/C), -93 is min (right on R/C). Positive rolls positive on the Z axis.
@@ -232,9 +232,10 @@ void Kopter::slotSerialPortDataReady()
                 if(ppmChannels[7] > 0 != mExternalControlActivated)
                 {
                     mExternalControlActivated = ppmChannels[7] > 0;
+		    qDebug() << "Kopter::slotSerialPortDataReady(): externalControlActivated:" << mExternalControlActivated;
                     emit slotExternalControlStatusChanged(mExternalControlActivated);
                 }
-
+/*
                 // signature is thrust, yaw, pitch, roll, motorSafety, externalControl
                 emit ppmChannelValues(
                             (quint8)(ppmChannels[1]+127),   // thrust, offset to convert to [0;255]
@@ -242,7 +243,7 @@ void Kopter::slotSerialPortDataReady()
                             (qint8)ppmChannels[3],          // pitch
                             (qint8)ppmChannels[2],          // roll
                             ppmChannels[5] > 0,             // motorSafety enabled
-                            ppmChannels[7] > 0);            // externalControl allowed?
+                            ppmChannels[7] > 0);            // externalControl allowed?*/
             }
             else if(message.getId() == 'T')
             {
