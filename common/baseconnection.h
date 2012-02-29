@@ -70,10 +70,9 @@ signals:
 
     void rtkDataReady(const QByteArray&);
 
-    // emitted when the base is requesting status information. Please collect
-    // information and call the slotNewVehicleStatus(...) slot.
-    // UNUSED, we will alays send statu, no need to request it.
-//    void statusRequested();
+    // can be used to send a newly connected basestation information that would otherwise
+    // take a long time to come in, e.g. flightState
+    void newConnection();
 
 public slots:
     // called when the rover has appended a waypoint, will be sent to base

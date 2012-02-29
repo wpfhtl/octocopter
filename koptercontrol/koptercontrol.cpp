@@ -131,7 +131,8 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mBaseConnection, SIGNAL(wayPointInsert(quint16, WayPoint)), mFlightController, SLOT(slotWayPointInsert(quint16, WayPoint)));
     connect(mBaseConnection, SIGNAL(wayPointDelete(quint16)), mFlightController, SLOT(slotWayPointDelete(quint16)));
     connect(mBaseConnection, SIGNAL(wayPoints(QList<WayPoint>)), mFlightController, SLOT(slotSetWayPoints(QList<WayPoint>)));
-    connect(mBaseConnection, SIGNAL(holdPosition()), mFlightController, SLOT(slotFreeze()));
+    connect(mBaseConnection, SIGNAL(holdPosition()), mFlightController, SLOT(slotHoldPosition()));
+    connect(mBaseConnection, SIGNAL(newConnection()), mFlightController, SLOT(slotEmitFlightState()));
 
     //    WARNING! THIS ENABLES MOTION!
     connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));

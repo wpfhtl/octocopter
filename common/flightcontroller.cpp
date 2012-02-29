@@ -246,7 +246,7 @@ FlightState FlightController::getFlightState(void) const { return mFlightState; 
 
 void FlightController::slotNewVehiclePose(const Pose& pose)
 {
-    if(pose.precision & Pose.AttitudeAvailable && pose.precision & Pose::HeadingFixed && pose.precision && pose.RtkFixed)
+    if(pose.precision & Pose::AttitudeAvailable && pose.precision & Pose::HeadingFixed && pose.precision && pose.RtkFixed)
     {
         qDebug() << "FlightController::slotNewVehiclePose(): received a pose with rtk|attitude|headingfixed:" << pose;
         mLastKnownVehiclePose = pose;
@@ -257,7 +257,7 @@ void FlightController::slotNewVehiclePose(const Pose& pose)
     }
 }
 
-void FlightController::slotFreeze()
+void FlightController::slotHoldPosition()
 {
     setFlightState(Freezing);
 }
@@ -396,4 +396,9 @@ void FlightController::slotExternalControlStatusChanged(bool externalControlActi
         qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): externalControl deactivated, switching to ManualControl.";
         setFlightState(ManualControl);
     }
+}
+
+void FlightController::slotEmitFlightState()
+{
+    emit flightStateChanged(mFlightState);
 }

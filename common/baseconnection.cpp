@@ -50,6 +50,8 @@ void BaseConnection::slotNewConnection()
 
     // FIXME: mTcpServer->close() because we cannot handle a second connection, listen() in connectionEnded.
     mTcpServer->close();
+
+    emit newConnection();
 }
 
 void BaseConnection::slotReadSocket(bool lockMutex)

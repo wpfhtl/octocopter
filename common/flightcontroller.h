@@ -22,7 +22,7 @@
   right below its current position) and then idle.
 
   The Flightcontroller simply approaches its next waypoint on the shortest path and does
-  NOT do collision-avoidance - use slotFreeze() to halt in mid-air (=hover).
+  NOT do collision-avoidance - use slotHoldPosition() to halt in mid-air (=hover).
 */
 
 class FlightController : public QObject
@@ -34,12 +34,9 @@ public:
     ~FlightController();
 
     FlightState getFlightState(void) const;
-
-
     Pose getLastKnownPose(void) const;
     QList<WayPoint> getWayPoints();
-
-    static int wayPointComponentsEqual(const QVector3D &wpt1, const QVector3D &wpt2);
+    // ??? static int wayPointComponentsEqual(const QVector3D &wpt1, const QVector3D &wpt2);
 
 private:
     QList<WayPoint> mWayPoints, mWayPointsPassed;
@@ -103,6 +100,8 @@ public slots:
     void slotWayPointDelete(const quint16& index);
     void slotSetWayPoints(const QList<WayPoint>&);
 
+    void slotEmitFlightState();
+
     // This signal comes from Kopter (the MK's serial connection), and we use it only to derive the flightstate from the RemoteControl's externalControl-switch
     void slotExternalControlStatusChanged(bool externalControl);
 
@@ -112,7 +111,7 @@ public slots:
     // Called by LaserScanner to set the last known distance of the ray pointing down in vehicle frame
     void slotSetHeightOverGround(const float&);
 
-    void slotFreeze();
+    void slotHoldPosition();
 };
 
 #endif
