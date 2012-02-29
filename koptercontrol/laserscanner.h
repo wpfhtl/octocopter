@@ -51,6 +51,7 @@ public slots:
     void slotSetScannerTimeStamp(const qint32& timestamp);
 
 signals:
+    // the distance from the vehicle's center to the ground in meters
     void heightOverGround(const float&);
 
     // log/status messages

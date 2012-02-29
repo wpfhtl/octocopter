@@ -12,6 +12,7 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     mSerialPortFlightCtrl->setFlowControl(AbstractSerial::FlowControlOff);
 
     mExternalControlActivated = false;
+    mStructExternControl.Frame = 0;
 
     qDebug() << "Kopter::Kopter(): Opening serial port" << serialDeviceFile << "succeeded, flowControl is" << mSerialPortFlightCtrl->flowControl();
 
@@ -56,7 +57,9 @@ void Kopter::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& 
 {
     if(!mMissionStartTime.isValid()) mMissionStartTime = QTime::currentTime();
 
-    qDebug() << "Kopter::slotSetMotion(): setting motion" << thrust << yaw << pitch << roll << height;
+
+
+    qDebug() << "Kopter::slotSetMotion(): setting motion, frame:" << mStructExternControl.Frame << "thrust:" << thrust << "yaw:" << yaw << "pitch:" << pitch << "roll:" << roll << "height:" << height;
 
     /*
       The kopter has different conventions, at least with default settings (which I intent to keep):
@@ -85,9 +88,7 @@ void Kopter::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& 
       ExternalControl. I don't know.
     */
 
-    if(mPendingReplies.contains('b')) qWarning() << "Still waiting for a 'B', should not send right now!";
-
-    mStructExternControl.Frame = 1;
+    if(mPendingReplies.contains('b')) qWarning() << "Kopter::slotSetMotion(): Still waiting for a 'B', should not send right now," << mPendingReplies.size() << "pending replies";
 
     mStructExternControl.Config = 1;
     mStructExternControl.Nick = -pitch;
@@ -98,6 +99,9 @@ void Kopter::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& 
 
     KopterMessage message(KopterMessage::Address_FC, 'b', QByteArray((const char *)&mStructExternControl, sizeof(mStructExternControl)));
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
+
+    // Its an unsigned char, so it should overflow safely?!
+    mStructExternControl.Frame++;
 }
 
 void Kopter::slotReset()
@@ -185,7 +189,7 @@ void Kopter::slotSerialPortDataReady()
             //if(timeOfRequest.isNull()) qWarning() << "Kopter::slotSerialPortDataReady(): got a reply to an unsent message:" << message.toString();
             //if(mPendingReplies.contains(message.getId().toLower()))  qWarning() << "Kopter::slotSerialPortDataReady(): there's another pending message of type" << message.getId().toLower();
 
-            if(message.getId() == 'B') maxreplytime = std::max(maxreplytime, timeOfRequest.msecsTo(QTime::currentTime()));
+            if(message.getId() == 'B') mMaxReplyTime = std::max(mMaxReplyTime, timeOfRequest.msecsTo(QTime::currentTime()));
 
             //qDebug() << "Kopter::slotSerialPortDataReady(): received reply to" << message.getId().toLower() << "after ms:" << timeOfRequest.msecsTo(QTime::currentTime()) << "worst" << maxreplytime;
 
@@ -199,8 +203,8 @@ void Kopter::slotSerialPortDataReady()
             }
             else if(message.getId() == 'B')
             {
-                //qDebug() << "Kopter::slotSerialPortDataReady(): received confirmation for externalControl frame:" << (quint8)message.getPayload()[0];
-                // why here? Q_ASSERT(!mPendingReplies.contains('b'));
+                qDebug() << "Kopter::slotSerialPortDataReady(): received confirmation for externalControl frame:" << (quint8)message.getPayload()[0];
+                if(mPendingReplies.contains('b')) qDebug() << "Kopter::slotSerialPortDataReady(): mPendingReplies contains another b, so at least two requests were underway at the same time. Not so good.";
                 emit externControlReplyReceived();
             }
             else if(message.getId() == 'D')
@@ -253,7 +257,6 @@ void Kopter::slotSerialPortDataReady()
             {
                 QByteArray payload = message.getPayload();
                 const VersionInfo* versionInfo = (VersionInfo*)payload.data();
-                //                    memcpy(&mStructVersionInfo, payload.data(), sizeof(mStructVersionInfo));
                 qDebug() << "Kopter::slotSerialPortDataReady(): MK protocol version is" << versionInfo->ProtoMajor << versionInfo->ProtoMinor;
                 qDebug() << "Kopter::slotSerialPortDataReady(): MK software version is" << versionInfo->SWMajor << versionInfo->SWMinor << versionInfo->SWPatch;
 

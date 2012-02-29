@@ -1,6 +1,6 @@
 #include "flightcontroller.h"
 
-FlightController::FlightController() : QObject(), mFlightState(Idle)
+FlightController::FlightController() : QObject(), mFlightState(ManualControl)
 {
     mPrevErrorPitch = mPrevErrorRoll = mPrevErrorYaw = mPrevErrorHeight = 0.1;
     mErrorIntegralPitch = mErrorIntegralRoll = mErrorIntegralYaw = mErrorIntegralHeight = 0.1;
@@ -29,21 +29,18 @@ void FlightController::slotComputeMotionCommands()
     qint8 out_yaw, out_pitch, out_roll = 0;
 
     // TODO: Do we still need this flightstate? how do we detect that manual control is activated?
-    if(getFlightState() == ManualControl)
+    if(mFlightState == ManualControl)
     {
-        qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState: ManualControl";
-
-        // If for whatever reason our commands are not ignored, emit safe-hover-values
-        emitSafeControlValues();
+        qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState: ManualControl, no motion emitted.";
     }
-    if(getFlightState() == Freezing)
+    else if(mFlightState == Freezing)
     {
         qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState: Freezing. PANIC! Emitting safeControlValues()";
 
         // Emit safe-hover-values
         emitSafeControlValues();
     }
-    else if(getFlightState() == ApproachingNextWayPoint)
+    else if(mFlightState == ApproachingNextWayPoint)
     {
         if(mWayPoints.size() < 1)
         {
@@ -54,7 +51,7 @@ void FlightController::slotComputeMotionCommands()
 
         if(getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp > 500)
         {
-            qDebug() << t() << "FlightController::slotComputeMotionCommands(): vehicle pose update is more than 500ms ago, skipping motion computation, emitting safe control values";
+            qDebug() << t() << "FlightController::slotComputeMotionCommands(): ApproachingNextWayPoint, vehicle pose update is more than 500ms ago, skipping motion computation, emitting safe control values";
             emitSafeControlValues();
             return;
         }
@@ -62,14 +59,13 @@ void FlightController::slotComputeMotionCommands()
         const WayPoint nextWayPoint = mWayPoints.first();
 
         const QVector2D vectorVehicleToWayPoint = (nextWayPoint.getPositionOnPlane() - mLastKnownVehiclePose.getPlanarPosition());
-        const float directionToWayPointRadians = atan2(-vectorVehicleToWayPoint.x(), -vectorVehicleToWayPoint.y());
-        const float angleToTurnToWayPoint = Pose::getShortestTurnRadians(directionToWayPointRadians - mLastKnownVehiclePose.getYawRadians());
+        const float directionNorthToWayPointRadians = atan2(-vectorVehicleToWayPoint.x(), -vectorVehicleToWayPoint.y());
+        const float angleToTurnToWayPoint = Pose::getShortestTurnRadians(directionNorthToWayPointRadians - mLastKnownVehiclePose.getYawRadians());
 
 //        qDebug() << "mLastKnownVehiclePose.getPlanarPosition()" << mLastKnownVehiclePose.getPlanarPosition();
 //        qDebug() << "nextWayPoint.getPositionOnPlane():" << nextWayPoint.getPositionOnPlane();
-//        qDebug() << "directionVectorToNextWayPoint:" << directionVectorToNextWayPoint;
-        qDebug() << "directionToWayPoint:" << RAD2DEG(directionToWayPointRadians);
-        qDebug() << "angleToTurnToWayPoint: turn" << (angleToTurnToWayPoint < 0 ? "right" : "left") << RAD2DEG(angleToTurnToWayPoint);
+        qDebug() << "LastKnownPose:" << mLastKnownVehiclePose << "NextWayPoint:" << nextWayPoint;
+        qDebug() << "directionNorthToWayPoint:" << RAD2DEG(directionNorthToWayPointRadians) << "angleToTurnToWayPoint: turn" << (angleToTurnToWayPoint < 0 ? "right" : "left") << RAD2DEG(angleToTurnToWayPoint);
 
         // http://en.wikipedia.org/wiki/PID_controller, thanks Minorsky!
 
@@ -122,7 +118,7 @@ void FlightController::slotComputeMotionCommands()
         qDebug() << "no wpts" << mWayPoints.size() << "next wpt height" << nextWayPoint.y() << "curr height" << mLastKnownVehiclePose.position.y() << "thrust" << outputThrust;
 
         qDebug() << "values PRYH:" << QString::number(mLastKnownVehiclePose.getPitchDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.getRollDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.getYawDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.position.y(), 'f', 2);
-        qDebug() << "should PRYH:" << QString::number(desiredPitch, 'f', 2) << "\t" << QString::number(desiredRoll, 'f', 2) << "\t" << QString::number(RAD2DEG(directionToWayPointRadians), 'f', 2) << "\t" << QString::number(nextWayPoint.y(), 'f', 2);
+        qDebug() << "should PRYH:" << QString::number(desiredPitch, 'f', 2) << "\t" << QString::number(desiredRoll, 'f', 2) << "\t" << QString::number(RAD2DEG(directionNorthToWayPointRadians), 'f', 2) << "\t" << QString::number(nextWayPoint.y(), 'f', 2);
         qDebug() << "error  PRYH:" << QString::number(errorPitch, 'f', 2) << "\t" << QString::number(errorRoll, 'f', 2) << "\t" << QString::number(errorYaw, 'f', 2) << "\t" << QString::number(errorHeight, 'f', 2);
         qDebug() << "derivt PRYH:" << QString::number(derivativePitch, 'f', 2) << "\t" << QString::number(derivativeRoll, 'f', 2) << "\t" << QString::number(derivativeYaw, 'f', 2) << "\t" << QString::number(derivativeHeight, 'f', 2);
         qDebug() << "prevEr PRYH:" << QString::number(mPrevErrorPitch, 'f', 2) << "\t" << QString::number(mPrevErrorRoll, 'f', 2) << "\t" << QString::number(mPrevErrorYaw, 'f', 2) << "\t" << QString::number(mPrevErrorHeight, 'f', 2);
@@ -135,17 +131,17 @@ void FlightController::slotComputeMotionCommands()
         mPrevErrorHeight = errorHeight;
 
         out_thrust = (quint8)qBound(90.0f, outputThrust, 150.0f);
-        out_yaw = (qint8)qBound(-127.0, outputYaw > 0.0f ? ceil(outputYaw) : floor(outputYaw), 127.0);
+        out_yaw = (qint8)qBound(-27.0, outputYaw > 0.0f ? ceil(outputYaw) : floor(outputYaw), 27.0);
         out_pitch = (qint8)qBound(-20.0f, outputPitch, 20.0f);
         out_roll = (qint8)qBound(-20.0f, outputRoll, 20.0f);
 
         // For safety, we don't need it right now.
         out_roll = 0;
 
-        qDebug() << "FlightController::slotComputeMotionCommands(): motion is" << out_thrust << out_yaw << out_pitch << out_roll;
+//        qDebug() << "FlightController::slotComputeMotionCommands(): motion is" << out_thrust << out_yaw << out_pitch << out_roll;
 
         emit motion(out_thrust, out_yaw, out_pitch, out_roll, 0);
-        emit debugValues(mLastKnownVehiclePose, out_thrust, out_yaw, out_pitch, out_roll, 0);
+        //emit debugValues(mLastKnownVehiclePose, out_thrust, out_yaw, out_pitch, out_roll, 0);
 
         // See whether we've reached the waypoint
         if(mLastKnownVehiclePose.position.distanceToLine(nextWayPoint, QVector3D()) < 0.25f) // close to wp
@@ -157,12 +153,12 @@ void FlightController::slotComputeMotionCommands()
     }
     else if(mFlightState == Idle)
     {
-        qDebug() << t() << "FlightController::slotComputeMotionCommands(): flightstate idle.";
+        qDebug() << t() << "FlightController::slotComputeMotionCommands(): flightstate idle, emitting idle thrust.";
         emit motion(90, 0, 0, 0, 0);
     }
     else
     {
-        qDebug() << t() << "FlightController::slotComputeMotionCommands(): FLIGHTSTATE NOT DEFINED!";
+        qDebug() << t() << "FlightController::slotComputeMotionCommands(): FLIGHTSTATE NOT DEFINED:" << mFlightState;
     }
 
     mTimeOfLastControllerUpdate = QTime::currentTime();
@@ -250,8 +246,15 @@ FlightState FlightController::getFlightState(void) const { return mFlightState; 
 
 void FlightController::slotNewVehiclePose(const Pose& pose)
 {
-//    qDebug() << "FlightController::slotSetVehiclePose(): vehicle now at" << pose;
-    mLastKnownVehiclePose = pose;
+    if(pose.precision & Pose.AttitudeAvailable && pose.precision & Pose::HeadingFixed && pose.precision && pose.RtkFixed)
+    {
+        qDebug() << "FlightController::slotNewVehiclePose(): received a pose with rtk|attitude|headingfixed:" << pose;
+        mLastKnownVehiclePose = pose;
+    }
+    else
+    {
+        qDebug() << "FlightController::slotNewVehiclePose(): received a pose without rtk|attitude|headingfixed, ignoring";
+    }
 }
 
 void FlightController::slotFreeze()
@@ -306,9 +309,10 @@ void FlightController::setFlightState(FlightState newFlightState)
 
 void FlightController::slotSetHeightOverGround(const float& beamLength)
 {
-    qDebug() << t() << "FlightController::slotSetHeightOverGround()" << beamLength;
+    // Height is given from vehicle center to ground, but we care about the bottom of the landing gear.
+    qDebug() << t() << "FlightController::slotSetHeightOverGround()" << beamLength - 0.18f;
     mLastKnownHeightOverGroundTimestamp = QTime::currentTime();
-    mLastKnownHeightOverGround = beamLength;
+    mLastKnownHeightOverGround = beamLength - 0.18f;
 }
 
 bool FlightController::isHeightOverGroundValueRecent() const
@@ -343,8 +347,8 @@ void FlightController::ensureSafeFlightAfterWaypointsChanged()
         }
         else
         {
-            qDebug() << "FlightController::ensureSafeFlightAfterWaypointsChanged(): wpt list is empty, heightOverGround unknown, WARNING, next wpt is 0.5m below us.";
-            mWayPoints.append(WayPoint(mLastKnownVehiclePose.position - QVector3D(0.0, 0.5, 0.0)));
+            qDebug() << "FlightController::ensureSafeFlightAfterWaypointsChanged(): wpt list is empty, heightOverGround unknown, WARNING, next wpt is 0.2m below us.";
+            mWayPoints.append(WayPoint(mLastKnownVehiclePose.position - QVector3D(0.0, 0.2, 0.0)));
             emit wayPointInserted(mWayPoints.size()-1, mWayPoints.last());
         }
     }
@@ -357,25 +361,34 @@ void FlightController::emitSafeControlValues()
     emit motion(110, 0, 0, 0, 0);
 }
 
-void FlightController::slotExternalControlStatusChanged(bool externalControl)
+void FlightController::slotExternalControlStatusChanged(bool externalControlActive)
 {
-    qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): external control " << externalControl;
+    qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): external control active:" << externalControlActive;
 
     if(mFlightState == Freezing)
     {
-        qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): external control " << externalControl << "but we're FREEZING, won't change flightState";
+        qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): external control active:" << externalControlActive << "but we're FREEZING, won't change flightState";
         return;
     }
 
     // We might be in any FlightState and the user switched SW1 to enable or disable externalControl (=computer control)
-    if(externalControl)
+    if(externalControlActive)
     {
         // The user tells us to control the kopter.
-        if(mFlightState != ManualControl)
-            qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): externalControl activated, but previous flightState is" << getFlightStateString(mFlightState) << "- WARNING. Still switching to ApproachingNextWayPoint";
+        if(mFlightState == Idle)
+        {
+            qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): externalControl activated, but previous flightState is" << getFlightStateString(mFlightState) << "- Staying in idle mode.";
+        }
+        else
+        {
+            if(mFlightState != ManualControl)
+            {
+                qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): externalControl activated, but previous flightState is" << getFlightStateString(mFlightState) << "instead of ManualControl - WARNING. Still switching to ApproachingNextWayPoint";
+            }
 
-        setFlightState(ApproachingNextWayPoint);
-        ensureSafeFlightAfterWaypointsChanged();
+            setFlightState(ApproachingNextWayPoint);
+            ensureSafeFlightAfterWaypointsChanged();
+        }
     }
     else
     {

@@ -174,7 +174,8 @@ void LaserScanner::slotCaptureScanData()
         for(itr=distances->begin();itr != distances->end(); ++itr) out << " " << *itr;
         out << endl;
 
-        if(mHeightOverGroundClockDivisor == 0) emit heightOverGround(distances->at(540));
+        // Every full moon, emit the distance from vehicle center to the ground in meters (scanner to vehicle center is 3cm)
+        if(mHeightOverGroundClockDivisor == 0) emit heightOverGround(distances->at(540)/1000.0f + 0.03f);
 
         // With this call, we GIVE UP OWNERSHIP of the data. It might get deleted immediately!
         emit newScanData(timeStampScanMiddle, distances);

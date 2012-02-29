@@ -54,10 +54,10 @@ public:
     ~Kopter();
 
 private:
-    int maxreplytime;
+    int mMaxReplyTime;
 
     QMap<quint8, QString> mAnalogValueLabels;
-    struct ExternControl mStructExternControl;
+    ExternControl mStructExternControl;
 
     QMap<QChar,QTime> mPendingReplies;
 
