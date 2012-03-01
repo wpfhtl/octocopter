@@ -235,6 +235,12 @@ void FlightPlannerInterface::slotVisualize() const
     glColor4f(1.0f, 1.0f, 0.0f, 0.8f);
     glBegin(GL_LINE_STRIP);
 
+    if(mVehiclePoses.size())
+    {
+        const QVector3D p = mVehiclePoses.last().position;
+        glVertex3f(p.x(), p.y(), p.z());
+    }
+
     foreach(const WayPoint& wpt, *mWayPointsAhead)
         glVertex3f(wpt.x(), wpt.y(), wpt.z());
     glEnd();
