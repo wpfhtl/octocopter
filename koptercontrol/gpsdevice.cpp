@@ -496,7 +496,7 @@ void GpsDevice::slotSetSystemTime(const qint32& tow)
 
     // Apply 15000ms = 15 leapseconds offset? Only when we really sync to UTC, which we don't.
     const qint32 offsetHostToGps = tow - getCurrentGpsTowTime() + 7; // Oscilloscope indicates 7ms offset is a good value.
-    qDebug() << "GpsDevice::slotSetSystemTime(): time rollover in" << ((float)secondsToRollOver)/86400.0 << "d, offset host time" << getCurrentGpsTowTime() << "to gps time" << tow << "is" << offsetHostToGps/1000 << "s and" << (offsetHostToGps%1000) << "ms";
+    qDebug() << "GpsDevice::slotSetSystemTime(): time rollover in" << ((float)secondsToRollOver)/86400.0f << "d, offset host time" << getCurrentGpsTowTime() << "to gps time" << tow << "is" << offsetHostToGps/1000 << "s and" << (offsetHostToGps%1000) << "ms";
 
     // For small clock drifts AND when system is running, adjust clock. Else, set clock
     if(abs(offsetHostToGps) < 10 && mDeviceIsInitialized)

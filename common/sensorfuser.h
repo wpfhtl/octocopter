@@ -16,6 +16,12 @@ public:
 
     void setLaserScannerRelativePose(const Pose& pose);
 
+    quint8 getStridePoint(void) const {return mStridePoint;}
+    void setStridePoint(quint8 stridePoint) {mStridePoint = stridePoint;}
+
+    quint8 getStrideScan(void) const {return mStrideScan;}
+    void setStrideScan(quint8 strideScan) {mStrideScan = strideScan;}
+
 private:
     quint8 mStridePoint, mStrideScan;
     quint32 mPointCloudSize;

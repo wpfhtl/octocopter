@@ -8,6 +8,10 @@ FlightController::FlightController() : QObject(), mFlightState(ManualControl)
     mTimeOfLastControllerUpdate = QTime::currentTime();
     mFirstControllerRun = true;
 
+    mBackupTimerComputeMotion = new QTimer(this);
+    connect(mBackupTimerComputeMotion, SIGNAL(timeout()), SLOT(slotComputeMotionCommands()));
+    connect(mBackupTimerComputeMotion, SIGNAL(timeout()), SLOT(slotWarnOfBackupTimerUse()));
+
     /*// For testing in simulator
     mWayPoints.append(WayPoint(QVector3D(130,90,110)));
     mWayPoints.append(WayPoint(QVector3D(140,80,130)));
@@ -19,6 +23,12 @@ FlightController::FlightController() : QObject(), mFlightState(ManualControl)
 FlightController::~FlightController()
 {
 
+}
+
+void FlightController::slotWarnOfBackupTimerUse()
+{
+    qDebug() << t() << "FlightController::slotWarnOfBackupTimerUse(): timer has fired, so there was no GNSS pose in" << mBackupTimerComputeMotion->interval() << "ms! Starting motion backup computation.";
+    slotComputeMotionCommands();
 }
 
 void FlightController::slotComputeMotionCommands()
@@ -49,9 +59,9 @@ void FlightController::slotComputeMotionCommands()
             return;
         }
 
-        if(getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp > 500)
+        if(getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp > 82)
         {
-            qDebug() << t() << "FlightController::slotComputeMotionCommands(): ApproachingNextWayPoint, vehicle pose update is more than 500ms ago, skipping motion computation, emitting safe control values";
+            qDebug() << t() << "FlightController::slotComputeMotionCommands(): ApproachingNextWayPoint, vehicle pose update is more than 82ms ago, skipping motion computation, emitting safe control values";
             emitSafeControlValues();
             return;
         }
@@ -87,7 +97,7 @@ void FlightController::slotComputeMotionCommands()
         const float errorYaw = RAD2DEG(angleToTurnToWayPoint);
         mErrorIntegralYaw += errorYaw*timeDiff;
         const float derivativeYaw = mFirstControllerRun ? 0.0f : (errorYaw - mPrevErrorYaw + 0.00001f)/timeDiff;
-        const float outputYaw = factorHeight * factorPlanarDistance * (1.0f * errorYaw) + (0.0f * mErrorIntegralYaw) + (0.5f * derivativeYaw);
+        const float outputYaw = factorHeight * factorPlanarDistance * ((1.0f * errorYaw) + (0.0f * mErrorIntegralYaw) + (0.3f/*0.5f*/ * derivativeYaw));
 
         // adjust pitch/roll to reach target, maximum pitch is -20 degrees (forward)
         float desiredRoll = 0.0f;
@@ -97,12 +107,14 @@ void FlightController::slotComputeMotionCommands()
         const float errorPitch = desiredPitch - mLastKnownVehiclePose.getPitchDegrees();
         mErrorIntegralPitch += errorPitch*timeDiff;
         const float derivativePitch = mFirstControllerRun ? 0.0f : (errorPitch - mPrevErrorPitch + 0.00001f)/timeDiff;
-        const float outputPitch = factorHeight * factorPlanarDistance * (6.0f * errorPitch) + (0.3f * mErrorIntegralPitch) + (0.0f * derivativePitch);
+        // WARNING: If we multiply by factorHeight, we won't stabilize the kopter at low height, it'll have to do that by itself. Is that good?
+        const float outputPitch = factorHeight * factorPlanarDistance * ((6.0f * errorPitch) + (0.3f * mErrorIntegralPitch) + (0.0f * derivativePitch));
 
         const float errorRoll = desiredRoll - mLastKnownVehiclePose.getRollDegrees();
         mErrorIntegralRoll += errorRoll*timeDiff;
         const float derivativeRoll = mFirstControllerRun ? 0.0f : (errorRoll - mPrevErrorRoll + 0.00001f)/timeDiff;
-        const float outputRoll = factorHeight * factorPlanarDistance * (6.0f * errorRoll) + (0.3f * mErrorIntegralRoll) + (0.0f * derivativeRoll);
+        // WARNING: If we multiply by factorHeight, we won't stabilize the kopter at low height, it'll have to do that by itself. Is that good?
+        const float outputRoll = factorHeight * factorPlanarDistance * ((6.0f * errorRoll) + (0.3f * mErrorIntegralRoll) + (0.0f * derivativeRoll));
 
         const float outputHover = 115.0;
         const float errorHeight = nextWayPoint.y() - mLastKnownVehiclePose.position.y();
@@ -115,7 +127,7 @@ void FlightController::slotComputeMotionCommands()
         const float derivativeHeight = mFirstControllerRun ? 0.0f : (errorHeight - mPrevErrorHeight + 0.00001f)/timeDiff;
         const float outputThrust = outputHover + (25.0f * errorHeight) + (0.01f * mErrorIntegralHeight) + (1.0f * derivativeHeight);
 
-        qDebug() << "no wpts" << mWayPoints.size() << "next wpt height" << nextWayPoint.y() << "curr height" << mLastKnownVehiclePose.position.y() << "thrust" << outputThrust;
+        qDebug() << mWayPoints.size() << "waypoints, next wpt height" << nextWayPoint.y() << "curr height" << mLastKnownVehiclePose.position.y();
 
         qDebug() << "values PRYH:" << QString::number(mLastKnownVehiclePose.getPitchDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.getRollDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.getYawDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.position.y(), 'f', 2);
         qDebug() << "should PRYH:" << QString::number(desiredPitch, 'f', 2) << "\t" << QString::number(desiredRoll, 'f', 2) << "\t" << QString::number(RAD2DEG(directionNorthToWayPointRadians), 'f', 2) << "\t" << QString::number(nextWayPoint.y(), 'f', 2);
@@ -130,7 +142,7 @@ void FlightController::slotComputeMotionCommands()
         mPrevErrorYaw = errorYaw;
         mPrevErrorHeight = errorHeight;
 
-        out_thrust = (quint8)qBound(90.0f, outputThrust, 150.0f);
+        out_thrust = (quint8)qBound(90.0f, outputThrust, 180.0f);
         out_yaw = (qint8)qBound(-27.0, outputYaw > 0.0f ? ceil(outputYaw) : floor(outputYaw), 27.0);
         out_pitch = (qint8)qBound(-20.0f, outputPitch, 20.0f);
         out_roll = (qint8)qBound(-20.0f, outputRoll, 20.0f);
@@ -138,7 +150,7 @@ void FlightController::slotComputeMotionCommands()
         // For safety, we don't need it right now.
         out_roll = 0;
 
-//        qDebug() << "FlightController::slotComputeMotionCommands(): motion is" << out_thrust << out_yaw << out_pitch << out_roll;
+        qDebug() << t() << "FlightController::slotComputeMotionCommands(): thrust:" << out_thrust << "yaw:" << out_yaw << "pitch:" << out_pitch << "roll:" << out_roll;
 
         emit motion(out_thrust, out_yaw, out_pitch, out_roll, 0);
         //emit debugValues(mLastKnownVehiclePose, out_thrust, out_yaw, out_pitch, out_roll, 0);
@@ -246,15 +258,19 @@ FlightState FlightController::getFlightState(void) const { return mFlightState; 
 
 void FlightController::slotNewVehiclePose(const Pose& pose)
 {
+    // Note that we don't expect ModeIntegrated
     if(pose.precision & Pose::AttitudeAvailable && pose.precision & Pose::HeadingFixed && pose.precision && pose.RtkFixed)
     {
-        qDebug() << "FlightController::slotNewVehiclePose(): received a pose with rtk|attitude|headingfixed:" << pose;
+        qDebug() << t() << "FlightController::slotNewVehiclePose(): received a usable:" << pose;
         mLastKnownVehiclePose = pose;
     }
     else
     {
-        qDebug() << "FlightController::slotNewVehiclePose(): received a pose without rtk|attitude|headingfixed, ignoring";
+        qDebug() << t() << "FlightController::slotNewVehiclePose(): received a useless" << pose.toStringVerbose();
     }
+
+    mBackupTimerComputeMotion->start(50); // re-set the safety timer
+    slotComputeMotionCommands();
 }
 
 void FlightController::slotHoldPosition()
@@ -310,9 +326,9 @@ void FlightController::setFlightState(FlightState newFlightState)
 void FlightController::slotSetHeightOverGround(const float& beamLength)
 {
     // Height is given from vehicle center to ground, but we care about the bottom of the landing gear.
-    qDebug() << t() << "FlightController::slotSetHeightOverGround()" << beamLength - 0.18f;
+    qDebug() << t() << "FlightController::slotSetHeightOverGround()" << beamLength - 0.16f << "meters";
     mLastKnownHeightOverGroundTimestamp = QTime::currentTime();
-    mLastKnownHeightOverGround = beamLength - 0.18f;
+    mLastKnownHeightOverGround = beamLength - 0.16f;
 }
 
 bool FlightController::isHeightOverGroundValueRecent() const
@@ -358,7 +374,9 @@ void FlightController::ensureSafeFlightAfterWaypointsChanged()
 void FlightController::emitSafeControlValues()
 {
     qDebug() << "FlightController::emitSafeControlValues()";
-    emit motion(110, 0, 0, 0, 0);
+    // A value of 140 should make the kopter rise slowly. Thats great, because that means we
+    // can control thrust ourselves by defining the upper thrust bound with the remote control.
+    emit motion(140, 0, 0, 0, 0);
 }
 
 void FlightController::slotExternalControlStatusChanged(bool externalControlActive)

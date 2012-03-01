@@ -184,7 +184,7 @@ QByteArray KopterMessage::decode(const QByteArray &data)
     return decoded;
 }
 
-bool KopterMessage::isValid()
+bool KopterMessage::isValid() const
 {
     if(mDirection == Outgoing)
     {
@@ -221,7 +221,7 @@ QChar KopterMessage::getId() const { return mId; }
 
 QByteArray KopterMessage::getPayload() const { return decode(mPayload); }
 
-QString KopterMessage::toString()
+QString KopterMessage::toString() const
 {
     QString addressText;
     switch(mAddress)

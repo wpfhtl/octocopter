@@ -108,7 +108,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
                 logFilePrefix
                 );
     mGpsDevice = new GpsDevice(deviceSerialGpsUsb, deviceSerialGpsCom, logFilePrefix, this);
-    mSensorFuser = new SensorFuser;
+    mSensorFuser = new SensorFuser(5);
     mSensorFuser->setLaserScannerRelativePose(mLaserScanner->getRelativePose());
 
     mBaseConnection = new BaseConnection(networkInterface);
@@ -154,9 +154,9 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     connect(mFlightController, SIGNAL(flightStateChanged(FlightState)), mBaseConnection, SLOT(slotFlightStateChanged(FlightState)));
 
-    mTimerComputeMotion = new QTimer(this);
-    mTimerComputeMotion->start(50);
-    connect(mTimerComputeMotion, SIGNAL(timeout()), mFlightController, SLOT(slotComputeMotionCommands()));
+    mTimerSystemLoadControl = new QTimer(this);
+    mTimerSystemLoadControl->start(15000); // every 15 seconds
+    connect(mTimerSystemLoadControl, SIGNAL(timeout()), SLOT(slotAdaptToSystemLoad()));
 }
 
 KopterControl::~KopterControl()
@@ -180,19 +180,30 @@ KopterControl::~KopterControl()
     }
 }
 
-void KopterControl::slotDoSomething()
+void KopterControl::slotAdaptToSystemLoad()
 {
-    //    QList<unsigned char> speeds;
-    //    speeds << 0 << 3 << 0 << 0 << 0 << 0 << 0 << 0 << 0 << 0 << 0 << 0 << 0 << 0 << 0 << 0;
-    //    mKopter->slotSendMotorTest(speeds);
-
-    static float wert = 0.0;
-    wert += 0.02;
-
-    //    mKopter->slotSetMotion(100, 0, 20, 0, 10);
-    //qDebug() << "setting thrust to" << fabs(sin(wert)*40);
-    qDebug() << "extern control reply received.";
-    //    mKopter->slotSetMotion(fabs(sin(wert))*40, 0, 0, 0, 0);
+    double avgLoad[1];
+    if(getloadavg(avgLoad, 1) == 1) // get the average load from last minute
+    {
+        if(avgLoad[0] > 0.8)
+        {
+            mSensorFuser->setStridePoint(qBound(2, mSensorFuser->getStridePoint()+1, 255));
+            qDebug() << "KopterControl::slotAdaptToSystemLoad(): high load:" << avgLoad[0] << "stridePoint increased to" << mSensorFuser->getStridePoint();
+        }
+        else if(avgLoad[0] < 0.7)
+        {
+            mSensorFuser->setStridePoint(qBound(1, mSensorFuser->getStridePoint()-1, 255));
+            qDebug() << "KopterControl::slotAdaptToSystemLoad(): low load:" << avgLoad[0] << "stridePoint decreased to" << mSensorFuser->getStridePoint();
+        }
+        else
+        {
+            qDebug() << "KopterControl::slotAdaptToSystemLoad(): normal load:" << avgLoad[0] << "stridePoint remains at" << mSensorFuser->getStridePoint();
+        }
+    }
+    else
+    {
+        qDebug() << "KopterControl::slotAdaptToSystemLoad(): average load couldn't be determined, skipping";
+    }
 }
 
 void KopterControl::signalHandler(int signal)

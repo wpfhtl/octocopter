@@ -233,6 +233,31 @@ const QString Pose::toString() const
             .append(" co ").append(QString::number(covariances, 'f', 2));
 }
 
+const QString Pose::getFlagsString() const
+{
+    QString flags;
+    if(precision & Pose::AttitudeAvailable) flags.append("+ATT"); else flags.append("-ATT");
+    if(precision & Pose::CorrectionAgeLow) flags.append(" +CRL"); else flags.append(" -CRL");
+    if(precision & Pose::RtkFixed) flags.append(" +RTK"); else flags.append(" -RTK");
+    if(precision & Pose::ModeIntegrated) flags.append(" +INT"); else flags.append(" -INT");
+    return flags;
+}
+
+const QString Pose::toStringVerbose() const
+{
+
+    return QString()
+            .append("pose t").append(QString::number(timestamp))
+            .append(" (").append(QString::number(position.x(), 'f', 2))
+            .append("/").append(QString::number(position.y(), 'f', 2))
+            .append("/").append(QString::number(position.z(), 'f', 2))
+            .append(") YPR (").append(QString::number(getYawDegrees(), 'f', 2))
+            .append("/").append(QString::number(getPitchDegrees(), 'f', 2))
+            .append("/").append(QString::number(getRollDegrees(), 'f', 2)).append(")")
+            .append(" pr ").append(getFlagsString())
+            .append(" co ").append(QString::number(covariances, 'f', 2));
+}
+
 // Must be able to process what operator<< writes above, for example:
 // pose t501171350 (-30.49/51.84/140.01) YPR (155.27/2.92/-1.03) pr 17 co 2.34
 Pose::Pose(const QString& poseString)

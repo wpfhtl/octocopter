@@ -67,7 +67,9 @@ public:
         CorrectionAgeLow = 16
     };
 
+    const QString getFlagsString() const;
     const QString toString() const;
+    const QString toStringVerbose() const; // includes human readable precision flags
 
     QVector3D position;
     const QQuaternion getOrientation() const;

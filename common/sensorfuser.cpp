@@ -32,7 +32,7 @@ void SensorFuser::cleanUnusableData()
     // except if poses arrived more than 63msec after they were measured, then latency would invalidate this thought
     if(mPoses.size() == 0 && (mScansTimestampScanner.size() || mScansTimestampGps.size()))
     {
-        qDebug() << "SensorFuser::cleanUnusableData(): no poses present, discarding" << mScansTimestampScanner.size() << "scanner scans and" << mScansTimestampGps.size() << "gps scans";
+//        qDebug() << "SensorFuser::cleanUnusableData(): no poses present, discarding" << mScansTimestampScanner.size() << "scanner scans and" << mScansTimestampGps.size() << "gps scans";
 
         QMap<qint32, std::vector<long>*>::const_iterator itScanScanner = mScansTimestampScanner.constBegin();
         while(itScanScanner != mScansTimestampScanner.constEnd())
@@ -62,7 +62,7 @@ void SensorFuser::cleanUnusableData()
     // Delete gps-scans that are far older than the first/oldest pose. These cannot be used anymore because we can only get newer poses from now on.
     while(mPoses.size() && mScansTimestampGps.size() && mPoses.at(0).timestamp - mMaximumTimeBetweenFusedPoseAndScanMsec - 13 > mScansTimestampGps.begin().key())
     {
-        qDebug() << "SensorFuser::cleanUnusableData(): removing first scanGps from" << mScansTimestampGps.constBegin().key() << "because the first of" << mPoses.size() << "poses was much later at" << mPoses.at(0).timestamp;
+//        qDebug() << "SensorFuser::cleanUnusableData(): removing first scanGps from" << mScansTimestampGps.constBegin().key() << "because the first of" << mPoses.size() << "poses was much later at" << mPoses.at(0).timestamp;
         if(mScansTimestampGps.begin().value())
         {
             delete(mScansTimestampGps.begin().value()); // delete the data it is pointing to. Might be 0, but then delete() shouldn't harm.
@@ -115,7 +115,7 @@ void SensorFuser::cleanUnusableData()
 
     while(mScansTimestampScanner.size() && mScansTimestampScanner.constBegin().key() < minimumDataTimeToSurvive)
     {
-        qDebug() << "SensorFuser::cleanUnusableData(): removing first scanScanner from" << mScansTimestampScanner.constBegin().key() << "because it is more than" << maxAge << "msec older than the newest data from" << mNewestDataTime;
+//        qDebug() << "SensorFuser::cleanUnusableData(): removing first scanScanner from" << mScansTimestampScanner.constBegin().key() << "because it is more than" << maxAge << "msec older than the newest data from" << mNewestDataTime;
 
         if(mScansTimestampScanner.value(mScansTimestampScanner.constBegin().key()))
         {
@@ -128,7 +128,7 @@ void SensorFuser::cleanUnusableData()
 
     while(mScansTimestampGps.size() && mScansTimestampGps.constBegin().key() < minimumDataTimeToSurvive)
     {
-        qDebug() << "SensorFuser::cleanUnusableData(): removing first scanGps from" << mScansTimestampGps.constBegin().key() << "because it is more than" << maxAge << "msec older than the newest data from" << mNewestDataTime;
+//        qDebug() << "SensorFuser::cleanUnusableData(): removing first scanGps from" << mScansTimestampGps.constBegin().key() << "because it is more than" << maxAge << "msec older than the newest data from" << mNewestDataTime;
         if(mScansTimestampGps.value(mScansTimestampGps.constBegin().key()))
         {
             delete mScansTimestampGps.value(mScansTimestampGps.constBegin().key());
@@ -295,7 +295,7 @@ void SensorFuser::transformScanData()
             // Make sure that the last pose is not much later than this scan. If it is, we must have missed a pose for this scan, meaning we can delete it.
             if(false && mPoses.last().timestamp - timestampMiddleOfScan > mMaximumTimeBetweenFusedPoseAndScanMsec + 10)
             {
-                qDebug() << "SensorFuser::transformScanData(): deleting scan data with gps timestamp" << timestampMiddleOfScan << "because the latest pose is MUCH later at" << mPoses.last().timestamp << "- so no new poses helping this scan.";
+//                qDebug() << "SensorFuser::transformScanData(): deleting scan data with gps timestamp" << timestampMiddleOfScan << "because the latest pose is MUCH later at" << mPoses.last().timestamp << "- so no new poses helping this scan.";
                 mStatsDiscardedScans++;
 
                 delete iteratorSavedScans.value();
@@ -307,8 +307,8 @@ void SensorFuser::transformScanData()
                      && posesForThisScan.at(posesForThisScan.size()-2)->timestamp > timestampMiddleOfScan + 10)
             {
                 // We can also delete scans if there's at least ONE pose AFTER them but not enough poses BEFORE them, because there will not be older poses coming in.
-                qDebug() << "SensorFuser::transformScanData(): deleting scan data with gps timestamp" << timestampMiddleOfScan << " - 2 poses after scan are present, failure must be missing pre-poses. Unfixable.";
-                qDebug() << "SensorFuser::transformScanData(): poses:" << getTimeStamps(mPoses);
+//                qDebug() << "SensorFuser::transformScanData(): deleting scan data with gps timestamp" << timestampMiddleOfScan << " - 2 poses after scan are present, failure must be missing pre-poses. Unfixable.";
+//                qDebug() << "SensorFuser::transformScanData(): poses:" << getTimeStamps(mPoses);
                 mStatsDiscardedScans++;
                 delete iteratorSavedScans.value();
                 iteratorSavedScans.remove();
@@ -360,7 +360,7 @@ qint8 SensorFuser::matchTimestamps()
                 else
                 {
                     // The time difference between our gps_scan and the scanner_scan has INcreased, so we're on the wrong path. STOP!
-                    //                     //qDebug() << "SensorFuser::matchTimestamps(): comparison to next scanner timestamp shows worse results than last time, error now:" << abs(timestampScanner - timestampGps) << "msecs, breaking.";
+                    //qDebug() << "SensorFuser::matchTimestamps(): comparison to next scanner timestamp shows worse results than last time, error now:" << abs(timestampScanner - timestampGps) << "msecs, breaking.";
                     break;
                 }
 
@@ -393,7 +393,7 @@ qint8 SensorFuser::matchTimestamps()
     // because every scan must have caused a SBF-packet creating an entry in the GPS list
     //    Q_ASSERT(mScansTimestampScanner.size() < 200);
 
-    qDebug() << "SensorFuser::matchTimestamps(): gps scans: matched" << scansMatched << "unmatched" << scansUnmatched << "total" << mScansTimestampGps.size();
+//    qDebug() << "SensorFuser::matchTimestamps(): gps scans: matched" << scansMatched << "unmatched" << scansUnmatched << "total" << mScansTimestampGps.size();
     return scansMatched;
 }
 

@@ -13,13 +13,14 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
 
     mExternalControlActivated = false;
     mStructExternControl.Frame = 0;
+    mMaxReplyTime = 0;
 
     qDebug() << "Kopter::Kopter(): Opening serial port" << serialDeviceFile << "succeeded, flowControl is" << mSerialPortFlightCtrl->flowControl();
 
     connect(mSerialPortFlightCtrl, SIGNAL(readyRead()), SLOT(slotSerialPortDataReady()));
 
     mTimerPpmChannelPublisher = new QTimer(this);
-    mTimerPpmChannelPublisher->start(500);
+    mTimerPpmChannelPublisher->start(250);
     connect(mTimerPpmChannelPublisher, SIGNAL(timeout()), SLOT(slotGetPpmChannelValues()));
 
     slotGetVersion();
@@ -27,7 +28,10 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     slotSubscribeDebugValues(500);
 
     for(int i=0;i<32;i++)
-        slotGetDebugLabels(i);
+    {
+        slotGetDebugLabel(i);
+        usleep(20000);
+    }
 }
 
 Kopter::~Kopter()
@@ -57,9 +61,7 @@ void Kopter::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& 
 {
     if(!mMissionStartTime.isValid()) mMissionStartTime = QTime::currentTime();
 
-
-
-    qDebug() << "Kopter::slotSetMotion(): setting motion, frame:" << mStructExternControl.Frame << "thrust:" << thrust << "yaw:" << yaw << "pitch:" << pitch << "roll:" << roll << "height:" << height;
+    qDebug() << t() << "Kopter::slotSetMotion(): setting motion, frame:" << mStructExternControl.Frame << "thrust:" << thrust << "yaw:" << yaw << "pitch:" << pitch << "roll:" << roll << "height:" << height;
 
     /*
       The kopter has different conventions, at least with default settings (which I intent to keep):
@@ -110,10 +112,10 @@ void Kopter::slotReset()
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
 }
 
-void Kopter::slotGetDebugLabels(quint8 index)
+void Kopter::slotGetDebugLabel(quint8 index)
 {
     if(index >= 32)
-        qDebug() << "Kopter::slotGetDebugLabels(): received impossible index" << index;
+        qDebug() << "Kopter::slotGetDebugLabel(): received impossible index" << index;
 
     KopterMessage message(KopterMessage::Address_FC, 'a', QByteArray((const char*)&index, 1));
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
@@ -173,7 +175,7 @@ void Kopter::slotSerialPortDataReady()
 
     while(mReceiveBuffer.indexOf('\r') != -1)
     {
-        KopterMessage message(&mReceiveBuffer);
+        const KopterMessage message(&mReceiveBuffer);
 
         if(!message.isValid())
         {
@@ -181,17 +183,16 @@ void Kopter::slotSerialPortDataReady()
             continue;
         }
 
-
         if(message.getAddress() == KopterMessage::Address_FC)
         {
             // Remove the record of the pending reply
-            QTime timeOfRequest = mPendingReplies.take(message.getId().toLower());
-            //if(timeOfRequest.isNull()) qWarning() << "Kopter::slotSerialPortDataReady(): got a reply to an unsent message:" << message.toString();
-            //if(mPendingReplies.contains(message.getId().toLower()))  qWarning() << "Kopter::slotSerialPortDataReady(): there's another pending message of type" << message.getId().toLower();
+            const QTime timeOfRequest = mPendingReplies.take(message.getId().toLower());
+            if(mPendingReplies.contains(message.getId().toLower()))  qWarning() << "Kopter::slotSerialPortDataReady(): there's another pending message of type" << message.getId().toLower();
 
-            if(message.getId() == 'B') mMaxReplyTime = std::max(mMaxReplyTime, timeOfRequest.msecsTo(QTime::currentTime()));
-
-            //qDebug() << "Kopter::slotSerialPortDataReady(): received reply to" << message.getId().toLower() << "after ms:" << timeOfRequest.msecsTo(QTime::currentTime()) << "worst" << maxreplytime;
+            if(timeOfRequest.isNull() && message.getId() != 'k')
+            {
+                qWarning() << "Kopter::slotSerialPortDataReady(): got a reply to an unsent request, message:" << message.toString();
+            }
 
             if(message.getId() == 'A')
             {
@@ -203,8 +204,16 @@ void Kopter::slotSerialPortDataReady()
             }
             else if(message.getId() == 'B')
             {
-                qDebug() << "Kopter::slotSerialPortDataReady(): received confirmation for externalControl frame:" << (quint8)message.getPayload()[0];
-                if(mPendingReplies.contains('b')) qDebug() << "Kopter::slotSerialPortDataReady(): mPendingReplies contains another b, so at least two requests were underway at the same time. Not so good.";
+                qDebug() << t() << "Kopter::slotSerialPortDataReady(): received confirmation for externalControl frame:" << (quint8)message.getPayload()[0];
+                if(mPendingReplies.contains('b'))
+                    qDebug() << "Kopter::slotSerialPortDataReady(): mPendingReplies contains another b, so at least two requests were underway at the same time. Not so good.";
+
+                if(!timeOfRequest.isNull())
+                {
+                    mMaxReplyTime = std::max(mMaxReplyTime, (qint32)timeOfRequest.msecsTo(QTime::currentTime()));
+                    qDebug() << "Kopter::slotSerialPortDataReady(): received reply to 'b' after ms:" << timeOfRequest.msecsTo(QTime::currentTime()) << "worst:" << mMaxReplyTime;
+                }
+
                 emit externControlReplyReceived();
             }
             else if(message.getId() == 'D')
@@ -233,10 +242,12 @@ void Kopter::slotSerialPortDataReady()
                 // ppmChannels[5] is MotorSafety. -122 is disabled (motors can be toggled), 127 is enabled (motor switching blocked)
                 // ppmChannels[7] is ExternalControl. -122 is disabled, 127 is enabled
 
+                qDebug() << "Kopter::slotSerialPortDataReady(): remote control limits thrust to" << ppmChannels[1] + 127;
+
                 if(ppmChannels[7] > 0 != mExternalControlActivated)
                 {
                     mExternalControlActivated = ppmChannels[7] > 0;
-		    qDebug() << "Kopter::slotSerialPortDataReady(): externalControlActivated:" << mExternalControlActivated;
+                    qDebug() << "Kopter::slotSerialPortDataReady(): externalControlActivated:" << mExternalControlActivated << "ppm[7]:" << ppmChannels[7];
                     emit slotExternalControlStatusChanged(mExternalControlActivated);
                 }
 /*

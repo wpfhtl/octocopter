@@ -236,11 +236,11 @@ private:
       // unused AGCState_2_0_t AGCState[MAXSB_AGCSTATE];
     };
 
-    void setPose(const qint32& lon, const qint32& lat, const qint32& alt, const quint16& heading, const qint16& pitch, const qint16& roll, const quint32& tow);
+    void setPose(const qint32& lon, const qint32& lat, const qint32& alt, const quint16& heading, const qint16& pitch, const qint16& roll, const quint32& tow, const quint8& precision);
 
-    quint16 getCrc(const void *buf, unsigned int length);
+    quint16 computeChecksum(const void *buf, unsigned int length) const;
 
-    QVector3D convertGeodeticToCartesian(const double& lon, const double& lat, const double& elevation);
+    QVector3D convertGeodeticToCartesian(const double& lon, const double& lat, const double& elevation, const quint8& precision);
 
 public:
     SbfParser(QObject *parent = 0);

@@ -50,10 +50,10 @@ private:
 
     QSocketNotifier *snSignalPipe;
 
-    QTimer *mTimerComputeMotion;
+    QTimer* mTimerSystemLoadControl;
 
 private slots:
-    void slotDoSomething();
+    void slotAdaptToSystemLoad();
 };
 
 #endif

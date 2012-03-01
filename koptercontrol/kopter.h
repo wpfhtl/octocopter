@@ -8,6 +8,7 @@
 
 #include <abstractserial.h>
 #include "koptermessage.h"
+#include "common.h"
 
 class Kopter : public QObject
 {
@@ -54,7 +55,7 @@ public:
     ~Kopter();
 
 private:
-    int mMaxReplyTime;
+    qint32 mMaxReplyTime;
 
     QMap<quint8, QString> mAnalogValueLabels;
     ExternControl mStructExternControl;
@@ -81,7 +82,7 @@ public slots:
     // The PPM Channels have the values from the human-remote-control
     void slotGetPpmChannelValues();
     void slotGetVersion();
-    void slotGetDebugLabels(quint8 index);
+    void slotGetDebugLabel(quint8 index);
 
     // Subscribe debug info every @interval milliseconds. 0 disables.
     void slotSubscribeDebugValues(int interval = -1);

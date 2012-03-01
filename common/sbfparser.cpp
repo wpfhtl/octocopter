@@ -50,7 +50,7 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offse
 
         // Calculate the packet's checksum. For corrupt packets, the Length field might be random, so we bound
         // the bytes-to-be-checksummed to be between 0 and the buffer's remaining bytes after Sync and Crc fields.
-        calculatedCrc = getCrc(
+        calculatedCrc = computeChecksum(
                     (void*)(sbfData.data() + offsetToValidPacket + sizeof(sbfHeader->Sync) + sizeof(sbfHeader->CRC)),
                     qBound(
                         (qint32)0,
@@ -77,7 +77,7 @@ void SbfParser::slotEmitCurrentGpsStatus()
     emit status(mGpsStatus);
 }
 
-quint16 SbfParser::getCrc(const void *buf, unsigned int length)
+quint16 SbfParser::computeChecksum(const void *buf, unsigned int length) const
 {
   quint32  i;
   quint16  crc = 0;
@@ -92,7 +92,15 @@ quint16 SbfParser::getCrc(const void *buf, unsigned int length)
   return crc;
 }
 
-void SbfParser::setPose(const qint32& lon, const qint32& lat, const qint32& alt, const quint16& heading, const qint16& pitch, const qint16& roll, const quint32& tow)
+void SbfParser::setPose(
+    const qint32& lon,
+    const qint32& lat,
+    const qint32& alt,
+    const quint16& heading,
+    const qint16& pitch,
+    const qint16& roll,
+    const quint32& tow,
+    const quint8& precision)
 {
     const double floatLon = ((double)lon) / 10000000.0l;
     const double floatLat = ((double)lat) / 10000000.0l;
@@ -100,7 +108,7 @@ void SbfParser::setPose(const qint32& lon, const qint32& lat, const qint32& alt,
 
     // Please look at the septentrio "Firmware user manual", page 47ff for conversion rules.
     mLastPose = Pose(
-                convertGeodeticToCartesian(floatLon, floatLat, floatAlt),
+                convertGeodeticToCartesian(floatLon, floatLat, floatAlt, precision),
                 -((double)heading) * 0.01l, // Z axis points down in VehicleReferenceFrame, values from 0 to 360, both point north
                 ((double)pitch) * 0.01l,
                 -((double)roll) * 0.01l, // their roll axis points forward from the vehicle. We have it OpenGL-style with Z pointing backwards
@@ -108,10 +116,13 @@ void SbfParser::setPose(const qint32& lon, const qint32& lat, const qint32& alt,
                 );
 }
 
-QVector3D SbfParser::convertGeodeticToCartesian(const double &lon, const double &lat, const double &elevation)
+QVector3D SbfParser::convertGeodeticToCartesian(const double &lon, const double &lat, const double &elevation, const quint8& precision)
 {
     // Set longitude, latitude and elevation of first GNSS fix to let the rover start at cartesian 0/0/0
-    if(mOriginLongitude > 10e19 && mOriginLatitude > 10e19 && mOriginElevation > 10e19)
+    // This may ONLY happen based on really good positional fixes (=RTK Fixed): if we initialize these
+    // origins using e.g. Differential and then switch to RTKFixed, the kopter might remain underground
+    // due to a -2m Y-offset between Differential and RtkFixed.
+    if(mOriginLongitude > 10e19 && mOriginLatitude > 10e19 && mOriginElevation > 10e19 && precision & Pose::RtkFixed)
     {
         mOriginLongitude = lon;
         mOriginLatitude = lat;
@@ -358,9 +369,9 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
 //            qDebug() << t() << "SbfParser::processNextValidPacket(): GnssPvtMode changed from" << mGpsStatus.gnssMode << "to" << block->GNSSPVTMode << "at TOW" << block->TOW;
 
             emit message(
-                        block->GNSSPVTMode & 15 == 4 ? Information : Warning,
+                        (block->GNSSPVTMode & 15) == 4 ? Information : Warning,
                         QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                        QString("GnssPvtMode changed from %1 to %2")
+                        QString("GnssPvtMode changed: %1 => %2")
                         .arg(GpsStatusInformation::getGnssMode(mGpsStatus.gnssMode))
                         .arg(GpsStatusInformation::getGnssMode(block->GNSSPVTMode)));
 
@@ -399,38 +410,41 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                 && block->Lon != -2147483648L
                 && block->Alt != -2147483648L)
         {
-            setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW);
 
-            mLastPose.covariances = mGpsStatus.covariances;
+            quint8 precisionFlags = 0;
 
             if(block->Heading != 65535 && block->Pitch != -32768 && block->Roll != -32768)
-                mLastPose.precision |= Pose::AttitudeAvailable;
+                precisionFlags |= Pose::AttitudeAvailable;
 //            else
 //                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, YPR do-not-use";
 
             if(testBit(block->Info, 11)) // Heading ambiguity is Fixed
-                mLastPose.precision |= Pose::HeadingFixed;
+                precisionFlags |= Pose::HeadingFixed;
 //            else
 //                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): pose from PVAAGeod not valid, heading ambiguity is not fixed.";
 
             if(block->Mode == 2) // integrated solution, not sensor-only or GNSS-only
-                mLastPose.precision |= Pose::ModeIntegrated;
+                precisionFlags |= Pose::ModeIntegrated;
 //            else
 //                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, not integrated solution, but" << GpsStatusInformation::getIntegrationMode(block->Mode);
 
             if((block->GNSSPVTMode & 15) == 4) // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().
-                mLastPose.precision |= Pose::RtkFixed;
+                precisionFlags |= Pose::RtkFixed;
 //            else
 //                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, GnssPvtMode is" << GpsStatusInformation::getGnssMode(block->GNSSPVTMode) << "corrAge:" << mGpsStatus.meanCorrAge << "sec";
 
-            if(mGpsStatus.meanCorrAge < 20) // thats two seconds
-                mLastPose.precision |= Pose::CorrectionAgeLow;
+            if(mGpsStatus.meanCorrAge < 40) // thats four seconds
+                precisionFlags |= Pose::CorrectionAgeLow;
 
             /* Not an error! Wait until firmware is fixed?!
             if(block->GNSSage > 1)
             {
                 qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, GNSSAge is" << block->GNSSage;
             }*/
+
+            setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW, precisionFlags);
+            mLastPose.precision = precisionFlags;
+            mLastPose.covariances = mGpsStatus.covariances;
 
             emit newVehiclePose(mLastPose);
             mPoseClockDivisor++;

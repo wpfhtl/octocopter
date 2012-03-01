@@ -51,9 +51,9 @@ public:
     QChar getId() const;
     QByteArray getPayload() const;
 
-    bool isValid();
+    bool isValid() const;
 
-    QString toString();
+    QString toString() const;
 };
 
 #endif // KOPTERMESSAGE_H

@@ -39,6 +39,12 @@ public:
     // ??? static int wayPointComponentsEqual(const QVector3D &wpt1, const QVector3D &wpt2);
 
 private:
+    // Motion is computed whenever a new pose comes in, so we don't need a timer - except
+    // when the GPS board fails to deliver (even useless) poses, we'll need to compute
+    // safe values to emit. Thus, when Poses come in every 40ms, we start this timer with
+    // 40ms+20%, and it will call slotComputeMotionCommands() at an interval of 48ms when
+    // the GPS board fails.
+    QTimer *mBackupTimerComputeMotion;
     QList<WayPoint> mWayPoints, mWayPointsPassed;
 
     FlightState mFlightState;
@@ -66,6 +72,9 @@ private:
     void emitSafeControlValues();
 
     void ensureSafeFlightAfterWaypointsChanged();
+
+private slots:
+    void slotWarnOfBackupTimerUse();
 
 signals:
     // used to set the motor-speeds
