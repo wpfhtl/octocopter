@@ -74,7 +74,7 @@ private:
     void ensureSafeFlightAfterWaypointsChanged();
 
 private slots:
-    void slotWarnOfBackupTimerUse();
+    void slotComputeBackupMotion();
 
 signals:
     // used to set the motor-speeds

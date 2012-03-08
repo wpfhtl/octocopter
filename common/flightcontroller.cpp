@@ -9,8 +9,7 @@ FlightController::FlightController() : QObject(), mFlightState(ManualControl)
     mFirstControllerRun = true;
 
     mBackupTimerComputeMotion = new QTimer(this);
-    connect(mBackupTimerComputeMotion, SIGNAL(timeout()), SLOT(slotComputeMotionCommands()));
-    connect(mBackupTimerComputeMotion, SIGNAL(timeout()), SLOT(slotWarnOfBackupTimerUse()));
+    connect(mBackupTimerComputeMotion, SIGNAL(timeout()), SLOT(slotComputeBackupMotion()));
 
     /*// For testing in simulator
     mWayPoints.append(WayPoint(QVector3D(130,90,110)));
@@ -25,9 +24,9 @@ FlightController::~FlightController()
 
 }
 
-void FlightController::slotWarnOfBackupTimerUse()
+void FlightController::slotComputeBackupMotion()
 {
-    qDebug() << t() << "FlightController::slotWarnOfBackupTimerUse(): timer has fired, so there was no GNSS pose in" << mBackupTimerComputeMotion->interval() << "ms! Starting motion backup computation.";
+    qDebug() << t() << "FlightController::slotComputeBackupMotion(): timer has fired, so there was no GNSS pose in" << mBackupTimerComputeMotion->interval() << "ms! Starting backup motion computation.";
     slotComputeMotionCommands();
 }
 
@@ -74,7 +73,7 @@ void FlightController::slotComputeMotionCommands()
 
 //        qDebug() << "mLastKnownVehiclePose.getPlanarPosition()" << mLastKnownVehiclePose.getPlanarPosition();
 //        qDebug() << "nextWayPoint.getPositionOnPlane():" << nextWayPoint.getPositionOnPlane();
-        qDebug() << "LastKnownPose:" << mLastKnownVehiclePose << "NextWayPoint:" << nextWayPoint;
+        qDebug() << "FlightController::slotComputeMotionCommands(): LastKnownPose:" << mLastKnownVehiclePose << "NextWayPoint:" << nextWayPoint;
         qDebug() << "directionNorthToWayPoint:" << RAD2DEG(directionNorthToWayPointRadians) << "angleToTurnToWayPoint: turn" << (angleToTurnToWayPoint < 0 ? "right" : "left") << RAD2DEG(angleToTurnToWayPoint);
 
         // http://en.wikipedia.org/wiki/PID_controller, thanks Minorsky!

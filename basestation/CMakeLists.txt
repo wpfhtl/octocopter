@@ -12,6 +12,7 @@ basestation
 glwidget
 logwidget
 logplayer
+ptucontroller
 camerawidget
 flightplannerinterface
 flightplannerbasic
@@ -46,6 +47,7 @@ basestation.h
 glwidget.h
 logwidget.h
 logplayer.h
+ptucontroller.h
 camerawidget.h
 flightplannerinterface.h
 flightplannerbasic.h
@@ -77,6 +79,7 @@ voxelmanager.h
 SET(UI_FILES
 controlwidget.ui
 logplayer.ui
+ptucontroller.ui
 logwidget.ui
 connectiondialog.ui
 flightplannerphysicsdialog.ui
@@ -112,7 +115,7 @@ SET(CMAKE_BUILD_TYPE "Debug")
 # Enable the Node LidarPoint::node member, in which a lidarpoint remembers in which node it is stored. Increases octree efficiency,
 # but also creates a dependency on "Node", which is otherwise unused in koptercontrol project
 ADD_DEFINITIONS(-DLIDARPOINT_KEEPS_PARENTNODE -DBASESTATION)
-INCLUDE_DIRECTORIES(/usr/include /usr/local/include/ ${BULLET_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR} ./ ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
+INCLUDE_DIRECTORIES(/usr/include /usr/local/include/ ${CMAKE_CURRENT_SOURCE_DIR}/qserialdevice/include ${BULLET_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR} ./ ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 LINK_DIRECTORIES(/usr/lib/ /usr/local/lib/)
 CUDA_ADD_EXECUTABLE(basestation ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-TARGET_LINK_LIBRARIES(basestation qwt ${QT_LIBRARIES} ${BULLET_LIBRARIES} GLU GLEW)
+TARGET_LINK_LIBRARIES(basestation qwt ${QT_LIBRARIES} ${BULLET_LIBRARIES} GLU GLEW qserialdevice)

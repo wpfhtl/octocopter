@@ -9,6 +9,7 @@
 #include "flightplannercuda.h"
 #include "glwidget.h"
 #include "logplayer.h"
+#include "ptucontroller.h"
 #include "octree.h"
 #include "joystick.h"
 #include "rtkfetcher.h"
@@ -37,22 +38,17 @@ class BaseStation : public QMainWindow
 
 private:
     QTimer* mTimerJoystick;
-
     WirelessDevice* mWirelessDevice;
-
     ConnectionDialog* mConnectionDialog;
-
     RoverConnection* mRoverConnection;
-
     FlightPlannerInterface* mFlightPlanner;
-
     Joystick* mJoystick;
-
     RtkFetcher* mRtkFetcher;
     ControlWidget* mControlWidget;
     LogWidget* mLogWidget;
     PlotWidget* mPlotWidget;
     LogPlayer* mLogPlayer;
+    PtuController* mPtuController;
 
     // a container for collected rays, or rather the world coordinates of where they ended
     Octree* mOctree;

@@ -97,18 +97,6 @@ BaseStation::BaseStation() : QMainWindow()
     connect(actionRotateView, SIGNAL(triggered(bool)), mGlWidget, SLOT(slotEnableTimerRotation(bool)));
     menuBar()->addAction(actionRotateView);
 
-    mLogPlayer = new LogPlayer(this);
-    mLogPlayer->setAllowedAreas(Qt::AllDockWidgetAreas);
-    addDockWidget(Qt::BottomDockWidgetArea, mLogPlayer);
-    connect(mLogPlayer, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
-    connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mControlWidget, SLOT(slotUpdatePose(Pose)));
-    connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose)));
-    connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mGlWidget, SLOT(slotUpdateView()));
-    connect(mLogPlayer, SIGNAL(scanData(QVector<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QVector<QVector3D>,QVector3D)));
-//    connect(mLogPlayer, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
-    connect(mLogPlayer, SIGNAL(gpsStatus(GpsStatusInformation::GpsStatus)), mControlWidget, SLOT(slotUpdateGpsStatus(GpsStatusInformation::GpsStatus)));
-//    connect(mLogPlayer, SIGNAL(controllerValues(QVector<float>)), mPlotWidget, SLOT(slotAppendData(QVector<float>)));
-
     mPlotWidget = new PlotWidget(this);
     mPlotWidget->setAllowedAreas(Qt::AllDockWidgetAreas);
     mPlotWidget->setVisible(false);
@@ -123,8 +111,7 @@ BaseStation::BaseStation() : QMainWindow()
     mPlotWidget->createCurve("pRoll");
     mPlotWidget->createCurve("pYaw");
 
-
-    // Only start RTK fetcher and RoverConnection if we're not working offline
+    // Only start RTK fetcher, RoverConnection, PtuController etc. if we're working online
     if(mConnectionDialog->result() == QDialog::Accepted)
     {
         mRoverConnection = new RoverConnection(mConnectionDialog->getRoverHostName(), mConnectionDialog->getRoverPort(), this);
@@ -166,8 +153,6 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mFlightPlanner, SIGNAL(wayPointDeleteOnRover(quint16)), mRoverConnection, SLOT(slotRoverWayPointDelete(quint16)));
         connect(mFlightPlanner, SIGNAL(wayPointsSetOnRover(QList<WayPoint>)), mRoverConnection, SLOT(slotRoverWayPointsSet(QList<WayPoint>)));
 
-        mLogWidget->log(Information, "BaseStation::BaseStation()", "Working online, initialized RoverConnection and RtkFetcher, now connecting...");
-
         mRtkFetcher = new RtkFetcher(mConnectionDialog->getRtkBaseHostName(), mConnectionDialog->getRtkBasePort(), this);
         connect(mRtkFetcher, SIGNAL(rtkData(QByteArray)), mRoverConnection, SLOT(slotSendRtkDataToRover(QByteArray)));
         connect(mRtkFetcher, SIGNAL(connectionStatus(bool)), mControlWidget, SLOT(slotUpdateConnectionRtk(bool)));
@@ -175,10 +160,30 @@ BaseStation::BaseStation() : QMainWindow()
         menuBar()->addAction("Connect", mRoverConnection, SLOT(slotConnectToRover()));
 
         mRoverConnection->slotConnectToRover();
+
+        mPtuController = new PtuController("/dev/ttyUSB0", this);
+        mPtuController->setAllowedAreas(Qt::AllDockWidgetAreas);
+        mPtuController->setVisible(true);
+        addDockWidget(Qt::BottomDockWidgetArea, mPtuController);
+        connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
+        connect(mPtuController, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
+        mLogWidget->log(Information, "BaseStation::BaseStation()", "Working online, enabling RoverConnection+RtkFetcher+PtuController, disabling LogPlayer.");
     }
     else
     {
-        mLogWidget->log(Information, "BaseStation::BaseStation()", "Working offline, RoverConnection and RtkFetcher not available.");
+        mLogPlayer = new LogPlayer(this);
+        mLogPlayer->setAllowedAreas(Qt::AllDockWidgetAreas);
+        addDockWidget(Qt::BottomDockWidgetArea, mLogPlayer);
+        connect(mLogPlayer, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
+        connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mControlWidget, SLOT(slotUpdatePose(Pose)));
+        connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose)));
+        connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mGlWidget, SLOT(slotUpdateView()));
+        connect(mLogPlayer, SIGNAL(scanData(QVector<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QVector<QVector3D>,QVector3D)));
+    //    connect(mLogPlayer, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
+        connect(mLogPlayer, SIGNAL(gpsStatus(GpsStatusInformation::GpsStatus)), mControlWidget, SLOT(slotUpdateGpsStatus(GpsStatusInformation::GpsStatus)));
+    //    connect(mLogPlayer, SIGNAL(controllerValues(QVector<float>)), mPlotWidget, SLOT(slotAppendData(QVector<float>)));
+
+        mLogWidget->log(Information, "BaseStation::BaseStation()", "Working offline, disabling RoverConnection+RtkFetcher+PtuController, enabling LogPlayer.");
     }
 
     mLogWidget->log(Information, "BaseStation::BaseStation()", "Startup finished, ready.");
