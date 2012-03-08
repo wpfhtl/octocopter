@@ -101,7 +101,7 @@ void GlWidget::paintGL()
     {
         if(mTimerIdZoom == 0) mTimerIdZoom = startTimer(20);
         mZoomFactorCurrent += step;
-        resizeGL(width(),height());
+        resizeGL(width(),height()); // this sets up a new view with the new zoomFactor
     }
     else if(mTimerIdZoom != 0)
     {
