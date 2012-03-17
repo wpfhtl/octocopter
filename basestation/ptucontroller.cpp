@@ -29,6 +29,9 @@ PtuController::PtuController(const QString& deviceFile, QWidget *parent) : QDock
     mTimerUpdateStatus->start(5000);
     connect(mTimerUpdateStatus, SIGNAL(timeout()), SLOT(slotRetrieveStatus()));
 
+    mPositionsPerDegreePan = 0.0f;
+    mPositionsPerDegreeTilt = 0.0f;
+
     QTimer::singleShot(1000, this, SLOT(slotTryConnecting()));
 }
 
@@ -72,10 +75,20 @@ void PtuController::slotInitialize()
     slotSendCommandToPtu("PML"); //PanHold PowerMode: Off
     slotSendCommandToPtu("TML"); //TiltHold PowerMode: Off
 
-    // Set step size
-    slotSendCommandToPtu("");
+    // Set step modes
+    slotSendCommandToPtu("WPF"); // pan axis full step
+    slotSendCommandToPtu("WTF"); // tilt axis full step
 
-    // Get pan and tilt resolution
+    // Set speeds
+    slotSendCommandToPtu("PS800"); // pan speed, 800 seems to be max
+    slotSendCommandToPtu("TS1000"); // tilt speed, 1500 loses sync
+
+    // Set accelerations
+    slotSendCommandToPtu("PA1000"); // pan acceleration, default
+    slotSendCommandToPtu("TA500"); // tilt acceleration
+
+    // Get pan and tilt resolution - these values depend
+    // on the step modes, so they need to be defined first.
     slotSendCommandToPtu("PR");
     slotSendCommandToPtu("TR");
 

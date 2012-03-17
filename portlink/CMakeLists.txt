@@ -7,8 +7,6 @@ portlink
 networkserver
 networkclient
 serialport
-qextserialport/qextserialport
-qextserialport/posix_qextserialport
 )
 
 SET(INC_FILES
@@ -17,7 +15,6 @@ networkserver.h
 networkclient.h
 serialport.h
 port.h
-qextserialport/qextserialport.h
 )
 
 #"Sources" and "Headers" are the group names in Visual Studio.
@@ -35,5 +32,6 @@ QT4_WRAP_CPP(MOC_SRCS ${INC_FILES})
 SET(CMAKE_DEBUG_POSTFIX "_d")
 SET(CMAKE_BUILD_TYPE "Debug")
 
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/qserialdevice/include)
 ADD_EXECUTABLE(portlink ${SRC_FILES} ${MOC_SRCS})
-TARGET_LINK_LIBRARIES(portlink ${QT_LIBRARIES})
+TARGET_LINK_LIBRARIES(portlink ${QT_LIBRARIES} qserialdevice)

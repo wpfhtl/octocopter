@@ -5,7 +5,7 @@ NetworkServer::NetworkServer(const QString& networkPort) : Port()
     mAddress.setAddress(networkPort.section(":", 0, 0));
     mPort = networkPort.section(":", 1, 1).toInt();
 
-    qDebug() << "NetworkServer::NetworkServer: listening on address" << mAddress << "and port" << mPort;
+    qDebug() << "NetworkServer::NetworkServer: listening on" << mAddress.toString() << ":" << mPort;
 
     mTcpServer = new QTcpServer(this);
     connect(mTcpServer, SIGNAL(newConnection()), SLOT(slotNewConnection()));
@@ -14,7 +14,9 @@ NetworkServer::NetworkServer(const QString& networkPort) : Port()
 
 NetworkServer::~NetworkServer()
 {
-    mTcpServer->deleteLater();
+    qDebug() << "NetworkServer::~NetworkServer: closing server on address" << mAddress.toString() << ":" << mPort;
+    mTcpServer->close();
+    delete mTcpServer;
 }
 
 void NetworkServer::slotConnectionEnded()

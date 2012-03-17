@@ -25,8 +25,9 @@ NetworkClient::NetworkClient(const QString& networkPort) : Port()
 
 NetworkClient::~NetworkClient()
 {
+    qDebug() << "NetworkClient::~NetworkClient: closing connection to address" << mAddress << ":" << mPort;
     mTcpSocket->close();
-    mTcpSocket->deleteLater();
+    delete mTcpSocket;
 }
 
 void NetworkClient::slotStateChanged(QAbstractSocket::SocketState state)

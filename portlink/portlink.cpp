@@ -52,7 +52,15 @@ PortLink::PortLink(int argc, char **argv) : QCoreApplication(argc, argv)
 
         if(argument.compare("-s", Qt::CaseInsensitive) == 0)
         {
-            Port* port = new SerialPort(commandLine.takeFirst());
+            Port* port;
+            // There might be a port-settings-string like 115200,8,n,1 after the serial device file
+            const QString deviceFile = commandLine.takeFirst();
+
+            if(commandLine.size() && commandLine.first().left(1) != "-")
+                port = new SerialPort(deviceFile, commandLine.takeFirst());
+            else
+                port = new SerialPort(deviceFile);
+
             mPortList.append(port);
             numberOfPorts++;
         }
@@ -100,7 +108,7 @@ PortLink::~PortLink()
     qDebug() << "PortLink::~PortLink(): deleting objects, shutting down.";
     while(mPortList.size())
     {
-        mPortList.takeFirst()->deleteLater();
+        delete mPortList.takeFirst();
     }
 
     delete snSignalPipe;
