@@ -4,8 +4,8 @@
  * This is the receiver's bootup-config concerning I/O:
  * > $R: gdio
  * >   DataInOut, DSK1, CMD, SBF+NMEA, (off)
- * >   DataInOut, COM1, CMD, none, (on)
- * >   DataInOut, COM2, MTI, none, (on)
+ * >   DataInOut, COM1, MTI, none, (on)
+ * >   DataInOut, COM2, CMD, none, (on)
  * >   DataInOut, COM3, RTCMv3, NMEA, (on)
  * >   DataInOut, COM4, CMD, none, (on)
  * >   DataInOut, USB1, CMD, SBF+NMEA, (on)
@@ -287,7 +287,7 @@ void GpsDevice::slotCommunicationSetup()
     slotQueueCommand("setPPSParameters,sec1,Low2High,0.00,RxClock,3600");
 
     // set up INS/GNSS integration
-    slotQueueCommand("setDataInOut,COM2,MTI");
+    slotQueueCommand("setDataInOut,COM1,MTI");
 
     // set time system to be GPS, not Galileo
     slotQueueCommand("setTimingSystem,GPS");
@@ -296,16 +296,16 @@ void GpsDevice::slotCommunicationSetup()
     slotQueueCommand("setClockSyncThreshold,usec500");
 
     // when GPS fails, use IMU for how many seconds?
-    slotQueueCommand("setExtSensorUsage,COM2,Accelerations+AngularRates,10");
+    slotQueueCommand("setExtSensorUsage,COM1,Accelerations+AngularRates,10");
 
     // specify vector from GPS antenna ARP to IMU in Vehicle reference frame
     // (vehicle reference frame has X forward, Y right and Z down)
     // IMU is 2cm in front, 10cm to the right and 25cm below ARP. Max precision is 1 cm.
     // Specifying orientation is not so easy (=fucking mess, Firmware User manual pg. 41)
-    slotQueueCommand("setExtSensorCalibration,COM2,manual,180,0,0,manual,0.02,-0.10,-0.25");
+    slotQueueCommand("setExtSensorCalibration,COM1,manual,180,0,0,manual,0.02,-0.10,-0.25");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
-    slotQueueCommand("setEventParameters,EventA,High2Low"); // Hokuyo
+    //slotQueueCommand("setEventParameters,EventA,High2Low"); // Hokuyo
     slotQueueCommand("setEventParameters,EventB,High2Low"); // Camera
 
     // From Geert Dierckx:
@@ -328,7 +328,7 @@ void GpsDevice::slotCommunicationSetup()
     //  min:  2, 5, 10, 15, 30, 60
 
     // We want to know the pose 25 times a second
-    slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec40");
+    slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec20");
 
     // We want to know PVTCartesion for MeanCorrAge (average correction data age), ReceiverStatus for CPU Load and IntAttCovEuler for Covariances (sigma-values)
     slotQueueCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus+IntAttCovEuler,msec500");
@@ -340,8 +340,9 @@ void GpsDevice::slotCommunicationSetup()
     slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
 
     // For now, record support messages for septentrio
-    slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,msec200"); // septentrio wants msec100, but that kills the cpu
-    slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",ExtSensorMeas+AttEuler,msec100"); // septentrio wants msec20, but that kills the cpu
+    slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,sec1"); // septentrio wants msec100, but that kills the cpu
+    slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",ExtSensorMeas,msec20"); // septentrio wants msec20, but that kills the cpu
+    slotQueueCommand("setSBFOutput,Stream7,"+mSerialPortOnDeviceUsb+",MeasEpoch,msec100"); // septentrio wants msec20, but that kills the cpu
 
     // show current config
     slotQueueCommand("lstConfigFile,Current");

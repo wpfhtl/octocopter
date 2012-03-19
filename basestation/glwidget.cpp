@@ -170,6 +170,7 @@ void GlWidget::drawVehiclePath() const
 
     glLineWidth(2);
     glBegin(GL_LINE_STRIP);
+//    glBegin(GL_POINTS);
     glColor3f(0.0, 1.0, 0.0);
     for(int i = 0; i < path.size(); i++)
         glVertexVector(path.at(i).position);

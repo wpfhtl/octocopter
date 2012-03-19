@@ -514,7 +514,8 @@ void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, std::vecto
 {
 //    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
 
-    slotScanFinished(timestampScanScanner);
+    // We need this only when the Event-Pins don't work, so we create our own fake events
+    //slotScanFinished(timestampScanScanner);
 
     // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
     if(!mPoses.size() || mPoses.last().timestamp < (timestampScanScanner - mMaximumTimeBetweenFusedPoseAndScanMsec - 13))
