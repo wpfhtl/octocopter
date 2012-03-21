@@ -118,7 +118,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 //    mVisualOdometry = new VisualOdometry(mCamera);
 
     // For testing motion with a joystick from basestation
-    connect(mBaseConnection, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
+    //connect(mBaseConnection, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
 
 //    connect(mCamera, SIGNAL(imageReadyJpeg(QString,QSize,Pose,QQuaternion,const QByteArray*)), mBaseConnection, SLOT(slotNewCameraImage(QString,QSize,Pose,const QByteArray*)));
 //    connect(mCamera, SIGNAL(imageReadyYCbCr(QString,QSize,Pose,QByteArray)), mVisualOdometry, SLOT(slotProcessImage(QString,QSize,Pose,QByteArray)));
@@ -135,7 +135,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mBaseConnection, SIGNAL(newConnection()), mFlightController, SLOT(slotEmitFlightState()));
 
     //    WARNING! THIS ENABLES MOTION!
-    connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
+    //connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
 
     connect(mGpsDevice->getSbfParser(), SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mGpsDevice, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
