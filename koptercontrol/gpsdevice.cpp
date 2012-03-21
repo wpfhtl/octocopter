@@ -146,6 +146,10 @@ quint8 GpsDevice::slotFlushCommandQueue()
         qDebug() << "GpsDevice::slotFlushCommandQueue(): nothing to send.";
     }
 
+    // ben 2012-03-21: For some reason, when subscribing at msec20, we don't get called in slotDataReadyOnUsb() because th buffer is still (or already)
+    // filled with crap. So, lets call ourselves every second.
+    QTimer::singleShot(1000, this, SLOT(slotFlushCommandQueue()));
+
     return mCommandQueueUsb.size();
 }
 
@@ -327,22 +331,25 @@ void GpsDevice::slotCommunicationSetup()
     //  sec:  1, 2, 5, 10, 15, 30, 60
     //  min:  2, 5, 10, 15, 30, 60
 
-    // We want to know the pose 25 times a second
-    slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec20");
-
-    // We want to know PVTCartesion for MeanCorrAge (average correction data age), ReceiverStatus for CPU Load and IntAttCovEuler for Covariances (sigma-values)
-    slotQueueCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus+IntAttCovEuler,msec500");
-
-    // We want to know whenever a scan is finished.
-    slotQueueCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceCom+",ExtEvent,OnChange");
-
     // We want to know what time it is
     slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
 
     // For now, record support messages for septentrio
     slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,sec1"); // septentrio wants msec100, but that kills the cpu
-    slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",ExtSensorMeas,msec20"); // septentrio wants msec20, but that kills the cpu
+
+    // We want to know PVTCartesion for MeanCorrAge (average correction data age), ReceiverStatus for CPU Load and IntAttCovEuler for Covariances (sigma-values)
+    slotQueueCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus+IntAttCovEuler,msec500");
+
     slotQueueCommand("setSBFOutput,Stream7,"+mSerialPortOnDeviceUsb+",MeasEpoch,msec100"); // septentrio wants msec20, but that kills the cpu
+
+    // We want to know whenever a scan is finished.
+    slotQueueCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceCom+",ExtEvent,OnChange");
+
+    // We want to know the pose 25 times a second
+    slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec20");
+
+
+    slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",ExtSensorMeas,msec20"); // septentrio wants msec20, but that kills the cpu
 
     // show current config
     slotQueueCommand("lstConfigFile,Current");
