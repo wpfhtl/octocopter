@@ -300,9 +300,9 @@ void GpsDevice::slotCommunicationSetup()
 
     // specify vector from GPS antenna ARP to IMU in Vehicle reference frame
     // (vehicle reference frame has X forward, Y right and Z down)
-    // IMU is 2cm in front, 10cm to the right and 25cm below ARP. Max precision is 1 cm.
+    // IMU is 2cm in front, 10cm to the right and 20cm below ARP. Max precision is 1 cm.
     // Specifying orientation is not so easy (=fucking mess, Firmware User manual pg. 41)
-    slotQueueCommand("setExtSensorCalibration,COM1,manual,180,0,0,manual,0.02,-0.10,-0.25");
+    slotQueueCommand("setExtSensorCalibration,COM1,manual,180,0,0,manual,0.02,-0.10,-0.20");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
     //slotQueueCommand("setEventParameters,EventA,High2Low"); // Hokuyo

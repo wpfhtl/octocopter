@@ -167,6 +167,7 @@ void ControlWidget::slotUpdateGpsStatus(const GpsStatusInformation::GpsStatus& g
     if(gpsStatus.integrationMode == 2) mLabelGpsIntegrationMode->setStyleSheet(""); else mLabelGpsIntegrationMode->setStyleSheet(getBackgroundCss());
 
     mLabelGpsInfo->setText(GpsStatusInformation::getInfoRichText(gpsStatus.info));
+    mLabelGpsInfo->setToolTip(mLabelGpsInfo->text());
 
     mLabelGpsError->setText(GpsStatusInformation::getError(gpsStatus.error));
     if(gpsStatus.error == 0) mLabelGpsError->setStyleSheet(""); else mLabelGpsError->setStyleSheet(getBackgroundCss());

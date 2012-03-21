@@ -64,7 +64,7 @@ void NetworkServer::write(const QByteArray &data)
 {
     if(mTcpSockets.size() == 0)
     {
-        qDebug() << "NetworkServer::write(): no client connected, throwing data away...";
+        //qDebug() << "NetworkServer::write(): no client connected, throwing data away...";
         return;
     }
 

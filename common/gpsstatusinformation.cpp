@@ -104,7 +104,7 @@ QString GpsStatusInformation::getInfoRichText(const quint16& info)
             .arg(testBit(info, 12) ? "1" : "0")
             .arg(testBit(info, 13) ? "1" : "<font color='red'>0</font>")
             .arg(testBit(info, 14) ? "1" : "<font color='red'>0</font>")
-            .arg(testBit(info, 15) ? "1" : "<font color='red'>0</font>");
+            .arg(testBit(info, 15) ? "<font color='red'>1</font>" : "0");
 
     return infoString;
 }

@@ -378,14 +378,18 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
             mGpsStatus.gnssMode = block->GNSSPVTMode;
         }
 
-        if(mGpsStatus.gnssAge != block->GNSSage             && block->GNSSage == 0) // FIXME: until firmware works?!
+        // It is perfectly normal for the GNSSAge to be 0,2,4,6 or 8 milliseconds.
+        if(mGpsStatus.gnssAge != block->GNSSage)
         {
 //            qDebug() << t() << "SbfParser::processNextValidPacket(): GnssAge changed from" << mGpsStatus.gnssAge << "to" << block->GNSSage << "at TOW" << block->TOW;
 
-            emit message(
-                        block->GNSSage > 0 ? Information : Error,
-                        QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                        QString("No GNSS PVT for %1 seconds").arg(block->GNSSage));
+            if(block->GNSSage > 10)
+            {
+                emit message(
+                            block->GNSSage > 0 ? Information : Error,
+                            QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
+                            QString("No GNSS PVT for %1 seconds").arg(block->GNSSage));
+            }
 
             mGpsStatus.gnssAge = block->GNSSage;
         }
@@ -423,6 +427,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
 //            else
 //                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): pose from PVAAGeod not valid, heading ambiguity is not fixed.";
 
+            // This flag is useless, as non-integrated (the 4 steps between two integrated poses) are good enough for sensor fusion, too.
             if(block->Mode == 2) // integrated solution, not sensor-only or GNSS-only
                 precisionFlags |= Pose::ModeIntegrated;
 //            else

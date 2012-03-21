@@ -65,7 +65,7 @@ public:
                     || abs(gnssAge - b.gnssAge) > 6
                     || meanCorrAge > 30
                     || cpuLoad > 80
-                    || abs(cpuLoad - b.cpuLoad) > 1
+                    || abs(cpuLoad - b.cpuLoad) > 2
                     || fabs(covariances - b.covariances) > 0.1;
         }
 
