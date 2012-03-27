@@ -19,6 +19,16 @@ void Octree::setMinimumPointDistance(const float &distance)
     mMinimumPointDistance = distance;
 }
 
+void Octree::slotReset()
+{
+    mRootNode->clearPoints();
+    mNumberOfItems = 0;
+    mNumberOfNodes = 0;
+    mMri1 = 0;
+    mMri2 = 0;
+    mLastInsertionNode = 0;
+}
+
 Node* Octree::insertPoint(LidarPoint* const point)
 {
     while(!mRootNode->includesPoint(point->position))

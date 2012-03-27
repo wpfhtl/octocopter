@@ -2,8 +2,6 @@
 
 #define SQR(x) (x)*(x)
 
-
-
 Node::Node(Octree* tree, Node* parent, const QVector3D &min, const QVector3D &max) :
     mTree(tree),
     parent(parent),
@@ -21,11 +19,33 @@ Node::Node(Octree* tree, Node* parent, const QVector3D &min, const QVector3D &ma
 
 Node::~Node()
 {
-    mTree->mNumberOfItems -= data.size();
-    mTree->mNumberOfNodes--;
+    // We clear our structures, but we do NOT clear the data.
+    data.clear();
 
-    qDeleteAll(data);
+    // Make all subnodes do the same.
     qDeleteAll(children);
+    children.clear();
+
+    mTree->mNumberOfNodes--;
+}
+
+// This method should destruct the container, but keep the data
+void Node::clearPoints()
+{
+    if(isLeaf())
+    {
+        mTree->mNumberOfItems -= data.size();
+        qDeleteAll(data);
+        data.clear();
+    }
+    else
+    {
+        foreach(Node* const currentNode, children)
+            currentNode->clearPoints(); // first make it clear() its @data without deleteing the points...
+
+        qDeleteAll(children);
+        children.clear();
+    }
 }
 
 Node& Node::operator=(const Node &other)
@@ -69,6 +89,9 @@ inline bool Node::includesPoint(const QVector3D &point) const
             point.y() <= max.y() &&
             point.z() <= max.z();
 }
+
+
+
 
 bool Node::includesData(const LidarPoint &lidarPoint)
 {

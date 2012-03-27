@@ -8,7 +8,7 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     mTimerAnimation = new QTimer(this);
     connect(mTimerAnimation, SIGNAL(timeout()), SLOT(slotPlay()));
 
-    mSensorFuser = new SensorFuser(3);
+    mSensorFuser = new SensorFuser(6);
     //mSensorFuser->setMaximumFusableRayLength(20.0f);
     mSbfParser = new SbfParser(this);
 
@@ -28,6 +28,8 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     connect(ui->mSpinBoxLaserScannerPitch, SIGNAL(valueChanged(double)), SLOT(slotLaserScannerRelativePoseChanged()));
     connect(ui->mSpinBoxLaserScannerRoll, SIGNAL(valueChanged(double)), SLOT(slotLaserScannerRelativePoseChanged()));
 
+    connect(ui->mSliderFusionTimeOffset, SIGNAL(valueChanged(int)), SLOT(slotFusionTimeOffsetChanged(int)));
+
     // emit fused lidarpoints
     connect(mSensorFuser, SIGNAL(newScannedPoints(QVector<QVector3D>,QVector3D)), SIGNAL(scanData(QVector<QVector3D>,QVector3D)));
 
@@ -37,7 +39,7 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
 
     connect(mSbfParser, SIGNAL(newVehiclePose(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
     connect(mSbfParser, SIGNAL(newVehiclePose(Pose)), SIGNAL(vehiclePose(Pose)));
-    connect(mSbfParser, SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
+//    connect(mSbfParser, SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
 
     // Actually invoke slotLaserScannerRelativePoseChanged() AFTER our parent
     // has connected our signals, so the values are propagated to sensorfuser.
@@ -47,6 +49,12 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
 LogPlayer::~LogPlayer()
 {
     delete ui;
+}
+
+void LogPlayer::slotFusionTimeOffsetChanged(const int offset)
+{
+    ui->mLabelFusionTimeOffset->setText(QString::number(offset).append(" ms"));
+    mSensorFuser->slotSetTimeOffsetFromScanToPose(offset);
 }
 
 void LogPlayer::slotLaserScannerRelativePoseChanged()
@@ -146,7 +154,9 @@ bool LogPlayer::slotStepForward()
 {
     // Retrieve TOWs from scanner and gnss device to figure out who to process next
     qint32 towSbf;
-    if(!mSbfParser->getNextValidPacketInfo(mDataSbf, 0, &towSbf)) towSbf = -1;
+
+    if(!mSbfParser->getNextValidPacketInfo(mDataSbf, 0, &towSbf))
+        towSbf = -1;
 
     qint32 towLaser = getNextTowLaser();
 

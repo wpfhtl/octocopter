@@ -76,6 +76,8 @@ private slots:
     void slotImportCloud(void);
     void slotTogglePlot(void);
 
+    void slotClearOctree();
+
     // Send motion commands to rover WHILE button 1 is pressed
     void slotManageJoystick(quint8 button, bool pressed);
 

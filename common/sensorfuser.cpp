@@ -9,6 +9,7 @@ SensorFuser::SensorFuser(const quint8& stridePoint, const quint8& strideScan) : 
     mMaximumFusableRayLength = 200.0;
     mStatsFusedScans = 0;
     mStatsDiscardedScans = 0;
+    mTimeOffsetFromScanToPose = 0;
     mLastRayTime = -1000; // make sure first comparision fails
     mLastScanMiddleTow = 0;
     mMaximumTimeBetweenFusedPoseAndScanMsec = 81; // 2*poseInterval+1
@@ -142,11 +143,11 @@ void SensorFuser::cleanUnusableData()
     //qDebug() << "SensorFuser::cleanUnusableData(): after pose stamps:" << getTimeStamps(mPoses).join(",");
 }
 
-void SensorFuser::transformScanData()
+void SensorFuser::transformScanDataCubic()
 {
     // We have scan data from previous scans in mSavedScansTimestampGps and poses in mSavedPoses, lets work out the world coordinates.
-    //qDebug() << "SensorFuser::transformScanData(): gnss stamps:" << getTimeStamps(mScansTimestampGps).join(",");
-    //qDebug() << "SensorFuser::transformScanData(): pose stamps:" << getTimeStamps(mPoses).join(",");
+    //qDebug() << "SensorFuser::transformScanDataCubic(): gnss stamps:" << getTimeStamps(mScansTimestampGps).join(",");
+    //qDebug() << "SensorFuser::transformScanDataCubic(): pose stamps:" << getTimeStamps(mPoses).join(",");
 
     // Now lets look at every scan...
     QMutableMapIterator<qint32, std::vector<long>* > iteratorSavedScans(mScansTimestampGps);
@@ -164,7 +165,7 @@ void SensorFuser::transformScanData()
         }
 
         const qint32 timestampMiddleOfScan = iteratorSavedScans.key();
-        //qDebug() << "SensorFuser::transformScanData(): trying to fuse scan from" << timestampMiddleOfScan;
+        //qDebug() << "SensorFuser::transformScanDataCubic(): trying to fuse scan from" << timestampMiddleOfScan;
 
         // Find Poses needed to fuse this scan. Scans are stored with the times their ray was in front, so for cubic
         // interpolation, we need two poses before and two poses after each *ray*. Hence, we need two poses before
@@ -176,16 +177,16 @@ void SensorFuser::transformScanData()
         QList<Pose*> posesForThisScan;
         for(int j = 0; j < mPoses.size(); ++j)
         {
-            //            //qDebug() << "SensorFuser::transformScanData(): timediff between gpsscan" << timestampMiddleOfScan << "and pose" << j << "is" << abs(timestampMiddleOfScan - mPoses.at(j).timestamp);
+            //            //qDebug() << "SensorFuser::transformScanDataCubic(): timediff between gpsscan" << timestampMiddleOfScan << "and pose" << j << "is" << abs(timestampMiddleOfScan - mPoses.at(j).timestamp);
             if(abs(timestampMiddleOfScan - mPoses.at(j).timestamp) < mMaximumTimeBetweenFusedPoseAndScanMsec + 12)
             {
-                //                //qDebug() << "SensorFuser::transformScanData(): using pose from" << mPoses[j].timestamp << "for scan from" << timestampMiddleOfScan;
+                //                //qDebug() << "SensorFuser::transformScanDataCubic(): using pose from" << mPoses[j].timestamp << "for scan from" << timestampMiddleOfScan;
                 posesForThisScan.append(&mPoses[j]);
             }
             // Quit looking for newer poses if we're already looking at poses much newer (bigger timestamp) than this scan.
             else if(mPoses.at(j).timestamp - mMaximumTimeBetweenFusedPoseAndScanMsec - 12 > timestampMiddleOfScan)
             {
-                //                qDebug() << "SensorFuser::transformScanData(): current pose" << j << "of" << mPoses.size() << "from" << mPoses[j].timestamp << "has much bigger timestamp than scan from" << timestampMiddleOfScan << "-> stopping search.";
+                //                qDebug() << "SensorFuser::transformScanDataCubic(): current pose" << j << "of" << mPoses.size() << "from" << mPoses[j].timestamp << "has much bigger timestamp than scan from" << timestampMiddleOfScan << "-> stopping search.";
                 break;
             }
 
@@ -196,7 +197,7 @@ void SensorFuser::transformScanData()
         // For debugging, show which poses could be found:
         //QStringList poseTimes;
         //for(int i=0;i<posesForThisScan.size();i++) poseTimes << QString::number((uint)posesForThisScan.at(i)->timestamp);
-        //qDebug() << "SensorFuser::transformScanData(): for scan from" << timestampMiddleOfScan << "we have" << posesForThisScan.size() << "poses from" << poseTimes.join(",");
+        //qDebug() << "SensorFuser::transformScanDataCubic(): for scan from" << timestampMiddleOfScan << "we have" << posesForThisScan.size() << "poses from" << poseTimes.join(",");
 
         // We found enough poses if we found at least 4 poses and:
         //  - The second-to-last pose if after rayEnd
@@ -205,7 +206,7 @@ void SensorFuser::transformScanData()
         if(posesForThisScan.size() >= 4 && posesForThisScan.at(1)->timestamp < rayStart && posesForThisScan.at(posesForThisScan.size()-2)->timestamp > rayEnd)
         {
             std::vector<long>* scanDistances = iteratorSavedScans.value();
-//            qDebug() << "SensorFuser::transformScanData(): these" << posesForThisScan.size() << "poses are enough, fusing" << scanDistances->size() << "rays";
+//            qDebug() << "SensorFuser::transformScanDataCubic(): these" << posesForThisScan.size() << "poses are enough, fusing" << scanDistances->size() << "rays";
 
             mStatsFusedScans++;
 
@@ -233,7 +234,7 @@ void SensorFuser::transformScanData()
                 // For debugging, show which poses could be found:
                 //                QStringList poseTimes;
                 //                for(int i=0;i<posesForThisScan.size();i++) poseTimes << QString::number((uint)posesForThisScan.at(i)->timestamp);
-                //                //qDebug() << "SensorFuser::transformScanData(): scanmiddle at" << timestampMiddleOfScan << "ray-index is" << index << "raytime is" << timeOfCurrentRay<< "posetimes:" << poseTimes.join(",");
+                //                //qDebug() << "SensorFuser::transformScanDataCubic(): scanmiddle at" << timestampMiddleOfScan << "ray-index is" << index << "raytime is" << timeOfCurrentRay<< "posetimes:" << poseTimes.join(",");
 
                 // Many consecutive rays share the same millisecond, so we only need to interpolate a new pose if
                 // that ray's millisecond has changed. Pose::interpolateCubic() seems runtime-cheap anyway.
@@ -272,7 +273,7 @@ void SensorFuser::transformScanData()
 
                                 */
                     }
-                    //                    //qDebug() << "SensorFuser::transformScanData(): interpolated pose to be used:" << mLastInterpolatedPose;
+                    //                    //qDebug() << "SensorFuser::transformScanDataCubic(): interpolated pose to be used:" << mLastInterpolatedPose;
                 }
 
 
@@ -295,7 +296,7 @@ void SensorFuser::transformScanData()
             // Make sure that the last pose is not much later than this scan. If it is, we must have missed a pose for this scan, meaning we can delete it.
             if(false && mPoses.last().timestamp - timestampMiddleOfScan > mMaximumTimeBetweenFusedPoseAndScanMsec + 10)
             {
-//                qDebug() << "SensorFuser::transformScanData(): deleting scan data with gps timestamp" << timestampMiddleOfScan << "because the latest pose is MUCH later at" << mPoses.last().timestamp << "- so no new poses helping this scan.";
+//                qDebug() << "SensorFuser::transformScanDataCubic(): deleting scan data with gps timestamp" << timestampMiddleOfScan << "because the latest pose is MUCH later at" << mPoses.last().timestamp << "- so no new poses helping this scan.";
                 mStatsDiscardedScans++;
 
                 delete iteratorSavedScans.value();
@@ -307,21 +308,210 @@ void SensorFuser::transformScanData()
                      && posesForThisScan.at(posesForThisScan.size()-2)->timestamp > timestampMiddleOfScan + 10)
             {
                 // We can also delete scans if there's at least ONE pose AFTER them but not enough poses BEFORE them, because there will not be older poses coming in.
-//                qDebug() << "SensorFuser::transformScanData(): deleting scan data with gps timestamp" << timestampMiddleOfScan << " - 2 poses after scan are present, failure must be missing pre-poses. Unfixable.";
-//                qDebug() << "SensorFuser::transformScanData(): poses:" << getTimeStamps(mPoses);
+//                qDebug() << "SensorFuser::transformScanDataCubic(): deleting scan data with gps timestamp" << timestampMiddleOfScan << " - 2 poses after scan are present, failure must be missing pre-poses. Unfixable.";
+//                qDebug() << "SensorFuser::transformScanDataCubic(): poses:" << getTimeStamps(mPoses);
                 mStatsDiscardedScans++;
                 delete iteratorSavedScans.value();
                 iteratorSavedScans.remove();
             }
             else
             {
-                //qDebug() << "SensorFuser::transformScanData(): not enough poses, will try later because latest pose is not THAT old, there might be newer poses helping us.";
+                //qDebug() << "SensorFuser::transformScanDataCubic(): not enough poses, will try later because latest pose is not THAT old, there might be newer poses helping us.";
             }
         }
     }
 
-    //qDebug() << "SensorFuser::transformScanData(): after processing all data, there's" << mScansTimestampGps.size() << "scans and" << mPoses.size() << "poses left.";
+    //qDebug() << "SensorFuser::transformScanDataCubic(): after processing all data, there's" << mScansTimestampGps.size() << "scans and" << mPoses.size() << "poses left.";
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+void SensorFuser::transformScanDataNearestNeighbor()
+{
+    // We have scan data from previous scans in mSavedScansTimestampGps and poses in mSavedPoses, lets work out the world coordinates.
+    //qDebug() << "SensorFuser::transformScanDataNearestNeighbor(): gnss stamps:" << getTimeStamps(mScansTimestampGps).join(",");
+    //qDebug() << "SensorFuser::transformScanDataNearestNeighbor(): pose stamps:" << getTimeStamps(mPoses).join(",");
+
+    // Now lets look at every scan...
+    QMutableMapIterator<qint32, std::vector<long>* > iteratorSavedScans(mScansTimestampGps);
+    //    QMap<qint32, std::vector<long>* >::iterator iteratorSavedScans = mScansTimestampGps.begin();
+    while(iteratorSavedScans.hasNext())
+    {
+        // Advance the iterator to the next item.
+        iteratorSavedScans.next();
+
+        // mSavedScansTimestampGps can still contain scans with empty values (pointer is 0) because they
+        // weren't populated with matched scans-with-laserscanner-timestamps. Don't try to process those.
+        if(iteratorSavedScans.value() == 0)
+        {
+            continue;
+        }
+
+        const qint32 timestampMiddleOfScan = iteratorSavedScans.key();
+        //qDebug() << "SensorFuser::transformScanDataNearestNeighbor(): trying to fuse scan from" << timestampMiddleOfScan;
+
+        // Find the pose closest (timewise) to this scan.
+        Pose* poseForThisScan = 0;
+        qint16 smallestTimeDifferenceSoFar = 999;
+        for(int j = 0; j < mPoses.size(); ++j)
+        {
+            const qint16 timeDifferenceOfThisPose = abs(timestampMiddleOfScan - mPoses[j].timestamp);
+            if(timeDifferenceOfThisPose + mTimeOffsetFromScanToPose < 11)
+            {
+                if(timeDifferenceOfThisPose + mTimeOffsetFromScanToPose < smallestTimeDifferenceSoFar)
+                    poseForThisScan = &mPoses[j];
+
+                smallestTimeDifferenceSoFar = timeDifferenceOfThisPose;
+            }
+
+            // Quit looking for newer poses if we're already looking at poses much newer (bigger timestamp) than this scan.
+            else if(timeDifferenceOfThisPose > smallestTimeDifferenceSoFar)
+            {
+                //                qDebug() << "SensorFuser::transformScanDataNearestNeighbor(): current pose" << j << "of" << mPoses.size() << "from" << mPoses[j].timestamp << "has much bigger timestamp than scan from" << timestampMiddleOfScan << "-> stopping search.";
+                break;
+            }
+        }
+
+        // For debugging, show which poses could be found:
+        //QStringList poseTimes;
+        //for(int i=0;i<posesForThisScan.size();i++) poseTimes << QString::number((uint)posesForThisScan.at(i)->timestamp);
+        //qDebug() << "SensorFuser::transformScanDataNearestNeighbor(): for scan from" << timestampMiddleOfScan << "we have" << posesForThisScan.size() << "poses from" << poseTimes.join(",");
+
+        // We found enough poses if we found at least 4 poses and:
+        //  - The second-to-last pose if after rayEnd
+        //  AND
+        //  - The second pose is before rayStart
+        if(poseForThisScan)
+        {
+            std::vector<long>* scanDistances = iteratorSavedScans.value();
+            qDebug() << "SensorFuser::transformScanDataNearestNeighbor(): using pose from" << poseForThisScan->timestamp << "to fuse scan from" << timestampMiddleOfScan << ": difference is" << poseForThisScan->timestamp - timestampMiddleOfScan;
+
+            mStatsFusedScans++;
+
+            QVector<QVector3D> scannedPoints; // Do not reserve full length, will be less poins due to reflections on the vehicle being filtered
+            scannedPoints.reserve(800);
+
+            for(int index=0; index < scanDistances->size(); index++)
+            {
+                // Only process every mStridePoint'th point
+                if(index % mStridePoint != 0) continue;
+
+                // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
+                if((*scanDistances)[index] < 500 || (*scanDistances)[index] > mMaximumFusableRayLength * 1000) continue;
+
+                // Convert millimeters to meters.
+                const float distance = (*scanDistances)[index] / 1000.0f;
+
+                // For debugging, show which poses could be found:
+                //                QStringList poseTimes;
+                //                for(int i=0;i<posesForThisScan.size();i++) poseTimes << QString::number((uint)posesForThisScan.at(i)->timestamp);
+                //                //qDebug() << "SensorFuser::transformScanDataNearestNeighbor(): scanmiddle at" << timestampMiddleOfScan << "ray-index is" << index << "raytime is" << timeOfCurrentRay<< "posetimes:" << poseTimes.join(",");
+
+                scannedPoints.append(getWorldPositionOfScannedPoint(*poseForThisScan, index, distance));
+
+                mPointCloudSize++;
+            }
+
+            emit newScannedPoints(scannedPoints, poseForThisScan->position);
+
+            // This scan has been processed. Delete it.
+            delete iteratorSavedScans.value();
+            iteratorSavedScans.remove();
+        }
+        else
+        {
+            // We could NOT find enough poses for this scan. This may only happen if this scan is so new that the next poses required for interpolation haven't yet arrived.
+            // Make sure that the last pose is not much later than this scan. If it is, we must have missed a pose for this scan, meaning we can delete it.
+            if(false && mPoses.last().timestamp - timestampMiddleOfScan > mMaximumTimeBetweenFusedPoseAndScanMsec + 10)
+            {
+//                qDebug() << "SensorFuser::transformScanDataNearestNeighbor(): deleting scan data with gps timestamp" << timestampMiddleOfScan << "because the latest pose is MUCH later at" << mPoses.last().timestamp << "- so no new poses helping this scan.";
+                mStatsDiscardedScans++;
+
+                delete iteratorSavedScans.value();
+                iteratorSavedScans.remove();
+            }
+/*            else if( // scantime is in middle of scan, rays are collected 10ms before and after this moment
+                     poseForThisScan.size() >= 2
+                     && poseForThisScan.last()->timestamp > timestampMiddleOfScan + 10
+                     && poseForThisScan.at(poseForThisScan.size()-2)->timestamp > timestampMiddleOfScan + 10)
+            {
+                // We can also delete scans if there's at least ONE pose AFTER them but not enough poses BEFORE them, because there will not be older poses coming in.
+//                qDebug() << "SensorFuser::transformScanDataNearestNeighbor(): deleting scan data with gps timestamp" << timestampMiddleOfScan << " - 2 poses after scan are present, failure must be missing pre-poses. Unfixable.";
+//                qDebug() << "SensorFuser::transformScanDataNearestNeighbor(): poses:" << getTimeStamps(mPoses);
+                mStatsDiscardedScans++;
+                delete iteratorSavedScans.value();
+                iteratorSavedScans.remove();
+            }*/
+            else
+            {
+                //qDebug() << "SensorFuser::transformScanDataNearestNeighbor(): not enough poses, will try later because latest pose is not THAT old, there might be newer poses helping us.";
+            }
+        }
+    }
+
+    //qDebug() << "SensorFuser::transformScanDataNearestNeighbor(): after processing all data, there's" << mScansTimestampGps.size() << "scans and" << mPoses.size() << "poses left.";
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 qint8 SensorFuser::matchTimestamps()
 {
@@ -375,7 +565,7 @@ qint8 SensorFuser::matchTimestamps()
                 // fill gps scanlist
                 mScansTimestampGps[timestampGps] = mScansTimestampScanner.value(bestFittingScannerTime);
 
-                // remove used entry form scanner scanlist, but don't delete the scandata, it lives on in mSavedScansTimestampGps and is delete()d in transformScanData().
+                // remove used entry form scanner scanlist, but don't delete the scandata, it lives on in mSavedScansTimestampGps and is delete()d in transformScanDataCubic().
                 mScansTimestampScanner.remove(bestFittingScannerTime);
 
                 scansMatched++;
@@ -434,7 +624,7 @@ void SensorFuser::slotNewVehiclePose(const Pose& pose)
 
     // Fuse pose and scans if it was possible to correct at least one lasertimestamp with a gps timestamp
     if(matchTimestamps())
-        transformScanData();
+        transformScanDataNearestNeighbor();
 
 }
 
@@ -515,7 +705,7 @@ void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, std::vecto
 //    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
 
     // We need this only when the Event-Pins don't work, so we create our own fake events
-    //slotScanFinished(timestampScanScanner);
+    slotScanFinished(timestampScanScanner);
 
     // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
     if(!mPoses.size() || mPoses.last().timestamp < (timestampScanScanner - mMaximumTimeBetweenFusedPoseAndScanMsec - 13))

@@ -81,6 +81,9 @@ public:
 
     void handlePoints() const;
 
+public slots:
+    void slotReset();
+
 signals:
     void pointInserted(const LidarPoint*);
 };

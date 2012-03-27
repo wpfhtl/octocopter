@@ -21,14 +21,15 @@ SbfParser::~SbfParser()
 bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offset, qint32* tow)
 {
     // We try to stay as close as possible to Septentrio's SBF reference guide pg. 13/14.
-    Sbf_Header *sbfHeader;
+//    Sbf_Header *sbfHeader;
+    Sbf_PVTCartesian *block;
     qint32 offsetToValidPacket = -2; // Set to -2, as we start searching from (offsetToValidPacket + sizeof(header.sync)), yielding a first try from 0.
     quint16 calculatedCrc;
 
     forever
     {
         // Look for a Sync-field ("$@") in the data, but start one byte after where we found a field the last time
-        offsetToValidPacket = sbfData.indexOf("$@", (offsetToValidPacket + sizeof(sbfHeader->Sync)));
+        offsetToValidPacket = sbfData.indexOf("$@", (offsetToValidPacket + sizeof(block->Header.Sync)));
 
         // If the sync field "$@" was not found at all, no valid packet can be present. Quit.
         if(offsetToValidPacket < 0) return false;
@@ -36,37 +37,40 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offse
         // Make sure that we have at least 8 bytes (the header size) to read (including the sync field)
         if(sbfData.size() < offsetToValidPacket + sizeof(Sbf_Header)) return false;
 
-        sbfHeader = (Sbf_Header*)(sbfData.data() + offsetToValidPacket);
+//        sbfHeader = (Sbf_Header*)(sbfData.data() + offsetToValidPacket);
+        block = (Sbf_PVTCartesian*)(sbfData.data() + offsetToValidPacket);
 
         // If sbfData doesn't hold enough bytes for an SBF block with the specified Length, it can have two reasons:
         //  a) the packet isn't received completely yet
         //  b) the packet's header->Length is corrupt
         // If it was a), we could return false, but we cannot be sure its not b), as we haven't checksummed yet. Thus,
         // instead of returning false, we need to look for further packets to guarantee working even in condition b)
-        if(sbfHeader->Length > sbfData.size() - offsetToValidPacket) continue;
+        if(block->Header.Length > sbfData.size() - offsetToValidPacket) continue;
 
         // If the length is not a multiple of 4, its not a valid packet. Continue searching for another packet
-        if(sbfHeader->Length % 4 != 0) continue;
+        if(block->Header.Length % 4 != 0) continue;
+
+        // If the packet has a TOW DO-NOT-USE, skip it
+        if(block->TOW == 4294967295) continue;
 
         // Calculate the packet's checksum. For corrupt packets, the Length field might be random, so we bound
         // the bytes-to-be-checksummed to be between 0 and the buffer's remaining bytes after Sync and Crc fields.
         calculatedCrc = computeChecksum(
-                    (void*)(sbfData.data() + offsetToValidPacket + sizeof(sbfHeader->Sync) + sizeof(sbfHeader->CRC)),
+                    (void*)(sbfData.data() + offsetToValidPacket + sizeof(block->Header.Sync) + sizeof(block->Header.CRC)),
                     qBound(
                         (qint32)0,
-                        (qint32)(sbfHeader->Length - sizeof(sbfHeader->Sync) - sizeof(sbfHeader->CRC)),
-                        (qint32)(sbfData.size() - offsetToValidPacket - sizeof(sbfHeader->Sync) - sizeof(sbfHeader->CRC))
+                        (qint32)(block->Header.Length - sizeof(block->Header.Sync) - sizeof(block->Header.CRC)),
+                        (qint32)(sbfData.size() - offsetToValidPacket - sizeof(block->Header.Sync) - sizeof(block->Header.CRC))
                         )
                     );
 
         // Quit searching if we found a valid packet.
-        if(sbfHeader->CRC == calculatedCrc) break;
+        if(block->Header.CRC == calculatedCrc) break;
     }
 
     // If we're here, we have a valid SBF packet starting at offsetToValidPacket
     if(offset) *offset = offsetToValidPacket;
 
-    const Sbf_PVTCartesian *block = (Sbf_PVTCartesian*)(sbfData.data()+offsetToValidPacket);
     if(tow) *tow = block->TOW;
 
     return true;
@@ -433,7 +437,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
 //            else
 //                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, not integrated solution, but" << GpsStatusInformation::getIntegrationMode(block->Mode);
 
-            if((block->GNSSPVTMode & 15) == 4) // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().
+            if((block->GNSSPVTMode & 15) == 4 || (block->GNSSPVTMode & 15) == 5 /*TAKE ME AWAY!*/) // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().
                 precisionFlags |= Pose::RtkFixed;
 //            else
 //                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, GnssPvtMode is" << GpsStatusInformation::getGnssMode(block->GNSSPVTMode) << "corrAge:" << mGpsStatus.meanCorrAge << "sec";

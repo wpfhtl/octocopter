@@ -79,6 +79,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     menuBar()->addAction("Save Cloud", this, SLOT(slotExportCloud()));
     menuBar()->addAction("Load Cloud", this, SLOT(slotImportCloud()));
+    menuBar()->addAction("Clear Cloud", this, SLOT(slotClearOctree()));
 
     connect(mGlWidget, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
     connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWidget, SLOT(slotUpdateView()));
@@ -340,3 +341,8 @@ void BaseStation::slotAddLogFileMarkForPaper(QList<WayPoint> wptList)
     out << "# Generated" << wptList.size() << "waypoints\n";
 }
 
+void BaseStation::slotClearOctree()
+{
+    mOctree->slotReset();
+    mGlWidget->update();
+}

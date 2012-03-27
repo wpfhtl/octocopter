@@ -45,6 +45,7 @@ private:
 
 private slots:
     void slotLaserScannerRelativePoseChanged();
+    void slotFusionTimeOffsetChanged(const int offset);
 
     bool slotOpenLogFiles();
     bool slotStepForward();

@@ -4,10 +4,10 @@
  * This is the receiver's bootup-config concerning I/O:
  * > $R: gdio
  * >   DataInOut, DSK1, CMD, SBF+NMEA, (off)
- * >   DataInOut, COM1, MTI, none, (on)
- * >   DataInOut, COM2, CMD, none, (on)
- * >   DataInOut, COM3, RTCMv3, NMEA, (on)
- * >   DataInOut, COM4, CMD, none, (on)
+ * >   DataInOut, COM1 RS232, MTI, none, (on)
+ * >   DataInOut, COM2 RS232, CMD, none, (on)
+ * >   DataInOut, COM3 TTL, RTCMv3, NMEA, (on)
+ * >   DataInOut, COM4 TTL, CMD, none, (on)
  * >   DataInOut, USB1, CMD, SBF+NMEA, (on)
  * >   DataInOut, USB2, CMD, SBF+NMEA, (off)
  *
@@ -306,7 +306,7 @@ void GpsDevice::slotCommunicationSetup()
     // (vehicle reference frame has X forward, Y right and Z down)
     // IMU is 2cm in front, 10cm to the right and 20cm below ARP. Max precision is 1 cm.
     // Specifying orientation is not so easy (=fucking mess, Firmware User manual pg. 41)
-    slotQueueCommand("setExtSensorCalibration,COM1,manual,180,0,0,manual,0.02,-0.10,-0.20");
+    slotQueueCommand("setExtSensorCalibration,COM1,manual,180,0,0,manual,0.02,-0.10,-0.19");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
     //slotQueueCommand("setEventParameters,EventA,High2Low"); // Hokuyo
@@ -347,7 +347,6 @@ void GpsDevice::slotCommunicationSetup()
 
     // We want to know the pose 25 times a second
     slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec20");
-
 
     slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",ExtSensorMeas,msec20"); // septentrio wants msec20, but that kills the cpu
 

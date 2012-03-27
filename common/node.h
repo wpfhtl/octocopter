@@ -58,6 +58,9 @@ public:
     // delete the point at this position
     bool deletePoint(const LidarPoint &lidarPoint);
 
+    // delete all subnodes and all points
+    void clearPoints();
+
     // Returns this Node's size
     QVector3D size(void) const;
 
