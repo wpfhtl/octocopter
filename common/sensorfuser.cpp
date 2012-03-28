@@ -395,29 +395,67 @@ void SensorFuser::transformScanDataNearestNeighbor()
         {
             std::vector<long>* scanDistances = iteratorSavedScans.value();
             qDebug() << "SensorFuser::transformScanDataNearestNeighbor(): using pose from" << poseForThisScan->timestamp << "to fuse scan from" << timestampMiddleOfScan << ": difference is" << poseForThisScan->timestamp - timestampMiddleOfScan;
+            qDebug() << "SensorFuser::transformScanDataNearestNeighbor(): using" << *poseForThisScan;
 
             mStatsFusedScans++;
 
             QVector<QVector3D> scannedPoints; // Do not reserve full length, will be less poins due to reflections on the vehicle being filtered
             scannedPoints.reserve(800);
 
-            for(int index=0; index < scanDistances->size(); index++)
+            QMatrix4x4 scannerOrientation;
+
+            scannerOrientation.translate(poseForThisScan->position);
+
+            scannerOrientation.rotate(
+                        poseForThisScan->getYawDegrees(),
+                        QVector3D(0,1,0)
+                        );
+
+            scannerOrientation.rotate(
+                        poseForThisScan->getPitchDegrees(),
+                        QVector3D(1,0,0)
+                        );
+
+            // The more we pitch, the more our roll should happen on the yaw axis. Whee.
+            scannerOrientation.rotate(
+                        -poseForThisScan->getRollDegrees(),
+                        QVector3D(
+                            0,
+                            1,//cos(scannerPose.getPitchRadians()),
+                            0)//sin(scannerPose.getPitchRadians())
+                        );
+
+            for(int indexRay=0; indexRay < scanDistances->size(); indexRay++)
             {
                 // Only process every mStridePoint'th point
-                if(index % mStridePoint != 0) continue;
+                if(indexRay % mStridePoint != 0) continue;
 
                 // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
-                if((*scanDistances)[index] < 500 || (*scanDistances)[index] > mMaximumFusableRayLength * 1000) continue;
+                if((*scanDistances)[indexRay] < 500 || (*scanDistances)[indexRay] > mMaximumFusableRayLength * 1000) continue;
 
                 // Convert millimeters to meters.
-                const float distance = (*scanDistances)[index] / 1000.0f;
+                const float distance = (*scanDistances)[indexRay] / 1000.0f;
 
                 // For debugging, show which poses could be found:
                 //                QStringList poseTimes;
                 //                for(int i=0;i<posesForThisScan.size();i++) poseTimes << QString::number((uint)posesForThisScan.at(i)->timestamp);
                 //                //qDebug() << "SensorFuser::transformScanDataNearestNeighbor(): scanmiddle at" << timestampMiddleOfScan << "ray-index is" << index << "raytime is" << timeOfCurrentRay<< "posetimes:" << poseTimes.join(",");
 
-                scannedPoints.append(getWorldPositionOfScannedPoint(*poseForThisScan, index, distance));
+
+
+                // Version using QMatrix4x4
+                const QVector3D vectorScannerToPoint(
+                            sin(-0.0043633231299858238686f * (indexRay - 540)) * distance,  // X in meters
+                            0.0,                                                                // Y always 0
+                            -cos(0.0043633231299858238686f * (indexRay - 540)) * distance); // Z in meters
+
+                if(indexRay == 540 || indexRay == 180 || indexRay == 900)
+                {
+                    qDebug() << "getWorldPositionOfScannedPoint(): index"<< indexRay << "- straight front, distance" << distance << "vectorScannerToPoint" << vectorScannerToPoint;
+                    qDebug() << "getWorldPositionOfScannedPoint(): roll in deg is" << poseForThisScan->getRollDegrees();
+                }
+
+                scannedPoints.append(scannerOrientation.map(vectorScannerToPoint));
 
                 mPointCloudSize++;
             }
@@ -720,4 +758,77 @@ void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, std::vecto
     mNewestDataTime = std::max(mNewestDataTime, timestampScanScanner);
 
     cleanUnusableData();
+}
+
+// This belongs to laserscanner, but we don't want to introduce a laserscanner-dependency into basestation
+QVector3D SensorFuser::getWorldPositionOfScannedPoint(const Pose& scannerPose, const quint16& scannerIndex, const float& distance)
+{
+    // Version using QMatrix4x4
+    const QVector3D vectorScannerToPoint(
+                sin(-0.0043633231299858238686f * (scannerIndex - 540)) * distance,  // X in meters
+                0.0,                                                                // Y always 0
+                -cos(0.0043633231299858238686f * (scannerIndex - 540)) * distance); // Z in meters
+
+    if(scannerIndex == 540 || scannerIndex == 180 || scannerIndex == 900)
+        qDebug() << "getWorldPositionOfScannedPoint(): index"<< scannerIndex << "- straight front, distance" << distance << "vectorScannerToPoint" << vectorScannerToPoint;
+
+    QMatrix4x4 scannerOrientation;
+
+    scannerOrientation.rotate(scannerPose.getYawDegrees(), QVector3D(0,1,0));
+
+    scannerOrientation.rotate(scannerPose.getPitchDegrees(), QVector3D(1,0,0));
+
+    // The more we pitch, the more our roll should happen on the yaw axis. Whee.
+    scannerOrientation.rotate(
+                -scannerPose.getRollDegrees(),
+                QVector3D(
+                    0,
+                    1,//cos(scannerPose.getPitchRadians()),
+                    0)//sin(scannerPose.getPitchRadians())
+                );
+
+    if(scannerIndex == 540)
+        qDebug() << "getWorldPositionOfScannedPoint(): roll in deg is" << scannerPose.getRollDegrees();
+
+    //return scannerPose.position + scannerOrientation.map(vectorScannerToPoint);
+    return scannerPose.position + scannerOrientation.mapVector(vectorScannerToPoint);
+    return scannerPose.position + (scannerOrientation * vectorScannerToPoint);
+/*
+    // This is short, but uses getOrientation(), which is expensive.
+    return QVector3D(
+                scannerPose.position
+                + scannerPose.getOrientation().rotatedVector(
+                    QVector3D(
+                        sin(-0.0043633231299858238686f * (scannerIndex - 540)) * distance,  // X in meters
+                        0.0,                                                                // Y always 0
+                        -cos(-0.0043633231299858238686f * (scannerIndex - 540)) * distance   // Z in meters
+                        )
+                    )
+                );
+*/
+
+
+
+    /* Elaborate version, slightly slower?!
+
+    // Determine vector from LaserScanner to scanned point, using the normal OpenGl coordinate system as seen from scanner,
+    // +x is right, -x is left, y is always 0, +z is back, -z is front,
+    // We could use the UrgCtrl::index2rad(), but this seems a bit more optimized
+    const QVector3D vectorScannerToPoint(
+                sin(-index2rad(scannerIndex)) * distance,  // X in meters
+                0.0,                                                // Y always 0
+                -cos(-index2rad(scannerIndex)) * distance); // Z in meters
+
+    // Or, even more optimized, as we cannot rely on gcc actually inlining what it marked as inline
+
+
+    // Create a scanpoint
+    const QVector3D scannedPoint(scannerPose.position + scannerPose.getOrientation().rotatedVector(vectorScannerToPoint));
+
+//    qDebug() << "LaserScanner::getWorldPositionOfScannedPoint(): interpolated scanner pose is" << scannerPose;
+//    qDebug() << "LaserScanner::getWorldPositionOfScannedPoint(): distance is" << distance << "and index" << scannerIndex << "=>" << mScanner.index2deg(scannerIndex) << "degrees";
+//    qDebug() << "LaserScanner::getWorldPositionOfScannedPoint(): scanner to point in scanner frame is" << vectorScannerToPoint;
+//    qDebug() << "LaserScanner::getWorldPositionOfScannedPoint(): point position   in world   frame is" << scannedPoint;
+
+    return scannedPoint; */
 }

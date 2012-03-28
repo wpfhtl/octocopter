@@ -188,15 +188,40 @@ QVector2D Pose::getPlanarDirection() const
 // No idea whether the order of orientation is correct
 const QQuaternion Pose::getOrientation() const
 {
+    // FIXME: This is buggy! It was used for buggy laserscanner-fusion, too.
     return
             QQuaternion::fromAxisAndAngle(QVector3D(0,1,0), getYawDegrees())
             * QQuaternion::fromAxisAndAngle(QVector3D(1,0,0), getPitchDegrees())
             * QQuaternion::fromAxisAndAngle(QVector3D(0,0,1), getRollDegrees());
 }
+/*
+QMatrix4x4 Pose::getMatrix()
+{
+    QMatrix4x4 matrix;
+    matrix.translate(position);
+
+    matrix.rotate(getOrientation());
+
+
+    matrix.rotate(getYawDegrees(), QVector3D(0,1,0));
+
+    matrix.rotate(getPitchDegrees(), QVector3D(1,0,0));
+
+    // The more we pitch, the more our roll should happen on the yaw axis. Whee.
+    matrix.rotate(
+                getRollDegrees(),
+                QVector3D(
+                    0,
+                    1,//cos(scannerPose.getPitchRadians()),
+                    0)//sin(scannerPose.getPitchRadians())
+                );
+}*/
 
 Pose Pose::operator+(const Pose &p) const
 {
-    // The following two should be the same
+
+
+
     Pose a(
                 position + getOrientation().rotatedVector(p.position),
                 RAD2DEG(mYaw + p.getYawRadians()),
@@ -206,7 +231,7 @@ Pose Pose::operator+(const Pose &p) const
                 std::max(timestamp,p.timestamp)
                 );
 
-    a.covariances = (covariances + p.covariances) / 2.0f;
+    a.covariances = std::max(covariances, p.covariances);
     a.precision = precision & p.precision;
 
     return a;

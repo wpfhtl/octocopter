@@ -41,17 +41,19 @@ private:
     QByteArray getNextPacketLaser();
     // Returns the TOW of the next Laser-Packet/Line, or -1 when there's no more packet available.
     qint32 getNextTowLaser();
+    qint32 getLastTowLaser();
     void processLaserData(const QByteArray& packetLaser);
 
 private slots:
     void slotLaserScannerRelativePoseChanged();
     void slotFusionTimeOffsetChanged(const int offset);
+    void slotNewSbfTime(QByteArray,qint32 tow);
 
     bool slotOpenLogFiles();
     bool slotStepForward();
     void slotRewind();
     void slotPlay();
-    void slotPause();
+//    void slotPause();
 
 signals:
     void message(const LogImportance& importance, const QString& source, const QString& message);

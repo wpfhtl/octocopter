@@ -108,17 +108,17 @@ void ControlWidget::slotFlightStateChanged(FlightState fs)
 
 void ControlWidget::slotUpdatePose(const Pose &pose)
 {
-    mLabelPoseOgreX->setText(QString("%1").arg(pose.position.x(), 4, 'f', 2, '0'));
-    mLabelPoseOgreY->setText(QString("%1").arg(pose.position.y(), 4, 'f', 2, '0'));
-    mLabelPoseOgreZ->setText(QString("%1").arg(pose.position.z(), 4, 'f', 2, '0'));
+    mLabelPoseOgreX->setText(QString("%1").arg(pose.position.x(), 4, 'f', 3, '0'));
+    mLabelPoseOgreY->setText(QString("%1").arg(pose.position.y(), 4, 'f', 3, '0'));
+    mLabelPoseOgreZ->setText(QString("%1").arg(pose.position.z(), 4, 'f', 3, '0'));
 
     QString deg;
     deg.sprintf("%c", 176);
     deg.prepend("%1");
 
-    mLabelPitch->setText(deg.arg((int)pose.getPitchDegrees(), 3, 10, QLatin1Char('0')));
-    mLabelRoll->setText(deg.arg((int)pose.getRollDegrees(), 3, 10, QLatin1Char('0')));
-    mLabelYaw->setText(deg.arg((int)pose.getYawDegrees(), 3, 10, QLatin1Char('0')));
+    mLabelPitch->setText(deg.arg(pose.getPitchDegrees(), 3, 'f', 2, '0'));
+    mLabelRoll->setText(deg.arg(pose.getRollDegrees(), 3, 'f', 2, '0'));
+    mLabelYaw->setText(deg.arg(pose.getYawDegrees(), 3, 'f', 2, '0'));
 
     mCompass->setValue(pose.getYawDegrees()+180);
 }

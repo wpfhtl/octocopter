@@ -38,7 +38,7 @@ GpsDevice::GpsDevice(const QString &serialDeviceFileUsb, const QString &serialDe
     // We first feed SBF data to SbfParser, then we get it back from it via the signal below. A little complicated,
     // but the alternative is to watch two ports for incoming SBF, which might lead to mixing of SBF in between
     // packets.
-    connect(mSbfParser, SIGNAL(processedPacket(QByteArray)), SLOT(slotLogProcessedSbfPacket(QByteArray)));
+    connect(mSbfParser, SIGNAL(processedPacket(QByteArray, qint32)), SLOT(slotLogProcessedSbfPacket(QByteArray, qint32)));
 
     mDeviceIsInitialized = false;
 
@@ -153,7 +153,7 @@ quint8 GpsDevice::slotFlushCommandQueue()
     return mCommandQueueUsb.size();
 }
 
-void GpsDevice::slotLogProcessedSbfPacket(const QByteArray& sbfPacket)
+void GpsDevice::slotLogProcessedSbfPacket(const QByteArray& sbfPacket, const qint32&)
 {
     // Copy all new SBF bytes into our log
     QDataStream s(mLogFileSbf);

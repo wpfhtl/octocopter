@@ -262,7 +262,7 @@ signals:
     void newVehiclePose(const Pose&); // emitted at 20Hz, includes non-FixedRTK poses
     void newVehiclePoseLowFreq(const Pose&); // emitted at ~1Hz;
 
-    void processedPacket(const QByteArray& sbfPacket);
+    void processedPacket(const QByteArray& sbfPacket, const qint32& tow);
 
     // log/status messages
     void message(const LogImportance& importance, const QString&, const QString& message);

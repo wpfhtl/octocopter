@@ -74,6 +74,8 @@ private:
     // Cleans old data (mSaved, scanGps and mSavedPoses
     void cleanUnusableData();
 
+    QVector3D getWorldPositionOfScannedPoint(const Pose& scannerPose, const quint16& scannerIndex, const float& distance);
+
     // Used for debugging only.
     inline const QStringList getTimeStamps(const QMap<qint32, std::vector<long>* >& list) const
     {

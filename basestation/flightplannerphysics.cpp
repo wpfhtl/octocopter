@@ -271,6 +271,7 @@ FlightPlannerPhysics::~FlightPlannerPhysics()
 
 void FlightPlannerPhysics::insertPoint(LidarPoint* const point)
 {
+    return;
     if(mOctreeCollisionObjects == 0)
     {
         // Create the octree around the first arriving point.

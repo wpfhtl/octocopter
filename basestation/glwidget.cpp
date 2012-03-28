@@ -185,8 +185,8 @@ void GlWidget::drawVehicle() const
 
     const QVector3D armFront = pose.getOrientation().rotatedVector(QVector3D(0.0, 0.0, -0.4));
     const QVector3D armBack = pose.getOrientation().rotatedVector(QVector3D(0.0, 0.0, 0.4));
-    const QVector3D armLeft = pose.getOrientation().rotatedVector(QVector3D(-0.4, 0.0, 0.0));
-    const QVector3D armRight = pose.getOrientation().rotatedVector(QVector3D(0.4, 0.0, 0.0));
+    const QVector3D armLeft = pose.getOrientation().rotatedVector(QVector3D(-2.4, 0.0, 0.0));
+    const QVector3D armRight = pose.getOrientation().rotatedVector(QVector3D(2.4, 0.0, 0.0));
 
     const QVector3D landingLegFront = pose.getOrientation().rotatedVector(QVector3D(0.0, -0.2, -0.2));
     const QVector3D landingLegBack = pose.getOrientation().rotatedVector(QVector3D(0.0, -0.2, 0.2));

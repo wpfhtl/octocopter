@@ -5,10 +5,12 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
 {
     ui->setupUi(this);
 
+    setMaximumSize(minimumSize());
+
     mTimerAnimation = new QTimer(this);
     connect(mTimerAnimation, SIGNAL(timeout()), SLOT(slotPlay()));
 
-    mSensorFuser = new SensorFuser(6);
+    mSensorFuser = new SensorFuser(4);
     //mSensorFuser->setMaximumFusableRayLength(20.0f);
     mSbfParser = new SbfParser(this);
 
@@ -17,7 +19,6 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     // Connect UI...
     connect(ui->mPushButtonOpenLogs, SIGNAL(clicked()), SLOT(slotOpenLogFiles()));
     connect(ui->mPushButtonRewind, SIGNAL(clicked()), SLOT(slotRewind()));
-    connect(ui->mPushButtonPause, SIGNAL(clicked()), SLOT(slotPause()));
     connect(ui->mPushButtonPlay, SIGNAL(clicked()), SLOT(slotPlay()));
     connect(ui->mPushButtonStepForward, SIGNAL(clicked()), SLOT(slotStepForward()));
 
@@ -38,6 +39,7 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     connect(mSbfParser, SIGNAL(newVehiclePose(Pose)), SIGNAL(vehiclePose(Pose)));
 
     connect(mSbfParser, SIGNAL(newVehiclePose(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
+    connect(mSbfParser, SIGNAL(processedPacket(QByteArray,qint32)), SLOT(slotNewSbfTime(QByteArray,qint32)));
     connect(mSbfParser, SIGNAL(newVehiclePose(Pose)), SIGNAL(vehiclePose(Pose)));
 //    connect(mSbfParser, SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
 
@@ -113,6 +115,28 @@ void LogPlayer::slotRewind()
     mDataSbf = mDataSbfCopy;
     mIndexLaser = 0;
     mTimePlaybackStartReal = QTime(); // set invalid
+
+    // Whats the minimum TOW in our data? Set progressbar accordingly
+    qint32 towSbf;
+
+    if(!mSbfParser->getNextValidPacketInfo(mDataSbf, 0, &towSbf))
+        towSbf = 99999999;
+
+    const qint32 towStart = std::min(towSbf, getNextTowLaser());
+
+
+
+    // Whats the minimum TOW in our data? Set progressbar accordingly
+    // Find the last SBF packet in our buffer
+    const QByteArray lastPacketSbf = mDataSbf.right(mDataSbf.size() - mDataSbf.lastIndexOf("$@"));
+
+    if(!mSbfParser->getNextValidPacketInfo(lastPacketSbf, 0, &towSbf))
+        towSbf = -1;
+
+    const qint32 towStop = std::max(towSbf, getLastTowLaser());
+    qDebug() << "LogPlayer::slotRewind(): this file contains data between" << towStart << "and" << towStop << "- length in seconds:" << (towStop - towStart)/1000;
+    ui->mProgressBarTow->setRange(towStart, towStop);
+    ui->mProgressBarTow->setValue(towStart);
 }
 
 qint32 LogPlayer::getNextTowLaser()
@@ -124,6 +148,22 @@ qint32 LogPlayer::getNextTowLaser()
     // If we can extract something, fine. If not, we might just not have any laser data at all. In that case we'll return -1
     if(nextPacketLaser.size())
         tow = nextPacketLaser.split(' ').at(0).toInt();
+
+    if(tow == 0)
+        return -1;
+    else
+        return tow;
+}
+
+qint32 LogPlayer::getLastTowLaser()
+{
+    qint32 tow = -1;
+
+    const QByteArray lastLaserLine = mDataLaser.right(mDataLaser.size() - mDataLaser.lastIndexOf("\n", mDataLaser.lastIndexOf("\n") - 1) - 1);
+
+    // If we can extract something, fine. If not, we might just not have any laser data at all. In that case we'll return -1
+    if(lastLaserLine.size())
+        tow = lastLaserLine.split(' ').at(0).toInt();
 
     if(tow == 0)
         return -1;
@@ -193,6 +233,14 @@ void LogPlayer::processLaserData(const QByteArray& packetLaser)
         bool success = false;
         data->push_back(laserScanData.at(i).toInt(&success));
         if(!success) qDebug() << "LogPlayer: couldn't parse scannerdata-distance at index" << i << ", value was:" << laserScanData.at(i);
+
+        // FIXME: This method was changed to emit lengths of 10m for every ray, for debugging.
+        //data->push_back(1000); success = true;
+
+        // FIXME: This method was changed to emit raylengths simulating flaying over a flat ground in 5m height.
+        //float angle = (540.0f - i) / 4.0f;
+        //float distance = 5.0f / cos(DEG2RAD(angle));
+        //data->push_back(distance * 1000);
     }
 
     mSensorFuser->slotNewScanData(laserScanData.at(0).toInt(), data);
@@ -210,58 +258,72 @@ qint32 LogPlayer::getEarliestValidTow(const qint32& towA, const qint32& towB) co
 
 void LogPlayer::slotPlay()
 {
-
-    qint32 towBeforeSbf;
-    if(!mSbfParser->getNextValidPacketInfo(mDataSbf, 0, &towBeforeSbf)) towBeforeSbf = -1;
-    const qint32 minTowBefore = getEarliestValidTow(towBeforeSbf, getNextTowLaser());
-
-    if(!mTimePlaybackStartReal.isValid())
+    if(ui->mPushButtonPlay->isChecked())
     {
-        // The first time slotPlay() has been called after loading/rewinding logdata.
-        // Take note of GNSS-TOW and real time, so we can synchronize them
-        mTimePlaybackStartReal = QTime::currentTime();
-        mTimePlaybackStartTow = minTowBefore;
-    }
+        qint32 towBeforeSbf;
+        if(!mSbfParser->getNextValidPacketInfo(mDataSbf, 0, &towBeforeSbf)) towBeforeSbf = -1;
+        const qint32 minTowBefore = getEarliestValidTow(towBeforeSbf, getNextTowLaser());
 
-    if(!slotStepForward())
-    {
-        // Playback failed, we're probably at the end
-        qDebug() << "LogPlayer::slotPlay(): slotStepForward() failed, we're probably at the end, stopping timer.";
-        emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Stepping forward failed, stopping playback timer.");
+        if(!mTimePlaybackStartReal.isValid())
+        {
+            // The first time slotPlay() has been called after loading/rewinding logdata.
+            // Take note of GNSS-TOW and real time, so we can synchronize them
+            mTimePlaybackStartReal = QTime::currentTime();
+            mTimePlaybackStartTow = minTowBefore;
+        }
+
+        if(!slotStepForward())
+        {
+            // Playback failed, we're probably at the end
+            qDebug() << "LogPlayer::slotPlay(): slotStepForward() failed, we're probably at the end, stopping timer.";
+            emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Stepping forward failed, stopping playback timer.");
+            mTimerAnimation->stop();
+            ui->mPushButtonPlay->setChecked(false);
+            return;
+        }
+
+        qint32 towAfterSbf;
+        if(!mSbfParser->getNextValidPacketInfo(mDataSbf, 0, &towAfterSbf)) towAfterSbf = -1;
+        const qint32 minTowAfter = getEarliestValidTow(towAfterSbf, getNextTowLaser());
+
         mTimerAnimation->stop();
-        return;
-    }
 
-    qint32 towAfterSbf;
-    if(!mSbfParser->getNextValidPacketInfo(mDataSbf, 0, &towAfterSbf)) towAfterSbf = -1;
-    const qint32 minTowAfter = getEarliestValidTow(towAfterSbf, getNextTowLaser());
+        if(minTowAfter > 0)
+        {
+            // Packets in the SBF stream are not guaranteed to be in chronological order, especially
+            // ExtEvent-packets don't let this assumption hold. For this reason, we might have to deal
+            // with negative intervals, which we just set to 0 here.
 
-    mTimerAnimation->stop();
+            qint32 towElapsedAtNextPacket = minTowAfter - mTimePlaybackStartTow;
+            QTime timeOfNextPacketReal = mTimePlaybackStartReal.addMSecs(towElapsedAtNextPacket);
+            const qint32 timeToSleep = QTime::currentTime().msecsTo(timeOfNextPacketReal) * ui->mSpinBoxTimeFactor->value();
 
-    if(minTowAfter > 0)
-    {
-        // Packets in the SBF stream are not guaranteed to be in chronological order, especially
-        // ExtEvent-packets don't let this assumption hold. For this reason, we might have to deal
-        // with negative intervals, which we just set to 0 here.
+            //qDebug() << "LogPlayer::slotPlay(): slotStepForward() succeeded, sleeping for" << timeToSleep;
 
-        qint32 towElapsedAtNextPacket = minTowAfter - mTimePlaybackStartTow;
-        QTime timeOfNextPacketReal = mTimePlaybackStartReal.addMSecs(towElapsedAtNextPacket);
-        const qint32 timeToSleep = QTime::currentTime().msecsTo(timeOfNextPacketReal) * ui->mSpinBoxTimeFactor->value();
-
-        //qDebug() << "LogPlayer::slotPlay(): slotStepForward() succeeded, sleeping for" << timeToSleep;
-
-        // Wait between 0 and 1 secs, scaled by timefactor
-        mTimerAnimation->start(qBound(0, timeToSleep, 5000));
+            // Wait between 0 and 1 secs, scaled by timefactor
+            mTimerAnimation->start(qBound(0, timeToSleep, 5000));
+        }
+        else
+        {
+            emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Playback reached end of logfile, stopping.");
+            qDebug() << "LogPlayer::slotPlay(): not restarting playtimer, next sbf tow" << towAfterSbf << "next lsr tow" << getNextTowLaser();
+            ui->mPushButtonPlay->setChecked(false);
+        }
     }
     else
     {
-        emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Playback reached end of logfile, stopping.");
-        qDebug() << "LogPlayer::slotPlay(): not restarting playtimer, next sbf tow" << towAfterSbf << "next lsr tow" << getNextTowLaser();
+        mTimePlaybackStartReal = QTime();
+        mTimerAnimation->stop();
     }
 }
-
+/*
 void LogPlayer::slotPause()
 {
     mTimePlaybackStartReal = QTime();
     mTimerAnimation->stop();
+}*/
+
+void LogPlayer::slotNewSbfTime(QByteArray,qint32 tow)
+{
+    ui->mProgressBarTow->setValue(tow);
 }

@@ -163,7 +163,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     {
         qWarning() << "SbfParser::processNextValidPacket(): WARNING: SBF Sync Marker $@ was not at byte 0, but at" << offsetToValidPacket;
         // Log this data for later error analysis
-        emit processedPacket(sbfData.left(offsetToValidPacket));
+        emit processedPacket(sbfData.left(offsetToValidPacket), -1);
         sbfData.remove(0, offsetToValidPacket);
     }
 
@@ -437,7 +437,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
 //            else
 //                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, not integrated solution, but" << GpsStatusInformation::getIntegrationMode(block->Mode);
 
-            if((block->GNSSPVTMode & 15) == 4 || (block->GNSSPVTMode & 15) == 5 /*TAKE ME AWAY!*/) // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().
+            if((block->GNSSPVTMode & 15) == 4) // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().
                 precisionFlags |= Pose::RtkFixed;
 //            else
 //                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, GnssPvtMode is" << GpsStatusInformation::getGnssMode(block->GNSSPVTMode) << "corrAge:" << mGpsStatus.meanCorrAge << "sec";
@@ -452,6 +452,10 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
             }*/
 
             setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW, precisionFlags);
+
+            // FIXME: this is fake, for debugging
+            //mLastPose = Pose(QVector3D(0.0, 5.0, 0.0), -block->Heading*0.01f, 0.0f, 10.0f, block->TOW);
+
             mLastPose.precision = precisionFlags;
             mLastPose.covariances = mGpsStatus.covariances;
 
@@ -549,7 +553,9 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     if(mGpsStatus.interestingOrDifferentComparedTo(previousGpsStatus)) emit status(mGpsStatus);
 
     // Announce what packet we just processed. Might be used for logging.
-    emit processedPacket(sbfData.left(msgLength));
+    // ExtEvent is generic enough, the TOW is always at the same location
+    const Sbf_ExtEvent *block = (Sbf_ExtEvent*)sbfData.data();
+    emit processedPacket(sbfData.left(msgLength), (qint32)block->TOW);
 
     // Remove the SBF block body from our incoming buffer, so it contains either nothing or the next SBF message
     const int indexOfNextPacket = sbfData.indexOf("$@", offsetToValidPacket+1);
