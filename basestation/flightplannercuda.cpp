@@ -237,7 +237,7 @@ void FlightPlannerCuda::slotSubmitGeneratedWayPoints()
 {
     mWayPointsAhead->append(mWayPointsGenerated);
     mWayPointsGenerated.clear();
-    sortToShortestPath(*mWayPointsAhead, mVehiclePoses.last().position);
+    sortToShortestPath(*mWayPointsAhead, mVehiclePoses.last().getPosition());
     emit wayPointsSetOnRover(*mWayPointsAhead);
     emit wayPoints(*mWayPointsAhead);
 

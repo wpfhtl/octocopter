@@ -109,7 +109,7 @@ const QVector3D FlightPlannerInterface::getCurrentVehicleVelocity() const
     if(timeDiffMs == 0)
         return QVector3D();
     else
-        return (last.position - secondLast.position) * (1000 / timeDiffMs);
+        return (last.getPosition() - secondLast.getPosition()) * (1000 / timeDiffMs);
 }
 
 void FlightPlannerInterface::slotWayPointDelete(const quint16& index)
@@ -237,7 +237,7 @@ void FlightPlannerInterface::slotVisualize() const
 
     if(mVehiclePoses.size())
     {
-        const QVector3D p = mVehiclePoses.last().position;
+        const QVector3D p = mVehiclePoses.last().getPosition();
         glVertex3f(p.x(), p.y(), p.z());
     }
 

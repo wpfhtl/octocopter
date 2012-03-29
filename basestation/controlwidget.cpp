@@ -108,9 +108,10 @@ void ControlWidget::slotFlightStateChanged(FlightState fs)
 
 void ControlWidget::slotUpdatePose(const Pose &pose)
 {
-    mLabelPoseOgreX->setText(QString("%1").arg(pose.position.x(), 4, 'f', 3, '0'));
-    mLabelPoseOgreY->setText(QString("%1").arg(pose.position.y(), 4, 'f', 3, '0'));
-    mLabelPoseOgreZ->setText(QString("%1").arg(pose.position.z(), 4, 'f', 3, '0'));
+    const QVector3D position = pose.getPosition();
+    mLabelPoseOgreX->setText(QString("%1").arg(position.x(), 4, 'f', 3, '0'));
+    mLabelPoseOgreY->setText(QString("%1").arg(position.y(), 4, 'f', 3, '0'));
+    mLabelPoseOgreZ->setText(QString("%1").arg(position.z(), 4, 'f', 3, '0'));
 
     QString deg;
     deg.sprintf("%c", 176);

@@ -92,11 +92,12 @@ void StatusWidget::slotUpdateVisualization(QSize windowSize, int triangles, floa
 
 void StatusWidget::slotUpdatePose(const Pose &pose)
 {
-    mLabelPoseOgreX->setText(QString("%1m").arg(pose.position.x(), 3, 'f', 1, '0'));
-    mLabelPoseOgreY->setText(QString("%1m").arg(pose.position.y(), 3, 'f', 1, '0'));
-    mLabelPoseOgreZ->setText(QString("%1m").arg(pose.position.z(), 3, 'f', 1, '0'));
+    const QVector3D position = pose.getPosition();
+    mLabelPoseOgreX->setText(QString("%1m").arg(position.x(), 3, 'f', 1, '0'));
+    mLabelPoseOgreY->setText(QString("%1m").arg(position.y(), 3, 'f', 1, '0'));
+    mLabelPoseOgreZ->setText(QString("%1m").arg(position.z(), 3, 'f', 1, '0'));
 
-    CoordinateGps wgs84 = mCoordinateConverter->convert(pose.position);
+    CoordinateGps wgs84 = mCoordinateConverter->convert(position);
 
     mLabelPoseWgs84Longitude->setText(wgs84.formatGpsDegree(wgs84.longitude()));
     mLabelPoseWgs84Latitude->setText(wgs84.formatGpsDegree(wgs84.latitude()));

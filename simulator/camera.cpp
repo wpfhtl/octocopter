@@ -73,6 +73,7 @@ void Camera::slotSendImage()
     stream << (quint32)imageArray.size();
     mNetworkPayload.append(imageArray);
 
+    /*
     emit newImageData(
                 objectName(),
                 Pose(
@@ -89,7 +90,7 @@ void Camera::slotSendImage()
                     0
                     ),
                 imageArray
-                );
+                );*/
 
     qDebug() << "Camera::slotRecordImage(): datagram size:" << mNetworkPayload.size();
 }

@@ -15,6 +15,7 @@
 
 #include <common.h>
 #include <math.h>
+#include <float.h>
 
 /**
   A pose represents a position in 3D space (3 DOF) and an orientation (also 3 DOF: yaw, pitch, roll).
@@ -30,33 +31,38 @@
 
   Also, when we yaw, pitch, roll, we interpret these operations like a pilot of the vehicle, that is
   we pitch on the transformed/yawed x axis, and we roll on the twice-transformed (yawed and pitched)
-  z axis. This *should* match the readings of our IMUs, which obviously sense local transformation data.
+  z axis. This *should* match the readings of our IMUs, which obviously senses local transformation data.
 
   A Pose also contains a signed int32 timestamp which usually identifies the time at which some
   sensor reading was taken. Its signed so we can compare times and get negative values indicating one
-  time was before the other. Teh readings themselves will always be positive values.
+  time was before the other. The readings themselves will always be positive values.
 
-  The rotations in this pose will always be constrained from [-3.14, 3.14] or [-180, 180].
-  At least for pitch and roll, this means we should never reach a situation where -179 suddenly
-  wraps to 179.
+  Assuming that we rotate on Y CCW (right-handed coordinate system):
+   - 000 deg == NEGATIVE_Z
+   - 090 deg == NEGATIVE_X
+   - 180 deg == POSITIVE_Z
+   - 270 deg == POSITIVE_X
 
-  For yaw/heading, we'll have to make sure that when this happens (pointing south), no problems
-  arise from this.
 */
 
 class Pose
 {
 
 private:
-    // These are the angles in RADIANS, and they are ALWAYS between [-3.14, 3.14],
-    // which is the degree-equivalent of [-180, 180].
-    float mYaw, mPitch, mRoll;
+
+    QMatrix4x4 mTransform;
 
 public:
-    Pose(const QVector3D &position, const QQuaternion &orientation, const qint32& timestamp = 0);
     Pose(const QVector3D &position, const float &yawDegrees, const float &pitchDegrees, const float &rollDegrees, const qint32& timestamp = 0);
+    Pose(const QMatrix4x4& matrix, const qint32& timestamp = 0);
     Pose(const QString& poseString);
     Pose();
+
+    // This is the GPS Time-Of-Week, specified in milliseconds since last Sunday, 00:00:00 AM (midnight)
+    // Changed this from quint32 to qint32 for comparison operations.
+    qint32 timestamp;
+    float covariances;
+    quint8 precision;
 
     enum Precision
     {
@@ -68,19 +74,12 @@ public:
     };
 
     const QString getFlagsString() const;
+
     const QString toString() const;
     const QString toStringVerbose() const; // includes human readable precision flags
 
-    QVector3D position;
+    const QVector3D getPosition() const;
     const QQuaternion getOrientation() const;
-
-    // This is the GPS Time-Of-Week, specified in milliseconds since last Sunday, 00:00:00 AM (midnight)
-    // Ben: changed this from quint32 to qint32 for comparison operations.
-    qint32 timestamp;
-
-    float covariances;
-
-    quint8 precision;
 
     static Pose interpolateLinear(const Pose &before, const Pose &after, const float &mu);
 
@@ -91,56 +90,64 @@ public:
     // This method takes a time argument instead of a float. @time must be between the times of @before and @after poses
     static Pose interpolateCubic(const Pose * const first, const Pose * const before, const Pose * const after, const Pose * const last, const qint32& time);
 
-    // Returns the shortest turn to an angle by transforming any input to the range [-180,180]. For example:
-    // 359 => -1
-    // 181 => -179
-    // -270 => 90
+    // Returns the shortest turn to an angle by transforming any input to the range [-180,180].
+    // For example: 359 => -1, 181 => -179, -270 => 90
     static float getShortestTurnRadians(float angle);
     static float getShortestTurnDegrees(float angle);
 
-    static float keepWithinRangeDegrees(float angleDegrees);
-    static float keepWithinRangeRadians(float angleRadians);
+    void getEulerAnglesRadians(float& yaw, float &pitch, float &roll) const;
+    void getEulerAnglesDegrees(float& yaw, float &pitch, float &roll) const;
 
-//    Pose operator*(const float &factor);
-//    const Pose operator-(const Pose &p) const;
-    Pose operator+(const Pose &p) const;
+    Pose operator*(const Pose &p) const
+    {
+        const QMatrix4x4 newTransform = mTransform * p.getMatrix();
+        return Pose(newTransform, std::max(timestamp, p.timestamp));
+    }
+
+    QVector3D operator*(const QVector3D &v) const
+    {
+        return mTransform.map(v);
+    }
 
     QVector2D getPlanarPosition() const;
 
-    static QVector2D getPlanarPosition(const Pose& p) { return QVector2D(p.position.x(), p.position.z()); }
+    QMatrix4x4 getMatrix() const {return mTransform;}
+    void setMatrix(const QMatrix4x4& transform) {mTransform = transform;}
+
+    static QVector2D getPlanarPosition(const Pose& p) { return QVector2D(p.getPosition().x(), p.getPosition().z()); }
     static QVector2D getPlanarPosition(const QVector3D& p) { return QVector2D(p.x(), p.z()); }
 
-    // Assuming that we rotate on Y CCW (right-handed coordinate system):
-    // - 000 deg == NEGATIVE_Z
-    // - 090 deg == NEGATIVE_X
-    // - 180 deg == POSITIVE_Z
-    // - 270 deg == POSITIVE_X
-    QVector2D getPlanarDirection() const;
-
-    static float getPitchRadians(const QQuaternion& orientation, bool reprojectAxis);
-    static float getRollRadians(const QQuaternion& orientation, bool reprojectAxis);
-    static float getYawRadians(const QQuaternion& orientation, bool reprojectAxis);
-
-    float getYawRadians() const {return mYaw;}
-    float getPitchRadians() const {return mPitch;}
-    float getRollRadians() const {return mRoll;}
-
-    float getYawDegrees() const {return RAD2DEG(mYaw);}
-    float getPitchDegrees() const {return RAD2DEG(mPitch);}
-    float getRollDegrees() const {return RAD2DEG(mRoll);}
-
-    void setPitchDegrees(const float& pitch) {mPitch = DEG2RAD(keepWithinRangeDegrees(pitch));}
-    void setRollDegrees(const float& roll) {mRoll = DEG2RAD(keepWithinRangeDegrees(roll));}
-    void setYawDegrees(const float& yaw) {mYaw = DEG2RAD(keepWithinRangeDegrees(yaw));}
-
-    void setPitchRadians(const float& pitch) {mPitch = keepWithinRangeRadians(pitch);}
-    void setRollRadians(const float& roll) {mRoll = keepWithinRangeRadians(roll);}
-    void setYawRadians(const float& yaw) {mYaw = keepWithinRangeRadians(yaw);}
+    float getYawRadians() const
+    {
+        float yaw, pitch, roll;
+        getEulerAnglesRadians(yaw, pitch, roll);
+        return yaw;
+    }
+    float getPitchRadians() const
+    {
+        float yaw, pitch, roll;
+        getEulerAnglesRadians(yaw, pitch, roll);
+        return pitch;
+    }
+    float getRollRadians() const
+    {
+        float yaw, pitch, roll;
+        getEulerAnglesRadians(yaw, pitch, roll);
+        return roll;
+    }
+    float getYawDegrees() const {return RAD2DEG(getYawRadians());}
+    float getPitchDegrees() const {return RAD2DEG(getPitchRadians());}
+    float getRollDegrees() const {return RAD2DEG(getRollRadians());}
 
 #ifdef BASESTATION
-    btTransform getTransform() const {return btTransform(btQuaternion(mYaw, mPitch, mRoll), btVector3(position.x(), position.y(), position.z()));}
+    btTransform getTransform() const
+    {
+        float yaw, pitch, roll;
+        getEulerAnglesRadians(yaw, pitch, roll);
+        const QVector3D position = getPosition();
+        return btTransform(btQuaternion(yaw, pitch, roll), btVector3(position.x(), position.y(), position.z()));
+    }
 #endif
-
 };
 
 // for using qDebug() << myPose;

@@ -331,7 +331,7 @@ void Simulator::slotUpdate()
     // Do the physics. This will move the vehicle, which will make the vehicle's motion state emit its new position, which will go into flightcontroller. Sweet!
     mPhysics->slotUpdatePhysics();
 
-    mOgreWidget->slotVisualizeTrajectory(mFlightController->getLastKnownPose().position, mFlightController->getWayPoints());
+    mOgreWidget->slotVisualizeTrajectory(mFlightController->getLastKnownPose().getPosition(), mFlightController->getWayPoints());
 
     // Give baseconnection 4Hz updates about pose and vehicle status
     mClockDivisorBaseConnectionUpdate = (mClockDivisorBaseConnectionUpdate+1) % (250 / mUpdateTimer->interval());
@@ -339,7 +339,7 @@ void Simulator::slotUpdate()
     {
         mBaseConnection->slotNewVehicleStatus(
                     getSimulationTime(),
-                    mFlightController->getLastKnownPose().position.y(),
+                    mFlightController->getLastKnownPose().getPosition().y(),
                     mBattery->voltageCurrent()
                     );
 

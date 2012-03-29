@@ -127,13 +127,13 @@ void PtuController::slotSetPosition(float degreePan, float degreeTilt)
 
 void PtuController::slotSetPositionCamera()
 {
-    mPositionCameraSensor = mLastKnownVehiclePose.position;
+    mPositionCameraSensor = mLastKnownVehiclePose.getPosition();
     if(!mPositionInFrustumCenter.isNull()) determinePtuPose();
 }
 
 void PtuController::slotSetPositionFrustumCenter()
 {
-    mPositionInFrustumCenter = mLastKnownVehiclePose.position;
+    mPositionInFrustumCenter = mLastKnownVehiclePose.getPosition();
     if(!mPositionCameraSensor.isNull()) determinePtuPose();
 }
 

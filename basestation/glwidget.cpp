@@ -111,7 +111,7 @@ void GlWidget::paintGL()
 
     glLoadIdentity();
 
-    const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().position;
+    const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().getPosition();
     QVector3D camLookAt = mCamLookAtOffset + vehiclePosition;
     QVector3D min, max;
     mFlightPlanner->getScanVolume(min, max);
@@ -173,7 +173,7 @@ void GlWidget::drawVehiclePath() const
 //    glBegin(GL_POINTS);
     glColor3f(0.0, 1.0, 0.0);
     for(int i = 0; i < path.size(); i++)
-        glVertexVector(path.at(i).position);
+        glVertexVector(path.at(i).getPosition());
     glEnd();
 }
 
@@ -181,7 +181,7 @@ void GlWidget::drawVehicle() const
 {
     // draw vehicle velocity as vector
     const Pose pose = mFlightPlanner->getLastKnownVehiclePose();
-    const QVector3D vehiclePosition = pose.position;
+    const QVector3D vehiclePosition = pose.getPosition();
 
     const QVector3D armFront = pose.getOrientation().rotatedVector(QVector3D(0.0, 0.0, -0.4));
     const QVector3D armBack = pose.getOrientation().rotatedVector(QVector3D(0.0, 0.0, 0.4));
@@ -239,7 +239,7 @@ void GlWidget::drawVehicle() const
 void GlWidget::drawVehicleVelocity() const
 {
     // draw vehicle velocity as vector
-    const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().position;
+    const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().getPosition();
     const QVector3D vehicleVelocity = mFlightPlanner->getCurrentVehicleVelocity();
     glDisable(GL_LIGHTING);
     glColor3f(0.0, 1.0, 0.0);
@@ -426,7 +426,7 @@ QVector3D GlWidget::convertMouseToWorldPosition(const QPoint& point)
     GLdouble posX, posY, posZ;
 
     glLoadIdentity();
-    const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().position;
+    const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().getPosition();
     mCamLookAtOffset = vehiclePosition;
     QVector3D min, max;
     mFlightPlanner->getScanVolume(min, max);

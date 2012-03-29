@@ -271,7 +271,7 @@ FlightPlannerPhysics::~FlightPlannerPhysics()
 
 void FlightPlannerPhysics::insertPoint(LidarPoint* const point)
 {
-    return;
+//    return;
     if(mOctreeCollisionObjects == 0)
     {
         // Create the octree around the first arriving point.
@@ -513,12 +513,8 @@ void FlightPlannerPhysics::slotCreateSampleGeometry()
         // Shoot from Vehicle
         for(int i=0;i<mDialog->getEmitCount();i++)
         {
-            sampleSphereTransform.setOrigin(
-                        btVector3(
-                            mVehiclePoses.last().position.x(),
-                            mVehiclePoses.last().position.y(),
-                            mVehiclePoses.last().position.z())
-                        );
+            const QVector3D pos = mVehiclePoses.last().getPosition();
+            sampleSphereTransform.setOrigin(btVector3(pos.x(), pos.y(), pos.z()));
 
             // We don't need any inertia, mass etc,. as this body is static.
             btDefaultMotionState* sampleSpherePointMotionState = new btDefaultMotionState(sampleSphereTransform);
@@ -703,7 +699,7 @@ void FlightPlannerPhysics::slotSubmitGeneratedWayPoints()
 
     mWayPointsAhead->append(mWayPointsGenerated);
     mWayPointsGenerated.clear();
-    sortToShortestPath(*mWayPointsAhead, mVehiclePoses.last().position);
+    sortToShortestPath(*mWayPointsAhead, mVehiclePoses.last().getPosition());
     emit wayPointsSetOnRover(*mWayPointsAhead);
     emit wayPoints(*mWayPointsAhead);
 

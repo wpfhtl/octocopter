@@ -116,7 +116,7 @@ void FlightController::slotComputeMotionCommands()
         const float outputRoll = factorHeight * factorPlanarDistance * ((6.0f * errorRoll) + (0.3f * mErrorIntegralRoll) + (0.0f * derivativeRoll));
 
         const float outputHover = 115.0;
-        const float errorHeight = nextWayPoint.y() - mLastKnownVehiclePose.position.y();
+        const float errorHeight = nextWayPoint.y() - mLastKnownVehiclePose.getPosition().y();
         mErrorIntegralHeight += errorHeight*timeDiff;
 
         // We do need to use the I-controller, but we should clear the integrated error once we have crossed the height of a waypoint.
@@ -126,9 +126,9 @@ void FlightController::slotComputeMotionCommands()
         const float derivativeHeight = mFirstControllerRun ? 0.0f : (errorHeight - mPrevErrorHeight + 0.00001f)/timeDiff;
         const float outputThrust = outputHover + (25.0f * errorHeight) + (0.01f * mErrorIntegralHeight) + (1.0f * derivativeHeight);
 
-        qDebug() << mWayPoints.size() << "waypoints, next wpt height" << nextWayPoint.y() << "curr height" << mLastKnownVehiclePose.position.y();
+        qDebug() << mWayPoints.size() << "waypoints, next wpt height" << nextWayPoint.y() << "curr height" << mLastKnownVehiclePose.getPosition().y();
 
-        qDebug() << "values PRYH:" << QString::number(mLastKnownVehiclePose.getPitchDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.getRollDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.getYawDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.position.y(), 'f', 2);
+        qDebug() << "values PRYH:" << QString::number(mLastKnownVehiclePose.getPitchDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.getRollDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.getYawDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.getPosition().y(), 'f', 2);
         qDebug() << "should PRYH:" << QString::number(desiredPitch, 'f', 2) << "\t" << QString::number(desiredRoll, 'f', 2) << "\t" << QString::number(RAD2DEG(directionNorthToWayPointRadians), 'f', 2) << "\t" << QString::number(nextWayPoint.y(), 'f', 2);
         qDebug() << "error  PRYH:" << QString::number(errorPitch, 'f', 2) << "\t" << QString::number(errorRoll, 'f', 2) << "\t" << QString::number(errorYaw, 'f', 2) << "\t" << QString::number(errorHeight, 'f', 2);
         qDebug() << "derivt PRYH:" << QString::number(derivativePitch, 'f', 2) << "\t" << QString::number(derivativeRoll, 'f', 2) << "\t" << QString::number(derivativeYaw, 'f', 2) << "\t" << QString::number(derivativeHeight, 'f', 2);
@@ -155,7 +155,7 @@ void FlightController::slotComputeMotionCommands()
         //emit debugValues(mLastKnownVehiclePose, out_thrust, out_yaw, out_pitch, out_roll, 0);
 
         // See whether we've reached the waypoint
-        if(mLastKnownVehiclePose.position.distanceToLine(nextWayPoint, QVector3D()) < 0.25f) // close to wp
+        if(mLastKnownVehiclePose.getPosition().distanceToLine(nextWayPoint, QVector3D()) < 0.25f) // close to wp
         {
             nextWayPointReached();
         }
@@ -357,13 +357,13 @@ void FlightController::ensureSafeFlightAfterWaypointsChanged()
         else if(isHeightOverGroundValueRecent())
         {
             qDebug() << "FlightController::ensureSafeFlightAfterWaypointsChanged(): wpt list is empty, heightOverGround is known to be" << mLastKnownHeightOverGround << "inserting landing wpt 0.2m above";
-            mWayPoints.append(WayPoint(mLastKnownVehiclePose.position - QVector3D(0.0, mLastKnownHeightOverGround - 0.2, 0.0)));
+            mWayPoints.append(WayPoint(mLastKnownVehiclePose.getPosition() - QVector3D(0.0, mLastKnownHeightOverGround - 0.2, 0.0)));
             emit wayPointInserted(mWayPoints.size()-1, mWayPoints.last());
         }
         else
         {
             qDebug() << "FlightController::ensureSafeFlightAfterWaypointsChanged(): wpt list is empty, heightOverGround unknown, WARNING, next wpt is 0.2m below us.";
-            mWayPoints.append(WayPoint(mLastKnownVehiclePose.position - QVector3D(0.0, 0.2, 0.0)));
+            mWayPoints.append(WayPoint(mLastKnownVehiclePose.getPosition() - QVector3D(0.0, 0.2, 0.0)));
             emit wayPointInserted(mWayPoints.size()-1, mWayPoints.last());
         }
     }

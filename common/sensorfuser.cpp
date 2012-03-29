@@ -284,7 +284,7 @@ void SensorFuser::transformScanDataCubic()
                 mPointCloudSize++;
             }
 
-            emit newScannedPoints(scannedPoints, posesForThisScan[2]->position);
+            emit newScannedPoints(scannedPoints, posesForThisScan[2]->getPosition());
 
             // This scan has been processed. Delete it.
             delete iteratorSavedScans.value();
@@ -402,29 +402,6 @@ void SensorFuser::transformScanDataNearestNeighbor()
             QVector<QVector3D> scannedPoints; // Do not reserve full length, will be less poins due to reflections on the vehicle being filtered
             scannedPoints.reserve(800);
 
-            QMatrix4x4 scannerOrientation;
-
-            scannerOrientation.translate(poseForThisScan->position);
-
-            scannerOrientation.rotate(
-                        poseForThisScan->getYawDegrees(),
-                        QVector3D(0,1,0)
-                        );
-
-            scannerOrientation.rotate(
-                        poseForThisScan->getPitchDegrees(),
-                        QVector3D(1,0,0)
-                        );
-
-            // The more we pitch, the more our roll should happen on the yaw axis. Whee.
-            scannerOrientation.rotate(
-                        -poseForThisScan->getRollDegrees(),
-                        QVector3D(
-                            0,
-                            1,//cos(scannerPose.getPitchRadians()),
-                            0)//sin(scannerPose.getPitchRadians())
-                        );
-
             for(int indexRay=0; indexRay < scanDistances->size(); indexRay++)
             {
                 // Only process every mStridePoint'th point
@@ -455,12 +432,13 @@ void SensorFuser::transformScanDataNearestNeighbor()
                     qDebug() << "getWorldPositionOfScannedPoint(): roll in deg is" << poseForThisScan->getRollDegrees();
                 }
 
-                scannedPoints.append(scannerOrientation.map(vectorScannerToPoint));
+                const QVector3D dot = (*poseForThisScan) * vectorScannerToPoint;
+                scannedPoints.append(dot);
 
                 mPointCloudSize++;
             }
 
-            emit newScannedPoints(scannedPoints, poseForThisScan->position);
+            emit newScannedPoints(scannedPoints, poseForThisScan->getPosition());
 
             // This scan has been processed. Delete it.
             delete iteratorSavedScans.value();
@@ -645,16 +623,16 @@ void SensorFuser::slotNewVehiclePose(const Pose& pose)
             pose.covariances < 1.0
             ))
     {
-//        qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received pose is not precise enough for fusing, ignoring it";
+        qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received pose is not precise enough for fusing, ignoring it";
         return;
     }
 
 //    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a " << pose;
 
     // Append pose to our list
-    mPoses.append(Pose(pose + mLaserScannerRelativePose));
+    mPoses.append(pose * mLaserScannerRelativePose);
 
-//    qDebug() << "SensorFuser::slotNewVehiclePose(): vehicle" << pose << "relative scanner" << mLaserScannerRelativePose << "result" << mPoses.last();
+    qDebug() << "SensorFuser::slotNewVehiclePose(): vehicle" << pose << "relative scanner" << mLaserScannerRelativePose << "result" << mPoses.last();
 
     mNewestDataTime = std::max(mNewestDataTime, pose.timestamp);
 
@@ -728,7 +706,7 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGps)
         for(int i=-ratio/2; i<ceil(ratio/2.0f); i++)
         {
             const qint32 scanMiddleTow = timestampScanGps + i*25;
-//            qDebug() << t() << "SensorFuser::slotScanFinished(): inserting scanMiddleTow" << i << ":" << scanMiddleTow;
+            qDebug() << t() << "SensorFuser::slotScanFinished(): inserting scanMiddleTow" << i << ":" << scanMiddleTow;
             mScansTimestampGps.insert(scanMiddleTow, 0);
 
             // update the latest data time
@@ -748,7 +726,7 @@ void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, std::vecto
     // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
     if(!mPoses.size() || mPoses.last().timestamp < (timestampScanScanner - mMaximumTimeBetweenFusedPoseAndScanMsec - 13))
     {
-        //qDebug() << t() << "SensorFuser::slotNewScanData(): " << mPoses.size() << "/old poses, ignoring scandata at time" << timestampScanScanner;
+        qDebug() << t() << "SensorFuser::slotNewScanData(): " << mPoses.size() << "/old poses, ignoring scandata at time" << timestampScanScanner;
         // We cannot ignore the scandata, we must at least delete() it, because it was new()ed in LaserScanner and we are now the owner.
         delete distances;
         return;
@@ -791,8 +769,8 @@ QVector3D SensorFuser::getWorldPositionOfScannedPoint(const Pose& scannerPose, c
         qDebug() << "getWorldPositionOfScannedPoint(): roll in deg is" << scannerPose.getRollDegrees();
 
     //return scannerPose.position + scannerOrientation.map(vectorScannerToPoint);
-    return scannerPose.position + scannerOrientation.mapVector(vectorScannerToPoint);
-    return scannerPose.position + (scannerOrientation * vectorScannerToPoint);
+    return scannerPose.getPosition() + scannerOrientation.mapVector(vectorScannerToPoint);
+    return scannerPose.getPosition() + (scannerOrientation * vectorScannerToPoint);
 /*
     // This is short, but uses getOrientation(), which is expensive.
     return QVector3D(
