@@ -52,6 +52,7 @@ void GlWidget::initializeGL()
     glShadeModel(GL_SMOOTH);						// Enable Smooth Shading
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);					// Black Background
     glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// White Background
+    glClearColor(0.3f, 0.3f, 0.3f, 0.0f);					// Gray  Background
     glClearDepth(1.0f);							// Depth Buffer Setup
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);					// Set Line Antialiasing
 
@@ -64,7 +65,7 @@ void GlWidget::initializeGL()
     glBlendFunc( GL_ZERO, GL_ONE_MINUS_SRC_ALPHA );
 //    glBlendFunc( GL_SRC_ALPHA_SATURATE, GL_ONE );
 //    glBlendFunc(GL_ONE_MINUS_DST_ALPHA,GL_DST_ALPHA);
-    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_DEPTH_TEST); // also needed for CUDA particles
 }
 
 void GlWidget::resizeGL(int w, int h)

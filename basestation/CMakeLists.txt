@@ -17,6 +17,7 @@ camerawidget
 flightplannerinterface
 flightplannerbasic
 flightplannercuda
+flightplannerparticles
 flightplannerphysics
 flightplannerphysicsdialog
 rtkfetcher
@@ -39,6 +40,11 @@ voxelmanager
 ../common/plotwidget
 ../common/gpsstatusinformation
 ../common/wirelessdevice
+cudashaders
+particlesystem
+particlesystem_cuda.cu
+particlerenderer
+#particleskernel.cu
 computefreecolumns.cu
 )
 
@@ -52,6 +58,7 @@ camerawidget.h
 flightplannerinterface.h
 flightplannerbasic.h
 flightplannercuda.h
+flightplannerparticles.h
 flightplannerphysics.h
 flightplannerphysicsdialog.h
 rtkfetcher.h
@@ -73,6 +80,39 @@ voxelmanager.h
 ../common/common.h
 ../common/plotwidget.h
 ../common/gpsstatusinformation.h
+../common/wirelessdevice.h
+cudashaders.h
+particlesystem.h
+particlesystem_cuda.cuh
+particlerenderer.h
+particleskernel.cuh
+)
+
+SET(MOC_FILES
+basestation.h
+glwidget.h
+logwidget.h
+logplayer.h
+ptucontroller.h
+camerawidget.h
+flightplannerinterface.h
+flightplannerbasic.h
+flightplannercuda.h
+flightplannerparticles.h
+flightplannerphysics.h
+flightplannerphysicsdialog.h
+rtkfetcher.h
+controlwidget.h
+connectiondialog.h
+roverconnection.h
+voxelmanager.h
+../common/joystick.h
+../common/sbfparser.h
+../common/sensorfuser.h
+../common/plymanager.h
+../common/lidarpoint.h
+../common/octree.h
+../common/plotwidget.h
 ../common/wirelessdevice.h
 )
 
@@ -105,7 +145,7 @@ INCLUDE(${QT_USE_FILE})
 
 FIND_PACKAGE(CUDA)
 
-QT4_WRAP_CPP(MOC_SRCS ${INC_FILES})
+QT4_WRAP_CPP(MOC_SRCS ${MOC_FILES})
 QT4_WRAP_UI(UI_SRCS ${UI_FILES})
 QT4_ADD_RESOURCES(RESOURCE_SRCS ${RESOURCE_FILES})
 
@@ -115,7 +155,7 @@ SET(CMAKE_BUILD_TYPE "Debug")
 # Enable the Node LidarPoint::node member, in which a lidarpoint remembers in which node it is stored. Increases octree efficiency,
 # but also creates a dependency on "Node", which is otherwise unused in koptercontrol project
 ADD_DEFINITIONS(-DLIDARPOINT_KEEPS_PARENTNODE -DBASESTATION)
-INCLUDE_DIRECTORIES(/usr/include /usr/local/include/ ${CMAKE_CURRENT_SOURCE_DIR}/qserialdevice/include ${BULLET_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR} ./ ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
+INCLUDE_DIRECTORIES(/usr/include /usr/local/include/ /usr/local/cuda/computing_sdk/CUDALibraries/common/inc/ ${CMAKE_CURRENT_SOURCE_DIR}/qserialdevice/include ${BULLET_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR} ./ ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 LINK_DIRECTORIES(/usr/lib/ /usr/local/lib/)
 CUDA_ADD_EXECUTABLE(basestation ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
 TARGET_LINK_LIBRARIES(basestation qwt ${QT_LIBRARIES} ${BULLET_LIBRARIES} GL GLU GLEW qserialdevice)

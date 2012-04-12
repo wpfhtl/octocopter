@@ -13,28 +13,6 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     app.setWindowIcon(QIcon(":/images/appicon.png"));
 
-    QVector3D peter(0,1,0);
-    QMatrix4x4 peterRot;
-
-    // rückwwärts ausführen
-    peterRot.rotate(45, QVector3D(0,1,0));
-    peterRot.rotate(90, QVector3D(1,0,0));
-    peterRot.rotate(90, QVector3D(0,0,1));
-
-    qDebug() <<
-                ((
-                    QQuaternion::fromAxisAndAngle(QVector3D(0,1,0), 45)
-*                QQuaternion::fromAxisAndAngle(QVector3D(1,0,0), 90)
-*
-                    QQuaternion::fromAxisAndAngle(QVector3D(0,0,1), 90))
-    .rotatedVector(peter));
-
-    qDebug() << peterRot.map(peter); // Achsen drehen sich mit 001
-    qDebug() << peterRot.mapVector(peter); // Achsen drehen sich mit
-    qDebug() << peterRot * peter; // Achsen drehen sich mit
-//    qDebug() << peter * peterRot.transposed(); // Axen bleiben beim rotieren fest -0,7 0 -0,7
-
-
     BaseStation b;
     b.show();
 

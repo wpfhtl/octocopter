@@ -47,7 +47,7 @@ BaseStation::BaseStation() : QMainWindow()
     addDockWidget(Qt::BottomDockWidgetArea, mLogWidget);
     menuBar()->addAction("Save Log", mLogWidget, SLOT(save()));
 
-    mFlightPlanner = new FlightPlannerPhysics(this, mOctree);
+    mFlightPlanner = new FlightPlannerParticles(this, mOctree);
     // GlWidget and CUDA-based FlightPlanners have an intimate relationship because
     // cudaGlSetGlDevice() needs to be called in GL context and before any other CUDA calls.
 //    mFlightPlanner = new FlightPlannerCuda(this, mOctree);

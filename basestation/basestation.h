@@ -16,6 +16,7 @@
 #include "lidarpoint.h"
 #include "flightplannerbasic.h"
 #include "flightplannerphysics.h"
+#include "flightplannerparticles.h"
 #include "flightplannerinterface.h"
 #include "camerawidget.h"
 #include "connectiondialog.h"

@@ -69,7 +69,7 @@ signals:
     void mouseClickedAtWorldPos(Qt::MouseButton, QVector3D);
 
 public slots:
-    // When this is called, we take notte of the time of last external update. Because when zooming/rotating
+    // When this is called, we take note of the time of last external update. Because when zooming/rotating
     // is also active, the redraws caused by those actions overlap with the external redraws, causing
     // superfluous and slow redrawing. So, by only redrawing for rotation/zoom when there hasn't been an
     // external redraw in a while, we can save CPU cycles.
