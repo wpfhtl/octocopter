@@ -10,7 +10,7 @@ FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, Octree* pointCloud) 
 
     mFirstSphereHasHitThisIteration = false;
 
-    mDialog = new FlightPlannerPhysicsDialog(mParentWidget);
+    mDialog = new FlightPlannerPhysicsDialog(mGlWidget);
     connect(mDialog, SIGNAL(createSampleGeometry()), SLOT(slotCreateSampleGeometry()));
     connect(mDialog, SIGNAL(deleteSampleGeometry()), SLOT(slotDeleteSampleGeometry()));
     connect(mDialog, SIGNAL(processPhysics(bool)), SLOT(slotProcessPhysics(bool)));

@@ -1,6 +1,6 @@
 #include "flightplannerbasic.h"
 
-FlightPlannerBasic::FlightPlannerBasic(QWidget* widget, Octree* pointCloud) : FlightPlannerInterface(widget, pointCloud)
+FlightPlannerBasic::FlightPlannerBasic(QGLWidget* widget, Octree* pointCloud) : FlightPlannerInterface(widget, pointCloud)
 {
     // The octree is initialized on arrival of the first point, with this point at its center.
     // We do this so we can drop spheres only within the octree's XZ plane.

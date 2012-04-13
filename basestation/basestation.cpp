@@ -47,22 +47,22 @@ BaseStation::BaseStation() : QMainWindow()
     addDockWidget(Qt::BottomDockWidgetArea, mLogWidget);
     menuBar()->addAction("Save Log", mLogWidget, SLOT(save()));
 
+    // GlWidget and CUDA-based FlightPlanners have a close relationship because cudaGlSetGlDevice() needs to be called in GL context and before any other CUDA calls.
+    //mFlightPlanner = new FlightPlannerCuda(this, mOctree);
     mFlightPlanner = new FlightPlannerParticles(this, mOctree);
-    // GlWidget and CUDA-based FlightPlanners have an intimate relationship because
-    // cudaGlSetGlDevice() needs to be called in GL context and before any other CUDA calls.
-//    mFlightPlanner = new FlightPlannerCuda(this, mOctree);
-
     mFlightPlanner->slotSetScanVolume(QVector3D(-50, -10, -35), QVector3D(50, 40, 35));
 
-    // Just for adding a line to the log file for marking a new waypoint generation iteration
-    connect(mFlightPlanner, SIGNAL(wayPointsSetOnRover(QList<WayPoint>)), SLOT(slotAddLogFileMarkForPaper(QList<WayPoint>)));
-    connect(mFlightPlanner, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
-
     mGlWidget = new GlWidget(this, mOctree, mFlightPlanner);
+    mFlightPlanner->setGlWidget(mGlWidget);
     connect(mGlWidget, SIGNAL(initializingInGlContext()), mFlightPlanner, SLOT(slotInitialize())); // init CUDA when GlWidget inits
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(slotUpdateView()));
     connect(mGlWidget, SIGNAL(mouseClickedAtWorldPos(Qt::MouseButton, QVector3D)), mControlWidget, SLOT(slotSetWayPointCoordinateFields(Qt::MouseButton, QVector3D)));
     setCentralWidget(mGlWidget);
+
+
+    // Just for adding a line to the log file for marking a new waypoint generation iteration
+    connect(mFlightPlanner, SIGNAL(wayPointsSetOnRover(QList<WayPoint>)), SLOT(slotAddLogFileMarkForPaper(QList<WayPoint>)));
+    connect(mFlightPlanner, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
 
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
     connect(mControlWidget, SIGNAL(generateWaypoints()), mFlightPlanner, SLOT(slotGenerateWaypoints()));

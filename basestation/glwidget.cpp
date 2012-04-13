@@ -160,7 +160,7 @@ void GlWidget::paintGL()
     glBegin(GL_POINTS);
     mOctree->handlePoints();
     glEnd();
-    glEnable(GL_LIGHTING);
+    //glEnable(GL_LIGHTING);
 
     emit visualizeNow();
 }

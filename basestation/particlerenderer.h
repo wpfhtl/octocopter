@@ -1,6 +1,8 @@
 #ifndef __RENDER_PARTICLES__
 #define __RENDER_PARTICLES__
 
+#include <QSize>
+
 class ParticleRenderer
 {
 public:
@@ -9,7 +11,7 @@ public:
 
     void setPositions(float *pos, int numParticles);
     void setVertexBuffer(unsigned int vbo, int numParticles);
-    void setColorBuffer(unsigned int vbo) { m_colorVBO = vbo; }
+    void setColorBuffer(unsigned int vbo) { mColorVbo = vbo; }
 
     enum DisplayMode
     {
@@ -21,29 +23,29 @@ public:
     void display(DisplayMode mode = PARTICLE_POINTS);
     void displayGrid();
 
-    void setPointSize(float size)  { m_pointSize = size; }
-    void setParticleRadius(float r) { m_particleRadius = r; }
-    void setFOV(float fov) { m_fov = fov; }
-    void setWindowSize(int w, int h) { m_window_w = w; m_window_h = h; }
+    void setPointSize(float size)  { mGlPointSize = size; }
+    void setParticleRadius(float r) { mParticleRadius = r; }
+    void setFOV(float fov) { mFov = fov; }
+    void setWindowSize(QSize size) {mGlWindowSize = size;}
 
 protected: // methods
-    void _initGL();
-    void _drawPoints();
-    GLuint _compileProgram(const char *vsource, const char *fsource);
+//    void _initGL();
+    void drawPoints();
+    GLuint compileProgram(const char *vsource, const char *fsource);
 
 protected: // data
-    float *m_pos;
-    int m_numParticles;
+//    float *mPositions;
+    int mNumberOfParticles;
 
-    float m_pointSize;
-    float m_particleRadius;
-    float m_fov;
-    int m_window_w, m_window_h;
+    float mGlPointSize;
+    float mParticleRadius;
+    float mFov;
+    QSize mGlWindowSize;
 
-    GLuint m_program;
+    GLuint mGlProgramHandle;
 
-    GLuint m_vbo;
-    GLuint m_colorVBO;
+    GLuint mVbo;
+    GLuint mColorVbo;
 };
 
 #endif //__ RENDER_PARTICLES__

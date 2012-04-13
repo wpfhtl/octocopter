@@ -23,7 +23,7 @@ struct SimParams {
 
     uint3 gridSize;
     unsigned int numCells;
-    float3 worldOrigin;
+    float3 worldMin, worldMax;
     float3 cellSize;
 
     unsigned int numBodies;

@@ -2,6 +2,7 @@
 #define FLIGHTPLANNERINTERFACE_H
 
 #include <QObject>
+#include <QGLWidget>
 #include "octree.h"
 #include "openglutilities.h"
 #include <waypoint.h>
@@ -18,6 +19,7 @@ protected:
     Octree* mOctree;
     QVector3D mScanVolumeMin, mScanVolumeMax;
     QVector<Pose> mVehiclePoses;
+    QGLWidget* mGlWidget;
     QWidget* mParentWidget;
     QList<WayPoint>* mWayPointsAhead, *mWayPointsPassed;
 
@@ -27,6 +29,8 @@ public:
     // Here, basestation passes its own octree. Its up to the implementation to use it.
     FlightPlannerInterface(QWidget* widget, Octree* pointCloud);
     virtual ~FlightPlannerInterface();
+
+    void setGlWidget(QGLWidget* glWidget) {mGlWidget = glWidget;}
 
     // Insert points from the laserscanners. Note that the points might also be inserted
     // into Octree* pointCloud, this is independent from the flightplanner.

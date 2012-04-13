@@ -2,7 +2,8 @@
 
 FlightPlannerParticles::FlightPlannerParticles(QWidget* widget, Octree* pointCloud) : FlightPlannerInterface(widget, pointCloud)
 {
-
+    mParticleSystem = 0;
+    mParticleRenderer = 0;
 }
 
 void FlightPlannerParticles::slotInitialize()
@@ -43,14 +44,13 @@ void FlightPlannerParticles::slotInitialize()
     uint3 gridSize;
 
     // simulation parameters
-    timestep = 0.5f;
     damping = 1.0f;
     gravity = 0.0003f;
     ballr = 10;
     mode = 0;
 
-    collideSpring = 0.5f;;
-    collideDamping = 0.02f;;
+    collideSpring = 0.5f;
+    collideDamping = 0.02f;
     collideShear = 0.1f;
     collideAttraction = 0.0f;
 
@@ -62,14 +62,14 @@ void FlightPlannerParticles::slotInitialize()
     //cudaGLInit(argc, argv); // simply does cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );, which is done above already
 
     mParticleSystem = new ParticleSystem(numParticles, gridSize);
-    mParticleSystem->reset(ParticleSystem::CONFIG_GRID);
+    mParticleSystem->setVolume(mScanVolumeMin, mScanVolumeMax);
+    mParticleSystem->reset(ParticleSystem::CONFIG_RANDOM);
 
     mParticleRenderer = new ParticleRenderer;
     mParticleRenderer->setParticleRadius(mParticleSystem->getParticleRadius());
     mParticleRenderer->setColorBuffer(mParticleSystem->getColorBuffer());
 
-
-/*
+    /*
     // create a new parameter list
     params = new ParamListGL("misc");
     params->AddParam(new Param<float>("time step", timestep, 0.0f, 1.0f, 0.01f, &timestep));
@@ -116,22 +116,25 @@ void FlightPlannerParticles::slotVisualize() const
     qDebug() << "FlightPlannerParticles::slotVisualize()";
 
     // update the simulation
-        mParticleSystem->setDamping(damping);
-        mParticleSystem->setGravity(-gravity);
-        mParticleSystem->setCollideSpring(collideSpring);
-        mParticleSystem->setCollideDamping(collideDamping);
-        mParticleSystem->setCollideShear(collideShear);
-        mParticleSystem->setCollideAttraction(collideAttraction);
+    mParticleSystem->setDamping(damping);
+    mParticleSystem->setGravity(-gravity);
+    mParticleSystem->setCollideSpring(collideSpring);
+    mParticleSystem->setCollideDamping(collideDamping);
+    mParticleSystem->setCollideShear(collideShear);
+    mParticleSystem->setCollideAttraction(collideAttraction);
 
-        mParticleSystem->update(timestep);
-        mParticleRenderer->setVertexBuffer(mParticleSystem->getCurrentReadBuffer(), mParticleSystem->getNumParticles());
-        mParticleRenderer->display(ParticleRenderer::PARTICLE_POINTS); // make this spheres. And make that work!
+    mParticleSystem->update(0.5f);
+    mParticleRenderer->setWindowSize(mGlWidget->size());
+    mParticleRenderer->setFOV(60.0f);
+    mParticleRenderer->setVertexBuffer(mParticleSystem->getCurrentReadBuffer(), mParticleSystem->getNumParticles());
+    mParticleRenderer->display(ParticleRenderer::PARTICLE_SPHERES); // make this spheres. And make that work!
 }
 
 void FlightPlannerParticles::slotSetScanVolume(const QVector3D min, const QVector3D max)
 {
     FlightPlannerInterface::slotSetScanVolume(min, max);
-    //mVoxelManager->slotSetScanVolume(min, max);
+
+    if(mParticleSystem) mParticleSystem->setVolume(mScanVolumeMin, mScanVolumeMax);
 
     // Re-fill VoxelManager's data from basestations octree.
     if(mOctree) insertPointsFromNode(mOctree->root());
@@ -183,7 +186,7 @@ void FlightPlannerParticles::slotWayPointReached(const WayPoint wpt)
 {
     FlightPlannerInterface::slotWayPointReached(wpt);
 
-//    slotCreateSafePathToNextWayPoint();
+    //    slotCreateSafePathToNextWayPoint();
 }
 
 void FlightPlannerParticles::slotVehiclePoseChanged(const Pose& pose)

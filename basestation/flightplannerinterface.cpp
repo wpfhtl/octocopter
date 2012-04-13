@@ -4,7 +4,6 @@ FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, Octree* pointClo
 {
     mOctree = pointCloud;
     mParentWidget = widget;
-//    mVehiclePose = pose;
     mWayPointsAhead = new QList<WayPoint>;
     mWayPointsPassed = new QList<WayPoint>;
 
@@ -43,16 +42,16 @@ void FlightPlannerInterface::slotCheckWayPointsHashFromRover(const QString &hash
 
 void FlightPlannerInterface::sortToShortestPath(QList<WayPoint> &wayPoints, const QVector3D &currentVehiclePosition)
 {
-//    qDebug() << "FlightPlannerInterface::sortToShortestPath(): vehicle is at" << currentVehiclePosition;
+    //    qDebug() << "FlightPlannerInterface::sortToShortestPath(): vehicle is at" << currentVehiclePosition;
 
     float distanceBefore = 0;
     for(int i=1;i<wayPoints.size();i++) distanceBefore += wayPoints.at(i-1).distanceToLine(wayPoints.at(i), QVector3D());
-//    qDebug() << "FlightPlannerInterface::sortToShortestPath(): total distance between" << wayPoints.size() << "points before:" << distanceBefore;
+    //    qDebug() << "FlightPlannerInterface::sortToShortestPath(): total distance between" << wayPoints.size() << "points before:" << distanceBefore;
 
     QList<WayPoint> wps(wayPoints);
     float distanceBeforewps = 0;
     for(int i=1;i<wps.size();i++) distanceBeforewps += wps.at(i-1).distanceToLine(wps.at(i), QVector3D());
-//    qDebug() << "FlightPlannerInterface::sortToShortestPath(): wps total distance between" << wps.size() << "points before:" << distanceBeforewps;
+    //    qDebug() << "FlightPlannerInterface::sortToShortestPath(): wps total distance between" << wps.size() << "points before:" << distanceBeforewps;
 
     wayPoints.clear();
     wayPoints.append(currentVehiclePosition);
@@ -80,7 +79,7 @@ void FlightPlannerInterface::sortToShortestPath(QList<WayPoint> &wayPoints, cons
 
     float distanceAfter = 0;
     for(int i=1;i<wayPoints.size();i++) distanceAfter += wayPoints.at(i-1).distanceToLine(wayPoints.at(i), QVector3D());
-//    qDebug() << "FlightPlannerInterface::sortToShortestPath(): total distance between" << wayPoints.size() << "points after:" << distanceAfter;
+    //    qDebug() << "FlightPlannerInterface::sortToShortestPath(): total distance between" << wayPoints.size() << "points after:" << distanceAfter;
 }
 
 const Pose FlightPlannerInterface::getLastKnownVehiclePose(void) const
@@ -94,7 +93,7 @@ const Pose FlightPlannerInterface::getLastKnownVehiclePose(void) const
 void FlightPlannerInterface::slotVehiclePoseChanged(const Pose& pose)
 {
     mVehiclePoses.append(pose);
-//    if(mVehiclePoses.size() > 2) mVehiclePoses.takeFirst();
+    //    if(mVehiclePoses.size() > 2) mVehiclePoses.takeFirst();
 }
 
 const QVector3D FlightPlannerInterface::getCurrentVehicleVelocity() const
@@ -228,7 +227,7 @@ void FlightPlannerInterface::slotVisualize() const
     // Draw the scanVolume
     glDisable(GL_LIGHTING);
     OpenGlUtilities::drawAabb(mScanVolumeMin, mScanVolumeMax, QColor(150, 150, 255, 150), 2);
-//    glEnable(GL_LIGHTING);
+    //    glEnable(GL_LIGHTING);
 
     // Draw line between future waypoints
     glLineWidth(1);
