@@ -7,6 +7,7 @@
 #include "flightplannerphysicsdialog.h"
 #include "node.h"
 #include "lidarpoint.h"
+#include "glwidget.h"
 #include <waypoint.h>
 #include "openglutilities.h"
 

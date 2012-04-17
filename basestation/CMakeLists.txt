@@ -114,6 +114,8 @@ voxelmanager.h
 ../common/octree.h
 ../common/plotwidget.h
 ../common/wirelessdevice.h
+particlesystem.h
+particlerenderer.h
 )
 
 SET(UI_FILES

@@ -11,6 +11,7 @@
 #include "particlesystem.h"
 #include "node.h"
 #include "lidarpoint.h"
+#include "glwidget.h"
 #include "voxelmanager.h"
 #include <waypoint.h>
 #include "openglutilities.h"

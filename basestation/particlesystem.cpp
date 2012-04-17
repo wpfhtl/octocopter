@@ -238,6 +238,12 @@ void ParticleSystem::update(float deltaTime)
     }
 }
 
+void ParticleSystem::slotSetParticleRadius(float radius)
+{
+    mSimulationParameters.particleRadius = radius;
+    emit particleRadiusChanged(radius);
+}
+
 /*
 void ParticleSystem::dumpGrid()
 {

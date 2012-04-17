@@ -8,23 +8,19 @@
 #include "particlerenderer.h"
 #include "cudashaders.h"
 
-#ifndef M_PI
-#define M_PI    3.1415926535897932384626433832795
-#endif
-
 ParticleRenderer::ParticleRenderer()
 {
     mParticleRadius = 0.125f * 0.5f;
     mParticleRadius = 3.0f;
 
-//    mPositions = 0;
-      mNumberOfParticles = 0;
-      mGlPointSize = 10.0f;
-      mGlProgramHandle = 0;
-      mVbo = 0;
-      mColorVbo = 0;
+    mFov = 60.0;
+    mNumberOfParticles = 0;
+    mGlPointSize = 10.0f;
+    mGlProgramHandle = 0;
+    mVbo = 0;
+    mColorVbo = 0;
 
-    mGlProgramHandle = compileProgram(vertexShader, spherePixelShader);
+    mGlProgramHandle = compileProgram(vertexShader, geometryShader, fragmentShader);
 
     glClampColorARB(GL_CLAMP_VERTEX_COLOR_ARB, GL_FALSE);
     glClampColorARB(GL_CLAMP_FRAGMENT_COLOR_ARB, GL_FALSE);
@@ -32,7 +28,7 @@ ParticleRenderer::ParticleRenderer()
 
 ParticleRenderer::~ParticleRenderer()
 {
-//    mPositions = 0;
+    //mPositions = 0;
 }
 
 /*void ParticleRenderer::setPositions(float *pos, int numParticles)
@@ -78,7 +74,8 @@ void ParticleRenderer::drawPoints()
             glEnableClientState(GL_COLOR_ARRAY);
         }
 
-        glDrawArrays(GL_POINTS, 0, mNumberOfParticles);
+        //glDrawArrays(GL_POINTS, 0, mNumberOfParticles);
+        glDrawArrays(GL_QUADS, 0, mNumberOfParticles);
 
         glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
         glDisableClientState(GL_VERTEX_ARRAY); 
@@ -99,20 +96,23 @@ void ParticleRenderer::display(DisplayMode mode /* = PARTICLE_POINTS */)
 
     default:
     case PARTICLE_SPHERES:
-        qDebug() << "ParticleRenderer::display(): drawing particles as spheres into window of size" << mGlWindowSize;
-        glEnable(GL_POINT_SPRITE_ARB); Q_ASSERT(glIsEnabled(GL_POINT_SPRITE_ARB));
+        qDebug() << "ParticleRenderer::display(): drawing particles with scale" << mGlWindowSize.height() / tanf(mFov * 0.5f * (float)M_PI/180.0f) << "and radius" << mParticleRadius << "as spheres into window of size" << mGlWindowSize;
+        glEnable(GL_POINT_SPRITE_ARB);
         glTexEnvi(GL_POINT_SPRITE_ARB, GL_COORD_REPLACE_ARB, GL_TRUE);
-        glEnable(GL_VERTEX_PROGRAM_POINT_SIZE_NV); Q_ASSERT(glIsEnabled(GL_VERTEX_PROGRAM_POINT_SIZE_NV));
+        glEnable(GL_VERTEX_PROGRAM_POINT_SIZE_NV);
         glDepthMask(GL_TRUE);
-        glEnable(GL_DEPTH_TEST); Q_ASSERT(glIsEnabled(GL_DEPTH_TEST));
+        glEnable(GL_DEPTH_TEST);
+        //glEnable(GL_POINT_SMOOTH); // bringt nix?!
+//        glBlendFunc(GL_SRC_ALPHA, GL_ONE/*_MINUS_SRC_ALPHA*/);
+//        glEnable(GL_BLEND);
 
-        Q_ASSERT(mGlProgramHandle != 0);
-        glUseProgram(mGlProgramHandle);
+        //glUseProgram(mGlProgramHandle);
 
         // Set pointScale and pointRadius variable values in the shader program
         //glUniform1f( glGetUniformLocation(mGlProgramHandle, "pointScale"), m_window_h / tanf(m_fov*0.5f*(float)M_PI/180.0f) );
         glUniform1f(glGetUniformLocation(mGlProgramHandle, "pointScale"), mGlWindowSize.height() / tanf(mFov * 0.5f * (float)M_PI/180.0f));
-        glUniform1f(glGetUniformLocation(mGlProgramHandle, "pointRadius"), mParticleRadius);
+//        glUniform1f(glGetUniformLocation(mGlProgramHandle, "pointScale"), mGlWindowSize.width());
+        glUniform1f(glGetUniformLocation(mGlProgramHandle, "pointRadius"), mParticleRadius * 1.5f);
 
         glColor3f(1, 1, 1);
         drawPoints();
@@ -123,21 +123,25 @@ void ParticleRenderer::display(DisplayMode mode /* = PARTICLE_POINTS */)
     }
 }
 
-GLuint ParticleRenderer::compileProgram(const char *vsource, const char *fsource)
+GLuint ParticleRenderer::compileProgram(const char *vsource, const char* gsource, const char *fsource)
 {
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
     GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    GLuint geometryShader = glCreateShader(GL_GEOMETRY_SHADER);
 
     glShaderSource(vertexShader, 1, &vsource, 0);
     glShaderSource(fragmentShader, 1, &fsource, 0);
+    glShaderSource(geometryShader, 1, &gsource, 0);
     
     glCompileShader(vertexShader);
     glCompileShader(fragmentShader);
+    glCompileShader(geometryShader);
 
     GLuint program = glCreateProgram();
 
     glAttachShader(program, vertexShader);
     glAttachShader(program, fragmentShader);
+    glAttachShader(program, geometryShader);
 
     glLinkProgram(program);
 
@@ -159,4 +163,10 @@ GLuint ParticleRenderer::compileProgram(const char *vsource, const char *fsource
     }
 
     return program;
+}
+
+void ParticleRenderer::slotSetFovVertical(float fov)
+{
+    mFov = fov;
+    qDebug() << "ParticleRenderer::slotSetFovVertical(): fov is now" << mFov;
 }

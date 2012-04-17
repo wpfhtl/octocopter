@@ -1,10 +1,15 @@
-#ifndef __RENDER_PARTICLES__
-#define __RENDER_PARTICLES__
+#ifndef RENDER_PARTICLES_H
+#define RENDER_PARTICLES_H
 
+#include <GL/glew.h>
+#include <GL/freeglut.h>
+
+#include <QObject>
 #include <QSize>
 
-class ParticleRenderer
+class ParticleRenderer : public QObject
 {
+    Q_OBJECT
 public:
     ParticleRenderer();
     ~ParticleRenderer();
@@ -24,12 +29,13 @@ public:
     void displayGrid();
 
     void setPointSize(float size)  { mGlPointSize = size; }
-    void setParticleRadius(float r) { mParticleRadius = r; }
-    void setFOV(float fov) { mFov = fov; }
     void setWindowSize(QSize size) {mGlWindowSize = size;}
 
+public slots:
+    void slotSetParticleRadius(float r) { mParticleRadius = r; }
+    void slotSetFovVertical(float fov);
+
 protected: // methods
-//    void _initGL();
     void drawPoints();
     GLuint compileProgram(const char *vsource, const char *fsource);
 
@@ -48,4 +54,4 @@ protected: // data
     GLuint mColorVbo;
 };
 
-#endif //__ RENDER_PARTICLES__
+#endif

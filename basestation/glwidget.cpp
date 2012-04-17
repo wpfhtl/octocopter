@@ -62,10 +62,9 @@ void GlWidget::initializeGL()
 //    glEnable(GL_BLEND);							// Enable Blending
 //    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);			// Type Of Blending To Use
 //    glBlendFunc( GL_SRC_ALPHA, GL_ONE );
-    glBlendFunc( GL_ZERO, GL_ONE_MINUS_SRC_ALPHA );
+//    glBlendFunc( GL_ZERO, GL_ONE_MINUS_SRC_ALPHA );
 //    glBlendFunc( GL_SRC_ALPHA_SATURATE, GL_ONE );
 //    glBlendFunc(GL_ONE_MINUS_DST_ALPHA,GL_DST_ALPHA);
-    glEnable(GL_DEPTH_TEST); // also needed for CUDA particles
 }
 
 void GlWidget::resizeGL(int w, int h)
@@ -75,8 +74,8 @@ void GlWidget::resizeGL(int w, int h)
     glViewport(0, 0, w, h);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-//    gluPerspective(50.0*mZoomFactorCurrent, (GLfloat)w/(GLfloat)h, 10, +8000.0);
-    glOrtho(-w/2 * mZoomFactorCurrent, w/2 * mZoomFactorCurrent, -h/2 * mZoomFactorCurrent, h/2 * mZoomFactorCurrent, 1, 10000);
+    gluPerspective(50.0*mZoomFactorCurrent, (GLfloat)w/(GLfloat)h, 10, +8000.0);
+//    glOrtho(-w/2 * mZoomFactorCurrent, w/2 * mZoomFactorCurrent, -h/2 * mZoomFactorCurrent, h/2 * mZoomFactorCurrent, 1, 10000);
     glTranslatef(camPos.x(), camPos.y(), camPos.z());
     glMatrixMode(GL_MODELVIEW);
 }
@@ -103,6 +102,8 @@ void GlWidget::paintGL()
         if(mTimerIdZoom == 0) mTimerIdZoom = startTimer(20);
         mZoomFactorCurrent += step;
         resizeGL(width(),height()); // this sets up a new view with the new zoomFactor
+        emit fovChanged(mZoomFactorCurrent * 50.0f);
+
     }
     else if(mTimerIdZoom != 0)
     {

@@ -3,10 +3,12 @@
 
 #include "particleskernel.cuh"
 #include "vector_functions.h"
+#include <QObject>
 #include <QVector3D>
 
-class ParticleSystem
+class ParticleSystem : public QObject
 {
+    Q_OBJECT
 public:
     ParticleSystem(unsigned int numParticles, uint3 gridSize);
     ~ParticleSystem();
@@ -54,6 +56,7 @@ public:
     void setVolume(const QVector3D& min, const QVector3D& max);
 
     float getParticleRadius() { return mSimulationParameters.particleRadius; }
+
 //    float3 getColliderPos() { return m_params.colliderPos; }
 //    float getColliderRadius() { return m_params.colliderRadius; }
 //    uint3 getGridSize() { return m_params.gridSize; }
@@ -61,6 +64,12 @@ public:
 //    float3 getCellSize() { return m_params.cellSize; }
 
     void addSphere(int index, float *pos, float *vel, int r, float spacing);
+
+public slots:
+    void slotSetParticleRadius(float);
+
+signals:
+    void particleRadiusChanged(float);
 
 protected: // methods
     ParticleSystem() {}

@@ -67,6 +67,7 @@ signals:
     void initializingInGlContext();
     void visualizeNow();
     void mouseClickedAtWorldPos(Qt::MouseButton, QVector3D);
+    void fovChanged(float);
 
 public slots:
     // When this is called, we take note of the time of last external update. Because when zooming/rotating

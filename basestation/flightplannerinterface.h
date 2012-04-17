@@ -9,6 +9,7 @@
 #include <pose.h>
 
 class Pose;
+class GlWidget;
 
 class FlightPlannerInterface : public QObject
 {
@@ -19,7 +20,7 @@ protected:
     Octree* mOctree;
     QVector3D mScanVolumeMin, mScanVolumeMax;
     QVector<Pose> mVehiclePoses;
-    QGLWidget* mGlWidget;
+    GlWidget* mGlWidget;
     QWidget* mParentWidget;
     QList<WayPoint>* mWayPointsAhead, *mWayPointsPassed;
 
@@ -30,7 +31,7 @@ public:
     FlightPlannerInterface(QWidget* widget, Octree* pointCloud);
     virtual ~FlightPlannerInterface();
 
-    void setGlWidget(QGLWidget* glWidget) {mGlWidget = glWidget;}
+    void setGlWidget(GlWidget* glWidget) {mGlWidget = glWidget;}
 
     // Insert points from the laserscanners. Note that the points might also be inserted
     // into Octree* pointCloud, this is independent from the flightplanner.

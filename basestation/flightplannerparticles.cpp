@@ -40,7 +40,7 @@ void FlightPlannerParticles::slotInitialize()
              << deviceProps.memoryClockRate / 1000 << "Mhz mem clock and a"
              << deviceProps.memoryBusWidth << "bit mem bus";
 
-    uint numParticles = 16384;
+    uint numParticles = 256;
     uint3 gridSize;
 
     // simulation parameters
@@ -65,8 +65,11 @@ void FlightPlannerParticles::slotInitialize()
     mParticleSystem->setVolume(mScanVolumeMin, mScanVolumeMax);
     mParticleSystem->reset(ParticleSystem::CONFIG_RANDOM);
 
+
     mParticleRenderer = new ParticleRenderer;
-    mParticleRenderer->setParticleRadius(mParticleSystem->getParticleRadius());
+    connect(mParticleSystem, SIGNAL(particleRadiusChanged(float)), mParticleRenderer, SLOT(slotSetParticleRadius()));
+    connect(mGlWidget, SIGNAL(fovChanged(float)), mParticleRenderer, SLOT(slotSetFovVertical(float)));
+    mParticleSystem->slotSetParticleRadius(3.3f);
     mParticleRenderer->setColorBuffer(mParticleSystem->getColorBuffer());
 
     /*
@@ -125,7 +128,6 @@ void FlightPlannerParticles::slotVisualize() const
 
     mParticleSystem->update(0.5f);
     mParticleRenderer->setWindowSize(mGlWidget->size());
-    mParticleRenderer->setFOV(60.0f);
     mParticleRenderer->setVertexBuffer(mParticleSystem->getCurrentReadBuffer(), mParticleSystem->getNumParticles());
     mParticleRenderer->display(ParticleRenderer::PARTICLE_SPHERES); // make this spheres. And make that work!
 }
