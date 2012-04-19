@@ -3,7 +3,7 @@
 
 #include <QColor>
 #include <QVector3D>
-#include <GL/glut.h>
+#include <GL/freeglut.h>
 
 class OpenGlUtilities
 {

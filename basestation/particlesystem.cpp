@@ -79,11 +79,11 @@ ParticleSystem::ParticleSystem(unsigned int numParticles, uint3 gridSize) :
 
     if(mUseOpenGl)
     {
-        mColorVbo = createVBO(mNumberOfParticles*4*sizeof(float));
-        registerGLBufferObject(mColorVbo, &mCudaColorVboResource);
+        mColorVboHandle = createVBO(mNumberOfParticles*4*sizeof(float));
+        registerGLBufferObject(mColorVboHandle, &mCudaColorVboResource);
 
         // fill color buffer
-        glBindBufferARB(GL_ARRAY_BUFFER, mColorVbo);
+        glBindBufferARB(GL_ARRAY_BUFFER, mColorVboHandle);
         float *data = (float *) glMapBufferARB(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
         float *ptr = data;
         for(unsigned int i=0; i<mNumberOfParticles; i++)
@@ -134,7 +134,7 @@ ParticleSystem::~ParticleSystem()
     if (mUseOpenGl) {
         unregisterGLBufferObject(mCudaPosVboResource);
         glDeleteBuffers(1, (const GLuint*)&mPositionVboHandle);
-        glDeleteBuffers(1, (const GLuint*)&mColorVbo);
+        glDeleteBuffers(1, (const GLuint*)&mColorVboHandle);
     } else {
         cudaFree(m_cudaPosVBO);
         cudaFree(mCudaColorVbo);

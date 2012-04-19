@@ -67,9 +67,9 @@ void FlightPlannerParticles::slotInitialize()
 
 
     mParticleRenderer = new ParticleRenderer;
-    connect(mParticleSystem, SIGNAL(particleRadiusChanged(float)), mParticleRenderer, SLOT(slotSetParticleRadius()));
-    connect(mGlWidget, SIGNAL(fovChanged(float)), mParticleRenderer, SLOT(slotSetFovVertical(float)));
-    mParticleSystem->slotSetParticleRadius(3.3f);
+    connect(mParticleSystem, SIGNAL(particleRadiusChanged(float)), mParticleRenderer, SLOT(slotSetParticleRadius(float)));
+    connect(mGlWidget, SIGNAL(matrices(QMatrix4x4,QMatrix4x4)), mParticleRenderer, SLOT(slotSetMatrices(QMatrix4x4,QMatrix4x4)));
+    mParticleSystem->slotSetParticleRadius(0.5f);
     mParticleRenderer->setColorBuffer(mParticleSystem->getColorBuffer());
 
     /*
@@ -129,7 +129,7 @@ void FlightPlannerParticles::slotVisualize() const
     mParticleSystem->update(0.5f);
     mParticleRenderer->setWindowSize(mGlWidget->size());
     mParticleRenderer->setVertexBuffer(mParticleSystem->getCurrentReadBuffer(), mParticleSystem->getNumParticles());
-    mParticleRenderer->display(ParticleRenderer::PARTICLE_SPHERES); // make this spheres. And make that work!
+    mParticleRenderer->render();
 }
 
 void FlightPlannerParticles::slotSetScanVolume(const QVector3D min, const QVector3D max)

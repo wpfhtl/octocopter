@@ -40,7 +40,6 @@ voxelmanager
 ../common/plotwidget
 ../common/gpsstatusinformation
 ../common/wirelessdevice
-cudashaders
 particlesystem
 particlesystem_cuda.cu
 particlerenderer
@@ -81,7 +80,6 @@ voxelmanager.h
 ../common/plotwidget.h
 ../common/gpsstatusinformation.h
 ../common/wirelessdevice.h
-cudashaders.h
 particlesystem.h
 particlesystem_cuda.cuh
 particlerenderer.h

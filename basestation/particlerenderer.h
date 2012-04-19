@@ -5,7 +5,12 @@
 #include <GL/freeglut.h>
 
 #include <QObject>
+#include <QMatrix4x4>
 #include <QSize>
+#include <QFile>
+#include <QDir>
+#include <QGLShader>
+#include <QGLShaderProgram>
 
 class ParticleRenderer : public QObject
 {
@@ -25,30 +30,23 @@ public:
         PARTICLE_NUM_MODES
     };
 
-    void display(DisplayMode mode = PARTICLE_POINTS);
+    void render();
     void displayGrid();
 
-    void setPointSize(float size)  { mGlPointSize = size; }
     void setWindowSize(QSize size) {mGlWindowSize = size;}
 
 public slots:
     void slotSetParticleRadius(float r) { mParticleRadius = r; }
-    void slotSetFovVertical(float fov);
+    void slotSetMatrices(const QMatrix4x4& modelview, const QMatrix4x4& projection);
 
-protected: // methods
-    void drawPoints();
-    GLuint compileProgram(const char *vsource, const char *fsource);
+private:
+    QGLShaderProgram* mShaderProgram;
 
-protected: // data
-//    float *mPositions;
+protected:
     int mNumberOfParticles;
-
-    float mGlPointSize;
     float mParticleRadius;
-    float mFov;
+    QMatrix4x4 mMatrixModelView, mMatrixProjection;
     QSize mGlWindowSize;
-
-    GLuint mGlProgramHandle;
 
     GLuint mVbo;
     GLuint mColorVbo;

@@ -32,8 +32,8 @@ class GlWidget : public QGLWidget
     QDateTime mTimeOfLastExternalUpdate;
 
     // Mouse Rotations
-    QPoint      lastPos;
-    QVector3D   camPos;
+    QPoint      mLastMousePosition;
+    QVector3D   mCameraPosition;
     GLfloat     rotX, rotY, rotZ;
 
     // Wheel Zooming. For smooth zooming, mZoomFactorCurrent converges toward mZoomFactorTarget
@@ -68,6 +68,7 @@ signals:
     void visualizeNow();
     void mouseClickedAtWorldPos(Qt::MouseButton, QVector3D);
     void fovChanged(float);
+    void matrices(QMatrix4x4, QMatrix4x4);
 
 public slots:
     // When this is called, we take note of the time of last external update. Because when zooming/rotating
@@ -75,6 +76,9 @@ public slots:
     // superfluous and slow redrawing. So, by only redrawing for rotation/zoom when there hasn't been an
     // external redraw in a while, we can save CPU cycles.
     void slotUpdateView();
+
+    // Tell GlWidget to emit the current matrix
+    void slotEmitModelViewProjectionMatrix();
 
     void slotEnableTimerRotation(const bool& enable);
     void slotViewFromTop();

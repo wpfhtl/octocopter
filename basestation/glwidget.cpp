@@ -13,13 +13,17 @@ GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flig
     mOctree(octree),
     mFlightPlanner(flightPlanner)
 {
-    QGLFormat fmt;
-    fmt.setSamples(2);
-    fmt.setSampleBuffers(true);
-    QGLFormat::setDefaultFormat(fmt);
-    setFormat(fmt);
+    QGLFormat glFormat;
+    glFormat.setSamples(2);
+    glFormat.setSampleBuffers(true);
+    glFormat.setVersion(4,0);
+    glFormat.setProfile(QGLFormat::CompatibilityProfile);
+    // This means no OpenGL-deprecated stuff is used (like glBegin() and glEnd())
+    //glFormat.setProfile(QGLFormat::CoreProfile);
+    QGLFormat::setDefaultFormat(glFormat);
+    setFormat(glFormat);
 
-    mCamLookAtOffset = QVector3D(0.0, 0.0, 0.0);
+    mCameraPosition = QVector3D(0.0f, 500.0f, 500.0f);
 
     mZoomFactorCurrent = 0.5;
     mZoomFactorTarget = 0.5;
@@ -73,17 +77,22 @@ void GlWidget::resizeGL(int w, int h)
     // setup viewport, projection etc.
     glViewport(0, 0, w, h);
     glMatrixMode(GL_PROJECTION);
+    // Load identitiy, because gluPerspective() will not replace the old matrix, but multiply with the new matrix.
     glLoadIdentity();
-    gluPerspective(50.0*mZoomFactorCurrent, (GLfloat)w/(GLfloat)h, 10, +8000.0);
-//    glOrtho(-w/2 * mZoomFactorCurrent, w/2 * mZoomFactorCurrent, -h/2 * mZoomFactorCurrent, h/2 * mZoomFactorCurrent, 1, 10000);
-    glTranslatef(camPos.x(), camPos.y(), camPos.z());
+//    gluPerspective(50.0*mZoomFactorCurrent, (GLfloat)w/(GLfloat)h, 10, +8000.0);
+    glOrtho(-w/2 * mZoomFactorCurrent, w/2 * mZoomFactorCurrent, -h/2 * mZoomFactorCurrent, h/2 * mZoomFactorCurrent, 1, 10000);
+    // SEEMS WRONG, http://www.3dsource.de/faq/viewing.htm: glTranslatef(mCameraPosition.x(), mCameraPosition.y(), mCameraPosition.z());
     glMatrixMode(GL_MODELVIEW);
+
+    slotEmitModelViewProjectionMatrix();
 }
 
 void GlWidget::moveCamera(const QVector3D &pos)
 {
 //    qDebug() << "moveCamera to " << pos;
-    camPos = pos;
+    mCameraPosition = pos;
+    slotEmitModelViewProjectionMatrix();
+    update();
 }
 
 void GlWidget::paintGL()
@@ -102,8 +111,6 @@ void GlWidget::paintGL()
         if(mTimerIdZoom == 0) mTimerIdZoom = startTimer(20);
         mZoomFactorCurrent += step;
         resizeGL(width(),height()); // this sets up a new view with the new zoomFactor
-        emit fovChanged(mZoomFactorCurrent * 50.0f);
-
     }
     else if(mTimerIdZoom != 0)
     {
@@ -115,13 +122,18 @@ void GlWidget::paintGL()
 
     const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().getPosition();
     QVector3D camLookAt = mCamLookAtOffset + vehiclePosition;
-    QVector3D min, max;
-    mFlightPlanner->getScanVolume(min, max);
-//    mCamLookAt = min + (max - min)/2.0;
 
-    gluLookAt(0.0, 500.0, 500.0,
-              camLookAt.x(), camLookAt.y(), camLookAt.z(),
-              0.0, 1.0, 0.0);
+    gluLookAt(
+                mCameraPosition.x(),    // camPosX
+                mCameraPosition.y(),    // camPosY
+                mCameraPosition.z(),    // camPosZ
+                camLookAt.x(),          // camLookAtX
+                camLookAt.y(),          // camLookAtY
+                camLookAt.z(),          // camLookAtZ
+                0.0,                    // upVectorX
+                1.0,                    // upVectorY
+                0.0                     // upVectorZ
+                );
 
     glTranslatef(camLookAt.x(), camLookAt.y(), camLookAt.z());
 
@@ -132,25 +144,7 @@ void GlWidget::paintGL()
 
     glTranslatef(-camLookAt.x(), -camLookAt.y(), -camLookAt.z());
 
-    // Draw base plate for unProjecting
-    /*
-    glEnable(GL_BLEND);
-    glDisable(GL_LIGHTING);
-    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-    glBlendFunc(GL_CONSTANT_COLOR, GL_ONE_MINUS_SRC_ALPHA);
-    glColor4f(1.0f, 1.0f, 1.0f, 0.0f);
-    glBegin(GL_QUADS);
-    glVertex3f(1000, min.y()+15, -1000);
-    glVertex3f(1000, min.y()+15, 1000);
-    glVertex3f(-1000, min.y()+15, 1000);
-    glVertex3f(-1000, min.y()+15, -1000);
-    glEnd();
-    glEnable(GL_LIGHTING);
-    glDisable(GL_BLEND);
-    */
-
     drawAxes(10, 10, 10, 0.8, 0.8, 0.8);
-
     drawVehiclePath();
     drawVehicle();
     drawVehicleVelocity();
@@ -315,15 +309,15 @@ void GlWidget::slotEnableTimerRotation(const bool& enable)
 
 void GlWidget::mousePressEvent(QMouseEvent *event)
 {
-    lastPos = event->pos();
+    mLastMousePosition = event->pos();
 
     emit mouseClickedAtWorldPos(event->button(), convertMouseToWorldPosition(event->pos()));
 }
 
 void GlWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    float DX = float(event->x()-lastPos.x())/width();
-    float DY = float(event->y()-lastPos.y())/height();
+    float DX = float(event->x()-mLastMousePosition.x())/width();
+    float DY = float(event->y()-mLastMousePosition.y())/height();
 
     if(event->buttons() & Qt::LeftButton)
     {
@@ -341,7 +335,7 @@ void GlWidget::mouseMoveEvent(QMouseEvent *event)
         mCamLookAtOffset.setX(mCamLookAtOffset.x() + 180*DX);
     }
 
-    lastPos = event->pos();
+    mLastMousePosition = event->pos();
 
     rotX = fmod(rotX, 360.0);
     rotY = fmod(rotY, 360.0);
@@ -349,7 +343,19 @@ void GlWidget::mouseMoveEvent(QMouseEvent *event)
 
 //    qDebug() << "mCamLookAtOffset: " << mCamLookAtOffset << "rotXYZ:" << rotX << rotY << rotZ;
 
+    slotEmitModelViewProjectionMatrix();
+
     update();
+}
+
+void GlWidget::slotEmitModelViewProjectionMatrix()
+{
+    QMatrix4x4 modelview, projection;
+    // get the current modelview matrix
+    glGetDoublev(GL_MODELVIEW_MATRIX , modelview.data());
+    glGetDoublev(GL_PROJECTION_MATRIX , projection.data());
+
+    emit matrices(modelview, projection);
 }
 
 void GlWidget::wheelEvent(QWheelEvent *event)
@@ -384,6 +390,7 @@ void GlWidget::timerEvent ( QTimerEvent * event )
     if(interval > 60)
     {
 //        qDebug() << "GlWidget::timerEvent(): last external update was" << interval << "ms ago, updating";
+        slotEmitModelViewProjectionMatrix();
         update();
     }
 }

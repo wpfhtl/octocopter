@@ -6,36 +6,50 @@
 #include <QDebug>
 
 #include "particlerenderer.h"
-#include "cudashaders.h"
+//#include "cudashaders.h"
 
 ParticleRenderer::ParticleRenderer()
 {
     mParticleRadius = 0.125f * 0.5f;
     mParticleRadius = 3.0f;
 
-    mFov = 60.0;
     mNumberOfParticles = 0;
-    mGlPointSize = 10.0f;
-    mGlProgramHandle = 0;
+//    mGlPointSize = 10.0f;
     mVbo = 0;
     mColorVbo = 0;
 
-    mGlProgramHandle = compileProgram(vertexShader, geometryShader, fragmentShader);
+    QDir shaderPath = QDir::current();
+    shaderPath.cdUp(); // because we're in the build/ subdir
 
+    mShaderProgram = new QGLShaderProgram(this);
+    if(mShaderProgram->addShaderFromSourceFile(QGLShader::Vertex, shaderPath.absolutePath() + "/shader-particles-vertex.c"))
+        qDebug() << "ParticleRenderer::ParticleRenderer(): compiling vertex shader succeeded, log:" << mShaderProgram->log();
+    else
+        qDebug() << "ParticleRenderer::ParticleRenderer(): compiling vertex shader failed, log:" << mShaderProgram->log();
+
+    if(mShaderProgram->addShaderFromSourceFile(QGLShader::Geometry, shaderPath.absolutePath() + "/shader-particles-geometry.c"))
+        qDebug() << "ParticleRenderer::ParticleRenderer(): compiling geometry shader succeeded, log:" << mShaderProgram->log();
+    else
+        qDebug() << "ParticleRenderer::ParticleRenderer(): compiling geometry shader failed, log:" << mShaderProgram->log();
+
+    if(mShaderProgram->addShaderFromSourceFile(QGLShader::Fragment, shaderPath.absolutePath() + "/shader-particles-fragment.c"))
+        qDebug() << "ParticleRenderer::ParticleRenderer(): compiling fragment shader succeeded, log:" << mShaderProgram->log();
+    else
+        qDebug() << "ParticleRenderer::ParticleRenderer(): compiling fragment shader failed, log:" << mShaderProgram->log();
+
+    if(!mShaderProgram->link())
+        qDebug() << "ParticleRenderer::ParticleRenderer(): linking shader program failed, log:" << mShaderProgram->log();
+
+    // Clamps Color. Aha. Seems to be disabled by default anyway?!
     glClampColorARB(GL_CLAMP_VERTEX_COLOR_ARB, GL_FALSE);
     glClampColorARB(GL_CLAMP_FRAGMENT_COLOR_ARB, GL_FALSE);
 }
 
 ParticleRenderer::~ParticleRenderer()
 {
-    //mPositions = 0;
+    // TODO: Does this delete the shaders? No.
+    mShaderProgram->deleteLater();
 }
-
-/*void ParticleRenderer::setPositions(float *pos, int numParticles)
-{
-    mPositions = pos;
-    mNumberOfParticles = numParticles;
-}*/
 
 void ParticleRenderer::setVertexBuffer(unsigned int vbo, int numParticles)
 {
@@ -43,130 +57,64 @@ void ParticleRenderer::setVertexBuffer(unsigned int vbo, int numParticles)
     mNumberOfParticles = numParticles;
 }
 
-void ParticleRenderer::drawPoints()
+void ParticleRenderer::render()
 {
-    if (!mVbo)
+    qDebug() << "ParticleRenderer::render(): drawing particles with radius" << mParticleRadius << "as spheres into window of size" << mGlWindowSize;
+    //glEnable(GL_POINT_SPRITE_ARB); // Only for rendering point sprites.
+    //glTexEnvi(GL_POINT_SPRITE_ARB, GL_COORD_REPLACE_ARB, GL_TRUE);
+    //glEnable(GL_VERTEX_PROGRAM_POINT_SIZE_NV);
+    glDepthMask(GL_TRUE);
+    glEnable(GL_DEPTH_TEST);
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE/*_MINUS_SRC_ALPHA*/);
+    //glEnable(GL_BLEND);
+
+    // Program needs to bein use before setting values to uniforms
+    //glUseProgram(mShaderProgram->programId()); same thing:
+    mShaderProgram->bind();
+
+    // Set pointScale and pointRadius variable values in the shader program
+    //glUniform1f( glGetUniformLocation(mGlProgramHandle, "pointScale"), m_window_h / tanf(m_fov*0.5f*(float)M_PI/180.0f) );
+    //glUniform1f(glGetUniformLocation(mGlProgramHandle, "pointScale"), mGlWindowSize.height() / tanf(mFov * 0.5f * (float)M_PI/180.0f));
+    //        glUniform1f(glGetUniformLocation(mGlProgramHandle, "pointScale"), mGlWindowSize.width());
+    glUniform1f(glGetUniformLocation(mShaderProgram->programId(), "particleRadius"), mParticleRadius);
+
+    QMatrix4x4 matrixMVP = mMatrixProjection * mMatrixModelView;
+
+    GLfloat matrix[4*4]; for(int i=0;i<16;i++) matrix[i] = *(matrixMVP.constData()+i);
+    glUniformMatrix4fv(glGetUniformLocation(mShaderProgram->programId(), "matModelViewProjection"), 1, GL_FALSE, matrix);
+
+    QVector3D camPos = matrixMVP.inverted() * QVector3D(0, 500, 500); // TODO: implement camera position update
+    glUniform3f(glGetUniformLocation(mShaderProgram->programId(), "cameraPosition"), camPos.x(), camPos.y(), camPos.z());
+
+    qDebug() << "ParticleRenderer::render(): using VBO to draw" << mNumberOfParticles << "particles";
+
+    glBindBuffer(GL_ARRAY_BUFFER, mVbo);
+    // Make the contents of this array available at layout position vertexShaderVertexIndex in the vertex shader
+    glEnableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_particlePosition"));
+    glVertexAttribPointer(glGetAttribLocation(mShaderProgram->programId(), "in_particlePosition"), 4, GL_FLOAT, GL_FALSE, 0, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    if(mColorVbo)
     {
-        qDebug() << "ParticleRenderer::drawPoints(): using glBegin/glEnd, which sucks!";
-        Q_ASSERT(false);
-        glBegin(GL_POINTS);
-        {
-            int k = 0;
-            for (int i = 0; i < mNumberOfParticles; ++i)
-            {
-                //glVertex3fv(&mPositions[k]);
-                k += 4;
-            }
-        }
-        glEnd();
-    }
-    else
-    {
-        qDebug() << "ParticleRenderer::drawPoints(): using VBO to draw" << mNumberOfParticles << "particles";
-        glBindBufferARB(GL_ARRAY_BUFFER_ARB, mVbo);
-        glVertexPointer(4, GL_FLOAT, 0, 0);
-        glEnableClientState(GL_VERTEX_ARRAY);                
+        glBindBuffer(GL_ARRAY_BUFFER, mColorVbo);
+        glEnableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_particleColor"));
+        glVertexAttribPointer(glGetAttribLocation(mShaderProgram->programId(), "in_particleColor"), 4, GL_FLOAT, GL_FALSE, 0, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    } else qDebug() << "ParticleRenderer::render(): no color VBO present!";
 
-        if (mColorVbo)
-        {
-            glBindBufferARB(GL_ARRAY_BUFFER_ARB, mColorVbo);
-            glColorPointer(4, GL_FLOAT, 0, 0);
-            glEnableClientState(GL_COLOR_ARRAY);
-        }
+    // Draw using shaders
+    glDrawArrays(GL_POINTS, 0, mNumberOfParticles);
 
-        //glDrawArrays(GL_POINTS, 0, mNumberOfParticles);
-        glDrawArrays(GL_QUADS, 0, mNumberOfParticles);
+    glDisableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_particlePosition"));
+    glDisableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_particleColor"));
 
-        glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
-        glDisableClientState(GL_VERTEX_ARRAY); 
-        glDisableClientState(GL_COLOR_ARRAY); 
-    }
+    // Disable shaders
+    mShaderProgram->release();
 }
 
-void ParticleRenderer::display(DisplayMode mode /* = PARTICLE_POINTS */)
+void ParticleRenderer::slotSetMatrices(const QMatrix4x4& modelview, const QMatrix4x4& projection)
 {
-    switch (mode)
-    {
-    case PARTICLE_POINTS:
-        qDebug() << "ParticleRenderer::display(): drawing particles as points.";
-        glColor3f(1, 1, 1);
-        glPointSize(mGlPointSize);
-        drawPoints();
-        break;
-
-    default:
-    case PARTICLE_SPHERES:
-        qDebug() << "ParticleRenderer::display(): drawing particles with scale" << mGlWindowSize.height() / tanf(mFov * 0.5f * (float)M_PI/180.0f) << "and radius" << mParticleRadius << "as spheres into window of size" << mGlWindowSize;
-        glEnable(GL_POINT_SPRITE_ARB);
-        glTexEnvi(GL_POINT_SPRITE_ARB, GL_COORD_REPLACE_ARB, GL_TRUE);
-        glEnable(GL_VERTEX_PROGRAM_POINT_SIZE_NV);
-        glDepthMask(GL_TRUE);
-        glEnable(GL_DEPTH_TEST);
-        //glEnable(GL_POINT_SMOOTH); // bringt nix?!
-//        glBlendFunc(GL_SRC_ALPHA, GL_ONE/*_MINUS_SRC_ALPHA*/);
-//        glEnable(GL_BLEND);
-
-        //glUseProgram(mGlProgramHandle);
-
-        // Set pointScale and pointRadius variable values in the shader program
-        //glUniform1f( glGetUniformLocation(mGlProgramHandle, "pointScale"), m_window_h / tanf(m_fov*0.5f*(float)M_PI/180.0f) );
-        glUniform1f(glGetUniformLocation(mGlProgramHandle, "pointScale"), mGlWindowSize.height() / tanf(mFov * 0.5f * (float)M_PI/180.0f));
-//        glUniform1f(glGetUniformLocation(mGlProgramHandle, "pointScale"), mGlWindowSize.width());
-        glUniform1f(glGetUniformLocation(mGlProgramHandle, "pointRadius"), mParticleRadius * 1.5f);
-
-        glColor3f(1, 1, 1);
-        drawPoints();
-
-        glUseProgram(0);
-        glDisable(GL_POINT_SPRITE_ARB);
-        break;
-    }
-}
-
-GLuint ParticleRenderer::compileProgram(const char *vsource, const char* gsource, const char *fsource)
-{
-    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    GLuint geometryShader = glCreateShader(GL_GEOMETRY_SHADER);
-
-    glShaderSource(vertexShader, 1, &vsource, 0);
-    glShaderSource(fragmentShader, 1, &fsource, 0);
-    glShaderSource(geometryShader, 1, &gsource, 0);
-    
-    glCompileShader(vertexShader);
-    glCompileShader(fragmentShader);
-    glCompileShader(geometryShader);
-
-    GLuint program = glCreateProgram();
-
-    glAttachShader(program, vertexShader);
-    glAttachShader(program, fragmentShader);
-    glAttachShader(program, geometryShader);
-
-    glLinkProgram(program);
-
-    // check if program linked
-    GLint success = 0;
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
-
-    if(success)
-    {
-        qDebug() << "ParticleRenderer::compileProgram(): linked successfully!";
-    }
-    else
-    {
-        char linkErrorMessage[256];
-        glGetProgramInfoLog(program, 256, 0, linkErrorMessage);
-        qDebug() << "ParticleRenderer::compileProgram(): linking failed: " << linkErrorMessage;
-        glDeleteProgram(program);
-        program = 0;
-    }
-
-    return program;
-}
-
-void ParticleRenderer::slotSetFovVertical(float fov)
-{
-    mFov = fov;
-    qDebug() << "ParticleRenderer::slotSetFovVertical(): fov is now" << mFov;
+    mMatrixModelView = modelview;
+    mMatrixProjection = projection;
+    qDebug() << "ParticleRenderer::slotSetMatrices(): modelview:" << mMatrixModelView << "projection:" << mMatrixProjection;
 }

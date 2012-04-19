@@ -35,7 +35,7 @@ public:
     int    getNumParticles() const { return mNumberOfParticles; }
 
     unsigned int getCurrentReadBuffer() const { return mPositionVboHandle; }
-    unsigned int getColorBuffer()       const { return mColorVbo; }
+    unsigned int getColorBuffer()       const { return mColorVboHandle; }
 
     void * getCudaPosVBO()              const { return (void *)m_cudaPosVBO; }
     void * getCudaColorVBO()            const { return (void *)mCudaColorVbo; }
@@ -104,7 +104,7 @@ protected: // data
     unsigned int*  mDeviceCellEnd;          // index of end of cell
 
     unsigned int   mPositionVboHandle;            // vertex buffer object for particle positions
-    unsigned int   mColorVbo;          // vertex buffer object for colors
+    unsigned int   mColorVboHandle;          // vertex buffer object for colors
     
     float *m_cudaPosVBO;        // these are the CUDA deviceMem Pos
     float *mCudaColorVbo;      // these are the CUDA deviceMem Color

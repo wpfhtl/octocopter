@@ -1,73 +1,124 @@
 #define STRINGIFY(A) #A
 
-// vertex shader
-const char *vertexShader = STRINGIFY(
-uniform float pointRadius;  // point size in world space
-uniform float pointScale;   // scale to calculate size in pixels
-uniform float densityScale;
-uniform float densityOffset;
-void main()
-{
-    // calculate window-space point size
-    vec3 posEye = vec3(gl_ModelViewMatrix * vec4(gl_Vertex.xyz, 1.0));
-    float dist = length(posEye);
-    gl_PointSize = pointRadius * (pointScale / dist);
-
-    gl_TexCoord[0] = gl_MultiTexCoord0;
-
-    gl_Position = gl_ModelViewProjectionMatrix * vec4(gl_Vertex.xyz, 1.0);
-
-    gl_FrontColor = gl_Color;
-}
-);
+const char* vertexShader = "                                                        \n\
+#version 330                                                                        \n\
+                                                                                    \n\
+layout (location = 0) in vec3 Position;                                             \n\
+                                                                                    \n\
+void main()                                                                         \n\
+{                                                                                   \n\
+    gl_Position = vec4(Position, 1.0);                                              \n\
+}                                                                                   \n\
+";
 
 
+const char* geometryShader = "                                                      \n\
+#version 330                                                                        \n\
+                                                                                    \n\
+layout(points) in;                                                                  \n\
+layout(triangle_strip) out;                                                         \n\
+layout(max_vertices = 4) out;                                                       \n\
+                                                                                    \n\
+uniform mat4 gViewProjection;                                                       \n\
+uniform vec3 cameraPosition;                                                        \n\
+uniform float particleRadius;                                                       \n\
+                                                                                    \n\
+out vec2 TexCoord;                                                                  \n\
+                                                                                    \n\
+void main()                                                                         \n\
+{                                                                                   \n\
+    vec3 Pos = gl_in[0].gl_Position.xyz;                                            \n\
+    vec3 toCamera = normalize(cameraPosition - Pos);                                \n\
+    vec3 upWorld = vec3(0.0, 1.0, 0.0);                                             \n\
+    vec3 right = cross(toCamera, upWorld) * particleRadius;                         \n\
+    vec3 up = cross(toCamera, normalize(-right)) * particleRadius;                  \n\
+                                                                                    \n\
+    // bottom left                                                                  \n\
+    Pos -= right;                                                                   \n\
+    Pos -= up;                                                                      \n\
+    gl_Position = gViewProjection * vec4(Pos, 1.0);                                 \n\
+    TexCoord = vec2(0.0, 1.0);                                                      \n\
+    EmitVertex();                                                                   \n\
+                                                                                    \n\
+    // top left                                                                     \n\
+    Pos += up*2;                                                                    \n\
+    gl_Position = gViewProjection * vec4(Pos, 1.0);                                 \n\
+    TexCoord = vec2(0.0, 0.0);                                                      \n\
+    EmitVertex();                                                                   \n\
+                                                                                    \n\
+    // bottom right                                                                 \n\
+    Pos -= up*2;                                                                    \n\
+    Pos += right * 2;                                                               \n\
+    gl_Position = gViewProjection * vec4(Pos, 1.0);                                 \n\
+    TexCoord = vec2(1.0, 1.0);                                                      \n\
+    EmitVertex();                                                                   \n\
+                                                                                    \n\
+    // top right                                                                    \n\
+    Pos += up*2;                                                                    \n\
+    gl_Position = gViewProjection * vec4(Pos, 1.0);                                 \n\
+    TexCoord = vec2(1.0, 0.0);                                                      \n\
+    EmitVertex();                                                                   \n\
+                                                                                    \n\
+    EndPrimitive();                                                                 \n\
+}                                                                                   \n\
+";
+
+
+const char* fragmentShader = "                                                      \n\
+#version 330                                                                        \n\
+                                                                                    \n\
+in vec2 TexCoord;                                                                   \n\
+out vec4 FragColor;                                                                 \n\
+                                                                                    \n\
+uniform mat4 gViewProjection;                                                       \n\
+uniform vec3 cameraPosition;                                                        \n\
+uniform float particleRadius;                                                       \n\
+                                                                                    \n\
+                                                                                    \n\
+void mainCircle()                                                                   \n\
+{                                                                                   \n\
+    float distance = distance(TexCoord.xy, vec2(0.5, 0.5));                         \n\
+    if (distance < 0.45 || distance > 0.5) {                                        \n\
+        discard;                                                                    \n\
+    }                                                                               \n\
+    FragColor = vec4(1.0, 0.0, 0.0, 1.0);                                           \n\
+                                                                                    \n\
+}                                                                                   \n\
+                                                                                    \n\
+                                                                                    \n\
+                                                                                    \n\
+                                                                                    \n\
+    void main()                                                                   \n\
+    {                                                                   \n\
+    vec3 vertex_light_position = vec3(0.577, 0.577, 0.577);
+        // r^2 = (x - x0)^2 + (y - y0)^2 + (z - z0)^2                                                                   \n\
+        float x = TexCoord[0].x;                                                                   \n\
+        float y = TexCoord[0].y;                                                                   \n\
+        float zz = 1.0 - x*x - y*y;                                                                   \n\
+\n\
+        if (zz <= 0.0)                                                                   \n\
+            discard;                                                                   \n\
+\n\
+        float z = sqrt(zz);                                                                   \n\
+\n\
+        vec3 normal = vec3(x, y, z);                                                                   \n\
+\n\
+        // Lighting                                                                   \n\
+        float diffuse_value = max(dot(normal, vertex_light_position), 0.0);                                                                   \n\
+\n\
+        vec4 pos = cameraPosition;                                                                   \n\
+        pos.z += z*particleRadius;                                                                   \n\
+        pos = gViewProjection * pos;                                                                   \n\
+\n\
+        FragDepth = (pos.z / pos.w + 1.0) / 2.0;                                                                   \n\
+        FragColor = gl_Color * diffuse_value;                                                                   \n\
+    }";
 
 
 
-const char *geometryShader = STRINGIFY(
-#version 330
 
-layout(points) in;
-layout(triangle_strip) out;
-layout(max_vertices = 4) out;
 
-uniform mat4 gVP;
-uniform vec3 gCameraPos;
 
-out vec2 TexCoord;
-
-void main()
-{
-    vec3 Pos = gl_in[0].gl_Position.xyz;
-    vec3 toCamera = normalize(gCameraPos - Pos);
-    vec3 up = vec3(0.0, 1.0, 0.0);
-    vec3 right = cross(toCamera, up);
-
-    Pos -= (right * 0.5);
-    gl_Position = gVP * vec4(Pos, 1.0);
-    TexCoord = vec2(0.0, 0.0);
-    EmitVertex();
-
-    Pos.y += 1.0;
-    gl_Position = gVP * vec4(Pos, 1.0);
-    TexCoord = vec2(0.0, 1.0);
-    EmitVertex();
-
-    Pos.y -= 1.0;
-    Pos += right;
-    gl_Position = gVP * vec4(Pos, 1.0);
-    TexCoord = vec2(1.0, 0.0);
-    EmitVertex();
-
-    Pos.y += 1.0;
-    gl_Position = gVP * vec4(Pos, 1.0);
-    TexCoord = vec2(1.0, 1.0);
-    EmitVertex();
-
-    EndPrimitive();
-}
-);
 
 
 
@@ -75,12 +126,10 @@ void main()
 
 
 // pixel shader for rendering points as shaded spheres
-const char *fragmentShader = STRINGIFY(
+const char *afragmentShader = STRINGIFY(
 void main()
 {
-    vec4 ld4 = gl_ModelViewMatrix * vec4(0.577, 0.577, 0.577, 0);
-    vec3 lightDir = vec3(ld4.x, ld4.y, ld4.z);
-    //lightDir = vec3(0.577, 0.577, 0.577);
+    const vec3 lightDir = vec3(0.577, 0.577, 0.577);
 
     // calculate normal from texture coordinates
     vec3 N;
@@ -95,5 +144,3 @@ void main()
     gl_FragColor = gl_Color * diffuse;
 }
 );
-
-
