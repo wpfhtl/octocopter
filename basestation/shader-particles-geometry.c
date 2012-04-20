@@ -14,8 +14,6 @@ uniform float particleRadius;
 
 void main()
 {
-//     pass_particleColor2 = pass_particleColor;
-
     vec3 Pos = gl_in[0].gl_Position.xyz;
     vec3 toCamera = normalize(cameraPosition - Pos);
     vec3 upWorld = vec3(0.0, 1.0, 0.0);

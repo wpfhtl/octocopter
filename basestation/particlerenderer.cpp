@@ -25,12 +25,12 @@ ParticleRenderer::ParticleRenderer()
         qDebug() << "ParticleRenderer::ParticleRenderer(): compiling vertex shader succeeded, log:" << mShaderProgram->log();
     else
         qDebug() << "ParticleRenderer::ParticleRenderer(): compiling vertex shader failed, log:" << mShaderProgram->log();
-/*
+
     if(mShaderProgram->addShaderFromSourceFile(QGLShader::Geometry, shaderPath.absolutePath() + "/shader-particles-geometry.c"))
         qDebug() << "ParticleRenderer::ParticleRenderer(): compiling geometry shader succeeded, log:" << mShaderProgram->log();
     else
         qDebug() << "ParticleRenderer::ParticleRenderer(): compiling geometry shader failed, log:" << mShaderProgram->log();
-*/
+
     if(mShaderProgram->addShaderFromSourceFile(QGLShader::Fragment, shaderPath.absolutePath() + "/shader-particles-fragment.c"))
         qDebug() << "ParticleRenderer::ParticleRenderer(): compiling fragment shader succeeded, log:" << mShaderProgram->log();
     else
@@ -44,11 +44,8 @@ ParticleRenderer::ParticleRenderer()
         glGetProgramiv(mShaderProgram->programId(), GL_ACTIVE_ATTRIBUTES, &numberOfActiveAttributes);
         glGetProgramiv(mShaderProgram->programId(), GL_ACTIVE_UNIFORMS, &numberOfActiveUniforms);
         glGetProgramiv(mShaderProgram->programId(), GL_GEOMETRY_VERTICES_OUT, &numberOfGeometryVerticesOut);
-        qDebug() << "ParticleRenderer::ParticleRenderer(): shader program has"
-                 << numberOfAttachedShaders<< "shaders,"
-                 << numberOfActiveAttributes << "active attributes,"
-                 << numberOfActiveUniforms << "active uniforms,"
-                 << numberOfGeometryVerticesOut << "vertices geometry shader output.";
+
+        qDebug() << "ParticleRenderer::ParticleRenderer(): shader program has" << numberOfAttachedShaders<< "shaders and" << numberOfGeometryVerticesOut << "vertices geometry shader output.";
 
         QStringList activeAttributes;
         for(int i=0; i < numberOfActiveAttributes; i++)
@@ -65,7 +62,7 @@ ParticleRenderer::ParticleRenderer()
             activeAttributes << attributeDescription;
         }
 
-        qDebug() << "ParticleRenderer::ParticleRenderer(): shader program active attributes:" << activeAttributes.join(", ");
+        qDebug() << "ParticleRenderer::ParticleRenderer(): shader program has" << numberOfActiveAttributes << "active attributes:" << activeAttributes.join(", ");
 
         QStringList activeUniforms;
         for(int i=0; i < numberOfActiveUniforms; i++)
@@ -82,7 +79,7 @@ ParticleRenderer::ParticleRenderer()
             activeUniforms << uniformDescription;
         }
 
-        qDebug() << "ParticleRenderer::ParticleRenderer(): shader program active uniforms:" << activeUniforms.join(", ");
+        qDebug() << "ParticleRenderer::ParticleRenderer(): shader program has" << numberOfActiveUniforms << "active uniforms:" << activeUniforms.join(", ");
     }
     else
         qDebug() << "ParticleRenderer::ParticleRenderer(): linking shader program failed, log:" << mShaderProgram->log();
@@ -106,7 +103,7 @@ void ParticleRenderer::setVertexBuffer(unsigned int vbo, int numParticles)
 
 void ParticleRenderer::render()
 {
-    qDebug() << "ParticleRenderer::render(): drawing particles with radius" << mParticleRadius << "as spheres into window of size" << mGlWindowSize;
+    qDebug() << "ParticleRenderer::render(): drawing" << mNumberOfParticles << "particles with radius" << mParticleRadius << "as spheres into window of size" << mGlWindowSize;
     //glEnable(GL_POINT_SPRITE_ARB); // Only for rendering point sprites.
     //glTexEnvi(GL_POINT_SPRITE_ARB, GL_COORD_REPLACE_ARB, GL_TRUE);
     //glEnable(GL_VERTEX_PROGRAM_POINT_SIZE_NV);
@@ -115,8 +112,7 @@ void ParticleRenderer::render()
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE/*_MINUS_SRC_ALPHA*/);
     //glEnable(GL_BLEND);
 
-    // Program needs to bein use before setting values to uniforms
-    //glUseProgram(mShaderProgram->programId()); same thing:
+    // Program needs to be in use before setting values to uniforms
     mShaderProgram->bind();
 
     // Set particleRadius variable in the shader program
@@ -132,8 +128,6 @@ void ParticleRenderer::render()
     QVector3D camPos = matrixMVP.inverted() * QVector3D(0, 500, 500); // TODO: implement camera position update
     Q_ASSERT(glGetUniformLocation(mShaderProgram->programId(), "cameraPosition") != -1);
     glUniform3f(glGetUniformLocation(mShaderProgram->programId(), "cameraPosition"), camPos.x(), camPos.y(), camPos.z());
-
-    qDebug() << "ParticleRenderer::render(): using VBO to draw" << mNumberOfParticles << "particles";
 
     glBindBuffer(GL_ARRAY_BUFFER, mVbo);
     // Make the contents of this array available at layout position vertexShaderVertexIndex in the vertex shader
@@ -165,5 +159,5 @@ void ParticleRenderer::slotSetMatrices(const QMatrix4x4& modelview, const QMatri
 {
     mMatrixModelView = modelview;
     mMatrixProjection = projection;
-//    qDebug() << "ParticleRenderer::slotSetMatrices(): modelview:" << mMatrixModelView << "projection:" << mMatrixProjection;
+    qDebug() << "ParticleRenderer::slotSetMatrices(): modelview:" << mMatrixModelView << "projection:" << mMatrixProjection;
 }
