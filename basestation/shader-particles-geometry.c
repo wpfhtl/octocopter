@@ -24,14 +24,14 @@ void main()
     Pos -= right;
     Pos -= up;
     gl_Position = matModelViewProjection * vec4(Pos, 1.0);
-    texureCoordinate = vec2(0.0, 1.0);
+    texureCoordinate = vec2(-1.0, -1.0);
     particleColorGS_to_FS = particleColorVS_to_GS[0];
     EmitVertex();
 
     // top left
     Pos += up*2;
     gl_Position = matModelViewProjection * vec4(Pos, 1.0);
-    texureCoordinate = vec2(0.0, 0.0);
+    texureCoordinate = vec2(-1.0, 1.0);
     particleColorGS_to_FS = particleColorVS_to_GS[0];
     EmitVertex();
 
@@ -39,14 +39,14 @@ void main()
     Pos -= up*2;
     Pos += right * 2;
     gl_Position = matModelViewProjection * vec4(Pos, 1.0);
-    texureCoordinate = vec2(1.0, 1.0);
+    texureCoordinate = vec2(1.0, -1.0);
     particleColorGS_to_FS = particleColorVS_to_GS[0];
     EmitVertex();
 
     // top right
     Pos += up*2;
     gl_Position = matModelViewProjection * vec4(Pos, 1.0);
-    texureCoordinate = vec2(1.0, 0.0);
+    texureCoordinate = vec2(1.0, 1.0);
     particleColorGS_to_FS = particleColorVS_to_GS[0];
     EmitVertex();
 

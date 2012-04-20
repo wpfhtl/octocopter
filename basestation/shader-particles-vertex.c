@@ -8,10 +8,10 @@ in vec4 in_particleColor;
 
 out vec4 particleColorVS_to_GS;
 
-uniform mat4 matModelViewProjection;
+//uniform mat4 matModelViewProjection;
 
 void main()
 {
-    gl_Position = matModelViewProjection * in_particlePosition;
+    gl_Position = in_particlePosition;
     particleColorVS_to_GS = in_particleColor;
 }
