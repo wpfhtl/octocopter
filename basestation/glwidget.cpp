@@ -49,6 +49,11 @@ void GlWidget::initializeGL()
     // Give e.g. FlightPlannerCuda a chance to initialize CUDA in a GL context
     emit initializingInGlContext();
 
+    // Tell OpenGL what to cull from triangles. See http://www.arcsynthesis.org/gltut/Positioning/Tutorial%2004.html
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CW);
+
     // needed to convert mous epos to world pos, see
     // http://stackoverflow.com/questions/3089271/converting-mouse-position-to-world-position-opengl
     glEnable(GL_DEPTH);
@@ -123,6 +128,7 @@ void GlWidget::paintGL()
     const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().getPosition();
     QVector3D camLookAt = mCamLookAtOffset + vehiclePosition;
 
+    // This multiplies the resulting matrix onto the current matrix stack (which should always be MODELVIEW)
     gluLookAt(
                 mCameraPosition.x(),    // camPosX
                 mCameraPosition.y(),    // camPosY
@@ -351,8 +357,29 @@ void GlWidget::mouseMoveEvent(QMouseEvent *event)
 void GlWidget::slotEmitModelViewProjectionMatrix()
 {
     QMatrix4x4 modelview, projection;
+
+    // Do the gluLookAt, so that the modelview matrix is correct. But don't you leave it on the stack!
+    const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().getPosition();
+    QVector3D camLookAt = mCamLookAtOffset + vehiclePosition;
+
+    glPushMatrix();
+    // This multiplies the resulting matrix onto the current matrix stack (which should always be MODELVIEW)
+    gluLookAt(
+                mCameraPosition.x(),    // camPosX
+                mCameraPosition.y(),    // camPosY
+                mCameraPosition.z(),    // camPosZ
+                camLookAt.x(),          // camLookAtX
+                camLookAt.y(),          // camLookAtY
+                camLookAt.z(),          // camLookAtZ
+                0.0,                    // upVectorX
+                1.0,                    // upVectorY
+                0.0                     // upVectorZ
+                );
+
     // get the current modelview matrix
     glGetDoublev(GL_MODELVIEW_MATRIX , modelview.data());
+    glPopMatrix();
+
     glGetDoublev(GL_PROJECTION_MATRIX , projection.data());
 
     emit matrices(modelview, projection);

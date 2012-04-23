@@ -119,13 +119,15 @@ void ParticleRenderer::render()
     Q_ASSERT(glGetUniformLocation(mShaderProgram->programId(), "particleRadius") != -1);
     glUniform1f(glGetUniformLocation(mShaderProgram->programId(), "particleRadius"), mParticleRadius);
 
-    QMatrix4x4 matrixMVP = mMatrixProjection * mMatrixModelView;
+    GLfloat matrixPGl[4*4]; for(int i=0;i<16;i++) matrixPGl[i] = *(mMatrixProjection.constData()+i);
+//    Q_ASSERT(glGetUniformLocation(mShaderProgram->programId(), "matProjection") != -1);
+    glUniformMatrix4fv(glGetUniformLocation(mShaderProgram->programId(), "matProjection"), 1, GL_FALSE, matrixPGl);
 
-    GLfloat matrix[4*4]; for(int i=0;i<16;i++) matrix[i] = *(matrixMVP.constData()+i);
-    Q_ASSERT(glGetUniformLocation(mShaderProgram->programId(), "matModelViewProjection") != -1);
-    glUniformMatrix4fv(glGetUniformLocation(mShaderProgram->programId(), "matModelViewProjection"), 1, GL_FALSE, matrix);
+    GLfloat matrixMvGl[4*4]; for(int i=0;i<16;i++) matrixMvGl[i] = *(mMatrixModelView.inverted().constData()+i);
+    Q_ASSERT(glGetUniformLocation(mShaderProgram->programId(), "matModelView") != -1);
+    glUniformMatrix4fv(glGetUniformLocation(mShaderProgram->programId(), "matModelView"), 1, GL_FALSE, matrixMvGl);
 
-    QVector3D camPos = matrixMVP.inverted() * QVector3D(0, 500, 500); // TODO: implement camera position update
+    QVector3D camPos = /*matrixMvp.inverted() * */QVector3D(0, 500, 500); // TODO: implement camera position update
     Q_ASSERT(glGetUniformLocation(mShaderProgram->programId(), "cameraPosition") != -1);
     glUniform3f(glGetUniformLocation(mShaderProgram->programId(), "cameraPosition"), camPos.x(), camPos.y(), camPos.z());
 

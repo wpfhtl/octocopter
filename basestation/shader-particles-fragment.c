@@ -6,7 +6,8 @@ in vec4 particleColorGS_to_FS;
 // If we define only one output, then OpenGL is smart enough to know this will be the color
 out vec4 fragColor;
 
-uniform mat4 matModelViewProjection;
+uniform mat4 matProjection;
+uniform mat4 matModelView;
 uniform vec3 cameraPosition;
 uniform float particleRadius;
 
@@ -29,11 +30,11 @@ void main()
 
     vec4 pos = vec4(cameraPosition, 1.0);
     pos.z += z*particleRadius;
-    pos = matModelViewProjection * pos;
+    pos = matProjection * matModelView * pos;
 
     //gl_FragDepth = (pos.z / pos.w + 1.0) / 2.0;
 
-    fragColor = particleColorGS_to_FS * diffuse_value;
+    fragColor = max(particleColorGS_to_FS * diffuse_value, vec4(1.0));
 
 
     //fragColor = particleColorGS_to_FS * diffuse_value;
