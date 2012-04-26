@@ -241,7 +241,7 @@ void BaseStation::slotNewScanData(const QVector<QVector3D>& pointList, const QVe
     foreach(const QVector3D &p, pointList)
     {
 //            qDebug() << p;
-        mOctree->insertPoint(new LidarPoint(p, (p-scannerPosition).normalized(), (p-scannerPosition).lengthSquared()));
+        //mOctree->insertPoint(new LidarPoint(p, (p-scannerPosition).normalized(), (p-scannerPosition).lengthSquared()));
         if(i%10 == 0)
             mFlightPlanner->insertPoint(new LidarPoint(p, (p-scannerPosition).normalized(), (p-scannerPosition).lengthSquared()));
         i++;
@@ -249,6 +249,8 @@ void BaseStation::slotNewScanData(const QVector<QVector3D>& pointList, const QVe
 
     // We only run/stats/logs for efficiency (paper) when scanning is in progress
     mDateTimeLastLidarInput = QDateTime::currentDateTime();
+
+    mGlWidget->slotInsertLidarPoints(pointList);
 
     mGlWidget->slotUpdateView();
 

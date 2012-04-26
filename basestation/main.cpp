@@ -10,6 +10,8 @@ int main(int argc, char *argv[])
 //    qDebug() << "main(): sizeof: btScalar" << sizeof(btScalar);
     Q_ASSERT(sizeof(btScalar) == 4 && "Please make sure Bullet is compiled to use single precision");
 
+    Q_ASSERT(sizeof(QVector3D) == 12 && "ui.");
+
     QApplication app(argc, argv);
     app.setWindowIcon(QIcon(":/images/appicon.png"));
 

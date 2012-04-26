@@ -25,7 +25,10 @@ class GlWidget : public QGLWidget
     Octree *mOctree;
     FlightPlannerInterface *mFlightPlanner;
 
+    unsigned int mVboPointCloudMaxBytes, mVboPointCloudCurrentBytes;
+
     QVector3D mCamLookAtOffset;
+    QMatrix4x4 mDebugMatrix;
 
     // Timer
     int mTimerIdZoom, mTimerIdRotate;
@@ -35,6 +38,13 @@ class GlWidget : public QGLWidget
     QPoint      mLastMousePosition;
     QVector3D   mCameraPosition;
     GLfloat     rotX, rotY, rotZ;
+
+    GLuint mVertexArrayObject;
+    GLuint mVboVehiclePath;
+    // Mapping from VBO-id to currently used size in bytes of that VBO
+    QMap<GLuint, unsigned int> mVbosPointCloud;
+
+    QGLShaderProgram* mShaderProgram;
 
     // Wheel Zooming. For smooth zooming, mZoomFactorCurrent converges toward mZoomFactorTarget
     GLdouble    mZoomFactorTarget, mZoomFactorCurrent;
@@ -76,6 +86,8 @@ public slots:
     // superfluous and slow redrawing. So, by only redrawing for rotation/zoom when there hasn't been an
     // external redraw in a while, we can save CPU cycles.
     void slotUpdateView();
+
+    void slotInsertLidarPoints(const QVector<QVector3D>&);
 
     // Tell GlWidget to emit the current matrix
     void slotEmitModelViewProjectionMatrix();

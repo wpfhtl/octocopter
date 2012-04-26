@@ -10,7 +10,7 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     mTimerAnimation = new QTimer(this);
     connect(mTimerAnimation, SIGNAL(timeout()), SLOT(slotPlay()));
 
-    mSensorFuser = new SensorFuser(4);
+    mSensorFuser = new SensorFuser(1);
     //mSensorFuser->setMaximumFusableRayLength(20.0f);
     mSbfParser = new SbfParser(this);
 

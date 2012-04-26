@@ -103,7 +103,7 @@ void ParticleRenderer::setVertexBuffer(unsigned int vbo, int numParticles)
 
 void ParticleRenderer::render()
 {
-    qDebug() << "ParticleRenderer::render(): drawing" << mNumberOfParticles << "particles with radius" << mParticleRadius << "as spheres into window of size" << mGlWindowSize;
+//    qDebug() << "ParticleRenderer::render(): drawing" << mNumberOfParticles << "particles with radius" << mParticleRadius << "as spheres into window of size" << mGlWindowSize;
     //glEnable(GL_POINT_SPRITE_ARB); // Only for rendering point sprites.
     //glTexEnvi(GL_POINT_SPRITE_ARB, GL_COORD_REPLACE_ARB, GL_TRUE);
     //glEnable(GL_VERTEX_PROGRAM_POINT_SIZE_NV);
@@ -127,7 +127,10 @@ void ParticleRenderer::render()
     Q_ASSERT(glGetUniformLocation(mShaderProgram->programId(), "matModelView") != -1);
     glUniformMatrix4fv(glGetUniformLocation(mShaderProgram->programId(), "matModelView"), 1, GL_FALSE, matrixMvGl);
 
-    QVector3D camPos = /*matrixMvp.inverted() * */QVector3D(0, 500, 500); // TODO: implement camera position update
+//    QVector3D origin;
+//    qDebug() << origin << "multiplied with modelview matrix is at camera position:" << mMatrixModelView * origin;
+
+    QVector3D camPos = QVector3D(0, 500, 500); // TODO: implement camera position update
     Q_ASSERT(glGetUniformLocation(mShaderProgram->programId(), "cameraPosition") != -1);
     glUniform3f(glGetUniformLocation(mShaderProgram->programId(), "cameraPosition"), camPos.x(), camPos.y(), camPos.z());
 
@@ -161,5 +164,5 @@ void ParticleRenderer::slotSetMatrices(const QMatrix4x4& modelview, const QMatri
 {
     mMatrixModelView = modelview;
     mMatrixProjection = projection;
-    qDebug() << "ParticleRenderer::slotSetMatrices(): modelview:" << mMatrixModelView << "projection:" << mMatrixProjection;
+//    qDebug() << "ParticleRenderer::slotSetMatrices(): modelview:" << mMatrixModelView << "projection:" << mMatrixProjection;
 }
