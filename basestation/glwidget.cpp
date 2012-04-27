@@ -25,8 +25,13 @@ GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flig
 
     mCameraPosition = QVector3D(10.0f, 500.0f, 500.0f);
 
-    mVboPointCloudCurrentBytes = 0;
-    mVboPointCloudMaxBytes = 2 * 1000 * 1000 * sizeof(QVector3D); // storage for 2 million points
+    mVboPointCloudBytesCurrent = 0;
+    mVboPointCloudBytesMax = 2 * 1000 * 1000 * sizeof(QVector3D); // storage for 2 million points
+
+    // For a flight time of one hour, the vboVehiclePath will need (3600 seconds * 50 Positions/second * (sizeof(QVector3D_Position) + sizeof(QVector3D_Velocity))) bytes
+    mVboVehiclePathBytesMaximum = (3600 * 50 * (sizeof(QVector3D) + sizeof(QVector3D)));
+    mVboVehiclePathBytesCurrent = 0;
+    mVboVehiclePathElementSize = 2 * sizeof(QVector3D);
 
     mZoomFactorCurrent = 0.5;
     mZoomFactorTarget = 0.5;
@@ -50,73 +55,29 @@ void GlWidget::initializeGL()
     // Give e.g. FlightPlannerCuda a chance to initialize CUDA in a GL context
     emit initializingInGlContext();
 
+    mShaderProgramPointCloud = new ShaderProgram(this);
+    mShaderProgramPointCloud->setShaders(
+                QString("shader-pointcloud-vertex.c"),
+                QString(),
+                QString("shader-pointcloud-fragment.c"));
 
-    QDir shaderPath = QDir::current();
-    shaderPath.cdUp(); // because we're in the build/ subdir
-
-    mShaderProgram = new QGLShaderProgram(this);
-    if(mShaderProgram->addShaderFromSourceFile(QGLShader::Vertex, shaderPath.absolutePath() + "/shader-pointcloud-vertex.c"))
-        qDebug() << "GlWidget::initializeGL(): compiling vertex shader succeeded, log:" << mShaderProgram->log();
-    else
-        qDebug() << "GlWidget::initializeGL(): compiling vertex shader failed, log:" << mShaderProgram->log();
-
-    if(mShaderProgram->addShaderFromSourceFile(QGLShader::Fragment, shaderPath.absolutePath() + "/shader-pointcloud-fragment.c"))
-        qDebug() << "GlWidget::initializeGL(): compiling fragment shader succeeded, log:" << mShaderProgram->log();
-    else
-        qDebug() << "GlWidget::initializeGL(): compiling fragment shader failed, log:" << mShaderProgram->log();
-
-    if(mShaderProgram->link())
-    {
-        qDebug() << "GlWidget::initializeGL(): linking shader program succeeded, log:" << mShaderProgram->log();
-        GLint numberOfActiveAttributes, numberOfAttachedShaders, numberOfActiveUniforms, numberOfGeometryVerticesOut;
-        glGetProgramiv(mShaderProgram->programId(), GL_ATTACHED_SHADERS, &numberOfAttachedShaders);
-        glGetProgramiv(mShaderProgram->programId(), GL_ACTIVE_ATTRIBUTES, &numberOfActiveAttributes);
-        glGetProgramiv(mShaderProgram->programId(), GL_ACTIVE_UNIFORMS, &numberOfActiveUniforms);
-        glGetProgramiv(mShaderProgram->programId(), GL_GEOMETRY_VERTICES_OUT, &numberOfGeometryVerticesOut);
-
-        qDebug() << "GlWidget::initializeGL(): shader program has" << numberOfAttachedShaders<< "shaders and" << numberOfGeometryVerticesOut << "vertices geometry shader output.";
-
-        QStringList activeAttributes;
-        for(int i=0; i < numberOfActiveAttributes; i++)
-        {
-            GLchar attributeName[1024];
-            GLint attributeSize;
-            GLenum attributeType;
-            glGetActiveAttrib(mShaderProgram->programId(), i, 1024, NULL, &attributeSize, &attributeType, attributeName);
-            QString attributeDescription = QString("%1 of size %2, type %3, location %4")
-                    .arg(attributeName)
-                    .arg(attributeSize)
-                    .arg(attributeType)
-                    .arg(glGetAttribLocation(mShaderProgram->programId(), attributeName));
-            activeAttributes << attributeDescription;
-        }
-
-        qDebug() << "GlWidget::initializeGL(): shader program has" << numberOfActiveAttributes << "active attributes:" << activeAttributes.join(", ");
-
-        QStringList activeUniforms;
-        for(int i=0; i < numberOfActiveUniforms; i++)
-        {
-            GLchar uniformName[1024];
-            GLint uniformSize;
-            GLenum uniformType;
-            glGetActiveUniform(mShaderProgram->programId(), i, 1024, NULL, &uniformSize, &uniformType, uniformName);
-            QString uniformDescription = QString("%1 of size %2, type %3, location %4")
-                    .arg(uniformName)
-                    .arg(uniformSize)
-                    .arg(uniformType)
-                    .arg(glGetUniformLocation(mShaderProgram->programId(), uniformName));
-            activeUniforms << uniformDescription;
-        }
-
-        qDebug() << "GlWidget::initializeGL(): shader program has" << numberOfActiveUniforms << "active uniforms:" << activeUniforms.join(", ");
-    }
-    else
-        qDebug() << "GlWidget::initializeGL(): linking shader program failed, log:" << mShaderProgram->log();
+    mShaderProgramVehiclePath = new ShaderProgram(this);
+    mShaderProgramPointCloud->setShaders(
+                QString("shader-vehiclepath-vertex.c"),
+                QString(),
+                QString("shader-pointcloud-fragment.c"));
 
     // Create Vertex Array Object to contain our VBOs
     glGenVertexArrays(1, &mVertexArrayObject);
     // Bind the VAO to the context
     glBindVertexArray(mVertexArrayObject);
+
+    // Create a VBO for the vehicle's path.
+    glGenBuffers(1, &mVboVehiclePath);
+    qDebug() << "GlWidget::initializeGL(): creating vehicle-path VBO" << mVboVehiclePath << "of size" << mVboVehiclePathBytesMaximum;
+    glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
+    glBufferData(GL_ARRAY_BUFFER, mVboVehiclePathBytesMaximum, NULL, GL_DYNAMIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     // Tell OpenGL what to cull from triangles. See http://www.arcsynthesis.org/gltut/Positioning/Tutorial%2004.html
     glEnable(GL_CULL_FACE);
@@ -178,6 +139,9 @@ void GlWidget::moveCamera(const QVector3D &pos)
 
 void GlWidget::paintGL()
 {
+    QTime renderTime;
+    renderTime.start();
+
     // Clear color buffer and depth buffer
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -243,12 +207,21 @@ void GlWidget::paintGL()
     slotEmitModelViewProjectionMatrix();
 
     drawAxes(10, 10, 10, 0.8, 0.8, 0.8);
-    drawVehiclePath();
     drawVehicle();
     drawVehicleVelocity();
 
+    // Render the vehicle's path
+    mShaderProgramVehiclePath->bind();
+    glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 12, 0); // 12 bytes stride, we don't draw 3d velocity yet.
+    qDebug() << "GlWidget::paintGL(): vehicle path elements:" << mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize << "bytes:" << mVboVehiclePathBytesCurrent;
+    glDrawArrays(GL_POINTS, 0, mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize);
+    glDisableVertexAttribArray(0);
+    mShaderProgramVehiclePath->release();
+
     // Render pointcloud using all initialized VBOs (there might be none when no points exist)
-//    mShaderProgram->bind();
+    mShaderProgramPointCloud->bind();
     QMapIterator<GLuint, unsigned int> i(mVbosPointCloud);
     while (i.hasNext())
     {
@@ -259,7 +232,7 @@ void GlWidget::paintGL()
         glDrawArrays(GL_POINTS, 0, i.value() / sizeof(QVector3D));
         glDisableVertexAttribArray(0);
     }
-//    mShaderProgram->release();
+    mShaderProgramPointCloud->release();
 
 
     /* old pointcloud rendering code
@@ -272,36 +245,55 @@ void GlWidget::paintGL()
     //glEnable(GL_LIGHTING);*/
 
     emit visualizeNow();
+    qDebug() << "GlWidget::paintGL(): rendering time in milliseconds:" << renderTime.elapsed();
 }
 
-void GlWidget::drawVehiclePath() const
+void GlWidget::slotNewVehiclePose(Pose pose)
 {
-    const QVector<Pose> path = mFlightPlanner->getVehiclePoses();
-hier steckt ein fehler?!
-    glLineWidth(2);
-    glBegin(GL_LINE_STRIP);
-//    glBegin(GL_POINTS);
-    glColor3f(0.0, 1.0, 0.0);
-    for(int i = 0; i < path.size(); i++)
-        glVertexVector(path.at(i).getPosition());
-    glEnd();
+    if(mVboVehiclePathBytesCurrent + mVboVehiclePathElementSize < mVboVehiclePathBytesMaximum)
+    {
+        const QVector3D pos = pose.getPosition();
+        const QVector3D vel = (pos - mLastKnownVehiclePose.getPosition()) / ((mLastKnownVehiclePose.timestamp - pose.timestamp) / 1000.0f);
+        const float data[6] = {pos.x(), pos.y(), pos.z(), vel.x(), vel.y(), vel.z()};
+
+        glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
+
+        glBufferSubData(
+                    GL_ARRAY_BUFFER,
+                    mVboVehiclePathBytesCurrent, // offset in the VBO
+                    mVboVehiclePathElementSize, // how many bytes to store?
+                    (void*)data // data to store
+                    );
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        mVboVehiclePathBytesCurrent += mVboVehiclePathElementSize;
+        qDebug() << "GlWidget::slotNewVehiclePose(): inserted data" << pose.getPosition() << "into VBO, will now redraw";
+    }
+    else
+    {
+        qDebug() << "GlWidget::slotNewVehiclePose(): VBO is full, discarding new pose.";
+    }
+
+    mLastKnownVehiclePose = pose;
+
+    slotUpdateView();
 }
 
 void GlWidget::drawVehicle() const
 {
     // draw vehicle velocity as vector
-    const Pose pose = mFlightPlanner->getLastKnownVehiclePose();
-    const QVector3D vehiclePosition = pose.getPosition();
+    const QVector3D vehiclePosition = mLastKnownVehiclePose.getPosition();
+    const QQuaternion vehicleOrientation = mLastKnownVehiclePose.getOrientation();
 
-    const QVector3D armFront = pose.getOrientation().rotatedVector(QVector3D(0.0, 0.0, -0.4));
-    const QVector3D armBack = pose.getOrientation().rotatedVector(QVector3D(0.0, 0.0, 0.4));
-    const QVector3D armLeft = pose.getOrientation().rotatedVector(QVector3D(-0.4, 0.0, 0.0));
-    const QVector3D armRight = pose.getOrientation().rotatedVector(QVector3D(0.4, 0.0, 0.0));
+    const QVector3D armFront = vehicleOrientation.rotatedVector(QVector3D(0.0, 0.0, -0.4));
+    const QVector3D armBack = vehicleOrientation.rotatedVector(QVector3D(0.0, 0.0, 0.4));
+    const QVector3D armLeft = vehicleOrientation.rotatedVector(QVector3D(-0.4, 0.0, 0.0));
+    const QVector3D armRight = vehicleOrientation.rotatedVector(QVector3D(0.4, 0.0, 0.0));
 
-    const QVector3D landingLegFront = pose.getOrientation().rotatedVector(QVector3D(0.0, -0.2, -0.2));
-    const QVector3D landingLegBack = pose.getOrientation().rotatedVector(QVector3D(0.0, -0.2, 0.2));
-    const QVector3D landingLegLeft = pose.getOrientation().rotatedVector(QVector3D(-0.2, -0.2, 0.0));
-    const QVector3D landingLegRight = pose.getOrientation().rotatedVector(QVector3D(0.2, -0.2, 0.0));
+    const QVector3D landingLegFront = vehicleOrientation.rotatedVector(QVector3D(0.0, -0.2, -0.2));
+    const QVector3D landingLegBack = vehicleOrientation.rotatedVector(QVector3D(0.0, -0.2, 0.2));
+    const QVector3D landingLegLeft = vehicleOrientation.rotatedVector(QVector3D(-0.2, -0.2, 0.0));
+    const QVector3D landingLegRight = vehicleOrientation.rotatedVector(QVector3D(0.2, -0.2, 0.0));
 
     glTranslatef(0.0f, 0.2f, 0.0f);
 
@@ -606,7 +598,7 @@ QVector3D GlWidget::convertMouseToWorldPosition(const QPoint& point)
 
 void GlWidget::slotInsertLidarPoints(const QVector<QVector3D>& list)
 {
-    qDebug() << "GlWidget::slotInsertLidarPoints(): trying to insert" << list.size() << "elements," << list.size() * sizeof(QVector3D) << "bytes.";
+    //qDebug() << "GlWidget::slotInsertLidarPoints(): trying to insert" << list.size() << "elements," << list.size() * sizeof(QVector3D) << "bytes.";
     unsigned int numberOfPointsToStore = list.size();
     unsigned int numberOfPointsSucessfullyStored = 0;
     unsigned int numberOfVbosCreated = 0;
@@ -619,10 +611,10 @@ void GlWidget::slotInsertLidarPoints(const QVector<QVector3D>& list)
         {
             it.next();
 
-            qDebug() << "GlWidget::slotInsertLidarPoints(): checking VBO" << it.key() << "which already contains" << it.value() << "bytes...";
+            //qDebug() << "GlWidget::slotInsertLidarPoints(): checking VBO" << it.key() << "which already contains" << it.value() << "bytes...";
 
             // Only fill this VBO if it has enough free space for at least one point
-            const unsigned int numberOfPointsStorableInThisVbo = std::min((long unsigned int)numberOfPointsToStore, (mVboPointCloudMaxBytes/sizeof(QVector3D)) - it.value()/sizeof(QVector3D));
+            const unsigned int numberOfPointsStorableInThisVbo = std::min((long unsigned int)numberOfPointsToStore, (mVboPointCloudBytesMax/sizeof(QVector3D)) - it.value()/sizeof(QVector3D));
             if(numberOfPointsStorableInThisVbo)
             {
                 glBindBuffer(GL_ARRAY_BUFFER, it.key());
@@ -655,29 +647,29 @@ void GlWidget::slotInsertLidarPoints(const QVector<QVector3D>& list)
             GLuint vboPointCloud;
             glGenBuffers(1, &vboPointCloud);
             glBindBuffer(GL_ARRAY_BUFFER, vboPointCloud);
-            glBufferData(GL_ARRAY_BUFFER, mVboPointCloudMaxBytes, NULL, GL_DYNAMIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, mVboPointCloudBytesMax, NULL, GL_DYNAMIC_DRAW);
 
             if(glGetError() == GL_NO_ERROR)
             {
-                qDebug() << "GlWidget::slotInsertLidarPoints(): Created new VBO" << vboPointCloud << "containing" << mVboPointCloudMaxBytes << "bytes";
+                qDebug() << "GlWidget::slotInsertLidarPoints(): Created new VBO" << vboPointCloud << "containing" << mVboPointCloudBytesMax << "bytes";
                 mVbosPointCloud.insert(vboPointCloud, 0);
                 numberOfVbosCreated++;
             }
             else
             {
-                qDebug() << "GlWidget::slotInsertLidarPoints(): Couldn't create VBO containing" << mVboPointCloudMaxBytes << "bytes - discarding" << numberOfPointsToStore << "points.";
+                qDebug() << "GlWidget::slotInsertLidarPoints(): Couldn't create VBO containing" << mVboPointCloudBytesMax << "bytes - discarding" << numberOfPointsToStore << "points.";
             }
 
             glBindBuffer(GL_ARRAY_BUFFER, 0);
         }
     }
 
-    qDebug() << "GlWidget::slotInsertLidarPoints(): created" << numberOfVbosCreated << "VBOs, inserted" << numberOfPointsSucessfullyStored << "points. Statistics follow:";
+    /*qDebug() << "GlWidget::slotInsertLidarPoints(): created" << numberOfVbosCreated << "VBOs, inserted" << numberOfPointsSucessfullyStored << "points. Statistics follow:";
 
     QMapIterator<GLuint, unsigned int> it2(mVbosPointCloud);
     while(it2.hasNext())
     {
         it2.next();
         qDebug() << "GlWidget::slotInsertLidarPoints(): VBO" << it2.key() << "has size" << it2.value();
-    }
+    }*/
 }

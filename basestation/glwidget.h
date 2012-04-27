@@ -7,11 +7,13 @@
 #include <QColor>
 #include <QtOpenGL>
 #include <QGLWidget>
+#include <QVector>
 #include <QVector3D>
 
 #include <cuda_gl_interop.h>
 
 #include "openglutilities.h"
+#include "shaderprogram.h"
 #include "octree.h"
 #include "pose.h"
 
@@ -25,10 +27,12 @@ class GlWidget : public QGLWidget
     Octree *mOctree;
     FlightPlannerInterface *mFlightPlanner;
 
-    unsigned int mVboPointCloudMaxBytes, mVboPointCloudCurrentBytes;
+    unsigned int mVboPointCloudBytesMax, mVboPointCloudBytesCurrent;
 
     QVector3D mCamLookAtOffset;
     QMatrix4x4 mDebugMatrix;
+
+    Pose mLastKnownVehiclePose;
 
     // Timer
     int mTimerIdZoom, mTimerIdRotate;
@@ -40,11 +44,16 @@ class GlWidget : public QGLWidget
     GLfloat     rotX, rotY, rotZ;
 
     GLuint mVertexArrayObject;
+
+    unsigned int mVboVehiclePathElementSize;
+    unsigned int mVboVehiclePathBytesMaximum;
+    unsigned int mVboVehiclePathBytesCurrent;
     GLuint mVboVehiclePath;
+
     // Mapping from VBO-id to currently used size in bytes of that VBO
     QMap<GLuint, unsigned int> mVbosPointCloud;
 
-    QGLShaderProgram* mShaderProgram;
+    ShaderProgram *mShaderProgramPointCloud, *mShaderProgramVehiclePath;
 
     // Wheel Zooming. For smooth zooming, mZoomFactorCurrent converges toward mZoomFactorTarget
     GLdouble    mZoomFactorTarget, mZoomFactorCurrent;
@@ -59,7 +68,6 @@ class GlWidget : public QGLWidget
     void zoom(double zoomFactor);
     void drawAxes(const GLfloat& x, const GLfloat& y, const GLfloat& z, const GLfloat& red, const GLfloat& green, const GLfloat& blue) const;
     void drawVehicleVelocity() const;
-    void drawVehiclePath() const;
     void drawVehicle() const;
     QVector3D convertMouseToWorldPosition(const QPoint&);
 
@@ -86,6 +94,8 @@ public slots:
     // superfluous and slow redrawing. So, by only redrawing for rotation/zoom when there hasn't been an
     // external redraw in a while, we can save CPU cycles.
     void slotUpdateView();
+
+    void slotNewVehiclePose(Pose);
 
     void slotInsertLidarPoints(const QVector<QVector3D>&);
 
