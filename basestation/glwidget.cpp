@@ -1,13 +1,6 @@
 #include <GL/glew.h>
 #include "glwidget.h"
 
-//extern "C" {
-
-//#include <GL/gl.h>
-//#include <GL/glext.h>
-//}
-
-
 GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flightPlanner) :
     QGLWidget(parent),
     mOctree(octree),
@@ -17,13 +10,13 @@ GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flig
     glFormat.setSamples(2);
     glFormat.setSampleBuffers(true);
     glFormat.setVersion(4,0);
-    glFormat.setProfile(QGLFormat::CompatibilityProfile);
     // This means no OpenGL-deprecated stuff is used (like glBegin() and glEnd())
-    //glFormat.setProfile(QGLFormat::CoreProfile);
+//    glFormat.setProfile(QGLFormat::CoreProfile);
+    glFormat.setProfile(QGLFormat::CompatibilityProfile);
     QGLFormat::setDefaultFormat(glFormat);
     setFormat(glFormat);
 
-    mCameraPosition = QVector3D(10.0f, 500.0f, 500.0f);
+    mCameraPosition = QVector3D(0.0f, 0.0f, 10.0f);
 
     mVboPointCloudBytesCurrent = 0;
     mVboPointCloudBytesMax = 2 * 1000 * 1000 * sizeof(QVector3D); // storage for 2 million points
@@ -50,27 +43,29 @@ GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flig
 
 void GlWidget::initializeGL()
 {
+    glewExperimental = GL_TRUE; // needed for core profile... :|
     glewInit();
-
-    // Give e.g. FlightPlannerCuda a chance to initialize CUDA in a GL context
-    emit initializingInGlContext();
-
-    mShaderProgramPointCloud = new ShaderProgram(this);
-    mShaderProgramPointCloud->setShaders(
-                QString("shader-pointcloud-vertex.c"),
-                QString(),
-                QString("shader-pointcloud-fragment.c"));
-
-    mShaderProgramVehiclePath = new ShaderProgram(this);
-    mShaderProgramPointCloud->setShaders(
-                QString("shader-vehiclepath-vertex.c"),
-                QString(),
-                QString("shader-pointcloud-fragment.c"));
 
     // Create Vertex Array Object to contain our VBOs
     glGenVertexArrays(1, &mVertexArrayObject);
     // Bind the VAO to the context
     glBindVertexArray(mVertexArrayObject);
+
+    // Give e.g. FlightPlannerCuda a chance to initialize CUDA in a GL context
+    emit initializingInGlContext();
+
+
+    // Create the uniform buffer object (UBO) for all members of the UBO-Block
+    glGenBuffers(1, &mUboId);
+    glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
+    glBufferData(GL_UNIFORM_BUFFER, sizeof(QMatrix4x4) * 2, NULL, GL_STREAM_DRAW);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    // Now bind this UBO to a uniform-block binding-point
+    glBindBufferRange(GL_UNIFORM_BUFFER, ShaderProgram::blockBindingPoint, mUboId, 0, sizeof(QMatrix4x4) * 3);
+
+    mShaderProgramPointCloud = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-pointcloud-fragment.c");
+
+    mShaderProgramVehiclePath = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
 
     // Create a VBO for the vehicle's path.
     glGenBuffers(1, &mVboVehiclePath);
@@ -93,13 +88,13 @@ void GlWidget::initializeGL()
 
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);					// Black Background
     glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// White Background
-//    glClearColor(0.3f, 0.3f, 0.3f, 0.0f);					// Gray  Background
+    glClearColor(0.3f, 0.3f, 0.3f, 0.0f);					// Gray  Background
 
     // Set Line Antialiasing
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 
-    glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHT0);
+//    glEnable(GL_LIGHTING);
+//    glEnable(GL_LIGHT0);
 
     // Enable Blending and set the type to be used
 //    glEnable(GL_BLEND);
@@ -108,25 +103,47 @@ void GlWidget::initializeGL()
 //    glBlendFunc( GL_ZERO, GL_ONE_MINUS_SRC_ALPHA );
 //    glBlendFunc( GL_SRC_ALPHA_SATURATE, GL_ONE );
 //    glBlendFunc(GL_ONE_MINUS_DST_ALPHA,GL_DST_ALPHA);
+
+    // Just for debugging
+    QVector<QVector3D> p;
+    p.append(QVector3D(0, 0, 0));
+    p.append(QVector3D(0, 0, .5));
+    p.append(QVector3D(0, .5, 0));
+    p.append(QVector3D(0, .5, .5));
+    p.append(QVector3D(.5, 0, 0));
+    p.append(QVector3D(.5, 0, .5));
+    p.append(QVector3D(.5, .5, 0));
+    p.append(QVector3D(.5, .5, .5));
+
+    slotInsertLidarPoints(p);
 }
 
 void GlWidget::resizeGL(int w, int h)
 {
-    qDebug() << "GlWidget::resizeGL(): resizing gl viewport to" << w << h;
     // setup viewport, projection etc.
     glViewport(0, 0, w, h);
-    glMatrixMode(GL_PROJECTION);
-    // Load identitiy, because gluPerspective() will not replace the old matrix, but multiply with the new matrix.
-    glLoadIdentity();
-    gluPerspective(50.0*mZoomFactorCurrent, (GLfloat)w/(GLfloat)h, 10, +8000.0);
+
+    // OpenGL compatibility
+//    glMatrixMode(GL_PROJECTION);
+//    glLoadIdentity();
+//    gluPerspective(50.0*mZoomFactorCurrent, (GLfloat)w/(GLfloat)h, 10, +8000.0);
 //    glOrtho(-w/2 * mZoomFactorCurrent, w/2 * mZoomFactorCurrent, -h/2 * mZoomFactorCurrent, h/2 * mZoomFactorCurrent, 1, 10000);
-    // SEEMS WRONG, http://www.3dsource.de/faq/viewing.htm: glTranslatef(mCameraPosition.x(), mCameraPosition.y(), mCameraPosition.z());
-    glMatrixMode(GL_MODELVIEW);
+//    glMatrixMode(GL_MODELVIEW);
 
-//    glGetDoublev(GL_MODELVIEW_MATRIX , mDebugMatrix.data());
-//    qDebug() << "GlWidget::resizeGL(): done, modelview matrix:" << mDebugMatrix;
 
-//    slotEmitModelViewProjectionMatrix();
+    // OpenGL 4 core profile: We set the second matrix (perspective = cameraToClip) in the UBO
+    QMatrix4x4 matrix;
+    //matrix.perspective(50.0f * mZoomFactorCurrent, (float)w/(float)h, 10.0f, +8000.0f);
+    matrix.ortho(-w/2.0f * mZoomFactorCurrent, w/2.0f * mZoomFactorCurrent, -h/2.0f * mZoomFactorCurrent, h/2.0f * mZoomFactorCurrent, 1.0, 10000.0);
+
+    qDebug() << "GlWidget::resizeGL(): resizing gl viewport to" << w << h << "setting perspective/cameraclip matrix" << matrix;
+
+    glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
+    glBufferSubData(GL_UNIFORM_BUFFER, sizeof(QMatrix4x4), sizeof(QMatrix4x4), matrix.data());
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+    mShaderProgramPointCloud->setUniformValue("matCameraClip", matrix);
+//    mShaderProgramPointCloud->setUniformValue("matCameraClip", QMatrix4x4());
 }
 
 void GlWidget::moveCamera(const QVector3D &pos)
@@ -144,6 +161,28 @@ void GlWidget::paintGL()
 
     // Clear color buffer and depth buffer
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().getPosition();
+    const QVector3D camLookAt = mCamLookAtOffset + vehiclePosition;
+
+    QQuaternion cameraRotation = QQuaternion::fromAxisAndAngle(QVector3D(1.0f, 0.0f, 0.0f), rotX)
+            * QQuaternion::fromAxisAndAngle(QVector3D(0.0f, 1.0f, 0.0f), rotY)
+            * QQuaternion::fromAxisAndAngle(QVector3D(0.0f, 0.0f, 1.0f), rotZ);
+
+    QVector3D camPos = cameraRotation.rotatedVector(mCameraPosition);
+
+    qDebug() << "GlWidget::paintGL(): cam pos after rotating:" << camPos;
+
+    // Write the modelToCamera matrix into our UBO
+    QMatrix4x4 matrix;
+    matrix.lookAt(camPos, camLookAt, QVector3D(0.0f, 1.0f, 0.0f));
+
+    mShaderProgramPointCloud->setUniformValue("matModelCamera", matrix);
+//    mShaderProgramPointCloud->setUniformValue("matModelCamera", QMatrix4x4());
+
+    glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(QMatrix4x4), matrix.data());
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     // Here we make mZoomFactorCurrent converge to mZoomFactorTarget for smooth zooming
     float step = 0.0f;
@@ -163,14 +202,12 @@ void GlWidget::paintGL()
         killTimer(mTimerIdZoom);
         mTimerIdZoom = 0;
     }
-
+/*
     glLoadIdentity();
 
 //    glGetDoublev(GL_MODELVIEW_MATRIX , mDebugMatrix.data());
 //    qDebug() << "GlWidget::paintGL(): loadIdentity, modelview matrix:" << mDebugMatrix;
 
-    const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().getPosition();
-    QVector3D camLookAt = mCamLookAtOffset + vehiclePosition;
 
     // This multiplies the resulting matrix onto the current matrix stack (which should always be MODELVIEW)
 //    qDebug() << "GlWidget::paintGL(): making camera look from" << mCameraPosition << "to" << camLookAt;
@@ -208,28 +245,28 @@ void GlWidget::paintGL()
 
     drawAxes(10, 10, 10, 0.8, 0.8, 0.8);
     drawVehicle();
-    drawVehicleVelocity();
+    drawVehicleVelocity();*/
 
     // Render the vehicle's path
     mShaderProgramVehiclePath->bind();
     glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 12, 0); // 12 bytes stride, we don't draw 3d velocity yet.
-    qDebug() << "GlWidget::paintGL(): vehicle path elements:" << mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize << "bytes:" << mVboVehiclePathBytesCurrent;
+    //qDebug() << "GlWidget::paintGL(): vehicle path elements:" << mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize << "bytes:" << mVboVehiclePathBytesCurrent;
     glDrawArrays(GL_POINTS, 0, mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize);
     glDisableVertexAttribArray(0);
     mShaderProgramVehiclePath->release();
 
     // Render pointcloud using all initialized VBOs (there might be none when no points exist)
     mShaderProgramPointCloud->bind();
-    QMapIterator<GLuint, unsigned int> i(mVbosPointCloud);
+    QMapIterator<GLuint, unsigned int> i(mVboIdsPointCloud);
     while (i.hasNext())
     {
         i.next();
         glBindBuffer(GL_ARRAY_BUFFER, i.key());
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-        glDrawArrays(GL_POINTS, 0, i.value() / sizeof(QVector3D));
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, i.value() / sizeof(QVector3D));
         glDisableVertexAttribArray(0);
     }
     mShaderProgramPointCloud->release();
@@ -478,11 +515,17 @@ void GlWidget::slotEmitModelViewProjectionMatrix()
 
     // get the current modelview matrix
     glGetDoublev(GL_MODELVIEW_MATRIX , modelview.data());
-//    glPopMatrix();
-
     glGetDoublev(GL_PROJECTION_MATRIX , projection.data());
 
-    emit matrices(modelview, projection);
+    // FIXME: Use our own matrices, not OpenGLs!
+    QVector<QMatrix4x4> matrices;
+    matrices.append(modelview);
+    matrices.append(projection);
+    matrices.append(projection);
+
+    glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(QMatrix4x4) * 3, matrices.data());
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
 void GlWidget::wheelEvent(QWheelEvent *event)
@@ -606,7 +649,7 @@ void GlWidget::slotInsertLidarPoints(const QVector<QVector3D>& list)
     while(numberOfPointsToStore)
     {
         // Insert the lidarpoints into any VBO that can accomodate them
-        QMapIterator<GLuint, unsigned int> it(mVbosPointCloud);
+        QMapIterator<GLuint, unsigned int> it(mVboIdsPointCloud);
         while(it.hasNext() && numberOfPointsToStore)
         {
             it.next();
@@ -632,7 +675,7 @@ void GlWidget::slotInsertLidarPoints(const QVector<QVector3D>& list)
                 numberOfPointsToStore -= numberOfPointsStorableInThisVbo;
 
                 // Update the number of bytes used
-                mVbosPointCloud.insert(it.key(), it.value() + numberOfPointsStorableInThisVbo * sizeof(QVector3D));
+                mVboIdsPointCloud.insert(it.key(), it.value() + numberOfPointsStorableInThisVbo * sizeof(QVector3D));
             }
         }
 
@@ -652,7 +695,7 @@ void GlWidget::slotInsertLidarPoints(const QVector<QVector3D>& list)
             if(glGetError() == GL_NO_ERROR)
             {
                 qDebug() << "GlWidget::slotInsertLidarPoints(): Created new VBO" << vboPointCloud << "containing" << mVboPointCloudBytesMax << "bytes";
-                mVbosPointCloud.insert(vboPointCloud, 0);
+                mVboIdsPointCloud.insert(vboPointCloud, 0);
                 numberOfVbosCreated++;
             }
             else

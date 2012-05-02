@@ -9,8 +9,8 @@
 #include <QSize>
 #include <QFile>
 #include <QDir>
-#include <QGLShader>
-#include <QGLShaderProgram>
+
+#include "shaderprogram.h"
 
 class ParticleRenderer : public QObject
 {
@@ -37,15 +37,15 @@ public:
 
 public slots:
     void slotSetParticleRadius(float r) { mParticleRadius = r; }
-    void slotSetMatrices(const QMatrix4x4& modelview, const QMatrix4x4& projection);
+//    void slotSetMatrices(const QMatrix4x4& modelview, const QMatrix4x4& projection);
 
 private:
-    QGLShaderProgram* mShaderProgram;
+    ShaderProgram* mShaderProgram;
 
 protected:
     int mNumberOfParticles;
     float mParticleRadius;
-    QMatrix4x4 mMatrixModelView, mMatrixProjection;
+//    QMatrix4x4 mMatrixModelView, mMatrixProjection;
     QSize mGlWindowSize;
 
     GLuint mVbo;

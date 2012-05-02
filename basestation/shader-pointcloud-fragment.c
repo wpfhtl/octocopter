@@ -46,7 +46,6 @@ void main()
 
     fragColor = max(colorGS_to_FS * diffuse_value, vec4(1.0));
 
-
     //fragColor = colorGS_to_FS * diffuse_value;
     //fragColor = colorGS_to_FS;
 }

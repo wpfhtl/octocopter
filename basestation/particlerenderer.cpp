@@ -17,72 +17,7 @@ ParticleRenderer::ParticleRenderer()
     mVbo = 0;
     mColorVbo = 0;
 
-    QDir shaderPath = QDir::current();
-    shaderPath.cdUp(); // because we're in the build/ subdir
-
-    mShaderProgram = new QGLShaderProgram(this);
-    if(mShaderProgram->addShaderFromSourceFile(QGLShader::Vertex, shaderPath.absolutePath() + "/shader-particles-vertex.c"))
-        qDebug() << "ParticleRenderer::ParticleRenderer(): compiling vertex shader succeeded, log:" << mShaderProgram->log();
-    else
-        qDebug() << "ParticleRenderer::ParticleRenderer(): compiling vertex shader failed, log:" << mShaderProgram->log();
-
-    if(mShaderProgram->addShaderFromSourceFile(QGLShader::Geometry, shaderPath.absolutePath() + "/shader-particles-geometry.c"))
-        qDebug() << "ParticleRenderer::ParticleRenderer(): compiling geometry shader succeeded, log:" << mShaderProgram->log();
-    else
-        qDebug() << "ParticleRenderer::ParticleRenderer(): compiling geometry shader failed, log:" << mShaderProgram->log();
-
-    if(mShaderProgram->addShaderFromSourceFile(QGLShader::Fragment, shaderPath.absolutePath() + "/shader-particles-fragment.c"))
-        qDebug() << "ParticleRenderer::ParticleRenderer(): compiling fragment shader succeeded, log:" << mShaderProgram->log();
-    else
-        qDebug() << "ParticleRenderer::ParticleRenderer(): compiling fragment shader failed, log:" << mShaderProgram->log();
-
-    if(mShaderProgram->link())
-    {
-        qDebug() << "ParticleRenderer::ParticleRenderer(): linking shader program succeeded, log:" << mShaderProgram->log();
-        GLint numberOfActiveAttributes, numberOfAttachedShaders, numberOfActiveUniforms, numberOfGeometryVerticesOut;
-        glGetProgramiv(mShaderProgram->programId(), GL_ATTACHED_SHADERS, &numberOfAttachedShaders);
-        glGetProgramiv(mShaderProgram->programId(), GL_ACTIVE_ATTRIBUTES, &numberOfActiveAttributes);
-        glGetProgramiv(mShaderProgram->programId(), GL_ACTIVE_UNIFORMS, &numberOfActiveUniforms);
-        glGetProgramiv(mShaderProgram->programId(), GL_GEOMETRY_VERTICES_OUT, &numberOfGeometryVerticesOut);
-
-        qDebug() << "ParticleRenderer::ParticleRenderer(): shader program has" << numberOfAttachedShaders<< "shaders and" << numberOfGeometryVerticesOut << "vertices geometry shader output.";
-
-        QStringList activeAttributes;
-        for(int i=0; i < numberOfActiveAttributes; i++)
-        {
-            GLchar attributeName[1024];
-            GLint attributeSize;
-            GLenum attributeType;
-            glGetActiveAttrib(mShaderProgram->programId(), i, 1024, NULL, &attributeSize, &attributeType, attributeName);
-            QString attributeDescription = QString("%1 of size %2, type %3, location %4")
-                    .arg(attributeName)
-                    .arg(attributeSize)
-                    .arg(attributeType)
-                    .arg(glGetAttribLocation(mShaderProgram->programId(), attributeName));
-            activeAttributes << attributeDescription;
-        }
-
-        qDebug() << "ParticleRenderer::ParticleRenderer(): shader program has" << numberOfActiveAttributes << "active attributes:" << activeAttributes.join(", ");
-
-        QStringList activeUniforms;
-        for(int i=0; i < numberOfActiveUniforms; i++)
-        {
-            GLchar uniformName[1024];
-            GLint uniformSize;
-            GLenum uniformType;
-            glGetActiveUniform(mShaderProgram->programId(), i, 1024, NULL, &uniformSize, &uniformType, uniformName);
-            QString uniformDescription = QString("%1 of size %2, type %3, location %4")
-                    .arg(uniformName)
-                    .arg(uniformSize)
-                    .arg(uniformType)
-                    .arg(glGetUniformLocation(mShaderProgram->programId(), uniformName));
-            activeUniforms << uniformDescription;
-        }
-
-        qDebug() << "ParticleRenderer::ParticleRenderer(): shader program has" << numberOfActiveUniforms << "active uniforms:" << activeUniforms.join(", ");
-    }
-    else
-        qDebug() << "ParticleRenderer::ParticleRenderer(): linking shader program failed, log:" << mShaderProgram->log();
+    mShaderProgram = new ShaderProgram(this, "shader-default-vertex.c", "shader-particles-geometry.c", "shader-particles-fragment.c");
 
     // Clamps Color. Aha. Seems to be disabled by default anyway?!
     glClampColorARB(GL_CLAMP_VERTEX_COLOR_ARB, GL_FALSE);
@@ -119,6 +54,7 @@ void ParticleRenderer::render()
     Q_ASSERT(glGetUniformLocation(mShaderProgram->programId(), "particleRadius") != -1);
     glUniform1f(glGetUniformLocation(mShaderProgram->programId(), "particleRadius"), mParticleRadius);
 
+    /* we set matrices using an UBO now
     GLfloat matrixPGl[4*4]; for(int i=0;i<16;i++) matrixPGl[i] = *(mMatrixProjection.constData()+i);
 //    Q_ASSERT(glGetUniformLocation(mShaderProgram->programId(), "matProjection") != -1);
     glUniformMatrix4fv(glGetUniformLocation(mShaderProgram->programId(), "matProjection"), 1, GL_FALSE, matrixPGl);
@@ -133,36 +69,39 @@ void ParticleRenderer::render()
     QVector3D camPos = QVector3D(0, 500, 500); // TODO: implement camera position update
     Q_ASSERT(glGetUniformLocation(mShaderProgram->programId(), "cameraPosition") != -1);
     glUniform3f(glGetUniformLocation(mShaderProgram->programId(), "cameraPosition"), camPos.x(), camPos.y(), camPos.z());
+    */
 
     glBindBuffer(GL_ARRAY_BUFFER, mVbo);
     // Make the contents of this array available at layout position vertexShaderVertexIndex in the vertex shader
-    Q_ASSERT(glGetAttribLocation(mShaderProgram->programId(), "in_particlePosition") != -1);
-    glEnableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_particlePosition"));
-    glVertexAttribPointer(glGetAttribLocation(mShaderProgram->programId(), "in_particlePosition"), 4, GL_FLOAT, GL_FALSE, 0, 0);
+    Q_ASSERT(glGetAttribLocation(mShaderProgram->programId(), "in_position") != -1);
+    glEnableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_position"));
+    glVertexAttribPointer(glGetAttribLocation(mShaderProgram->programId(), "in_position"), 4, GL_FLOAT, GL_FALSE, 0, 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     if(mColorVbo)
     {
         glBindBuffer(GL_ARRAY_BUFFER, mColorVbo);
-        Q_ASSERT(glGetAttribLocation(mShaderProgram->programId(), "in_particleColor") != -1);
-        glEnableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_particleColor"));
-        glVertexAttribPointer(glGetAttribLocation(mShaderProgram->programId(), "in_particleColor"), 4, GL_FLOAT, GL_FALSE, 0, 0);
+        Q_ASSERT(glGetAttribLocation(mShaderProgram->programId(), "in_color") != -1);
+        glEnableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_color"));
+        glVertexAttribPointer(glGetAttribLocation(mShaderProgram->programId(), "in_color"), 4, GL_FLOAT, GL_FALSE, 0, 0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     } else qDebug() << "ParticleRenderer::render(): no color VBO present!";
 
     // Draw using shaders
     glDrawArrays(GL_POINTS, 0, mNumberOfParticles);
 
-    glDisableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_particlePosition"));
-    glDisableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_particleColor"));
+    glDisableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_position"));
+    glDisableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_color"));
 
     // Disable shaders
     mShaderProgram->release();
 }
 
+/*
 void ParticleRenderer::slotSetMatrices(const QMatrix4x4& modelview, const QMatrix4x4& projection)
 {
     mMatrixModelView = modelview;
     mMatrixProjection = projection;
 //    qDebug() << "ParticleRenderer::slotSetMatrices(): modelview:" << mMatrixModelView << "projection:" << mMatrixProjection;
 }
+*/

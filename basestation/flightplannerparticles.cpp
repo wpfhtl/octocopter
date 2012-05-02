@@ -68,7 +68,6 @@ void FlightPlannerParticles::slotInitialize()
 
     mParticleRenderer = new ParticleRenderer;
     connect(mParticleSystem, SIGNAL(particleRadiusChanged(float)), mParticleRenderer, SLOT(slotSetParticleRadius(float)));
-    connect(mGlWidget, SIGNAL(matrices(QMatrix4x4,QMatrix4x4)), mParticleRenderer, SLOT(slotSetMatrices(QMatrix4x4,QMatrix4x4)));
     mParticleSystem->slotSetParticleRadius(1.5f);
     mParticleRenderer->setColorBuffer(mParticleSystem->getColorBuffer());
 

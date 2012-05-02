@@ -50,8 +50,10 @@ class GlWidget : public QGLWidget
     unsigned int mVboVehiclePathBytesCurrent;
     GLuint mVboVehiclePath;
 
+    GLuint mUboId;
+
     // Mapping from VBO-id to currently used size in bytes of that VBO
-    QMap<GLuint, unsigned int> mVbosPointCloud;
+    QMap<GLuint, unsigned int> mVboIdsPointCloud;
 
     ShaderProgram *mShaderProgramPointCloud, *mShaderProgramVehiclePath;
 
@@ -86,7 +88,7 @@ signals:
     void visualizeNow();
     void mouseClickedAtWorldPos(Qt::MouseButton, QVector3D);
     void fovChanged(float);
-    void matrices(QMatrix4x4, QMatrix4x4);
+//    void matrices(QMatrix4x4, QMatrix4x4);
 
 public slots:
     // When this is called, we take note of the time of last external update. Because when zooming/rotating

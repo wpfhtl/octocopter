@@ -1,56 +1,48 @@
 #include <GL/glew.h>
 #include "shaderprogram.h"
 
-ShaderProgram::ShaderProgram(QObject *parent) : QObject(parent)
+ShaderProgram::ShaderProgram(QObject *parent, const QString& shaderVertex, const QString& shaderGeometry, const QString& shaderFragment) : QGLShaderProgram(parent)
 {
-    mShaderProgram = 0;
-}
-
-
-bool ShaderProgram::setShaders(
-    const QString& shaderVertex,
-    const QString& shaderGeometry,
-    const QString& shaderFragment)
-{
-    mShaderProgram = new QGLShaderProgram(this);
-
+    qDebug() << "ShaderProgram::ShaderProgram(): creating new shader program:";
     QDir shaderPath = QDir::current();
     shaderPath.cdUp(); // because we're in the build/ subdir
 
     if(!shaderVertex.isEmpty())
     {
-    if(mShaderProgram->addShaderFromSourceFile(QGLShader::Vertex, shaderPath.absolutePath() + "/" + shaderVertex))
-        qDebug() << "ShaderProgram::setShaders(): compiling vertex shader succeeded, log:" << mShaderProgram->log();
+    if(addShaderFromSourceFile(QGLShader::Vertex, shaderPath.absolutePath() + "/" + shaderVertex))
+        qDebug() << "ShaderProgram::ShaderProgram(): compiling vertex shader" << shaderVertex << "succeeded, log:" << log();
     else
-        qDebug() << "ShaderProgram::setShaders(): compiling vertex shader failed, log:" << mShaderProgram->log();
+        qDebug() << "ShaderProgram::ShaderProgram(): compiling vertex shader" << shaderVertex << "failed, log:" << log();
     }
 
     if(!shaderGeometry.isEmpty())
     {
-        if(mShaderProgram->addShaderFromSourceFile(QGLShader::Geometry, shaderPath.absolutePath() + "/" + shaderGeometry))
-            qDebug() << "ShaderProgram::setShaders(): compiling geometry shader succeeded, log:" << mShaderProgram->log();
+        if(addShaderFromSourceFile(QGLShader::Geometry, shaderPath.absolutePath() + "/" + shaderGeometry))
+            qDebug() << "ShaderProgram::ShaderProgram(): compiling geometry shader" << shaderGeometry << "succeeded, log:" << log();
         else
-            qDebug() << "ShaderProgram::setShaders(): compiling geometry shader failed, log:" << mShaderProgram->log();
+            qDebug() << "ShaderProgram::ShaderProgram(): compiling geometry shader" << shaderGeometry << "failed, log:" << log();
     }
 
     if(!shaderFragment.isEmpty())
     {
-        if(mShaderProgram->addShaderFromSourceFile(QGLShader::Fragment, shaderPath.absolutePath() + "/" + shaderFragment))
-            qDebug() << "ShaderProgram::setShaders(): compiling fragment shader succeeded, log:" << mShaderProgram->log();
+        if(addShaderFromSourceFile(QGLShader::Fragment, shaderPath.absolutePath() + "/" + shaderFragment))
+            qDebug() << "ShaderProgram::ShaderProgram(): compiling fragment shader" << shaderFragment << "succeeded, log:" << log();
         else
-            qDebug() << "ShaderProgram::setShaders(): compiling fragment shader failed, log:" << mShaderProgram->log();
+            qDebug() << "ShaderProgram::ShaderProgram(): compiling fragment shader" << shaderFragment << "failed, log:" << log();
     }
 
-    if(mShaderProgram->link())
+    if(link())
     {
-        qDebug() << "ShaderProgram::setShaders(): linking shader program succeeded, log:" << mShaderProgram->log();
-        GLint numberOfActiveAttributes, numberOfAttachedShaders, numberOfActiveUniforms, numberOfGeometryVerticesOut;
-        glGetProgramiv(mShaderProgram->programId(), GL_ATTACHED_SHADERS, &numberOfAttachedShaders);
-        glGetProgramiv(mShaderProgram->programId(), GL_ACTIVE_ATTRIBUTES, &numberOfActiveAttributes);
-        glGetProgramiv(mShaderProgram->programId(), GL_ACTIVE_UNIFORMS, &numberOfActiveUniforms);
-        glGetProgramiv(mShaderProgram->programId(), GL_GEOMETRY_VERTICES_OUT, &numberOfGeometryVerticesOut);
+        qDebug() << "ShaderProgram::ShaderProgram(): linking shader program with id" << programId() << "succeeded, log:" << log();
+        GLint numberOfActiveAttributes, numberOfAttachedShaders, numberOfActiveUniforms, numberOfGeometryVerticesOut = 0;
+        glGetProgramiv(programId(), GL_ATTACHED_SHADERS, &numberOfAttachedShaders);
+        glGetProgramiv(programId(), GL_ACTIVE_ATTRIBUTES, &numberOfActiveAttributes);
+        glGetProgramiv(programId(), GL_ACTIVE_UNIFORMS, &numberOfActiveUniforms);
 
-        qDebug() << "ShaderProgram::setShaders(): shader program has" << numberOfAttachedShaders<< "shaders and" << numberOfGeometryVerticesOut << "vertices geometry shader output.";
+        if(!shaderGeometry.isEmpty())
+            glGetProgramiv(programId(), GL_GEOMETRY_VERTICES_OUT, &numberOfGeometryVerticesOut);
+
+        qDebug() << "ShaderProgram::ShaderProgram(): shader program has" << numberOfAttachedShaders<< "shaders and" << numberOfGeometryVerticesOut << "vertices geometry shader output.";
 
         QStringList activeAttributes;
         for(int i=0; i < numberOfActiveAttributes; i++)
@@ -58,16 +50,16 @@ bool ShaderProgram::setShaders(
             GLchar attributeName[1024];
             GLint attributeSize;
             GLenum attributeType;
-            glGetActiveAttrib(mShaderProgram->programId(), i, 1024, NULL, &attributeSize, &attributeType, attributeName);
+            glGetActiveAttrib(programId(), i, 1024, NULL, &attributeSize, &attributeType, attributeName);
             QString attributeDescription = QString("%1 of size %2, type %3, location %4")
                     .arg(attributeName)
                     .arg(attributeSize)
                     .arg(attributeType)
-                    .arg(glGetAttribLocation(mShaderProgram->programId(), attributeName));
+                    .arg(glGetAttribLocation(programId(), attributeName));
             activeAttributes << attributeDescription;
         }
 
-        qDebug() << "ShaderProgram::setShaders(): shader program has" << numberOfActiveAttributes << "active attributes:" << activeAttributes.join(", ");
+        qDebug() << "ShaderProgram::ShaderProgram(): shader program has" << numberOfActiveAttributes << "active attributes:" << activeAttributes.join(", ");
 
         QStringList activeUniforms;
         for(int i=0; i < numberOfActiveUniforms; i++)
@@ -75,34 +67,24 @@ bool ShaderProgram::setShaders(
             GLchar uniformName[1024];
             GLint uniformSize;
             GLenum uniformType;
-            glGetActiveUniform(mShaderProgram->programId(), i, 1024, NULL, &uniformSize, &uniformType, uniformName);
+            glGetActiveUniform(programId(), i, 1024, NULL, &uniformSize, &uniformType, uniformName);
             QString uniformDescription = QString("%1 of size %2, type %3, location %4")
                     .arg(uniformName)
                     .arg(uniformSize)
                     .arg(uniformType)
-                    .arg(glGetUniformLocation(mShaderProgram->programId(), uniformName));
+                    .arg(glGetUniformLocation(programId(), uniformName));
             activeUniforms << uniformDescription;
         }
 
-        qDebug() << "ShaderProgram::setShaders(): shader program has" << numberOfActiveUniforms << "active uniforms:" << activeUniforms.join(", ");
+        qDebug() << "ShaderProgram::ShaderProgram(): shader program has" << numberOfActiveUniforms << "active uniforms:" << activeUniforms.join(", ");
+
+        // Bind the program's uniform block "GlobalValues" to a constant point, defined in blockBindingPoint.
+        // This is needed to conect the program's UB to a uniform-buffer-object, which can be updated from
+        // GlWidget.
+        GLuint globalUniformBlockIndex = glGetUniformBlockIndex(programId(), "GlobalValues");
+        glUniformBlockBinding(programId(), globalUniformBlockIndex, ShaderProgram::blockBindingPoint);
     }
     else
-        qDebug() << "ShaderProgram::setShaders(): linking shader program failed, log:" << mShaderProgram->log();
+        qDebug() << "ShaderProgram::ShaderProgram(): linking shader program failed, log:" << log();
 
-}
-
-void ShaderProgram::bind()
-{
-    if(mShaderProgram)
-        mShaderProgram->bind();
-    else
-        qDebug() << "ShaderProgram::bind(): cannot bind, shader not yet defined.";
-}
-
-void ShaderProgram::release()
-{
-    if(mShaderProgram)
-        mShaderProgram->release();
-    else
-        qDebug() << "ShaderProgram::release(): cannot release, shader not yet defined.";
 }
