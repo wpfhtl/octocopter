@@ -16,7 +16,7 @@ GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flig
     QGLFormat::setDefaultFormat(glFormat);
     setFormat(glFormat);
 
-    mCameraPosition = QVector3D(0.0f, 0.0f, 10.0f);
+    mCameraPosition = QVector3D(0.0f, 500.0f, 500.0f);
 
     mVboPointCloudBytesCurrent = 0;
     mVboPointCloudBytesMax = 2 * 1000 * 1000 * sizeof(QVector3D); // storage for 2 million points
@@ -24,7 +24,7 @@ GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flig
     // For a flight time of one hour, the vboVehiclePath will need (3600 seconds * 50 Positions/second * (sizeof(QVector3D_Position) + sizeof(QVector3D_Velocity))) bytes
     mVboVehiclePathBytesMaximum = (3600 * 50 * (sizeof(QVector3D) + sizeof(QVector3D)));
     mVboVehiclePathBytesCurrent = 0;
-    mVboVehiclePathElementSize = 2 * sizeof(QVector3D);
+    mVboVehiclePathElementSize = sizeof(QVector3D); // just one Vector3D, no velocity yet.
 
     mZoomFactorCurrent = 0.5;
     mZoomFactorTarget = 0.5;
@@ -56,12 +56,13 @@ void GlWidget::initializeGL()
 
 
     // Create the uniform buffer object (UBO) for all members of the UBO-Block
+    mUboSize = 64 + 64; // One Matrix4x4 has 16 floats with 4 bytes each, giving 64 bytes.
     glGenBuffers(1, &mUboId);
     glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
-    glBufferData(GL_UNIFORM_BUFFER, sizeof(QMatrix4x4) * 2, NULL, GL_STREAM_DRAW);
+    glBufferData(GL_UNIFORM_BUFFER, mUboSize, NULL, GL_STREAM_DRAW);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
     // Now bind this UBO to a uniform-block binding-point
-    glBindBufferRange(GL_UNIFORM_BUFFER, ShaderProgram::blockBindingPoint, mUboId, 0, sizeof(QMatrix4x4) * 3);
+    glBindBufferRange(GL_UNIFORM_BUFFER, ShaderProgram::blockBindingPointGlobalMatrices, mUboId, 0, mUboSize);
 
     mShaderProgramPointCloud = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-pointcloud-fragment.c");
 
@@ -107,15 +108,17 @@ void GlWidget::initializeGL()
     // Just for debugging
     QVector<QVector3D> p;
     p.append(QVector3D(0, 0, 0));
-    p.append(QVector3D(0, 0, .5));
-    p.append(QVector3D(0, .5, 0));
-    p.append(QVector3D(0, .5, .5));
-    p.append(QVector3D(.5, 0, 0));
-    p.append(QVector3D(.5, 0, .5));
-    p.append(QVector3D(.5, .5, 0));
-    p.append(QVector3D(.5, .5, .5));
+    p.append(QVector3D(0, 0, 1.0));
+    p.append(QVector3D(0, 1.0, 0));
+    p.append(QVector3D(0, 1.0, 1.0));
+    p.append(QVector3D(1.0, 0, 0));
+    p.append(QVector3D(1.0, 0, 1.0));
+    p.append(QVector3D(1.0, 1.0, 0));
+    p.append(QVector3D(1.0, 1.0, 1.0));
 
     slotInsertLidarPoints(p);
+
+    mModel = new Model("oktokopter.xml", this);
 }
 
 void GlWidget::resizeGL(int w, int h)
@@ -123,29 +126,17 @@ void GlWidget::resizeGL(int w, int h)
     // setup viewport, projection etc.
     glViewport(0, 0, w, h);
 
-    // OpenGL compatibility
-//    glMatrixMode(GL_PROJECTION);
-//    glLoadIdentity();
-//    gluPerspective(50.0*mZoomFactorCurrent, (GLfloat)w/(GLfloat)h, 10, +8000.0);
-//    glOrtho(-w/2 * mZoomFactorCurrent, w/2 * mZoomFactorCurrent, -h/2 * mZoomFactorCurrent, h/2 * mZoomFactorCurrent, 1, 10000);
-//    glMatrixMode(GL_MODELVIEW);
-
-
     // OpenGL 4 core profile: We set the second matrix (perspective = cameraToClip) in the UBO
-    QMatrix4x4 matrix;
-    //matrix.perspective(50.0f * mZoomFactorCurrent, (float)w/(float)h, 10.0f, +8000.0f);
-    matrix.ortho(-w/2.0f * mZoomFactorCurrent, w/2.0f * mZoomFactorCurrent, -h/2.0f * mZoomFactorCurrent, h/2.0f * mZoomFactorCurrent, 1.0, 10000.0);
+    QMatrix4x4 matrixCameraToClip;
+    matrixCameraToClip.perspective(50.0f * mZoomFactorCurrent, (float)w/(float)h, 10.0f, +8000.0f);
+    //matrixCameraToClip.ortho(-w/2.0f * mZoomFactorCurrent, w/2.0f * mZoomFactorCurrent, -h/2.0f * mZoomFactorCurrent, h/2.0f * mZoomFactorCurrent, 1.0, 10000.0);
 
-    qDebug() << "GlWidget::resizeGL(): resizing gl viewport to" << w << h << "setting perspective/cameraclip matrix" << matrix;
+    qDebug() << "GlWidget::resizeGL(): resizing gl viewport to" << w << h << "setting perspective/cameraclip matrix" << matrixCameraToClip;
 
+    // Set the second matrix (cameraToClip) in the UBO
     glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
-    glBufferSubData(GL_UNIFORM_BUFFER, sizeof(QMatrix4x4), sizeof(QMatrix4x4), matrix.data());
+    glBufferSubData(GL_UNIFORM_BUFFER, 64, 64, OpenGlUtilities::matrixToOpenGl(matrixCameraToClip).constData());
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-    mShaderProgramPointCloud->bind();
-    mShaderProgramPointCloud->setUniformValue("matCameraClip", matrix);
-    mShaderProgramPointCloud->release();
-//    mShaderProgramPointCloud->setUniformValue("matCameraClip", QMatrix4x4());
 }
 
 void GlWidget::moveCamera(const QVector3D &pos)
@@ -167,29 +158,20 @@ void GlWidget::paintGL()
     const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().getPosition();
     const QVector3D camLookAt = mCamLookAtOffset + vehiclePosition;
 
-    QQuaternion cameraRotation = QQuaternion::fromAxisAndAngle(QVector3D(1.0f, 0.0f, 0.0f), rotX)
+    QQuaternion cameraRotation =
+            QQuaternion::fromAxisAndAngle(QVector3D(0.0f, 0.0f, 1.0f), rotZ)
             * QQuaternion::fromAxisAndAngle(QVector3D(0.0f, 1.0f, 0.0f), rotY)
-            * QQuaternion::fromAxisAndAngle(QVector3D(0.0f, 0.0f, 1.0f), rotZ);
+            * QQuaternion::fromAxisAndAngle(QVector3D(1.0f, 0.0f, 0.0f), -rotX);
 
     QVector3D camPos = cameraRotation.rotatedVector(mCameraPosition);
 
     qDebug() << "GlWidget::paintGL(): cam pos after rotating:" << camPos;
 
-    // Just for testing, recreate the cameraToClip matrix
-    QMatrix4x4 matrixCameraToClip;
-    matrixCameraToClip.ortho(-width()/2.0f * mZoomFactorCurrent, width()/2.0f * mZoomFactorCurrent, -height()/2.0f * mZoomFactorCurrent, height()/2.0f * mZoomFactorCurrent, 1.0, 10000.0);
-    //matrixCameraToClip.perspective(50.0f * mZoomFactorCurrent, (float)width()/(float)height(), 10.0f, +8000.0f);
-
     // Write the modelToCamera matrix into our UBO
     QMatrix4x4 matrixModelToCamera;
     matrixModelToCamera.lookAt(camPos, camLookAt, QVector3D(0.0f, 1.0f, 0.0f));
-
-
-    QVector3D testVector(1.0f, 0.0f, 0.0f);
-    qDebug() << testVector << "becomes" << matrixCameraToClip * matrixModelToCamera * testVector;
-
     glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
-    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(QMatrix4x4), matrixModelToCamera.data());
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, 64, OpenGlUtilities::matrixToOpenGl(matrixModelToCamera).constData());
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     // Here we make mZoomFactorCurrent converge to mZoomFactorTarget for smooth zooming
@@ -210,67 +192,23 @@ void GlWidget::paintGL()
         killTimer(mTimerIdZoom);
         mTimerIdZoom = 0;
     }
-/*
-    glLoadIdentity();
 
-//    glGetDoublev(GL_MODELVIEW_MATRIX , mDebugMatrix.data());
-//    qDebug() << "GlWidget::paintGL(): loadIdentity, modelview matrix:" << mDebugMatrix;
-
-
-    // This multiplies the resulting matrix onto the current matrix stack (which should always be MODELVIEW)
-//    qDebug() << "GlWidget::paintGL(): making camera look from" << mCameraPosition << "to" << camLookAt;
-    gluLookAt(
-                mCameraPosition.x(),    // camPosX
-                mCameraPosition.y(),    // camPosY
-                mCameraPosition.z(),    // camPosZ
-                camLookAt.x(),          // camLookAtX
-                camLookAt.y(),          // camLookAtY
-                camLookAt.z(),          // camLookAtZ
-                0.0,                    // upVectorX
-                1.0,                    // upVectorY
-                0.0                     // upVectorZ
-                );
-
-//    glGetDoublev(GL_MODELVIEW_MATRIX , mDebugMatrix.data());
-//    qDebug() << "GlWidget::paintGL(): gluLookAt, modelview matrix:" << mDebugMatrix;
-//    QVector3D test(0,0,0);
-//    qDebug() << "GlWidget::paintGL(): modelview matrix transforms origin to:" << mDebugMatrix * test;
-
-    glTranslatef(camLookAt.x(), camLookAt.y(), camLookAt.z());
-
-    // Mouse Move Rotations
-    glRotatef(rotX,1.0,0.0,0.0);
-    glRotatef(rotY,0.0,1.0,0.0);
-    glRotatef(rotZ,0.0,0.0,1.0);
-
-    glTranslatef(-camLookAt.x(), -camLookAt.y(), -camLookAt.z());
-
-
-//    glGetDoublev(GL_MODELVIEW_MATRIX , mDebugMatrix.data());
-//    qDebug() << "GlWidget::paintGL(): after rotation, modelview matrix:" << mDebugMatrix;
-
-    slotEmitModelViewProjectionMatrix();
-
-    drawAxes(10, 10, 10, 0.8, 0.8, 0.8);
-    drawVehicle();
-    drawVehicleVelocity();*/
+//    drawAxes(10, 10, 10, 0.8, 0.8, 0.8);
+//    drawVehicle();
+//    drawVehicleVelocity();
 
     // Render the vehicle's path
     mShaderProgramVehiclePath->bind();
     glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 12, 0); // 12 bytes stride, we don't draw 3d velocity yet.
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0); // 12 bytes stride, we don't draw 3d velocity yet.
     //qDebug() << "GlWidget::paintGL(): vehicle path elements:" << mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize << "bytes:" << mVboVehiclePathBytesCurrent;
     glDrawArrays(GL_POINTS, 0, mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize);
     glDisableVertexAttribArray(0);
     mShaderProgramVehiclePath->release();
 
     // Render pointcloud using all initialized VBOs (there might be none when no points exist)
-    mShaderProgramPointCloud->setUniformValue("matCameraClip", matrixCameraToClip);
     mShaderProgramPointCloud->bind();
-    mShaderProgramPointCloud->setUniformValue("matModelCamera", matrixModelToCamera);
-
-
     QMapIterator<GLuint, unsigned int> i(mVboIdsPointCloud);
     while (i.hasNext())
     {
@@ -278,11 +216,12 @@ void GlWidget::paintGL()
         glBindBuffer(GL_ARRAY_BUFFER, i.key());
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, i.value() / sizeof(QVector3D));
+        glDrawArrays(GL_POINTS, 0, i.value() / sizeof(QVector3D));
         glDisableVertexAttribArray(0);
     }
     mShaderProgramPointCloud->release();
 
+    mModel->render();
 
     /* old pointcloud rendering code
     glDisable(GL_LIGHTING);
@@ -430,23 +369,6 @@ void GlWidget::drawAxes(
     glEnable(GL_LIGHTING);
 }
 
-/*//Mouse Handlers
-void GlWidget::mouseDoubleClickEvent(QMouseEvent *event)
-{
-    if(event->button() != Qt::LeftButton)
-        return;
-
-    if(timerId == 0)
-    {
-        timerId = startTimer(10);
-    }
-    else
-    {
-        killTimer(timerId);
-        timerId = 0;
-    }
-}*/
-
 void GlWidget::slotEnableTimerRotation(const bool& enable)
 {
     if(enable && mTimerIdRotate == 0)
@@ -501,43 +423,6 @@ void GlWidget::mouseMoveEvent(QMouseEvent *event)
 //    slotEmitModelViewProjectionMatrix();
 
     update();
-}
-
-void GlWidget::slotEmitModelViewProjectionMatrix()
-{
-    QMatrix4x4 modelview, projection;
-
-    /*
-    // Do the gluLookAt, so that the modelview matrix is correct. But don't you leave it on the stack!
-    const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().getPosition();
-    QVector3D camLookAt = mCamLookAtOffset + vehiclePosition;
-    glPushMatrix();
-    // This multiplies the resulting matrix onto the current matrix stack (which should always be MODELVIEW)
-    gluLookAt(
-                mCameraPosition.x(),    // camPosX
-                mCameraPosition.y(),    // camPosY
-                mCameraPosition.z(),    // camPosZ
-                camLookAt.x(),          // camLookAtX
-                camLookAt.y(),          // camLookAtY
-                camLookAt.z(),          // camLookAtZ
-                0.0,                    // upVectorX
-                1.0,                    // upVectorY
-                0.0                     // upVectorZ
-                );*/
-
-    // get the current modelview matrix
-    glGetDoublev(GL_MODELVIEW_MATRIX , modelview.data());
-    glGetDoublev(GL_PROJECTION_MATRIX , projection.data());
-
-    // FIXME: Use our own matrices, not OpenGLs!
-    QVector<QMatrix4x4> matrices;
-    matrices.append(modelview);
-    matrices.append(projection);
-    matrices.append(projection);
-
-    glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
-    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(QMatrix4x4) * 3, matrices.data());
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
 void GlWidget::wheelEvent(QWheelEvent *event)

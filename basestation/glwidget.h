@@ -1,7 +1,6 @@
 #ifndef GLWIDGET_H
 #define GLWIDGET_H
 
-#include "flightplannerinterface.h"
 
 #include <QtGui>
 #include <QColor>
@@ -10,8 +9,11 @@
 #include <QVector>
 #include <QVector3D>
 
+#include "model.h"
+
 #include <cuda_gl_interop.h>
 
+#include "flightplannerinterface.h"
 #include "openglutilities.h"
 #include "shaderprogram.h"
 #include "octree.h"
@@ -32,6 +34,8 @@ class GlWidget : public QGLWidget
     QVector3D mCamLookAtOffset;
     QMatrix4x4 mDebugMatrix;
 
+    Model* mModel;
+
     Pose mLastKnownVehiclePose;
 
     // Timer
@@ -45,12 +49,15 @@ class GlWidget : public QGLWidget
 
     GLuint mVertexArrayObject;
 
+    unsigned int mVboVehicle;
+
     unsigned int mVboVehiclePathElementSize;
     unsigned int mVboVehiclePathBytesMaximum;
     unsigned int mVboVehiclePathBytesCurrent;
     GLuint mVboVehiclePath;
 
     GLuint mUboId;
+    unsigned int mUboSize;
 
     // Mapping from VBO-id to currently used size in bytes of that VBO
     QMap<GLuint, unsigned int> mVboIdsPointCloud;
@@ -100,9 +107,6 @@ public slots:
     void slotNewVehiclePose(Pose);
 
     void slotInsertLidarPoints(const QVector<QVector3D>&);
-
-    // Tell GlWidget to emit the current matrix
-    void slotEmitModelViewProjectionMatrix();
 
     void slotEnableTimerRotation(const bool& enable);
     void slotViewFromTop();

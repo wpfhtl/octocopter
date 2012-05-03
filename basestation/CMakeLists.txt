@@ -21,6 +21,7 @@ flightplannerparticles
 flightplannerphysics
 flightplannerphysicsdialog
 rtkfetcher
+model
 controlwidget
 connectiondialog
 roverconnection
@@ -62,6 +63,7 @@ flightplannerparticles.h
 flightplannerphysics.h
 flightplannerphysicsdialog.h
 rtkfetcher.h
+model.h
 controlwidget.h
 connectiondialog.h
 roverconnection.h
@@ -102,6 +104,7 @@ flightplannerparticles.h
 flightplannerphysics.h
 flightplannerphysicsdialog.h
 rtkfetcher.h
+model.h
 controlwidget.h
 connectiondialog.h
 roverconnection.h
@@ -147,6 +150,7 @@ SET(QT_USE_QTNETWORK 1)
 INCLUDE(${QT_USE_FILE})
 
 FIND_PACKAGE(CUDA)
+FIND_PACKAGE(DevIL)
 
 QT4_WRAP_CPP(MOC_SRCS ${MOC_FILES})
 QT4_WRAP_UI(UI_SRCS ${UI_FILES})
@@ -161,4 +165,4 @@ ADD_DEFINITIONS(-DLIDARPOINT_KEEPS_PARENTNODE -DBASESTATION)
 INCLUDE_DIRECTORIES(/usr/include /usr/local/include/ /usr/local/cuda/computing_sdk/CUDALibraries/common/inc/ ${CMAKE_CURRENT_SOURCE_DIR}/qserialdevice/include ${BULLET_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR} ./ ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 LINK_DIRECTORIES(/usr/lib/ /usr/local/lib/)
 CUDA_ADD_EXECUTABLE(basestation ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-TARGET_LINK_LIBRARIES(basestation qwt ${QT_LIBRARIES} ${BULLET_LIBRARIES} GL GLU GLEW qserialdevice)
+TARGET_LINK_LIBRARIES(basestation qwt ${QT_LIBRARIES} ${BULLET_LIBRARIES} GL GLU GLEW qserialdevice assimp IL ILU ILUT)

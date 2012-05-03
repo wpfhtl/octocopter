@@ -78,13 +78,25 @@ ShaderProgram::ShaderProgram(QObject *parent, const QString& shaderVertex, const
 
         qDebug() << "ShaderProgram::ShaderProgram(): shader program has" << numberOfActiveUniforms << "active uniforms:" << activeUniforms.join(", ");
 
-        // Bind the program's uniform block "GlobalValues" to a constant point, defined in blockBindingPoint.
-        // This is needed to conect the program's UB to a uniform-buffer-object, which can be updated from
-        // GlWidget.
-        GLuint globalUniformBlockIndex = glGetUniformBlockIndex(programId(), "GlobalValues");
-        glUniformBlockBinding(programId(), globalUniformBlockIndex, ShaderProgram::blockBindingPoint);
+        // Try to bind the program's uniform block "GlobalValues" to a constant point, defined in
+        // blockBindingPoint. This is needed to conect the program's UB to a uniform-buffer-object,
+        // which can be updated from GlWidget.
+        // This is so universal that we try to make this onnection for every shader program. If it
+        // fails because there is no such uniform, thats fine by me.
+        bindUniformBlockToPoint("GlobalValues", blockBindingPointGlobalMatrices);
     }
     else
         qDebug() << "ShaderProgram::ShaderProgram(): linking shader program failed, log:" << log();
+}
 
+void ShaderProgram::bindUniformBlockToPoint(const QString& uniformBlockName, unsigned int bindingPoint)
+{
+    // Bind uniform block @uniformBlockName to constant binding point @bindingPoint.
+    // This is needed to conect the program's UB to a uniform-buffer-object, which can be updated from
+    // e.g. GlWidget.
+    const GLuint uniformBlockIndex = glGetUniformBlockIndex(programId(), qPrintable(uniformBlockName));
+    if(uniformBlockIndex == GL_INVALID_INDEX)
+        qDebug() << "ShaderProgram::bindUniformBlockToPoint(): uniform block with name" << uniformBlockName << "couldn't be found!";
+    else
+        glUniformBlockBinding(programId(), uniformBlockIndex, bindingPoint);
 }

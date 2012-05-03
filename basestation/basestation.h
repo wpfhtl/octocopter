@@ -6,8 +6,8 @@
 #include <QDebug>
 #include <QInputDialog>
 
-#include "flightplannercuda.h"
 #include "glwidget.h"
+#include "flightplannercuda.h"
 #include "logplayer.h"
 #include "ptucontroller.h"
 #include "octree.h"

@@ -54,3 +54,13 @@ void OpenGlUtilities::drawAabb(const QVector3D &min, const QVector3D &max, const
     glVertex3f(max.x(), max.y(), max.z());
     glEnd();
 }
+
+QVector<float> OpenGlUtilities::matrixToOpenGl(const QMatrix4x4 &matrix)
+{
+    QVector<float> data;
+    double* matrixValues = (double*)matrix.constData();
+    for(int i=0;i<16;i++)
+        data.append((float)matrixValues[i]);
+
+    return data;
+}

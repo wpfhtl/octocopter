@@ -17,20 +17,8 @@ layout(std140) uniform GlobalValues
     mat4 matrixCameraToClip;
 };
 
-uniform mat4 matCameraClip;
-uniform mat4 matModelCamera;
-
-
 void main()
 {
     color = in_color;
-    //gl_Position = in_position;
-
-    // from http://www.arcsynthesis.org/gltut/Positioning/Tut07%20Shared%20Uniforms.html
-    //vec4 temp = matrixModelToCamera * in_position;
-    //gl_Position = matrixCameraToClip * temp;
-
-    //gl_Position = matrixCameraToClip * matrixModelToCamera * in_position;
-    //gl_Position = matCameraClip * matModelCamera * in_position;
-    gl_Position = matCameraClip * matModelCamera * in_position;
+    gl_Position = matrixCameraToClip * matrixModelToCamera * in_position;
 }
