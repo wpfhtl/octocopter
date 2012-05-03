@@ -142,7 +142,9 @@ void GlWidget::resizeGL(int w, int h)
     glBufferSubData(GL_UNIFORM_BUFFER, sizeof(QMatrix4x4), sizeof(QMatrix4x4), matrix.data());
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
+    mShaderProgramPointCloud->bind();
     mShaderProgramPointCloud->setUniformValue("matCameraClip", matrix);
+    mShaderProgramPointCloud->release();
 //    mShaderProgramPointCloud->setUniformValue("matCameraClip", QMatrix4x4());
 }
 
@@ -173,15 +175,21 @@ void GlWidget::paintGL()
 
     qDebug() << "GlWidget::paintGL(): cam pos after rotating:" << camPos;
 
-    // Write the modelToCamera matrix into our UBO
-    QMatrix4x4 matrix;
-    matrix.lookAt(camPos, camLookAt, QVector3D(0.0f, 1.0f, 0.0f));
+    // Just for testing, recreate the cameraToClip matrix
+    QMatrix4x4 matrixCameraToClip;
+    matrixCameraToClip.ortho(-width()/2.0f * mZoomFactorCurrent, width()/2.0f * mZoomFactorCurrent, -height()/2.0f * mZoomFactorCurrent, height()/2.0f * mZoomFactorCurrent, 1.0, 10000.0);
+    //matrixCameraToClip.perspective(50.0f * mZoomFactorCurrent, (float)width()/(float)height(), 10.0f, +8000.0f);
 
-    mShaderProgramPointCloud->setUniformValue("matModelCamera", matrix);
-//    mShaderProgramPointCloud->setUniformValue("matModelCamera", QMatrix4x4());
+    // Write the modelToCamera matrix into our UBO
+    QMatrix4x4 matrixModelToCamera;
+    matrixModelToCamera.lookAt(camPos, camLookAt, QVector3D(0.0f, 1.0f, 0.0f));
+
+
+    QVector3D testVector(1.0f, 0.0f, 0.0f);
+    qDebug() << testVector << "becomes" << matrixCameraToClip * matrixModelToCamera * testVector;
 
     glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
-    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(QMatrix4x4), matrix.data());
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(QMatrix4x4), matrixModelToCamera.data());
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     // Here we make mZoomFactorCurrent converge to mZoomFactorTarget for smooth zooming
@@ -258,7 +266,11 @@ void GlWidget::paintGL()
     mShaderProgramVehiclePath->release();
 
     // Render pointcloud using all initialized VBOs (there might be none when no points exist)
+    mShaderProgramPointCloud->setUniformValue("matCameraClip", matrixCameraToClip);
     mShaderProgramPointCloud->bind();
+    mShaderProgramPointCloud->setUniformValue("matModelCamera", matrixModelToCamera);
+
+
     QMapIterator<GLuint, unsigned int> i(mVboIdsPointCloud);
     while (i.hasNext())
     {
