@@ -1,3 +1,8 @@
+#include <GL/glew.h>
+//#include <GL/freeglut.h>
+#include <cuda_runtime.h>
+#include <cuda_gl_interop.h>
+
 #include "flightplannerparticles.h"
 
 FlightPlannerParticles::FlightPlannerParticles(QWidget* widget, Octree* pointCloud) : FlightPlannerInterface(widget, pointCloud)

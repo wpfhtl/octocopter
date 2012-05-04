@@ -1,9 +1,6 @@
 #ifndef RENDER_PARTICLES_H
 #define RENDER_PARTICLES_H
 
-#include <GL/glew.h>
-#include <GL/freeglut.h>
-
 #include <QObject>
 #include <QMatrix4x4>
 #include <QSize>

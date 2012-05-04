@@ -7,7 +7,7 @@ GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flig
     mFlightPlanner(flightPlanner)
 {
     QGLFormat glFormat;
-    glFormat.setSamples(2);
+    glFormat.setSamples(8);
     glFormat.setSampleBuffers(true);
     glFormat.setVersion(4,0);
     // This means no OpenGL-deprecated stuff is used (like glBegin() and glEnd())
@@ -106,6 +106,7 @@ void GlWidget::initializeGL()
 //    glBlendFunc(GL_ONE_MINUS_DST_ALPHA,GL_DST_ALPHA);
 
     // Just for debugging
+    /*
     QVector<QVector3D> p;
     p.append(QVector3D(0, 0, 0));
     p.append(QVector3D(0, 0, 1.0));
@@ -115,10 +116,13 @@ void GlWidget::initializeGL()
     p.append(QVector3D(1.0, 0, 1.0));
     p.append(QVector3D(1.0, 1.0, 0));
     p.append(QVector3D(1.0, 1.0, 1.0));
+    slotInsertLidarPoints(p);*/
 
-    slotInsertLidarPoints(p);
-
-    mModel = new Model("oktokopter.xml", this);
+    // Find the oktokopter model and load it
+    QDir modelPath = QDir::current();
+    //modelPath.cdUp();
+    QFile modelFile(modelPath.absolutePath() + "/oktokopter.obj");
+    mModel = new Model(modelFile, this);
 }
 
 void GlWidget::resizeGL(int w, int h)
@@ -128,7 +132,7 @@ void GlWidget::resizeGL(int w, int h)
 
     // OpenGL 4 core profile: We set the second matrix (perspective = cameraToClip) in the UBO
     QMatrix4x4 matrixCameraToClip;
-    matrixCameraToClip.perspective(50.0f * mZoomFactorCurrent, (float)w/(float)h, 10.0f, +8000.0f);
+    matrixCameraToClip.perspective(50.0f * mZoomFactorCurrent, (float)w/(float)h, 10.0f, +1000.0f);
     //matrixCameraToClip.ortho(-w/2.0f * mZoomFactorCurrent, w/2.0f * mZoomFactorCurrent, -h/2.0f * mZoomFactorCurrent, h/2.0f * mZoomFactorCurrent, 1.0, 10000.0);
 
     qDebug() << "GlWidget::resizeGL(): resizing gl viewport to" << w << h << "setting perspective/cameraclip matrix" << matrixCameraToClip;
@@ -197,16 +201,6 @@ void GlWidget::paintGL()
 //    drawVehicle();
 //    drawVehicleVelocity();
 
-    // Render the vehicle's path
-    mShaderProgramVehiclePath->bind();
-    glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0); // 12 bytes stride, we don't draw 3d velocity yet.
-    //qDebug() << "GlWidget::paintGL(): vehicle path elements:" << mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize << "bytes:" << mVboVehiclePathBytesCurrent;
-    glDrawArrays(GL_POINTS, 0, mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize);
-    glDisableVertexAttribArray(0);
-    mShaderProgramVehiclePath->release();
-
     // Render pointcloud using all initialized VBOs (there might be none when no points exist)
     mShaderProgramPointCloud->bind();
     QMapIterator<GLuint, unsigned int> i(mVboIdsPointCloud);
@@ -221,7 +215,22 @@ void GlWidget::paintGL()
     }
     mShaderProgramPointCloud->release();
 
+    mModel->slotSetModelTransform(mLastKnownVehiclePose.getMatrix());
     mModel->render();
+
+
+    glDisable(GL_DEPTH_TEST);
+    // Render the vehicle's path
+    mShaderProgramVehiclePath->bind();
+    glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0); // 12 bytes stride, we don't draw 3d velocity yet.
+    //qDebug() << "GlWidget::paintGL(): vehicle path elements:" << mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize << "bytes:" << mVboVehiclePathBytesCurrent;
+    glDrawArrays(GL_POINTS, 0, mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize);
+    glDisableVertexAttribArray(0);
+    mShaderProgramVehiclePath->release();
+    glEnable(GL_DEPTH_TEST);
+
 
     /* old pointcloud rendering code
     glDisable(GL_LIGHTING);

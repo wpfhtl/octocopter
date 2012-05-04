@@ -1,11 +1,6 @@
 #ifndef FlightPlannerParticles_H
 #define FlightPlannerParticles_H
 
-#include <cuda_runtime.h>
-#include <GL/glew.h>
-#include <cuda_gl_interop.h>
-#include <GL/freeglut.h>
-
 #include "flightplannerinterface.h"
 #include "particlerenderer.h"
 #include "particlesystem.h"

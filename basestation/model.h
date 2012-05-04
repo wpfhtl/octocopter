@@ -1,13 +1,10 @@
 #ifndef MODEL_H
 #define MODEL_H
 
-#include <GL/glew.h>
-
 #include <QObject>
+#include <QFile>
 #include <QMatrix4x4>
 
-// include DevIL for image loading
-#include <IL/il.h>
 
 #include <assimp/assimp.hpp>
 #include <assimp/aiPostProcess.h>
@@ -23,7 +20,7 @@ class Model : public QObject
     ShaderProgram* mShaderProgram;
     QMatrix4x4 mModelTransform;
 
-    bool importFile(const QString& modelFileName);
+    bool importFile(const QFile& modelFile);
     void loadGlTextures(const aiScene* scene);
     void generateVAOsAndUniformBuffer(const struct aiScene *scene);
 
@@ -106,7 +103,7 @@ class Model : public QObject
     std::map<std::string, GLuint> mTextureIdMap;
 
 public:
-    Model(const QString& fileName, QObject *parent = 0);
+    Model(const QFile& file, QObject *parent = 0);
 
     QMatrix4x4 modelTransform() {return mModelTransform;}
 

@@ -1,3 +1,6 @@
+#include <GL/glew.h>
+//#include <GL/freeglut.h>
+
 #include "flightplannercuda.h"
 
 FlightPlannerCuda::FlightPlannerCuda(QWidget* widget, Octree* pointCloud) : FlightPlannerInterface(widget, pointCloud)

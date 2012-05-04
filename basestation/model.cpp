@@ -1,11 +1,14 @@
+#include <GL/glew.h>
+#include <IL/il.h> // DevIL for image loading
+
 #include "model.h"
 
-Model::Model(const QString& fileName, QObject *parent) : QObject(parent)
+Model::Model(const QFile& file, QObject *parent) : QObject(parent)
 {
+    mShaderProgram = 0;
     mAssimpScene = 0;
 
-    if(!importFile(fileName))
-        qDebug() << "Model::Model(): cannot import file" << fileName;
+    if(!importFile(file)) return;
 
     // This needs to be unique!
     mMaterialUniformLocation = 2;
@@ -36,26 +39,25 @@ Model::Model(const QString& fileName, QObject *parent) : QObject(parent)
 
 }
 
-bool Model::importFile(const QString& modelFileName)
+bool Model::importFile(const QFile& modelFile)
 {
-    QFile file(modelFileName);
-    if(!file.isReadable())
+    if(!modelFile.exists())
     {
-        qDebug() << "Model::importFile(): import file" << modelFileName << "is not readable";
+        qDebug() << "Model::importFile(): import file" << modelFile.fileName() << "does not exist!";
         return false;
     }
 
-    mAssimpScene = mAssimpImporter.ReadFile(modelFileName.toStdString(), aiProcessPreset_TargetRealtime_Quality);
+    mAssimpScene = mAssimpImporter.ReadFile(modelFile.fileName().toStdString(), aiProcessPreset_TargetRealtime_Quality);
 
     // If the import failed, report it
     if(!mAssimpScene)
     {
-        qDebug() << "Model::importFile(): couldn't import file" << modelFileName << ":" << mAssimpImporter.GetErrorString();
+        qDebug() << "Model::importFile(): couldn't import file" << modelFile.fileName() << ":" << mAssimpImporter.GetErrorString();
         return false;
     }
     else
     {
-        qDebug() << "Model::importFile(): successfully imported file" << modelFileName;
+        qDebug() << "Model::importFile(): successfully imported file" << modelFile.fileName();
     }
 
     /* unnecessary, was to fit into a view window
@@ -85,13 +87,14 @@ void Model::loadGlTextures(const aiScene* scene)
         int texIndex = 0;
         aiString path;	// filename
 
-        aiReturn texFound = scene->mMaterials[m]->GetTexture(aiTextureType_DIFFUSE, texIndex, &path);
-        while (texFound == AI_SUCCESS) {
+        aiReturn textureLookupResult = scene->mMaterials[m]->GetTexture(aiTextureType_DIFFUSE, texIndex, &path);
+        while (textureLookupResult == AI_SUCCESS) {
             //fill map with textures, OpenGL image ids set to 0
             mTextureIdMap[path.data] = 0;
+            qDebug() << "Found texture:" << path.data;
             // more textures?
             texIndex++;
-            texFound = scene->mMaterials[m]->GetTexture(aiTextureType_DIFFUSE, texIndex, &path);
+            textureLookupResult = scene->mMaterials[m]->GetTexture(aiTextureType_DIFFUSE, texIndex, &path);
         }
     }
 
@@ -306,6 +309,12 @@ void Model::generateVAOsAndUniformBuffer(const struct aiScene *scene)
 
 void Model::render()
 {
+    if(!mShaderProgram)
+    {
+        qDebug() << "Model::render(): initialization failed, cannot render";
+        return;
+    }
+
     // use our shader
 //    glUseProgram(program);
     mShaderProgram->bind();
@@ -316,7 +325,13 @@ void Model::render()
     mShaderProgram->setUniformValue("texUnit", 0);
 //    glUniform1i(glGetUniformLocation(p,"texUnit");,0);
 
+//    glDisable(GL_CULL_FACE);
+    glFrontFace(GL_CCW);
+
+    glEnable (GL_BLEND); glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     renderRecursively(mAssimpScene, mAssimpScene->mRootNode);
+    glDisable(GL_BLEND);
+//    glEnable(GL_CULL_FACE);
 
     // swap buffers
 //    glutSwapBuffers();
@@ -339,18 +354,34 @@ void Model::renderRecursively(const struct aiScene *scene, const struct aiNode* 
     setModelMatrix();
 */
 
+    qDebug() << "Model::renderRecursively(): rendering scene" << scene << "and node" << node;
+
     // "push" the matrix :)
     const QMatrix4x4 matrixModelTransformOld = mModelTransform;
 
     // retrieve thisnode's transform (aiMatrix4x4 is row-major, like QMatrix4x4's c'tor)
-    qreal values[16];
-    for(int i=0;i<16;i++) values[i] = *(node->mTransformation[i]);
-    QMatrix4x4 matrixModelSubMeshTransform(values);
+    qreal valuesQReal[16];
+    for(int i=0;i<16;i++) valuesQReal[i] = *(node->mTransformation[i]);
+    QMatrix4x4 matrixModelSubMeshTransform(valuesQReal);
+    matrixModelSubMeshTransform.optimize();
 
     // Combine matrices
-    mModelTransform = mModelTransform * matrixModelSubMeshTransform;
+  //  mModelTransform = mModelTransform * matrixModelSubMeshTransform;
     // Send this temporary matrix into the shaderprogram's uniform
-    mShaderProgram->setUniformValue("matrixModelSubMeshTransform", matrixModelSubMeshTransform);
+    mModelTransform.copyDataTo(valuesQReal);
+
+    mShaderProgram->setUniformValue("matrixModelSubMeshTransform", mModelTransform);
+//    mShaderProgram->setUniformValue("matrixModelSubMeshTransform", QMatrix4x4());
+    /*
+    GLint loc = glGetUniformLocation(mShaderProgram->programId(), "matrixModelSubMeshTransform");
+    if(loc != -1)
+    {
+       float valuesFloat[16];
+       for(int i=0;i<16;i++) valuesFloat[i] = valuesQReal[i];
+       glUniformMatrix4fv(loc, 1, GL_TRUE, valuesFloat);
+    } else {
+        qDebug() << "uniform not found!";
+    }*/
 
     // draw all meshes assigned to this node
     for (unsigned int n=0; n < node->mNumMeshes; ++n)
