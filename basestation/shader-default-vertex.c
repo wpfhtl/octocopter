@@ -1,7 +1,9 @@
 #version 420
 
-in vec4 in_position;
-in vec4 in_color;
+// use glEnableVertexAttribArray(0) and glVertexAttribPointer(0, ...) to define this input data
+layout(location = 0) in vec4 in_position;
+// use glEnableVertexAttribArray(1) and glVertexAttribPointer(1, ...) to define this input data
+layout(location = 1) in vec4 in_color;
 
 out vec4 color;
 
@@ -19,6 +21,7 @@ layout(std140) uniform GlobalValues
 
 void main()
 {
+    color = max(vec4(1.0, 1.0, 1.0, 1.0), in_color);
     color = in_color;
     gl_Position = matrixCameraToClip * matrixModelToCamera * in_position;
 }

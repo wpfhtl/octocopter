@@ -7,7 +7,7 @@ GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flig
     mFlightPlanner(flightPlanner)
 {
     QGLFormat glFormat;
-    glFormat.setSamples(8);
+    glFormat.setSamples(4);
     glFormat.setSampleBuffers(true);
     glFormat.setVersion(4,0);
     // This means no OpenGL-deprecated stuff is used (like glBegin() and glEnd())
@@ -75,6 +75,57 @@ void GlWidget::initializeGL()
     glBufferData(GL_ARRAY_BUFFER, mVboVehiclePathBytesMaximum, NULL, GL_DYNAMIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+    // Create axes positions and colors
+    const float data[] = {
+        // Gray -X to 0
+        -10.0f, +00.0f, +00.0f, 1.0f,
+        +00.0f, +00.0f, +00.0f, 1.0f,
+
+        // Red 0 to +X
+        +00.0f, +00.0f, +00.0f, 1.0f,
+        +10.0f, +00.0f, +00.0f, 1.0f,
+
+        // Gray -Y to 0
+        +00.0f, -10.0f, +00.0f, 1.0f,
+        +00.0f, +00.0f, +00.0f, 1.0f,
+
+        // Green 0 to +Y
+        +00.0f, +00.0f, +00.0f, 1.0f,
+        +00.0f, +10.0f, +00.0f, 1.0f,
+
+        // Gray -Z to 0
+        +00.0f, +00.0f, -10.0f, 1.0f,
+        +00.0f, +00.0f, +00.0f, 1.0f,
+
+        // Blue 0 to +Z
+        +00.0f, +00.0f, +00.0f, 1.0f,
+        +00.0f, +00.0f, +10.0f, 1.0f,
+
+        0.5f, 0.5f, 0.5f, 0.5f, // Gray
+        0.5f, 0.5f, 0.5f, 0.5f, // Gray
+
+        1.0f, 0.0f, 0.0f, 0.5f, // Red
+        1.0f, 0.0f, 0.0f, 0.5f, // Red
+
+        0.5f, 0.5f, 0.5f, 0.5f, // Gray
+        0.5f, 0.5f, 0.5f, 0.5f, // Gray
+
+        0.0f, 1.0f, 0.0f, 0.5f, // Green
+        0.0f, 1.0f, 0.0f, 0.5f, // Green
+
+        0.5f, 0.5f, 0.5f, 0.5f, // Gray
+        0.5f, 0.5f, 0.5f, 0.5f, // Gray
+
+        0.0f, 0.0f, 1.0f, 0.5f, // Blue
+        0.0f, 0.0f, 1.0f, 0.5f  // Blue
+        };
+
+    // Create a VBO for the axes
+    glGenBuffers(1, &mVboAxes);
+    glBindBuffer(GL_ARRAY_BUFFER, mVboAxes);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
     // Tell OpenGL what to cull from triangles. See http://www.arcsynthesis.org/gltut/Positioning/Tutorial%2004.html
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
@@ -120,9 +171,8 @@ void GlWidget::initializeGL()
 
     // Find the oktokopter model and load it
     QDir modelPath = QDir::current();
-    //modelPath.cdUp();
-    QFile modelFile(modelPath.absolutePath() + "/oktokopter.obj");
-    mModel = new Model(modelFile, this);
+    modelPath.cdUp();
+    mModelVehicle = new Model(QFile(modelPath.absolutePath() + "/media/oktokopter.obj"), QString("../media/"), this);
 }
 
 void GlWidget::resizeGL(int w, int h)
@@ -215,16 +265,27 @@ void GlWidget::paintGL()
     }
     mShaderProgramPointCloud->release();
 
-    mModel->slotSetModelTransform(mLastKnownVehiclePose.getMatrix());
-    mModel->render();
+    // Render the axes
+    mShaderProgramVehiclePath->bind();
+    glBindBuffer(GL_ARRAY_BUFFER, mVboAxes);
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0); // 12 bytes stride, we don't draw 3d velocity yet.
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, (void*)48); // color
+    glDrawArrays(GL_LINES, 0, 12);
+    glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
+    mShaderProgramVehiclePath->release();
 
+    mModelVehicle->slotSetModelTransform(mLastKnownVehiclePose.getMatrix());
+    mModelVehicle->render();
 
     glDisable(GL_DEPTH_TEST);
     // Render the vehicle's path
     mShaderProgramVehiclePath->bind();
     glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0); // 12 bytes stride, we don't draw 3d velocity yet.
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0); // position
     //qDebug() << "GlWidget::paintGL(): vehicle path elements:" << mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize << "bytes:" << mVboVehiclePathBytesCurrent;
     glDrawArrays(GL_POINTS, 0, mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize);
     glDisableVertexAttribArray(0);

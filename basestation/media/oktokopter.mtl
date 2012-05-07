@@ -1,0 +1,175 @@
+# 3ds Max Wavefront OBJ-Export v0.97b - (c)2007 guruware
+# Datei erstellt: 07.05.2012 13:52:41
+
+newmtl Antenna
+	Ns 10.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.1451 0.1451 0.1451
+	Kd 0.1451 0.1451 0.1451
+	Ks 0.1800 0.1800 0.1800
+	Ke 0.0000 0.0000 0.0000
+	map_Ka arms.png
+	map_Kd arms.png
+
+newmtl CFK_Textured_BasePlate
+	Ns 10.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5882 0.5882 0.5882
+	Kd 0.5882 0.5882 0.5882
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka carbon.png
+	map_Kd carbon.png
+
+newmtl CFK_Textured_CarbonBox
+	Ns 10.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5882 0.5882 0.5882
+	Kd 0.5882 0.5882 0.5882
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka carbon.png
+	map_Kd carbon.png
+
+newmtl Battery
+	Ns 10.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5882 0.5882 0.5882
+	Kd 0.5882 0.5882 0.5882
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka battery.png
+	map_Kd battery.png
+
+newmtl Arms
+	Ns 21.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.1725 0.1725 0.1725
+	Kd 0.1725 0.1725 0.1725
+	Ks 0.3510 0.3510 0.3510
+	Ke 0.0000 0.0000 0.0000
+	map_Ka arms.png
+	map_Kd arms.png
+
+newmtl Arm_Red
+	Ns 30.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5647 0.1176 0.1176
+	Kd 0.5647 0.1176 0.1176
+	Ks 0.1800 0.1800 0.1800
+	Ke 0.0000 0.0000 0.0000
+
+newmtl BrushlessControllers
+	Ns 10.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5882 0.5882 0.5882
+	Kd 0.5882 0.5882 0.5882
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka brushless-controller.png
+	map_Kd brushless-controller.png
+
+newmtl FlightCtrl
+	Ns 10.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5882 0.5882 0.5882
+	Kd 0.5882 0.5882 0.5882
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka flightcontrol.png
+	map_Kd flightcontrol.png
+
+newmtl CFK_Smooth
+	Ns 10.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.0902 0.0902 0.0902
+	Kd 0.0902 0.0902 0.0902
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+
+newmtl Motors
+	Ns 10.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.2510 0.2510 0.2510
+	Kd 0.2510 0.2510 0.2510
+	Ks 0.4500 0.4500 0.4500
+	Ke 0.0000 0.0000 0.0000
+	map_Ka motor.png
+	map_Kd motor.png
+
+newmtl Stehbolzen
+	Ns 10.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.1529 0.1529 0.1529
+	Kd 0.1529 0.1529 0.1529
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+
+newmtl 18___Default
+	Ns 10.0000
+	Ni 1.5000
+	d 0.6000
+	Tr 0.4000
+	Tf 0.6000 0.6000 0.6000 
+	illum 2
+	Ka 1.0000 0.0000 0.0000
+	Kd 1.0000 0.0000 0.0000
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka propeller.png
+	map_Kd propeller.png
+	map_d propeller-alpha.png
+
+newmtl wire_008110135
+	Ns 32
+	d 1
+	Tr 0
+	Tf 1 1 1
+	illum 2
+	Ka 0.0314 0.4314 0.5294
+	Kd 0.0314 0.4314 0.5294
+	Ks 0.3500 0.3500 0.3500

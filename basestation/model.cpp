@@ -3,10 +3,11 @@
 
 #include "model.h"
 
-Model::Model(const QFile& file, QObject *parent) : QObject(parent)
+Model::Model(const QFile& file, const QString& mediaPrefix, QObject *parent) : QObject(parent)
 {
     mShaderProgram = 0;
     mAssimpScene = 0;
+    mMediaPrefix = mediaPrefix;
 
     if(!importFile(file)) return;
 
@@ -115,12 +116,16 @@ void Model::loadGlTextures(const aiScene* scene)
     {
         //save IL image ID
         std::string filename = (*itr).first;  // get filename
+        QString fileNameAbsolute = QString(mMediaPrefix).append(QString::fromStdString(filename));
+        qDebug() << "Model::loadGlTextures(): trying to load texture:" << fileNameAbsolute;
         (*itr).second = textureIds[i];	  // save texture id for filename in map
 
         ilBindImage(imageIds[i]); /* Binding of DevIL image name */
         ilEnable(IL_ORIGIN_SET);
         ilOriginFunc(IL_ORIGIN_LOWER_LEFT);
-        success = ilLoadImage((ILstring)filename.c_str());
+        //success = ilLoadImage((ILstring)filename.c_str());
+        success = ilLoadImage((ILstring)qPrintable(fileNameAbsolute));
+
 
         if (success) {
             /* Convert image to RGBA */
@@ -172,6 +177,7 @@ void Model::generateVAOsAndUniformBuffer(const struct aiScene *scene)
     for (unsigned int n = 0; n < scene->mNumMeshes; ++n)
     {
         const struct aiMesh* mesh = scene->mMeshes[n];
+        //qDebug() << "Model::generateVAOsAndUniformBuffer(): loading mesh" << QString::fromUtf8(mesh->mName.data, mesh->mName.length) << "with" << mesh->mNumFaces << "faces.";
 
         // create array with faces
         // have to convert from Assimp format to array
@@ -354,7 +360,7 @@ void Model::renderRecursively(const struct aiScene *scene, const struct aiNode* 
     setModelMatrix();
 */
 
-    qDebug() << "Model::renderRecursively(): rendering scene" << scene << "and node" << node;
+//    qDebug() << "Model::renderRecursively(): rendering scene" << scene << "and node" << node;
 
     // "push" the matrix :)
     const QMatrix4x4 matrixModelTransformOld = mModelTransform;

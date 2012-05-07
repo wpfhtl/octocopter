@@ -34,7 +34,7 @@ class GlWidget : public QGLWidget
     QVector3D mCamLookAtOffset;
     QMatrix4x4 mDebugMatrix;
 
-    Model* mModel;
+    Model *mModelVehicle;
 
     Pose mLastKnownVehiclePose;
 
@@ -49,7 +49,7 @@ class GlWidget : public QGLWidget
 
     GLuint mVertexArrayObject;
 
-    unsigned int mVboVehicle;
+    unsigned int mVboVehicle, mVboAxes;
 
     unsigned int mVboVehiclePathElementSize;
     unsigned int mVboVehiclePathBytesMaximum;

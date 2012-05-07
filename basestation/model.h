@@ -19,6 +19,7 @@ class Model : public QObject
 
     ShaderProgram* mShaderProgram;
     QMatrix4x4 mModelTransform;
+    QString mMediaPrefix;
 
     bool importFile(const QFile& modelFile);
     void loadGlTextures(const aiScene* scene);
@@ -103,7 +104,7 @@ class Model : public QObject
     std::map<std::string, GLuint> mTextureIdMap;
 
 public:
-    Model(const QFile& file, QObject *parent = 0);
+    Model(const QFile& file, const QString& mediaPrefix = QString(), QObject *parent = 0);
 
     QMatrix4x4 modelTransform() {return mModelTransform;}
 
