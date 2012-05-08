@@ -54,7 +54,6 @@ void GlWidget::initializeGL()
     // Give e.g. FlightPlannerCuda a chance to initialize CUDA in a GL context
     emit initializingInGlContext();
 
-
     // Create the uniform buffer object (UBO) for all members of the UBO-Block
     mUboSize = 64 + 64; // One Matrix4x4 has 16 floats with 4 bytes each, giving 64 bytes.
     glGenBuffers(1, &mUboId);
@@ -64,9 +63,7 @@ void GlWidget::initializeGL()
     // Now bind this UBO to a uniform-block binding-point
     glBindBufferRange(GL_UNIFORM_BUFFER, ShaderProgram::blockBindingPointGlobalMatrices, mUboId, 0, mUboSize);
 
-    mShaderProgramPointCloud = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-pointcloud-fragment.c");
-
-    mShaderProgramVehiclePath = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
+    mShaderProgramDefault = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
 
     // Create a VBO for the vehicle's path.
     glGenBuffers(1, &mVboVehiclePath);
@@ -185,7 +182,7 @@ void GlWidget::resizeGL(int w, int h)
     matrixCameraToClip.perspective(50.0f * mZoomFactorCurrent, (float)w/(float)h, 10.0f, +1000.0f);
     //matrixCameraToClip.ortho(-w/2.0f * mZoomFactorCurrent, w/2.0f * mZoomFactorCurrent, -h/2.0f * mZoomFactorCurrent, h/2.0f * mZoomFactorCurrent, 1.0, 10000.0);
 
-    qDebug() << "GlWidget::resizeGL(): resizing gl viewport to" << w << h << "setting perspective/cameraclip matrix" << matrixCameraToClip;
+//    qDebug() << "GlWidget::resizeGL(): resizing gl viewport to" << w << h << "setting perspective/cameraclip matrix" << matrixCameraToClip;
 
     // Set the second matrix (cameraToClip) in the UBO
     glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
@@ -252,46 +249,67 @@ void GlWidget::paintGL()
 //    drawVehicleVelocity();
 
     // Render pointcloud using all initialized VBOs (there might be none when no points exist)
-    mShaderProgramPointCloud->bind();
-    QMapIterator<GLuint, unsigned int> i(mVboIdsPointCloud);
-    while (i.hasNext())
+    mShaderProgramDefault->bind();
     {
-        i.next();
-        glBindBuffer(GL_ARRAY_BUFFER, i.key());
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-        glDrawArrays(GL_POINTS, 0, i.value() / sizeof(QVector3D));
-        glDisableVertexAttribArray(0);
-    }
-    mShaderProgramPointCloud->release();
+        mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
 
-    // Render the axes
-    mShaderProgramVehiclePath->bind();
-    glBindBuffer(GL_ARRAY_BUFFER, mVboAxes);
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0); // 12 bytes stride, we don't draw 3d velocity yet.
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, (void*)48); // color
-    glDrawArrays(GL_LINES, 0, 12);
-    glDisableVertexAttribArray(0);
-    glDisableVertexAttribArray(1);
-    mShaderProgramVehiclePath->release();
+        mShaderProgramDefault->setUniformValue("useFixedColor", true);
+        mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(0.7f, 0.7f, 0.7f, 0.2f));
+        glEnable (GL_BLEND); glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
+        {
+            QMapIterator<GLuint, unsigned int> i(mVboIdsPointCloud);
+            while (i.hasNext())
+            {
+                i.next();
+                glBindBuffer(GL_ARRAY_BUFFER, i.key());
+                glEnableVertexAttribArray(0);
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+                glDrawArrays(GL_POINTS, 0, i.value() / sizeof(QVector3D));
+                glDisableVertexAttribArray(0);
+            }
+        }
+        glDisable(GL_BLEND);
+
+        // Render in front of everything
+        glDisable(GL_DEPTH_TEST);
+        {
+            // Render the vehicle's path - same shader, but different fixed color
+            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(1.0f, 0.3f, 0.3f, 1.0f));
+            glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0); // position
+            //qDebug() << "GlWidget::paintGL(): vehicle path elements:" << mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize << "bytes:" << mVboVehiclePathBytesCurrent;
+            glDrawArrays(GL_POINTS, 0, mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize);
+            glDisableVertexAttribArray(0);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+            // Render the axes - don't use fixed colors in the fragment shader
+            // Render once at origin, once at vehicle
+            {
+                // At the origin
+                mShaderProgramDefault->setUniformValue("useFixedColor", false);
+                glBindBuffer(GL_ARRAY_BUFFER, mVboAxes);
+                glEnableVertexAttribArray(0);
+                glEnableVertexAttribArray(1);
+                glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0); // positions
+                glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, (void*)(12 * sizeof(float) * 4)); // colors
+                glDrawArrays(GL_LINES, 0, 12);
+
+                // At the vehicle
+                mShaderProgramDefault->setUniformValue("useMatrixExtra", true);
+                mShaderProgramDefault->setUniformValue("matrixExtra", mLastKnownVehiclePose.getMatrix());
+                glDrawArrays(GL_LINES, 0, 12);
+                glDisableVertexAttribArray(0);
+                glDisableVertexAttribArray(1);
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
+            }
+        }
+        glEnable(GL_DEPTH_TEST);
+    }
+    mShaderProgramDefault->release();
 
     mModelVehicle->slotSetModelTransform(mLastKnownVehiclePose.getMatrix());
     mModelVehicle->render();
-
-    glDisable(GL_DEPTH_TEST);
-    // Render the vehicle's path
-    mShaderProgramVehiclePath->bind();
-    glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0); // position
-    //qDebug() << "GlWidget::paintGL(): vehicle path elements:" << mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize << "bytes:" << mVboVehiclePathBytesCurrent;
-    glDrawArrays(GL_POINTS, 0, mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize);
-    glDisableVertexAttribArray(0);
-    mShaderProgramVehiclePath->release();
-    glEnable(GL_DEPTH_TEST);
-
 
     /* old pointcloud rendering code
     glDisable(GL_LIGHTING);
@@ -335,108 +353,6 @@ void GlWidget::slotNewVehiclePose(Pose pose)
     mLastKnownVehiclePose = pose;
 
     slotUpdateView();
-}
-
-void GlWidget::drawVehicle() const
-{
-    // draw vehicle velocity as vector
-    const QVector3D vehiclePosition = mLastKnownVehiclePose.getPosition();
-    const QQuaternion vehicleOrientation = mLastKnownVehiclePose.getOrientation();
-
-    const QVector3D armFront = vehicleOrientation.rotatedVector(QVector3D(0.0, 0.0, -0.4));
-    const QVector3D armBack = vehicleOrientation.rotatedVector(QVector3D(0.0, 0.0, 0.4));
-    const QVector3D armLeft = vehicleOrientation.rotatedVector(QVector3D(-0.4, 0.0, 0.0));
-    const QVector3D armRight = vehicleOrientation.rotatedVector(QVector3D(0.4, 0.0, 0.0));
-
-    const QVector3D landingLegFront = vehicleOrientation.rotatedVector(QVector3D(0.0, -0.2, -0.2));
-    const QVector3D landingLegBack = vehicleOrientation.rotatedVector(QVector3D(0.0, -0.2, 0.2));
-    const QVector3D landingLegLeft = vehicleOrientation.rotatedVector(QVector3D(-0.2, -0.2, 0.0));
-    const QVector3D landingLegRight = vehicleOrientation.rotatedVector(QVector3D(0.2, -0.2, 0.0));
-
-    glTranslatef(0.0f, 0.2f, 0.0f);
-
-    OpenGlUtilities::drawSphere(vehiclePosition, 0.03, 10.0, QColor(80,80,80,200));
-    glDisable(GL_LIGHTING);
-
-
-    glLineWidth(3);
-    glBegin(GL_LINES);
-    glColor3f(1.0, 0.2, 0.2);
-
-    // draw arms
-    glVertexVector(vehiclePosition);
-    glVertexVector(vehiclePosition + armFront);
-
-    glColor3f(0.4, 0.4, 0.4);
-    glVertexVector(vehiclePosition);
-    glVertexVector(vehiclePosition + armBack);
-
-    glVertexVector(vehiclePosition);
-    glVertexVector(vehiclePosition + armLeft);
-
-    glVertexVector(vehiclePosition);
-    glVertexVector(vehiclePosition + armRight);
-
-    glColor3f(0.7, 0.7, 0.7);
-
-    // draw landing legs
-    glVertexVector(vehiclePosition + armFront * 0.5);
-    glVertexVector(vehiclePosition + landingLegFront);
-
-    glVertexVector(vehiclePosition + armBack * 0.5);
-    glVertexVector(vehiclePosition + landingLegBack);
-
-    glVertexVector(vehiclePosition + armLeft * 0.5);
-    glVertexVector(vehiclePosition + landingLegLeft);
-
-    glVertexVector(vehiclePosition + armRight * 0.5);
-    glVertexVector(vehiclePosition + landingLegRight);
-
-    glEnd();
-    glEnable(GL_LIGHTING);
-}
-
-void GlWidget::drawVehicleVelocity() const
-{
-    // draw vehicle velocity as vector
-    const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().getPosition();
-    const QVector3D vehicleVelocity = mFlightPlanner->getCurrentVehicleVelocity();
-    glDisable(GL_LIGHTING);
-    glColor3f(0.0, 1.0, 0.0);
-    glLineWidth(1);
-    glBegin(GL_LINES);
-    glVertex3f(vehiclePosition.x(), vehiclePosition.y(), vehiclePosition.z());
-    glVertex3f(vehiclePosition.x()+vehicleVelocity.x(), vehiclePosition.y()+vehicleVelocity.y(), vehiclePosition.z()+vehicleVelocity.z());
-    glEnd();
-    glEnable(GL_LIGHTING);
-}
-
-void GlWidget::drawAxes(
-        const GLfloat& x, const GLfloat& y, const GLfloat& z,
-        const GLfloat& red, const GLfloat& green, const GLfloat& blue) const
-{
-    glDisable(GL_LIGHTING);
-    glLineWidth(2);
-    glBegin(GL_LINES);
-    // X
-    glColor3f(red,green,blue);
-    glVertex3f( -x,0.0f,0.0f); glVertex3f(0.0f,0.0f,0.0f);
-    glColor3f(1.0f,green,blue);
-    glVertex3f(0.0f,0.0f,0.0f); glVertex3f(  x,0.0f,0.0f);
-
-    // Y
-    glColor3f(red,green,blue);
-    glVertex3f(0.0f,  -y,0.0f); glVertex3f(0.0f,0.0f,0.0f);
-    glColor3f(red,1.0f,blue);
-    glVertex3f(0.0f,0.0f,0.0f); glVertex3f(0.0f,   y,0.0f);
-
-    // Y
-    glColor3f(red,green,blue);
-    glVertex3f(0.0f,0.0f,  -z); glVertex3f(0.0f,0.0f,0.0f);
-    glColor3f(red,green,1.0f);
-    glVertex3f(0.0f,0.0f,0.0f); glVertex3f(0.0f,0.0f,   z);
-    glEnd();
-    glEnable(GL_LIGHTING);
 }
 
 void GlWidget::slotEnableTimerRotation(const bool& enable)

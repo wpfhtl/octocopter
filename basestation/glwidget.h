@@ -32,7 +32,7 @@ class GlWidget : public QGLWidget
     unsigned int mVboPointCloudBytesMax, mVboPointCloudBytesCurrent;
 
     QVector3D mCamLookAtOffset;
-    QMatrix4x4 mDebugMatrix;
+//    QMatrix4x4 mDebugMatrix;
 
     Model *mModelVehicle;
 
@@ -62,22 +62,22 @@ class GlWidget : public QGLWidget
     // Mapping from VBO-id to currently used size in bytes of that VBO
     QMap<GLuint, unsigned int> mVboIdsPointCloud;
 
-    ShaderProgram *mShaderProgramPointCloud, *mShaderProgramVehiclePath;
+    ShaderProgram *mShaderProgramDefault;
 
     // Wheel Zooming. For smooth zooming, mZoomFactorCurrent converges toward mZoomFactorTarget
     GLdouble    mZoomFactorTarget, mZoomFactorCurrent;
 
     // small helper
-    static void glVertexVector(QVector3D a) { glVertex3f(a.x(), a.y(), a.z()); }
+//    static void glVertexVector(QVector3D a) { glVertex3f(a.x(), a.y(), a.z()); }
 
     //void mouseDoubleClickEvent(QMouseEvent *event);
     void mousePressEvent(QMouseEvent *event);
     void mouseMoveEvent(QMouseEvent *event);
     void wheelEvent(QWheelEvent *event);
     void zoom(double zoomFactor);
-    void drawAxes(const GLfloat& x, const GLfloat& y, const GLfloat& z, const GLfloat& red, const GLfloat& green, const GLfloat& blue) const;
-    void drawVehicleVelocity() const;
-    void drawVehicle() const;
+//    void drawAxes(const GLfloat& x, const GLfloat& y, const GLfloat& z, const GLfloat& red, const GLfloat& green, const GLfloat& blue) const;
+//    void drawVehicleVelocity() const;
+//    void drawVehicle() const;
     QVector3D convertMouseToWorldPosition(const QPoint&);
 
 public:

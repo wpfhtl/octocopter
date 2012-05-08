@@ -1,9 +1,0 @@
-occupancy grids are most common. cells are not binary, but carry probability.
-
-grid map mit ground, wall, unexplored
-
-ein gridcell ist dann guter next best view, wenn von ihm aus ein simulierter scan über möglichst viele groundcells zu unexplored gebiet führt.
-
-komische metrik, was spielts für ne rolle, wieivel ground der strahl passiert hat.
-
-das wäre in 3d zu teuer.

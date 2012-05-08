@@ -19,9 +19,16 @@ layout(std140) uniform GlobalValues
     mat4 matrixCameraToClip;
 };
 
+uniform mat4 matrixExtra;
+uniform bool useMatrixExtra;
+
 void main()
 {
-    color = max(vec4(1.0, 1.0, 1.0, 1.0), in_color);
+    //color = max(vec4(1.0, 1.0, 1.0, 1.0), in_color);
     color = in_color;
-    gl_Position = matrixCameraToClip * matrixModelToCamera * in_position;
+
+    if(useMatrixExtra)
+      gl_Position = matrixCameraToClip * matrixModelToCamera * matrixExtra * in_position;
+    else
+      gl_Position = matrixCameraToClip * matrixModelToCamera * in_position;
 }

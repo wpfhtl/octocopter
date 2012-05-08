@@ -53,6 +53,7 @@ BaseStation::BaseStation() : QMainWindow()
     mFlightPlanner->slotSetScanVolume(QVector3D(-50, -10, -35), QVector3D(50, 40, 35));
 
     mGlWidget = new GlWidget(this, mOctree, mFlightPlanner);
+
     mFlightPlanner->setGlWidget(mGlWidget);
     connect(mGlWidget, SIGNAL(initializingInGlContext()), mFlightPlanner, SLOT(slotInitialize())); // init CUDA when GlWidget inits
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(slotUpdateView()));

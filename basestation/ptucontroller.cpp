@@ -16,7 +16,7 @@ PtuController::PtuController(const QString& deviceFile, QWidget *parent) : QDock
     if(!mSerialPortPtu->open(AbstractSerial::ReadWrite))
     {
         mSerialPortPtu->close();
-        qFatal("GpsDevice::GpsDevice(): Opening serial usb port %s failed, exiting.", qPrintable(deviceFile));
+        qFatal("PtuController::PtuController(): Opening serial usb port %s failed, exiting.", qPrintable(deviceFile));
     }
     mSerialPortPtu->setBaudRate(AbstractSerial::BaudRate9600); // PTU can go faster, but do we need to?
     mSerialPortPtu->setDataBits(AbstractSerial::DataBits8);

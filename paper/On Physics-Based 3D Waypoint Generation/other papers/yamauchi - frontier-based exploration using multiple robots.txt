@@ -1,7 +1,0 @@
-2d only
-
-The central question in exploration is: Given what you know about the world, where should you move to gain as much new information as possible?
-
-es gibt ein 2d grid, in dem die occupancy probability gespeichert wird.
-
-dann einfach edge detection und schon hat man die frontiers.

@@ -5,6 +5,7 @@
 #include <QGLWidget>
 #include "octree.h"
 #include "openglutilities.h"
+#include "shaderprogram.h"
 #include <waypoint.h>
 #include <pose.h>
 
@@ -23,6 +24,12 @@ protected:
     GlWidget* mGlWidget;
     QWidget* mParentWidget;
     QList<WayPoint>* mWayPointsAhead, *mWayPointsPassed;
+
+    unsigned int mBoundingBoxVbo;
+    QVector<float> mBoundingBoxVertices;
+    QVector<float> mBoundingBoxColors;
+
+    ShaderProgram* mShaderProgramDefault;
 
     static void sortToShortestPath(QList<WayPoint> &wayPointsSetOnRover, const QVector3D &currentVehiclePosition);
 
