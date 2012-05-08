@@ -1,5 +1,6 @@
 #include "openglutilities.h"
 
+/*
 void OpenGlUtilities::drawSphere(const QVector3D &pos, const float radius, const int subdivisions, const QColor color)
 {
     GLUquadricObj *quadric = gluNewQuadric();
@@ -55,6 +56,7 @@ void OpenGlUtilities::drawAabb(const QVector3D &min, const QVector3D &max, const
     glEnd();
 }
 
+*/
 QVector<float> OpenGlUtilities::matrixToOpenGl(const QMatrix4x4 &matrix)
 {
     QVector<float> data;

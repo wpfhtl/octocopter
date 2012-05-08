@@ -282,7 +282,7 @@ void FlightPlannerPhysics::insertPoint(LidarPoint* const point)
 
         mOctreeCollisionObjects->setMinimumPointDistance(1.0);
 
-        mOctreeCollisionObjects->setPointHandler(OpenGlUtilities::drawPoint);
+//        mOctreeCollisionObjects->setPointHandler(OpenGlUtilities::drawPoint);
 
         connect(mOctreeCollisionObjects, SIGNAL(pointInserted(const LidarPoint*)), SLOT(slotPointInserted(const LidarPoint*)));
     }
@@ -321,6 +321,7 @@ void FlightPlannerPhysics::slotVisualize() const
 //    mBtWorld->debugDrawWorld();
     FlightPlannerInterface::slotVisualize();
 
+    /* This is OLD gl immediate mode, port it or lose it
     // Draw Octree
     if(mOctreeCollisionObjects)
     {
@@ -414,6 +415,7 @@ void FlightPlannerPhysics::slotVisualize() const
     mGhostObjectVehicle->getCollisionShape()->getAabb(mTransformVehicle, min, max);
 //    OpenGlUtilities::drawAabb(QVector3D(min.x(), min.y(), min.z()), QVector3D(max.x(), max.y(), max.z()), QColor(0,250,0, 150), 2);
     glEnable(GL_LIGHTING);
+    */
 }
 
 void FlightPlannerPhysics::slotSetScanVolume(const QVector3D min, const QVector3D max)

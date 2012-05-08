@@ -20,7 +20,7 @@ BaseStation::BaseStation() : QMainWindow()
     mConnectionDialog->exec();
 
     mOctree->setMinimumPointDistance(0.0001f);
-    mOctree->setPointHandler(OpenGlUtilities::drawPoint);
+//    mOctree->setPointHandler(OpenGlUtilities::drawPoint);
 
     mTimerStats = new QTimer(this);
     mTimerStats->start(1000);

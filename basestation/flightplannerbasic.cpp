@@ -34,7 +34,7 @@ void FlightPlannerBasic::insertPoint(LidarPoint* const point)
 
         mOctree->setMinimumPointDistance(20);
 
-        mOctree->setPointHandler(OpenGlUtilities::drawSphere);
+//        mOctree->setPointHandler(OpenGlUtilities::drawSphere);
 
         connect(mOctree, SIGNAL(pointInserted(const LidarPoint*)), SLOT(slotPointInserted(const LidarPoint*)));
     }

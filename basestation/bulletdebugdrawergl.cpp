@@ -55,12 +55,14 @@ void BulletDebugDrawerGl::drawContactPoint(const btVector3& PointOnB, const btVe
 
 void BulletDebugDrawerGl::drawSphere (btScalar radius, const btTransform &transform, const btVector3 &color)
 {
-    OpenGlUtilities::drawSphere(QVector3D(transform.getOrigin().x(), transform.getOrigin().y(), transform.getOrigin().z()), radius, 5.0, QColor(color.x()*255,color.y()*255,color.z()*255, 30));
+    // Old GL immediate mode
+//    OpenGlUtilities::drawSphere(QVector3D(transform.getOrigin().x(), transform.getOrigin().y(), transform.getOrigin().z()), radius, 5.0, QColor(color.x()*255,color.y()*255,color.z()*255, 30));
 }
 
 void BulletDebugDrawerGl::drawSphere (const btVector3 &p, btScalar radius, const btVector3 &color)
 {
-    OpenGlUtilities::drawSphere(QVector3D(p.x(), p.y(), p.z()), radius, 5.0, QColor(color.x()*255,color.y()*255,color.z()*255));
+    // Old GL immediate mode
+//    OpenGlUtilities::drawSphere(QVector3D(p.x(), p.y(), p.z()), radius, 5.0, QColor(color.x()*255,color.y()*255,color.z()*255));
 }
 
 void BulletDebugDrawerGl::drawAabb(const btVector3 &min, const btVector3 &max, const btVector3 &color)

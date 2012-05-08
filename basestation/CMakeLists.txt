@@ -172,4 +172,4 @@ INCLUDE_DIRECTORIES(/usr/include
 )
 LINK_DIRECTORIES(/usr/lib/ /usr/local/lib/)
 CUDA_ADD_EXECUTABLE(basestation ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-TARGET_LINK_LIBRARIES(basestation qwt ${QT_LIBRARIES} ${BULLET_LIBRARIES} GL GLU GLEW qserialdeviced assimp IL ILU ILUT)
+TARGET_LINK_LIBRARIES(basestation qwt ${QT_LIBRARIES} ${BULLET_LIBRARIES} GL GLEW qserialdeviced assimp IL ILU ILUT)
