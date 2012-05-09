@@ -1,4 +1,6 @@
 #include <GL/glew.h>
+#include <GL/gl.h>
+
 #include "glwidget.h"
 
 GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flightPlanner) :

@@ -166,10 +166,20 @@ ADD_SUBDIRECTORY(qserialdevice)
 INCLUDE_DIRECTORIES(/usr/include
                     /usr/local/include/
                     /usr/local/cuda/computing_sdk/CUDALibraries/common/inc/
+                    /opt/cuda-sdk/CUDALibraries/common/inc/
                     ${CMAKE_CURRENT_SOURCE_DIR}/qserialdevice/src/qserialdevice
-                    ${BULLET_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR}
-                    ./ ${CMAKE_CURRENT_SOURCE_DIR}/../common/
-)
+                    ${BULLET_INCLUDES}
+                    ${CMAKE_CURRENT_BINARY_DIR}
+                    ${CMAKE_CURRENT_SOURCE_DIR}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 LINK_DIRECTORIES(/usr/lib/ /usr/local/lib/)
 CUDA_ADD_EXECUTABLE(basestation ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-TARGET_LINK_LIBRARIES(basestation qwt ${QT_LIBRARIES} ${BULLET_LIBRARIES} GL GLEW qserialdeviced assimp IL ILU ILUT)
+TARGET_LINK_LIBRARIES(basestation
+                      qwt
+                      ${QT_LIBRARIES}
+                      ${BULLET_LIBRARIES}
+                      GL
+                      GLEW
+                      qserialdeviced
+                      assimp
+                      IL)

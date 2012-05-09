@@ -1,3 +1,7 @@
+// Fix for gcc 4.7
+#undef _GLIBCXX_ATOMIC_BUILTINS
+#undef _GLIBCXX_USE_INT128
+
 #include <cuda_runtime.h>
 #include <QDebug>
 #include <QVector3D>

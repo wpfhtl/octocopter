@@ -1,3 +1,7 @@
+// Fix for gcc 4.7
+#undef _GLIBCXX_ATOMIC_BUILTINS
+#undef _GLIBCXX_USE_INT128
+
 // This file contains C wrappers around the some of the CUDA API and the
 // kernel functions so that they can be called from "particleSystem.cpp"
 
