@@ -81,7 +81,7 @@ public slots:
     // Overridden from base to move vehicle physics object and check for collisions
     void slotVehiclePoseChanged(const Pose& pose);
 
-    void slotVisualize() const;
+    void slotVisualize();
 
 };
 

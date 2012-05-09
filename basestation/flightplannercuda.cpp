@@ -165,7 +165,7 @@ void FlightPlannerCuda::insertPoint(LidarPoint* const point)
 }
 
 // NOT in a glBegin()/glEnd() pair.
-void FlightPlannerCuda::slotVisualize() const
+void FlightPlannerCuda::slotVisualize()
 {
     FlightPlannerInterface::slotVisualize();
 

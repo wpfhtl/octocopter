@@ -9,8 +9,9 @@ FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, Octree* pointClo
     mWayPointsAhead = new QList<WayPoint>;
     mWayPointsPassed = new QList<WayPoint>;
     mShaderProgramDefault = 0;
+    mBoundingBoxVbo = 0;
 
-    mVehiclePoses.reserve(25 * 60 * 10); // enough poses for 10 minutes, sizeof(Pose) should be < 30
+    mVehiclePoses.reserve(25 * 60 * 10); // enough poses for 10 minutes
 
     qDebug() << "FlightPlannerInterface c'tor.";
 }
@@ -24,80 +25,8 @@ void FlightPlannerInterface::slotSetScanVolume(const QVector3D minBox, const QVe
     mScanVolumeMin = minBox;
     mScanVolumeMax = maxBox;
 
-    // Initilaize the VBO if necessary
-    if(mShaderProgramDefault == 0 && mGlWidget != 0)
-    {
-        mShaderProgramDefault = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
 
-        mBoundingBoxVertices.clear();
-
-        // Fill the vertices buffer with vertices for quads
-        mBoundingBoxVertices
-                // 1 back
-                << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f
-                << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f
-                << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
-                << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
-
-                // 2 front
-                << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMax.z() << 1.0f
-                << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMax.z() << 1.0f
-                << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f
-                << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f
-
-                // 3 left
-                << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMax.z() << 1.0f
-                << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f
-                << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
-                << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f
-
-                // 4 right
-                << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f
-                << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMax.z() << 1.0f
-                << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f
-                << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
-
-                // 5 bottom
-                << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMax.z() << 1.0f
-                << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMax.z() << 1.0f
-                << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f
-                << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f
-
-                // 6 top
-                << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
-                << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
-                << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f
-                << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f;
-
-        // Fill the color buffer. When we have e.g. 24 vertices, we need one color (=4 floats)
-        // for every vertex. So, 24 colors also make up 96 floats, same as the floats for vertices.
-        mBoundingBoxColors.clear();
-        mBoundingBoxColors.fill(1.0f, mBoundingBoxVertices.size()); // half-transparent gray. Beautiful! :|
-
-        glGenBuffers(1, &mBoundingBoxVbo);
-        glBindBuffer(GL_ARRAY_BUFFER, mBoundingBoxVbo);
-
-        qDebug() << "FlightPlannerInterface::slotSetScanVolume(): reserving" << sizeof(float) + (mBoundingBoxVertices.size() + mBoundingBoxColors.size()) << "bytes in VBO...";
-        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * (mBoundingBoxVertices.size() + mBoundingBoxColors.size()), NULL, GL_STATIC_DRAW);
-
-        qDebug() << "FlightPlannerInterface::slotSetScanVolume(): copying" << mBoundingBoxVertices.size() * sizeof(float) << "bytes of vertices into VBO...";
-        glBufferSubData(
-                    GL_ARRAY_BUFFER,
-                    0, // offset in the VBO
-                    mBoundingBoxVertices.size() * sizeof(float), // how many bytes to store?
-                    (void*)(mBoundingBoxVertices.constData()) // data to store
-                    );
-
-        qDebug() << "FlightPlannerInterface::slotSetScanVolume(): copying" << mBoundingBoxColors.size() * sizeof(float) << "bytes of colors into VBO...";
-        glBufferSubData(
-                    GL_ARRAY_BUFFER,
-                    mBoundingBoxVertices.size() * sizeof(float), // offset in the VBO
-                    mBoundingBoxColors.size() * sizeof(float), // how many bytes to store?
-                    (void*)(mBoundingBoxColors.constData()) // data to store
-                    );
-
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-    }
+    setVbo();
 }
 
 void FlightPlannerInterface::slotClearVehiclePoses()
@@ -300,13 +229,104 @@ void FlightPlannerInterface::getScanVolume(QVector3D& min, QVector3D& max)
     max = mScanVolumeMax;
 }
 
-void FlightPlannerInterface::slotVisualize() const
+void FlightPlannerInterface::setVbo()
 {
+    if(mBoundingBoxVbo == 0)
+    {
+        qDebug() << "FlightPlannerInterface::setVbo(): VBO undefined, ";
+        return;
+    }
+
+    mBoundingBoxVertices.clear();
+
+    // Fill the vertices buffer with vertices for quads and lines
+    mBoundingBoxVertices
+            // 1 back
+            << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f
+            << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f
+            << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
+            << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
+
+            // 2 front
+            << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMax.z() << 1.0f
+            << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMax.z() << 1.0f
+            << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f
+            << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f
+
+            // 3 left
+            << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMax.z() << 1.0f
+            << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f
+            << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
+            << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f
+
+            // 4 right
+            << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f
+            << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMax.z() << 1.0f
+            << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f
+            << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
+
+
+            // 6 top
+            << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
+            << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
+            << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f
+            << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f
+
+            // 5 bottom
+            << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMax.z() << 1.0f
+            << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMax.z() << 1.0f
+            << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f
+            << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f;
+
+    // Fill the color buffer. When we have e.g. 24 vertices, we need one color (=4 floats)
+    // for every vertex. So, 24 colors also make up 96 floats, same as the floats for vertices.
+    mBoundingBoxColors.clear();
+    mBoundingBoxColors.fill(1.0f, mBoundingBoxVertices.size()); // half-transparent gray. Beautiful! :|
+
+    glBindBuffer(GL_ARRAY_BUFFER, mBoundingBoxVbo);
+
+    qDebug() << "FlightPlannerInterface::slotSetScanVolume(): reserving" << sizeof(float) + (mBoundingBoxVertices.size() + mBoundingBoxColors.size()) << "bytes in VBO...";
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * (mBoundingBoxVertices.size() + mBoundingBoxColors.size()), NULL, GL_STATIC_DRAW);
+
+    qDebug() << "FlightPlannerInterface::slotSetScanVolume(): copying" << mBoundingBoxVertices.size() * sizeof(float) << "bytes of vertices into VBO...";
+    glBufferSubData(
+                GL_ARRAY_BUFFER,
+                0, // offset in the VBO
+                mBoundingBoxVertices.size() * sizeof(float), // how many bytes to store?
+                (void*)(mBoundingBoxVertices.constData()) // data to store
+                );
+
+    qDebug() << "FlightPlannerInterface::slotSetScanVolume(): copying" << mBoundingBoxColors.size() * sizeof(float) << "bytes of colors into VBO...";
+    glBufferSubData(
+                GL_ARRAY_BUFFER,
+                mBoundingBoxVertices.size() * sizeof(float), // offset in the VBO
+                mBoundingBoxColors.size() * sizeof(float), // how many bytes to store?
+                (void*)(mBoundingBoxColors.constData()) // data to store
+                );
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void FlightPlannerInterface::slotVisualize()
+{
+    // Initialize shaders and VBO if necessary
+    if(mShaderProgramDefault == 0 && mGlWidget != 0)
+    {
+        mShaderProgramDefault = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
+
+        glGenBuffers(1, &mBoundingBoxVbo);
+        glBindBuffer(GL_ARRAY_BUFFER, mBoundingBoxVbo);
+        qDebug() << "FlightPlannerInterface::slotSetScanVolume(): reserving" << sizeof(float) + (mBoundingBoxVertices.size() + mBoundingBoxColors.size()) << "bytes in VBO...";
+        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * (mBoundingBoxVertices.size() + mBoundingBoxColors.size()), NULL, GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        setVbo();
+    }
+
     if(mShaderProgramDefault != 0)
     {
         mShaderProgramDefault->bind();
         mShaderProgramDefault->setUniformValue("useFixedColor", true);
-        mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(1.0f, 1.0f, 1.0f, 0.05f));
 
 //        glDisable(GL_CULL_FACE);
         glEnable(GL_BLEND);
@@ -317,8 +337,22 @@ void FlightPlannerInterface::slotVisualize() const
             glEnableVertexAttribArray(1);
             glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0); // position
             glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, (void*)(mBoundingBoxVertices.size() * sizeof(float))); // color
-            glDrawArrays(GL_QUADS, 0, 384);
-            glDrawArrays(GL_LINE_LOOP, 0, 384);
+
+            // draw the lines around the box
+            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(0.6f, 0.6f, 1.0f, 0.1f));
+            glDrawArrays(GL_LINE_LOOP, 0, 4);
+            glDrawArrays(GL_LINE_LOOP, 4, 4);
+            glDrawArrays(GL_LINE_LOOP, 8, 4);
+            glDrawArrays(GL_LINE_LOOP, 12, 4);
+            glDrawArrays(GL_LINE_LOOP, 16, 4);
+            glDrawArrays(GL_LINE_LOOP, 20, 4);
+
+            // draw a half-transparent box
+            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(1.0f, 1.0f, 1.0f, 0.015f));
+            glDrawArrays(GL_QUADS, 0, 20);
+            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(1.0f, 1.0f, 1.0f, 0.030f));
+            glDrawArrays(GL_QUADS, 20, 4);
+
             glDisableVertexAttribArray(0);
             glDisableVertexAttribArray(1);
         }

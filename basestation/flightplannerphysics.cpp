@@ -316,7 +316,7 @@ void FlightPlannerPhysics::slotPointInserted(const LidarPoint* lp)
 }
 
 // NOT in a glBegin()/glEnd() pair.
-void FlightPlannerPhysics::slotVisualize() const
+void FlightPlannerPhysics::slotVisualize()
 {
 //    mBtWorld->debugDrawWorld();
     FlightPlannerInterface::slotVisualize();

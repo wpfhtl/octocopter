@@ -216,7 +216,7 @@ void GlWidget::paintGL()
 
     QVector3D camPos = cameraRotation.rotatedVector(mCameraPosition);
 
-    qDebug() << "GlWidget::paintGL(): cam pos after rotating:" << camPos;
+    //qDebug() << "GlWidget::paintGL(): cam pos after rotating:" << camPos;
 
     // Write the modelToCamera matrix into our UBO
     QMatrix4x4 matrixModelToCamera;
