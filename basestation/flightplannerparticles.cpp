@@ -129,7 +129,8 @@ void FlightPlannerParticles::slotVisualize()
     mParticleSystem->setCollideAttraction(collideAttraction);
 
     mParticleSystem->update(0.5f);
-    mParticleRenderer->setWindowSize(mGlWidget->size());
+
+//    mParticleRenderer->setWindowSize(mGlWidget->size());
     mParticleRenderer->setVertexBuffer(mParticleSystem->getCurrentReadBuffer(), mParticleSystem->getNumParticles());
     mParticleRenderer->render();
 }

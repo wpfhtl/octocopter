@@ -11,19 +11,20 @@ out vec4 fragColor;
 // know whether other shaders actually use the uniform.
 layout(std140) uniform GlobalValues
 {
-    mat4 matrixModelToWorld;
-    mat4 matrixWorldToCamera;
+    // By using modelToWorld and worldToCamera, we'd lose precision
+    // (http://www.arcsynthesis.org/gltut/Positioning/Tut07%20The%20Perils%20of%20World%20Space.html)
+    // So, we use a modelToCamera matrix instead, skipping two chances of precision loss.
+    mat4 matrixModelToCamera;
     mat4 matrixCameraToClip;
 };
 
-uniform mat4 matProjection;
-uniform mat4 matModelView;
-uniform vec3 cameraPosition;
 uniform float particleRadius;
 
 void main()
 {
-    vec3 vertex_light_position = vec3(0.577, 0.577, 0.577);
+
+    vec3 vertex_light_position = (matrixModelToCamera * vec4(0.577, 0.577, 0.577, 1.0)).xyz;
+    vertex_light_position = vec3(0.577, 0.577, 0.577);
     // r^2 = (x - x0)^2 + (y - y0)^2 + (z - z0)^2
     float x = texureCoordinate.x;
     float y = texureCoordinate.y;
@@ -38,15 +39,13 @@ void main()
     // Lighting
     float diffuse_value = max(dot(normal, vertex_light_position), 0.0);
 
-    vec4 pos = vec4(cameraPosition, 1.0);
-    pos.z += z*particleRadius;
-    pos = matProjection * matModelView * pos;
+    vec4 cameraPosition = inverse(matrixModelToCamera) * vec4(0,0,0,1);
+    cameraPosition.z = 1.0;
+    //vec4 pos = vec4(cameraPosition, 1.0);
+//     cameraPosition.z += z*particleRadius;
+//     cameraPosition = matProjection * matModelView * cameraPosition;
 
-    //gl_FragDepth = (pos.z / pos.w + 1.0) / 2.0;
+    //gl_FragDepth = (cameraPosition.z / cameraPosition.w + 1.0) / 2.0;
 
-    fragColor = max(colorGS_to_FS * diffuse_value, vec4(1.0));
-
-
-    //fragColor = colorGS_to_FS * diffuse_value;
-    //fragColor = colorGS_to_FS;
+    fragColor = colorGS_to_FS * diffuse_value;
 }
