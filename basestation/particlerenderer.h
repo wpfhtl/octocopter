@@ -30,11 +30,8 @@ public:
     void render();
     void displayGrid();
 
-    void setWindowSize(QSize size) {mGlWindowSize = size;}
-
 public slots:
     void slotSetParticleRadius(float r) { mParticleRadius = r; }
-//    void slotSetMatrices(const QMatrix4x4& modelview, const QMatrix4x4& projection);
 
 private:
     ShaderProgram* mShaderProgram;
@@ -42,7 +39,6 @@ private:
 protected:
     int mNumberOfParticles;
     float mParticleRadius;
-//    QMatrix4x4 mMatrixModelView, mMatrixProjection;
     QSize mGlWindowSize;
 
     GLuint mVbo;

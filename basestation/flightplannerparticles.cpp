@@ -116,7 +116,7 @@ void FlightPlannerParticles::insertPoint(LidarPoint* const point)
 }
 
 // NOT in a glBegin()/glEnd() pair.
-void FlightPlannerParticles::slotVisualize() const
+void FlightPlannerParticles::slotVisualize()
 {
     FlightPlannerInterface::slotVisualize();
 
@@ -129,7 +129,8 @@ void FlightPlannerParticles::slotVisualize() const
     mParticleSystem->setCollideAttraction(collideAttraction);
 
     mParticleSystem->update(0.5f);
-    mParticleRenderer->setWindowSize(mGlWidget->size());
+
+//    mParticleRenderer->setWindowSize(mGlWidget->size());
     mParticleRenderer->setVertexBuffer(mParticleSystem->getCurrentReadBuffer(), mParticleSystem->getNumParticles());
     mParticleRenderer->render();
 }

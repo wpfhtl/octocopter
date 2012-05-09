@@ -32,6 +32,7 @@ protected:
     ShaderProgram* mShaderProgramDefault;
 
     static void sortToShortestPath(QList<WayPoint> &wayPointsSetOnRover, const QVector3D &currentVehiclePosition);
+    void setVbo();
 
 public:
     // Here, basestation passes its own octree. Its up to the implementation to use it.
@@ -76,7 +77,7 @@ public slots:
 
     virtual void slotSetScanVolume(const QVector3D min, const QVector3D max);
     virtual void slotGenerateWaypoints() = 0;
-    virtual void slotVisualize() const;
+    virtual void slotVisualize();
 
     void slotVehiclePoseChanged(const Pose& pose);
 

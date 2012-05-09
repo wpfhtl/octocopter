@@ -51,7 +51,7 @@ void FlightPlannerBasic::slotPointInserted(const LidarPoint* lp)
     emit newWayPoint(wayPoint.position);
 }
 
-void FlightPlannerBasic::slotVisualize() const
+void FlightPlannerBasic::slotVisualize()
 {
     if(mOctree) mOctree->handlePoints();
 }

@@ -218,7 +218,6 @@ void GlWidget::paintGL()
 
     QVector3D camPos = cameraRotation.rotatedVector(mCameraPosition);
 
-    qDebug() << "GlWidget::paintGL(): cam pos after rotating:" << camPos;
 
     // Write the modelToCamera matrix into our UBO
     QMatrix4x4 matrixModelToCamera;
@@ -226,6 +225,7 @@ void GlWidget::paintGL()
     glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, 64, OpenGlUtilities::matrixToOpenGl(matrixModelToCamera).constData());
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    qDebug() << "GlWidget::paintGL(): camPos" << camPos << "lookAt" << camLookAt << "modelToCamera:" << matrixModelToCamera << matrixModelToCamera.inverted() * QVector3D();
 
     // Here we make mZoomFactorCurrent converge to mZoomFactorTarget for smooth zooming
     float step = 0.0f;
@@ -249,6 +249,8 @@ void GlWidget::paintGL()
 //    drawAxes(10, 10, 10, 0.8, 0.8, 0.8);
 //    drawVehicle();
 //    drawVehicleVelocity();
+
+    emit visualizeNow();
 
     // Render pointcloud using all initialized VBOs (there might be none when no points exist)
     mShaderProgramDefault->bind();
@@ -322,7 +324,7 @@ void GlWidget::paintGL()
     glEnd();
     //glEnable(GL_LIGHTING);*/
 
-    emit visualizeNow();
+
     qDebug() << "GlWidget::paintGL(): rendering time in milliseconds:" << renderTime.elapsed();
 }
 
