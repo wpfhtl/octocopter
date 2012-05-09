@@ -40,7 +40,7 @@ private:
     Pose mLastKnownVehiclePose;
     QVector3D mPositionCameraSensor, mPositionInFrustumCenter;
     QByteArray mDataFromPtu;
-    float mPositionsPerDegreePan, mPositionsPerDegreeTilt;
+    double mPositionsPerDegreePan, mPositionsPerDegreeTilt;
 
     void determinePtuPose();
 

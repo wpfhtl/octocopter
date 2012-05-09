@@ -32,12 +32,12 @@ PtuController::PtuController(const QString& deviceFile, QWidget *parent) : QDock
     mPositionsPerDegreePan = 0.0f;
     mPositionsPerDegreeTilt = 0.0f;
 
-    QTimer::singleShot(1000, this, SLOT(slotTryConnecting()));
+    QTimer::singleShot(1000, this, SLOT(slotInitialize()));
 }
 
 PtuController::~PtuController()
 {
-    slotSendCommandToPtu("H"); // send halt
+    //slotSendCommandToPtu("H"); // send halt
     delete ui;
     mSerialPortPtu->deleteLater();
 }
@@ -55,37 +55,45 @@ void PtuController::slotRetrieveStatus()
 
 void PtuController::slotSendCommandToPtu(const QString& command)
 {
-    mSerialPortPtu->write(QString(command + "\r\n").toAscii());
+    mSerialPortPtu->write(QString(command + " ").toAscii());
 }
 
 void PtuController::slotInitialize()
 {
+    slotSendCommandToPtu("DF");
+
+    slotSendCommandToPtu("R");
+    slotSendCommandToPtu("A");
+
     // Enable host command echoing EE, disable ED
     slotSendCommandToPtu("EE");
+
+    // Enable terse mode for better parsing
+    slotSendCommandToPtu("FT");
 
     // Get firmware version
     slotSendCommandToPtu("V");
 
     // Set hold power: (R)egular, (L)ow, (O)ff
-    slotSendCommandToPtu("PHO"); //PanHold PowerMode: Off
-    slotSendCommandToPtu("THL"); //TiltHold PowerMode: Off
+    //slotSendCommandToPtu("PHO"); //PanHold PowerMode: Off
+    //slotSendCommandToPtu("THL"); //TiltHold PowerMode: Off
 
     // Set move power: (H)igh, (R)egular, (L)ow, (O)ff
     // WARNING: Don't use High, manual says its not good
-    slotSendCommandToPtu("PML"); //PanHold PowerMode: Off
-    slotSendCommandToPtu("TML"); //TiltHold PowerMode: Off
+    //slotSendCommandToPtu("PML"); //PanHold PowerMode: Off
+    //slotSendCommandToPtu("TML"); //TiltHold PowerMode: Off
 
     // Set step modes
     slotSendCommandToPtu("WPF"); // pan axis full step
     slotSendCommandToPtu("WTF"); // tilt axis full step
 
     // Set speeds
-    slotSendCommandToPtu("PS800"); // pan speed, 800 seems to be max
-    slotSendCommandToPtu("TS1000"); // tilt speed, 1500 loses sync
+    //slotSendCommandToPtu("PS800"); // pan speed, 800 seems to be max
+    //slotSendCommandToPtu("TS1000"); // tilt speed, 1500 loses sync
 
     // Set accelerations
-    slotSendCommandToPtu("PA1000"); // pan acceleration, default
-    slotSendCommandToPtu("TA500"); // tilt acceleration
+    //slotSendCommandToPtu("PA1000"); // pan acceleration, default
+    //slotSendCommandToPtu("TA500"); // tilt acceleration
 
     // Get pan and tilt resolution - these values depend
     // on the step modes, so they need to be defined first.
@@ -102,7 +110,7 @@ void PtuController::slotInitialize()
     slotSendCommandToPtu("I");
 
     // Enable factory limits
-    slotSendCommandToPtu("LE");
+    //slotSendCommandToPtu("LE");
 }
 
 void PtuController::slotSerialPortStatusChanged(const QString& status, const QDateTime& time)
@@ -122,19 +130,29 @@ void PtuController::slotVehiclePoseChanged(const Pose& pose)
 
 void PtuController::slotSetPosition(float degreePan, float degreeTilt)
 {
+    int ptu_pan = mPositionsPerDegreePan * degreePan;
+    qDebug() << "sending: " << "PP"+QString::number(ptu_pan);
+    slotSendCommandToPtu("PP"+QString::number(ptu_pan));
 
+    int ptu_tilt = mPositionsPerDegreeTilt * degreeTilt;
+    qDebug() << "sending: " << "PP"+QString::number(ptu_tilt);
+    slotSendCommandToPtu("TP"+QString::number(ptu_tilt));
 }
 
 void PtuController::slotSetPositionCamera()
 {
+    slotSetPosition(90, -50);
     mPositionCameraSensor = mLastKnownVehiclePose.getPosition();
-    if(!mPositionInFrustumCenter.isNull()) determinePtuPose();
+    if(!mPositionInFrustumCenter.isNull())
+        determinePtuPose();
 }
 
 void PtuController::slotSetPositionFrustumCenter()
 {
+    slotSetPosition(0, 0);
     mPositionInFrustumCenter = mLastKnownVehiclePose.getPosition();
-    if(!mPositionCameraSensor.isNull()) determinePtuPose();
+    if(!mPositionCameraSensor.isNull())
+        determinePtuPose();
 }
 
 void PtuController::determinePtuPose()
@@ -145,7 +163,31 @@ void PtuController::determinePtuPose()
 void PtuController::slotDataReady()
 {
     mDataFromPtu.append(mSerialPortPtu->readAll());
-    qDebug() << "PtuController::slotDataReady(): receive buffer contains:" << mDataFromPtu;
+    QString qstring_byte = QString(mDataFromPtu);
+    QStringList qstring_list = qstring_byte.split("\n");
 
-    // process replies, but I'll have to see those first.
+    // Maybe parse in another method?
+
+    // We know a command is done if the last element in the list is empty
+    if(qstring_list.last() == "")
+    {
+        qDebug() << "parse";
+        // Pan Resolution
+        if(qstring_list.first().contains("PR"))
+        {
+            qstring_list.first().remove("PR * ");
+            mPositionsPerDegreePan = 3600 / qstring_list.first().toDouble();
+        }
+
+        // Tilt Resolution
+        if(qstring_list.first().contains("TR"))
+        {
+            qstring_list.first().remove("TR * ");
+            mPositionsPerDegreeTilt = 3600 / qstring_list.first().toDouble();
+        }
+
+        mDataFromPtu.clear();
+    }
+
+    qDebug() << "PtuController::slotDataReady(): receive buffer contains: \n" << qstring_list;
 }
