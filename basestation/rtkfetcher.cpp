@@ -1,3 +1,5 @@
+#include <unistd.h>
+
 #include "rtkfetcher.h"
 
 RtkFetcher::RtkFetcher(const QString &hostName, const uint &port, QObject* parent) : QObject(parent)

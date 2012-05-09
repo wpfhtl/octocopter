@@ -1,3 +1,5 @@
+#include <unistd.h>
+
 #include "flightplannerphysics.h"
 
 FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, Octree* pointCloud) : FlightPlannerInterface(widget, pointCloud)

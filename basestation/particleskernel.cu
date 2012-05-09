@@ -1,3 +1,7 @@
+// Fix for gcc 4.7
+#undef _GLIBCXX_ATOMIC_BUILTINS
+#undef _GLIBCXX_USE_INT128
+
 #ifndef PARTICLES_KERNEL_H_
 #define PARTICLES_KERNEL_H_
 

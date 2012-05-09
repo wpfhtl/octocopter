@@ -4,7 +4,6 @@
 
 #include <QtGui>
 #include <QColor>
-#include <QtOpenGL>
 #include <QGLWidget>
 #include <QVector>
 #include <QVector3D>
