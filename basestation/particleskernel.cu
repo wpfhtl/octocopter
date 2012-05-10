@@ -25,7 +25,6 @@ texture<uint, 1, cudaReadModeElementType> cellEndTex;
 // simulation parameters in constant memory
 __constant__ SimParams params;
 
-
 struct integrate_functor
 {
     float deltaTime;
@@ -223,11 +222,17 @@ float3 collideCell(int3    gridPos,
     uint startIndex = FETCH(cellStart, gridHash);
 
     float3 force = make_float3(0.0f);
-    if (startIndex != 0xffffffff) {        // cell is not empty
+
+    // cell is not empty
+    if(startIndex != 0xffffffff)
+    {
         // iterate over particles in this cell
         uint endIndex = FETCH(cellEnd, gridHash);
-        for(uint j=startIndex; j<endIndex; j++) {
-            if (j != index) {              // check not colliding with self
+        for(uint j=startIndex; j<endIndex; j++)
+        {
+            // check not colliding with self
+            if (j != index)
+            {
                 float3 pos2 = make_float3(FETCH(oldPos, j));
                 float3 vel2 = make_float3(FETCH(oldVel, j));
 
@@ -271,7 +276,14 @@ void collideD(float4* newVel,               // output: new velocity
     }
 
     // collide with cursor sphere
-    force += collideSpheres(pos, params.colliderPos, vel, make_float3(0.0f, 0.0f, 0.0f), params.particleRadius, params.colliderRadius, 0.0f);
+    force += collideSpheres(
+                pos,
+                params.colliderPos,
+                vel,
+                make_float3(0.0f, 0.0f, 0.0f),
+                params.particleRadius,
+                params.colliderRadius,
+                0.0f);
 
     // write new velocity back to original unsorted location
     uint originalIndex = gridParticleIndex[index];

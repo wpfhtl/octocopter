@@ -20,12 +20,11 @@ ParticleSystem::ParticleSystem(unsigned int numParticles, uint3 gridSize) :
     mDeviceVel(0),
     mGridSize(gridSize)
 {
-    mUseOpenGl = true;
-    m_numGridCells = mGridSize.x*mGridSize.y*mGridSize.z;
+    mNumberOfGridCells = mGridSize.x*mGridSize.y*mGridSize.z;
 
     // set simulation parameters
     mSimulationParameters.gridSize = mGridSize;
-    mSimulationParameters.numCells = m_numGridCells;
+    mSimulationParameters.numCells = mNumberOfGridCells;
     mSimulationParameters.numBodies = mNumberOfParticles;
     mSimulationParameters.particleRadius = 1.0f / 32.0f;
     mSimulationParameters.colliderPos = make_float3(-1.2f, -0.8f, 0.8f);
@@ -42,69 +41,48 @@ ParticleSystem::ParticleSystem(unsigned int numParticles, uint3 gridSize) :
     mSimulationParameters.gravity = make_float3(0.0f, -0.0003f, 0.0f);
     mSimulationParameters.globalDamping = 1.0f;
 
-    mNumberOfParticles = numParticles;
-
     // allocate host storage
     mHostPos = new float[mNumberOfParticles*4];
     mHostVel = new float[mNumberOfParticles*4];
     memset(mHostPos, 0, mNumberOfParticles*4*sizeof(float));
     memset(mHostVel, 0, mNumberOfParticles*4*sizeof(float));
 
-    mHostCellStart = new uint[m_numGridCells];
-    memset(mHostCellStart, 0, m_numGridCells*sizeof(uint));
+    mHostCellStart = new uint[mNumberOfGridCells];
+    memset(mHostCellStart, 0, mNumberOfGridCells*sizeof(uint));
 
-    mHostCellEnd = new uint[m_numGridCells];
-    memset(mHostCellEnd, 0, m_numGridCells*sizeof(uint));
+    mHostCellEnd = new uint[mNumberOfGridCells];
+    memset(mHostCellEnd, 0, mNumberOfGridCells*sizeof(uint));
 
     // allocate GPU data
     unsigned int memSize = sizeof(float) * 4 * mNumberOfParticles;
 
-    if (mUseOpenGl)
-    {
-        mPositionVboHandle = createVBO(memSize);
-        registerGLBufferObject(mPositionVboHandle, &mCudaPosVboResource);
-    }
-    else
-    {
-        cudaMalloc( (void **)&m_cudaPosVBO, memSize);
-    }
+    mPositionVboHandle = createVBO(memSize);
+    registerGLBufferObject(mPositionVboHandle, &mCudaPosVboResource);
 
     allocateArray((void**)&mDeviceVel, memSize);
     allocateArray((void**)&mDeviceSortedPos, memSize);
     allocateArray((void**)&mDeviceSortedVel, memSize);
     allocateArray((void**)&mDeviceGridParticleHash, mNumberOfParticles*sizeof(uint));
     allocateArray((void**)&mDeviceGridParticleIndex, mNumberOfParticles*sizeof(uint));
-    allocateArray((void**)&mDeviceCellStart, m_numGridCells*sizeof(uint));
-    allocateArray((void**)&mDeviceCellEnd, m_numGridCells*sizeof(uint));
+    allocateArray((void**)&mDeviceCellStart, mNumberOfGridCells*sizeof(uint));
+    allocateArray((void**)&mDeviceCellEnd, mNumberOfGridCells*sizeof(uint));
 
-    if(mUseOpenGl)
-    {
-        mColorVboHandle = createVBO(mNumberOfParticles*4*sizeof(float));
-        registerGLBufferObject(mColorVboHandle, &mCudaColorVboResource);
+    mColorVboHandle = createVBO(mNumberOfParticles*4*sizeof(float));
+    registerGLBufferObject(mColorVboHandle, &mCudaColorVboResource);
 
-        // fill color buffer
-        glBindBufferARB(GL_ARRAY_BUFFER, mColorVboHandle);
-        float *data = (float *) glMapBufferARB(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-        float *ptr = data;
-        for(unsigned int i=0; i<mNumberOfParticles; i++)
-        {
-            float t = i / (float) mNumberOfParticles;
-#if 0
-            *ptr++ = rand() / (float) RAND_MAX;
-            *ptr++ = rand() / (float) RAND_MAX;
-            *ptr++ = rand() / (float) RAND_MAX;
-#else
-            colorRamp(t, ptr);
-            ptr+=3;
-#endif
-            *ptr++ = 1.0f;
-        }
-        glUnmapBufferARB(GL_ARRAY_BUFFER);
-    }
-    else
+    // fill color buffer
+    glBindBufferARB(GL_ARRAY_BUFFER, mColorVboHandle);
+    float *data = (float *) glMapBufferARB(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+    for(unsigned int i=0; i<mNumberOfParticles; i++)
     {
-        cudaMalloc((void **)&mCudaColorVbo, sizeof(float) * numParticles*4);
+        float t = i / (float) mNumberOfParticles;
+
+        colorRamp(t, data);
+        data+=3;
+        *data++ = 1.0f;
     }
+    glUnmapBufferARB(GL_ARRAY_BUFFER);
+
 
     setParameters(&mSimulationParameters);
 }
@@ -131,14 +109,9 @@ ParticleSystem::~ParticleSystem()
     freeArray(mDeviceCellStart);
     freeArray(mDeviceCellEnd);
 
-    if (mUseOpenGl) {
-        unregisterGLBufferObject(mCudaPosVboResource);
-        glDeleteBuffers(1, (const GLuint*)&mPositionVboHandle);
-        glDeleteBuffers(1, (const GLuint*)&mColorVboHandle);
-    } else {
-        cudaFree(m_cudaPosVBO);
-        cudaFree(mCudaColorVbo);
-    }
+    unregisterGLBufferObject(mCudaPosVboResource);
+    glDeleteBuffers(1, (const GLuint*)&mPositionVboHandle);
+    glDeleteBuffers(1, (const GLuint*)&mColorVboHandle);
     mNumberOfParticles = 0;
 }
 
@@ -181,12 +154,7 @@ void ParticleSystem::colorRamp(float t, float *r)
 // step the simulation
 void ParticleSystem::update(float deltaTime)
 {
-    float *dPos;
-
-    if(mUseOpenGl)
-        dPos = (float *) mapGLBufferObject(&mCudaPosVboResource);
-    else
-        dPos = (float *) m_cudaPosVBO;
+    float *dPos = (float *) mapGLBufferObject(&mCudaPosVboResource);
 
     // update constants
     setParameters(&mSimulationParameters);
@@ -219,7 +187,7 @@ void ParticleSystem::update(float deltaTime)
 		dPos,
                 mDeviceVel,
                 mNumberOfParticles,
-		m_numGridCells);
+                mNumberOfGridCells);
 
     // process collisions
     collide(
@@ -230,12 +198,10 @@ void ParticleSystem::update(float deltaTime)
                 mDeviceCellStart,
                 mDeviceCellEnd,
                 mNumberOfParticles,
-                m_numGridCells);
+                mNumberOfGridCells);
 
     // note: do unmap at end here to avoid unnecessary graphics/CUDA context switch
-    if (mUseOpenGl) {
-        unmapGLBufferObject(mCudaPosVboResource);
-    }
+    unmapGLBufferObject(mCudaPosVboResource);
 }
 
 void ParticleSystem::slotSetParticleRadius(float radius)
@@ -245,35 +211,6 @@ void ParticleSystem::slotSetParticleRadius(float radius)
 }
 
 /*
-void ParticleSystem::dumpGrid()
-{
-    // dump grid information
-    copyArrayFromDevice(m_hCellStart, m_dCellStart, 0, sizeof(uint)*m_numGridCells);
-    copyArrayFromDevice(m_hCellEnd, m_dCellEnd, 0, sizeof(uint)*m_numGridCells);
-    unsigned int maxCellSize = 0;
-    for(unsigned int i=0; i<m_numGridCells; i++) {
-        if (m_hCellStart[i] != 0xffffffff) {
-            unsigned int cellSize = m_hCellEnd[i] - m_hCellStart[i];
-            //            printf("cell: %d, %d particles\n", i, cellSize);
-            if (cellSize > maxCellSize) maxCellSize = cellSize;
-        }
-    }
-    printf("maximum particles per cell = %d\n", maxCellSize);
-}
-
-void ParticleSystem::dumpParticles(unsigned int start, unsigned int count)
-{
-    // debug
-    copyArrayFromDevice(m_hPos, 0, &m_cuda_posvbo_resource, sizeof(float)*4*count);
-    copyArrayFromDevice(m_hVel, m_dVel, 0, sizeof(float)*4*count);
-
-    for(unsigned int i=start; i<start+count; i++) {
-        //        printf("%d: ", i);
-        printf("pos: (%.4f, %.4f, %.4f, %.4f)\n", m_hPos[i*4+0], m_hPos[i*4+1], m_hPos[i*4+2], m_hPos[i*4+3]);
-        printf("vel: (%.4f, %.4f, %.4f, %.4f)\n", m_hVel[i*4+0], m_hVel[i*4+1], m_hVel[i*4+2], m_hVel[i*4+3]);
-    }
-}*/
-
 float* ParticleSystem::getArray(ParticleArray array)
 {
     float* hdata = 0;
@@ -295,20 +232,18 @@ float* ParticleSystem::getArray(ParticleArray array)
     copyArrayFromDevice(hdata, ddata, &cudaVboResource, mNumberOfParticles*4*sizeof(float));
     return hdata;
 }
+*/
 
-// Sets positions or velocities of the particles.
+// Write positions or velocities of the particles into the GPU memory
 void ParticleSystem::setArray(ParticleArray array, const float* data, int start, int count)
 {
     if(array == POSITION)
     {
-        if (mUseOpenGl)
-        {
-            unregisterGLBufferObject(mCudaPosVboResource);
-            glBindBuffer(GL_ARRAY_BUFFER, mPositionVboHandle);
-            glBufferSubData(GL_ARRAY_BUFFER, start*4*sizeof(float), count*4*sizeof(float), data);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-            registerGLBufferObject(mPositionVboHandle, &mCudaPosVboResource);
-        }
+        unregisterGLBufferObject(mCudaPosVboResource);
+        glBindBuffer(GL_ARRAY_BUFFER, mPositionVboHandle);
+        glBufferSubData(GL_ARRAY_BUFFER, start*4*sizeof(float), count*4*sizeof(float), data);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        registerGLBufferObject(mPositionVboHandle, &mCudaPosVboResource);
     }
     else if(array == VELOCITY)
     {
@@ -388,6 +323,7 @@ ParticleSystem::reset(ParticleConfig config)
 }
 
 // Adds a sphere of particles into the scene...
+/*
 void ParticleSystem::addSphere(int start, float *pos, float *vel, int r, float spacing)
 {
     unsigned int index = start;
@@ -421,4 +357,4 @@ void ParticleSystem::addSphere(int start, float *pos, float *vel, int r, float s
 
     setArray(POSITION, mHostPos, start, index);
     setArray(VELOCITY, mHostVel, start, index);
-}
+}*/

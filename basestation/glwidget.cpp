@@ -216,7 +216,7 @@ void GlWidget::paintGL()
             * QQuaternion::fromAxisAndAngle(QVector3D(0.0f, 1.0f, 0.0f), rotY)
             * QQuaternion::fromAxisAndAngle(QVector3D(1.0f, 0.0f, 0.0f), -rotX);
 
-    QVector3D camPos = cameraRotation.rotatedVector(mCameraPosition);
+    const QVector3D camPos = cameraRotation.rotatedVector(mCameraPosition);
 
 
     // Write the modelToCamera matrix into our UBO
@@ -225,7 +225,7 @@ void GlWidget::paintGL()
     glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, 64, OpenGlUtilities::matrixToOpenGl(matrixModelToCamera).constData());
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
-    qDebug() << "GlWidget::paintGL(): camPos" << camPos << "lookAt" << camLookAt << "modelToCamera:" << matrixModelToCamera << matrixModelToCamera.inverted() * QVector3D();
+//    qDebug() << "GlWidget::paintGL(): camPos" << camPos << "lookAt" << camLookAt << "modelToCamera:" << matrixModelToCamera << matrixModelToCamera.inverted() * QVector3D();
 
     // Here we make mZoomFactorCurrent converge to mZoomFactorTarget for smooth zooming
     float step = 0.0f;
@@ -275,7 +275,7 @@ void GlWidget::paintGL()
         glDisable(GL_BLEND);
 
         // Render in front of everything
-        glDisable(GL_DEPTH_TEST);
+//        glDisable(GL_DEPTH_TEST);
         {
             // Render the vehicle's path - same shader, but different fixed color
             mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(1.0f, 0.3f, 0.3f, 1.0f));
@@ -308,7 +308,7 @@ void GlWidget::paintGL()
                 glBindBuffer(GL_ARRAY_BUFFER, 0);
             }
         }
-        glEnable(GL_DEPTH_TEST);
+//        glEnable(GL_DEPTH_TEST);
     }
     mShaderProgramDefault->release();
 
@@ -549,6 +549,7 @@ void GlWidget::slotInsertLidarPoints(const QVector<QVector3D>& list)
             {
                 glBindBuffer(GL_ARRAY_BUFFER, it.key());
 
+                // For small updates, glBufferSubData is supposed to be better than glMapBuffer
                 glBufferSubData(
                             GL_ARRAY_BUFFER,
                             it.value(), // offset in the VBO

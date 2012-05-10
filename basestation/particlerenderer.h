@@ -2,10 +2,6 @@
 #define RENDER_PARTICLES_H
 
 #include <QObject>
-#include <QMatrix4x4>
-#include <QSize>
-#include <QFile>
-#include <QDir>
 
 #include "shaderprogram.h"
 
@@ -16,33 +12,20 @@ public:
     ParticleRenderer();
     ~ParticleRenderer();
 
-    void setPositions(float *pos, int numParticles);
-    void setVertexBuffer(unsigned int vbo, int numParticles);
-    void setColorBuffer(unsigned int vbo) { mColorVbo = vbo; }
-
-    enum DisplayMode
-    {
-        PARTICLE_POINTS,
-        PARTICLE_SPHERES,
-        PARTICLE_NUM_MODES
-    };
+    void setVboPositions(unsigned int vbo, int numParticles);
+    void setVboColors(unsigned int vbo);
 
     void render();
-    void displayGrid();
 
 public slots:
     void slotSetParticleRadius(float r) { mParticleRadius = r; }
 
 private:
     ShaderProgram* mShaderProgram;
-
-protected:
     int mNumberOfParticles;
     float mParticleRadius;
-    QSize mGlWindowSize;
-
-    GLuint mVbo;
-    GLuint mColorVbo;
+    GLuint mVboPositions;
+    GLuint mVboColors;
 };
 
 #endif

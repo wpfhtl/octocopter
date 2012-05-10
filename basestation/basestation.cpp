@@ -186,13 +186,6 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mLogPlayer, SIGNAL(gpsStatus(GpsStatusInformation::GpsStatus)), mControlWidget, SLOT(slotUpdateGpsStatus(GpsStatusInformation::GpsStatus)));
     //    connect(mLogPlayer, SIGNAL(controllerValues(QVector<float>)), mPlotWidget, SLOT(slotAppendData(QVector<float>)));
 
-        mPtuController = new PtuController("/dev/ttyUSB0", this);
-        mPtuController->setAllowedAreas(Qt::AllDockWidgetAreas);
-        mPtuController->setVisible(true);
-        addDockWidget(Qt::BottomDockWidgetArea, mPtuController);
-        connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
-        connect(mPtuController, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
-
         mLogWidget->log(Information, "BaseStation::BaseStation()", "Working offline, disabling RoverConnection+RtkFetcher+PtuController, enabling LogPlayer.");
     }
 

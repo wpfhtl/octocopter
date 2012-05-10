@@ -45,7 +45,6 @@ void FlightPlannerParticles::slotInitialize()
              << deviceProps.memoryClockRate / 1000 << "Mhz mem clock and a"
              << deviceProps.memoryBusWidth << "bit mem bus";
 
-    uint numParticles = 256;
     uint3 gridSize;
 
     // simulation parameters
@@ -61,12 +60,11 @@ void FlightPlannerParticles::slotInitialize()
 
     gridSize.x = gridSize.y = gridSize.z = 64;
     printf("grid: %d x %d x %d = %d cells\n", gridSize.x, gridSize.y, gridSize.z, gridSize.x*gridSize.y*gridSize.z);
-    printf("particles: %d\n", numParticles);
 
     // unnecessary, just std opengl stuff                initGL(&argc, argv);
     //cudaGLInit(argc, argv); // simply does cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );, which is done above already
 
-    mParticleSystem = new ParticleSystem(numParticles, gridSize);
+    mParticleSystem = new ParticleSystem(16, gridSize);
     mParticleSystem->setVolume(mScanVolumeMin, mScanVolumeMax);
     mParticleSystem->reset(ParticleSystem::CONFIG_RANDOM);
 
@@ -74,7 +72,8 @@ void FlightPlannerParticles::slotInitialize()
     mParticleRenderer = new ParticleRenderer;
     connect(mParticleSystem, SIGNAL(particleRadiusChanged(float)), mParticleRenderer, SLOT(slotSetParticleRadius(float)));
     mParticleSystem->slotSetParticleRadius(1.5f);
-    mParticleRenderer->setColorBuffer(mParticleSystem->getColorBuffer());
+    mParticleRenderer->setVboColors(mParticleSystem->getColorBuffer());
+    mParticleRenderer->setVboPositions(mParticleSystem->getCurrentReadBuffer(), mParticleSystem->getNumParticles());
 
     /*
     // create a new parameter list
@@ -130,8 +129,7 @@ void FlightPlannerParticles::slotVisualize()
 
     mParticleSystem->update(0.5f);
 
-//    mParticleRenderer->setWindowSize(mGlWidget->size());
-    mParticleRenderer->setVertexBuffer(mParticleSystem->getCurrentReadBuffer(), mParticleSystem->getNumParticles());
+
     mParticleRenderer->render();
 }
 

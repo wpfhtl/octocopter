@@ -6,6 +6,8 @@
 #include <QObject>
 #include <QVector3D>
 
+// See http://forums.nvidia.com/index.php?showtopic=173696
+
 class ParticleSystem : public QObject
 {
     Q_OBJECT
@@ -29,7 +31,7 @@ public:
     void update(float deltaTime);
     void reset(ParticleConfig config);
 
-    float* getArray(ParticleArray array);
+//    float* getArray(ParticleArray array);
     void   setArray(ParticleArray array, const float* data, int start, int count);
 
     int    getNumParticles() const { return mNumberOfParticles; }
@@ -37,8 +39,8 @@ public:
     unsigned int getCurrentReadBuffer() const { return mPositionVboHandle; }
     unsigned int getColorBuffer()       const { return mColorVboHandle; }
 
-    void * getCudaPosVBO()              const { return (void *)m_cudaPosVBO; }
-    void * getCudaColorVBO()            const { return (void *)mCudaColorVbo; }
+//    void * getCudaPosVBO()              const { return (void *)m_cudaPosVBO; }
+//    void * getCudaColorVBO()            const { return (void *)mCudaColorVbo; }
 
 //    void dumpGrid();
 //    void dumpParticles(unsigned int start, unsigned int count);
@@ -51,19 +53,19 @@ public:
     void setCollideShear(float x) { mSimulationParameters.shear = x; }
     void setCollideAttraction(float x) { mSimulationParameters.attraction = x; }
 
-//    void setColliderPos(float3 x) { m_params.colliderPos = x; }
+//    void setColliderPos(float3 x) { mSimulationParameters.colliderPos = x; }
 
     void setVolume(const QVector3D& min, const QVector3D& max);
 
     float getParticleRadius() { return mSimulationParameters.particleRadius; }
 
-//    float3 getColliderPos() { return m_params.colliderPos; }
-//    float getColliderRadius() { return m_params.colliderRadius; }
-//    uint3 getGridSize() { return m_params.gridSize; }
-    //    float3 getWorldOrigin() { return m_params.worldOrigin; }
-//    float3 getCellSize() { return m_params.cellSize; }
+//    float3 getColliderPos() { return mSimulationParameters.colliderPos; }
+//    float getColliderRadius() { return mSimulationParameters.colliderRadius; }
+//    uint3 getGridSize() { return mSimulationParameters.gridSize; }
+    //    float3 getWorldOrigin() { return mSimulationParameters.worldOrigin; }
+//    float3 getCellSize() { return mSimulationParameters.cellSize; }
 
-    void addSphere(int index, float *pos, float *vel, int r, float spacing);
+//    void addSphere(int index, float *pos, float *vel, int r, float spacing);
 
 public slots:
     void slotSetParticleRadius(float);
@@ -79,21 +81,19 @@ protected: // methods
     void initGrid(unsigned int *size, float spacing, float jitter, unsigned int numParticles);
 
 protected: // data
-    bool mUseOpenGl;
     unsigned int mNumberOfParticles;
 
     // CPU data
     float* mHostPos;              // particle positions
     float* mHostVel;              // particle velocities
 
-    unsigned int*  m_hParticleHash;
+//    unsigned int*  m_hParticleHash;
     unsigned int*  mHostCellStart;
     unsigned int*  mHostCellEnd;
 
     // GPU data
     float* mDevicePos;
     float* mDeviceVel;
-
     float* mDeviceSortedPos;
     float* mDeviceSortedVel;
 
@@ -103,11 +103,11 @@ protected: // data
     unsigned int*  mDeviceCellStart;        // index of start of each cell in sorted list
     unsigned int*  mDeviceCellEnd;          // index of end of cell
 
-    unsigned int   mPositionVboHandle;            // vertex buffer object for particle positions
-    unsigned int   mColorVboHandle;          // vertex buffer object for colors
+    unsigned int   mPositionVboHandle;      // vertex buffer object for particle positions
+    unsigned int   mColorVboHandle;         // vertex buffer object for particle colors
     
-    float *m_cudaPosVBO;        // these are the CUDA deviceMem Pos
-    float *mCudaColorVbo;      // these are the CUDA deviceMem Color
+//    float *m_cudaPosVBO;        // these are the CUDA deviceMem Pos
+//    float *mCudaColorVbo;      // these are the CUDA deviceMem Color
 
     struct cudaGraphicsResource *mCudaPosVboResource; // handles OpenGL-CUDA exchange
     struct cudaGraphicsResource *mCudaColorVboResource; // handles OpenGL-CUDA exchange
@@ -115,7 +115,7 @@ protected: // data
     // params
     SimParams mSimulationParameters;
     uint3 mGridSize;
-    unsigned int m_numGridCells;
+    unsigned int mNumberOfGridCells;
 };
 
 #endif
