@@ -186,7 +186,22 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mLogPlayer, SIGNAL(gpsStatus(GpsStatusInformation::GpsStatus)), mControlWidget, SLOT(slotUpdateGpsStatus(GpsStatusInformation::GpsStatus)));
     //    connect(mLogPlayer, SIGNAL(controllerValues(QVector<float>)), mPlotWidget, SLOT(slotAppendData(QVector<float>)));
 
-        mLogWidget->log(Information, "BaseStation::BaseStation()", "Working offline, disabling RoverConnection+RtkFetcher+PtuController, enabling LogPlayer.");
+        mPtuController = new PtuController("/dev/ttyUSB0", this);
+        if(mPtuController->isOpened())
+        {
+            mPtuController->setAllowedAreas(Qt::AllDockWidgetAreas);
+            mPtuController->setVisible(true);
+            addDockWidget(Qt::BottomDockWidgetArea, mPtuController);
+            connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
+            connect(mPtuController, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
+            mLogWidget->log(Information, "BaseStation::BaseStation()", "Enabling PtuController.");
+        }
+        else
+        {
+            mLogWidget->log(Information, "BaseStation::BaseStation()", "Disabling PtuController as the device couldn't be opened.");
+        }
+
+        mLogWidget->log(Information, "BaseStation::BaseStation()", "Working offline, disabling RoverConnection+RtkFetcher, enabling LogPlayer.");
     }
 
     mLogWidget->log(Information, "BaseStation::BaseStation()", "Startup finished, ready.");
@@ -194,6 +209,7 @@ BaseStation::BaseStation() : QMainWindow()
 
 BaseStation::~BaseStation()
 {
+    delete mPtuController;
     mStatsFile->close();
 }
 

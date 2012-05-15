@@ -16,30 +16,35 @@ PtuController::PtuController(const QString& deviceFile, QWidget *parent) : QDock
     if(!mSerialPortPtu->open(AbstractSerial::ReadWrite))
     {
         mSerialPortPtu->close();
-        qFatal("PtuController::PtuController(): Opening serial usb port %s failed, exiting.", qPrintable(deviceFile));
+        qDebug("PtuController::PtuController(): Opening serial usb port %s failed.", qPrintable(deviceFile));
+        mIsOpened = false;
     }
-    mSerialPortPtu->setBaudRate(AbstractSerial::BaudRate9600); // PTU can go faster, but do we need to?
-    mSerialPortPtu->setDataBits(AbstractSerial::DataBits8);
-    mSerialPortPtu->setParity(AbstractSerial::ParityNone);
-    mSerialPortPtu->setStopBits(AbstractSerial::StopBits1);
-    mSerialPortPtu->setFlowControl(AbstractSerial::FlowControlOff);
-    connect(mSerialPortPtu, SIGNAL(readyRead()), SLOT(slotDataReady()));
+    else
+    {
+        mIsOpened = true;
+        mSerialPortPtu->setBaudRate(AbstractSerial::BaudRate9600); // PTU can go faster, but do we need to?
+        mSerialPortPtu->setDataBits(AbstractSerial::DataBits8);
+        mSerialPortPtu->setParity(AbstractSerial::ParityNone);
+        mSerialPortPtu->setStopBits(AbstractSerial::StopBits1);
+        mSerialPortPtu->setFlowControl(AbstractSerial::FlowControlOff);
+        connect(mSerialPortPtu, SIGNAL(readyRead()), SLOT(slotDataReady()));
 
-    mTimerUpdateStatus = new QTimer(this);
-    mTimerUpdateStatus->start(5000);
-    connect(mTimerUpdateStatus, SIGNAL(timeout()), SLOT(slotRetrieveStatus()));
+        mTimerUpdateStatus = new QTimer(this);
+        mTimerUpdateStatus->start(5000);
+        connect(mTimerUpdateStatus, SIGNAL(timeout()), SLOT(slotRetrieveStatus()));
 
-    mPositionsPerDegreePan = 0.0f;
-    mPositionsPerDegreeTilt = 0.0f;
+        mPositionsPerDegreePan = 0.0f;
+        mPositionsPerDegreeTilt = 0.0f;
 
-    QTimer::singleShot(1000, this, SLOT(slotInitialize()));
+        QTimer::singleShot(1000, this, SLOT(slotInitialize()));
+    }
 }
 
 PtuController::~PtuController()
 {
     //slotSendCommandToPtu("H"); // send halt
     delete ui;
-    mSerialPortPtu->deleteLater();
+    mSerialPortPtu->close();
 }
 
 void PtuController::slotSetSpeed(Axis axis, quint16 speed)
@@ -121,6 +126,7 @@ void PtuController::slotSerialPortStatusChanged(const QString& status, const QDa
 void PtuController::slotVehiclePoseChanged(const Pose& pose)
 {
     mLastKnownVehiclePose = pose;
+    qDebug() << pose;
 
     if(ui->mPushButtonToggleControllerState->isChecked() && mSerialPortPtu->isOpen())
     {
@@ -130,27 +136,29 @@ void PtuController::slotVehiclePoseChanged(const Pose& pose)
 
 void PtuController::slotSetPosition(float degreePan, float degreeTilt)
 {
-    int ptu_pan = mPositionsPerDegreePan * degreePan;
-    qDebug() << "sending: " << "PP"+QString::number(ptu_pan);
-    slotSendCommandToPtu("PP"+QString::number(ptu_pan));
+    int ptuPan = mPositionsPerDegreePan * degreePan;
+    qDebug() << "sending: " << "PP"+QString::number(ptuPan);
+    slotSendCommandToPtu("PP"+QString::number(ptuPan));
 
-    int ptu_tilt = mPositionsPerDegreeTilt * degreeTilt;
-    qDebug() << "sending: " << "PP"+QString::number(ptu_tilt);
-    slotSendCommandToPtu("TP"+QString::number(ptu_tilt));
+    int ptuTilt = mPositionsPerDegreeTilt * degreeTilt;
+    qDebug() << "sending: " << "PP"+QString::number(ptuTilt);
+    slotSendCommandToPtu("TP"+QString::number(ptuTilt));
 }
 
 void PtuController::slotSetPositionCamera()
 {
-    slotSetPosition(90, -50);
+    //slotSetPosition(90, -50);
     mPositionCameraSensor = mLastKnownVehiclePose.getPosition();
+    ui->mLabelPositionCamera->setText(QString("%1/%2/%3").arg(mPositionCameraSensor.x()).arg(mPositionCameraSensor.y()).arg(mPositionCameraSensor.z()));
     if(!mPositionInFrustumCenter.isNull())
         determinePtuPose();
 }
 
 void PtuController::slotSetPositionFrustumCenter()
 {
-    slotSetPosition(0, 0);
+    //slotSetPosition(0, 0);
     mPositionInFrustumCenter = mLastKnownVehiclePose.getPosition();
+    ui->mLabelPositionLens->setText(QString("%1/%2/%3").arg(mPositionInFrustumCenter.x()).arg(mPositionInFrustumCenter.y()).arg(mPositionInFrustumCenter.z()));
     if(!mPositionCameraSensor.isNull())
         determinePtuPose();
 }

@@ -31,6 +31,7 @@ public:
     ~PtuController();
 
     const Pose* getPosePtuBase() const {return &mPosePtuBase;}
+    bool isOpened() const {return mIsOpened;}
 
 private:
     Ui::PtuController *ui;
@@ -41,6 +42,7 @@ private:
     QVector3D mPositionCameraSensor, mPositionInFrustumCenter;
     QByteArray mDataFromPtu;
     double mPositionsPerDegreePan, mPositionsPerDegreeTilt;
+    bool mIsOpened;
 
     void determinePtuPose();
 
