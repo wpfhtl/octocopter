@@ -614,7 +614,7 @@ void SensorFuser::slotNewVehiclePose(const Pose& pose)
             pose.precision & Pose::CorrectionAgeLow &&
             pose.precision & Pose::HeadingFixed &&
             //pose.precision & Pose::ModeIntegrated &&
-            pose.covariances < 1.0
+            pose.covariances < Pose::maximumUsableCovariance
             ))
     {
 //        qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received pose is not precise enough for fusing, ignoring it";

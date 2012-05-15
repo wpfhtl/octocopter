@@ -23,10 +23,9 @@ GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flig
     mVboPointCloudBytesCurrent = 0;
     mVboPointCloudBytesMax = 2 * 1000 * 1000 * sizeof(QVector3D); // storage for 2 million points
 
-    // For a flight time of one hour, the vboVehiclePath will need (3600 seconds * 50 Positions/second * (sizeof(QVector3D_Position) + sizeof(QVector3D_Velocity))) bytes
-    mVboVehiclePathBytesMaximum = (3600 * 50 * (sizeof(QVector3D) + sizeof(QVector3D)));
+    mVboVehiclePathElementSize = sizeof(QVector3D) + sizeof(QVector4D); // position and color with alpha
+    mVboVehiclePathBytesMaximum = (3600 * 50 * mVboVehiclePathElementSize); // For a flight time of one hour
     mVboVehiclePathBytesCurrent = 0;
-    mVboVehiclePathElementSize = sizeof(QVector3D); // just one Vector3D, no velocity yet.
 
     mZoomFactorCurrent = 0.5;
     mZoomFactorTarget = 0.5;
@@ -246,13 +245,8 @@ void GlWidget::paintGL()
         mTimerIdZoom = 0;
     }
 
-//    drawAxes(10, 10, 10, 0.8, 0.8, 0.8);
-//    drawVehicle();
-//    drawVehicleVelocity();
-
     emit visualizeNow();
 
-    // Render pointcloud using all initialized VBOs (there might be none when no points exist)
     mShaderProgramDefault->bind();
     {
         mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
@@ -261,6 +255,7 @@ void GlWidget::paintGL()
         mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(0.7f, 0.7f, 0.7f, 0.2f));
         glEnable (GL_BLEND); glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
         {
+            // Render pointcloud using all initialized VBOs (there might be none when no points exist)
             QMapIterator<GLuint, unsigned int> i(mVboIdsPointCloud);
             while (i.hasNext())
             {
@@ -271,24 +266,22 @@ void GlWidget::paintGL()
                 glDrawArrays(GL_POINTS, 0, i.value() / sizeof(QVector3D));
                 glDisableVertexAttribArray(0);
             }
-        }
-        glDisable(GL_BLEND);
 
-        // Render in front of everything
-//        glDisable(GL_DEPTH_TEST);
-        {
-            // Render the vehicle's path - same shader, but different fixed color
-            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(1.0f, 0.3f, 0.3f, 1.0f));
+            // Render the vehicle's path - same shader, but variable color
+            mShaderProgramDefault->setUniformValue("useFixedColor", false);
             glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
             glEnableVertexAttribArray(0);
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0); // position
-            //qDebug() << "GlWidget::paintGL(): vehicle path elements:" << mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize << "bytes:" << mVboVehiclePathBytesCurrent;
-            glDrawArrays(GL_POINTS, 0, mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize);
+            glEnableVertexAttribArray(1);
+            // Stride is NOT the number of useless bytes between two packets, its the
+            // "distance" between two beginnings of two consecutive useful packets
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 28, 0); // position.
+            glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 28, (void*)12); // color
+            glDrawArrays(GL_POINTS, 0, (mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize));
             glDisableVertexAttribArray(0);
+            glDisableVertexAttribArray(1);
             glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-            // Render the axes - don't use fixed colors in the fragment shader
-            // Render once at origin, once at vehicle
+            // Render axes once at origin, once at vehicle
             {
                 // At the origin
                 mShaderProgramDefault->setUniformValue("useFixedColor", false);
@@ -306,9 +299,10 @@ void GlWidget::paintGL()
                 glDisableVertexAttribArray(0);
                 glDisableVertexAttribArray(1);
                 glBindBuffer(GL_ARRAY_BUFFER, 0);
+                mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
             }
         }
-//        glEnable(GL_DEPTH_TEST);
+        glDisable(GL_BLEND);
     }
     mShaderProgramDefault->release();
 
@@ -324,8 +318,7 @@ void GlWidget::paintGL()
     glEnd();
     //glEnable(GL_LIGHTING);*/
 
-
-    qDebug() << "GlWidget::paintGL(): rendering time in milliseconds:" << renderTime.elapsed();
+//    qDebug() << "GlWidget::paintGL(): rendering time in milliseconds:" << renderTime.elapsed();
 }
 
 void GlWidget::slotNewVehiclePose(Pose pose)
@@ -334,7 +327,23 @@ void GlWidget::slotNewVehiclePose(Pose pose)
     {
         const QVector3D pos = pose.getPosition();
         const QVector3D vel = (pos - mLastKnownVehiclePose.getPosition()) / ((mLastKnownVehiclePose.timestamp - pose.timestamp) / 1000.0f);
-        const float data[6] = {pos.x(), pos.y(), pos.z(), vel.x(), vel.y(), vel.z()};
+
+        QColor color;
+        if(
+                pose.precision & Pose::RtkFixed &&
+                pose.precision & Pose::AttitudeAvailable &&
+                pose.precision & Pose::CorrectionAgeLow &&
+                pose.precision & Pose::HeadingFixed &&
+                pose.precision & Pose::ModeIntegrated
+                )
+            color.setRgb(0, 255, 0);
+        else
+            color.setRgb(255, 0, 0);
+
+        // If the poses CV sucks, fade it.
+        if(pose.covariances > Pose::maximumUsableCovariance) color.setAlpha(128);
+
+        const float data[] = {pos.x(), pos.y(), pos.z(), color.redF(), color.greenF(), color.blueF(), color.alphaF()};
 
         glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
 
@@ -345,9 +354,8 @@ void GlWidget::slotNewVehiclePose(Pose pose)
                     (void*)data // data to store
                     );
 
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
         mVboVehiclePathBytesCurrent += mVboVehiclePathElementSize;
-        qDebug() << "GlWidget::slotNewVehiclePose(): inserted data" << pose.getPosition() << "into VBO, will now redraw";
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
     else
     {

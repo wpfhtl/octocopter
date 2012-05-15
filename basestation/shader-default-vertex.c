@@ -24,7 +24,6 @@ uniform bool useMatrixExtra;
 
 void main()
 {
-    //color = max(vec4(1.0, 1.0, 1.0, 1.0), in_color);
     color = in_color;
 
     if(useMatrixExtra)

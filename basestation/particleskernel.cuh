@@ -1,6 +1,7 @@
 #ifndef PARTICLES_KERNEL_H
 #define PARTICLES_KERNEL_H
 
+// 0 seems to be 10% faster with 256k particles
 #define USE_TEX 1
 
 #if USE_TEX

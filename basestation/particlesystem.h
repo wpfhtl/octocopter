@@ -109,7 +109,7 @@ protected: // data
 //    float *m_cudaPosVBO;        // these are the CUDA deviceMem Pos
 //    float *mCudaColorVbo;      // these are the CUDA deviceMem Color
 
-    struct cudaGraphicsResource *mCudaPosVboResource; // handles OpenGL-CUDA exchange
+    struct cudaGraphicsResource *mCudaPositionVboResource; // handles OpenGL-CUDA exchange
     struct cudaGraphicsResource *mCudaColorVboResource; // handles OpenGL-CUDA exchange
 
     // params

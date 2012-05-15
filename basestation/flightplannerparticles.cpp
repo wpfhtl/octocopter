@@ -64,10 +64,9 @@ void FlightPlannerParticles::slotInitialize()
     // unnecessary, just std opengl stuff                initGL(&argc, argv);
     //cudaGLInit(argc, argv); // simply does cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );, which is done above already
 
-    mParticleSystem = new ParticleSystem(16, gridSize);
+    mParticleSystem = new ParticleSystem(1, gridSize);
     mParticleSystem->setVolume(mScanVolumeMin, mScanVolumeMax);
     mParticleSystem->reset(ParticleSystem::CONFIG_RANDOM);
-
 
     mParticleRenderer = new ParticleRenderer;
     connect(mParticleSystem, SIGNAL(particleRadiusChanged(float)), mParticleRenderer, SLOT(slotSetParticleRadius(float)));

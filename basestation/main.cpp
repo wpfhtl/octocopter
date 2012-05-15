@@ -11,6 +11,7 @@ int main(int argc, char *argv[])
     Q_ASSERT(sizeof(btScalar) == 4 && "Please make sure Bullet is compiled to use single precision");
 
     Q_ASSERT(sizeof(QVector3D) == 12 && "ui.");
+    Q_ASSERT(sizeof(QVector4D) == 16 && "ui.");
 
     QApplication app(argc, argv);
     app.setWindowIcon(QIcon(":/images/appicon.png"));

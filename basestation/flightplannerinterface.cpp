@@ -233,7 +233,7 @@ void FlightPlannerInterface::setVbo()
 {
     if(mBoundingBoxVbo == 0)
     {
-        qDebug() << "FlightPlannerInterface::setVbo(): VBO undefined, ";
+        qDebug() << "FlightPlannerInterface::setVbo(): VBO for bounding box still undefined, returning.";
         return;
     }
 
@@ -285,7 +285,7 @@ void FlightPlannerInterface::setVbo()
 
     glBindBuffer(GL_ARRAY_BUFFER, mBoundingBoxVbo);
 
-    qDebug() << "FlightPlannerInterface::slotSetScanVolume(): reserving" << sizeof(float) + (mBoundingBoxVertices.size() + mBoundingBoxColors.size()) << "bytes in VBO...";
+    qDebug() << "FlightPlannerInterface::slotSetScanVolume(): reserving" << sizeof(float) * (mBoundingBoxVertices.size() + mBoundingBoxColors.size()) << "bytes in VBO...";
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * (mBoundingBoxVertices.size() + mBoundingBoxColors.size()), NULL, GL_STATIC_DRAW);
 
     qDebug() << "FlightPlannerInterface::slotSetScanVolume(): copying" << mBoundingBoxVertices.size() * sizeof(float) << "bytes of vertices into VBO...";
@@ -315,10 +315,10 @@ void FlightPlannerInterface::slotVisualize()
         mShaderProgramDefault = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
 
         glGenBuffers(1, &mBoundingBoxVbo);
-        glBindBuffer(GL_ARRAY_BUFFER, mBoundingBoxVbo);
-        qDebug() << "FlightPlannerInterface::slotSetScanVolume(): reserving" << sizeof(float) + (mBoundingBoxVertices.size() + mBoundingBoxColors.size()) << "bytes in VBO...";
-        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * (mBoundingBoxVertices.size() + mBoundingBoxColors.size()), NULL, GL_STATIC_DRAW);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+//        glBindBuffer(GL_ARRAY_BUFFER, mBoundingBoxVbo);
+//        qDebug() << "FlightPlannerInterface::slotSetScanVolume(): reserving" << sizeof(float) * (mBoundingBoxVertices.size() + mBoundingBoxColors.size()) << "bytes in VBO...";
+//        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * (mBoundingBoxVertices.size() + mBoundingBoxColors.size()), NULL, GL_STATIC_DRAW);
+//        glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         setVbo();
     }
