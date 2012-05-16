@@ -187,18 +187,19 @@ BaseStation::BaseStation() : QMainWindow()
     //    connect(mLogPlayer, SIGNAL(controllerValues(QVector<float>)), mPlotWidget, SLOT(slotAppendData(QVector<float>)));
 
         mPtuController = new PtuController("/dev/ttyUSB0", this);
+        mPtuController->setAllowedAreas(Qt::AllDockWidgetAreas);
+        mPtuController->setVisible(true);
+        addDockWidget(Qt::BottomDockWidgetArea, mPtuController);
+        connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
+        connect(mPtuController, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
+
         if(mPtuController->isOpened())
         {
-            mPtuController->setAllowedAreas(Qt::AllDockWidgetAreas);
-            mPtuController->setVisible(true);
-            addDockWidget(Qt::BottomDockWidgetArea, mPtuController);
-            connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
-            connect(mPtuController, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
-            mLogWidget->log(Information, "BaseStation::BaseStation()", "Enabling PtuController.");
+            mLogWidget->log(Information, "BaseStation::BaseStation()", "Enabling PtuController with real PTU.");
         }
         else
         {
-            mLogWidget->log(Information, "BaseStation::BaseStation()", "Disabling PtuController as the device couldn't be opened.");
+            mLogWidget->log(Information, "BaseStation::BaseStation()", "Enabling PtuController with dummy PTU.");
         }
 
         mLogWidget->log(Information, "BaseStation::BaseStation()", "Working offline, disabling RoverConnection+RtkFetcher, enabling LogPlayer.");

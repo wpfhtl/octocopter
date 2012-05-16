@@ -49,13 +49,17 @@ PtuController::~PtuController()
 
 void PtuController::slotSetSpeed(Axis axis, quint16 speed)
 {
-    const QString command = axis == AXIS_PAN ? "PS" : "TS";
-    slotSendCommandToPtu(command + QString::number(speed));
+    if(mIsOpened)
+    {
+        const QString command = axis == AXIS_PAN ? "PS" : "TS";
+        slotSendCommandToPtu(command + QString::number(speed));
+    }
 }
 
 void PtuController::slotRetrieveStatus()
 {
-    slotSendCommandToPtu("O");
+    // TODO: Parse status
+    //slotSendCommandToPtu("O");
 }
 
 void PtuController::slotSendCommandToPtu(const QString& command)
@@ -65,9 +69,13 @@ void PtuController::slotSendCommandToPtu(const QString& command)
 
 void PtuController::slotInitialize()
 {
+    // Factory settings reset
     slotSendCommandToPtu("DF");
 
+    // Reset position
     slotSendCommandToPtu("R");
+
+    // Wait before proceeding
     slotSendCommandToPtu("A");
 
     // Enable host command echoing EE, disable ED
@@ -120,29 +128,72 @@ void PtuController::slotInitialize()
 
 void PtuController::slotSerialPortStatusChanged(const QString& status, const QDateTime& time)
 {
-     qDebug() << "PtuController::slotSerialPortStatusChanged(): usb port status" << status << "errorstring" << mSerialPortPtu->errorString();
+     qDebug() << "PtuController::slotSerialPortStatusChanged(): usb port status" << status;// << "errorstring" << mSerialPortPtu->errorString();
 }
 
 void PtuController::slotVehiclePoseChanged(const Pose& pose)
 {
     mLastKnownVehiclePose = pose;
-    qDebug() << pose;
+    //qDebug() << pose;
 
-    if(ui->mPushButtonToggleControllerState->isChecked() && mSerialPortPtu->isOpen())
+    if(ui->mPushButtonToggleControllerState->isChecked())
     {
         // make ptu point at pose
+        QLineF yawPosLine1(mPosePtuBase.getPosition().x(), mPosePtuBase.getPosition().z(),
+                           mPosePtuBase.getPosition().x(), mLastKnownVehiclePose.getPosition().z());
+        QLineF yawPosLine2(mPosePtuBase.getPosition().x(), mPosePtuBase.getPosition().z(),
+                           mLastKnownVehiclePose.getPosition().x(), mLastKnownVehiclePose.getPosition().z());
+        float yawAngle = yawPosLine1.angleTo(yawPosLine2);
+        qDebug() << yawAngle;
+
+        QLineF pitchPosLine1(mPosePtuBase.getPosition().z(), mPosePtuBase.getPosition().y(),
+                             mLastKnownVehiclePose.getPosition().z(), mPosePtuBase.getPosition().y());
+        QLineF pitchPosLine2(mPosePtuBase.getPosition().z(), mPosePtuBase.getPosition().y(),
+                             mLastKnownVehiclePose.getPosition().x(), mLastKnownVehiclePose.getPosition().y());
+        float pitchAngle = pitchPosLine1.angleTo(pitchPosLine2);
+        qDebug() << pitchAngle;
+
+        slotSetPosition(yawAngle, pitchAngle);
     }
 }
 
 void PtuController::slotSetPosition(float degreePan, float degreeTilt)
 {
-    int ptuPan = mPositionsPerDegreePan * degreePan;
-    qDebug() << "sending: " << "PP"+QString::number(ptuPan);
-    slotSendCommandToPtu("PP"+QString::number(ptuPan));
+    if(mIsOpened)
+    {
+        int ptuPan = mPositionsPerDegreePan * degreePan;
+        //if(ptuPan < mMaxPanPositionsClockwise && ptuPan > mMaxPanPositionsCounterClockwise)
+        //{
+            qDebug() << "sending: " << "PP"+QString::number(ptuPan);
+            slotSendCommandToPtu("PP"+QString::number(ptuPan));
+        //}
+        //else
+        //{
+            // Handle behavior if this exceeds the specified limits. For pan, perhaps we need to wrap because
+            // pan is actually continuous.
+        //}
 
-    int ptuTilt = mPositionsPerDegreeTilt * degreeTilt;
-    qDebug() << "sending: " << "PP"+QString::number(ptuTilt);
-    slotSendCommandToPtu("TP"+QString::number(ptuTilt));
+        int ptuTilt = mPositionsPerDegreeTilt * degreeTilt;
+        //if(ptuPan < mMaxPanPositionsClockwise && ptuPan > mMaxPanPositionsCounterClockwise)
+        //{
+            qDebug() << "sending: " << "TP"+QString::number(ptuTilt);
+            slotSendCommandToPtu("TP"+QString::number(ptuTilt));
+        //}
+        //else
+        //{
+            // Handle behavior if this exceeds the specified limits. Simply cut send the max/min for tilt?
+        //}
+    }
+}
+
+// Perhaps use Axis enum?
+void PtuController::slotSetMaxPan(float degreeMaxClockwise, float degreeMaxCounterClockwise)
+{
+}
+
+// Perhaps use Axis enum?
+void PtuController::slotSetMaxTilt(float degreeMaxUpwards, float degreeMaxDownwards)
+{
 }
 
 void PtuController::slotSetPositionCamera()
@@ -151,7 +202,10 @@ void PtuController::slotSetPositionCamera()
     mPositionCameraSensor = mLastKnownVehiclePose.getPosition();
     ui->mLabelPositionCamera->setText(QString("%1/%2/%3").arg(mPositionCameraSensor.x()).arg(mPositionCameraSensor.y()).arg(mPositionCameraSensor.z()));
     if(!mPositionInFrustumCenter.isNull())
+    {
         determinePtuPose();
+        ui->mPushButtonToggleControllerState->setEnabled(true);
+    }
 }
 
 void PtuController::slotSetPositionFrustumCenter()
@@ -160,42 +214,78 @@ void PtuController::slotSetPositionFrustumCenter()
     mPositionInFrustumCenter = mLastKnownVehiclePose.getPosition();
     ui->mLabelPositionLens->setText(QString("%1/%2/%3").arg(mPositionInFrustumCenter.x()).arg(mPositionInFrustumCenter.y()).arg(mPositionInFrustumCenter.z()));
     if(!mPositionCameraSensor.isNull())
+    {
         determinePtuPose();
+        ui->mPushButtonToggleControllerState->setEnabled(true);
+    }
 }
 
 void PtuController::determinePtuPose()
 {
     // Both mPositionCameraSensor and mPositionInFrustumCenter are known, so we have a ray defining the camera setup
+    QLineF yawPosLine1(mPositionCameraSensor.x(), mPositionCameraSensor.z(),
+                       mPositionCameraSensor.x(), mPositionInFrustumCenter.z());
+    QLineF yawPosLine2(mPositionCameraSensor.x(), mPositionCameraSensor.z(),
+                       mPositionInFrustumCenter.x(), mPositionInFrustumCenter.z());
+    float yawAngle = yawPosLine1.angleTo(yawPosLine2);
+    qDebug() << yawAngle;
+
+    QLineF pitchPosLine1(mPositionCameraSensor.z(), mPositionCameraSensor.y(),
+                         mPositionInFrustumCenter.z(), mPositionCameraSensor.y());
+    QLineF pitchPosLine2(mPositionCameraSensor.z(), mPositionCameraSensor.y(),
+                         mPositionInFrustumCenter.x(), mPositionInFrustumCenter.y());
+    float pitchAngle = pitchPosLine1.angleTo(pitchPosLine2);
+    qDebug() << pitchAngle;
+
+    mPosePtuBase = Pose(mPositionCameraSensor, yawAngle, pitchAngle, 0);
 }
 
 void PtuController::slotDataReady()
 {
     mDataFromPtu.append(mSerialPortPtu->readAll());
-    QString qstring_byte = QString(mDataFromPtu);
-    QStringList qstring_list = qstring_byte.split("\n");
+    QString dataFromPtu = QString(mDataFromPtu);
+    QStringList splitDataFromPtu = dataFromPtu.split("\n");
 
     // Maybe parse in another method?
 
     // We know a command is done if the last element in the list is empty
-    if(qstring_list.last() == "")
+    if(splitDataFromPtu.last() == "")
     {
-        qDebug() << "parse";
-        // Pan Resolution
-        if(qstring_list.first().contains("PR"))
+        qDebug() << "PtuController::slotDataReady(): begin parsing";
+
+        // Pan resolution
+        if(splitDataFromPtu.first().contains("PR"))
         {
-            qstring_list.first().remove("PR * ");
-            mPositionsPerDegreePan = 3600 / qstring_list.first().toDouble();
+            splitDataFromPtu.first().remove("PR * ");
+            mPositionsPerDegreePan = 3600 / splitDataFromPtu.first().toDouble();
         }
 
-        // Tilt Resolution
-        if(qstring_list.first().contains("TR"))
+        // Tilt resolution
+        if(splitDataFromPtu.first().contains("TR"))
         {
-            qstring_list.first().remove("TR * ");
-            mPositionsPerDegreeTilt = 3600 / qstring_list.first().toDouble();
+            splitDataFromPtu.first().remove("TR * ");
+            mPositionsPerDegreeTilt = 3600 / splitDataFromPtu.first().toDouble();
         }
+
+        // Max pan in degrees (handle for both directions)
+        //if(splitDataFromPtu.first().contains("MP"))
+        //{
+        //    splitDataFromPtu.first().remove("MP * ");
+              // Pan is actually continuous but let's just get this data while we're at it
+        //    mMaxPanPositions = splitDataFromPtu.first().toDouble();
+        //}
+
+        // Max tilt in degrees (handle for both directions)
+        //if(splitDataFromPtu.first().contains("MT"))
+        //{
+        //    splitDataFromPtu.first().remove("MT * ");
+              // This should also be manually limitable
+              // Also the limits per direction are different
+        //    mMaxTiltPositions = splitDataFromPtu.first().toDouble();
+        //}
 
         mDataFromPtu.clear();
     }
 
-    qDebug() << "PtuController::slotDataReady(): receive buffer contains: \n" << qstring_list;
+    qDebug() << "PtuController::slotDataReady(): receive buffer contains: \n" << splitDataFromPtu;
 }

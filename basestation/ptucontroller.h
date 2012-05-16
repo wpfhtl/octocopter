@@ -39,9 +39,15 @@ private:
     AbstractSerial *mSerialPortPtu;
     Pose mPosePtuBase;
     Pose mLastKnownVehiclePose;
-    QVector3D mPositionCameraSensor, mPositionInFrustumCenter;
+    QVector3D mPositionCameraSensor;
+    QVector3D mPositionInFrustumCenter;
     QByteArray mDataFromPtu;
-    double mPositionsPerDegreePan, mPositionsPerDegreeTilt;
+    double mPositionsPerDegreePan;
+    double mPositionsPerDegreeTilt;
+    double mMaxPanPositionsClockwise;
+    double mMaxPanPositionsCounterClockwise;
+    double mMaxTiltPositionsUpwards;
+    double mMaxTiltPositionsDownwards;
     bool mIsOpened;
 
     void determinePtuPose();
@@ -54,6 +60,8 @@ private slots:
     void slotSetPositionFrustumCenter();
     void slotRetrieveStatus();
     void slotSetPosition(float degreePan, float degreeTilt);
+    void slotSetMaxPan(float degreeMaxClockwise, float degreeMaxCounterClockwise);
+    void slotSetMaxTilt(float degreeMaxUpwards, float degreeMaxDownwards);
     void slotSendCommandToPtu(const QString& command);
 
 public slots:
