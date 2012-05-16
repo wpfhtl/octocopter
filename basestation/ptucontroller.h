@@ -44,23 +44,24 @@ private:
     QByteArray mDataFromPtu;
     double mPositionsPerDegreePan;
     double mPositionsPerDegreeTilt;
-    double mMaxPanPositionsClockwise;
-    double mMaxPanPositionsCounterClockwise;
-    double mMaxTiltPositionsUpwards;
-    double mMaxTiltPositionsDownwards;
+    double mMinPanPositions;
+    double mMaxPanPositions;
+    double mMinTiltPositions;
+    double mMaxTiltPositions;
 
     void determinePtuPose();
 
 private slots:
     void slotSerialPortStatusChanged(const QString& status, const QDateTime& time);
+    void slotSendDirectCommand();
     void slotInitialize();
     void slotDataReady();
     void slotSetPositionCamera();
     void slotSetPositionFrustumCenter();
     void slotRetrieveStatus();
     void slotSetPosition(float degreePan, float degreeTilt);
-    void slotSetMaxPan(float degreeMaxClockwise, float degreeMaxCounterClockwise);
-    void slotSetMaxTilt(float degreeMaxUpwards, float degreeMaxDownwards);
+    void slotSetPanLimits(float degreeMinimum, float degreeMaximum);
+    void slotSetTiltLimits(float degreeMinimum, float degreeMaximum);
     void slotSendCommandToPtu(const QString& command);
 
 public slots:
