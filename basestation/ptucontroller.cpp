@@ -17,11 +17,9 @@ PtuController::PtuController(const QString& deviceFile, QWidget *parent) : QDock
     {
         mSerialPortPtu->close();
         qDebug("PtuController::PtuController(): Opening serial usb port %s failed.", qPrintable(deviceFile));
-        mIsOpened = false;
     }
     else
     {
-        mIsOpened = true;
         mSerialPortPtu->setBaudRate(AbstractSerial::BaudRate9600); // PTU can go faster, but do we need to?
         mSerialPortPtu->setDataBits(AbstractSerial::DataBits8);
         mSerialPortPtu->setParity(AbstractSerial::ParityNone);
@@ -43,13 +41,20 @@ PtuController::PtuController(const QString& deviceFile, QWidget *parent) : QDock
 PtuController::~PtuController()
 {
     //slotSendCommandToPtu("H"); // send halt
+
+    if(mSerialPortPtu->isOpen())
+        mSerialPortPtu->close();
+
+    mSerialPortPtu->deleteLater();
+
+    mTimerUpdateStatus->deleteLater();
+
     delete ui;
-    mSerialPortPtu->close();
 }
 
 void PtuController::slotSetSpeed(Axis axis, quint16 speed)
 {
-    if(mIsOpened)
+    if(mSerialPortPtu->isOpen())
     {
         const QString command = axis == AXIS_PAN ? "PS" : "TS";
         slotSendCommandToPtu(command + QString::number(speed));
@@ -159,7 +164,7 @@ void PtuController::slotVehiclePoseChanged(const Pose& pose)
 
 void PtuController::slotSetPosition(float degreePan, float degreeTilt)
 {
-    if(mIsOpened)
+    if(mSerialPortPtu->isOpen())
     {
         int ptuPan = mPositionsPerDegreePan * degreePan;
         //if(ptuPan < mMaxPanPositionsClockwise && ptuPan > mMaxPanPositionsCounterClockwise)

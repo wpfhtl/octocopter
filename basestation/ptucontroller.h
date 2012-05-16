@@ -31,7 +31,7 @@ public:
     ~PtuController();
 
     const Pose* getPosePtuBase() const {return &mPosePtuBase;}
-    bool isOpened() const {return mIsOpened;}
+    bool isOpened() const {return mSerialPortPtu->isOpen();}
 
 private:
     Ui::PtuController *ui;
@@ -48,7 +48,6 @@ private:
     double mMaxPanPositionsCounterClockwise;
     double mMaxTiltPositionsUpwards;
     double mMaxTiltPositionsDownwards;
-    bool mIsOpened;
 
     void determinePtuPose();
 
