@@ -31,11 +31,13 @@ public:
 
     // Unix signal handler
     static void signalHandler(int unused);
+    static void messageHandler(QtMsgType type, const char *msg);
 
 public slots:
     void slotHandleSignal();
 
 private:
+    void installMessageHandler(const QString& logFilePrefix);
     // We use this pipe for all signals.
     static int signalFd[2];
 
