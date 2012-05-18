@@ -168,7 +168,7 @@ void ParticleSystem::update(float deltaTime)
 
     // calculate grid hash
     calcHash(
-                mDeviceGridParticleHash,
+                mDeviceGridParticleHash,    // written into, contains
                 mDeviceGridParticleIndex,
                 dPos,
                 mNumberOfParticles);

@@ -208,9 +208,9 @@ void collide(float* newVel,
 
 void sortParticles(uint *dGridParticleHash, uint *dGridParticleIndex, uint numParticles)
 {
-    thrust::sort_by_key(thrust::device_ptr<uint>(dGridParticleHash),
-                        thrust::device_ptr<uint>(dGridParticleHash + numParticles),
-                        thrust::device_ptr<uint>(dGridParticleIndex));
+    thrust::sort_by_key(thrust::device_ptr<uint>(dGridParticleHash),                // KeysBeginning
+                        thrust::device_ptr<uint>(dGridParticleHash + numParticles), // KeysEnd
+                        thrust::device_ptr<uint>(dGridParticleIndex));              // ValuesBeginning
 }
 
 }   // extern "C"
