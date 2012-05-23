@@ -76,7 +76,7 @@ __device__ uint calcGridHash(int3 gridPos)
 {
     gridPos.x = gridPos.x & (params.gridSize.x-1);  // wrap grid, assumes size is power of 2
     gridPos.y = gridPos.y & (params.gridSize.y-1);
-    gridPos.z = gridPos.z & (params.gridSize.z-1);        
+    gridPos.z = gridPos.z & (params.gridSize.z-1);
     return __umul24(__umul24(gridPos.z, params.gridSize.y), params.gridSize.x) + __umul24(gridPos.y, params.gridSize.x) + gridPos.x;
 }
 
@@ -89,7 +89,7 @@ void calcHashD(uint*   gridParticleHash,  // output
 {
     uint index = __umul24(blockIdx.x, blockDim.x) + threadIdx.x;
     if (index >= numParticles) return;
-    
+
     volatile float4 p = pos[index];
 
     // get address in grid
@@ -114,57 +114,59 @@ void reorderDataAndFindCellStartD(uint*   cellStart,        // output: cell star
                                   float4* oldVel,           // input: sorted velocity array
                                   uint    numParticles)
 {
-    extern __shared__ uint sharedHash[];    // blockSize + 1 elements
-    uint index = __umul24(blockIdx.x,blockDim.x) + threadIdx.x;
+    uint threadIndex = __umul24(blockIdx.x,blockDim.x) + threadIdx.x;
+
+    // This resides in shared memory space of the threadBlock, lives as
+    // long as the block and is accessible from all threads in the block.
+    // Its size (in bytes) is defined at runtime through the Ns parameter
+    // in the <<Dg, Db, Ns, S>> expression of the caller.
+    // Here, its set to ((ThreadsInBlock + 1) elements)
+    extern __shared__ uint sharedHash[];
 
     uint hash;
     // handle case when no. of particles not multiple of block size
-    if (index < numParticles) {
-        hash = gridParticleHash[index];
+    if(threadIndex < numParticles)
+    {
+        hash = gridParticleHash[threadIndex];
 
-        // Load hash data into shared memory so that we can look 
-        // at neighboring particle's hash value without loading
-        // two hash values per thread
+        // Load hash data into shared memory so that we can look at neighboring
+        // particle's hash value without loading two hash values per thread
         sharedHash[threadIdx.x+1] = hash;
 
-        if (index > 0 && threadIdx.x == 0)
+        if(threadIndex > 0 && threadIdx.x == 0)
         {
             // first thread in block must load neighbor particle hash
-            sharedHash[0] = gridParticleHash[index-1];
+            sharedHash[0] = gridParticleHash[threadIndex-1];
         }
     }
 
     __syncthreads();
 
-    if (index < numParticles) {
-        // If this particle has a different cell index to the previous
-        // particle then it must be the first particle in the cell,
-        // so store the index of this particle in the cell.
-        // As it isn't the first particle, it must also be the cell end of
-        // the previous particle's cell
-
-        if (index == 0 || hash != sharedHash[threadIdx.x])
+    if (threadIndex < numParticles)
+    {
+        // If this particle has a different cell index to the previous particle then it must be the
+        // first particle in the cell, so store the index of this particle in the cell. As it isn't
+        // the first particle, it must also be the cell end of the previous particle's cell
+        if(threadIndex == 0 || hash != sharedHash[threadIdx.x])
         {
-            cellStart[hash] = index;
-            if (index > 0)
-                cellEnd[sharedHash[threadIdx.x]] = index;
+            cellStart[hash] = threadIndex;
+            if (threadIndex > 0)
+                cellEnd[sharedHash[threadIdx.x]] = threadIndex;
         }
 
-        if (index == numParticles - 1)
+        if(threadIndex == numParticles - 1)
         {
-            cellEnd[hash] = index + 1;
+            cellEnd[hash] = threadIndex + 1;
         }
 
         // Now use the sorted index to reorder the pos and vel data
-        uint sortedIndex = gridParticleIndex[index];
+        uint sortedIndex = gridParticleIndex[threadIndex];
         float4 pos = FETCH(oldPos, sortedIndex);       // macro does either global read or texture fetch
         float4 vel = FETCH(oldVel, sortedIndex);       // see particles_kernel.cuh
 
-        sortedPos[index] = pos;
-        sortedVel[index] = vel;
+        sortedPos[threadIndex] = pos;
+        sortedVel[threadIndex] = vel;
     }
-
-
 }
 
 // collide two spheres using DEM method
@@ -181,7 +183,8 @@ float3 collideSpheres(float3 posA, float3 posB,
     float collideDist = radiusA + radiusB;
 
     float3 force = make_float3(0.0f);
-    if (dist < collideDist) {
+    if (dist < collideDist)
+    {
         float3 norm = relPos / dist;
 
         // relative velocity
@@ -211,7 +214,7 @@ float3 collideCell(int3    gridPos,
                    uint    index,
                    float3  pos,
                    float3  vel,
-                   float4* oldPos, 
+                   float4* oldPos,
                    float4* oldVel,
                    uint*   cellStart,
                    uint*   cellEnd)
@@ -255,8 +258,8 @@ void collideD(float4* newVel,               // output: new velocity
               uint    numParticles)
 {
     uint index = __mul24(blockIdx.x,blockDim.x) + threadIdx.x;
-    if (index >= numParticles) return;    
-    
+    if (index >= numParticles) return;
+
     // read particle data from sorted arrays
     float3 pos = make_float3(FETCH(oldPos, index));
     float3 vel = make_float3(FETCH(oldVel, index));

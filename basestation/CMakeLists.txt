@@ -45,7 +45,7 @@ SET(SRC_FILES
     particlesystem
     particlesystem_cuda.cu
     particlerenderer
-    #particleskernel.cu
+    particleskernel.cu
     computefreecolumns.cu
 )
 

@@ -57,7 +57,7 @@ void *mapGLBufferObject(struct cudaGraphicsResource **cuda_vbo_resource)
 {
     void *ptr;
     cudaGraphicsMapResources(1, cuda_vbo_resource, 0);
-    size_t num_bytes; 
+    size_t num_bytes;
     cudaGraphicsResourceGetMappedPointer((void **)&ptr, &num_bytes, *cuda_vbo_resource);
     return ptr;
 }
@@ -68,11 +68,11 @@ void unmapGLBufferObject(struct cudaGraphicsResource *cuda_vbo_resource)
 }
 
 void copyArrayFromDevice(void* host, const void* device, struct cudaGraphicsResource **cuda_vbo_resource, int size)
-{   
+{
     if (cuda_vbo_resource) device = mapGLBufferObject(cuda_vbo_resource);
 
     cudaMemcpy(host, device, size, cudaMemcpyDeviceToHost);
-    
+
     if (cuda_vbo_resource) unmapGLBufferObject(*cuda_vbo_resource);
 }
 
@@ -108,7 +108,7 @@ void integrateSystem(float *pos, float *vel, float deltaTime, uint numParticles)
 
 void calcHash(uint*  gridParticleHash,
               uint*  gridParticleIndex,
-              float* pos, 
+              float* pos,
               int    numParticles)
 {
     uint numThreads, numBlocks;
@@ -119,7 +119,7 @@ void calcHash(uint*  gridParticleHash,
                                            gridParticleIndex,
                                            (float4 *) pos,
                                            numParticles);
-    
+
     // check if kernel invocation generated an error
     cutilCheckMsg("Kernel execution failed");
 }
@@ -146,7 +146,9 @@ void reorderDataAndFindCellStart(uint*  cellStart,
     cudaBindTexture(0, oldVelTex, oldVel, numParticles*sizeof(float4));
 #endif
 
+    // Number of bytes in shared memory that is allocated for each (thread)block.
     uint smemSize = sizeof(uint)*(numThreads+1);
+
     reorderDataAndFindCellStartD<<< numBlocks, numThreads, smemSize>>>(
                                                                          cellStart,
                                                                          cellEnd,
