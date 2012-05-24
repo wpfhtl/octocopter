@@ -18,7 +18,7 @@ ParticleSystem::ParticleSystem(unsigned int numParticles, uint3 gridSize) :
     mHostVel(0),
     mDevicePos(0),
     mDeviceVel(0),
-    mGridSize(gridSize)
+    mGridSize(gridSize) // TODO: remove this member, its superfluous
 {
     mNumberOfGridCells = mGridSize.x*mGridSize.y*mGridSize.z;
 
@@ -154,6 +154,7 @@ void ParticleSystem::colorRamp(float t, float *r)
 // step the simulation
 void ParticleSystem::update(float deltaTime)
 {
+    // Get a pointer to the particle positions in the device by mapping GPU mem into CPU mem
     float *dPos = (float *) mapGLBufferObject(&mCudaPositionVboResource);
 
     // update constants
@@ -184,7 +185,7 @@ void ParticleSystem::update(float deltaTime)
                 mDeviceSortedVel,
                 mDeviceGridParticleHash,
                 mDeviceGridParticleIndex,
-		dPos,
+        dPos,
                 mDeviceVel,
                 mNumberOfParticles,
                 mNumberOfGridCells);
@@ -248,7 +249,7 @@ void ParticleSystem::setArray(ParticleArray array, const float* data, int start,
     else if(array == VELOCITY)
     {
         copyArrayToDevice(mDeviceVel, data, start*4*sizeof(float), count*4*sizeof(float));
-    }       
+    }
 }
 
 inline float frand()
@@ -256,8 +257,7 @@ inline float frand()
     return rand() / (float) RAND_MAX;
 }
 
-void
-ParticleSystem::initGrid(unsigned int *size, float spacing, float jitter, unsigned int numParticles)
+void ParticleSystem::initGrid(unsigned int *size, float spacing, float jitter, unsigned int numParticles)
 {
     srand(1973);
     for(unsigned int z=0; z<size[2]; z++) {
@@ -280,8 +280,7 @@ ParticleSystem::initGrid(unsigned int *size, float spacing, float jitter, unsign
     }
 }
 
-void
-ParticleSystem::reset(ParticleConfig config)
+void ParticleSystem::reset(ParticleConfig config)
 {
     switch(config)
     {
