@@ -1,11 +1,11 @@
 #include <GL/glew.h>
 #include <GL/gl.h>
 
+#include "octree.h"
 #include "glwidget.h"
 
-GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flightPlanner) :
+GlWidget::GlWidget(QWidget* parent, FlightPlannerInterface* flightPlanner) :
     QGLWidget(parent),
-    mOctree(octree),
     mFlightPlanner(flightPlanner)
 {
     QGLFormat glFormat;
@@ -13,15 +13,15 @@ GlWidget::GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flig
     glFormat.setSampleBuffers(true);
     glFormat.setVersion(4,0);
     // This means no OpenGL-deprecated stuff is used (like glBegin() and glEnd())
-//    glFormat.setProfile(QGLFormat::CoreProfile);
+    //    glFormat.setProfile(QGLFormat::CoreProfile);
     glFormat.setProfile(QGLFormat::CompatibilityProfile);
     QGLFormat::setDefaultFormat(glFormat);
     setFormat(glFormat);
 
     mCameraPosition = QVector3D(0.0f, 500.0f, 500.0f);
 
-    mVboPointCloudBytesCurrent = 0;
-    mVboPointCloudBytesMax = 2 * 1000 * 1000 * sizeof(QVector3D); // storage for 2 million points
+//    mVboPointCloudBytesCurrent = 0;
+//    mVboPointCloudBytesMax = 2 * 1000 * 1000 * sizeof(QVector3D); // storage for 2 million points
 
     mVboVehiclePathElementSize = sizeof(QVector3D) + sizeof(QVector4D); // position and color with alpha
     mVboVehiclePathBytesMaximum = (3600 * 50 * mVboVehiclePathElementSize); // For a flight time of one hour
@@ -116,7 +116,7 @@ void GlWidget::initializeGL()
 
         0.0f, 0.0f, 1.0f, 0.5f, // Blue
         0.0f, 0.0f, 1.0f, 0.5f  // Blue
-        };
+    };
 
     // Create a VBO for the axes
     glGenBuffers(1, &mVboAxes);
@@ -143,16 +143,16 @@ void GlWidget::initializeGL()
     // Set Line Antialiasing
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 
-//    glEnable(GL_LIGHTING);
-//    glEnable(GL_LIGHT0);
+    //    glEnable(GL_LIGHTING);
+    //    glEnable(GL_LIGHT0);
 
     // Enable Blending and set the type to be used
-//    glEnable(GL_BLEND);
-//    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-//    glBlendFunc( GL_SRC_ALPHA, GL_ONE );
-//    glBlendFunc( GL_ZERO, GL_ONE_MINUS_SRC_ALPHA );
-//    glBlendFunc( GL_SRC_ALPHA_SATURATE, GL_ONE );
-//    glBlendFunc(GL_ONE_MINUS_DST_ALPHA,GL_DST_ALPHA);
+    //    glEnable(GL_BLEND);
+    //    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    //    glBlendFunc( GL_SRC_ALPHA, GL_ONE );
+    //    glBlendFunc( GL_ZERO, GL_ONE_MINUS_SRC_ALPHA );
+    //    glBlendFunc( GL_SRC_ALPHA_SATURATE, GL_ONE );
+    //    glBlendFunc(GL_ONE_MINUS_DST_ALPHA,GL_DST_ALPHA);
 
     // Just for debugging
     /*
@@ -183,7 +183,7 @@ void GlWidget::resizeGL(int w, int h)
     matrixCameraToClip.perspective(50.0f * mZoomFactorCurrent, (float)w/(float)h, 10.0f, +1000.0f);
     //matrixCameraToClip.ortho(-w/2.0f * mZoomFactorCurrent, w/2.0f * mZoomFactorCurrent, -h/2.0f * mZoomFactorCurrent, h/2.0f * mZoomFactorCurrent, 1.0, 10000.0);
 
-//    qDebug() << "GlWidget::resizeGL(): resizing gl viewport to" << w << h << "setting perspective/cameraclip matrix" << matrixCameraToClip;
+    //    qDebug() << "GlWidget::resizeGL(): resizing gl viewport to" << w << h << "setting perspective/cameraclip matrix" << matrixCameraToClip;
 
     // Set the second matrix (cameraToClip) in the UBO
     glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
@@ -193,9 +193,9 @@ void GlWidget::resizeGL(int w, int h)
 
 void GlWidget::moveCamera(const QVector3D &pos)
 {
-//    qDebug() << "moveCamera to " << pos;
+    //    qDebug() << "moveCamera to " << pos;
     mCameraPosition = pos;
-//    slotEmitModelViewProjectionMatrix();
+    //    slotEmitModelViewProjectionMatrix();
     update();
 }
 
@@ -224,7 +224,7 @@ void GlWidget::paintGL()
     glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, 64, OpenGlUtilities::matrixToOpenGl(matrixModelToCamera).constData());
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
-//    qDebug() << "GlWidget::paintGL(): camPos" << camPos << "lookAt" << camLookAt << "modelToCamera:" << matrixModelToCamera << matrixModelToCamera.inverted() * QVector3D();
+    //    qDebug() << "GlWidget::paintGL(): camPos" << camPos << "lookAt" << camLookAt << "modelToCamera:" << matrixModelToCamera << matrixModelToCamera.inverted() * QVector3D();
 
     // Here we make mZoomFactorCurrent converge to mZoomFactorTarget for smooth zooming
     float step = 0.0f;
@@ -251,20 +251,32 @@ void GlWidget::paintGL()
     {
         mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
 
-        mShaderProgramDefault->setUniformValue("useFixedColor", true);
-        mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(0.7f, 0.7f, 0.7f, 0.2f));
         glEnable (GL_BLEND); glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
         {
-            // Render pointcloud using all initialized VBOs (there might be none when no points exist)
-            QMapIterator<GLuint, unsigned int> i(mVboIdsPointCloud);
-            while (i.hasNext())
+            for(int i=0;i<mOctrees.size();i++)
             {
-                i.next();
-                glBindBuffer(GL_ARRAY_BUFFER, i.key());
-                glEnableVertexAttribArray(0);
-                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-                glDrawArrays(GL_POINTS, 0, i.value() / sizeof(QVector3D));
-                glDisableVertexAttribArray(0);
+                Octree* octree = mOctrees.at(i);
+                mShaderProgramDefault->setUniformValue("useFixedColor", true);
+                mShaderProgramDefault->setUniformValue("fixedColor",
+                                                       QVector4D(
+                                                           octree->mPointColor.redF(),
+                                                           octree->mPointColor.greenF(),
+                                                           octree->mPointColor.blueF(),
+                                                           octree->mPointColor.alphaF()
+                                                           )
+                                                       );
+
+                // Render pointcloud using all initialized VBOs (there might be none when no points exist)
+                QMapIterator<quint32, quint32> i(octree->mVboIdsAndSizes);
+                while (i.hasNext())
+                {
+                    i.next();
+                    glBindBuffer(GL_ARRAY_BUFFER, i.key());
+                    glEnableVertexAttribArray(0);
+                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+                    glDrawArrays(GL_POINTS, 0, i.value()); // Number of Elements, not bytes
+                    glDisableVertexAttribArray(0);
+                }
             }
 
             // Render the vehicle's path - same shader, but variable color
@@ -309,16 +321,7 @@ void GlWidget::paintGL()
     mModelVehicle->slotSetModelTransform(mLastKnownVehiclePose.getMatrix());
     mModelVehicle->render();
 
-    /* old pointcloud rendering code
-    glDisable(GL_LIGHTING);
-    glPointSize(1);
-    glColor4f(.5f, .5f, .5f, 0.7f);
-    glBegin(GL_POINTS);
-    mOctree->handlePoints();
-    glEnd();
-    //glEnable(GL_LIGHTING);*/
-
-//    qDebug() << "GlWidget::paintGL(): rendering time in milliseconds:" << renderTime.elapsed();
+    //    qDebug() << "GlWidget::paintGL(): rendering time in milliseconds:" << renderTime.elapsed();
 }
 
 void GlWidget::slotNewVehiclePose(Pose pose)
@@ -416,9 +419,9 @@ void GlWidget::mouseMoveEvent(QMouseEvent *event)
     rotY = fmod(rotY, 360.0);
     rotZ = fmod(rotZ, 360.0);
 
-//    qDebug() << "mCamLookAtOffset: " << mCamLookAtOffset << "rotXYZ:" << rotX << rotY << rotZ;
+    //    qDebug() << "mCamLookAtOffset: " << mCamLookAtOffset << "rotXYZ:" << rotX << rotY << rotZ;
 
-//    slotEmitModelViewProjectionMatrix();
+    //    slotEmitModelViewProjectionMatrix();
 
     update();
 }
@@ -427,7 +430,7 @@ void GlWidget::wheelEvent(QWheelEvent *event)
 {
     event->delta() > 0 ? mZoomFactorTarget *= 1.5f : mZoomFactorTarget *= 0.5f;
     mZoomFactorTarget = qBound(0.002f, (float)mZoomFactorTarget, 1.0f);
-//    qDebug() << "zoomFactor" << mZoomFactor;
+    //    qDebug() << "zoomFactor" << mZoomFactor;
     update();
 }
 
@@ -441,12 +444,12 @@ void GlWidget::timerEvent ( QTimerEvent * event )
 {
     if(event->timerId() == mTimerIdRotate)
     {
-//        qDebug() << "GlWidget::timerEvent(): rotating...";
+        //        qDebug() << "GlWidget::timerEvent(): rotating...";
         rotY -= 180 * 0.001;
     }
     else if(event->timerId() == mTimerIdZoom)
     {
-//        qDebug() << "GlWidget::timerEvent(): zooming...";
+        //        qDebug() << "GlWidget::timerEvent(): zooming...";
     }
 
     // We should redraw for both zooming and rotating. But if the helicopter is flying, that will mean
@@ -454,8 +457,8 @@ void GlWidget::timerEvent ( QTimerEvent * event )
     const int interval = mTimeOfLastExternalUpdate.msecsTo(QDateTime::currentDateTime());
     if(interval > 60)
     {
-//        qDebug() << "GlWidget::timerEvent(): last external update was" << interval << "ms ago, updating";
-//        slotEmitModelViewProjectionMatrix();
+        //        qDebug() << "GlWidget::timerEvent(): last external update was" << interval << "ms ago, updating";
+        //        slotEmitModelViewProjectionMatrix();
         update();
     }
 }
@@ -529,81 +532,88 @@ QVector3D GlWidget::convertMouseToWorldPosition(const QPoint& point)
 
     gluUnProject(winX, winY, winZ, modelview, projection, viewport, &posX, &posY, &posZ);
 
-//    qDebug() << "world pos of mouse" << point.x() << point.y() << "is" << posX << posY << posZ;
+    //    qDebug() << "world pos of mouse" << point.x() << point.y() << "is" << posX << posY << posZ;
 
     return QVector3D(posX, posY, posZ);
 }
 
-void GlWidget::slotInsertLidarPoints(const QVector<QVector3D>& list)
+void GlWidget::updateVbosToMatchOctrees()
 {
-    //qDebug() << "GlWidget::slotInsertLidarPoints(): trying to insert" << list.size() << "elements," << list.size() * sizeof(QVector3D) << "bytes.";
-    unsigned int numberOfPointsToStore = list.size();
-    unsigned int numberOfPointsSucessfullyStored = 0;
-    unsigned int numberOfVbosCreated = 0;
-
-    while(numberOfPointsToStore)
+    for(int i=0;i<mOctrees.size();i++)
     {
-        // Insert the lidarpoints into any VBO that can accomodate them
-        QMapIterator<GLuint, unsigned int> it(mVboIdsPointCloud);
-        while(it.hasNext() && numberOfPointsToStore)
+        Octree* octree = mOctrees.at(i);
+
+        // Check whether this octree has more points stored than the VBO
+        quint32 numberOfPointsToStore = octree->getNumberOfItems() - octree->mElementsStoredInAllVbos;
+
+        unsigned int numberOfPointsSucessfullyStored = 0;
+
+        while(numberOfPointsToStore)
         {
-            it.next();
-
-            //qDebug() << "GlWidget::slotInsertLidarPoints(): checking VBO" << it.key() << "which already contains" << it.value() << "bytes...";
-
-            // Only fill this VBO if it has enough free space for at least one point
-            const unsigned int numberOfPointsStorableInThisVbo = std::min((long unsigned int)numberOfPointsToStore, (mVboPointCloudBytesMax/sizeof(QVector3D)) - it.value()/sizeof(QVector3D));
-            if(numberOfPointsStorableInThisVbo)
+            // Insert the lidarpoints into any VBO that can accomodate them
+            QMapIterator<quint32, quint32> it(octree->mVboIdsAndSizes);
+            while(it.hasNext() && numberOfPointsToStore)
             {
-                glBindBuffer(GL_ARRAY_BUFFER, it.key());
+                it.next();
 
-                // For small updates, glBufferSubData is supposed to be better than glMapBuffer
-                glBufferSubData(
-                            GL_ARRAY_BUFFER,
-                            it.value(), // offset in the VBO
-                            numberOfPointsStorableInThisVbo * sizeof(QVector3D), // how many bytes to store?
-                            (void*)(list.data() + (numberOfPointsSucessfullyStored * sizeof(QVector3D))) // data to store
-                            );
+                //qDebug() << "GlWidget::slotInsertLidarPoints(): checking VBO" << it.key() << "which already contains" << it.value() << "bytes...";
+
+                // Only fill this VBO if it has enough free space for at least one point
+                const unsigned int numberOfPointsToStoreInThisVbo = std::min(numberOfPointsToStore, octree->mExpectedMaximumElementCount - it.value());
+
+                if(numberOfPointsToStoreInThisVbo)
+                {
+                    glBindBuffer(GL_ARRAY_BUFFER, it.key());
+
+                    // For small updates, glBufferSubData is supposed to be better than glMapBuffer
+                    glBufferSubData(
+                                GL_ARRAY_BUFFER,
+                                it.value() * sizeof(LidarPoint), // offset in the VBO
+                                numberOfPointsToStoreInThisVbo * sizeof(LidarPoint), // how many bytes to store?
+                                (void*)(octree->data() + (numberOfPointsSucessfullyStored * sizeof(LidarPoint))) // data to store
+                                );
+
+                    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+                    numberOfPointsSucessfullyStored += numberOfPointsToStoreInThisVbo;
+                    numberOfPointsToStore -= numberOfPointsToStoreInThisVbo;
+
+                    // Update the number of bytes used
+                    octree->mVboIdsAndSizes.insert(it.key(), it.value() + numberOfPointsToStoreInThisVbo);
+                    octree->mElementsStoredInAllVbos += numberOfPointsToStoreInThisVbo;
+                }
+            }
+
+            // We filled the existing VBOs with points above. But if we still
+            // have a numberOfPointsToStore, we need to create a new VBO
+            if(numberOfPointsToStore)
+            {
+                // call glGetError() to clear eventually present errors
+                glGetError();
+
+                // Initialize the pointcloud-VBO
+                const quint32 vboNewByteSize = octree->mExpectedMaximumElementCount * sizeof(LidarPoint);
+                GLuint vboNew;
+                glGenBuffers(1, &vboNew);
+                glBindBuffer(GL_ARRAY_BUFFER, vboNew);
+                glBufferData(GL_ARRAY_BUFFER, vboNewByteSize, NULL, GL_DYNAMIC_DRAW);
+
+                if(glGetError() == GL_NO_ERROR)
+                {
+                    qDebug() << "GlWidget::slotInsertLidarPoints(): Created new VBO" << vboNew << "containing" << vboNewByteSize << "bytes";
+                    octree->mVboIdsAndSizes.insert(vboNew, 0);
+                }
+                else
+                {
+                    qDebug() << "GlWidget::slotInsertLidarPoints(): Couldn't create VBO containing" << vboNewByteSize << "bytes!";
+                }
 
                 glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-                numberOfPointsSucessfullyStored += numberOfPointsStorableInThisVbo;
-                numberOfPointsToStore -= numberOfPointsStorableInThisVbo;
-
-                // Update the number of bytes used
-                mVboIdsPointCloud.insert(it.key(), it.value() + numberOfPointsStorableInThisVbo * sizeof(QVector3D));
             }
         }
 
-        // We filled the existing VBOs with points above. But if we still
-        // have a numberOfPointsToStore, we need to create a new VBO
-        if(numberOfPointsToStore)
-        {
-            // call glGetError() to clear eventually present errors
-            glGetError();
 
-            // Initialize the pointcloud-VBO
-            GLuint vboPointCloud;
-            glGenBuffers(1, &vboPointCloud);
-            glBindBuffer(GL_ARRAY_BUFFER, vboPointCloud);
-            glBufferData(GL_ARRAY_BUFFER, mVboPointCloudBytesMax, NULL, GL_DYNAMIC_DRAW);
-
-            if(glGetError() == GL_NO_ERROR)
-            {
-                qDebug() << "GlWidget::slotInsertLidarPoints(): Created new VBO" << vboPointCloud << "containing" << mVboPointCloudBytesMax << "bytes";
-                mVboIdsPointCloud.insert(vboPointCloud, 0);
-                numberOfVbosCreated++;
-            }
-            else
-            {
-                qDebug() << "GlWidget::slotInsertLidarPoints(): Couldn't create VBO containing" << mVboPointCloudBytesMax << "bytes - discarding" << numberOfPointsToStore << "points.";
-            }
-
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-        }
-    }
-
-    /*qDebug() << "GlWidget::slotInsertLidarPoints(): created" << numberOfVbosCreated << "VBOs, inserted" << numberOfPointsSucessfullyStored << "points. Statistics follow:";
+        /*qDebug() << "GlWidget::slotInsertLidarPoints(): created" << numberOfVbosCreated << "VBOs, inserted" << numberOfPointsSucessfullyStored << "points. Statistics follow:";
 
     QMapIterator<GLuint, unsigned int> it2(mVbosPointCloud);
     while(it2.hasNext())
@@ -611,4 +621,15 @@ void GlWidget::slotInsertLidarPoints(const QVector<QVector3D>& list)
         it2.next();
         qDebug() << "GlWidget::slotInsertLidarPoints(): VBO" << it2.key() << "has size" << it2.value();
     }*/
+    }
+}
+
+void GlWidget::slotOctreeRegister(Octree* o)
+{
+    mOctrees.append(o);
+}
+
+void GlWidget::slotOctreeUnregister(Octree* o)
+{
+    mOctrees.removeOne(o);
 }

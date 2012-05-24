@@ -175,11 +175,8 @@ bool PlyManager::savePly(const QVector<LidarPoint>& points, const QString &fileN
 
     foreach(const LidarPoint& point, points)
     {
-        const QVector3D normal = point.direction.normalized();
-
         stream << point.position.x() << " " << point.position.y() << " " << point.position.z() << " ";
-        stream << normal.x() << " " << normal.y() << " " << normal.z() << " ";
-        stream << point.distance;
+        stream << point.laserPos.x() << " " << point.laserPos.y() << " " << point.laserPos.z();
         stream << endl;
     }
 }
@@ -224,11 +221,8 @@ bool PlyManager::savePly(const Node* node, QTextStream* stream, QProgressDialog*
         // save the points into @stream
         foreach(const LidarPoint* point, node->data)
         {
-            QVector3D normal = point->direction.normalized();
-
             (*stream) << point->position.x() << " " << point->position.y() << " " << point->position.z() << " ";
-            (*stream) << normal.x() << " " << normal.y() << " " << normal.z() << " ";
-            (*stream) << point->distance;
+            (*stream) << point->laserPos.x() << " " << point->laserPos.y() << " " << point->laserPos.z();
             (*stream) << endl;
         }
 
@@ -309,8 +303,7 @@ bool PlyManager::loadPly(QWidget* widget, const QList<Octree*>& trees, const QLi
                                         values.at(3).toDouble(),
                                         values.at(4).toDouble(),
                                         values.at(5).toDouble()
-                                        ),
-                                    values.at(6).toDouble()
+                                        )
                                     )
                                 );
                 }
@@ -328,8 +321,7 @@ bool PlyManager::loadPly(QWidget* widget, const QList<Octree*>& trees, const QLi
                                         values.at(3).toDouble(),
                                         values.at(4).toDouble(),
                                         values.at(5).toDouble()
-                                        ),
-                                    values.at(6).toDouble()
+                                        )
                                     )
                                 );
                 }

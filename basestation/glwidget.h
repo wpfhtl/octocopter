@@ -15,8 +15,9 @@
 #include "flightplannerinterface.h"
 #include "openglutilities.h"
 #include "shaderprogram.h"
-#include "octree.h"
 #include "pose.h"
+
+class Octree;
 
 class FlightPlannerInterface;
 
@@ -25,13 +26,10 @@ class GlWidget : public QGLWidget
 {
     Q_OBJECT
 
-    Octree *mOctree;
+    QList<Octree*> mOctrees;
     FlightPlannerInterface *mFlightPlanner;
 
-    unsigned int mVboPointCloudBytesMax, mVboPointCloudBytesCurrent;
-
     QVector3D mCamLookAtOffset;
-//    QMatrix4x4 mDebugMatrix;
 
     Model *mModelVehicle;
 
@@ -58,29 +56,19 @@ class GlWidget : public QGLWidget
     GLuint mUboId;
     unsigned int mUboSize;
 
-    // Mapping from VBO-id to currently used size in bytes of that VBO
-    QMap<GLuint, unsigned int> mVboIdsPointCloud;
-
     ShaderProgram *mShaderProgramDefault;
 
     // Wheel Zooming. For smooth zooming, mZoomFactorCurrent converges toward mZoomFactorTarget
     GLdouble    mZoomFactorTarget, mZoomFactorCurrent;
 
-    // small helper
-//    static void glVertexVector(QVector3D a) { glVertex3f(a.x(), a.y(), a.z()); }
-
-    //void mouseDoubleClickEvent(QMouseEvent *event);
     void mousePressEvent(QMouseEvent *event);
     void mouseMoveEvent(QMouseEvent *event);
     void wheelEvent(QWheelEvent *event);
     void zoom(double zoomFactor);
-//    void drawAxes(const GLfloat& x, const GLfloat& y, const GLfloat& z, const GLfloat& red, const GLfloat& green, const GLfloat& blue) const;
-//    void drawVehicleVelocity() const;
-//    void drawVehicle() const;
     QVector3D convertMouseToWorldPosition(const QPoint&);
 
 public:
-    GlWidget(QWidget* parent, Octree* octree, FlightPlannerInterface* flightPlanner);
+    GlWidget(QWidget* parent, FlightPlannerInterface* flightPlanner);
     void moveCamera(const QVector3D &pos);
 
 protected:
@@ -93,8 +81,6 @@ signals:
     void initializingInGlContext();
     void visualizeNow();
     void mouseClickedAtWorldPos(Qt::MouseButton, QVector3D);
-    void fovChanged(float);
-//    void matrices(QMatrix4x4, QMatrix4x4);
 
 public slots:
     // When this is called, we take note of the time of last external update. Because when zooming/rotating
@@ -103,9 +89,14 @@ public slots:
     // external redraw in a while, we can save CPU cycles.
     void slotUpdateView();
 
+    // GlWidget renders points from all known octrees. These methods (de)register octrees for rendering.
+    // Ownership remains with the caller, meaning they MUST be deregistered before deletion
+    void slotOctreeRegister(Octree* o);
+    void slotOctreeUnregister(Octree* o);
+
     void slotNewVehiclePose(Pose);
 
-    void slotInsertLidarPoints(const QVector<QVector3D>&);
+    void updateVbosToMatchOctrees();
 
     void slotEnableTimerRotation(const bool& enable);
     void slotViewFromTop();

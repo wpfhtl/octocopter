@@ -52,7 +52,8 @@ BaseStation::BaseStation() : QMainWindow()
     mFlightPlanner = new FlightPlannerParticles(this, mOctree);
     mFlightPlanner->slotSetScanVolume(QVector3D(-50, -10, -35), QVector3D(50, 40, 35));
 
-    mGlWidget = new GlWidget(this, mOctree, mFlightPlanner);
+    mGlWidget = new GlWidget(this, mFlightPlanner);
+    mGlWidget->slotOctreeRegister(mOctree); // register for rendering
 
     mFlightPlanner->setGlWidget(mGlWidget);
     connect(mGlWidget, SIGNAL(initializingInGlContext()), mFlightPlanner, SLOT(slotInitialize())); // init CUDA when GlWidget inits
@@ -256,20 +257,19 @@ void BaseStation::slotNewImage(const QString& cameraName, const QSize& imageSize
 
 void BaseStation::slotNewScanData(const QVector<QVector3D>& pointList, const QVector3D& scannerPosition)
 {
-    int i=0;
-    foreach(const QVector3D &p, pointList)
+    // TODO: its probably faster to give the whole list to Octree directly and let it sort the points
+    // into its own nodes, using neighborship relations to quickly find the correct leaf.
+    for(int i=0;i<pointList.size();i++)
     {
-//            qDebug() << p;
-        //mOctree->insertPoint(new LidarPoint(p, (p-scannerPosition).normalized(), (p-scannerPosition).lengthSquared()));
-        if(i%10 == 0)
-            mFlightPlanner->insertPoint(new LidarPoint(p, (p-scannerPosition).normalized(), (p-scannerPosition).lengthSquared()));
-        i++;
+        const QVector3D& p = pointList.at(i);
+        mOctree->insertPoint(new LidarPoint(p, scannerPosition));
+        if(i%10 == 0) mFlightPlanner->insertPoint(new LidarPoint(p, scannerPosition));
     }
 
     // We only run/stats/logs for efficiency (paper) when scanning is in progress
     mDateTimeLastLidarInput = QDateTime::currentDateTime();
 
-    mGlWidget->slotInsertLidarPoints(pointList);
+    //mGlWidget->slotInsertLidarPoints(pointList);
 
     mGlWidget->slotUpdateView();
 
