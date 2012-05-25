@@ -29,6 +29,30 @@ void FlightPlannerInterface::slotSetScanVolume(const QVector3D minBox, const QVe
     setVbo();
 }
 
+bool FlightPlannerInterface::insertPointsFromNode(const Node* node)
+{
+    if(node->isLeaf())
+    {
+        for(int i=0;i<node->pointIndices.size();i++)
+            insertPoint(&node->mTree->data()->at(node->pointIndices.at(i)));
+    }
+    else
+    {
+        // invoke recursively for childnodes/leafs
+        const QList<const Node*> childNodes = node->getAllChildLeafs();
+        foreach(const Node* childNode, childNodes)
+            if(!insertPointsFromNode(childNode))
+                return false;
+    }
+
+    return true;
+}
+
+void FlightPlannerInterface::insertPoint(const LidarPoint* const point)
+{
+
+}
+
 void FlightPlannerInterface::slotClearVehiclePoses()
 {
     mVehiclePoses.clear();

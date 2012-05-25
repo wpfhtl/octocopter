@@ -17,7 +17,7 @@ public:
     Octree* mTree;
 
     // For leaf-nodes, a list of its data. Must be 0 for non-leaf-nodes
-    QList<LidarPoint*> data;
+    //QList<LidarPoint*> data;
 
     // Instead of storing real points in the nodes, the nodes store
     // point-offsets into an octree-global data-buffer.
@@ -29,7 +29,7 @@ public:
     // A Pointer to its parent, or 0 for the root-node.
     Node* parent;
 
-    LidarPoint* getLidarPointFromIndex(const quint32 index);
+//    LidarPoint* getLidarPointFromIndex(const quint32 index);
 
     // This node's AABB
     QVector3D min, max;
@@ -57,7 +57,7 @@ public:
     bool insertAndReduce(LidarPoint* const lidarPoint);
 
     // delete the point at this memory address
-    bool deletePoint(LidarPoint* const lidarPoint);
+    //bool deletePoint(LidarPoint* const lidarPoint);
 
     // delete the point at this position
     bool deletePoint(const LidarPoint &lidarPoint);
@@ -69,16 +69,16 @@ public:
     QVector3D size(void) const;
 
     // Returns the @count nearest neighbors FROM THIS LEAF-NODE ONLY of the given point, sorted by ascending distance
-    QList<LidarPoint*> findNearestNeighbors(const QVector3D &point, const unsigned int count) const;
+    QList<const LidarPoint*> findNearestNeighbors(const QVector3D &point, const unsigned int count) const;
 
     // Returns all neighbors FROM THIS LEAF-NODE ONLY within @radius of the given @point
-    QList<LidarPoint*> findNeighborsWithinRadius(const QVector3D &point, const double radius) const;
+    QList<const LidarPoint*> findNeighborsWithinRadius(const QVector3D &point, const double radius) const;
 
     // Returns neighbors FROM THIS LEAF-NODE ONLY within @radius
-    uint32_t numberOfNeighborsWithinRadius(const QVector3D &point, const double radius) const;
+    quint32 numberOfNeighborsWithinRadius(const QVector3D &point, const double radius) const;
 
     // Returns true when a neighbor is within @radius of POINT. Checks THIS LEAF-NODE ONLY
-    bool neighborsWithinRadius(const QVector3D &point, const double radius) const;
+    bool neighborsWithinRadius(const QVector3D &point, const float radius) const;
 
     // Returns false if the given sphere leaks from this Node. If we're looking for neighbors
     // of the sphere's center, and the furthest neighbor was found on the sphere's surface,

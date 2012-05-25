@@ -173,17 +173,21 @@ bool Node::insertAndReduce(LidarPoint* const lidarPoint)
         //qDebug() << "Node::insertAndReduce(): aww, reduction failed, will insert.";
 
         // Probably stupid, but lets start easy: Do not insert if it has N close-by neighbors
-        if(!mTree->isNeighborWithinRadius(lidarPoint->position, mTree->mMinimumPointDistance))
+//        if(!mTree->isNeighborWithinRadius(lidarPoint->position, mTree->mMinimumPointDistance))
+        if(!neighborsWithinRadius(lidarPoint->position, mTree->mMinimumPointDistance))
         {
-            mTree->mData[mTree->mNumberOfItems] = *lidarPoint;
-            //data.append(lidarPoint);
-            //lidarPoint->node = this;
+            const quint32 masterStorageSize = mTree->mData->size();
+            mTree->mData->append(*lidarPoint);
+
+            // Add the index of this new point in the master storage to our index-vector
+            pointIndices.append(masterStorageSize);
 
             // update the offsets for the next iteration
-            mTree->mMri2 = mTree->mMri1;
-            mTree->mMri1 = mTree->mNumberOfItems;
+//            mTree->mMri2 = mTree->mMri1;
+//            mTree->mMri1 = masterStorageSize;
 
-            mTree->mNumberOfItems++;
+            // old, use master vector size
+            //mTree->mNumberOfItems++;
             return true;
         }
         else
@@ -221,7 +225,7 @@ Node* Node::insertPoint(LidarPoint* const lidarPoint) // a const pointer to a no
             {
                 //LidarPoint* const lp = data.takeFirst();
                 //const quint32 pointIndex = pointIndices.takeFirst();
-                LidarPoint* const lp = &mTree->mData[pointIndices.at(i)];
+                const LidarPoint lp = mTree->mData->at(pointIndices.at(i));
                 // ... and put it into the correct child. We *could* use that leaf's insertPoint()
                 // here, but that does some unneccessary checks (isLeaf(), includesPoint(), size
                 // check), so we rather move the payload directly.
@@ -230,7 +234,7 @@ Node* Node::insertPoint(LidarPoint* const lidarPoint) // a const pointer to a no
                 // All of the mMaxItemsPerLeaf+1 lidarPoints in this node might have moved down to
                 // the same octant, so that octant might now contain the mMaxItemsPerLeaf+1 nodes.
                 // But thats an unlikely case and will be fixed on its next insertPoint().
-                getLeaf(lp->position)->pointIndices.append(pointIndices.at(i));
+                getLeaf(lp.position)->pointIndices.append(pointIndices.at(i));
             }
             pointIndices.clear();
         }
@@ -277,65 +281,81 @@ bool Node::overlapsSphere(const QVector3D &point, const double radius) const
         return false;
 }
 
-QList<LidarPoint*> Node::findNeighborsWithinRadius(const QVector3D &point, const double radius) const
+QList<const LidarPoint*> Node::findNeighborsWithinRadius(const QVector3D &point, const double radius) const
 {
     const double radiusSquared = SQR(radius);
 
-    QList<LidarPoint*> result;
+    QList<const LidarPoint*> result;
 
+    /*
     foreach(LidarPoint* const p, data)
         if(p->squaredDistanceTo(point) <= radiusSquared)
             result << p;
+            */
+    for(int i=0;i<pointIndices.size();i++)
+    {
+        if(mTree->mData->at(i).squaredDistanceTo(point) <= radiusSquared)
+            result << &mTree->mData->at(i);
+    }
 
     return result;
 }
 
-uint32_t Node::numberOfNeighborsWithinRadius(const QVector3D &point, const double radius) const
+quint32 Node::numberOfNeighborsWithinRadius(const QVector3D &point, const double radius) const
 {
     const double radiusSquared = SQR(radius);
 
-    uint32_t number = 0;
+    quint32 number = 0;
 
-    foreach(const LidarPoint* const p, data)
-        if(p->squaredDistanceTo(point) <= radiusSquared)
+    for(int i=0;i<pointIndices.size();i++)
+    {
+        if(mTree->mData->at(i).squaredDistanceTo(point) <= radiusSquared)
             number++;
+    }
 
     return number;
 }
 
-QList<LidarPoint*> Node::findNearestNeighbors(const QVector3D &point, const unsigned int count) const
+QList<const LidarPoint*> Node::findNearestNeighbors(const QVector3D &point, const unsigned int count) const
 {
     // This node includes the given point.
     if(isLeaf())
     {
         // This node is a leaf, go and find the @count nearest neighbors.
-        QMap<double, LidarPoint*> distanceMap;
-        foreach(LidarPoint* const p, data)
-            distanceMap.insert(p->squaredDistanceTo(point), p);
+        // map from distance => pointIndex
+        QMap<float, quint32> distanceMap;
 
-        QList<LidarPoint*> result;
+        //        foreach(LidarPoint* const p, data)
+        //            distanceMap.insert(p->squaredDistanceTo(point), p);
+        for(int i=0;i<pointIndices.size();i++)
+            distanceMap.insert(mTree->mData->at(i).squaredDistanceTo(point), i);
 
-        QMap<double, LidarPoint*>::const_iterator i = distanceMap.constBegin();
+        QList<const LidarPoint*> result;
+
+        QMap<float, quint32>::const_iterator i = distanceMap.constBegin();
         while(i != distanceMap.constEnd() && result.size() < count)
         {
-            result << i.value();
+            result << &mTree->mData->at(i.value());
             ++i;
         }
 
         return result;
-
     }
 
     Q_ASSERT(false);
 }
 
-bool Node::neighborsWithinRadius(const QVector3D &point, const double radius) const
+bool Node::neighborsWithinRadius(const QVector3D &point, const float radius) const
 {
-    const double radiusSquared = SQR(radius);
+    const float radiusSquared = SQR(radius);
+    qDebug() << "Node::neighborsWithinRadius(): checking" << pointIndices.size() << "points for neighborhood closer than" << radius << "to" << point;
 
-    foreach(LidarPoint* const p, data)
-        if(p->squaredDistanceTo(point) <= radiusSquared)
+    for(int i=0;i<pointIndices.size();i++)
+    {
+        const float distanceToPointSquared = mTree->mData->at(i).squaredDistanceTo(point);
+        if(distanceToPointSquared <= radiusSquared)
             return true;
+    }
 
     return false;
 }
@@ -617,36 +637,37 @@ inline QVector3D Node::center(void) const
     return (min + max) * 0.5f;
 }
 
+/*
 bool Node::deletePoint(LidarPoint* const lidarPoint)
 {
-    for(int i=0;i<data.size();i++)
+    for(int i=0;i<pointIndices.size();i++)
     {
         if(data.at(i) == lidarPoint)
         {
-            delete data.takeAt(i);
-            mTree->mNumberOfItems--;
+            mTree->mData->remove(data.takeAt(i));
             return true;
         }
     }
     return false;
-}
+}*/
 
 // delete the point at this position
 bool Node::deletePoint(const LidarPoint &lidarPoint)
 {
-    for(int i=0;i<data.size();i++)
+    for(int i=0;i<pointIndices.size();i++)
     {
-        if(data.at(i)->position == lidarPoint.position)
+        if(mTree->mData->at(pointIndices.at(i)).position == lidarPoint.position)
         {
-            delete data.takeAt(i);
-            mTree->mNumberOfItems--;
+            // This is SLOOOOOOOW!
+            mTree->mData->remove(pointIndices.at(i));
+            pointIndices.remove(i);
             return true;
         }
     }
     return false;
 }
 
-LidarPoint* Node::getLidarPointFromIndex(const quint32 index)
+/*LidarPoint* Node::getLidarPointFromIndex(const quint32 index)
 {
     return &mTree->mData[index];
-}
+}*/

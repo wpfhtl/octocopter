@@ -19,17 +19,17 @@ public:
     bool operator==(const LidarPoint &other) const;
 
     // The node that we live in. This pointer is set by the node when it swallows us.
-    Node* node;
+    //Node* node;
 
     QVector3D position, laserPos;
 
     // Distances to other QVector3Ds
-    inline double distanceTo(const QVector3D &other) const { return (position-other).length(); }
-    inline double squaredDistanceTo(const QVector3D &other) const { return (position-other).lengthSquared(); }
+    inline float distanceTo(const QVector3D &other) const { return (position-other).length(); }
+    inline float squaredDistanceTo(const QVector3D &other) const { return (position-other).lengthSquared(); }
 
     // Distances to other LidarPoints
-    inline double distanceTo(const LidarPoint &other) const { return (position-other.position).length(); }
-    inline double squaredDistanceTo(const LidarPoint &other) const { return (position-other.position).lengthSquared(); }
+    inline float distanceTo(const LidarPoint &other) const { return (position-other.position).length(); }
+    inline float squaredDistanceTo(const LidarPoint &other) const { return (position-other.position).lengthSquared(); }
 };
 
 // for using qDebug() << ldp;

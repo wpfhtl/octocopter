@@ -1,6 +1,7 @@
 #ifndef OCTREE_H
 #define OCTREE_H
 
+#include <QVector>
 #include <QVector3D>
 #include <QList>
 #include <QColor>
@@ -20,7 +21,7 @@ class Octree : public QObject
 private:
     quint32 mMaxItemsPerLeaf;
 
-    quint32 mNumberOfItems;
+//    quint32 mNumberOfItems;
     quint32 mNumberOfNodes;
 
     // Indices/Offsets to the two last inserted LidarPoints. To be used for linear reduction.
@@ -29,7 +30,8 @@ private:
     Node* mRootNode;
 
     // Leafs store indexes pointing into this central data store.
-    LidarPoint* mData;
+//    LidarPoint* mData;
+    QVector<LidarPoint>* mData;
 
     // Its very likely that a point will be inserted into the same node as its predecessor.
     // Thus, it makes sense to cache the node that received the last point.
@@ -63,7 +65,7 @@ public:
     QColor mPointColor;
 
     // Give others access to our data
-    const LidarPoint* data() const {return mData;}
+    const QVector<LidarPoint>* data() const {return mData;}
 
     // No two points closer than @distance will be inserted into this octree
     float mMinimumPointDistance;
@@ -76,10 +78,10 @@ public:
 
     // Returns the N nearest neighbors of a given point in space. Result is not guaranteed to
     // be sorted by distance to @point.
-    QList<LidarPoint*> findNearestNeighbors(const QVector3D &point, const unsigned int count) const;
+    QList<const LidarPoint*> findNearestNeighbors(const QVector3D &point, const unsigned int count) const;
 
     // Returns pointers to all LidarPoints in @radius of @point.
-    QList<LidarPoint*> findNeighborsWithinRadius(const QVector3D &point, const double radius) const;
+    QList<const LidarPoint*> findNeighborsWithinRadius(const QVector3D &point, const double radius) const;
 
     // Returns only the number of points in @radius of @point. More efficient than the methods above
     // if you're not interested in the points themselves
@@ -89,7 +91,7 @@ public:
     bool isNeighborWithinRadius(const QVector3D &point, const double radius) const;
 
     // Sort @list oof points according to distance to @point
-    void sortPointList(const QVector3D &point, QList<LidarPoint*>* list) const;
+    void sortPointList(const QVector3D &point, QList<const LidarPoint*>* list) const;
 
     Node* insertPoint(LidarPoint* const point);
     Node* root();

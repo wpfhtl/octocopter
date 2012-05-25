@@ -10,16 +10,18 @@ BaseStation::BaseStation() : QMainWindow()
 //    QApplication::setFont(widgetFont);
 
     mOctree = new Octree(
-            QVector3D(-100, -100, -100), // min
-            QVector3D(100, 100, 100),  // max
-            1000);
+                QVector3D(-100, -100, -100), // min
+                QVector3D(100, 100, 100),  // max
+                1000, // maxItemsPerLeaf
+                1000000 // maxExpectedSize^
+                );
 
     mProgress = 0;
 
     mConnectionDialog = new ConnectionDialog(this);
     mConnectionDialog->exec();
 
-    mOctree->setMinimumPointDistance(0.0001f);
+    mOctree->setMinimumPointDistance(0.1f);
 //    mOctree->setPointHandler(OpenGlUtilities::drawPoint);
 
     mTimerStats = new QTimer(this);
@@ -339,6 +341,7 @@ void BaseStation::keyPressEvent(QKeyEvent* event)
 
 void BaseStation::slotWriteStats()
 {
+    return;
     static int second = 0;
     if(mOctree->getNumberOfItems() == 0 || mDateTimeLastLidarInput.secsTo(QDateTime::currentDateTime()) > 1)
     {

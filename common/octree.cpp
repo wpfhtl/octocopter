@@ -1,9 +1,12 @@
+#include <QTime>
 #include "octree.h"
+
 
 Octree::Octree(const QVector3D &min, const QVector3D &max, quint32 maxItemsPerLeaf, const quint32 expectedMaximumElementCount) :
     mMaxItemsPerLeaf(maxItemsPerLeaf),
     mExpectedMaximumElementCount(expectedMaximumElementCount),
-    mNumberOfItems(0),
+    mElementsStoredInAllVbos(0),
+//    mNumberOfItems(0),
     mNumberOfNodes(0),
     mLastInsertionNode(0),
     mMinimumPointDistance(0),
@@ -13,14 +16,24 @@ Octree::Octree(const QVector3D &min, const QVector3D &max, quint32 maxItemsPerLe
     mRootNode = new Node(this, 0, min, max);
     //mRootNode->mTree = this;
 
+    mPointColor = QColor(255,255,255,255);
+
     // Try to allocate our data storage
-    mData = (LidarPoint*)malloc(sizeof(LidarPoint) * mExpectedMaximumElementCount);
+    //mData = (LidarPoint*)malloc(sizeof(LidarPoint) * mExpectedMaximumElementCount);
+
+    // Using a QVector means that all elements will be initialized with the default c'tor :|
+    QTime profiler = QTime::currentTime();
+    mData = new QVector<LidarPoint>;
+    mData->reserve(mExpectedMaximumElementCount);
+    qDebug() << "Octree::Octree(): constructing memory storage for" << expectedMaximumElementCount << "elements took" << profiler.elapsed() << "ms.";
 }
 
 Octree::~Octree()
 {
     delete mRootNode;
-    free(mData);
+
+    mData->clear();
+    delete mData;
 }
 
 void Octree::setMinimumPointDistance(const float &distance)
@@ -31,7 +44,7 @@ void Octree::setMinimumPointDistance(const float &distance)
 void Octree::slotReset()
 {
     mRootNode->clearPoints();
-    mNumberOfItems = 0;
+//    mNumberOfItems = 0;
     mNumberOfNodes = 0;
     mMri1 = 0;
     mMri2 = 0;
@@ -245,9 +258,9 @@ const Node* Octree::root() const
     return mRootNode;
 }
 
-void Octree::sortPointList(const QVector3D &point, QList<LidarPoint*>* list) const
+void Octree::sortPointList(const QVector3D &point, QList<const LidarPoint*>* list) const
 {
-    QMap<double, LidarPoint*> distanceMap;
+    QMap<float, const LidarPoint*> distanceMap;
     for(int i=0;i<list->size();i++)
         distanceMap.insert(list->at(i)->squaredDistanceTo(point), list->at(i));
 
@@ -255,7 +268,7 @@ void Octree::sortPointList(const QVector3D &point, QList<LidarPoint*>* list) con
     // Use qDeleteAll() if you also want to delete() the pointers.
     list->clear();
 
-    QMap<double, LidarPoint*>::const_iterator i = distanceMap.constBegin();
+    QMap<float, const LidarPoint*>::const_iterator i = distanceMap.constBegin();
     while(i != distanceMap.constEnd())
     {
         list->append(i.value());
@@ -317,9 +330,9 @@ bool Octree::isNeighborWithinRadius(const QVector3D &point, const double radius)
 }
 
 // Returns all neighbors of the given point within @radius
-QList<LidarPoint*> Octree::findNeighborsWithinRadius(const QVector3D &point, const double radius) const
+QList<const LidarPoint*> Octree::findNeighborsWithinRadius(const QVector3D &point, const double radius) const
 {
-    QList<LidarPoint*> neighbors;
+    QList<const LidarPoint*> neighbors;
     Node* currentNode = mRootNode->getLeaf(point);
 
     // Go up the tree as long as our searchradius leaks from the node
@@ -337,11 +350,11 @@ QList<LidarPoint*> Octree::findNeighborsWithinRadius(const QVector3D &point, con
 }
 
 // Returns AT LEAST the @count nearest neighbors of @point, sorted by ascending distance
-QList<LidarPoint*> Octree::findNearestNeighbors(const QVector3D &point, const unsigned int count) const
+QList<const LidarPoint*> Octree::findNearestNeighbors(const QVector3D &point, const unsigned int count) const
 {
     // Ask the leaf including this point for its neighbors
     Node* containingNode = mRootNode->getLeaf(point);
-    QList<LidarPoint*> neighbors = containingNode->findNearestNeighbors(point, count);
+    QList<const LidarPoint*> neighbors = containingNode->findNearestNeighbors(point, count);
 
     // sort the possibly empty list of neighbors
     sortPointList(point, &neighbors);
@@ -433,7 +446,8 @@ void Octree::pointInsertedByNode(const LidarPoint* lp)
 
 unsigned int Octree::getNumberOfItems(void) const
 {
-    return mNumberOfItems;
+    return mData->size();
+    //return mNumberOfItems;
 }
 
 unsigned int Octree::getNumberOfNodes(void) const

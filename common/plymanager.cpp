@@ -219,14 +219,15 @@ bool PlyManager::savePly(const Node* node, QTextStream* stream, QProgressDialog*
     if(node->isLeaf())
     {
         // save the points into @stream
-        foreach(const LidarPoint* point, node->data)
+        for(int i=0;i<node->pointIndices.size();i++)
         {
-            (*stream) << point->position.x() << " " << point->position.y() << " " << point->position.z() << " ";
-            (*stream) << point->laserPos.x() << " " << point->laserPos.y() << " " << point->laserPos.z();
+            const LidarPoint point = node->mTree->data()->at(node->pointIndices.at(i));
+            (*stream) << point.position.x() << " " << point.position.y() << " " << point.position.z() << " ";
+            (*stream) << point.laserPos.x() << " " << point.laserPos.y() << " " << point.laserPos.z();
             (*stream) << endl;
         }
 
-        progress->setValue(progress->value()+node->data.size());
+        progress->setValue(progress->value()+node->pointIndices.size());
     }
     else
     {

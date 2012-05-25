@@ -33,6 +33,7 @@ protected:
 
     static void sortToShortestPath(QList<WayPoint> &wayPointsSetOnRover, const QVector3D &currentVehiclePosition);
     void setVbo();
+    bool insertPointsFromNode(const Node* node);
 
 public:
     // Here, basestation passes its own octree. Its up to the implementation to use it.
@@ -46,7 +47,7 @@ public:
     // Also note that some flightplanners may have more static datastructures than
     // octrees, so they need to know the bounding box of all points (slotSetScanVolume())
     // before you can insert any data. This is true for e.g. FlightPlannerCuda.
-    virtual void insertPoint(LidarPoint* const point) = 0;
+    virtual void insertPoint(const LidarPoint* const point);
 
     const QVector<Pose>& getVehiclePoses() { return mVehiclePoses; }
 
