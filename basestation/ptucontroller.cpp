@@ -1,7 +1,10 @@
 #include "ptucontroller.h"
 #include "ui_ptucontroller.h"
 
-PtuController::PtuController(const QString& deviceFile, QWidget *parent) : QDockWidget(parent), ui(new Ui::PtuController)
+PtuController::PtuController(const QString& deviceFile, QWidget *parent) :
+    QDockWidget(parent),
+    ui(new Ui::PtuController),
+    mTimerUpdateStatus(0)
 {
     ui->setupUi(this);
 
@@ -48,7 +51,8 @@ PtuController::~PtuController()
 
     mSerialPortPtu->deleteLater();
 
-    mTimerUpdateStatus->deleteLater();
+    if(mTimerUpdateStatus)
+        mTimerUpdateStatus->deleteLater();
 
     delete ui;
 }
