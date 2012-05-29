@@ -139,49 +139,11 @@ void FlightPlannerParticles::slotSetScanVolume(const QVector3D min, const QVecto
     if(mParticleSystem) mParticleSystem->setVolume(mScanVolumeMin, mScanVolumeMax);
 
     // Re-fill VoxelManager's data from basestations octree.
-    if(mOctree) insertPointsFromNode(mOctree->root());
+    if(mOctree) FlightPlannerInterface::insertPointsFromNode(mOctree->root());
 }
-
-bool FlightPlannerParticles::insertPointsFromNode(const Node* node)
-{
-    if(node->isLeaf())
-    {
-        for(int i=0;i<node->data.size();i++)
-            insertPoint(node->data.at(i));
-    }
-    else
-    {
-        // invoke recursively for childnodes/leafs
-        const QList<const Node*> childNodes = node->getAllChildLeafs();
-        foreach(const Node* childNode, childNodes)
-            if(!insertPointsFromNode(childNode))
-                return false;
-    }
-
-    return true;
-}
-
 
 void FlightPlannerParticles::slotProcessPhysics(bool process)
 {
-}
-
-void FlightPlannerParticles::slotSubmitGeneratedWayPoints()
-{
-    mWayPointsAhead->append(mWayPointsGenerated);
-    mWayPointsGenerated.clear();
-    sortToShortestPath(*mWayPointsAhead, mVehiclePoses.last().getPosition());
-    emit wayPointsSetOnRover(*mWayPointsAhead);
-    emit wayPoints(*mWayPointsAhead);
-
-    emit suggestVisualization();
-}
-
-void FlightPlannerParticles::slotDeleteGeneratedWayPoints()
-{
-    mWayPointsGenerated.clear();
-
-    emit suggestVisualization();
 }
 
 void FlightPlannerParticles::slotWayPointReached(const WayPoint wpt)

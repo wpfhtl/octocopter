@@ -20,6 +20,11 @@ layout(std140) uniform GlobalValues
 
 uniform float particleRadius;
 
+// For using fixed color, e.g. when rendering waypoints
+uniform vec4 fixedColor;
+uniform bool useFixedColor;
+
+
 void main()
 {
 
@@ -47,5 +52,9 @@ void main()
 
     //gl_FragDepth = (cameraPosition.z / cameraPosition.w + 1.0) / 2.0;
 
-    fragColor = colorGS_to_FS * diffuse_value;
+
+    if(useFixedColor)
+      fragColor = fixedColor;
+    else
+      fragColor = colorGS_to_FS * diffuse_value;
 }

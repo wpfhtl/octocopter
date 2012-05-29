@@ -209,49 +209,11 @@ void FlightPlannerCuda::slotSetScanVolume(const QVector3D min, const QVector3D m
     mVoxelManager->slotSetScanVolume(min, max);
 
     // Re-fill VoxelManager's data from basestations octree.
-    if(mOctree) insertPointsFromNode(mOctree->root());
+    if(mOctree) FlightPlannerInterface::insertPointsFromNode(mOctree->root());
 }
-
-bool FlightPlannerCuda::insertPointsFromNode(const Node* node)
-{
-    if(node->isLeaf())
-    {
-        for(int i=0;i<node->data.size();i++)
-            insertPoint(node->data.at(i));
-    }
-    else
-    {
-        // invoke recursively for childnodes/leafs
-        const QList<const Node*> childNodes = node->getAllChildLeafs();
-        foreach(const Node* childNode, childNodes)
-            if(!insertPointsFromNode(childNode))
-                return false;
-    }
-
-    return true;
-}
-
 
 void FlightPlannerCuda::slotProcessPhysics(bool process)
 {
-}
-
-void FlightPlannerCuda::slotSubmitGeneratedWayPoints()
-{
-    mWayPointsAhead->append(mWayPointsGenerated);
-    mWayPointsGenerated.clear();
-    sortToShortestPath(*mWayPointsAhead, mVehiclePoses.last().getPosition());
-    emit wayPointsSetOnRover(*mWayPointsAhead);
-    emit wayPoints(*mWayPointsAhead);
-
-    emit suggestVisualization();
-}
-
-void FlightPlannerCuda::slotDeleteGeneratedWayPoints()
-{
-    mWayPointsGenerated.clear();
-
-    emit suggestVisualization();
 }
 
 void FlightPlannerCuda::slotWayPointReached(const WayPoint wpt)

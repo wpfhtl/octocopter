@@ -10,14 +10,14 @@
 #include <QDebug>
 #include <QMessageBox>
 
-#ifdef BASESTATION
+//#ifdef BASESTATION
 #include <QWidget>
 #include <QProgressDialog>
 #include <octree.h>
 #include <flightplannerinterface.h>
 #include <lidarpoint.h>
 class FlightPlannerInterface;
-#endif
+//#endif
 
 class PlyManager : public QObject
 {

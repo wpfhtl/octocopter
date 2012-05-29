@@ -12,6 +12,7 @@ int main(int argc, char *argv[])
 
     Q_ASSERT(sizeof(QVector3D) == 12 && "ui.");
     Q_ASSERT(sizeof(QVector4D) == 16 && "ui.");
+    Q_ASSERT(sizeof(LidarPoint) == 24 && "lp off");
 
     QApplication app(argc, argv);
     app.setWindowIcon(QIcon(":/images/appicon.png"));

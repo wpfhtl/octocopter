@@ -175,11 +175,8 @@ bool PlyManager::savePly(const QVector<LidarPoint>& points, const QString &fileN
 
     foreach(const LidarPoint& point, points)
     {
-        const QVector3D normal = point.direction.normalized();
-
         stream << point.position.x() << " " << point.position.y() << " " << point.position.z() << " ";
-        stream << normal.x() << " " << normal.y() << " " << normal.z() << " ";
-        stream << point.distance;
+        stream << point.laserPos.x() << " " << point.laserPos.y() << " " << point.laserPos.z();
         stream << endl;
     }
 }
@@ -222,17 +219,15 @@ bool PlyManager::savePly(const Node* node, QTextStream* stream, QProgressDialog*
     if(node->isLeaf())
     {
         // save the points into @stream
-        foreach(const LidarPoint* point, node->data)
+        for(int i=0;i<node->pointIndices.size();i++)
         {
-            QVector3D normal = point->direction.normalized();
-
-            (*stream) << point->position.x() << " " << point->position.y() << " " << point->position.z() << " ";
-            (*stream) << normal.x() << " " << normal.y() << " " << normal.z() << " ";
-            (*stream) << point->distance;
+            const LidarPoint point = node->mTree->data()->at(node->pointIndices.at(i));
+            (*stream) << point.position.x() << " " << point.position.y() << " " << point.position.z() << " ";
+            (*stream) << point.laserPos.x() << " " << point.laserPos.y() << " " << point.laserPos.z();
             (*stream) << endl;
         }
 
-        progress->setValue(progress->value()+node->data.size());
+        progress->setValue(progress->value()+node->pointIndices.size());
     }
     else
     {
@@ -309,8 +304,7 @@ bool PlyManager::loadPly(QWidget* widget, const QList<Octree*>& trees, const QLi
                                         values.at(3).toDouble(),
                                         values.at(4).toDouble(),
                                         values.at(5).toDouble()
-                                        ),
-                                    values.at(6).toDouble()
+                                        )
                                     )
                                 );
                 }
@@ -328,8 +322,7 @@ bool PlyManager::loadPly(QWidget* widget, const QList<Octree*>& trees, const QLi
                                         values.at(3).toDouble(),
                                         values.at(4).toDouble(),
                                         values.at(5).toDouble()
-                                        ),
-                                    values.at(6).toDouble()
+                                        )
                                     )
                                 );
                 }

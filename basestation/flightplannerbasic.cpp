@@ -1,4 +1,5 @@
 #include "flightplannerbasic.h"
+#include "glwidget.h"
 
 FlightPlannerBasic::FlightPlannerBasic(QGLWidget* widget, Octree* pointCloud) : FlightPlannerInterface(widget, pointCloud)
 {
@@ -34,7 +35,8 @@ void FlightPlannerBasic::insertPoint(LidarPoint* const point)
 
         mOctree->setMinimumPointDistance(20);
 
-//        mOctree->setPointHandler(OpenGlUtilities::drawSphere);
+        // register new octree for rendering
+        mGlWidget->slotOctreeRegister(mOctree);
 
         connect(mOctree, SIGNAL(pointInserted(const LidarPoint*)), SLOT(slotPointInserted(const LidarPoint*)));
     }
@@ -49,11 +51,6 @@ void FlightPlannerBasic::slotPointInserted(const LidarPoint* lp)
     wayPoint.position.setY(wayPoint.position.y()+15.0);
 
     emit newWayPoint(wayPoint.position);
-}
-
-void FlightPlannerBasic::slotVisualize()
-{
-    if(mOctree) mOctree->handlePoints();
 }
 
 void FlightPlannerBasic::slotGenerateWaypoints()

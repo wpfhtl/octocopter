@@ -6,12 +6,13 @@ FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, Octree* pointClo
     mOctree = pointCloud;
     mGlWidget = 0;
     mParentWidget = widget;
-    mWayPointsAhead = new QList<WayPoint>;
-    mWayPointsPassed = new QList<WayPoint>;
-    mShaderProgramDefault = 0;
+    mShaderProgramDefault = mShaderProgramSpheres = 0;
     mBoundingBoxVbo = 0;
 
     mVehiclePoses.reserve(25 * 60 * 10); // enough poses for 10 minutes
+
+    mWaypointListMap.insert("ahead", new WayPointList(QColor(255,0,0,200)));
+    mWaypointListMap.insert("passed", new WayPointList(QColor(255,255,0,200)));
 
     qDebug() << "FlightPlannerInterface c'tor.";
 }
@@ -25,8 +26,31 @@ void FlightPlannerInterface::slotSetScanVolume(const QVector3D minBox, const QVe
     mScanVolumeMin = minBox;
     mScanVolumeMax = maxBox;
 
+    setVboBoundingBox();
+}
 
-    setVbo();
+bool FlightPlannerInterface::insertPointsFromNode(const Node* node)
+{
+    if(node->isLeaf())
+    {
+        for(int i=0;i<node->pointIndices.size();i++)
+            insertPoint(&node->mTree->data()->at(node->pointIndices.at(i)));
+    }
+    else
+    {
+        // invoke recursively for childnodes/leafs
+        const QList<const Node*> childNodes = node->getAllChildLeafs();
+        foreach(const Node* childNode, childNodes)
+            if(!insertPointsFromNode(childNode))
+                return false;
+    }
+
+    return true;
+}
+
+void FlightPlannerInterface::insertPoint(const LidarPoint* const point)
+{
+
 }
 
 void FlightPlannerInterface::slotClearVehiclePoses()
@@ -47,47 +71,6 @@ void FlightPlannerInterface::slotCheckWayPointsHashFromRover(const QString &hash
     }
 }
 
-void FlightPlannerInterface::sortToShortestPath(QList<WayPoint> &wayPoints, const QVector3D &currentVehiclePosition)
-{
-    //    qDebug() << "FlightPlannerInterface::sortToShortestPath(): vehicle is at" << currentVehiclePosition;
-
-    float distanceBefore = 0;
-    for(int i=1;i<wayPoints.size();i++) distanceBefore += wayPoints.at(i-1).distanceToLine(wayPoints.at(i), QVector3D());
-    //    qDebug() << "FlightPlannerInterface::sortToShortestPath(): total distance between" << wayPoints.size() << "points before:" << distanceBefore;
-
-    QList<WayPoint> wps(wayPoints);
-    float distanceBeforewps = 0;
-    for(int i=1;i<wps.size();i++) distanceBeforewps += wps.at(i-1).distanceToLine(wps.at(i), QVector3D());
-    //    qDebug() << "FlightPlannerInterface::sortToShortestPath(): wps total distance between" << wps.size() << "points before:" << distanceBeforewps;
-
-    wayPoints.clear();
-    wayPoints.append(currentVehiclePosition);
-
-    while(wps.size())
-    {
-        float closestNeighborDistance = INFINITY;
-        int indexOfClosestNeighbor = -1;
-
-        for(int i=0;i<wps.size();i++)
-        {
-            const float currentDistance = wayPoints.last().distanceToLine(wps.at(i), QVector3D());
-            if(currentDistance < closestNeighborDistance)
-            {
-                closestNeighborDistance = currentDistance;
-                indexOfClosestNeighbor = i;
-            }
-        }
-
-        wayPoints.append(wps.at(indexOfClosestNeighbor));
-        wps.removeAt(indexOfClosestNeighbor);
-    }
-
-    wayPoints.takeFirst();
-
-    float distanceAfter = 0;
-    for(int i=1;i<wayPoints.size();i++) distanceAfter += wayPoints.at(i-1).distanceToLine(wayPoints.at(i), QVector3D());
-    //    qDebug() << "FlightPlannerInterface::sortToShortestPath(): total distance between" << wayPoints.size() << "points after:" << distanceAfter;
-}
 
 const Pose FlightPlannerInterface::getLastKnownVehiclePose(void) const
 {
@@ -120,13 +103,13 @@ const QVector3D FlightPlannerInterface::getCurrentVehicleVelocity() const
 
 void FlightPlannerInterface::slotWayPointDelete(const quint16& index)
 {
-    if(mWayPointsAhead->size() <= index)
+    if(mWaypointListMap.value("ahead")->size() <= index)
     {
-        qWarning() << "FlightPlannerInterface::slotWayPointDelete(): cannot delete waypoint at index" << index << ", size is only" << mWayPointsAhead->size();
+        qWarning() << "FlightPlannerInterface::slotWayPointDelete(): cannot delete waypoint at index" << index << ", size is only" << mWaypointListMap.value("ahead")->size();
         return;
     }
 
-    mWayPointsAhead->removeAt(index);
+    mWaypointListMap["ahead"]->remove(index);
     emit wayPointDeleted(index);
     emit wayPointDeleteOnRover(index);
     emit suggestVisualization();
@@ -135,13 +118,13 @@ void FlightPlannerInterface::slotWayPointDelete(const quint16& index)
 // Called when the UI inserted a WPT. Tell the rover!
 void FlightPlannerInterface::slotWayPointInsert(const quint16& index, const WayPoint& wpt)
 {
-    if(index > mWayPointsAhead->size())
+    if(index > mWaypointListMap.value("ahead")->size())
     {
-        qWarning() << "FlightPlannerInterface::slotWayPointInsert(): cannot delete waypoint at index" << index << ", size is only" << mWayPointsAhead->size();
+        qWarning() << "FlightPlannerInterface::slotWayPointInsert(): cannot delete waypoint at index" << index << ", size is only" << mWaypointListMap.value("ahead")->size();
         return;
     }
 
-    mWayPointsAhead->insert(index, wpt);
+    mWaypointListMap["ahead"]->insert(index, wpt);
     emit wayPointInserted(index, wpt);
     emit wayPointInsertOnRover(index, wpt);
     emit suggestVisualization();
@@ -150,9 +133,9 @@ void FlightPlannerInterface::slotWayPointInsert(const quint16& index, const WayP
 // Called when rover inserted a wpt. DO NOT TELL ROVER to insert that same wpt again!
 void FlightPlannerInterface::slotWayPointInsertedByRover(const quint16& index, const WayPoint& wpt)
 {
-    if(index > mWayPointsAhead->size())
+    if(index > mWaypointListMap.value("ahead")->size())
     {
-        qWarning() << "FlightPlannerInterface::slotWayPointInsertedByRover(): cannot delete waypoint at index" << index << ", size is only" << mWayPointsAhead->size();
+        qWarning() << "FlightPlannerInterface::slotWayPointInsertedByRover(): cannot delete waypoint at index" << index << ", size is only" << mWaypointListMap.value("ahead")->size();
         return;
     }
 
@@ -161,39 +144,39 @@ void FlightPlannerInterface::slotWayPointInsertedByRover(const quint16& index, c
                 QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                 QString("Waypoint appended by rover: %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
 
-    mWayPointsAhead->insert(index, wpt);
+    mWaypointListMap["ahead"]->insert(index, wpt);
     emit wayPointInserted(index, wpt);
     emit suggestVisualization();
 }
 
 void FlightPlannerInterface::slotWayPointSwap(const quint16& i, const quint16& j)
 {
-    if(mWayPointsAhead->size() <= i || mWayPointsAhead->size() <= j)
+    if(mWaypointListMap.value("ahead")->size() <= i || mWaypointListMap.value("ahead")->size() <= j)
     {
-        qWarning() << "FlightPlannerInterface::slotWayPointSwap(): cannot swap waypoints at index" << i << "and" << j <<", size is only" << mWayPointsAhead->size();
+        qWarning() << "FlightPlannerInterface::slotWayPointSwap(): cannot swap waypoints at index" << i << "and" << j <<", size is only" << mWaypointListMap.value("ahead")->size();
         return;
     }
-    qDebug() << "FlightPlannerInterface::slotWayPointSwap(): swapping waypoints at index" << i << "and" << j <<", size is" << mWayPointsAhead->size();
+    qDebug() << "FlightPlannerInterface::slotWayPointSwap(): swapping waypoints at index" << i << "and" << j <<", size is" << mWaypointListMap.value("ahead")->size();
 
-    mWayPointsAhead->swap(i,j);
+    mWaypointListMap["ahead"]->swap(i,j);
 
     emit wayPointDeleted(j);
     emit wayPointDeleteOnRover(j);
-    emit wayPointInserted(j, mWayPointsAhead->at(j));
-    emit wayPointInsertOnRover(j, mWayPointsAhead->at(j));
+    emit wayPointInserted(j, mWaypointListMap["ahead"]->at(j));
+    emit wayPointInsertOnRover(j, mWaypointListMap["ahead"]->at(j));
     emit wayPointDeleted(i);
     emit wayPointDeleteOnRover(i);
-    emit wayPointInserted(i, mWayPointsAhead->at(i));
-    emit wayPointInsertOnRover(i, mWayPointsAhead->at(i));
+    emit wayPointInserted(i, mWaypointListMap["ahead"]->at(i));
+    emit wayPointInsertOnRover(i, mWaypointListMap["ahead"]->at(i));
 
     emit suggestVisualization();
 }
 
 void FlightPlannerInterface::slotWayPointsClear()
 {
-    mWayPointsAhead->clear();
-    emit wayPointsSetOnRover(*mWayPointsAhead);
-    emit wayPoints(*mWayPointsAhead);
+    mWaypointListMap["ahead"]->clear();
+    emit wayPointsSetOnRover(*mWaypointListMap["ahead"]->list());
+    emit wayPoints(*mWaypointListMap["ahead"]->list());
     emit suggestVisualization();
 }
 
@@ -201,7 +184,7 @@ void FlightPlannerInterface::slotWayPointReached(const WayPoint& wpt)
 {
     qDebug() << "FlightPlannerInterface::slotWayPointReached(): rover->baseconnection->flightplanner waypoint reached, so appending first element of mWayPointsAhead to mWayPointsPassed";
 
-    if(!mWayPointsAhead->size())
+    if(!mWaypointListMap.value("ahead")->size())
     {
         qWarning() << "FlightPlannerInterface::slotWayPointReached(): mWayPointsAhead is empty, how can you reach a waypoint?";
         return;
@@ -212,7 +195,7 @@ void FlightPlannerInterface::slotWayPointReached(const WayPoint& wpt)
                 QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                 QString("Reached waypoint %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
 
-    mWayPointsPassed->append(mWayPointsAhead->takeAt(0));
+    mWaypointListMap["passed"]->append(mWaypointListMap["ahead"]->takeAt(0));
     emit wayPointDeleted(0);
     qDebug() << "FlightPlannerInterface::slotWayPointReached(): rover->baseconnection->flightplanner waypoint reached, emitted wayPointDeleted(0)";
     emit suggestVisualization();
@@ -220,7 +203,8 @@ void FlightPlannerInterface::slotWayPointReached(const WayPoint& wpt)
 
 const QList<WayPoint> FlightPlannerInterface::getWayPoints()
 {
-    return *mWayPointsAhead;
+    return *mWaypointListMap.value("ahead")->list();
+    //return *mWayPointsAhead;
 }
 
 void FlightPlannerInterface::getScanVolume(QVector3D& min, QVector3D& max)
@@ -229,7 +213,7 @@ void FlightPlannerInterface::getScanVolume(QVector3D& min, QVector3D& max)
     max = mScanVolumeMax;
 }
 
-void FlightPlannerInterface::setVbo()
+void FlightPlannerInterface::setVboBoundingBox()
 {
     if(mBoundingBoxVbo == 0)
     {
@@ -285,10 +269,10 @@ void FlightPlannerInterface::setVbo()
 
     glBindBuffer(GL_ARRAY_BUFFER, mBoundingBoxVbo);
 
-    qDebug() << "FlightPlannerInterface::slotSetScanVolume(): reserving" << sizeof(float) * (mBoundingBoxVertices.size() + mBoundingBoxColors.size()) << "bytes in VBO...";
+    qDebug() << "FlightPlannerInterface::setVboBoundingBox(): reserving" << sizeof(float) * (mBoundingBoxVertices.size() + mBoundingBoxColors.size()) << "bytes in VBO...";
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * (mBoundingBoxVertices.size() + mBoundingBoxColors.size()), NULL, GL_STATIC_DRAW);
 
-    qDebug() << "FlightPlannerInterface::slotSetScanVolume(): copying" << mBoundingBoxVertices.size() * sizeof(float) << "bytes of vertices into VBO...";
+    qDebug() << "FlightPlannerInterface::setVboBoundingBox(): copying" << mBoundingBoxVertices.size() * sizeof(float) << "bytes of vertices into VBO...";
     glBufferSubData(
                 GL_ARRAY_BUFFER,
                 0, // offset in the VBO
@@ -296,7 +280,7 @@ void FlightPlannerInterface::setVbo()
                 (void*)(mBoundingBoxVertices.constData()) // data to store
                 );
 
-    qDebug() << "FlightPlannerInterface::slotSetScanVolume(): copying" << mBoundingBoxColors.size() * sizeof(float) << "bytes of colors into VBO...";
+    qDebug() << "FlightPlannerInterface::setVboBoundingBox(): copying" << mBoundingBoxColors.size() * sizeof(float) << "bytes of colors into VBO...";
     glBufferSubData(
                 GL_ARRAY_BUFFER,
                 mBoundingBoxVertices.size() * sizeof(float), // offset in the VBO
@@ -309,18 +293,13 @@ void FlightPlannerInterface::setVbo()
 
 void FlightPlannerInterface::slotVisualize()
 {
+    // Bounding Box
     // Initialize shaders and VBO if necessary
     if(mShaderProgramDefault == 0 && mGlWidget != 0)
     {
         mShaderProgramDefault = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
-
         glGenBuffers(1, &mBoundingBoxVbo);
-//        glBindBuffer(GL_ARRAY_BUFFER, mBoundingBoxVbo);
-//        qDebug() << "FlightPlannerInterface::slotSetScanVolume(): reserving" << sizeof(float) * (mBoundingBoxVertices.size() + mBoundingBoxColors.size()) << "bytes in VBO...";
-//        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * (mBoundingBoxVertices.size() + mBoundingBoxColors.size()), NULL, GL_STATIC_DRAW);
-//        glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-        setVbo();
+        setVboBoundingBox();
     }
 
     if(mShaderProgramDefault != 0)
@@ -328,7 +307,6 @@ void FlightPlannerInterface::slotVisualize()
         mShaderProgramDefault->bind();
         mShaderProgramDefault->setUniformValue("useFixedColor", true);
 
-//        glDisable(GL_CULL_FACE);
         glEnable(GL_BLEND);
         glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
         {
@@ -357,9 +335,73 @@ void FlightPlannerInterface::slotVisualize()
             glDisableVertexAttribArray(1);
         }
         glDisable(GL_BLEND);
-//        glEnable(GL_CULL_FACE);
         mShaderProgramDefault->release();
     }
+
+
+
+
+
+    // Waypoint Lists
+    // Initialize shaders and VBO if necessary
+    if(mShaderProgramSpheres == 0 && mGlWidget != 0)
+    {
+        mShaderProgramSpheres = new ShaderProgram(this, "shader-particles-vertex.c", "shader-particles-geometry.c", "shader-particles-fragment.c");
+    }
+
+    if(mShaderProgramSpheres != 0)
+    {
+        mShaderProgramSpheres->bind();
+        mShaderProgramSpheres->setUniformValue("useFixedColor", true);
+
+        glEnable(GL_BLEND);
+        glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
+        {
+            QMapIterator<QString, WayPointList*> i(mWaypointListMap);
+            while (i.hasNext()) {
+                i.next();
+                WayPointList *wpl = i.value();
+
+                mShaderProgramSpheres->setUniformValue("fixedColor",
+                                                       QVector4D(
+                                                           wpl->color().redF(),
+                                                           wpl->color().greenF(),
+                                                           wpl->color().blueF(),
+                                                           wpl->color().alphaF()
+                                                           )
+                                                       );
+
+                // Set particleRadius variable in the shader program
+                Q_ASSERT(glGetUniformLocation(mShaderProgramSpheres->programId(), "particleRadius") != -1);
+                glUniform1f(glGetUniformLocation(mShaderProgramSpheres->programId(), "particleRadius"), wpl->sphereSize);
+
+                glBindBuffer(GL_ARRAY_BUFFER, wpl->vbo());
+                // Make the contents of this array available at layout position vertexShaderVertexIndex in the vertex shader
+                Q_ASSERT(glGetAttribLocation(mShaderProgramSpheres->programId(), "in_position") != -1);
+                glEnableVertexAttribArray(glGetAttribLocation(mShaderProgramSpheres->programId(), "in_position"));
+                glVertexAttribPointer(glGetAttribLocation(mShaderProgramSpheres->programId(), "in_position"), 4, GL_FLOAT, GL_FALSE, 0, 0);
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+//                glBindBuffer(GL_ARRAY_BUFFER, mVboColors);
+//                Q_ASSERT(glGetAttribLocation(mShaderProgram->programId(), "in_color") != -1);
+//                glEnableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_color"));
+//                glVertexAttribPointer(glGetAttribLocation(mShaderProgram->programId(), "in_color"), 4, GL_FLOAT, GL_FALSE, 0, 0);
+//                glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+                // Draw using shaders
+                glDrawArrays(GL_POINTS, 0, wpl->list()->size());
+
+                glDisableVertexAttribArray(glGetAttribLocation(mShaderProgramSpheres->programId(), "in_position"));
+//                glDisableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_color"));
+            }
+        }
+        glDisable(GL_BLEND);
+        mShaderProgramSpheres->release();
+    }
+
+
+
+
 
     /* port to opengl4 core
     // Draw line between future waypoints
@@ -377,4 +419,22 @@ void FlightPlannerInterface::slotVisualize()
         glVertex3f(wpt.x(), wpt.y(), wpt.z());
     glEnd();
     */
+}
+
+
+void FlightPlannerInterface::slotDeleteGeneratedWayPoints()
+{
+    mWaypointListMap["generated"]->clear();
+    emit suggestVisualization();
+}
+
+void FlightPlannerInterface::slotSubmitGeneratedWayPoints()
+{
+    mWaypointListMap["ahead"]->append(mWaypointListMap.value("generated"));
+    mWaypointListMap["generated"]->clear();
+    mWaypointListMap["ahead"]->sortToShortestPath(mVehiclePoses.last().getPosition());
+    emit wayPointsSetOnRover(*mWaypointListMap.value("ahead")->list());
+    emit wayPoints(*mWaypointListMap.value("ahead")->list());
+
+    emit suggestVisualization();
 }
