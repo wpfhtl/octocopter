@@ -169,6 +169,7 @@ INCLUDE_DIRECTORIES(/usr/include
                     /opt/cuda-sdk/CUDALibraries/common/inc/
                     ${CMAKE_CURRENT_SOURCE_DIR}/qserialdevice/src/qserialdevice
                     ${BULLET_INCLUDES}
+                    ${IL_INCLUDE_DIR}
                     ${CMAKE_CURRENT_BINARY_DIR}
                     ${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
@@ -178,6 +179,7 @@ TARGET_LINK_LIBRARIES(basestation
                       qwt
                       ${QT_LIBRARIES}
                       ${BULLET_LIBRARIES}
+                      ${IL_LIBRARIES}
                       GL
                       GLEW
                       qserialdeviced
