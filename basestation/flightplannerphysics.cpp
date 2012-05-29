@@ -1,3 +1,6 @@
+#include <GL/glew.h>
+#include <GL/gl.h>
+
 #include <unistd.h>
 
 #include "flightplannerphysics.h"
@@ -7,6 +10,8 @@ FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, Octree* pointCloud) 
     // The octree is initialized on arrival of the first point, with this point at its center.
     // We do this so we can drop spheres only within the octree's XZ plane.
     mOctreeCollisionObjects = 0;
+
+    mWaypointListMap.insert("generated", new WayPointList(QColor(255,0,255,200)));
 
     mPhysicsProcessingActive = false;
 
@@ -54,9 +59,9 @@ FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, Octree* pointCloud) 
 
     mDeletionTriggerShape = new btBoxShape(
                 btVector3( // These are HALF-extents!
-                    (mScanVolumeMax.x() - mScanVolumeMin.x()) / 2,
-                    10,
-                    (mScanVolumeMax.z() - mScanVolumeMin.z()) / 2));
+                           (mScanVolumeMax.x() - mScanVolumeMin.x()) / 2,
+                           10,
+                           (mScanVolumeMax.z() - mScanVolumeMin.z()) / 2));
 
     mGhostObjectDeletionTrigger = new btGhostObject;
     mGhostObjectDeletionTrigger->setWorldTransform(mTransformDeletionTrigger);
@@ -75,22 +80,22 @@ FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, Octree* pointCloud) 
     mGhostObjectPointCloud->setRestitution(mDialog->getRestitutionGround());
     mGhostObjectPointCloud->setWorldTransform(lidarFloorTransform);
     mGhostObjectPointCloud->setCollisionShape(mPointCloudShape);
-//    mGhostObjectPointCloud->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
+    //    mGhostObjectPointCloud->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
     mBtWorld->addCollisionObject(mGhostObjectPointCloud, btBroadphaseProxy::SensorTrigger, btBroadphaseProxy::AllFilter & ~btBroadphaseProxy::SensorTrigger);
 
     // Set up vehicle collision avoidance. We create one normal btRigidBody to interact with the world and one ghost object to register collisions
     mTransformVehicle.setIdentity();
-//    mShapeVehicle = new btSphereShape(2.0);
+    //    mShapeVehicle = new btSphereShape(2.0);
     mMotionStateVehicle = new btDefaultMotionState;
     mBodyVehicle = new btRigidBody(btRigidBody::btRigidBodyConstructionInfo(1.0, mMotionStateVehicle, new btSphereShape(2.5), btVector3(0, 0, 0)));
-//    mBtWorld->addRigidBody(mBodyVehicle);
+    //    mBtWorld->addRigidBody(mBodyVehicle);
 
     mGhostObjectVehicle = new btPairCachingGhostObject;
     mGhostObjectVehicle->setFriction(10.0);
     mGhostObjectVehicle->setRestitution(0.5);
     mGhostObjectVehicle->setWorldTransform(mTransformVehicle);
     mGhostObjectVehicle->setCollisionShape(mBodyVehicle->getCollisionShape());
-//    mBtWorld->addCollisionObject(mGhostObjectVehicle, btBroadphaseProxy::SensorTrigger, btBroadphaseProxy::AllFilter & ~btBroadphaseProxy::SensorTrigger);
+    //    mBtWorld->addCollisionObject(mGhostObjectVehicle, btBroadphaseProxy::SensorTrigger, btBroadphaseProxy::AllFilter & ~btBroadphaseProxy::SensorTrigger);
 
     // register a ghost pair callback to activate the world's ghost functionality
     mBtBroadphase->getOverlappingPairCache()->setInternalGhostPairCallback(new btGhostPairCallback());
@@ -107,14 +112,14 @@ void FlightPlannerPhysics::slotCreateSafePathToNextWayPoint()
     slotDeleteSampleGeometry();
 
     // Set the vehicle to the vehicle's current position
-//    btTransform transformVehicle = getLastKnownVehiclePose().getTransform();
-//    mBodyVehicle->getMotionState()->setWorldTransform(transformVehicle);
-//    mBodyVehicle->getMotionState()->getWorldTransform(transformVehicle);
-//    mGhostObjectVehicle->setWorldTransform(transformVehicle);
+    //    btTransform transformVehicle = getLastKnownVehiclePose().getTransform();
+    //    mBodyVehicle->getMotionState()->setWorldTransform(transformVehicle);
+    //    mBodyVehicle->getMotionState()->getWorldTransform(transformVehicle);
+    //    mGhostObjectVehicle->setWorldTransform(transformVehicle);
     qDebug() << "initializing vehicle body and ghost object to" << mTransformVehicle.getOrigin().x() << mTransformVehicle.getOrigin().y() << mTransformVehicle.getOrigin().z();
 
     // Save gravity for later, then disable it.
-//    const btVector3 gravityOld = mBtWorld->getGravity();
+    //    const btVector3 gravityOld = mBtWorld->getGravity();
     mBtWorld->setGravity(btVector3(0,0,0));
 
     // Create the next waypoint in the physics world
@@ -137,13 +142,13 @@ void FlightPlannerPhysics::slotCreateSafePathToNextWayPoint()
     while(!wayPointReached)
     {
         // Make the vehicle's body rotate so that it will bounce upwards on collision.
-//        mBodyVehicle->setAngularVelocity(btVector3(1,2,3)); // TODO
+        //        mBodyVehicle->setAngularVelocity(btVector3(1,2,3)); // TODO
 
         // Apply a constant force to push the vehicle towards the waypoint
-//        mBodyVehicle->getMotionState()->getWorldTransform(transformVehicle);
+        //        mBodyVehicle->getMotionState()->getWorldTransform(transformVehicle);
         const btVector3 vectorToWayPoint = (wayPointPosition - mTransformVehicle.getOrigin()).normalized();
         qDebug() << "applying force" << vectorToWayPoint.x() << vectorToWayPoint.y() << vectorToWayPoint.z();
-//        mBodyVehicle->applyCentralForce(vectorToWayPoint*10);
+        //        mBodyVehicle->applyCentralForce(vectorToWayPoint*10);
         mBodyVehicle->applyCentralForce(btVector3(0,10,0));
 
         usleep(500000);
@@ -159,7 +164,7 @@ void FlightPlannerPhysics::slotCreateSafePathToNextWayPoint()
         suggestVisualization();
 
         // Move the vehicle ghost object to the vehicle's rigidBody
-//        done in slotVehiclePoseChanged now mBodyVehicle->getMotionState()->getWorldTransform(transformVehicle);
+        //        done in slotVehiclePoseChanged now mBodyVehicle->getMotionState()->getWorldTransform(transformVehicle);
         mTransformVehicle = mBodyVehicle->getWorldTransform();
         qDebug() << "after step, mBodyVehicle has moved to" << mTransformVehicle.getOrigin().x() << mTransformVehicle.getOrigin().y() << mTransformVehicle.getOrigin().z();
         mGhostObjectVehicle->setWorldTransform(mTransformVehicle);
@@ -224,7 +229,7 @@ void FlightPlannerPhysics::slotCreateSafePathToNextWayPoint()
     delete wayPointBody->getMotionState();
     delete wayPointBody->getCollisionShape();
 
-//    mBtWorld->setGravity(gravityOld);
+    //    mBtWorld->setGravity(gravityOld);
 }
 
 void FlightPlannerPhysics::slotInitialize()
@@ -239,22 +244,22 @@ FlightPlannerPhysics::~FlightPlannerPhysics()
     int i;
     for(i=mBtWorld->getNumCollisionObjects()-1; i>=0 ;i--)
     {
-            btCollisionObject* obj = mBtWorld->getCollisionObjectArray()[i];
-            btRigidBody* body = btRigidBody::upcast(obj);
-            if(body && body->getMotionState())
-            {
-                    delete body->getMotionState();
-            }
-            mBtWorld->removeCollisionObject(obj);
-            delete obj;
+        btCollisionObject* obj = mBtWorld->getCollisionObjectArray()[i];
+        btRigidBody* body = btRigidBody::upcast(obj);
+        if(body && body->getMotionState())
+        {
+            delete body->getMotionState();
+        }
+        mBtWorld->removeCollisionObject(obj);
+        delete obj;
     }
 
     //delete collision shapes
-//    for (int j=0;j<m_collisionShapes.size();j++)
-//    {
-//            btCollisionShape* shape = m_collisionShapes[j];
-//            delete shape;
-//    }
+    //    for (int j=0;j<m_collisionShapes.size();j++)
+    //    {
+    //            btCollisionShape* shape = m_collisionShapes[j];
+    //            delete shape;
+    //    }
 
     delete mLidarPointShape;
 
@@ -275,19 +280,18 @@ FlightPlannerPhysics::~FlightPlannerPhysics()
 
 void FlightPlannerPhysics::insertPoint(LidarPoint* const point)
 {
-//    return;
     if(mOctreeCollisionObjects == 0)
     {
         // Create the octree around the first arriving point.
         mOctreeCollisionObjects = new Octree(
-                point->position - QVector3D(10, 10, 10), // min
-                point->position + QVector3D(10, 10, 10),  // max
-                10);
+                    point->position - QVector3D(10, 10, 10), // min
+                    point->position + QVector3D(10, 10, 10),  // max
+                    10, //maxPerLeaf
+                    20000 // expectedMax
+                    );
 
+        mOctreeCollisionObjects->mPointColor = QColor(255,0,0,200);
         mOctreeCollisionObjects->setMinimumPointDistance(1.0);
-
-//        mOctreeCollisionObjects->setPointHandler(OpenGlUtilities::drawPoint);
-
         connect(mOctreeCollisionObjects, SIGNAL(pointInserted(const LidarPoint*)), SLOT(slotPointInserted(const LidarPoint*)));
     }
 
@@ -319,11 +323,41 @@ void FlightPlannerPhysics::slotPointInserted(const LidarPoint* lp)
     mPointCloudShape->addChildShape(mTransformLidarPoint, mLidarPointShape);
 }
 
-// NOT in a glBegin()/glEnd() pair.
 void FlightPlannerPhysics::slotVisualize()
 {
-//    mBtWorld->debugDrawWorld();
+    //    mBtWorld->debugDrawWorld();
     FlightPlannerInterface::slotVisualize();
+
+    if(mOctreeCollisionObjects)
+    {
+        mShaderProgramDefault->bind();
+        mShaderProgramDefault->setUniformValue("useFixedColor", true);
+        mShaderProgramDefault->setUniformValue("fixedColor",
+                                               QVector4D(
+                                                   mOctreeCollisionObjects->mPointColor.redF(),
+                                                   mOctreeCollisionObjects->mPointColor.greenF(),
+                                                   mOctreeCollisionObjects->mPointColor.blueF(),
+                                                   mOctreeCollisionObjects->mPointColor.alphaF()
+                                                   )
+                                               );
+
+        mOctreeCollisionObjects->updateVbo();
+
+        // Render pointcloud using all initialized VBOs (there might be none when no points exist)
+        QMapIterator<quint32, quint32> i(mOctreeCollisionObjects->mVboIdsAndSizes);
+        while(i.hasNext())
+        {
+            i.next();
+            glBindBuffer(GL_ARRAY_BUFFER, i.key());
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, 0);
+            glDrawArrays(GL_POINTS, 0, i.value()); // Number of Elements, not bytes
+            glDisableVertexAttribArray(0);
+        }
+
+        mShaderProgramDefault->release();
+
+    }
 
     /* This is OLD gl immediate mode, port it or lose it
     // Draw Octree
@@ -439,9 +473,9 @@ void FlightPlannerPhysics::slotSetScanVolume(const QVector3D min, const QVector3
 
     mDeletionTriggerShape = new btBoxShape(
                 btVector3( // These are HALF-extents!
-                    (mScanVolumeMax.x() - mScanVolumeMin.x()) / 1.8,
-                    5,
-                    (mScanVolumeMax.z() - mScanVolumeMin.z()) / 1.8)
+                           (mScanVolumeMax.x() - mScanVolumeMin.x()) / 1.8,
+                           5,
+                           (mScanVolumeMax.z() - mScanVolumeMin.z()) / 1.8)
                 );
     mGhostObjectDeletionTrigger->setCollisionShape(mDeletionTriggerShape);
     mGhostObjectDeletionTrigger->setWorldTransform(mTransformDeletionTrigger);
@@ -580,7 +614,7 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
 
     if(mPhysicsProcessingActive)
     {
-//        btTransform sampleSphereTransform;
+        //        btTransform sampleSphereTransform;
 
         // And now let them fall from the sky...
         while(true)
@@ -636,7 +670,7 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
 
             if(mGhostObjectDeletionTrigger->getNumOverlappingObjects())
             {
-//                qDebug() << "number of objects fallen through in this iteration:" << mGhostObjectDeletionTrigger->getNumOverlappingObjects();
+                //                qDebug() << "number of objects fallen through in this iteration:" << mGhostObjectDeletionTrigger->getNumOverlappingObjects();
                 if(!mFirstSphereHasHitThisIteration && false)
                 {
                     // first sphere! halt the processing and give time for a screenshot! Just for the paper...
@@ -653,7 +687,7 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
                 btRigidBody *rigidBody = dynamic_cast<btRigidBody *>(mGhostObjectDeletionTrigger->getOverlappingObject(j));
                 if(rigidBody)
                 {
-//                    qDebug() << "removing sphere that has dropped too far.";
+                    //                    qDebug() << "removing sphere that has dropped too far.";
 
                     // THIS IS THE INTERESTING PART! IF THE SPHERE HAS PREVIOUSLY HIT A LIDARPOINT, MAKE THAT A NEW WAYPOINT!
                     if(mLastSampleObjectHitPositions.contains(rigidBody))
@@ -661,26 +695,26 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
                         WayPoint w(mLastSampleObjectHitPositions.take(rigidBody) + QVector3D(0.0, /*5 * mShapeSampleSphere->getRadius()*/7.5, 0.0));
 
                         if( // only use waypoints in scanvolume
-                                   w.x() < mScanVolumeMax.x()
+                                w.x() < mScanVolumeMax.x()
                                 && w.y() < mScanVolumeMax.y()
                                 && w.z() < mScanVolumeMax.z()
                                 && w.x() > mScanVolumeMin.x()
                                 && w.y() > mScanVolumeMin.y()
                                 && w.z() > mScanVolumeMin.z()
-                        )
-                        mWaypointListMap["generated"]->append(w);
+                                )
+                            mWaypointListMap["generated"]->append(w);
 
                         // This would add the waypoint sphere as static object to the physics world
-//                        sampleSphereTransform.setOrigin(btVector3(w.x(), w.y(), w.z()));
-//                        // We don't need any inertia, mass etc,. as this body is static.
-//                        btDefaultMotionState* sampleSpherePointMotionState = new btDefaultMotionState(sampleSphereTransform);
-//                        btRigidBody::btRigidBodyConstructionInfo rbInfo(0, sampleSpherePointMotionState, mShapeSampleSphere, btVector3(0,0,0));
-//                        btRigidBody* bodyNew = new btRigidBody(rbInfo);
-//                        bodyNew->setFriction(0.01);
+                        //                        sampleSphereTransform.setOrigin(btVector3(w.x(), w.y(), w.z()));
+                        //                        // We don't need any inertia, mass etc,. as this body is static.
+                        //                        btDefaultMotionState* sampleSpherePointMotionState = new btDefaultMotionState(sampleSphereTransform);
+                        //                        btRigidBody::btRigidBodyConstructionInfo rbInfo(0, sampleSpherePointMotionState, mShapeSampleSphere, btVector3(0,0,0));
+                        //                        btRigidBody* bodyNew = new btRigidBody(rbInfo);
+                        //                        bodyNew->setFriction(0.01);
 
                         // Add the body to the dynamics world
-//                        mWayPoints.append(bodyNew);
-//                        mBtWorld->addRigidBody(bodyNew);
+                        //                        mWayPoints.append(bodyNew);
+                        //                        mBtWorld->addRigidBody(bodyNew);
                     }
 
                     btTransform pos;
@@ -713,7 +747,7 @@ void FlightPlannerPhysics::slotSubmitGeneratedWayPoints()
     emit wayPoints(*mWaypointListMap.value("ahead")->list());
 
     // just for creating paper-screenshots
-   slotDeleteSampleGeometry();
+    slotDeleteSampleGeometry();
     mFirstSphereHasHitThisIteration = false;
 
     emit suggestVisualization();
@@ -735,7 +769,7 @@ void FlightPlannerPhysics::slotWayPointReached(const WayPoint wpt)
 {
     FlightPlannerInterface::slotWayPointReached(wpt);
 
-//    slotCreateSafePathToNextWayPoint();
+    //    slotCreateSafePathToNextWayPoint();
 }
 
 void FlightPlannerPhysics::slotVehiclePoseChanged(const Pose& pose)

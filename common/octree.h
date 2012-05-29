@@ -25,7 +25,7 @@ private:
     quint32 mNumberOfNodes;
 
     // Indices/Offsets to the two last inserted LidarPoints. To be used for linear reduction.
-    quint32 mMri1, mMri2;
+//    quint32 mMri1, mMri2;
 
     Node* mRootNode;
 
@@ -45,6 +45,8 @@ public:
     Octree(const QVector3D &min, const QVector3D &max, const quint32 maxItemsPerLeaf, const quint32 expectedMaximumElementCount = 100 * 1000);
     ~Octree();
 
+    void updateVbo();
+
     // The octree is unlikely to grow bigger than this many elements.
     quint32 mExpectedMaximumElementCount;
 
@@ -59,9 +61,8 @@ public:
     // thing anyway.
     // Mapping from multiple VBO-ids to their currently used ELEMENTS stored
     QMap<quint32, quint32> mVboIdsAndSizes;
-    // Remember the number of elements stored in all used VBOs
+    // Remember the number of elements stored in all used VBOs. Could be summed up from above map, but seems expensive?!
     quint32 mElementsStoredInAllVbos;
-
     QColor mPointColor;
 
     // Give others access to our data

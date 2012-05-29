@@ -95,7 +95,7 @@ private slots:
     void slotGravityChanged(const QVector3D& gravity);
     void slotFrictionChanged(const float& frictionPointCloudGround, const float& frictionSampleGeometry);
     void slotRestitutionChanged(const float& restitutionPointCloudGround, const float& restitutionSampleGeometry);
-
+void insertPoint(LidarPoint *const point);ben
 public slots:
     void slotSetScanVolume(const QVector3D min, const QVector3D max);
 

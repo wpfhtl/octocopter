@@ -1,4 +1,7 @@
+#include <GL/glew.h>
+#include <GL/gl.h>
 #include <QTime>
+
 #include "octree.h"
 
 
@@ -9,9 +12,9 @@ Octree::Octree(const QVector3D &min, const QVector3D &max, quint32 maxItemsPerLe
 //    mNumberOfItems(0),
     mNumberOfNodes(0),
     mLastInsertionNode(0),
-    mMinimumPointDistance(-1.0f), // disable check by default
-    mMri1(0),
-    mMri2(0)
+    mMinimumPointDistance(-1.0f) // disable check by default
+//    mMri1(0),
+//    mMri2(0)
 {
     mRootNode = new Node(this, 0, min, max);
     //mRootNode->mTree = this;
@@ -46,8 +49,8 @@ void Octree::slotReset()
     mRootNode->clearPoints();
 //    mNumberOfItems = 0;
     mNumberOfNodes = 0;
-    mMri1 = 0;
-    mMri2 = 0;
+//    mMri1 = 0;
+//    mMri2 = 0;
     mLastInsertionNode = 0;
 }
 
@@ -453,4 +456,92 @@ unsigned int Octree::getNumberOfItems(void) const
 unsigned int Octree::getNumberOfNodes(void) const
 {
     return mNumberOfNodes;
+}
+
+void Octree::updateVbo()
+{
+    // Check whether this octree has more points stored than the VBO
+    quint32 numberOfPointsToStoreInAllVbos = getNumberOfItems() - mElementsStoredInAllVbos;
+
+    while(numberOfPointsToStoreInAllVbos)
+    {
+        // Insert the lidarpoints into any VBO that can accomodate them
+        // This maps from VBO-ID to numberOfElements (not bytes)
+        QMapIterator<quint32, quint32> it(mVboIdsAndSizes);
+        while(it.hasNext() && numberOfPointsToStoreInAllVbos)
+        {
+            it.next();
+
+            //qDebug() << "GlWidget::updateVbo(): checking VBO" << it.key() << "which already contains" << it.value() << "bytes...";
+
+            // Only fill this VBO if it has enough free space for at least one point
+            // An Octree can grow bigger than octree::mExpectedMaximumElementCount, but the VBOs are created for these many elements
+            const unsigned int numberOfPointsToStoreInThisVbo = std::min(numberOfPointsToStoreInAllVbos, mExpectedMaximumElementCount - it.value());
+
+            if(numberOfPointsToStoreInThisVbo)
+            {
+                glBindBuffer(GL_ARRAY_BUFFER, it.key());
+
+                quint32 byteOffset = it.value() * sizeof(LidarPoint);
+
+                // For updates < 32kb, glBufferSubData is supposed to be better than glMapBuffer
+                qDebug() << "GlWidget::updateVbo(): octree elements:" << mData->size() <<
+                            "appending" << numberOfPointsToStoreInThisVbo <<
+                            "elements /" << numberOfPointsToStoreInThisVbo * sizeof(LidarPoint) <<
+                            "bytes into VBO" << it.key() <<
+                            "at offset" << it.value() << "elements /" << byteOffset << "bytes";
+
+                //                    qDebug() << "GlWidget::updateVbo(): first x:" << ((LidarPoint*)(octree->data()->constData() + (it.value() * sizeof(LidarPoint))))->position.x();
+
+                /*qDebug() << "GlWidget::updateVbo(): last  x:" <<
+                                ((LidarPoint*)(
+                                     octree->data()->constData()
+                                     + ((numberOfPointsToStoreInThisVbo-2) * sizeof(LidarPoint))
+                                     + (it.value() * sizeof(LidarPoint))))
+                                ->position.x();*/
+
+                glBufferSubData(
+                            GL_ARRAY_BUFFER,
+                            byteOffset, // offset in the VBO
+                            numberOfPointsToStoreInThisVbo * sizeof(LidarPoint), // how many bytes to store?
+                            (void*)(mData->constData() + it.value()) // data to store
+                            );
+
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+                numberOfPointsToStoreInAllVbos -= numberOfPointsToStoreInThisVbo;
+
+                // Update the number of bytes used
+                mVboIdsAndSizes.insert(it.key(), it.value() + numberOfPointsToStoreInThisVbo);
+                mElementsStoredInAllVbos += numberOfPointsToStoreInThisVbo;
+            }
+        }
+
+        // We filled the existing VBOs with points above. But if we still
+        // have a numberOfPointsToStore, we need to create a new VBO
+        if(numberOfPointsToStoreInAllVbos)
+        {
+            // call glGetError() to clear eventually present errors
+            glGetError();
+
+            // Initialize the pointcloud-VBO
+            const quint32 vboNewByteSize = mExpectedMaximumElementCount * sizeof(LidarPoint);
+            GLuint vboNew;
+            glGenBuffers(1, &vboNew);
+            glBindBuffer(GL_ARRAY_BUFFER, vboNew);
+            glBufferData(GL_ARRAY_BUFFER, vboNewByteSize, NULL, GL_DYNAMIC_DRAW);
+
+            if(glGetError() == GL_NO_ERROR)
+            {
+                qDebug() << "GlWidget::updateVbo(): Created new VBO" << vboNew << "containing" << vboNewByteSize << "bytes";
+                mVboIdsAndSizes.insert(vboNew, 0);
+            }
+            else
+            {
+                qDebug() << "GlWidget::updateVbo(): Couldn't create VBO containing" << vboNewByteSize << "bytes!";
+            }
+
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+        }
+    }
 }

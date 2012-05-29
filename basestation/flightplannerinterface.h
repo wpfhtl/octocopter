@@ -57,7 +57,7 @@ public:
     // Also note that some flightplanners may have more static datastructures than
     // octrees, so they need to know the bounding box of all points (slotSetScanVolume())
     // before you can insert any data. This is true for e.g. FlightPlannerCuda.
-    virtual void insertPoint(const LidarPoint* const point);
+    virtual void insertPoint(const LidarPoint* const point) = 0;
 
     const QVector<Pose>& getVehiclePoses() { return mVehiclePoses; }
 

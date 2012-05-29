@@ -265,7 +265,8 @@ void BaseStation::slotNewScanData(const QVector<QVector3D>& pointList, const QVe
     {
         const QVector3D& p = pointList.at(i);
         mOctree->insertPoint(new LidarPoint(p, scannerPosition));
-        if(i%10 == 0) mFlightPlanner->insertPoint(new LidarPoint(p, scannerPosition));
+        if(i%10 == 0)
+            mFlightPlanner->insertPoint(new LidarPoint(p, scannerPosition));
     }
 
     // We only run/stats/logs for efficiency (paper) when scanning is in progress

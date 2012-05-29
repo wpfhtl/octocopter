@@ -48,11 +48,6 @@ bool FlightPlannerInterface::insertPointsFromNode(const Node* node)
     return true;
 }
 
-void FlightPlannerInterface::insertPoint(const LidarPoint* const point)
-{
-
-}
-
 void FlightPlannerInterface::slotClearVehiclePoses()
 {
     mVehiclePoses.clear();
@@ -337,10 +332,6 @@ void FlightPlannerInterface::slotVisualize()
         glDisable(GL_BLEND);
         mShaderProgramDefault->release();
     }
-
-
-
-
 
     // Waypoint Lists
     // Initialize shaders and VBO if necessary

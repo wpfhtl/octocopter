@@ -96,8 +96,6 @@ public slots:
 
     void slotNewVehiclePose(Pose);
 
-    void syncOctreeToVbo();
-
     void slotEnableTimerRotation(const bool& enable);
     void slotViewFromTop();
     void slotViewFromSide();

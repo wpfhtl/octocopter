@@ -357,7 +357,7 @@ bool Node::neighborsWithinRadius(const QVector3D &point, const float radius) con
             return true;
     }
 
-    qDebug() << "Node::neighborsWithinRadius(): checking" << pointIndices.size() << "points for neighborhood closer than" << radius << "to" << point << ": nothing found";
+//    qDebug() << "Node::neighborsWithinRadius(): checking" << pointIndices.size() << "points for neighborhood closer than" << radius << "to" << point << ": nothing found";
     return false;
 }
 
