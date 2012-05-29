@@ -9,14 +9,14 @@ Octree::Octree(const QVector3D &min, const QVector3D &max, quint32 maxItemsPerLe
 //    mNumberOfItems(0),
     mNumberOfNodes(0),
     mLastInsertionNode(0),
-    mMinimumPointDistance(0),
+    mMinimumPointDistance(-1.0f), // disable check by default
     mMri1(0),
     mMri2(0)
 {
     mRootNode = new Node(this, 0, min, max);
     //mRootNode->mTree = this;
 
-    mPointColor = QColor(255,255,255,255);
+    mPointColor = QColor(255,255,255,64);
 
     // Try to allocate our data storage
     //mData = (LidarPoint*)malloc(sizeof(LidarPoint) * mExpectedMaximumElementCount);

@@ -274,7 +274,7 @@ void GlWidget::paintGL()
                     glBindBuffer(GL_ARRAY_BUFFER, i.key());
                     glEnableVertexAttribArray(0);
                     //glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-                    qDebug() << "GlWidget::paintGL(): rendering octree" << octree << "vbo" << i.key() << "with" << i.value() << "elements";
+//                    qDebug() << "GlWidget::paintGL(): rendering octree" << octree << "vbo" << i.key() << "with" << i.value() << "elements";
                     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, 0);
                     glDrawArrays(GL_POINTS, 0, i.value()); // Number of Elements, not bytes
 

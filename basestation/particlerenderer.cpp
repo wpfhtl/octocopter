@@ -50,6 +50,8 @@ void ParticleRenderer::render()
     // Program needs to be in use before setting values to uniforms
     mShaderProgram->bind();
 
+    mShaderProgram->setUniformValue("useFixedColor", false);
+
     // Set particleRadius variable in the shader program
     Q_ASSERT(glGetUniformLocation(mShaderProgram->programId(), "particleRadius") != -1);
     glUniform1f(glGetUniformLocation(mShaderProgram->programId(), "particleRadius"), mParticleRadius);

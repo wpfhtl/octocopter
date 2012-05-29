@@ -146,24 +146,6 @@ void FlightPlannerParticles::slotProcessPhysics(bool process)
 {
 }
 
-void FlightPlannerParticles::slotSubmitGeneratedWayPoints()
-{
-    mWayPointsAhead->append(mWayPointsGenerated);
-    mWayPointsGenerated.clear();
-    sortToShortestPath(*mWayPointsAhead, mVehiclePoses.last().getPosition());
-    emit wayPointsSetOnRover(*mWayPointsAhead);
-    emit wayPoints(*mWayPointsAhead);
-
-    emit suggestVisualization();
-}
-
-void FlightPlannerParticles::slotDeleteGeneratedWayPoints()
-{
-    mWayPointsGenerated.clear();
-
-    emit suggestVisualization();
-}
-
 void FlightPlannerParticles::slotWayPointReached(const WayPoint wpt)
 {
     FlightPlannerInterface::slotWayPointReached(wpt);

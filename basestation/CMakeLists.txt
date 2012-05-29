@@ -14,6 +14,7 @@ SET(SRC_FILES
     logplayer
     ptucontroller
     camerawidget
+    waypointlist
     flightplannerinterface
     flightplannerbasic
     flightplannercuda
@@ -56,6 +57,7 @@ SET(INC_FILES
     logplayer.h
     ptucontroller.h
     camerawidget.h
+    waypointlist.h
     flightplannerinterface.h
     flightplannerbasic.h
     flightplannercuda.h

@@ -3,7 +3,6 @@
 
 #include <QApplication>
 
-#include "glwidget.h"
 #include "flightplannerinterface.h"
 #include "flightplannerphysicsdialog.h"
 #include "node.h"
@@ -36,7 +35,7 @@ private:
 
     bool mFirstSphereHasHitThisIteration;
 
-    QList<WayPoint> mWayPointsGenerated, mWayPointsDetour;
+//    QList<WayPoint> mWayPointsGenerated, mWayPointsDetour;
 
     // testing
 //    btTransform mDeletionTriggerTransform;

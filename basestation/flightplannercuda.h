@@ -54,8 +54,6 @@ signals:
 private slots:
     void slotGenerateWaypoints();
     void slotProcessPhysics(bool);
-    void slotSubmitGeneratedWayPoints();
-    void slotDeleteGeneratedWayPoints();
 
 public slots:
     void slotSetScanVolume(const QVector3D min, const QVector3D max);

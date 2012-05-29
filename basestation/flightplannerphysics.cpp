@@ -12,7 +12,7 @@ FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, Octree* pointCloud) 
 
     mFirstSphereHasHitThisIteration = false;
 
-    mDialog = new FlightPlannerPhysicsDialog(mGlWidget);
+    mDialog = new FlightPlannerPhysicsDialog(widget);
     connect(mDialog, SIGNAL(createSampleGeometry()), SLOT(slotCreateSampleGeometry()));
     connect(mDialog, SIGNAL(deleteSampleGeometry()), SLOT(slotDeleteSampleGeometry()));
     connect(mDialog, SIGNAL(processPhysics(bool)), SLOT(slotProcessPhysics(bool)));
@@ -118,7 +118,9 @@ void FlightPlannerPhysics::slotCreateSafePathToNextWayPoint()
     mBtWorld->setGravity(btVector3(0,0,0));
 
     // Create the next waypoint in the physics world
-    const btVector3 wayPointPosition(mWayPointsAhead->first().x(), mWayPointsAhead->first().y(), mWayPointsAhead->first().z());
+    const WayPoint wpt = mWaypointListMap.value("ahead")->first();
+    const btVector3 wayPointPosition(wpt.x(), wpt.y(), wpt.z());
+
     btRigidBody* wayPointBody = new btRigidBody(
                 btRigidBody::btRigidBodyConstructionInfo(
                     0.0,
@@ -666,7 +668,7 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
                                 && w.y() > mScanVolumeMin.y()
                                 && w.z() > mScanVolumeMin.z()
                         )
-                        mWayPointsGenerated.append(w);
+                        mWaypointListMap["generated"]->append(w);
 
                         // This would add the waypoint sphere as static object to the physics world
 //                        sampleSphereTransform.setOrigin(btVector3(w.x(), w.y(), w.z()));
@@ -699,13 +701,16 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
 
 void FlightPlannerPhysics::slotSubmitGeneratedWayPoints()
 {
-    mDialog->slotAppendMessage(QString("%1 waypoints present, adding another %2, then sorting.").arg(mWayPointsAhead->size()).arg(mWayPointsGenerated.size()));
+    mDialog->slotAppendMessage(QString("%1 waypoints present, adding another %2, then sorting.").arg(mWaypointListMap.value("ahead")->size()).arg(mWaypointListMap.value("generated")->size()));
 
-    mWayPointsAhead->append(mWayPointsGenerated);
-    mWayPointsGenerated.clear();
-    sortToShortestPath(*mWayPointsAhead, mVehiclePoses.last().getPosition());
-    emit wayPointsSetOnRover(*mWayPointsAhead);
-    emit wayPoints(*mWayPointsAhead);
+    mWaypointListMap["ahead"]->append(mWaypointListMap.value("generated"));
+    mWaypointListMap["generated"]->clear();
+
+    mWaypointListMap["ahead"]->sortToShortestPath(mVehiclePoses.last().getPosition());
+    //sortToShortestPath(*mWayPointsAhead, mVehiclePoses.last().getPosition());
+
+    emit wayPointsSetOnRover(*mWaypointListMap.value("ahead")->list());
+    emit wayPoints(*mWaypointListMap.value("ahead")->list());
 
     // just for creating paper-screenshots
    slotDeleteSampleGeometry();
@@ -716,9 +721,9 @@ void FlightPlannerPhysics::slotSubmitGeneratedWayPoints()
 
 void FlightPlannerPhysics::slotDeleteGeneratedWayPoints()
 {
-    mDialog->slotAppendMessage(QString("%1 generated waypoints deleted on user request.").arg(mWayPointsGenerated.size()));
+    mDialog->slotAppendMessage(QString("%1 generated waypoints deleted on user request.").arg(mWaypointListMap.value("generated")->size()));
 
-    mWayPointsGenerated.clear();
+    mWaypointListMap["generated"]->clear();
 
     // just for creating paper-screenshots
     mFirstSphereHasHitThisIteration = false;

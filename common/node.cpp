@@ -174,7 +174,7 @@ bool Node::insertAndReduce(LidarPoint* const lidarPoint)
 
         // Probably stupid, but lets start easy: Do not insert if it has N close-by neighbors
 //        if(!mTree->isNeighborWithinRadius(lidarPoint->position, mTree->mMinimumPointDistance))
-        if(!neighborsWithinRadius(lidarPoint->position, mTree->mMinimumPointDistance))
+        if(mTree->mMinimumPointDistance > 0.0f && !neighborsWithinRadius(lidarPoint->position, mTree->mMinimumPointDistance))
         {
             const quint32 masterStorageSize = mTree->mData->size();
             mTree->mData->append(*lidarPoint);
@@ -348,15 +348,16 @@ QList<const LidarPoint*> Node::findNearestNeighbors(const QVector3D &point, cons
 bool Node::neighborsWithinRadius(const QVector3D &point, const float radius) const
 {
     const float radiusSquared = SQR(radius);
-    qDebug() << "Node::neighborsWithinRadius(): checking" << pointIndices.size() << "points for neighborhood closer than" << radius << "to" << point;
+    //qDebug() << "Node::neighborsWithinRadius(): checking" << pointIndices.size() << "points for neighborhood closer than" << radius << "to" << point;
 
     for(int i=0;i<pointIndices.size();i++)
     {
-        const float distanceToPointSquared = mTree->mData->at(i).squaredDistanceTo(point);
+        const float distanceToPointSquared = mTree->mData->at(pointIndices.at(i)).squaredDistanceTo(point);
         if(distanceToPointSquared <= radiusSquared)
             return true;
     }
 
+    qDebug() << "Node::neighborsWithinRadius(): checking" << pointIndices.size() << "points for neighborhood closer than" << radius << "to" << point << ": nothing found";
     return false;
 }
 

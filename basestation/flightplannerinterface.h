@@ -1,12 +1,12 @@
 #ifndef FLIGHTPLANNERINTERFACE_H
 #define FLIGHTPLANNERINTERFACE_H
 
-#include <QObject>
 #include <QGLWidget>
+#include <QMap>
 #include "octree.h"
 #include "openglutilities.h"
 #include "shaderprogram.h"
-#include <waypoint.h>
+#include "waypointlist.h"
 #include <pose.h>
 
 class Pose;
@@ -15,24 +15,34 @@ class GlWidget;
 class FlightPlannerInterface : public QObject
 {
     Q_OBJECT
+public:
+
+/*
 private:
+    bool containsWaypointList(const QString& name) const {return mWaypointListMap.contains(name);}
+    void addWaypointList(const QString& name, const QColor& color = QColor(128,128,128,255));
+    bool removeWaypointList(const QString& name);
+*/
 
 protected:
-    Octree* mOctree;
+    Octree* mOctree; // a pointer to the basestations surface reconstruction octree with fine details
     QVector3D mScanVolumeMin, mScanVolumeMax;
     QVector<Pose> mVehiclePoses;
     GlWidget* mGlWidget;
     QWidget* mParentWidget;
-    QList<WayPoint>* mWayPointsAhead, *mWayPointsPassed;
+
+    //QList<WayPoint>* mWayPointsAhead, *mWayPointsPassed;
+    // A map, mapping from name to waypointlist. Names are e.g. waypoints_ahead, waypoints_passed etc.
+    QMap<QString, WayPointList*> mWaypointListMap;
 
     unsigned int mBoundingBoxVbo;
     QVector<float> mBoundingBoxVertices;
     QVector<float> mBoundingBoxColors;
 
-    ShaderProgram* mShaderProgramDefault;
+    ShaderProgram *mShaderProgramDefault, *mShaderProgramSpheres;
 
     static void sortToShortestPath(QList<WayPoint> &wayPointsSetOnRover, const QVector3D &currentVehiclePosition);
-    void setVbo();
+    void setVboBoundingBox();
     bool insertPointsFromNode(const Node* node);
 
 public:
@@ -57,6 +67,10 @@ public:
     const QList<WayPoint> getWayPoints();
 
     void getScanVolume(QVector3D& min, QVector3D& max);
+
+private slots:
+    void slotDeleteGeneratedWayPoints();
+    void slotSubmitGeneratedWayPoints();
 
 public slots:
     void slotWayPointDelete(const quint16& index);
@@ -96,8 +110,8 @@ signals:
     // Emitted to tell the rover that it should delete waypoint @index
     void wayPointDeleteOnRover(const quint16& index);
 
-    void wayPointsSetOnRover(QList<WayPoint>);
-    void wayPoints(QList<WayPoint>);
+    void wayPointsSetOnRover(const QList<WayPoint>);
+    void wayPoints(const QList<WayPoint>);
 
     void suggestVisualization();
 };
