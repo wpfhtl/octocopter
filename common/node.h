@@ -50,11 +50,11 @@ public:
     // On successful insertion, returns a pointer to the node which swallowed the point.
     // If the point is discarded, 0 is returned instead.
     // Warning: You pass ownership to this Node, and the point might get deleted if its found to be of low value.
-    Node* insertPoint(LidarPoint* const lidarPoint);
+    Node* insertPoint(LidarPoint* lidarPoint);
     bool isLeaf(void) const;
 
-    // If this method decides that this point is not worth its memory, it will delete the point!
-    bool insertAndReduce(LidarPoint* const lidarPoint);
+    // If this method decides that this point is not worth its memory, it will delete the point and set @lidarPoint to 0
+    bool insertAndReduce(LidarPoint* lidarPoint);
 
     // delete the point at this memory address
     //bool deletePoint(LidarPoint* const lidarPoint);

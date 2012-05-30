@@ -108,7 +108,7 @@ FlightPlannerParticles::~FlightPlannerParticles()
     cudaDeviceReset();
 }
 
-void FlightPlannerParticles::insertPoint(LidarPoint* const point)
+void FlightPlannerParticles::insertPoint(LidarPoint* point)
 {
     //mVoxelManager->setVoxelValue(point->position, true);
 }

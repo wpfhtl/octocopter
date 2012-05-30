@@ -25,7 +25,7 @@ public:
     FlightPlannerParticles(QWidget* glWidget, Octree* pointCloud);
     ~FlightPlannerParticles();
 
-    void insertPoint(LidarPoint* const point);
+    void insertPoint(LidarPoint* point);
 
 private:
 

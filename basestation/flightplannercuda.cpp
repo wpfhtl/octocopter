@@ -159,7 +159,7 @@ FlightPlannerCuda::~FlightPlannerCuda()
     cudaDeviceReset();
 }
 
-void FlightPlannerCuda::insertPoint(LidarPoint* const point)
+void FlightPlannerCuda::insertPoint(LidarPoint* point)
 {
     mVoxelManager->setVoxelValue(point->position, true);
 }

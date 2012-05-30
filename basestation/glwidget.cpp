@@ -143,30 +143,6 @@ void GlWidget::initializeGL()
     // Set Line Antialiasing
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 
-    //    glEnable(GL_LIGHTING);
-    //    glEnable(GL_LIGHT0);
-
-    // Enable Blending and set the type to be used
-    //    glEnable(GL_BLEND);
-    //    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    //    glBlendFunc( GL_SRC_ALPHA, GL_ONE );
-    //    glBlendFunc( GL_ZERO, GL_ONE_MINUS_SRC_ALPHA );
-    //    glBlendFunc( GL_SRC_ALPHA_SATURATE, GL_ONE );
-    //    glBlendFunc(GL_ONE_MINUS_DST_ALPHA,GL_DST_ALPHA);
-
-    // Just for debugging
-    /*
-    QVector<QVector3D> p;
-    p.append(QVector3D(0, 0, 0));
-    p.append(QVector3D(0, 0, 1.0));
-    p.append(QVector3D(0, 1.0, 0));
-    p.append(QVector3D(0, 1.0, 1.0));
-    p.append(QVector3D(1.0, 0, 0));
-    p.append(QVector3D(1.0, 0, 1.0));
-    p.append(QVector3D(1.0, 1.0, 0));
-    p.append(QVector3D(1.0, 1.0, 1.0));
-    syncOctreeToVbo(p);*/
-
     // Find the oktokopter model and load it
     QDir modelPath = QDir::current();
     modelPath.cdUp();
@@ -244,6 +220,8 @@ void GlWidget::paintGL()
         mTimerIdZoom = 0;
     }
 
+    mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
+    mShaderProgramDefault->setUniformValue("matrixExtra", QMatrix4x4());
     emit visualizeNow();
 
     mShaderProgramDefault->bind();
@@ -273,20 +251,8 @@ void GlWidget::paintGL()
                     i.next();
                     glBindBuffer(GL_ARRAY_BUFFER, i.key());
                     glEnableVertexAttribArray(0);
-                    //glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-//                    qDebug() << "GlWidget::paintGL(): rendering octree" << octree << "vbo" << i.key() << "with" << i.value() << "elements";
                     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, 0);
                     glDrawArrays(GL_POINTS, 0, i.value()); // Number of Elements, not bytes
-
-//                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, 0);
-//                    glDrawArrays(GL_POINTS, 0, i.value()); // Number of Elements, not bytes
-
-//                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, 0);
-//                    glDrawArrays(GL_POINTS, 0, i.value()); // Number of Elements, not bytes
-
-//                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, 0);
-//                    glDrawArrays(GL_POINTS, 0, i.value()); // Number of Elements, not bytes
-
                     glDisableVertexAttribArray(0);
                 }
             }
@@ -332,7 +298,6 @@ void GlWidget::paintGL()
 
     mModelVehicle->slotSetModelTransform(mLastKnownVehiclePose.getMatrix());
     mModelVehicle->render();
-
     //    qDebug() << "GlWidget::paintGL(): rendering time in milliseconds:" << renderTime.elapsed();
 }
 

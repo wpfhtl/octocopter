@@ -34,7 +34,7 @@ bool FlightPlannerInterface::insertPointsFromNode(const Node* node)
     if(node->isLeaf())
     {
         for(int i=0;i<node->pointIndices.size();i++)
-            insertPoint(&node->mTree->data()->at(node->pointIndices.at(i)));
+            insertPoint(new LidarPoint(node->mTree->data()->at(node->pointIndices.at(i))));
     }
     else
     {
@@ -259,13 +259,13 @@ void FlightPlannerInterface::setVboBoundingBox()
 
     // Fill the color buffer. When we have e.g. 24 vertices, we need one color (=4 floats)
     // for every vertex. So, 24 colors also make up 96 floats, same as the floats for vertices.
-    mBoundingBoxColors.clear();
-    mBoundingBoxColors.fill(1.0f, mBoundingBoxVertices.size()); // half-transparent gray. Beautiful! :|
+//    mBoundingBoxColors.clear();
+//    mBoundingBoxColors.fill(1.0f, mBoundingBoxVertices.size()); // half-transparent gray. Beautiful! :|
 
     glBindBuffer(GL_ARRAY_BUFFER, mBoundingBoxVbo);
 
-    qDebug() << "FlightPlannerInterface::setVboBoundingBox(): reserving" << sizeof(float) * (mBoundingBoxVertices.size() + mBoundingBoxColors.size()) << "bytes in VBO...";
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * (mBoundingBoxVertices.size() + mBoundingBoxColors.size()), NULL, GL_STATIC_DRAW);
+    qDebug() << "FlightPlannerInterface::setVboBoundingBox(): reserving" << sizeof(float) * (mBoundingBoxVertices.size() /*+ mBoundingBoxColors.size()*/) << "bytes in VBO...";
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * (mBoundingBoxVertices.size() /*+ mBoundingBoxColors.size()*/), NULL, GL_STATIC_DRAW);
 
     qDebug() << "FlightPlannerInterface::setVboBoundingBox(): copying" << mBoundingBoxVertices.size() * sizeof(float) << "bytes of vertices into VBO...";
     glBufferSubData(
@@ -276,12 +276,12 @@ void FlightPlannerInterface::setVboBoundingBox()
                 );
 
     qDebug() << "FlightPlannerInterface::setVboBoundingBox(): copying" << mBoundingBoxColors.size() * sizeof(float) << "bytes of colors into VBO...";
-    glBufferSubData(
-                GL_ARRAY_BUFFER,
-                mBoundingBoxVertices.size() * sizeof(float), // offset in the VBO
-                mBoundingBoxColors.size() * sizeof(float), // how many bytes to store?
-                (void*)(mBoundingBoxColors.constData()) // data to store
-                );
+//    glBufferSubData(
+//                GL_ARRAY_BUFFER,
+//                mBoundingBoxVertices.size() * sizeof(float), // offset in the VBO
+//                mBoundingBoxColors.size() * sizeof(float), // how many bytes to store?
+//                (void*)(mBoundingBoxColors.constData()) // data to store
+//                );
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
@@ -307,12 +307,12 @@ void FlightPlannerInterface::slotVisualize()
         {
             glBindBuffer(GL_ARRAY_BUFFER, mBoundingBoxVbo);
             glEnableVertexAttribArray(0);
-            glEnableVertexAttribArray(1);
+//            glEnableVertexAttribArray(1);
             glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0); // position
-            glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, (void*)(mBoundingBoxVertices.size() * sizeof(float))); // color
+//            glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, (void*)(mBoundingBoxVertices.size() * sizeof(float))); // color
 
             // draw the lines around the box
-            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(0.6f, 0.6f, 1.0f, 0.1f));
+            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(0.6f, 0.6f, 1.0f, 0.2f));
             glDrawArrays(GL_LINE_LOOP, 0, 4);
             glDrawArrays(GL_LINE_LOOP, 4, 4);
             glDrawArrays(GL_LINE_LOOP, 8, 4);
@@ -321,13 +321,11 @@ void FlightPlannerInterface::slotVisualize()
             glDrawArrays(GL_LINE_LOOP, 20, 4);
 
             // draw a half-transparent box
-            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(1.0f, 1.0f, 1.0f, 0.015f));
-            glDrawArrays(GL_QUADS, 0, 20);
-            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(1.0f, 1.0f, 1.0f, 0.030f));
-            glDrawArrays(GL_QUADS, 20, 4);
+//            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(1.0f, 1.0f, 1.0f, 0.015f));
+//            glDrawArrays(GL_QUADS, 0, 24);
 
             glDisableVertexAttribArray(0);
-            glDisableVertexAttribArray(1);
+//            glDisableVertexAttribArray(1);
         }
         glDisable(GL_BLEND);
         mShaderProgramDefault->release();
@@ -370,7 +368,7 @@ void FlightPlannerInterface::slotVisualize()
                 // Make the contents of this array available at layout position vertexShaderVertexIndex in the vertex shader
                 Q_ASSERT(glGetAttribLocation(mShaderProgramSpheres->programId(), "in_position") != -1);
                 glEnableVertexAttribArray(glGetAttribLocation(mShaderProgramSpheres->programId(), "in_position"));
-                glVertexAttribPointer(glGetAttribLocation(mShaderProgramSpheres->programId(), "in_position"), 4, GL_FLOAT, GL_FALSE, 0, 0);
+                glVertexAttribPointer(glGetAttribLocation(mShaderProgramSpheres->programId(), "in_position"), 3, GL_FLOAT, GL_FALSE, 0, 0);
                 glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 //                glBindBuffer(GL_ARRAY_BUFFER, mVboColors);

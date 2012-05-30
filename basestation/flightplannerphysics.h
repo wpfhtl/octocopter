@@ -8,7 +8,7 @@
 #include "node.h"
 #include "lidarpoint.h"
 #include <waypoint.h>
-#include "openglutilities.h"
+//#include "openglutilities.h"
 
 #include "bulletdebugdrawergl.h"
 
@@ -23,15 +23,63 @@ public:
     FlightPlannerPhysics(QWidget* widget, Octree* pointCloud);
     ~FlightPlannerPhysics();
 
-    void insertPoint(LidarPoint* const point);
+    void insertPoint(LidarPoint* point);
 
     qint64 getNumberOfPointsInCollisionOctree();
 
 private:
+
+
+
+
+
+    class CollisionSphereState : public btMotionState
+    {
+    protected:
+//        quint16 mIndex; // The serial number of this collision sphere. Will be used to update the right place in the spheres-vbo
+        btTransform mTransform;
+//        quint32 mVbo; // the VBO storing the sample sphere positions. Will be updated from setWroldTransform, which is called by bullet
+
+    public:
+        CollisionSphereState(const btTransform& transform) : mTransform(transform)
+        {
+//            updateVbo();
+        }
+
+        virtual void getWorldTransform(btTransform &ret) const
+        {
+            ret = mTransform;
+        }
+
+        virtual void setWorldTransform(const btTransform &in)
+        {
+            mTransform = in;
+            //updateVbo(); we could do it here, but thats scattered. Rather do it in a loop after mBtWorld->step()
+        }
+
+        void updateVbo(const quint32 vbo, const quint32 index);
+/*
+        QVector3D getPosition(void) const
+        {
+            const btVector3 pos = mTransform.getOrigin();
+            return QVector3D(pos.x(), pos.y(), pos.z());
+        }
+
+        QQuaternion getOrientation(void) const
+        {
+            btQuaternion rot = mTransform.getRotation();
+            return QQuaternion(rot.w(), rot.x(), rot.y(), rot.z());
+        }*/
+    };
+
     Octree* mOctreeCollisionObjects;
     FlightPlannerPhysicsDialog* mDialog;
     BulletDebugDrawerGl* mDbgDrawer;
     bool mPhysicsProcessingActive;
+
+    quint32 mDeletionTriggerVbo;
+
+    quint32 mSampleSphereVbo;
 
     bool mFirstSphereHasHitThisIteration;
 
@@ -95,7 +143,7 @@ private slots:
     void slotGravityChanged(const QVector3D& gravity);
     void slotFrictionChanged(const float& frictionPointCloudGround, const float& frictionSampleGeometry);
     void slotRestitutionChanged(const float& restitutionPointCloudGround, const float& restitutionSampleGeometry);
-void insertPoint(LidarPoint *const point);ben
+
 public slots:
     void slotSetScanVolume(const QVector3D min, const QVector3D max);
 

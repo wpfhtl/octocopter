@@ -26,7 +26,7 @@ public:
     FlightPlannerCuda(QWidget* widget, Octree* pointCloud);
     ~FlightPlannerCuda();
 
-    void insertPoint(LidarPoint* const point);
+    void insertPoint(LidarPoint* point);
 
 private:
 

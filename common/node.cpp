@@ -127,7 +127,7 @@ bool Node::includesData(const LidarPoint &lidarPoint)
     }
 }*/
 
-bool Node::insertAndReduce(LidarPoint* const lidarPoint)
+bool Node::insertAndReduce(LidarPoint* lidarPoint)
 {
     // Linear reduction:
     // If there have been two points inserted before, check whether @lidarPoint is close to where
@@ -194,13 +194,14 @@ bool Node::insertAndReduce(LidarPoint* const lidarPoint)
         {
             // We delete the point, as it does not contain much information. Haha.
             delete lidarPoint;
+            lidarPoint = 0;
             return false;
         }
     }
 
 }
 
-Node* Node::insertPoint(LidarPoint* const lidarPoint) // a const pointer to a non-const LidarPoint
+Node* Node::insertPoint(LidarPoint* lidarPoint) // a const pointer to a non-const LidarPoint
 {
     // Insert a lidarPoint. If we are a leaf and we contain the point, go ahead
     //    qDebug() << "Node::insertPoint(): inserting point to node" << this << "at" << lidarPoint->position;

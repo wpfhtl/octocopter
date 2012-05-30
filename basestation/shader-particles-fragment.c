@@ -51,10 +51,18 @@ void main()
 //     cameraPosition = matProjection * matModelView * cameraPosition;
 
     //gl_FragDepth = (cameraPosition.z / cameraPosition.w + 1.0) / 2.0;
+    //vec4 clipPos = matrixCameraToClip * cameraPosition;
+//float ndcDepth = clipPos.z / clipPos.w;
+//gl_FragDepth = ((gl_DepthRange.diff * ndcDepth) + gl_DepthRange.near + gl_DepthRange.far) / 2.0;
 
 
     if(useFixedColor)
-      fragColor = fixedColor;
+    {
+      fragColor = fixedColor * diffuse_value;
+      fragColor.w = 1.0;
+    }
     else
+    {
       fragColor = colorGS_to_FS * diffuse_value;
+    }
 }
