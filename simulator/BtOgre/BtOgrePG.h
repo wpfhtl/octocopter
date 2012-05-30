@@ -77,6 +77,9 @@ class RigidBodyState : public QObject, public btMotionState
                             roll.valueDegrees()
                             );
 
+                // Whee, we are precise!!
+                p.precision = Pose::ModeIntegrated | Pose::AttitudeAvailable | Pose::HeadingFixed | Pose::RtkFixed | Pose::CorrectionAgeLow;
+
 //                qDebug() << "RigidBodyState::setWorldTransform(): new" << p;
                 emit newPose(p);
             }

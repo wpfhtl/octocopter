@@ -7,7 +7,6 @@
 #include <QColor>
 
 #include "node.h"
-//#include "lidarpoint.h"
 
 class LidarPoint;
 class Node;

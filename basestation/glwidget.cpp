@@ -20,9 +20,6 @@ GlWidget::GlWidget(QWidget* parent, FlightPlannerInterface* flightPlanner) :
 
     mCameraPosition = QVector3D(0.0f, 500.0f, 500.0f);
 
-//    mVboPointCloudBytesCurrent = 0;
-//    mVboPointCloudBytesMax = 2 * 1000 * 1000 * sizeof(QVector3D); // storage for 2 million points
-
     mVboVehiclePathElementSize = sizeof(QVector3D) + sizeof(QVector4D); // position and color with alpha
     mVboVehiclePathBytesMaximum = (3600 * 50 * mVboVehiclePathElementSize); // For a flight time of one hour
     mVboVehiclePathBytesCurrent = 0;
@@ -138,7 +135,7 @@ void GlWidget::initializeGL()
 
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);					// Black Background
     glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// White Background
-    glClearColor(0.3f, 0.3f, 0.3f, 0.0f);					// Gray  Background
+//    glClearColor(0.3f, 0.3f, 0.3f, 0.0f);					// Gray  Background
 
     // Set Line Antialiasing
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
@@ -220,8 +217,6 @@ void GlWidget::paintGL()
         mTimerIdZoom = 0;
     }
 
-    mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
-    mShaderProgramDefault->setUniformValue("matrixExtra", QMatrix4x4());
     emit visualizeNow();
 
     mShaderProgramDefault->bind();

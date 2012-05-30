@@ -667,16 +667,11 @@ Ogre::SceneNode* OgreWidget::createScanner(const QString name, const Ogre::Vecto
 
 void OgreWidget::slotVisualizeTrajectory(const QVector3D& start, const QList<WayPoint>& waypoints)
 {
-//    qDebug() << "OgreWidget::slotVisualizeTrajectory(): nuber of waypoints to visualize::" << waypoints.size();
     mTrajectoryLine->clear();
-//    mTrajectoryLine->begin(QString("trajectoryLineMaterial").toStdString(), Ogre::RenderOperation::OT_LINE_LIST);
-//
     mTrajectoryLine->begin(QString("trajectoryLineMaterial").toStdString(), Ogre::RenderOperation::OT_LINE_LIST);
 
     for(int i=0;i<waypoints.size();i++)
     {
-//        qDebug() << "drawing line" << i;
-
         if(i==0)
             mTrajectoryLine->position(Ogre::Vector3(start.x(), start.y(), start.z()));
         else
@@ -686,7 +681,6 @@ void OgreWidget::slotVisualizeTrajectory(const QVector3D& start, const QList<Way
     }
 
     mTrajectoryLine->end();
-//    mTrajectoryLine->end();
 }
 
 void OgreWidget::destroyScanner(const QString name)
@@ -775,7 +769,7 @@ void OgreWidget::setupTerrain()
 //    bool blankTerrain = false;
 
 
-    mTerrainPos = Ogre::Vector3(1.1, 1.0, 1.0);
+    mTerrainPos = Ogre::Vector3(1.0, -77.0, 1.0);
 
 //    mEditMarker = ogreSceneManager->createEntity("editMarker", "sphere.mesh");
 //    mEditNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode();
@@ -792,7 +786,7 @@ void OgreWidget::setupTerrain()
 
     // Set up directional and ambient lights
     // THis first light is used for terrain shadows
-    Ogre::Vector3 lightdir(0.55, -0.3, 0.75);
+    Ogre::Vector3 lightdir(-0.55, -0.3, 0.75);
     lightdir.normalise();
     Ogre::Light* light = mSceneManager->createLight("tstLight");
     light->setType(Ogre::Light::LT_DIRECTIONAL);
@@ -828,7 +822,7 @@ void OgreWidget::setupTerrain()
 
 
     mTerrainGroup = new Ogre::TerrainGroup(mSceneManager, Ogre::Terrain::ALIGN_X_Z, TERRAIN_SIZE, TERRAIN_WORLD_SIZE);
-    mTerrainGroup->setFilenameConvention(Ogre::String("cachedterrain2"), Ogre::String("dat"));
+    mTerrainGroup->setFilenameConvention(Ogre::String("cachedterrain"), Ogre::String("dat"));
     mTerrainGroup->setOrigin(mTerrainPos);
 
     mTerrainGlobals = new Ogre::TerrainGlobalOptions();
@@ -858,13 +852,16 @@ void OgreWidget::setupTerrain()
     Ogre::Entity* entity;
     Ogre::SceneNode* sceneNode;
     Ogre::Quaternion rotation;
-    Ogre::Vector3 position(175, 0, 125);
+    const Ogre::Vector3 position(0, 0, -3);
 
     entity = mSceneManager->createEntity("tudorHouse", "tudorhouse.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
     rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)-20), Ogre::Vector3::UNIT_Y);
     sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
-                position + Ogre::Vector3(0, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 6.5, -13),
+                position + Ogre::Vector3(
+                    10,
+                    mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 6.4,
+                    -10),
                 rotation);
     sceneNode->setScale(Ogre::Vector3(0.012, 0.012, 0.012));
     sceneNode->attachObject(entity);
@@ -872,18 +869,24 @@ void OgreWidget::setupTerrain()
 
     entity = mSceneManager->createEntity("church", "church.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
-    rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)+180.0), Ogre::Vector3::UNIT_Y);
+    rotation.FromAngleAxis(Ogre::Degree(90), Ogre::Vector3::UNIT_Y);
     sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
-                position + Ogre::Vector3(-5, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 0.0, 55),
+                position + Ogre::Vector3(
+                    -7,
+                    mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 0.0,
+                    22),
                 rotation);
     sceneNode->attachObject(entity);
     addMeshInformation(entity,sceneNode);
 
     entity = mSceneManager->createEntity("house1", "house1.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
-    rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)), Ogre::Vector3::UNIT_Y);
+    rotation.FromAngleAxis(Ogre::Degree(20), Ogre::Vector3::UNIT_Y);
     sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
-                position + Ogre::Vector3(-23, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 0.0, -10),
+                position + Ogre::Vector3(
+                    -23,
+                    mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 0.0,
+                    -10),
                 rotation);
     sceneNode->attachObject(entity);
     addMeshInformation(entity,sceneNode);
@@ -891,18 +894,24 @@ void OgreWidget::setupTerrain()
     entity = mSceneManager->createEntity("house2", "house2.mesh");
     entity->setMaterialName("house2/8_-_Default");
     entity->setQueryFlags(0xFFFFFFFF);
-    rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)-100), Ogre::Vector3::UNIT_Y);
+    rotation.FromAngleAxis(Ogre::Degree(-120), Ogre::Vector3::UNIT_Y);
     sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
-                position + Ogre::Vector3(20, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 3.0, 25),
+                position + Ogre::Vector3(
+                    22,
+                    mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 3.0,
+                    20),
                 rotation);
     sceneNode->attachObject(entity);
     addMeshInformation(entity,sceneNode);
 
     entity = mSceneManager->createEntity("windmill", "windmill.mesh");
     entity->setQueryFlags(0xFFFFFFFF);
-    rotation.FromAngleAxis(Ogre::Degree(Ogre::Math::RangeRandom(-180, 180)+90), Ogre::Vector3::UNIT_Y);
+    rotation.FromAngleAxis(Ogre::Degree(120), Ogre::Vector3::UNIT_Y);
     sceneNode = mSceneManager->getRootSceneNode()->createChildSceneNode(
-                position + Ogre::Vector3(-35, mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y + 0.0, 30),
+                position + Ogre::Vector3(
+                    -35,
+                    mTerrainGroup->getHeightAtWorldPosition(position) + mTerrainPos.y - 0.2,
+                    20),
                 rotation);
     sceneNode->attachObject(entity);
     addMeshInformation(entity,sceneNode);

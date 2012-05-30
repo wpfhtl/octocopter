@@ -1,9 +1,14 @@
 #include <GL/glew.h>
 #include <GL/gl.h>
 
-#include <unistd.h>
+#include <QApplication>
 
+#include <waypoint.h>
+#include "lidarpoint.h"
 #include "flightplannerphysics.h"
+#include "flightplannerphysicsdialog.h"
+
+float FlightPlannerPhysics::CollisionSphereState::mFarthestDistanceTravelled = 0.0f;
 
 FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, Octree* pointCloud) : FlightPlannerInterface(widget, pointCloud)
 {
@@ -11,6 +16,7 @@ FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, Octree* pointCloud) 
     // We do this so we can drop spheres only within the octree's XZ plane.
     mOctreeCollisionObjects = 0;
 
+    mDeletionTriggerShape = 0;
     mDeletionTriggerVbo = 0;
     mSampleSphereVbo = 0;
 
@@ -42,10 +48,11 @@ FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, Octree* pointCloud) 
     // the default constraint solver. For parallel processing you can use a different solver (see Extras/BulletMultiThreaded)
     mBtSolver = new btSequentialImpulseConstraintSolver;
 
-    /* from irc:
-      broadphase detects eg. two trimeshes that have overlapping AABB,
+    /*
+      broadphase detects two objects that have overlapping AABB,
       midphase detects which triangles from each trimesh have overlapping AABB and
-      narrowphase does collision detection between these triangles. */
+      narrowphase does collision detection between these triangles.
+    */
     mBtWorld = new btDiscreteDynamicsWorld(mBtDispatcher, mBtBroadphase, mBtSolver, mBtCollisionConfig);
     mBtWorld->setGravity(btVector3(0,-10,0));
 
@@ -58,34 +65,20 @@ FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, Octree* pointCloud) 
     mLidarPointShape = new btSphereShape(0.05);
     mShapeSampleSphere = new btSphereShape(2.0);
 
-    // Set up a ghost object that deletes SampleSpheres when they hit it.
-    mTransformDeletionTrigger.setIdentity();
-    mTransformDeletionTrigger.setOrigin(btVector3(mScanVolumeMin.x(), mScanVolumeMin.y()-10.0, mScanVolumeMin.z()));
-
-    mDeletionTriggerShape = new btBoxShape(
-                btVector3( // These are HALF-extents!
-                           (mScanVolumeMax.x() - mScanVolumeMin.x()) / 2,
-                           10,
-                           (mScanVolumeMax.z() - mScanVolumeMin.z()) / 2));
-
-    mGhostObjectDeletionTrigger = new btGhostObject;
-    mGhostObjectDeletionTrigger->setWorldTransform(mTransformDeletionTrigger);
-    mGhostObjectDeletionTrigger->setCollisionShape(mDeletionTriggerShape);
-    mGhostObjectDeletionTrigger->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE); // So that objects can get inside. Doesnt matter, as they'll be deleted anyways
-    mBtWorld->addCollisionObject(mGhostObjectDeletionTrigger, btBroadphaseProxy::SensorTrigger, btBroadphaseProxy::AllFilter & ~btBroadphaseProxy::SensorTrigger);
+    // Location and shape will be set in slotSetScanVolume();
+    mDeletionTriggerGhostObject = new btGhostObject;
+    mDeletionTriggerGhostObject->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE); // So that objects can get inside. Doesnt matter, as they'll be deleted anyways
 
     // Set up a ghost object with a compound shape, containing all btSphereShapes
     btTransform lidarFloorTransform;
     lidarFloorTransform.setIdentity();
-
     mPointCloudShape = new btCompoundShape();
-
     mGhostObjectPointCloud = new btPairCachingGhostObject;
     mGhostObjectPointCloud->setFriction(mDialog->getFrictionGround());
     mGhostObjectPointCloud->setRestitution(mDialog->getRestitutionGround());
     mGhostObjectPointCloud->setWorldTransform(lidarFloorTransform);
     mGhostObjectPointCloud->setCollisionShape(mPointCloudShape);
-    //    mGhostObjectPointCloud->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
+    mBtWorld->addCollisionObject(mGhostObjectPointCloud, btBroadphaseProxy::SensorTrigger, btBroadphaseProxy::AllFilter & ~btBroadphaseProxy::SensorTrigger);
 
     // Set up vehicle collision avoidance. We create one normal btRigidBody to interact with the world and one ghost object to register collisions
     mTransformVehicle.setIdentity();
@@ -100,9 +93,44 @@ FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, Octree* pointCloud) 
     mGhostObjectVehicle->setWorldTransform(mTransformVehicle);
     mGhostObjectVehicle->setCollisionShape(mBodyVehicle->getCollisionShape());
     //    mBtWorld->addCollisionObject(mGhostObjectVehicle, btBroadphaseProxy::SensorTrigger, btBroadphaseProxy::AllFilter & ~btBroadphaseProxy::SensorTrigger);
-
-
 }
+
+void FlightPlannerPhysics::slotSetScanVolume(const QVector3D min, const QVector3D max)
+{
+    FlightPlannerInterface::slotSetScanVolume(min, max);
+
+    mDeletionTriggerTransform.setIdentity();
+    mDeletionTriggerTransform.setOrigin(
+                btVector3(
+                    mScanVolumeMin.x() + (mScanVolumeMax.x() - mScanVolumeMin.x()) / 2.0f,
+                    mScanVolumeMin.y() - 5.0f,
+                    mScanVolumeMin.z() + (mScanVolumeMax.z() - mScanVolumeMin.z()) / 2.0f
+                    )
+                );
+
+    // Recreate deletionTriggerShape with correct size.
+    delete mDeletionTriggerShape;
+    mDeletionTriggerShape = new btBoxShape(
+                btVector3( // These are HALF-extents!
+                           (mScanVolumeMax.x() - mScanVolumeMin.x()) / 1.5f,
+                           5.0f,
+                           (mScanVolumeMax.z() - mScanVolumeMin.z()) / 1.5f)
+                );
+    mDeletionTriggerGhostObject->setWorldTransform(mDeletionTriggerTransform);
+    mDeletionTriggerGhostObject->setCollisionShape(mDeletionTriggerShape);
+
+    // Add mDeletionTriggerGhostObject only once (if its not already present).
+    if(mBtWorld->getCollisionObjectArray().findLinearSearch(mDeletionTriggerGhostObject) == mBtWorld->getCollisionObjectArray().size())
+        mBtWorld->addCollisionObject(mDeletionTriggerGhostObject, btBroadphaseProxy::SensorTrigger, btBroadphaseProxy::AllFilter & ~btBroadphaseProxy::SensorTrigger);
+
+    // delete the deletionTrigger VBO, so it will be recreated when rendering the next frame
+    if(mDeletionTriggerVbo)
+    {
+        glDeleteBuffers(1, &mDeletionTriggerVbo);
+        mDeletionTriggerVbo = 0;
+    }
+}
+
 
 void FlightPlannerPhysics::slotCreateSafePathToNextWayPoint()
 {
@@ -237,6 +265,7 @@ void FlightPlannerPhysics::slotCreateSafePathToNextWayPoint()
 
 void FlightPlannerPhysics::slotInitialize()
 {
+    // Nothing. We need to override, as its pure virtual in base.
 }
 
 FlightPlannerPhysics::~FlightPlannerPhysics()
@@ -244,8 +273,7 @@ FlightPlannerPhysics::~FlightPlannerPhysics()
     // Cleanup in the reverse order of creation/initialization
 
     // Remove the rigidbodies from the dynamics world and delete them
-    int i;
-    for(i=mBtWorld->getNumCollisionObjects()-1; i>=0 ;i--)
+    for(int i=mBtWorld->getNumCollisionObjects()-1; i>=0 ;i--)
     {
         btCollisionObject* obj = mBtWorld->getCollisionObjectArray()[i];
         btRigidBody* body = btRigidBody::upcast(obj);
@@ -303,19 +331,8 @@ void FlightPlannerPhysics::insertPoint(LidarPoint* point)
 
 void FlightPlannerPhysics::slotGenerateWaypoints()
 {
-    // First, just show the dialog for generating-options
+    // Just show the dialog for generating-options
     mDialog->show();
-
-    // Now the hard work:
-    //
-    // 1. Drop small spheres (big enough for the vehicle to fit in). Delete them if they sleep on other spheres.
-    // 2. Let it dry until everyone is sleeping and falling spheres are deleted
-    // 3. Drop big spheres (little smaller than lidar range). Delete small spheres being touched by big spheres.
-    // 4. Let it dry until everyone is sleeping and falling spheres are deleted
-    // 5. Freeze the spheres to let them remain for future iterations.
-    // 6. Find a nice path through the remaining spheres.
-
-    // The sphere that'll be dropped from the sky.
 }
 
 // A point was inserted ito our octree. Create a corresponding point in our physics world.
@@ -329,7 +346,7 @@ void FlightPlannerPhysics::slotPointInserted(const LidarPoint* lp)
 
 void FlightPlannerPhysics::slotVisualize()
 {
-    mBtWorld->debugDrawWorld();
+//    mBtWorld->debugDrawWorld();
     FlightPlannerInterface::slotVisualize();
 
     // Draw the collision octree
@@ -367,7 +384,7 @@ void FlightPlannerPhysics::slotVisualize()
     if(!mDeletionTriggerVbo)
     {
         btVector3 min, max;
-        mDeletionTriggerShape->getAabb(mTransformDeletionTrigger, min, max);
+        mDeletionTriggerShape->getAabb(mDeletionTriggerTransform, min, max);
 
         QVector<float> deletionTriggerVertices;
         // Fill the vertices buffer with vertices for quads and lines
@@ -432,7 +449,7 @@ void FlightPlannerPhysics::slotVisualize()
         glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0); // position
 
         // draw the lines around the box
-        mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(1.0f, 0.6f, 0.6f, 0.2f));
+        mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(1.0f, 0.2f, 0.2f, 0.8f));
         glDrawArrays(GL_LINE_LOOP, 0, 4);
         glDrawArrays(GL_LINE_LOOP, 4, 4);
         glDrawArrays(GL_LINE_LOOP, 8, 4);
@@ -466,38 +483,6 @@ void FlightPlannerPhysics::slotVisualize()
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         mShaderProgramSpheres->release();
         glDisable(GL_BLEND);
-    }
-}
-
-void FlightPlannerPhysics::slotSetScanVolume(const QVector3D min, const QVector3D max)
-{
-    FlightPlannerInterface::slotSetScanVolume(min, max);
-
-    mTransformDeletionTrigger.setOrigin(
-                btVector3(
-                    mScanVolumeMin.x() + (mScanVolumeMax.x() - mScanVolumeMin.x()) / 2.0,
-                    mScanVolumeMin.y()-5.0,
-                    mScanVolumeMin.z() + (mScanVolumeMax.z() - mScanVolumeMin.z()) / 2.0
-                    )
-                );
-
-    // recreate deletionTriggerShape with correct size.
-    delete mDeletionTriggerShape;
-
-    mDeletionTriggerShape = new btBoxShape(
-                btVector3( // These are HALF-extents!
-                           (mScanVolumeMax.x() - mScanVolumeMin.x()) / 1.8,
-                           5,
-                           (mScanVolumeMax.z() - mScanVolumeMin.z()) / 1.8)
-                );
-    mGhostObjectDeletionTrigger->setCollisionShape(mDeletionTriggerShape);
-    mGhostObjectDeletionTrigger->setWorldTransform(mTransformDeletionTrigger);
-
-    // delete the deletionTrigger VBO, so it will be recreated when rendering the next frame
-    if(mDeletionTriggerVbo)
-    {
-        glDeleteBuffers(1, &mDeletionTriggerVbo);
-        mDeletionTriggerVbo = 0;
     }
 }
 
@@ -546,16 +531,16 @@ void FlightPlannerPhysics::slotCreateSampleGeometry()
     {
         // Fill the sky with spheres
         for(
-            float x = mScanVolumeMin.x() + mShapeSampleSphere->getRadius()/2.0;
-            x <= mScanVolumeMax.x() - mShapeSampleSphere->getRadius()/2.0;
-            x += 2 * mShapeSampleSphere->getRadius() + 0.1 /*Margin to prevent unnecessary collisions between sample geometry*/)
+            float x = mScanVolumeMin.x() + mShapeSampleSphere->getRadius() * 1.2f; // small padding
+            x <= mScanVolumeMax.x() - mShapeSampleSphere->getRadius() * 1.2f; // small padding
+            x += 2.0f * mShapeSampleSphere->getRadius() + 0.1f /*Margin to prevent unnecessary collisions between sample geometry*/)
         {
             for(
-                float z = mScanVolumeMin.z() + mShapeSampleSphere->getRadius()/2.0;
-                z <= mScanVolumeMax.z() - mShapeSampleSphere->getRadius()/2.0;
-                z += 2*mShapeSampleSphere->getRadius() + 0.1 /*Margin to prevent unnecessary collisions*/)
+                float z = mScanVolumeMin.z() + mShapeSampleSphere->getRadius() * 1.2f; // small padding
+                z <= mScanVolumeMax.z() - mShapeSampleSphere->getRadius() * 1.2f; // small padding
+                z += 2.0f * mShapeSampleSphere->getRadius() + 0.1f /*Margin to prevent unnecessary collisions*/)
             {
-                sampleSphereTransform.setOrigin(btVector3(x, mScanVolumeMax.y()+mShapeSampleSphere->getRadius(), z));
+                sampleSphereTransform.setOrigin(btVector3(x, mScanVolumeMax.y()-(mShapeSampleSphere->getRadius()*1.2f), z));
                 // We don't need any inertia, mass etc,. as this body is static.
                 CollisionSphereState* sampleSphereMotionState = new CollisionSphereState(sampleSphereTransform);
                 btRigidBody* body = new btRigidBody(btRigidBody::btRigidBodyConstructionInfo(mShapeSampleSphere->getRadius(), sampleSphereMotionState, mShapeSampleSphere));
@@ -618,7 +603,7 @@ void FlightPlannerPhysics::slotCreateSampleGeometry()
 void FlightPlannerPhysics::slotDeleteSampleGeometry()
 {
     // remove the old sample geometry...
-    mDialog->slotAppendMessage(QString("Deleting %1 sample geometry objects").arg(mSampleObjects.size()));
+    mDialog->slotAppendMessage(QString("Deleting %1 leftover sample geometry objects").arg(mSampleObjects.size()));
 
     foreach(btRigidBody* body, mSampleObjects)
     {
@@ -647,7 +632,8 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
     if(mPhysicsProcessingActive)
     {
         // And now let them fall from the sky...
-        while(true)
+        QTime wayPointGenerationStartTime = QTime::currentTime();
+        for(int physicsIterations = 0;true;physicsIterations++)
         {
             // Using QApplication::processEvents(), we give the app a chance to call this method while this method is running(!)
             // to set mPhysicsProcessingActive to false. If that happened, we will use this chance to break our processing.
@@ -658,15 +644,26 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
                 break;
             }
 
+            // Reset the motion threshold. When everything becomes slow, terminate
+            CollisionSphereState::mFarthestDistanceTravelled = 0.0f;
+
             mBtWorld->applyGravity();
+
             QTime profiler = QTime::currentTime(); profiler.start();
-            mBtWorld->stepSimulation(0.01, 10);
+            mBtWorld->stepSimulation(0.01, 1);
             qDebug() << "FlightPlannerPhysics::slotProcessPhysics(): step cpu time in ms:" << profiler.elapsed() << "fps:" << 1000 / std::max(profiler.elapsed(),1);
 
-            mBtWorld->addCollisionObject(mGhostObjectPointCloud, btBroadphaseProxy::SensorTrigger, btBroadphaseProxy::AllFilter & ~btBroadphaseProxy::SensorTrigger);
+            printf("%1.7f\n", CollisionSphereState::mFarthestDistanceTravelled); fflush(stdout);
+            if(physicsIterations > 50 && CollisionSphereState::mFarthestDistanceTravelled < 0.0001f)
+            {
+                mPhysicsProcessingActive = false;
+                mDialog->slotAppendMessage(QString("Waypoint generation took %1 iterations and %2 ms.").arg(physicsIterations).arg(wayPointGenerationStartTime.elapsed()));
+                slotSubmitGeneratedWayPoints();
+                break;
+            }
 
             // According to http://www.bulletphysics.org/Bullet/phpBB3/viewtopic.php?f=9&t=3901, we need this
-            // for the ghostobject to perform narrowphase collision detection
+            // for the ghostobject to perform narrowphase collision detection. And yes, that seems to make a difference!
             mBtWorld->getDispatcher()->dispatchAllCollisionPairs(
                         mGhostObjectPointCloud->getOverlappingPairCache(),
                         mBtWorld->getDispatchInfo(),
@@ -674,42 +671,46 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
 
             // Ask the PointCloud GhostObject (representing the low-res octree with lidarPoints) whether anything hit it. If yes,
             // record what SampleSphere hit the pointCloud at what position.
-            const btBroadphasePairArray& pairs = mGhostObjectPointCloud->getOverlappingPairCache()->getOverlappingPairArray();
-            for(int j=0; j<pairs.size(); ++j)
+            btManifoldArray   manifoldArray;
+            const btBroadphasePairArray& pairArray = mGhostObjectPointCloud->getOverlappingPairCache()->getOverlappingPairArray();
+            for(int j=0; j<pairArray.size(); ++j)
             {
-                const btBroadphasePair& pair = pairs[j];
+                manifoldArray.clear();
+                const btBroadphasePair& pair = pairArray[j];
+
+
+                // Don't get the pair from the world, get it from the GhotObject! Otherwise, collisions seem to be with pointcloud AABB!
+                //btBroadphasePair* collisionPair = mBtWorld->getPairCache()->findPair(pair.m_pProxy0,pair.m_pProxy1);
+                btBroadphasePair* collisionPair = mGhostObjectPointCloud->getOverlappingPairCache()->findPair(pair.m_pProxy0,pair.m_pProxy1);
+                if(!collisionPair)
+                    continue;
+
                 const btBroadphaseProxy* proxy = pair.m_pProxy0->m_clientObject != mGhostObjectPointCloud ? pair.m_pProxy0 : pair.m_pProxy1;
-
                 btRigidBody *rigidBody = dynamic_cast<btRigidBody*>((btCollisionObject*)(proxy->m_clientObject));
-                if(rigidBody)
+                if(!rigidBody) continue;
+
+                if(collisionPair->m_algorithm)
+                    collisionPair->m_algorithm->getAllContactManifolds(manifoldArray);
+
+                for(int j=0;j<manifoldArray.size();j++)
                 {
-                    const btTransform t = rigidBody->getWorldTransform();
-                    const QVector3D pos(t.getOrigin().x(), t.getOrigin().y()+5, t.getOrigin().z());
-                    //                qDebug() << "a samplesphere has hit the lidarground at" << pos;
-                    mLastSampleObjectHitPositions.insert(rigidBody, pos);
+                    btPersistentManifold* manifold = manifoldArray[j];
+                    for (int p=0;p<manifold->getNumContacts();p++)
+                    {
+                        const btManifoldPoint&pt = manifold->getContactPoint(p);
+                        if(pt.getDistance()<0.f)
+                        {
+                            const btVector3& ptA = pt.getPositionWorldOnA();
+                            const QVector3D pos(ptA.x(), ptA.y() + mShapeSampleSphere->getRadius(), ptA.z());
+                            mLastSampleObjectHitPositions.insert(rigidBody, pos);
+                        }
+                    }
                 }
-                else qDebug() << "dynamic cast failed!";
+
             }
-            mBtWorld->removeCollisionObject(mGhostObjectPointCloud);
-/*
-            // OLD WAY, ONLY AABB IS CHECKED
-        // We iterate through all SampleSpheres touching our floor and remember WHERE they were when they touched the floor.
-        for(int j = 0; j < mGhostObjectPointCloud->getNumOverlappingObjects(); j++)
-        {
-           // Dynamic cast to make sure its a rigid body
-           btRigidBody *rigidBody = dynamic_cast<btRigidBody *>(mGhostObjectPointCloud->getOverlappingObject(j));
-           if(rigidBody)
-           {
-               btTransform t;
-               rigidBody->getMotionState()->getWorldTransform(t);
-               QVector3D pos(t.getOrigin().x(), t.getOrigin().y()+5, t.getOrigin().z());
-//               qDebug() << "a samplesphere has hit the lidarground at" << pos;
-               mLastSampleObjectHitPositions.insert(rigidBody, pos);
-           }
-        }*/
+//            mBtWorld->removeCollisionObject(mGhostObjectPointCloud);
 
-
-            if(mGhostObjectDeletionTrigger->getNumOverlappingObjects())
+            if(mDeletionTriggerGhostObject->getNumOverlappingObjects())
             {
                 //qDebug() << "number of objects fallen through in this iteration:" << mGhostObjectDeletionTrigger->getNumOverlappingObjects();
                 if(!mFirstSphereHasHitThisIteration && false)
@@ -722,10 +723,10 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
             }
 
             // We iterate through all rigidBodies touching our deletionTrigger and remove/delete them.
-            for(int j = 0; j < mGhostObjectDeletionTrigger->getNumOverlappingObjects(); j++)
+            for(int j = 0; j < mDeletionTriggerGhostObject->getNumOverlappingObjects(); j++)
             {
                 // Dynamic cast to make sure its a rigid body
-                btRigidBody *rigidBody = dynamic_cast<btRigidBody *>(mGhostObjectDeletionTrigger->getOverlappingObject(j));
+                btRigidBody *rigidBody = dynamic_cast<btRigidBody *>(mDeletionTriggerGhostObject->getOverlappingObject(j));
                 if(rigidBody)
                 {
                     //qDebug() << "removing sphere that has dropped too far.";
@@ -848,7 +849,7 @@ qint64 FlightPlannerPhysics::getNumberOfPointsInCollisionOctree()
         return 0;
 }
 
-// This is part of the sample sphere's motionstate. Needs to be in cpp for glew include, which would mess up compilation in the header
+// This Needs to be in cpp for glew include, which would mess up compilation in the header
 void FlightPlannerPhysics::CollisionSphereState::updateVbo(const quint32 vbo, const quint32 index)
 {
     glBufferSubData(

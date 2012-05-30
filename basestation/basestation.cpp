@@ -15,8 +15,11 @@ BaseStation::BaseStation() : QMainWindow()
                 1000, // maxItemsPerLeaf
                 1000000 // maxExpectedSize^
                 );
+    mOctree->mPointColor = QColor(128,128,128, 128);
 
     mProgress = 0;
+
+    mPtuController = 0;
 
     mConnectionDialog = new ConnectionDialog(this);
     mConnectionDialog->exec();
@@ -188,7 +191,7 @@ BaseStation::BaseStation() : QMainWindow()
     //    connect(mLogPlayer, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
         connect(mLogPlayer, SIGNAL(gpsStatus(GpsStatusInformation::GpsStatus)), mControlWidget, SLOT(slotUpdateGpsStatus(GpsStatusInformation::GpsStatus)));
     //    connect(mLogPlayer, SIGNAL(controllerValues(QVector<float>)), mPlotWidget, SLOT(slotAppendData(QVector<float>)));
-
+/*
         mPtuController = new PtuController("/dev/ttyUSB0", this);
         mPtuController->setAllowedAreas(Qt::AllDockWidgetAreas);
         mPtuController->setVisible(true);
@@ -204,6 +207,7 @@ BaseStation::BaseStation() : QMainWindow()
         {
             mLogWidget->log(Information, "BaseStation::BaseStation()", "Enabling PtuController with dummy PTU.");
         }
+*/
 
         mLogWidget->log(Information, "BaseStation::BaseStation()", "Working offline, disabling RoverConnection+RtkFetcher, enabling LogPlayer.");
     }
@@ -284,7 +288,7 @@ void BaseStation::slotNewScanData(const QVector<QVector3D>& pointList, const QVe
                 .arg((mOctree->getNumberOfItems()*sizeof(LidarPoint))/1000000.0, 2, 'g')
                 .arg(mOctree->getNumberOfNodes()).arg(pointList.size()));
 
-    qDebug() << "RoverConnection::processPacket(): appended" << pointList.size() << "points to octree.";
+    //qDebug() << "BaseStation::slotNewScanData(): appended" << pointList.size() << "points to octree.";
 }
 
 void BaseStation::slotExportCloud()

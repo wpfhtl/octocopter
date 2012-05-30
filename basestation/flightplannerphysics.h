@@ -1,20 +1,16 @@
 #ifndef FLIGHTPLANNERPHYSICS_H
 #define FLIGHTPLANNERPHYSICS_H
 
-#include <QApplication>
-
 #include "flightplannerinterface.h"
-#include "flightplannerphysicsdialog.h"
-#include "node.h"
-#include "lidarpoint.h"
-#include <waypoint.h>
-//#include "openglutilities.h"
 
 #include "bulletdebugdrawergl.h"
-
 #include <bullet/btBulletDynamicsCommon.h>
 #include <bullet/BulletCollision/CollisionDispatch/btGhostObject.h>
 #include <bullet/BulletCollision/BroadphaseCollision/btBroadphaseProxy.h>
+
+class WayPoint;
+class LidarPoint;
+class FlightPlannerPhysicsDialog;
 
 class FlightPlannerPhysics : public FlightPlannerInterface
 {
@@ -28,22 +24,17 @@ public:
     qint64 getNumberOfPointsInCollisionOctree();
 
 private:
-
-
-
-
-
     class CollisionSphereState : public btMotionState
     {
     protected:
-//        quint16 mIndex; // The serial number of this collision sphere. Will be used to update the right place in the spheres-vbo
         btTransform mTransform;
-//        quint32 mVbo; // the VBO storing the sample sphere positions. Will be updated from setWroldTransform, which is called by bullet
 
     public:
+        // The minimum distance travelled by any samplesphere in this round of waypoint generation. Used as threshold for termination
+        static float mFarthestDistanceTravelled;
+
         CollisionSphereState(const btTransform& transform) : mTransform(transform)
         {
-//            updateVbo();
         }
 
         virtual void getWorldTransform(btTransform &ret) const
@@ -53,23 +44,11 @@ private:
 
         virtual void setWorldTransform(const btTransform &in)
         {
+            mFarthestDistanceTravelled = std::max(mFarthestDistanceTravelled, mTransform.getOrigin().distance2(in.getOrigin()));
             mTransform = in;
-            //updateVbo(); we could do it here, but thats scattered. Rather do it in a loop after mBtWorld->step()
         }
 
         void updateVbo(const quint32 vbo, const quint32 index);
-/*
-        QVector3D getPosition(void) const
-        {
-            const btVector3 pos = mTransform.getOrigin();
-            return QVector3D(pos.x(), pos.y(), pos.z());
-        }
-
-        QQuaternion getOrientation(void) const
-        {
-            btQuaternion rot = mTransform.getRotation();
-            return QQuaternion(rot.w(), rot.x(), rot.y(), rot.z());
-        }*/
     };
 
     Octree* mOctreeCollisionObjects;
@@ -83,22 +62,17 @@ private:
 
     bool mFirstSphereHasHitThisIteration;
 
-//    QList<WayPoint> mWayPointsGenerated, mWayPointsDetour;
-
-    // testing
-//    btTransform mDeletionTriggerTransform;
-
     btTransform mTransformLidarPoint;
     // The shape of a LIDAR-point, i.e. a small sphere
     btCollisionShape *mLidarPointShape;
 
-    btTransform mTransformDeletionTrigger;
+    btTransform mDeletionTriggerTransform;
 
     // The detection volume at the bottom.
     btCollisionShape *mDeletionTriggerShape;
 
     // The Ghost Object using the detection shape at the bottom.
-    btGhostObject *mGhostObjectDeletionTrigger;
+    btGhostObject *mDeletionTriggerGhostObject;
 
     // For vehicle collision avoidance
     btTransform mTransformVehicle;
@@ -116,20 +90,12 @@ private:
     // In this QMap, we associate SampleSphere* -> QVector3D_Last_LidarPoint_Hit
     QMap<btRigidBody*, QVector3D> mLastSampleObjectHitPositions;
 
-    // This list contains waypoints. They are never deleted, only added.
-//    QList<btRigidBody*> mWayPoints;
-
-//    btAxisSweep3 *mBtBroadphase;
     btDbvtBroadphase *mBtBroadphase;
 
     btDefaultCollisionConfiguration *mBtCollisionConfig;
     btCollisionDispatcher *mBtDispatcher;
     btSequentialImpulseConstraintSolver *mBtSolver;
     btDiscreteDynamicsWorld *mBtWorld;
-
-signals:
-//    void newWayPointsReady(const QList<WayPoint>&);
-//    void processingStatus(const QString& text, const quint8 percentReady);
 
 private slots:
     void slotPointInserted(const LidarPoint*);

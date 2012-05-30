@@ -1,6 +1,5 @@
 #include <GL/glew.h>
 #include <GL/gl.h>
-#include <QTime>
 
 #include "octree.h"
 
@@ -25,10 +24,8 @@ Octree::Octree(const QVector3D &min, const QVector3D &max, quint32 maxItemsPerLe
     //mData = (LidarPoint*)malloc(sizeof(LidarPoint) * mExpectedMaximumElementCount);
 
     // Using a QVector means that all elements will be initialized with the default c'tor :|
-    QTime profiler = QTime::currentTime();
     mData = new QVector<LidarPoint>;
     mData->reserve(mExpectedMaximumElementCount);
-    qDebug() << "Octree::Octree(): constructing memory storage for" << expectedMaximumElementCount << "elements took" << profiler.elapsed() << "ms.";
 }
 
 Octree::~Octree()
@@ -472,8 +469,6 @@ void Octree::updateVbo()
         {
             it.next();
 
-            //qDebug() << "GlWidget::updateVbo(): checking VBO" << it.key() << "which already contains" << it.value() << "bytes...";
-
             // Only fill this VBO if it has enough free space for at least one point
             // An Octree can grow bigger than octree::mExpectedMaximumElementCount, but the VBOs are created for these many elements
             const unsigned int numberOfPointsToStoreInThisVbo = std::min(numberOfPointsToStoreInAllVbos, mExpectedMaximumElementCount - it.value());
@@ -485,21 +480,6 @@ void Octree::updateVbo()
                 quint32 byteOffset = it.value() * sizeof(LidarPoint);
 
                 // For updates < 32kb, glBufferSubData is supposed to be better than glMapBuffer
-                qDebug() << "GlWidget::updateVbo(): octree elements:" << mData->size() <<
-                            "appending" << numberOfPointsToStoreInThisVbo <<
-                            "elements /" << numberOfPointsToStoreInThisVbo * sizeof(LidarPoint) <<
-                            "bytes into VBO" << it.key() <<
-                            "at offset" << it.value() << "elements /" << byteOffset << "bytes";
-
-                //                    qDebug() << "GlWidget::updateVbo(): first x:" << ((LidarPoint*)(octree->data()->constData() + (it.value() * sizeof(LidarPoint))))->position.x();
-
-                /*qDebug() << "GlWidget::updateVbo(): last  x:" <<
-                                ((LidarPoint*)(
-                                     octree->data()->constData()
-                                     + ((numberOfPointsToStoreInThisVbo-2) * sizeof(LidarPoint))
-                                     + (it.value() * sizeof(LidarPoint))))
-                                ->position.x();*/
-
                 glBufferSubData(
                             GL_ARRAY_BUFFER,
                             byteOffset, // offset in the VBO
@@ -533,12 +513,12 @@ void Octree::updateVbo()
 
             if(glGetError() == GL_NO_ERROR)
             {
-                qDebug() << "GlWidget::updateVbo(): Created new VBO" << vboNew << "containing" << vboNewByteSize << "bytes";
+                qDebug() << "Octree::updateVbo(): Created new VBO" << vboNew << "containing" << vboNewByteSize << "bytes";
                 mVboIdsAndSizes.insert(vboNew, 0);
             }
             else
             {
-                qDebug() << "GlWidget::updateVbo(): Couldn't create VBO containing" << vboNewByteSize << "bytes!";
+                qDebug() << "Octree::updateVbo(): Couldn't create VBO containing" << vboNewByteSize << "bytes!";
             }
 
             glBindBuffer(GL_ARRAY_BUFFER, 0);

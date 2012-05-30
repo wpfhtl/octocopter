@@ -45,7 +45,7 @@ Physics::Physics(Simulator *simulator, OgreWidget *ogreWidget) :
     else
         mVehicleNode = mOgreWidget->createVehicleNode("vehicleNode", &mVehicleEntity, Ogre::Vector3(10, 100, 10), Ogre::Quaternion::IDENTITY);
 
-    mVehicleNode->setPosition(140,90,130);
+    mVehicleNode->setPosition(0,0,0);
 
     mVehicleNode->attachObject(mVehicleEntity);
 

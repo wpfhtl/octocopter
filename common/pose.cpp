@@ -528,19 +528,22 @@ Pose::Pose(const QString& poseString)
 
 QDataStream& operator<<(QDataStream &out, const Pose &pose)
 {
-    out << pose.getMatrix() << pose.timestamp << pose.precision << pose.covariances;
+    out << pose.getMatrix();
+    out << pose.timestamp;
+    out << pose.precision;
+    out << pose.covariances;
     return out;
 }
 
 QDataStream& operator>>(QDataStream &in, Pose &pose)
 {
-    QMatrix4x4 transform;
-    in >> transform;
+    QMatrix4x4 matrix;
+    in >> matrix;
     in >> pose.timestamp;
     in >> pose.precision;
     in >> pose.covariances;
 
-    pose.setMatrix(transform);
+    pose.setMatrix(matrix);
 
     return in;
 }

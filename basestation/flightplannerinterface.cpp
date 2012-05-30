@@ -312,7 +312,7 @@ void FlightPlannerInterface::slotVisualize()
 //            glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, (void*)(mBoundingBoxVertices.size() * sizeof(float))); // color
 
             // draw the lines around the box
-            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(0.6f, 0.6f, 1.0f, 0.2f));
+            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(0.2f, 0.2f, 1.0f, 0.8f));
             glDrawArrays(GL_LINE_LOOP, 0, 4);
             glDrawArrays(GL_LINE_LOOP, 4, 4);
             glDrawArrays(GL_LINE_LOOP, 8, 4);
