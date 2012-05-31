@@ -769,7 +769,7 @@ void OgreWidget::setupTerrain()
 //    bool blankTerrain = false;
 
 
-    mTerrainPos = Ogre::Vector3(1.0, -77.0, 1.0);
+    mTerrainPos = Ogre::Vector3(1.0, -75.1, 1.0);
 
 //    mEditMarker = ogreSceneManager->createEntity("editMarker", "sphere.mesh");
 //    mEditNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode();

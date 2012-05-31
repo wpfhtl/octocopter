@@ -293,11 +293,13 @@ void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enab
         if(mJoystickEnabled)
         {
             slotShowMessage("Disabling Joystick control, enabling FlightController.");
+            mFlightController->slotExternalControlStatusChanged(true);
             mJoystickEnabled = false;
         }
         else
         {
             slotShowMessage("Enabling Joystick control, disabling FlightController.");
+            mFlightController->slotExternalControlStatusChanged(false);
             mJoystickEnabled = true;
         }
     }

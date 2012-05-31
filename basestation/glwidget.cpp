@@ -217,7 +217,7 @@ void GlWidget::paintGL()
         mTimerIdZoom = 0;
     }
 
-    emit visualizeNow();
+
 
     mShaderProgramDefault->bind();
     {
@@ -268,6 +268,7 @@ void GlWidget::paintGL()
 
             // Render axes once at origin, once at vehicle
             {
+                /*
                 // At the origin
                 mShaderProgramDefault->setUniformValue("useFixedColor", false);
                 glBindBuffer(GL_ARRAY_BUFFER, mVboAxes);
@@ -276,7 +277,6 @@ void GlWidget::paintGL()
                 glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0); // positions
                 glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, (void*)(12 * sizeof(float) * 4)); // colors
                 glDrawArrays(GL_LINES, 0, 12);
-
                 // At the vehicle
                 mShaderProgramDefault->setUniformValue("useMatrixExtra", true);
                 mShaderProgramDefault->setUniformValue("matrixExtra", mLastKnownVehiclePose.getMatrix());
@@ -284,12 +284,14 @@ void GlWidget::paintGL()
                 glDisableVertexAttribArray(0);
                 glDisableVertexAttribArray(1);
                 glBindBuffer(GL_ARRAY_BUFFER, 0);
-                mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
+                mShaderProgramDefault->setUniformValue("useMatrixExtra", false);*/
             }
         }
         glDisable(GL_BLEND);
     }
     mShaderProgramDefault->release();
+
+    emit visualizeNow();
 
     mModelVehicle->slotSetModelTransform(mLastKnownVehiclePose.getMatrix());
     mModelVehicle->render();

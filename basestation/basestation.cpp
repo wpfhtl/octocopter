@@ -13,7 +13,7 @@ BaseStation::BaseStation() : QMainWindow()
                 QVector3D(-100, -100, -100), // min
                 QVector3D(100, 100, 100),  // max
                 1000, // maxItemsPerLeaf
-                1000000 // maxExpectedSize^
+                2000000 // maxExpectedSize
                 );
     mOctree->mPointColor = QColor(128,128,128, 128);
 
@@ -24,7 +24,7 @@ BaseStation::BaseStation() : QMainWindow()
     mConnectionDialog = new ConnectionDialog(this);
     mConnectionDialog->exec();
 
-    mOctree->setMinimumPointDistance(0.1f);
+    mOctree->setMinimumPointDistance(.01f);
 
     mTimerStats = new QTimer(this);
     mTimerStats->start(1000);
@@ -48,7 +48,7 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mWirelessDevice, SIGNAL(rssi(qint8)), mControlWidget, SLOT(slotUpdateWirelessRssi(qint8)));
 
     mLogWidget = new LogWidget(this);
-    addDockWidget(Qt::BottomDockWidgetArea, mLogWidget);
+//    addDockWidget(Qt::BottomDockWidgetArea, mLogWidget);
     menuBar()->addAction("Save Log", mLogWidget, SLOT(save()));
 
     // GlWidget and CUDA-based FlightPlanners have a close relationship because cudaGlSetGlDevice() needs to be called in GL context and before any other CUDA calls.
@@ -168,14 +168,14 @@ BaseStation::BaseStation() : QMainWindow()
         menuBar()->addAction("Connect", mRoverConnection, SLOT(slotConnectToRover()));
 
         mRoverConnection->slotConnectToRover();
-
+/*
         mPtuController = new PtuController("/dev/ttyUSB0", this);
         mPtuController->setAllowedAreas(Qt::AllDockWidgetAreas);
         mPtuController->setVisible(true);
         addDockWidget(Qt::BottomDockWidgetArea, mPtuController);
         connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
         connect(mPtuController, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
-
+*/
         mLogWidget->log(Information, "BaseStation::BaseStation()", "Working online, enabling RoverConnection+RtkFetcher+PtuController, disabling LogPlayer.");
     }
     else
@@ -283,7 +283,7 @@ void BaseStation::slotNewScanData(const QVector<QVector3D>& pointList, const QVe
     mLogWidget->log(
                 Information,
                 QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                QString("%1 points using %2 MB, %3 nodes, %4 points added.")
+                QString("%1 points using %2 MB, %3 nodes, %4 points processed.")
                 .arg(mOctree->getNumberOfItems())
                 .arg((mOctree->getNumberOfItems()*sizeof(LidarPoint))/1000000.0, 2, 'g')
                 .arg(mOctree->getNumberOfNodes()).arg(pointList.size()));

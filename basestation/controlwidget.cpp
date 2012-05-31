@@ -5,7 +5,7 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
     setupUi(this);
 
     // this removes the title bar. No more dragging, but saves space
-    setTitleBarWidget(new QWidget());
+    //setTitleBarWidget(new QWidget());
 
     initWayPointTable();
 

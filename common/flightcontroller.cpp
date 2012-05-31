@@ -32,7 +32,12 @@ void FlightController::slotComputeBackupMotion()
 
 void FlightController::slotComputeMotionCommands()
 {
-    const double timeDiff = std::min(0.2, (double)(mTimeOfLastControllerUpdate.msecsTo(QTime::currentTime()) / 1000.0)); // elapsed time since last call in seconds
+    // Elapsed time since last call in seconds. May not become zero (divide by zero)
+    // and shouldn't grow too high, as that will screw up the controllers.
+    const float timeDiff = qBound(
+                0.01f,
+                (float)(mTimeOfLastControllerUpdate.msecsTo(QTime::currentTime()) / 1000.0f),
+                0.2f);
 
     quint8 out_thrust = 0;
     qint8 out_yaw, out_pitch, out_roll = 0;
@@ -115,7 +120,7 @@ void FlightController::slotComputeMotionCommands()
         // WARNING: If we multiply by factorHeight, we won't stabilize the kopter at low height, it'll have to do that by itself. Is that good?
         const float outputRoll = factorHeight * factorPlanarDistance * ((6.0f * errorRoll) + (0.3f * mErrorIntegralRoll) + (0.0f * derivativeRoll));
 
-        const float outputHover = 115.0;
+        const float outputHover = 110.0;
         const float errorHeight = nextWayPoint.y() - mLastKnownVehiclePose.getPosition().y();
         mErrorIntegralHeight += errorHeight*timeDiff;
 
@@ -141,7 +146,7 @@ void FlightController::slotComputeMotionCommands()
         mPrevErrorYaw = errorYaw;
         mPrevErrorHeight = errorHeight;
 
-        out_thrust = (quint8)qBound(90.0f, outputThrust, 180.0f);
+        out_thrust = (quint8)qBound(80.0f, outputThrust, 180.0f);
         out_yaw = (qint8)qBound(-27.0, outputYaw > 0.0f ? ceil(outputYaw) : floor(outputYaw), 27.0);
         out_pitch = (qint8)qBound(-20.0f, outputPitch, 20.0f);
         out_roll = (qint8)qBound(-20.0f, outputRoll, 20.0f);
@@ -155,7 +160,7 @@ void FlightController::slotComputeMotionCommands()
         //emit debugValues(mLastKnownVehiclePose, out_thrust, out_yaw, out_pitch, out_roll, 0);
 
         // See whether we've reached the waypoint
-        if(mLastKnownVehiclePose.getPosition().distanceToLine(nextWayPoint, QVector3D()) < 0.25f) // close to wp
+        if(mLastKnownVehiclePose.getPosition().distanceToLine(nextWayPoint, QVector3D()) < 1.00f) // close to wp
         {
             nextWayPointReached();
         }
@@ -378,18 +383,18 @@ void FlightController::emitSafeControlValues()
     emit motion(140, 0, 0, 0, 0);
 }
 
-void FlightController::slotExternalControlStatusChanged(bool externalControlActive)
+void FlightController::slotExternalControlStatusChanged(bool computerControlActive)
 {
-    qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): external control active:" << externalControlActive;
+    qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): computer control active:" << computerControlActive;
 
     if(mFlightState == Freezing)
     {
-        qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): external control active:" << externalControlActive << "but we're FREEZING, won't change flightState";
+        qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): computer control active:" << computerControlActive << "but we're FREEZING, won't change flightState";
         return;
     }
 
     // We might be in any FlightState and the user switched SW1 to enable or disable externalControl (=computer control)
-    if(externalControlActive)
+    if(computerControlActive)
     {
         // The user tells us to control the kopter.
         if(mFlightState == Idle)

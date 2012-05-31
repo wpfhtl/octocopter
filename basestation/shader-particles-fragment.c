@@ -59,7 +59,7 @@ void main()
     if(useFixedColor)
     {
       fragColor = fixedColor * diffuse_value;
-      fragColor.w = 1.0;
+      //fragColor.w = 1.0;
     }
     else
     {

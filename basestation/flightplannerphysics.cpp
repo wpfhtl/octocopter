@@ -103,7 +103,7 @@ void FlightPlannerPhysics::slotSetScanVolume(const QVector3D min, const QVector3
     mDeletionTriggerTransform.setOrigin(
                 btVector3(
                     mScanVolumeMin.x() + (mScanVolumeMax.x() - mScanVolumeMin.x()) / 2.0f,
-                    mScanVolumeMin.y() - 5.0f,
+                    mScanVolumeMin.y() - 10.0f,
                     mScanVolumeMin.z() + (mScanVolumeMax.z() - mScanVolumeMin.z()) / 2.0f
                     )
                 );
@@ -112,9 +112,9 @@ void FlightPlannerPhysics::slotSetScanVolume(const QVector3D min, const QVector3
     delete mDeletionTriggerShape;
     mDeletionTriggerShape = new btBoxShape(
                 btVector3( // These are HALF-extents!
-                           (mScanVolumeMax.x() - mScanVolumeMin.x()) / 1.5f,
-                           5.0f,
-                           (mScanVolumeMax.z() - mScanVolumeMin.z()) / 1.5f)
+                           (mScanVolumeMax.x() - mScanVolumeMin.x()) * 1.5f,
+                           10.0f,
+                           (mScanVolumeMax.z() - mScanVolumeMin.z()) * 1.5f)
                 );
     mDeletionTriggerGhostObject->setWorldTransform(mDeletionTriggerTransform);
     mDeletionTriggerGhostObject->setCollisionShape(mDeletionTriggerShape);
@@ -322,7 +322,7 @@ void FlightPlannerPhysics::insertPoint(LidarPoint* point)
                     );
 
         mOctreeCollisionObjects->mPointColor = QColor(255,0,0,200);
-        mOctreeCollisionObjects->setMinimumPointDistance(1.0);
+        mOctreeCollisionObjects->setMinimumPointDistance(1.6);
         connect(mOctreeCollisionObjects, SIGNAL(pointInserted(const LidarPoint*)), SLOT(slotPointInserted(const LidarPoint*)));
     }
 
@@ -439,6 +439,7 @@ void FlightPlannerPhysics::slotVisualize()
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
+    /* diable drawing the detection olume for now
     mShaderProgramDefault->bind();
     mShaderProgramDefault->setUniformValue("useFixedColor", true);
     glEnable(GL_BLEND);
@@ -457,23 +458,20 @@ void FlightPlannerPhysics::slotVisualize()
         glDrawArrays(GL_LINE_LOOP, 16, 4);
         glDrawArrays(GL_LINE_LOOP, 20, 4);
 
-        // draw a half-transparent box
-//        mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(1.0f, 1.0f, 1.0f, 0.015f));
-//        glDrawArrays(GL_QUADS, 0, 24);
-
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glDisableVertexAttribArray(0);
     }
     glDisable(GL_BLEND);
-    mShaderProgramDefault->release();
+    mShaderProgramDefault->release();*/
 
     // Draw sampleSpheres
     if(mSampleSphereVbo)
     {
         glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
         mShaderProgramSpheres->bind();
         mShaderProgramSpheres->setUniformValue("useFixedColor", true);
-        mShaderProgramSpheres->setUniformValue("fixedColor", QVector4D(0.6f, 0.6f, 1.0f, 0.3f));
+        mShaderProgramSpheres->setUniformValue("fixedColor", QVector4D(0.6f, 0.6f, 1.0f, 0.5f));
         mShaderProgramSpheres->setUniformValue("particleRadius", mDialog->getSampleSphereRadius());
         glBindBuffer(GL_ARRAY_BUFFER, mSampleSphereVbo);
         glEnableVertexAttribArray(0);
@@ -650,14 +648,18 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
             mBtWorld->applyGravity();
 
             QTime profiler = QTime::currentTime(); profiler.start();
-            mBtWorld->stepSimulation(0.01, 1);
+            mBtWorld->stepSimulation(0.05, 10);
             qDebug() << "FlightPlannerPhysics::slotProcessPhysics(): step cpu time in ms:" << profiler.elapsed() << "fps:" << 1000 / std::max(profiler.elapsed(),1);
+            usleep(500000);
 
             printf("%1.7f\n", CollisionSphereState::mFarthestDistanceTravelled); fflush(stdout);
             if(physicsIterations > 50 && CollisionSphereState::mFarthestDistanceTravelled < 0.0001f)
             {
                 mPhysicsProcessingActive = false;
-                mDialog->slotAppendMessage(QString("Waypoint generation took %1 iterations and %2 ms.").arg(physicsIterations).arg(wayPointGenerationStartTime.elapsed()));
+                mDialog->slotAppendMessage(QString("Waypoint generation took %1 iterations and %2 ms for sparse pointcloud size %3")
+                                           .arg(physicsIterations)
+                                           .arg(wayPointGenerationStartTime.elapsed())
+                                           .arg(mOctreeCollisionObjects->getNumberOfItems()));
                 slotSubmitGeneratedWayPoints();
                 break;
             }
@@ -734,7 +736,7 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
                     // THIS IS THE INTERESTING PART! IF THE SPHERE HAS PREVIOUSLY HIT A LIDARPOINT, MAKE THAT A NEW WAYPOINT!
                     if(mLastSampleObjectHitPositions.contains(rigidBody))
                     {
-                        WayPoint w(mLastSampleObjectHitPositions.take(rigidBody) + QVector3D(0.0, /*5 * mShapeSampleSphere->getRadius()*/7.5, 0.0));
+                        WayPoint w(mLastSampleObjectHitPositions.take(rigidBody) + QVector3D(0.0, 2.0f * mShapeSampleSphere->getRadius(), 0.0));
 
                         // only use waypoints in scanvolume
                         if(
@@ -746,7 +748,26 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
                                 && w.z() > mScanVolumeMin.z()
                                 )
                         {
-                            mWaypointListMap["generated"]->append(w);
+
+                            // Do not append waypoints in close vicinity to other waypoints!
+                            // We check ALL waypoint lists here: passed, generated, ...
+                            bool wayPointInCloseVicinity = false;
+
+                            QMapIterator<QString, WayPointList*> i(mWaypointListMap);
+                            while(!wayPointInCloseVicinity && i.hasNext())
+                            {
+                                i.next();
+                                const QList<WayPoint>* list = i.value()->list();
+                                for(int i = 0; i < list->size() && !wayPointInCloseVicinity; ++i)
+                                {
+                                    if(list->at(i).distanceToLine(w, QVector3D()) < mShapeSampleSphere->getRadius())
+                                    {
+                                        wayPointInCloseVicinity = true;
+                                    }
+                                }
+                            }
+
+                            if(!wayPointInCloseVicinity) mWaypointListMap["generated"]->append(w);
 
                             // This would add the waypoint sphere as static object to the physics world
                             //sampleSphereTransform.setOrigin(btVector3(w.x(), w.y(), w.z()));
@@ -805,6 +826,8 @@ void FlightPlannerPhysics::slotSubmitGeneratedWayPoints()
     // just for creating paper-screenshots
     slotDeleteSampleGeometry();
     mFirstSphereHasHitThisIteration = false;
+
+    mLastSampleObjectHitPositions.clear();
 
     emit suggestVisualization();
 }
