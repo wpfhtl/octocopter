@@ -146,8 +146,8 @@ void FlightController::slotComputeMotionCommands()
         mPrevErrorYaw = errorYaw;
         mPrevErrorHeight = errorHeight;
 
-        out_thrust = (quint8)qBound(80.0f, outputThrust, 180.0f);
-        out_yaw = (qint8)qBound(-27.0, outputYaw > 0.0f ? ceil(outputYaw) : floor(outputYaw), 27.0);
+        out_thrust = (quint8)qBound(60.0f, outputThrust, 180.0f);
+        out_yaw = (qint8)qBound(-15.0, outputYaw > 0.0f ? ceil(outputYaw) : floor(outputYaw), 15.0);
         out_pitch = (qint8)qBound(-20.0f, outputPitch, 20.0f);
         out_roll = (qint8)qBound(-20.0f, outputRoll, 20.0f);
 

@@ -650,7 +650,7 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
             QTime profiler = QTime::currentTime(); profiler.start();
             mBtWorld->stepSimulation(0.05, 10);
             qDebug() << "FlightPlannerPhysics::slotProcessPhysics(): step cpu time in ms:" << profiler.elapsed() << "fps:" << 1000 / std::max(profiler.elapsed(),1);
-            usleep(500000);
+            //usleep(500000);
 
             printf("%1.7f\n", CollisionSphereState::mFarthestDistanceTravelled); fflush(stdout);
             if(physicsIterations > 50 && CollisionSphereState::mFarthestDistanceTravelled < 0.0001f)

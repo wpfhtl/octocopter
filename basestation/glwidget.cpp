@@ -268,7 +268,6 @@ void GlWidget::paintGL()
 
             // Render axes once at origin, once at vehicle
             {
-                /*
                 // At the origin
                 mShaderProgramDefault->setUniformValue("useFixedColor", false);
                 glBindBuffer(GL_ARRAY_BUFFER, mVboAxes);
@@ -284,7 +283,7 @@ void GlWidget::paintGL()
                 glDisableVertexAttribArray(0);
                 glDisableVertexAttribArray(1);
                 glBindBuffer(GL_ARRAY_BUFFER, 0);
-                mShaderProgramDefault->setUniformValue("useMatrixExtra", false);*/
+                mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
             }
         }
         glDisable(GL_BLEND);
