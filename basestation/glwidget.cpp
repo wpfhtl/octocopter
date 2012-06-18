@@ -238,14 +238,14 @@ void GlWidget::paintGL()
                                                        );
 
                 // Render pointcloud using all initialized VBOs (there might be none when no points exist)
-                QMapIterator<quint32, quint32> i(octree->mVboIdsAndSizes);
-                while(i.hasNext())
+                QMapIterator<quint32, quint32> j(octree->mVboIdsAndSizes);
+                while(j.hasNext())
                 {
-                    i.next();
-                    glBindBuffer(GL_ARRAY_BUFFER, i.key());
+                    j.next();
+                    glBindBuffer(GL_ARRAY_BUFFER, j.key());
                     glEnableVertexAttribArray(0);
                     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, 0);
-                    glDrawArrays(GL_POINTS, 0, i.value()); // Number of Elements, not bytes
+                    glDrawArrays(GL_POINTS, 0, j.value()); // Number of Elements, not bytes
                     glDisableVertexAttribArray(0);
                 }
             }
