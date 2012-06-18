@@ -248,6 +248,7 @@ void KopterControl::slotHandleSignal()
 
 void KopterControl::installMessageHandler(const QString& logFilePrefix)
 {
+    qDebug() << "KopterControl::installMessageHandler(): setting up console logging...";
     mMasterLogFile = new QFile(logFilePrefix + QString("console.txt"));
     if(!mMasterLogFile->open(QIODevice::WriteOnly | QIODevice::Append))
     {
