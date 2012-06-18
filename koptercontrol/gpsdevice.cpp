@@ -335,7 +335,7 @@ void GpsDevice::slotCommunicationSetup()
     slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
 
     // For now, record support messages for septentrio
-    slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,sec1"); // septentrio wants msec100, but that kills the cpu
+    slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support+BBSamples,sec1"); // septentrio wants msec100, but that kills the cpu
 
     // We want to know PVTCartesion for MeanCorrAge (average correction data age), ReceiverStatus for CPU Load and IntAttCovEuler for Covariances (sigma-values)
     slotQueueCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus+IntAttCovEuler,msec500");

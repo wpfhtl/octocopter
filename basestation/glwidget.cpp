@@ -217,8 +217,6 @@ void GlWidget::paintGL()
         mTimerIdZoom = 0;
     }
 
-
-
     mShaderProgramDefault->bind();
     {
         mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
