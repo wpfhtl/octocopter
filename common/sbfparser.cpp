@@ -32,10 +32,12 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offse
         offsetToValidPacket = sbfData.indexOf("$@", (offsetToValidPacket + sizeof(block->Header.Sync)));
 
         // If the sync field "$@" was not found at all, no valid packet can be present. Quit.
-        if(offsetToValidPacket < 0) return false;
+        if(offsetToValidPacket < 0)
+            return false;
 
         // Make sure that we have at least 8 bytes (the header size) to read (including the sync field)
-        if(sbfData.size() < offsetToValidPacket + sizeof(Sbf_Header)) return false;
+        if(sbfData.size() < offsetToValidPacket + sizeof(Sbf_Header))
+            return false;
 
 //        sbfHeader = (Sbf_Header*)(sbfData.data() + offsetToValidPacket);
         block = (Sbf_PVTCartesian*)(sbfData.data() + offsetToValidPacket);
@@ -45,13 +47,16 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offse
         //  b) the packet's header->Length is corrupt
         // If it was a), we could return false, but we cannot be sure its not b), as we haven't checksummed yet. Thus,
         // instead of returning false, we need to look for further packets to guarantee working even in condition b)
-        if(block->Header.Length > sbfData.size() - offsetToValidPacket) continue;
+        if(block->Header.Length > sbfData.size() - offsetToValidPacket)
+            continue;
 
         // If the length is not a multiple of 4, its not a valid packet. Continue searching for another packet
-        if(block->Header.Length % 4 != 0) continue;
+        if(block->Header.Length % 4 != 0)
+            continue;
 
         // If the packet has a TOW DO-NOT-USE, skip it
-        if(block->TOW == 4294967295) continue;
+        if(block->TOW == 4294967295)
+            continue;
 
         // Calculate the packet's checksum. For corrupt packets, the Length field might be random, so we bound
         // the bytes-to-be-checksummed to be between 0 and the buffer's remaining bytes after Sync and Crc fields.
@@ -65,7 +70,10 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offse
                     );
 
         // Quit searching if we found a valid packet.
-        if(block->Header.CRC == calculatedCrc) break;
+        if(block->Header.CRC == calculatedCrc)
+            break;
+        else
+            qDebug() << "Packet at offset" << offsetToValidPacket << "has CRC error:" << block->Header.CRC << calculatedCrc << ", will start searching two bytes later";
     }
 
     // If we're here, we have a valid SBF packet starting at offsetToValidPacket
@@ -557,18 +565,34 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     const Sbf_ExtEvent *block = (Sbf_ExtEvent*)sbfData.data();
     emit processedPacket(sbfData.left(msgLength), (qint32)block->TOW);
 
-    // Remove the SBF block body from our incoming buffer, so it contains either nothing or the next SBF message
-    const int indexOfNextPacket = sbfData.indexOf("$@", offsetToValidPacket+1);
-    if(indexOfNextPacket == -1)
-    {
-        // There is no next packet, so remove the packet, possibly without the padding bytes at the end.
-        sbfData.remove(0, msgLength); // this does not remove the padding bytes after the current packet
-    }
-    else
+
+    /*
+     Remove the SBF block body from our incoming buffer, so it contains either nothing or the next SBF
+     message. SBF blocks often end with padding bytes which are NOT included in the msgLength counter.
+     So, after processing a packet, we cut off AT LEAST msgLength bytes and then look for the next SYNC,
+     further removing the padding bytes before that next message starts:
+
+     $@<header/><body>...$@...</body>...padding...$@<header/><body/>...padding...$@
+                         ^^- spurious data showing up as SYNC
+     |<---------- msgLength ------->|
+
+     If you're tempted to remove
+
+            std::max(msgLength, sbfData.indexOf("$@", msgLength))
+    */
+
+    sbfData.remove(0, std::max((int)msgLength, sbfData.indexOf("$@", msgLength)));
+
+/*
+    // Remove processed packet
+    sbfData.remove(0, msgLength);
+
+    // Remove processed packet's trailing padding bytes
+    const int indexOfNextPacket = sbfData.indexOf("$@");
+    if(indexOfNextPacket > 0)
     {
         // A next packet was found, so remove everything up to its start (including padding bytes from our current packet)
         sbfData.remove(0, indexOfNextPacket);
     }
-
-    //if(sbfData.size()) qDebug() << "SbfParser::processNextValidPacket(): done processing SBF data, bytes left in buffer:" << sbfData.size() << "bytes:" << sbfData;
+    */
 }
