@@ -36,7 +36,7 @@ private:
 
     SbfParser* mSbfParser;
 
-    quint8 mNumberOfRemainingRepliesUsb;
+    bool mWaitingForCommandReply; // true when we're waiting for a reply from septentrio board (on usb port).
     unsigned int mRtkDataCounter;
     QByteArray mLastCommandToDeviceUsb;
     AbstractSerial *mSerialPortUsb, *mSerialPortCom;

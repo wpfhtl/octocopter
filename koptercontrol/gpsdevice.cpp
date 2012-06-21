@@ -42,7 +42,7 @@ GpsDevice::GpsDevice(const QString &serialDeviceFileUsb, const QString &serialDe
 
     mDeviceIsInitialized = false;
 
-    mNumberOfRemainingRepliesUsb = 0; // Should never be > 1 as we wait with sending until last command is replied to.
+    mWaitingForCommandReply = false;
     mRtkDataCounter = 0;
     mSerialPortOnDeviceCom = "COM3";
     mSerialPortOnDeviceUsb = "";
@@ -114,32 +114,34 @@ GpsDevice::~GpsDevice()
 
 void GpsDevice::slotQueueCommand(QString command)
 {
-    qDebug() << "GpsDevice::slotQueueAsciiCommand(): queueing command" << command;
+    qDebug() << "GpsDevice::slotQueueCommand(): queueing command" << command;
     command.replace("#USB#", mSerialPortOnDeviceUsb);
     command.replace("#COM#", mSerialPortOnDeviceCom);
     mCommandQueueUsb.append(command.append("\r\n").toAscii());
-    slotFlushCommandQueue();
+
+    if(!mWaitingForCommandReply)
+        slotFlushCommandQueue();
 }
 
 quint8 GpsDevice::slotFlushCommandQueue()
 {
-    if(mNumberOfRemainingRepliesUsb == 0 && mCommandQueueUsb.size())
+    if(!mWaitingForCommandReply && mCommandQueueUsb.size())
     {
         mLastCommandToDeviceUsb = mCommandQueueUsb.takeFirst();
         qDebug() << t() << "GpsDevice::slotFlushCommandQueue(): currently not waiting for a reply, so sending next command:" << mLastCommandToDeviceUsb.trimmed();
         if(mReceiveBufferUsb.size()) qDebug() << t() << "GpsDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << mReceiveBufferUsb;
-        usleep(100000);
+        //usleep(100000);
         mSerialPortUsb->write(mLastCommandToDeviceUsb);
-        mNumberOfRemainingRepliesUsb++;
+        mWaitingForCommandReply = true;
 
         QTextStream commandLog(mLogFileCmd);
         commandLog << endl << endl << "################################################################################" << endl << endl;
         commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << " HOST -> DEV: " << mLastCommandToDeviceUsb << endl;
         commandLog << "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" << endl << endl;
     }
-    else if(mNumberOfRemainingRepliesUsb)
+    else if(mWaitingForCommandReply)
     {
-        qDebug() << "GpsDevice::slotFlushCommandQueue(): still waiting for" << mNumberOfRemainingRepliesUsb << "usb command-replies, not sending.";
+        qDebug() << "GpsDevice::slotFlushCommandQueue(): still waiting for a usb command-reply, not sending.";
     }
     else
     {
@@ -148,7 +150,7 @@ quint8 GpsDevice::slotFlushCommandQueue()
 
     // ben 2012-03-21: For some reason, when subscribing at msec20, we don't get called in slotDataReadyOnUsb() because th buffer is still (or already)
     // filled with crap. So, lets call ourselves every second.
-    QTimer::singleShot(1000, this, SLOT(slotFlushCommandQueue()));
+//    QTimer::singleShot(1000, this, SLOT(slotFlushCommandQueue()));
 
     return mCommandQueueUsb.size();
 }
@@ -263,7 +265,7 @@ void GpsDevice::slotCommunicationSetup()
 
     slotQueueCommand("lstInternalFile,Permissions");
 
-    slotQueueCommand("lstInternalFile,Debug");
+//    slotQueueCommand("lstInternalFile,Debug");
 
     // reset communications
     slotQueueCommand("setDataInOut,all,CMD,none");
@@ -322,6 +324,9 @@ void GpsDevice::slotCommunicationSetup()
 
     // Configure as rover in StandAlone+RTK mode.
     slotQueueCommand("setPVTMode,Rover,all,auto,Loosely");
+
+    // After sending/receiving the SetPvtMode command, the rover needs to be static for better alignment. Tell the user to wait!
+    emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Integration filter started (alignment not ready), vehicle must remain static for 20s starting now.");
 
     // explicitly allow rover to use all RTCMv3 correction messages
     slotQueueCommand("setRTCMv3Usage,all");
@@ -391,12 +396,12 @@ void GpsDevice::slotDataReadyOnUsb()
     // Move all new bytes into our SBF buffer
     mReceiveBufferUsb.append(mSerialPortUsb->readAll());
 
-    if(mNumberOfRemainingRepliesUsb != 0)
+    if(mWaitingForCommandReply)
     {
         // If the receiver replies to "exeSbfOnce" commands, process that data immediately. It might be receivertime, which is time-crucial.
         if(mReceiveBufferUsb.left(2) == QString("$@").toAscii())
         {
-            qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): device replied to a request with SBF, processing" << mReceiveBufferUsb.size() << "SBF bytes.";
+            qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): device sent SBF while we're waiting for a reply, processing" << mReceiveBufferUsb.size() << "SBF bytes.";
 
             while(mSbfParser->getNextValidPacketInfo(mReceiveBufferUsb))
                   mSbfParser->processNextValidPacket(mReceiveBufferUsb);
@@ -405,7 +410,8 @@ void GpsDevice::slotDataReadyOnUsb()
             // is still in the buffer and needs to be processed. Luckily, this is done in the while-loop below.
         }
 
-        while(mNumberOfRemainingRepliesUsb != 0 && mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QString(">")) != -1) // while we found a complete chat reply
+        // If we find a complete chat reply, process it!
+        if(mWaitingForCommandReply && mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QString(">")) != -1)
         {
             const int positionEndOfReply = mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QString(">")) + 5;
             qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): received reply to:" << mLastCommandToDeviceUsb.trimmed() << ":" << mReceiveBufferUsb.size() << "bytes:" << mReceiveBufferUsb.left(positionEndOfReply).trimmed();
@@ -413,10 +419,6 @@ void GpsDevice::slotDataReadyOnUsb()
             QTextStream commandLog(mLogFileCmd);
             commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << " DEV -> HOST: " << mReceiveBufferUsb.left(positionEndOfReply).trimmed() << endl;
             commandLog << endl << "################################################################################" << endl << endl << endl << endl;
-
-            // After sending/receiving the SetPvtMode command, the rover needs to be static for better alignment. Tell the user to wait!
-            if(QString(mReceiveBufferUsb.left(positionEndOfReply)).contains("SetPvtMode", Qt::CaseInsensitive))
-                emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Integration filter started (alignment not ready), vehicle must remain static for 20s starting now.");
 
             if(mReceiveBufferUsb.left(positionEndOfReply).contains("$R? ASCII commands between prompts were discarded!"))
                 qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): we were talking too fast!!";
@@ -429,18 +431,20 @@ void GpsDevice::slotDataReadyOnUsb()
             }
 
             mReceiveBufferUsb.remove(0, positionEndOfReply);
-            mNumberOfRemainingRepliesUsb--;
+            mWaitingForCommandReply = false;
+
+            //qDebug() << "GpsDevice::slotDataReadyOnUsb(): after parsing all input i will send next command, if any";
+            slotFlushCommandQueue();
         }
+
+        // Make sure we have processed all available chat replies. It is impossible that there are
+        // others, as we only give command one by one, waiting for replies before sending the next.
+        Q_ASSERT(mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QString(">")) == -1 && "There is another chat reply!");
 
         if(mReceiveBufferUsb.size())
         {
-            qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): after parsing all replies, rx-buffer not empty, contains:" << mReceiveBufferUsb;
-        }
-        else
-        {
-//            qDebug() << "GpsDevice::slotDataReadyOnUsb(): after parsing all input i will send next command, if any";
-            slotFlushCommandQueue();
-        }
+            qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): after parsing all input, rx-buffer still contains:" << mReceiveBufferUsb;
+        }        
     }
     else
     {

@@ -120,7 +120,12 @@ void FlightController::slotComputeMotionCommands()
         // WARNING: If we multiply by factorHeight, we won't stabilize the kopter at low height, it'll have to do that by itself. Is that good?
         const float outputRoll = factorHeight * factorPlanarDistance * ((6.0f * errorRoll) + (0.3f * mErrorIntegralRoll) + (0.0f * derivativeRoll));
 
-        const float outputHover = 110.0;
+        /*
+Tests have shown:
+ - with metal hood (2425 gram) hovers at 128.
+*/
+
+        const float outputHover = 127.0;
         const float errorHeight = nextWayPoint.y() - mLastKnownVehiclePose.getPosition().y();
         mErrorIntegralHeight += errorHeight*timeDiff;
 

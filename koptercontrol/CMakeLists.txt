@@ -54,7 +54,7 @@ camera
 ../common/flightcontroller
 ../common/sbfparser
 ../common/common
-../common/plymanager
+#../common/plymanager
 ../common/pose
 ../common/waypoint
 ../common/lidarpoint
@@ -74,7 +74,7 @@ camera.h
 ../common/flightcontroller.h
 ../common/sbfparser.h
 ../common/common.h
-../common/plymanager.h
+#../common/plymanager.h
 ../common/pose.h
 ../common/waypoint.h
 ../common/lidarpoint.h

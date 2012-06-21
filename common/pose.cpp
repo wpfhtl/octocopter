@@ -448,7 +448,7 @@ const QString Pose::getFlagsString() const
 {
     QString flags;
     if(precision & Pose::AttitudeAvailable) flags.append("+ATT"); else flags.append("-ATT");
-    if(precision & Pose::CorrectionAgeLow) flags.append(" +CRL"); else flags.append(" -CRL");
+    if(precision & Pose::CorrectionAgeLow) flags.append(" +COR"); else flags.append(" -COR");
     if(precision & Pose::RtkFixed) flags.append(" +RTK"); else flags.append(" -RTK");
     if(precision & Pose::ModeIntegrated) flags.append(" +INT"); else flags.append(" -INT");
     return flags;
