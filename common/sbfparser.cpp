@@ -134,11 +134,20 @@ QVector3D SbfParser::convertGeodeticToCartesian(const double &lon, const double 
     // This may ONLY happen based on really good positional fixes (=RTK Fixed): if we initialize these
     // origins using e.g. Differential and then switch to RTKFixed, the kopter might remain underground
     // due to a -2m Y-offset between Differential and RtkFixed.
-    if(mOriginLongitude > 10e19 && mOriginLatitude > 10e19 && mOriginElevation > 10e19 && precision & Pose::RtkFixed)
+    if(mOriginLongitude > 10e19 && mOriginLatitude > 10e19 && mOriginElevation > 10e19)
     {
-        mOriginLongitude = lon;
-        mOriginLatitude = lat;
-        mOriginElevation = elevation;
+        // Our world coordinate system is not set yet. If the GNSS measurement is precise enough, define it now. If
+        // its NOT precise, return a null QVector3D.
+        if(precision & Pose::RtkFixed)
+        {
+            mOriginLongitude = lon;
+            mOriginLatitude = lat;
+            mOriginElevation = elevation;
+        }
+        else
+        {
+            return QVector3D();
+        }
     }
 
     // Doesn't matter, as offset isn't hardcoded anymore this is just for historical reference :)

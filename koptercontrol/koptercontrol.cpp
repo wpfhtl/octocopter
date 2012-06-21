@@ -139,7 +139,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mBaseConnection, SIGNAL(newConnection()), mFlightController, SLOT(slotEmitFlightState()));
 
     //    WARNING! THIS ENABLES MOTION!
-    //connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
+    connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
 
     connect(mGpsDevice->getSbfParser(), SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mGpsDevice, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
@@ -169,6 +169,7 @@ KopterControl::~KopterControl()
     delete mGpsDevice;
     delete mLaserScanner;
     delete mSensorFuser;
+    delete mKopter;
     delete snSignalPipe;
 
     if(mMasterLogStream)
@@ -265,7 +266,7 @@ void KopterControl::messageHandler(QtMsgType type, const char *msg)
     Q_ASSERT(mMasterLogStream != 0 && "masterLogSteram is not set!");
 
     QString txt(msg);
-    qDebug() << txt;
+    std::cout << msg << std::endl;
 
     (*mMasterLogStream) << txt << endl;
 
