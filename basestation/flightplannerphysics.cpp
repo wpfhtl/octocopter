@@ -90,8 +90,7 @@ FlightPlannerPhysics::FlightPlannerPhysics(QWidget* widget, Octree* pointCloud) 
     // Set up vehicle collision avoidance. We create one normal btRigidBody to interact with the world and one ghost object to register collisions
     mTransformVehicle.setIdentity();
     //    mShapeVehicle = new btSphereShape(2.0);
-    mMotionStateVehicle = new btDefaultMotionState;
-    mBodyVehicle = new btRigidBody(btRigidBody::btRigidBodyConstructionInfo(1.0, mMotionStateVehicle, new btSphereShape(2.5), btVector3(0, 0, 0)));
+    mBodyVehicle = new btRigidBody(btRigidBody::btRigidBodyConstructionInfo(1.0, new btDefaultMotionState, new btSphereShape(2.5), btVector3(0, 0, 0)));
     //    mBtWorld->addRigidBody(mBodyVehicle);
 
     mGhostObjectVehicle = new btPairCachingGhostObject;
@@ -565,28 +564,35 @@ void FlightPlannerPhysics::slotCreateSampleGeometry()
     if(mDialog->getGenerationType() == FlightPlannerPhysicsDialog::GenerateRain)
     {
         // Fill the sky with spheres
+
         for(
-            float x = mScanVolumeMin.x() + mShapeSampleSphere->getRadius() * 1.2f; // small padding
-            x <= mScanVolumeMax.x() - mShapeSampleSphere->getRadius() * 1.2f; // small padding
-            x += 2.0f * mShapeSampleSphere->getRadius() + 0.1f /*Margin to prevent unnecessary collisions between sample geometry*/)
+            float y = mScanVolumeMax.y() - mShapeSampleSphere->getRadius() * 1.2f; // small padding
+            y >= mScanVolumeMax.y() - mShapeSampleSphere->getRadius() * 1.2f * 7.0f; // small padding
+            y -= 2.0f * mShapeSampleSphere->getRadius() + 0.1f /*Margin to prevent unnecessary collisions between sample geometry*/)
         {
             for(
-                float z = mScanVolumeMin.z() + mShapeSampleSphere->getRadius() * 1.2f; // small padding
-                z <= mScanVolumeMax.z() - mShapeSampleSphere->getRadius() * 1.2f; // small padding
-                z += 2.0f * mShapeSampleSphere->getRadius() + 0.1f /*Margin to prevent unnecessary collisions*/)
+                float x = mScanVolumeMin.x() + mShapeSampleSphere->getRadius() * 1.2f; // small padding
+                x <= mScanVolumeMax.x() - mShapeSampleSphere->getRadius() * 1.2f; // small padding
+                x += 2.0f * mShapeSampleSphere->getRadius() + 0.1f /*Margin to prevent unnecessary collisions between sample geometry*/)
             {
-                sampleSphereTransform.setOrigin(btVector3(x, mScanVolumeMax.y()-(mShapeSampleSphere->getRadius()*1.2f), z));
-                // We don't need any inertia, mass etc,. as this body is static.
-                CollisionSphereState* sampleSphereMotionState = new CollisionSphereState(sampleSphereTransform);
-                btRigidBody* body = new btRigidBody(btRigidBody::btRigidBodyConstructionInfo(mShapeSampleSphere->getRadius(), sampleSphereMotionState, mShapeSampleSphere));
-                body->setFriction(mDialog->getFrictionSampleGeometry());
-                body->setRestitution(mDialog->getRestitutionSampleGeometry());
+                for(
+                    float z = mScanVolumeMin.z() + mShapeSampleSphere->getRadius() * 1.2f; // small padding
+                    z <= mScanVolumeMax.z() - mShapeSampleSphere->getRadius() * 1.2f; // small padding
+                    z += 2.0f * mShapeSampleSphere->getRadius() + 0.1f /*Margin to prevent unnecessary collisions*/)
+                {
+                    sampleSphereTransform.setOrigin(btVector3(x, y, z));
+                    // We don't need any inertia, mass etc,. as this body is static.
+                    CollisionSphereState* sampleSphereMotionState = new CollisionSphereState(sampleSphereTransform);
+                    btRigidBody* body = new btRigidBody(btRigidBody::btRigidBodyConstructionInfo(mShapeSampleSphere->getRadius(), sampleSphereMotionState, mShapeSampleSphere));
+                    body->setFriction(mDialog->getFrictionSampleGeometry());
+                    body->setRestitution(mDialog->getRestitutionSampleGeometry());
 
-                numberOfObjectsCreated++;
+                    numberOfObjectsCreated++;
 
-                // Add the body to the dynamics world
-                mSampleObjects.append(body);
-                mBtWorld->addRigidBody(body);
+                    // Add the body to the dynamics world
+                    mSampleObjects.append(body);
+                    mBtWorld->addRigidBody(body);
+                }
             }
         }
     }
@@ -690,7 +696,7 @@ void FlightPlannerPhysics::slotProcessPhysics(bool process)
             //usleep(500000);
 
             //printf("%1.7f\n", CollisionSphereState::mFarthestDistanceTravelled); fflush(stdout);
-            if(physicsIterations > 50 && CollisionSphereState::mFarthestDistanceTravelled < 0.0001f && false)
+            if(mSampleObjects.size() == 0 || (physicsIterations > 50 && CollisionSphereState::mFarthestDistanceTravelled < 0.0001f))
             {
                 mPhysicsProcessingActive = false;
                 const quint32 collisionOctreeSize = mOctreeCollisionObjects ? mOctreeCollisionObjects->getNumberOfItems() : 0;
@@ -895,9 +901,8 @@ void FlightPlannerPhysics::slotVehiclePoseChanged(const Pose& pose)
 
     mTransformVehicle = pose.getTransform();
     mBodyVehicle->setWorldTransform(mTransformVehicle);
-    mMotionStateVehicle->setWorldTransform(mTransformVehicle);
+    mBodyVehicle->getMotionState()->setWorldTransform(mTransformVehicle);
     mGhostObjectVehicle->setWorldTransform(mTransformVehicle);
-    Q_ASSERT(mMotionStateVehicle == mBodyVehicle->getMotionState());
 
     // Check for collisions using the ghost object?!
 }

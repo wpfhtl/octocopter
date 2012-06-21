@@ -185,7 +185,7 @@ void ParticleSystem::update(float deltaTime)
                 mDeviceSortedVel,
                 mDeviceGridParticleHash,
                 mDeviceGridParticleIndex,
-        dPos,
+                dPos,
                 mDeviceVel,
                 mNumberOfParticles,
                 mNumberOfGridCells);

@@ -222,7 +222,7 @@ void ControlWidget::slotWayPointAppend()
 void ControlWidget::slotWayPointDelete()
 {
     QList<QTableWidgetItem *> items = mWayPointTable->selectedItems();
-    //if(items.size() != 1) return;
+    if(items.size() != 1) return;
     emit wayPointDelete(items.at(0)->row());
 }
 

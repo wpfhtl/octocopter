@@ -83,7 +83,6 @@ private:
     // For vehicle collision avoidance
     btTransform mTransformVehicle;
     btRigidBody *mBodyVehicle;
-    btDefaultMotionState* mMotionStateVehicle;
 //    btCollisionShape *mShapeVehicle;
     btPairCachingGhostObject *mGhostObjectVehicle;
 
