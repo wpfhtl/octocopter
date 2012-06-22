@@ -112,7 +112,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
                 logFilePrefix
                 );
     mGpsDevice = new GpsDevice(deviceSerialGpsUsb, deviceSerialGpsCom, logFilePrefix, this);
-    mSensorFuser = new SensorFuser(50); // Really lo-res data for septentrio postprocessing tests.
+    mSensorFuser = new SensorFuser(1); // Really lo-res data for septentrio postprocessing tests.
     mSensorFuser->setLaserScannerRelativePose(mLaserScanner->getRelativePose());
 
     mBaseConnection = new BaseConnection(networkInterface);
@@ -265,10 +265,10 @@ void KopterControl::messageHandler(QtMsgType type, const char *msg)
 {
     Q_ASSERT(mMasterLogStream != 0 && "masterLogSteram is not set!");
 
-    QString txt(msg);
-    std::cout << msg << std::endl;
+//    QString txt(msg);
+    //std::cout << msg << std::endl;
 
-    (*mMasterLogStream) << txt << endl;
+    (*mMasterLogStream) << msg << endl;
 
     if(type == QtFatalMsg) abort();
 }
