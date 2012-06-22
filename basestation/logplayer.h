@@ -42,6 +42,8 @@ private:
     // Returns the TOW of the next Laser-Packet/Line, or -1 when there's no more packet available.
     qint32 getNextTowLaser();
     qint32 getLastTowLaser();
+
+    qint32 getLastTowSbf();
     void processLaserData(const QByteArray& packetLaser);
 
 private slots:

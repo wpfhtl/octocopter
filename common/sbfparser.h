@@ -58,6 +58,8 @@ class SbfParser : public QObject
 private:
     Pose mLastPose;
 
+    quint32 mPacketErrorCount;
+
     GpsStatusInformation::GpsStatus mGpsStatus;
 
     QDateTime mTimeStampStartup; // to determine runtime and clock skew at the end.

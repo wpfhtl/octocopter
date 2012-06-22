@@ -189,7 +189,10 @@ void Kopter::slotSerialPortDataReady()
             const QTime timeOfRequest = mPendingReplies.take(message.getId().toLower());
             if(mPendingReplies.contains(message.getId().toLower()))  qWarning() << "Kopter::slotSerialPortDataReady(): there's another pending message of type" << message.getId().toLower();
 
-            if(timeOfRequest.isNull() && message.getId() != 'k')
+            // If we receive somethign we didn't ask for, start bitching.
+            //  k is mkmag's compass data which cannot be disabled, event though no mkmag is installed
+            //  D  is debug out, which we subscribed to. Its just that one subscription gives multiple replies.
+            if(timeOfRequest.isNull() && message.getId() != 'k' && message.getId() != 'D')
             {
                 qWarning() << "Kopter::slotSerialPortDataReady(): got a reply to an unsent request, message:" << message.toString();
             }

@@ -9,6 +9,8 @@ SbfParser::SbfParser(QObject *parent) : QObject(parent)
 
     mTimeStampStartup = QDateTime::currentDateTime();
 
+    mPacketErrorCount = 0;
+
     mPoseClockDivisor = 0;
 
     mMaxCovariances = 1.0f;
@@ -54,7 +56,7 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offse
         if(block->Header.Length % 4 != 0)
             continue;
 
-        // If the packet has a TOW DO-NOT-USE, skip it
+        // If the packet has a TOW DO-NOT-USE, skip it. TODO: Really?
         if(block->TOW == 4294967295)
             continue;
 
@@ -71,9 +73,14 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offse
 
         // Quit searching if we found a valid packet.
         if(block->Header.CRC == calculatedCrc)
+        {
             break;
+        }
         else
-            qDebug() << "Packet at offset" << offsetToValidPacket << "has CRC error:" << block->Header.CRC << calculatedCrc << ", will start searching two bytes later";
+        {
+            mPacketErrorCount++;
+            qDebug() << "SbfParser::getNextValidPacketInfo(): packet at offset" << offsetToValidPacket << "has CRC error ("<< mPacketErrorCount <<"):" << block->Header.CRC << calculatedCrc << ", will start searching two bytes later";
+        }
     }
 
     // If we're here, we have a valid SBF packet starting at offsetToValidPacket
@@ -168,8 +175,9 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     //qDebug() << "SbfParser::processNextValidPacket():" << sbfData.size() << "bytes present.";
 
     quint32 offsetToValidPacket;
+    qint32 tow;
 
-    if(getNextValidPacketInfo(sbfData, &offsetToValidPacket) == false)
+    if(getNextValidPacketInfo(sbfData, &offsetToValidPacket, &tow) == false)
     {
         qDebug() << "SbfParser::processNextValidPacket(): no more valid packets in sbf data of size" << sbfData.size();
         return;
@@ -531,8 +539,8 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     case 5924:
     {
         // ExtEvent
-        qDebug() << "SBF: ExtEvent";
-        const Sbf_ExtEvent *block = (Sbf_ExtEvent*)sbfData.data();
+        //qDebug() << "SBF: ExtEvent";
+        const Sbf_ExtEvent* const block = (Sbf_ExtEvent* const)sbfData.data();
 
         // Laserscanner sync signal is soldered to both ports, but port 1 is broken. If it ever starts working again, I want to know.
         Q_ASSERT(block->Source == 2);
@@ -569,12 +577,6 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     // emit new status if it changed significantly.
     if(mGpsStatus.interestingOrDifferentComparedTo(previousGpsStatus)) emit status(mGpsStatus);
 
-    // Announce what packet we just processed. Might be used for logging.
-    // ExtEvent is generic enough, the TOW is always at the same location
-    const Sbf_ExtEvent *block = (Sbf_ExtEvent*)sbfData.data();
-    emit processedPacket(sbfData.left(msgLength), (qint32)block->TOW);
-
-
     /*
      Remove the SBF block body from our incoming buffer, so it contains either nothing or the next SBF
      message. SBF blocks often end with padding bytes which are NOT included in the msgLength counter.
@@ -584,13 +586,18 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
      $@<header/><body>...$@...</body>...padding...$@<header/><body/>...padding...$@
                          ^^- spurious data showing up as SYNC
      |<---------- msgLength ------->|
-
-     If you're tempted to remove
-
-            std::max(msgLength, sbfData.indexOf("$@", msgLength))
+     |<------------- to be removed ------------->|
     */
 
-    sbfData.remove(0, std::max((int)msgLength, sbfData.indexOf("$@", msgLength)));
+    const quint16 positionOfSyncAfterCompletePacket = sbfData.indexOf("$@", msgLength);
+    const quint16 bytesToRemove = std::max(msgLength, positionOfSyncAfterCompletePacket);
+
+    // Announce what packet we just processed. Might be used for logging.
+    // ExtEvent is generic enough, the TOW is always at the same location
+    const Sbf_ExtEvent *block = (Sbf_ExtEvent*)sbfData.data();
+    emit processedPacket(sbfData.left(bytesToRemove), (qint32)block->TOW);
+
+    sbfData.remove(0, bytesToRemove);
 
 /*
     // Remove processed packet

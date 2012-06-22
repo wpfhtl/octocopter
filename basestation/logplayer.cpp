@@ -123,19 +123,28 @@ void LogPlayer::slotRewind()
 
     const qint32 towStart = std::min(towSbf, getNextTowLaser());
 
+    // Whats the maximum TOW in our data? Set progressbar accordingly
+    const qint32 towStop = std::max(getLastTowSbf(), getLastTowLaser());
 
-
-    // Whats the minimum TOW in our data? Set progressbar accordingly
-    // Find the last SBF packet in our buffer
-    const QByteArray lastPacketSbf = mDataSbf.right(mDataSbf.size() - mDataSbf.lastIndexOf("$@"));
-
-    if(!mSbfParser->getNextValidPacketInfo(lastPacketSbf, 0, &towSbf))
-        towSbf = -1;
-
-    const qint32 towStop = std::max(towSbf, getLastTowLaser());
     qDebug() << "LogPlayer::slotRewind(): this file contains data between" << towStart << "and" << towStop << "- length in seconds:" << (towStop - towStart)/1000;
     ui->mProgressBarTow->setRange(towStart, towStop);
     ui->mProgressBarTow->setValue(towStart);
+}
+
+qint32 LogPlayer::getLastTowSbf()
+{
+    qint32 towSbf = -1;
+    qint32 lastSearchIndex = -1;
+
+    // Search backwards as long as we cannot find a valid SBF packe tto extract TOW from
+    while(towSbf < 0)
+    {
+        QByteArray lastPacketSbf = mDataSbf.right(mDataSbf.size() - mDataSbf.lastIndexOf("$@", lastSearchIndex));
+        mSbfParser->getNextValidPacketInfo(lastPacketSbf, 0, &towSbf);
+
+        // Where to search next if TOW couldn't be extracted
+        lastSearchIndex = mDataSbf.size() - lastPacketSbf.size() - 2;
+    }
 }
 
 qint32 LogPlayer::getNextTowLaser()
