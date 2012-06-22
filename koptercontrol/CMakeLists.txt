@@ -5,8 +5,8 @@ CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
 PROJECT(koptercontrol)
 
 # Starting with gcc-4.6, we might need "-Wl,--no-as-needed" in CMAKE_CXX_FLAGS
-SET(CMAKE_CXX_FLAGS "-Wl,--no-as-needed")
-SET(CMAKE_CXX_FLAGS "-Wl,--no-as-needed")
+# -pg is for using gprof.
+SET(CMAKE_CXX_FLAGS "-Wl,--no-as-needed -pg")
 
 cmake_policy(SET CMP0015 NEW)
 

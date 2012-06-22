@@ -402,6 +402,8 @@ void SensorFuser::transformScanDataNearestNeighbor()
             QVector<QVector3D> scannedPoints; // Do not reserve full length, will be less poins due to reflections on the vehicle being filtered
             scannedPoints.reserve(800);
 
+            QTime profiler = QTime::currentTime(); profiler.start();
+
             for(int indexRay=0; indexRay < scanDistances->size(); indexRay++)
             {
                 // Only process every mStridePoint'th point
@@ -431,6 +433,8 @@ void SensorFuser::transformScanDataNearestNeighbor()
 
                 mPointCloudSize++;
             }
+
+            qDebug() << "Fusing single scan took" << profiler.elapsed() << "milliseconds";
 
             emit newScannedPoints(scannedPoints, poseForThisScan->getPosition());
 
