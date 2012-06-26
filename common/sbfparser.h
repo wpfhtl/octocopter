@@ -60,6 +60,8 @@ private:
 
     quint32 mPacketErrorCount;
 
+    bool mGnssDeviceWorkingPrecisely;
+
     GpsStatusInformation::GpsStatus mGpsStatus;
 
     QDateTime mTimeStampStartup; // to determine runtime and clock skew at the end.
@@ -240,7 +242,7 @@ private:
 
     void setPose(const qint32& lon, const qint32& lat, const qint32& alt, const quint16& heading, const qint16& pitch, const qint16& roll, const quint32& tow, const quint8& precision);
 
-    quint16 computeChecksum(const void *buf, unsigned int length) const;
+    inline quint16 computeChecksum(const void *buf, unsigned int length) const;
 
     QVector3D convertGeodeticToCartesian(const double& lon, const double& lat, const double& elevation, const quint8& precision);
 
@@ -265,6 +267,10 @@ signals:
     void newVehiclePoseLowFreq(const Pose&); // emitted at ~1Hz;
 
     void processedPacket(const QByteArray& sbfPacket, const qint32& tow);
+
+    // Emitted when the incoming poses (IntPVAAGeod) from SBF are good enough to be used by anyone.
+    // Used to tell GpsDevice to decrease the IntPVAAGeod interval to msec20.
+    void gnssDeviceWorkingPrecisely(bool);
 
     // log/status messages
     void message(const LogImportance& importance, const QString&, const QString& message);

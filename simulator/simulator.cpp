@@ -104,14 +104,14 @@ void Simulator::slotOgreInitialized(void)
     connect(mStatusWidget, SIGNAL(windDetailChanged(bool,float)), mPhysics, SLOT(slotSetWindSetting(bool, float)));
 
     // Only one of the two objects will emit motion signals depending on mJoystickEnabled
-    connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mPhysics, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
-    connect(mJoystick, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mPhysics, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
+    connect(mFlightController, SIGNAL(motion(MotionCommand)), mPhysics, SLOT(slotSetMotion(MotionCommand)));
+    connect(mJoystick, SIGNAL(motion(MotionCommand)), mPhysics, SLOT(slotSetMotion(MotionCommand)));
 
     // Same thing for StatusWidget, which has the configuration window. Tell it to read the config only after ogre
     // is initialized, so it can create cameras and laserscanners.
     mStatusWidget->mDialogConfiguration->slotReadConfiguration();
 
-    connect(mFlightController, SIGNAL(debugValues(Pose,quint8,qint8,qint8,qint8,qint8)), mBaseConnection, SLOT(slotNewControllerDebugValues(Pose,quint8,qint8,qint8,qint8,qint8)));
+    connect(mFlightController, SIGNAL(debugValues(Pose,MotionCommand)), mBaseConnection, SLOT(slotNewControllerDebugValues(Pose,MotionCommand)));
 }
 
 void Simulator::slotSimulationStart(void)

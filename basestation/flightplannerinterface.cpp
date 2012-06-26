@@ -1,4 +1,5 @@
 #include <GL/glew.h>
+#include "glwidget.h"
 #include "flightplannerinterface.h"
 
 FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, Octree* pointCloud) : QObject()
@@ -48,9 +49,10 @@ bool FlightPlannerInterface::insertPointsFromNode(const Node* node)
     return true;
 }
 
-void FlightPlannerInterface::slotClearVehiclePoses()
+void FlightPlannerInterface::slotClearVehicleTrajectory()
 {
     mVehiclePoses.clear();
+    if(mGlWidget) mGlWidget->slotClearVehicleTrajectory();
 }
 
 void FlightPlannerInterface::slotCheckWayPointsHashFromRover(const QString &hash)

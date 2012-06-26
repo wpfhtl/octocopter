@@ -96,6 +96,7 @@ public slots:
     void slotOctreeUnregister(Octree* o);
 
     void slotNewVehiclePose(Pose);
+    void slotClearVehicleTrajectory();
 
     void slotEnableTimerRotation(const bool& enable);
     void slotViewFromTop();

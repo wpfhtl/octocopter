@@ -139,7 +139,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mBaseConnection, SIGNAL(newConnection()), mFlightController, SLOT(slotEmitFlightState()));
 
     //    WARNING! THIS ENABLES MOTION!
-    connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
+    connect(mFlightController, SIGNAL(motion(MotionCommand)), mKopter, SLOT(slotSetMotion(MotionCommand)));
 
     connect(mGpsDevice->getSbfParser(), SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mGpsDevice, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));

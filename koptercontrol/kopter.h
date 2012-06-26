@@ -10,6 +10,8 @@
 #include "koptermessage.h"
 #include "common.h"
 
+class MotionCommand;
+
 class Kopter : public QObject
 {
     Q_OBJECT
@@ -27,7 +29,7 @@ class Kopter : public QObject
         unsigned char Frame;	//value, which is send back by the fc for confirmation
         unsigned char Config;	//if set to 1 the ExternControl is set active
 
-        ExternControl() {}; // Hopefully, this c'tor will initialize all members to zero.
+        ExternControl() {} // Hopefully, this c'tor will initialize all members to zero.
     };
 
     struct VersionInfo
@@ -39,7 +41,7 @@ class Kopter : public QObject
         unsigned char SWPatch;
         unsigned char HardwareError[5];
 
-        VersionInfo() {};
+        VersionInfo() {}
     };
 
     struct DebugOut
@@ -47,7 +49,7 @@ class Kopter : public QObject
         unsigned char Status[2];
         qint16 Analog[32];    // Debugwerte
 
-        DebugOut() {};
+        DebugOut() {}
     };
 
 public:
@@ -76,7 +78,7 @@ private slots:
     void slotSerialPortDataReady();
 
 public slots:
-    void slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& pitch, const qint8& roll, const qint8& height);
+    void slotSetMotion(const MotionCommand& mc);
     void slotTestMotors(const QList<unsigned char> &speeds);
     void slotReset();
     // The PPM Channels have the values from the human-remote-control

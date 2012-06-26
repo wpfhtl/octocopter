@@ -1,4 +1,5 @@
 #include "baseconnection.h"
+#include "motioncommand.h"
 
 BaseConnection::BaseConnection(const QString& interface) :
     QObject(),
@@ -374,18 +375,14 @@ void BaseConnection::slotFlightStateChanged(FlightState flightState)
     slotSendData(data, false);
 }
 
-void BaseConnection::slotNewControllerDebugValues(const Pose& pose, const quint8& thrust, const qint8& yaw, const qint8& pitch, const qint8& roll, const qint8& height)
+void BaseConnection::slotNewControllerDebugValues(const Pose& pose, const MotionCommand& mc)
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
     stream << QString("controllervalues");
     stream << pose;
-    stream << thrust;
-    stream << yaw;
-    stream << pitch;
-    stream << roll;
-    stream << height;
+    stream << mc;
 
     slotSendData(data, false);
 }

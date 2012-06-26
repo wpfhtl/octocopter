@@ -54,6 +54,7 @@ camera
 ../common/flightcontroller
 ../common/sbfparser
 ../common/common
+../common/motioncommand
 #../common/plymanager
 ../common/pose
 ../common/waypoint
@@ -74,6 +75,7 @@ camera.h
 ../common/flightcontroller.h
 ../common/sbfparser.h
 ../common/common.h
+../common/motioncommand.h
 #../common/plymanager.h
 ../common/pose.h
 ../common/waypoint.h

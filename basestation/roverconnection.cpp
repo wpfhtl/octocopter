@@ -200,21 +200,16 @@ void RoverConnection::processPacket(QByteArray data)
     else if(packetType == "controllervalues")
     {
         Pose pose;
-        quint8 thrust;
-        qint8 pitch, roll, yaw, height;
+        MotionCommand mc;
 
         stream >> pose;
-        stream >> thrust;
-        stream >> yaw;
-        stream >> pitch;
-        stream >> roll;
-        stream >> height;
+        stream >> mc;
 
         // Normalize poseYaw between -180 and 180 for better graphing
         float poseYaw = pose.getYawDegrees();
 
         QVector<float> values;
-        values << pitch << roll << thrust << yaw;
+        values << mc.pitch << mc.roll << mc.thrust << mc.yaw;
         values << pose.getPitchDegrees() << pose.getRollDegrees() << poseYaw;
 
         emit controllerValues(values);

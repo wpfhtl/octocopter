@@ -27,6 +27,7 @@ battery
 ../common/flightcontroller
 ../common/gpsstatusinformation
 ../common/pose
+../common/motioncommand
 ../common/lidarpoint
 ../common/waypoint
 engine
@@ -51,6 +52,7 @@ battery.h
 ../common/flightcontroller.h
 ../common/gpsstatusinformation.h
 ../common/pose.h
+../common/motioncommand.h
 ../common/lidarpoint.h
 ../common/waypoint.h
 engine.h

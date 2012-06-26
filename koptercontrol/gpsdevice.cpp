@@ -34,6 +34,7 @@ GpsDevice::GpsDevice(const QString &serialDeviceFileUsb, const QString &serialDe
     // If our SBF parser has a question to the device, forward it.
     connect(mSbfParser, SIGNAL(receiverCommand(QString)), SLOT(slotQueueCommand(QString)));
     connect(mSbfParser, SIGNAL(gpsTimeOfWeekEstablished(qint32)), SLOT(slotSetSystemTime(qint32)));
+    connect(mSbfParser, SIGNAL(gnssDeviceWorkingPrecisely(bool)), SLOT(slotSetPoseFrequency(bool)));
 
     // We first feed SBF data to SbfParser, then we get it back from it via the signal below. A little complicated,
     // but the alternative is to watch two ports for incoming SBF, which might lead to mixing of SBF in between
@@ -82,7 +83,7 @@ GpsDevice::GpsDevice(const QString &serialDeviceFileUsb, const QString &serialDe
 
     mStatusTimer = new QTimer(this);
     connect(mStatusTimer, SIGNAL(timeout()), mSbfParser, SLOT(slotEmitCurrentGpsStatus()));
-    mStatusTimer->start(1000); // emit status signal periodically.
+    mStatusTimer->start(2000); // emit status signal periodically.
 
     // initialize the device whenever we get time to do this. By doing it asynchronously, we can give our creator time to connect our signals and fetch them.
     QTimer::singleShot(0, this, SLOT(slotDetermineSerialPortsOnDevice()));
@@ -336,8 +337,9 @@ void GpsDevice::slotCommunicationSetup()
     //  sec:  1, 2, 5, 10, 15, 30, 60
     //  min:  2, 5, 10, 15, 30, 60
 
-    // We want to know the pose 25 times a second
-    slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec20");
+    // We want to know the pose 25 times a second. But on startup, we ask for slower data and then raise to msec20 when
+    // the poses are of higher quality. See slotSetPoseFrequency()
+    slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec500");
 
     // We want to know PVTCartesion for MeanCorrAge (average correction data age), ReceiverStatus for CPU Load and IntAttCovEuler for Covariances (sigma-values)
     slotQueueCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus+IntAttCovEuler,msec500");
@@ -362,6 +364,15 @@ void GpsDevice::slotCommunicationSetup()
     slotQueueCommand("lstConfigFile,Current");
 
     qDebug() << "GpsDevice::setupCommunication(): done setting up communication";
+}
+
+void GpsDevice::slotSetPoseFrequency(bool highSpeed)
+{
+    qDebug() << "GpsDevice::slotSetPoseFrequency(): setting new interval, highSpeed is" << highSpeed;
+    if(highSpeed)
+        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec20");
+    else
+        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec500");
 }
 
 void GpsDevice::slotShutDown()

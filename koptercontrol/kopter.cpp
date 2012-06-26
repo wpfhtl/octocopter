@@ -1,4 +1,5 @@
 #include "kopter.h"
+#include "motioncommand.h"
 
 Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
 {
@@ -57,11 +58,11 @@ void Kopter::slotTestMotors(const QList<unsigned char> &speeds)
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
 }
 
-void Kopter::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& pitch, const qint8& roll, const qint8& height)
+void Kopter::slotSetMotion(const MotionCommand& mc)
 {
     if(!mMissionStartTime.isValid()) mMissionStartTime = QTime::currentTime();
 
-    qDebug() << t() << "Kopter::slotSetMotion(): setting motion, frame:" << mStructExternControl.Frame << "thrust:" << thrust << "yaw:" << yaw << "pitch:" << pitch << "roll:" << roll << "height:" << height;
+    qDebug() << t() << "Kopter::slotSetMotion(): setting motion, frame:" << mStructExternControl.Frame << "thrust:" << mc.thrust << "yaw:" << mc.yaw << "pitch:" << mc.pitch << "roll:" << mc.roll;
 
     /*
       The kopter has different conventions, at least with default settings (which I intent to keep):
@@ -81,9 +82,9 @@ void Kopter::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& 
 
       For the Extern(al)Control commands to take effect, Poti7 has to be > 128 on the kopter (as con-
       figured in "Stick"). And Poti7 is assigned to channel 7 (as configured in "Kanäle"), which maps
-      to switch SW1 on the remote control, which then has to be switched DOWN to active ExternalControl.
+      to switch SW1 on the remote control, which then has to be switched DOWN to activate ExternalControl.
 
-      Even with ExternalControl enabled, the kopter's gas value is always upper-bound by the remote-
+      Even with ExternalControl enabled, the kopter's thrust value is always upper-bound by the remote-
       control's value. This seems to make a lot of sense.
 
       Under "Verschiedenes/Miscellaneous", max gas is configured to 200, which might also apply to
@@ -93,11 +94,11 @@ void Kopter::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& 
     if(mPendingReplies.contains('b')) qWarning() << "Kopter::slotSetMotion(): Still waiting for a 'B', should not send right now," << mPendingReplies.size() << "pending replies";
 
     mStructExternControl.Config = 1;
-    mStructExternControl.Nick = -pitch;
-    mStructExternControl.Roll = roll;
-    mStructExternControl.Gas = thrust;
-    mStructExternControl.Gier = -yaw;
-    mStructExternControl.Height = height;
+    mStructExternControl.Nick = -mc.pitch;
+    mStructExternControl.Roll = mc.roll;
+    mStructExternControl.Gas = mc.thrust;
+    mStructExternControl.Gier = -mc.yaw;
+    mStructExternControl.Height = 0; // I don't know what this is for.
 
     KopterMessage message(KopterMessage::Address_FC, 'b', QByteArray((const char *)&mStructExternControl, sizeof(mStructExternControl)));
     message.send(mSerialPortFlightCtrl, &mPendingReplies);

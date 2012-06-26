@@ -11,9 +11,11 @@ SbfParser::SbfParser(QObject *parent) : QObject(parent)
 
     mPacketErrorCount = 0;
 
-    mPoseClockDivisor = 0;
+    mPoseClockDivisor = 1; // Don't start with 0, would emit the first (crappy) pose
 
     mMaxCovariances = 1.0f;
+
+    mGnssDeviceWorkingPrecisely = false;
 }
 
 SbfParser::~SbfParser()
@@ -486,14 +488,33 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
 
             emit newVehiclePose(mLastPose);
             mPoseClockDivisor++;
+
+            if(!mGnssDeviceWorkingPrecisely)
+            {
+                mGnssDeviceWorkingPrecisely = true;
+                qDebug() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, setting mGnssDeviceWorkingPrecisely to false, emitting.";
+                emit gnssDeviceWorkingPrecisely(mGnssDeviceWorkingPrecisely);
+            }
         }
         else if(block->Error != 0)
         {
-            qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, error:" << block->Error << "" << GpsStatusInformation::getError(block->Error) ;
+            qDebug() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, error:" << block->Error << "" << GpsStatusInformation::getError(block->Error) ;
+            if(mGnssDeviceWorkingPrecisely)
+            {
+                mGnssDeviceWorkingPrecisely = false;
+                qDebug() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, setting mGnssDeviceWorkingPrecisely to false, emitting.";
+                emit gnssDeviceWorkingPrecisely(mGnssDeviceWorkingPrecisely);
+            }
         }
         else
         {
-            qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, do-not-use values found in elementary fields.";
+            qDebug() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, do-not-use values found in elementary fields.";
+            if(mGnssDeviceWorkingPrecisely)
+            {
+                mGnssDeviceWorkingPrecisely = false;
+                qDebug() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, setting mGnssDeviceWorkingPrecisely to false, emitting.";
+                emit gnssDeviceWorkingPrecisely(mGnssDeviceWorkingPrecisely);
+            }
         }
 
         // If the last pose is valid (i.e. not default-constructed), emit it now.

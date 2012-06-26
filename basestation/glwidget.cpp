@@ -341,6 +341,11 @@ void GlWidget::slotNewVehiclePose(Pose pose)
     slotUpdateView();
 }
 
+void GlWidget::slotClearVehicleTrajectory()
+{
+    mVboVehiclePathBytesCurrent = 0;
+}
+
 void GlWidget::slotEnableTimerRotation(const bool& enable)
 {
     if(enable && mTimerIdRotate == 0)

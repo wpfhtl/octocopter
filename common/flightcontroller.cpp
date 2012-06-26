@@ -1,4 +1,5 @@
 #include "flightcontroller.h"
+#include "motioncommand.h"
 
 FlightController::FlightController() : QObject(), mFlightState(ManualControl)
 {
@@ -10,6 +11,10 @@ FlightController::FlightController() : QObject(), mFlightState(ManualControl)
 
     mBackupTimerComputeMotion = new QTimer(this);
     connect(mBackupTimerComputeMotion, SIGNAL(timeout()), SLOT(slotComputeBackupMotion()));
+
+    // Tests have shown:
+    // - with metal hood (2425 gram) it hovers at 127/128.
+    mThrustHover = 127.0;
 
     /*// For testing in simulator
     mWayPoints.append(WayPoint(QVector3D(130,90,110)));
@@ -65,7 +70,7 @@ void FlightController::slotComputeMotionCommands()
 
         if(getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp > 82)
         {
-            qDebug() << t() << "FlightController::slotComputeMotionCommands(): ApproachingNextWayPoint, vehicle pose update is more than 82ms ago, skipping motion computation, emitting safe control values";
+            qDebug() << t() << "FlightController::slotComputeMotionCommands(): ApproachingNextWayPoint, vehicle pose update is" << getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp << "ms ago, skipping motion computation, emitting safe control values";
             emitSafeControlValues();
             return;
         }
@@ -120,12 +125,6 @@ void FlightController::slotComputeMotionCommands()
         // WARNING: If we multiply by factorHeight, we won't stabilize the kopter at low height, it'll have to do that by itself. Is that good?
         const float outputRoll = factorHeight * factorPlanarDistance * ((6.0f * errorRoll) + (0.3f * mErrorIntegralRoll) + (0.0f * derivativeRoll));
 
-        /*
-Tests have shown:
- - with metal hood (2425 gram) hovers at 128.
-*/
-
-        const float outputHover = 127.0;
         const float errorHeight = nextWayPoint.y() - mLastKnownVehiclePose.getPosition().y();
         mErrorIntegralHeight += errorHeight*timeDiff;
 
@@ -134,7 +133,7 @@ Tests have shown:
         if((mPrevErrorHeight > 0.0f && errorHeight < 0.0f) || (mPrevErrorHeight < 0.0f && errorHeight > 0.0f)) mErrorIntegralHeight /= 3.0f;
 
         const float derivativeHeight = mFirstControllerRun ? 0.0f : (errorHeight - mPrevErrorHeight + 0.00001f)/timeDiff;
-        const float outputThrust = outputHover + (25.0f * errorHeight) + (0.01f * mErrorIntegralHeight) + (1.0f * derivativeHeight);
+        const float outputThrust = mThrustHover + (25.0f * errorHeight) + (0.01f * mErrorIntegralHeight) + (1.0f * derivativeHeight);
 
         qDebug() << mWayPoints.size() << "waypoints, next wpt height" << nextWayPoint.y() << "curr height" << mLastKnownVehiclePose.getPosition().y();
 
@@ -151,18 +150,22 @@ Tests have shown:
         mPrevErrorYaw = errorYaw;
         mPrevErrorHeight = errorHeight;
 
-        out_thrust = (quint8)qBound(60.0f, outputThrust, 180.0f);
-        out_yaw = (qint8)qBound(-15.0, outputYaw > 0.0f ? ceil(outputYaw) : floor(outputYaw), 15.0);
-        out_pitch = (qint8)qBound(-20.0f, outputPitch, 20.0f);
-        out_roll = (qint8)qBound(-20.0f, outputRoll, 20.0f);
+        MotionCommand mc;
+
+        mc.thrust = (quint8)qBound(100.0f, outputThrust, 140.0f);
+        // A yaw of 15 rotates by about 15 degrees per second.
+        mc.yaw = (qint8)qBound(-25.0, outputYaw > 0.0f ? ceil(outputYaw) : floor(outputYaw), 25.0);
+        // 20 seems a good pitch/roll-value in production, but lets limit to 10 for testing
+        mc.pitch = (qint8)qBound(-10.0f, outputPitch, 10.0f);
+        mc.roll = (qint8)qBound(-10.0f, outputRoll, 10.0f);
 
         // For safety, we don't need it right now.
-        out_roll = 0;
+        mc.roll = 0;
 
-        qDebug() << t() << "FlightController::slotComputeMotionCommands(): thrust:" << out_thrust << "yaw:" << out_yaw << "pitch:" << out_pitch << "roll:" << out_roll;
+        qDebug() << t() << "FlightController::slotComputeMotionCommands(): thrust:" << mc.thrust << "yaw:" << mc.yaw << "pitch:" << mc.pitch << "roll:" << mc.roll;
 
-        emit motion(out_thrust, out_yaw, out_pitch, out_roll, 0);
-        //emit debugValues(mLastKnownVehiclePose, out_thrust, out_yaw, out_pitch, out_roll, 0);
+        emit motion(mc);
+        //emit debugValues(mLastKnownVehiclePose, mc);
 
         // See whether we've reached the waypoint
         if(mLastKnownVehiclePose.getPosition().distanceToLine(nextWayPoint, QVector3D()) < 1.00f) // close to wp
@@ -175,7 +178,7 @@ Tests have shown:
     else if(mFlightState == Idle)
     {
         qDebug() << t() << "FlightController::slotComputeMotionCommands(): flightstate idle, emitting idle thrust.";
-        emit motion(90, 0, 0, 0, 0);
+        emit motion(MotionCommand(90));
     }
     else
     {
@@ -268,7 +271,7 @@ FlightState FlightController::getFlightState(void) const { return mFlightState; 
 void FlightController::slotNewVehiclePose(const Pose& pose)
 {
     // Note that we don't expect ModeIntegrated
-    if(pose.precision & Pose::AttitudeAvailable && pose.precision & Pose::HeadingFixed && pose.precision && pose.RtkFixed)
+    if(pose.precision & Pose::AttitudeAvailable && pose.precision & Pose::HeadingFixed && pose.precision && Pose::RtkFixed)
     {
         qDebug() << t() << "FlightController::slotNewVehiclePose(): received a usable:" << pose;
         mLastKnownVehiclePose = pose;
@@ -295,6 +298,7 @@ void FlightController::setFlightState(FlightState newFlightState)
 
         if(newFlightState == ApproachingNextWayPoint)
         {
+            qDebug() << t() << "FlightController::setFlightState(): ApproachingNextWayPoint - initializing controllers, enabling backup motion timer.";
             // We're going to use the controllers, so make sure to initialize them
             mPrevErrorPitch = 0.1f;
             mPrevErrorRoll = 0.1f;
@@ -310,21 +314,27 @@ void FlightController::setFlightState(FlightState newFlightState)
             mTimeOfLastControllerUpdate = QTime::currentTime();
 
             mFirstControllerRun = true;
+            mBackupTimerComputeMotion->start();
         }
 
         if(newFlightState == Freezing)
         {
-            qDebug() << t() << "FlightController::setFlightState(): deleted waypoints, emitted empty list, now freezing";
+            qDebug() << t() << "FlightController::setFlightState(): freezing - deleting waypoints, emitting empty list, enabling backup motion timer.";
             mWayPoints.clear();
             emit currentWayPoints(mWayPoints);
+            mBackupTimerComputeMotion->start();
         }
 
         if(newFlightState == ManualControl)
         {
+            qDebug() << t() << "FlightController::setFlightState(): manual control - disabling backup motion timer.";
+            mBackupTimerComputeMotion->stop();
         }
 
         if(newFlightState == Idle)
         {
+            qDebug() << t() << "FlightController::setFlightState(): idle - disabling backup motion timer.";
+            mBackupTimerComputeMotion->stop();
         }
 
         mFlightState = newFlightState;
@@ -383,14 +393,14 @@ void FlightController::ensureSafeFlightAfterWaypointsChanged()
 void FlightController::emitSafeControlValues()
 {
     qDebug() << "FlightController::emitSafeControlValues()";
-    // A value of 140 should make the kopter rise slowly. Thats great, because that means we
+    // A value of mThrustHover * 1.05f should make the kopter rise slowly. Thats great, because that means we
     // can control thrust ourselves by defining the upper thrust bound with the remote control.
-    emit motion(140, 0, 0, 0, 0);
+    emit motion(MotionCommand(mThrustHover*1.05f));
 }
 
 void FlightController::slotExternalControlStatusChanged(bool computerControlActive)
 {
-    qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): computer control active:" << computerControlActive;
+    qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): computer control changed to:" << computerControlActive;
 
     if(mFlightState == Freezing)
     {
@@ -420,7 +430,7 @@ void FlightController::slotExternalControlStatusChanged(bool computerControlActi
     else
     {
         // This one is easy. When the user disallows computer control, switch to ManualControl
-        qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): externalControl deactivated, switching to ManualControl.";
+        qDebug() << t() << "FlightController::slotExternalControlStatusChanged(): externalControl deactivated, switching to ManualControl";
         setFlightState(ManualControl);
     }
 }

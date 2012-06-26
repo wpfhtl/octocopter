@@ -12,6 +12,8 @@
 #include <laserscanner.h>
 #include "pose.h"
 
+class MotionCommand;
+
 /*
   The Flightcontroller is responsible for controlling the kopter's flight. Using either
   its own timer or a separate thread (to be determined), it emits its motion(..) signal
@@ -49,6 +51,8 @@ private:
 
     FlightState mFlightState;
 
+    float mThrustHover;
+
     QTime mTimeOfLastControllerUpdate, mTimeOfLastLaserScan;
 
     float mPrevErrorPitch, mPrevErrorRoll, mPrevErrorYaw, mPrevErrorHeight;
@@ -78,15 +82,11 @@ private slots:
 
 signals:
     // used to set the motor-speeds
-    void motion(const quint8& thrust, const qint8& yaw, const qint8& pitch, const qint8& roll, const qint8& height);
+    void motion(const MotionCommand& motion);
 
     void debugValues(
         const Pose& usedPose,
-        const quint8& thrust,
-        const qint8& yaw,
-        const qint8& pitch,
-        const qint8& roll,
-        const qint8& height);
+        const MotionCommand& motion);
 
     // emitted when a waypoint is reached
     void wayPointReached(const WayPoint&);
