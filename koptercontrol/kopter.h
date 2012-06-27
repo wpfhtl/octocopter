@@ -73,6 +73,7 @@ private:
     QTimer* mTimerPpmChannelPublisher;
 
     bool mExternalControlActivated;
+    qint8 mLastCalibrationSwitchValue;
 
 private slots:
     void slotSerialPortDataReady();
@@ -93,8 +94,9 @@ signals:
     void kopterStatus(const quint32 missionRunTimeMsecs, const qint16& baroheight, const float& voltage);
     void ppmChannelValues(quint8 thrust, qint8 yaw, qint8 pitch, qint8 roll, bool motorSafety, bool externalControl);
     // Mikrokopter calls control from non-remote-control sources "ExternalControl". This reflects SW1 on the RC.
-    void slotExternalControlStatusChanged(bool);
-    void externControlReplyReceived();
+    void computerControlStatusChanged(bool);
+    void calibrationSwitchToggled();
+//    void externControlReplyReceived();
 
 };
 

@@ -49,6 +49,13 @@ private:
     QTimer *mBackupTimerComputeMotion;
     QList<WayPoint> mWayPoints, mWayPointsPassed;
 
+    struct ImuOffsets {
+        float pitch;
+        float roll;
+    };
+
+    ImuOffsets mImuOffsets;
+
     FlightState mFlightState;
 
     float mThrustHover;
@@ -71,9 +78,6 @@ private:
 
     // In the first controller iteration, we don't want to build derivatives, they'd be waaayy off and destabilize the controller
     bool mFirstControllerRun;
-
-    // Just in case we reach an undefined state, we emit safe control values. Used instead of asserting.
-    void emitSafeControlValues();
 
     void ensureSafeFlightAfterWaypointsChanged();
 
@@ -111,8 +115,14 @@ public slots:
 
     void slotEmitFlightState();
 
+    // The IMU is not mounted perfectly straight on the helicopter. Even if it was, the helicopter is a bent mess by now.
+    // This means that reading IMU values and then setting the kopter's pitch/roll from there leads to big drifting. To
+    // counter this, we fly manually and tune pitch/roll to have it balanced, then toggle SW4/PB8, calling this slot.
+    // FlightController then saves the currently read IMU values as offsets. Easy, huh?
+    void slotCalibrateImu();
+
     // This signal comes from Kopter (the MK's serial connection), and we use it only to derive the flightstate from the RemoteControl's externalControl-switch
-    void slotExternalControlStatusChanged(bool externalControl);
+    void slotComputerControlStatusChanged(bool externalControl);
 
     // Called regularly by our parent, we compute the motion commands then and emit motion(...).
     void slotComputeMotionCommands();

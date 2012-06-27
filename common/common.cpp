@@ -36,9 +36,9 @@ QString getFlightStateString(const FlightState flightState)
 {
     switch(flightState)
     {
-    case ManualControl: return "ManualControl"; break;
-    case ApproachingNextWayPoint: return "ApproachingNextWayPoint"; break;
-    case Freezing: return "Freezing"; break;
+    case UserControl: return "UserControl"; break;
+    case ApproachWayPoint: return "ApproachWayPoint"; break;
+    case Hover: return "Hover"; break;
     case Idle: return "Idle"; break;
     }
 

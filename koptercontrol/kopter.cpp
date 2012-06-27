@@ -13,6 +13,7 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     mSerialPortFlightCtrl->setFlowControl(AbstractSerial::FlowControlOff);
 
     mExternalControlActivated = false;
+    mLastCalibrationSwitchValue = 0; // thats an impossible value, so we use it to detect our first value reading
     mStructExternControl.Frame = 0;
     mMaxReplyTime = 0;
 
@@ -103,7 +104,7 @@ void Kopter::slotSetMotion(const MotionCommand& mc)
     KopterMessage message(KopterMessage::Address_FC, 'b', QByteArray((const char *)&mStructExternControl, sizeof(mStructExternControl)));
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
 
-    // Its an unsigned char, so it should overflow safely?!
+    // Its an unsigned char, so it should overflow safely
     mStructExternControl.Frame++;
 }
 
@@ -218,7 +219,7 @@ void Kopter::slotSerialPortDataReady()
                     qDebug() << "Kopter::slotSerialPortDataReady(): received reply to 'b' after ms:" << timeOfRequest.msecsTo(QTime::currentTime()) << "worst:" << mMaxReplyTime;
                 }
 
-                emit externControlReplyReceived();
+//                emit externControlReplyReceived();
             }
             else if(message.getId() == 'D')
             {
@@ -239,12 +240,15 @@ void Kopter::slotSerialPortDataReady()
 
                 //for(int i=0; i < payload.size()/2; i++) qDebug() << "Kopter::slotSerialPortDataReady(): ppm channel" << i << ":" << ppmChannels[i];
 
+                // These channel values are experienced when read from incoming data. They do NOT match the mikrokopter-tool levels!
                 // ppmChannels[1] is Thrust: -127 is min, 14 is max
                 // ppmChannels[2] is Roll: 93 is max (left on R/C), -93 is min (right on R/C). Positive rolls positive on the Z axis.
                 // ppmChannels[3] is Pitch: 94 is max (up on R/C), -94 is min (down on R/C). Positive pitches negative on the X axis.
                 // ppmChannels[4] is Yaw: 96 is max (left on R/C), -90 is min (right on R/C). Positive yaws positive on the Y axis
-                // ppmChannels[5] is MotorSafety. -122 is disabled (motors can be toggled), 127 is enabled (motor switching blocked)
-                // ppmChannels[7] is ExternalControl. -122 is disabled, 127 is enabled
+                // ppmChannels[5] is SW3 / MotorSafety. -122 is disabled (motors can be toggled), 127 is enabled (motor switching blocked)
+                // ppmChannels[6] is CTRL7. -122 is disabled (motors can be toggled), 127 is enabled (motor switching blocked)
+                // ppmChannels[7] is SW1 / ExternalControl. -122 is disabled, 127 is enabled
+                // ppmChannels[8] is SW4PB8 / Calibration. -122 and 127 are the two states it can reach.
 
                 qDebug() << "Kopter::slotSerialPortDataReady(): remote control limits thrust to" << ppmChannels[1] + 127;
 
@@ -252,8 +256,15 @@ void Kopter::slotSerialPortDataReady()
                 {
                     mExternalControlActivated = ppmChannels[7] > 0;
                     qDebug() << "Kopter::slotSerialPortDataReady(): externalControlActivated:" << mExternalControlActivated << "ppm[7]:" << ppmChannels[7];
-                    emit slotExternalControlStatusChanged(mExternalControlActivated);
+                    emit computerControlStatusChanged(mExternalControlActivated);
                 }
+
+                if(abs(ppmChannels[8] - mLastCalibrationSwitchValue) > 150)
+                {
+                    qDebug() << "Kopter::slotSerialPortDataReady(): calibration switch toggled from" << mLastCalibrationSwitchValue << "to ppm[8]:" << ppmChannels[8];
+                    emit calibrationSwitchToggled();
+                }
+                mLastCalibrationSwitchValue = ppmChannels[8];
 /*
                 // signature is thrust, yaw, pitch, roll, motorSafety, externalControl
                 emit ppmChannelValues(

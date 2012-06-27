@@ -40,9 +40,9 @@ QString t();
 
 enum FlightState
 {
-    ManualControl,
-    ApproachingNextWayPoint,
-    Freezing,
+    UserControl,
+    ApproachWayPoint,
+    Hover,
     Idle
 };
 
