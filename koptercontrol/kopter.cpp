@@ -12,7 +12,7 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     mSerialPortFlightCtrl->setStopBits(AbstractSerial::StopBits1);
     mSerialPortFlightCtrl->setFlowControl(AbstractSerial::FlowControlOff);
 
-    mExternalControlActivated = false;
+    mExternalControlActive = false;
     mLastCalibrationSwitchValue = 0; // thats an impossible value, so we use it to detect our first value reading
     mStructExternControl.Frame = 0;
     mMaxReplyTime = 0;
@@ -252,11 +252,11 @@ void Kopter::slotSerialPortDataReady()
 
                 qDebug() << "Kopter::slotSerialPortDataReady(): remote control limits thrust to" << ppmChannels[1] + 127;
 
-                if(ppmChannels[7] > 0 != mExternalControlActivated)
+                if(ppmChannels[7] > 0 != mExternalControlActive)
                 {
-                    mExternalControlActivated = ppmChannels[7] > 0;
-                    qDebug() << "Kopter::slotSerialPortDataReady(): externalControlActivated:" << mExternalControlActivated << "ppm[7]:" << ppmChannels[7];
-                    emit computerControlStatusChanged(mExternalControlActivated);
+                    mExternalControlActive = ppmChannels[7] > 0;
+                    qDebug() << "Kopter::slotSerialPortDataReady(): externalControlActive:" << mExternalControlActive << "ppm[7]:" << ppmChannels[7];
+                    emit computerControlStatusChanged(mExternalControlActive);
                 }
 
                 if(abs(ppmChannels[8] - mLastCalibrationSwitchValue) > 150)

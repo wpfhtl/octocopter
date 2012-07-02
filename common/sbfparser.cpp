@@ -489,10 +489,21 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
             emit newVehiclePose(mLastPose);
             mPoseClockDivisor++;
 
-            if(!mGnssDeviceWorkingPrecisely)
+            // Tell others whether we're working well.
+            if(!mGnssDeviceWorkingPrecisely && precisionFlags & Pose::AttitudeAvailable && precisionFlags & Pose::HeadingFixed && precisionFlags & Pose::RtkFixed && precisionFlags & Pose::CorrectionAgeLow)
             {
                 mGnssDeviceWorkingPrecisely = true;
-                qDebug() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, setting mGnssDeviceWorkingPrecisely to false, emitting.";
+                qDebug() << block->TOW << "SbfParser::processNextValidPacket(): precise pose, setting mGnssDeviceWorkingPrecisely to true, emitting.";
+                emit gnssDeviceWorkingPrecisely(mGnssDeviceWorkingPrecisely);
+            }
+            else if(mGnssDeviceWorkingPrecisely
+                    &&
+                    !
+                    (precisionFlags & Pose::AttitudeAvailable && precisionFlags & Pose::HeadingFixed && precisionFlags & Pose::RtkFixed && precisionFlags & Pose::CorrectionAgeLow)
+                    )
+            {
+                mGnssDeviceWorkingPrecisely = false;
+                qDebug() << block->TOW << "SbfParser::processNextValidPacket(): unprecise pose, setting mGnssDeviceWorkingPrecisely to false, emitting.";
                 emit gnssDeviceWorkingPrecisely(mGnssDeviceWorkingPrecisely);
             }
         }

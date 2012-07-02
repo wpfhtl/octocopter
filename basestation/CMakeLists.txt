@@ -29,6 +29,7 @@ SET(SRC_FILES
     bulletdebugdrawergl
     voxelmanager
     shaderprogram
+    ../common/motioncommand
     ../common/joystick
     ../common/sbfparser
     ../common/sensorfuser
@@ -72,6 +73,7 @@ SET(INC_FILES
     bulletdebugdrawergl.h
     voxelmanager.h
     shaderprogram.h
+    ../common/motioncommand.h
     ../common/joystick.h
     ../common/sbfparser.h
     ../common/sensorfuser.h

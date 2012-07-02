@@ -72,7 +72,7 @@ private:
     QTime mMissionStartTime;
     QTimer* mTimerPpmChannelPublisher;
 
-    bool mExternalControlActivated;
+    bool mExternalControlActive;
     qint8 mLastCalibrationSwitchValue;
 
 private slots:

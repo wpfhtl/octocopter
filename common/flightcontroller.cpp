@@ -134,7 +134,7 @@ void FlightController::slotComputeMotionCommands()
         const float outputRoll = factorHeight * factorPlanarDistance * ((6.0f * errorRoll) + (0.3f * mErrorIntegralRoll) + (0.0f * derivativeRoll));
 
         /* Todo: move stuff above to
-        struct ControllerValues
+        class PidController
         {
             float valueDesired;
             float valueRaw;
@@ -143,6 +143,8 @@ void FlightController::slotComputeMotionCommands()
             float errorIntegral;
             float derivative;
             float output;
+
+            void update(float valueRaw)
         };*/
 
         const float errorHeight = nextWayPoint.y() - mLastKnownVehiclePose.getPosition().y();
@@ -299,7 +301,7 @@ FlightState FlightController::getFlightState(void) const { return mFlightState; 
 
 void FlightController::slotNewVehiclePose(const Pose& pose)
 {
-    qDebug() << "FlightController::slotNewVehiclePose(): flightstate:" << getFlightStateString(mFlightState);
+    qDebug() << pose.timestamp << "FlightController::slotNewVehiclePose(): flightstate:" << getFlightStateString(mFlightState);
 
     // Whatever precision and flightstate, save the pose.
     mLastKnownVehiclePose = pose;

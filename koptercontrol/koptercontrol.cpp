@@ -151,9 +151,9 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     // Feed sensor data into SensorFuser
     connect(mGpsDevice->getSbfParser(), SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
     connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePose(Pose)), mFlightController, SLOT(slotNewVehiclePose(Pose)));
+    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePose(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
     connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePoseLowFreq(Pose)), mBaseConnection, SLOT(slotNewVehiclePose(Pose)));
     connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePoseLowFreq(Pose)), mLaserScanner, SLOT(slotEnableScanning()));
-    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePose(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
     connect(mLaserScanner, SIGNAL(newScanData(qint32, std::vector<long>*const)), mSensorFuser, SLOT(slotNewScanData(qint32,std::vector<long>*const)));
     connect(mSensorFuser, SIGNAL(newScannedPoints(QVector<QVector3D>,QVector3D)), mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector3D>,QVector3D)));
 
