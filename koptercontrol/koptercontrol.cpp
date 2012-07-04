@@ -148,12 +148,12 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     connect(mGpsDevice->getSbfParser(),SIGNAL(status(GpsStatusInformation::GpsStatus)), mBaseConnection, SLOT(slotNewGpsStatus(GpsStatusInformation::GpsStatus)));
 
-    // Feed sensor data into SensorFuser
+    // distribute poses from gpsdevice
+    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePoseFlightController(Pose)), mFlightController, SLOT(slotNewVehiclePose(Pose)));
+    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePoseSensorFuser(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
+    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePoseStatus(Pose)), mBaseConnection, SLOT(slotNewVehiclePose(Pose)));
     connect(mGpsDevice->getSbfParser(), SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
-    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePose(Pose)), mFlightController, SLOT(slotNewVehiclePose(Pose)));
-    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePose(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
-    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePoseLowFreq(Pose)), mBaseConnection, SLOT(slotNewVehiclePose(Pose)));
-    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePoseLowFreq(Pose)), mLaserScanner, SLOT(slotEnableScanning()));
+    connect(mGpsDevice->getSbfParser(), SIGNAL(gnssDeviceWorkingPrecisely(bool)), mLaserScanner, SLOT(slotEnableScanning(bool)));
     connect(mLaserScanner, SIGNAL(newScanData(qint32, std::vector<long>*const)), mSensorFuser, SLOT(slotNewScanData(qint32,std::vector<long>*const)));
     connect(mSensorFuser, SIGNAL(newScannedPoints(QVector<QVector3D>,QVector3D)), mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector3D>,QVector3D)));
 

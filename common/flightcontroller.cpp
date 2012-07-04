@@ -17,6 +17,9 @@ FlightController::FlightController() : QObject(), mFlightState(UserControl)
 
     // Tests have shown:
     // - with metal hood (2425 gram) it hovers at 127/128.
+    // Guesses:
+    // - without metal hood (95g) lets try 126
+    // - without metal hood (95g) and with external wlan (75),  we stay at 127
     mThrustHover = 127.0;
 
     /*// For testing in simulator
@@ -69,7 +72,7 @@ void FlightController::slotComputeMotionCommands()
 
         if(getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp > 82)
         {
-            qDebug() << t() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, vehicle pose update is" << getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp << "ms ago, skipping motion computation, emitting hover thrust";
+            qDebug() << t() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, vehicle pose update is from" << mLastKnownVehiclePose.timestamp << "and now its" << getCurrentGpsTowTime() << " - this is pretty old!?";
             emit motion(MotionCommand(mThrustHover));
             return;
         }

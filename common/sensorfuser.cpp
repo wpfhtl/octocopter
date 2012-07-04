@@ -434,7 +434,7 @@ void SensorFuser::transformScanDataNearestNeighbor()
                 mPointCloudSize++;
             }
 
-            qDebug() << "Fusing single scan took" << profiler.elapsed() << "milliseconds";
+//            qDebug() << "Fusing single scan took" << profiler.elapsed() << "milliseconds";
 
             emit newScannedPoints(scannedPoints, poseForThisScan->getPosition());
 

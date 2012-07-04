@@ -66,8 +66,6 @@ private:
 
     QDateTime mTimeStampStartup; // to determine runtime and clock skew at the end.
 
-    quint8 mPoseClockDivisor; // for emitting a low-frequency pose for debugging
-
     double mOriginLongitude, mOriginLatitude, mOriginElevation;
     float mMaxCovariances;
 
@@ -263,14 +261,16 @@ public:
     void processNextValidPacket(QByteArray& sbfData);
 
 signals:
-    void newVehiclePose(const Pose&); // emitted at 20Hz, includes non-FixedRTK poses
-    void newVehiclePoseLowFreq(const Pose&); // emitted at ~1Hz;
-
-    void processedPacket(const QByteArray& sbfPacket, const qint32& tow);
+    void newVehiclePoseLogPlayer(const Pose&); // emitted at full rate, all poses
+    void newVehiclePoseSensorFuser(const Pose&); // emitted at full rate, high-precision
+    void newVehiclePoseFlightController(const Pose&); // emitted at 10Hz, high-precision and only integrated poses (not extrapolated)
+    void newVehiclePoseStatus(const Pose&); // emitted at 1-2Hz, all Poses
 
     // Emitted when the incoming poses (IntPVAAGeod) from SBF are good enough to be used by anyone.
-    // Used to tell GpsDevice to decrease the IntPVAAGeod interval to msec20.
+    // Used to tell GpsDevice to decrease the IntPVAAGeod interval to msec20 (and to enable/disable the laserscanner?)
     void gnssDeviceWorkingPrecisely(bool);
+
+    void processedPacket(const QByteArray& sbfPacket, const qint32& tow);
 
     // log/status messages
     void message(const LogImportance& importance, const QString&, const QString& message);

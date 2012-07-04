@@ -348,7 +348,9 @@ void GpsDevice::slotCommunicationSetup()
     slotQueueCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceCom+",ExtEvent,OnChange");
 
     // We want to know what time it is
-    slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
+    // Update: No, we don't. Re-setting system-time in times of high system loads does NOT improve
+    // the system clock's accuracy. Offsets of ~700ms(!) have been observed. So, skip this for now.
+    //slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
 
     // For now, record support messages for septentrio
     slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,msec500"); // septentrio wants msec100, but that kills the cpu

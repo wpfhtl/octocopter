@@ -236,7 +236,8 @@ void Kopter::slotSerialPortDataReady()
             {
                 // Read ppm channels request reply.
                 QByteArray payload = message.getPayload();
-                const qint16* ppmChannels = (qint16*)payload.data();
+//                const qint16* ppmChannels = (qint16*)payload.data();
+                const PpmChannels* ppmChannels = (PpmChannels*)payload.data();
 
                 //for(int i=0; i < payload.size()/2; i++) qDebug() << "Kopter::slotSerialPortDataReady(): ppm channel" << i << ":" << ppmChannels[i];
 
@@ -250,30 +251,24 @@ void Kopter::slotSerialPortDataReady()
                 // ppmChannels[7] is SW1 / ExternalControl. -122 is disabled, 127 is enabled
                 // ppmChannels[8] is SW4PB8 / Calibration. -122 and 127 are the two states it can reach.
 
-                qDebug() << "Kopter::slotSerialPortDataReady(): remote control limits thrust to" << ppmChannels[1] + 127;
+                qDebug() << "Kopter::slotSerialPortDataReady(): remote control limits thrust to" << ppmChannels->thrust + 127;
 
-                if(ppmChannels[7] > 0 != mExternalControlActive)
+                if(ppmChannels->externalControl > 0 != mExternalControlActive)
                 {
-                    mExternalControlActive = ppmChannels[7] > 0;
-                    qDebug() << "Kopter::slotSerialPortDataReady(): externalControlActive:" << mExternalControlActive << "ppm[7]:" << ppmChannels[7];
+                    mExternalControlActive = ppmChannels->externalControl > 0;
+                    qDebug() << "Kopter::slotSerialPortDataReady(): externalControlActive:" << mExternalControlActive << "ppm[7]:" << ppmChannels->externalControl;
                     emit computerControlStatusChanged(mExternalControlActive);
                 }
 
-                if(abs(ppmChannels[8] - mLastCalibrationSwitchValue) > 150)
+                // Yes, I am very smart :~)
+                if(abs(ppmChannels->calibration - mLastCalibrationSwitchValue) > 50)
                 {
-                    qDebug() << "Kopter::slotSerialPortDataReady(): calibration switch toggled from" << mLastCalibrationSwitchValue << "to ppm[8]:" << ppmChannels[8];
+                    qDebug() << "Kopter::slotSerialPortDataReady(): calibration switch toggled from" << mLastCalibrationSwitchValue << "to:" << ppmChannels->calibration;
                     emit calibrationSwitchToggled();
+                    mLastCalibrationSwitchValue = ppmChannels->calibration;
                 }
-                mLastCalibrationSwitchValue = ppmChannels[8];
-/*
-                // signature is thrust, yaw, pitch, roll, motorSafety, externalControl
-                emit ppmChannelValues(
-                            (quint8)(ppmChannels[1]+127),   // thrust, offset to convert to [0;255]
-                            (qint8)ppmChannels[4],          // yaw
-                            (qint8)ppmChannels[3],          // pitch
-                            (qint8)ppmChannels[2],          // roll
-                            ppmChannels[5] > 0,             // motorSafety enabled
-                            ppmChannels[7] > 0);            // externalControl allowed?*/
+
+                //emit ppmChannelValues(*ppmChannels);
             }
             else if(message.getId() == 'T')
             {
