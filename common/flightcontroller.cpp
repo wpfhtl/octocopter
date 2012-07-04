@@ -317,7 +317,7 @@ void FlightController::slotNewVehiclePose(const Pose& pose)
         break;
 
     case ApproachWayPoint:
-        Q_ASSERT(mBackupTimerComputeMotion->interval() == 50 && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): ApproachWayPoint has inactive backup timer or wrong interval!");
+        Q_ASSERT(mBackupTimerComputeMotion->interval() == backupTimerIntervalFast && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): ApproachWayPoint has inactive backup timer or wrong interval!");
 
         // Note that we don't expect ModeIntegrated, because only 1 of 5 packets is integrated - and thats ok.
         if(pose.precision & Pose::AttitudeAvailable && pose.precision & Pose::HeadingFixed && pose.precision && Pose::RtkFixed)
@@ -329,7 +329,7 @@ void FlightController::slotNewVehiclePose(const Pose& pose)
 
             // Re-set the safety timer, making it fire 50ms in the future - not when its scheduled, which might be sooner.
             // So that when no new pose comes in for too long, we'll compute a backup motion.
-            mBackupTimerComputeMotion->start(50);
+            mBackupTimerComputeMotion->start(backupTimerIntervalFast);
         }
         else
         {
@@ -338,11 +338,11 @@ void FlightController::slotNewVehiclePose(const Pose& pose)
         break;
 
     case Hover:
-        Q_ASSERT(mBackupTimerComputeMotion->interval() == 1000 && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): Hover has inactive backup timer or wrong interval!");
+        Q_ASSERT(mBackupTimerComputeMotion->interval() == backupTimerIntervalSlow && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): Hover has inactive backup timer or wrong interval!");
         break;
 
     case Idle:
-        Q_ASSERT(mBackupTimerComputeMotion->interval() == 1000 && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): Idle has inactive backup timer or wrong interval!");
+        Q_ASSERT(mBackupTimerComputeMotion->interval() == backupTimerIntervalSlow && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): Idle has inactive backup timer or wrong interval!");
         break;
 
     default:
@@ -383,12 +383,12 @@ void FlightController::setFlightState(FlightState newFlightState)
         mErrorIntegralHeight = 0.1;
 
         mFirstControllerRun = true;
-        mBackupTimerComputeMotion->start(50);
+        mBackupTimerComputeMotion->start(backupTimerIntervalFast);
         break;
 
     case Hover:
         qDebug() << t() << "FlightController::setFlightState(): setting backup motion timer to low-freq";
-        mBackupTimerComputeMotion->start(1000);
+        mBackupTimerComputeMotion->start(backupTimerIntervalSlow);
         break;
 
     case UserControl:
@@ -398,7 +398,7 @@ void FlightController::setFlightState(FlightState newFlightState)
 
     case Idle:
         qDebug() << t() << "FlightController::setFlightState(): setting backup motion timer to low-freq";
-        mBackupTimerComputeMotion->start(1000);
+        mBackupTimerComputeMotion->start(backupTimerIntervalSlow);
         break;
     default:
         Q_ASSERT(false && "FlightController::setFlightState(): undefined flightstate");

@@ -163,6 +163,10 @@ QVector3D SbfParser::convertGeodeticToCartesian(const double &lon, const double 
     // FBI in Hamburg is 53.600515,09.931478 with elevation of about 70m
     // PPM in Penzberg is 47.757201,11.377133 with elevation of about 656m
 
+
+    // X is Longitude   (+ East/ - West)
+    // Y is Elevation / Height
+    // Z is Latitude    (+ North / - South)
     QVector3D co;
 
     co.setY(elevation - mOriginElevation);

@@ -42,11 +42,13 @@ public:
 
 private:
     // Motion is computed whenever a new pose comes in, so we don't need a timer - except
-    // when the GPS board fails to deliver (even useless) poses, we'll need to compute
-    // safe values to emit. Thus, when Poses come in every 40ms, we start this timer with
-    // 40ms+20%, and it will call slotComputeMotionCommands() at an interval of 48ms when
-    // the GPS board fails.
+    // when the GPS board fails to deliver useful poses, we'll need to compute safe values
+    // to emit. Thus, when Poses are planned to come in every 100ms, we start this timer
+    // 150ms, and it will call slotComputeMotionCommands() regularly when GNSS board fails.
+    static const quint16 backupTimerIntervalFast = 150;
+    static const quint16 backupTimerIntervalSlow = 500;
     QTimer *mBackupTimerComputeMotion;
+
     QList<WayPoint> mWayPoints, mWayPointsPassed;
 
     struct ImuOffsets {
