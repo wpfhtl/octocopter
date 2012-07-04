@@ -98,7 +98,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     menuBar()->addAction("TogglePlot", this, SLOT(slotTogglePlot()));
 
-    menuBar()->addAction("Clear Trajectory", mFlightPlanner, SLOT(slotClearVehiclePoses()));
+    menuBar()->addAction("Clear Trajectory", mFlightPlanner, SLOT(slotClearVehicleTrajectory()));
 
     QAction* actionRotateView = new QAction("Rotate View", this);
     actionRotateView->setCheckable(true);

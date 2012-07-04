@@ -112,7 +112,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
                 logFilePrefix
                 );
     mGpsDevice = new GpsDevice(deviceSerialGpsUsb, deviceSerialGpsCom, logFilePrefix, this);
-    mSensorFuser = new SensorFuser(50); // Really lo-res data for septentrio postprocessing tests.
+    mSensorFuser = new SensorFuser(1); // Really lo-res data for septentrio postprocessing tests.
     mSensorFuser->setLaserScannerRelativePose(mLaserScanner->getRelativePose());
 
     mBaseConnection = new BaseConnection(networkInterface);
@@ -128,7 +128,8 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 //    connect(mCamera, SIGNAL(imageReadyYCbCr(QString,QSize,Pose,QByteArray)), mVisualOdometry, SLOT(slotProcessImage(QString,QSize,Pose,QByteArray)));
     connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mKopter, SIGNAL(kopterStatus(quint32, qint16, float)), mBaseConnection, SLOT(slotNewVehicleStatus(quint32, qint16, float)));
-    connect(mKopter, SIGNAL(slotExternalControlStatusChanged(bool)), mFlightController, SLOT(slotExternalControlStatusChanged(bool)));
+    connect(mKopter, SIGNAL(computerControlStatusChanged(bool)), mFlightController, SLOT(slotComputerControlStatusChanged(bool)));
+    connect(mKopter, SIGNAL(calibrationSwitchToggled()), mFlightController, SLOT(slotCalibrateImu()));
     connect(mLaserScanner, SIGNAL(heightOverGround(float)), mFlightController, SLOT(slotSetHeightOverGround(float)));
     connect(mBaseConnection, SIGNAL(enableScanning(const bool&)), mLaserScanner, SLOT(slotEnableScanning(const bool&)));
     connect(mBaseConnection, SIGNAL(rtkDataReady(const QByteArray&)), mGpsDevice, SLOT(slotSetRtkData(const QByteArray&)));
@@ -139,7 +140,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mBaseConnection, SIGNAL(newConnection()), mFlightController, SLOT(slotEmitFlightState()));
 
     //    WARNING! THIS ENABLES MOTION!
-    //connect(mFlightController, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
+    connect(mFlightController, SIGNAL(motion(MotionCommand)), mKopter, SLOT(slotSetMotion(MotionCommand)));
 
     connect(mGpsDevice->getSbfParser(), SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mGpsDevice, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
@@ -147,12 +148,12 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     connect(mGpsDevice->getSbfParser(),SIGNAL(status(GpsStatusInformation::GpsStatus)), mBaseConnection, SLOT(slotNewGpsStatus(GpsStatusInformation::GpsStatus)));
 
-    // Feed sensor data into SensorFuser
+    // distribute poses from gpsdevice
+    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePoseFlightController(Pose)), mFlightController, SLOT(slotNewVehiclePose(Pose)));
+    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePoseSensorFuser(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
+    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePoseStatus(Pose)), mBaseConnection, SLOT(slotNewVehiclePose(Pose)));
     connect(mGpsDevice->getSbfParser(), SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
-    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePose(Pose)), mFlightController, SLOT(slotNewVehiclePose(Pose)));
-    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePoseLowFreq(Pose)), mBaseConnection, SLOT(slotNewVehiclePose(Pose)));
-    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePoseLowFreq(Pose)), mLaserScanner, SLOT(slotEnableScanning()));
-    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePose(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
+    connect(mGpsDevice->getSbfParser(), SIGNAL(gnssDeviceWorkingPrecisely(bool)), mLaserScanner, SLOT(slotEnableScanning(bool)));
     connect(mLaserScanner, SIGNAL(newScanData(qint32, std::vector<long>*const)), mSensorFuser, SLOT(slotNewScanData(qint32,std::vector<long>*const)));
     connect(mSensorFuser, SIGNAL(newScannedPoints(QVector<QVector3D>,QVector3D)), mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector3D>,QVector3D)));
 
@@ -169,6 +170,7 @@ KopterControl::~KopterControl()
     delete mGpsDevice;
     delete mLaserScanner;
     delete mSensorFuser;
+    delete mKopter;
     delete snSignalPipe;
 
     if(mMasterLogStream)
@@ -248,6 +250,7 @@ void KopterControl::slotHandleSignal()
 
 void KopterControl::installMessageHandler(const QString& logFilePrefix)
 {
+    qDebug() << "KopterControl::installMessageHandler(): setting up console logging...";
     mMasterLogFile = new QFile(logFilePrefix + QString("console.txt"));
     if(!mMasterLogFile->open(QIODevice::WriteOnly | QIODevice::Append))
     {
@@ -263,10 +266,10 @@ void KopterControl::messageHandler(QtMsgType type, const char *msg)
 {
     Q_ASSERT(mMasterLogStream != 0 && "masterLogSteram is not set!");
 
-    QString txt(msg);
-    qDebug() << txt;
+//    QString txt(msg);
+    //std::cout << msg << std::endl;
 
-    (*mMasterLogStream) << txt << endl;
+    (*mMasterLogStream) << msg << endl;
 
     if(type == QtFatalMsg) abort();
 }

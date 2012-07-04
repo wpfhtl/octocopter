@@ -5,8 +5,8 @@ CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
 PROJECT(koptercontrol)
 
 # Starting with gcc-4.6, we might need "-Wl,--no-as-needed" in CMAKE_CXX_FLAGS
-SET(CMAKE_CXX_FLAGS "-Wl,--no-as-needed")
-SET(CMAKE_CXX_FLAGS "-Wl,--no-as-needed")
+# -pg is for using gprof.
+SET(CMAKE_CXX_FLAGS "-Wl,--no-as-needed -pg")
 
 cmake_policy(SET CMP0015 NEW)
 
@@ -54,7 +54,8 @@ camera
 ../common/flightcontroller
 ../common/sbfparser
 ../common/common
-../common/plymanager
+../common/motioncommand
+#../common/plymanager
 ../common/pose
 ../common/waypoint
 ../common/lidarpoint
@@ -74,7 +75,8 @@ camera.h
 ../common/flightcontroller.h
 ../common/sbfparser.h
 ../common/common.h
-../common/plymanager.h
+../common/motioncommand.h
+#../common/plymanager.h
 ../common/pose.h
 ../common/waypoint.h
 ../common/lidarpoint.h

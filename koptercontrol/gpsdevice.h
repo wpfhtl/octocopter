@@ -36,7 +36,7 @@ private:
 
     SbfParser* mSbfParser;
 
-    quint8 mNumberOfRemainingRepliesUsb;
+    bool mWaitingForCommandReply; // true when we're waiting for a reply from septentrio board (on usb port).
     unsigned int mRtkDataCounter;
     QByteArray mLastCommandToDeviceUsb;
     AbstractSerial *mSerialPortUsb, *mSerialPortCom;
@@ -72,6 +72,7 @@ private slots:
     void slotDataReadyOnUsb();
     void slotDataReadyOnCom();
     void slotDetermineSerialPortsOnDevice();
+    void slotSetPoseFrequency(bool highSpeed);
 
     // Call this method with a valid TOW and it'll sync the system time to this time.
     void slotSetSystemTime(const qint32& tow);

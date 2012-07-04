@@ -5,8 +5,9 @@
 
 #include "bulletdebugdrawergl.h"
 #include <bullet/btBulletDynamicsCommon.h>
+#include <bullet/btBulletCollisionCommon.h>
 #include <bullet/BulletCollision/CollisionDispatch/btGhostObject.h>
-#include <bullet/BulletCollision/BroadphaseCollision/btBroadphaseProxy.h>
+//#include <bullet/BulletCollision/BroadphaseCollision/btBroadphaseProxy.h>
 
 class WayPoint;
 class LidarPoint;
@@ -56,6 +57,11 @@ private:
     BulletDebugDrawerGl* mDbgDrawer;
     bool mPhysicsProcessingActive;
 
+
+    btRigidBody* mGapFindVolumeRigidBody;
+    btCompoundShape* mGapFindVolumeCollisionShape; // a list of btstaticplaneshapes making up the gap detection volume
+//    btStaticPlaneShape* mGapFindVolumeCollisionShape; // a list of btstaticplaneshapes making up the gap detection volume
+
     quint32 mDeletionTriggerVbo;
 
     quint32 mSampleSphereVbo;
@@ -77,7 +83,6 @@ private:
     // For vehicle collision avoidance
     btTransform mTransformVehicle;
     btRigidBody *mBodyVehicle;
-    btDefaultMotionState* mMotionStateVehicle;
 //    btCollisionShape *mShapeVehicle;
     btPairCachingGhostObject *mGhostObjectVehicle;
 

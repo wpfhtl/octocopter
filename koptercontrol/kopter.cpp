@@ -1,4 +1,5 @@
 #include "kopter.h"
+#include "motioncommand.h"
 
 Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
 {
@@ -11,7 +12,8 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     mSerialPortFlightCtrl->setStopBits(AbstractSerial::StopBits1);
     mSerialPortFlightCtrl->setFlowControl(AbstractSerial::FlowControlOff);
 
-    mExternalControlActivated = false;
+    mExternalControlActive = false;
+    mLastCalibrationSwitchValue = 0; // thats an impossible value, so we use it to detect our first value reading
     mStructExternControl.Frame = 0;
     mMaxReplyTime = 0;
 
@@ -57,11 +59,11 @@ void Kopter::slotTestMotors(const QList<unsigned char> &speeds)
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
 }
 
-void Kopter::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& pitch, const qint8& roll, const qint8& height)
+void Kopter::slotSetMotion(const MotionCommand& mc)
 {
     if(!mMissionStartTime.isValid()) mMissionStartTime = QTime::currentTime();
 
-    qDebug() << t() << "Kopter::slotSetMotion(): setting motion, frame:" << mStructExternControl.Frame << "thrust:" << thrust << "yaw:" << yaw << "pitch:" << pitch << "roll:" << roll << "height:" << height;
+    qDebug() << t() << "Kopter::slotSetMotion(): setting motion, frame:" << mStructExternControl.Frame << "thrust:" << mc.thrust << "yaw:" << mc.yaw << "pitch:" << mc.pitch << "roll:" << mc.roll;
 
     /*
       The kopter has different conventions, at least with default settings (which I intent to keep):
@@ -81,9 +83,9 @@ void Kopter::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& 
 
       For the Extern(al)Control commands to take effect, Poti7 has to be > 128 on the kopter (as con-
       figured in "Stick"). And Poti7 is assigned to channel 7 (as configured in "Kanäle"), which maps
-      to switch SW1 on the remote control, which then has to be switched DOWN to active ExternalControl.
+      to switch SW1 on the remote control, which then has to be switched DOWN to activate ExternalControl.
 
-      Even with ExternalControl enabled, the kopter's gas value is always upper-bound by the remote-
+      Even with ExternalControl enabled, the kopter's thrust value is always upper-bound by the remote-
       control's value. This seems to make a lot of sense.
 
       Under "Verschiedenes/Miscellaneous", max gas is configured to 200, which might also apply to
@@ -93,16 +95,16 @@ void Kopter::slotSetMotion(const quint8& thrust, const qint8& yaw, const qint8& 
     if(mPendingReplies.contains('b')) qWarning() << "Kopter::slotSetMotion(): Still waiting for a 'B', should not send right now," << mPendingReplies.size() << "pending replies";
 
     mStructExternControl.Config = 1;
-    mStructExternControl.Nick = -pitch;
-    mStructExternControl.Roll = roll;
-    mStructExternControl.Gas = thrust;
-    mStructExternControl.Gier = -yaw;
-    mStructExternControl.Height = height;
+    mStructExternControl.Nick = -mc.pitch;
+    mStructExternControl.Roll = mc.roll;
+    mStructExternControl.Gas = mc.thrust;
+    mStructExternControl.Gier = -mc.yaw;
+    mStructExternControl.Height = 0; // I don't know what this is for.
 
     KopterMessage message(KopterMessage::Address_FC, 'b', QByteArray((const char *)&mStructExternControl, sizeof(mStructExternControl)));
     message.send(mSerialPortFlightCtrl, &mPendingReplies);
 
-    // Its an unsigned char, so it should overflow safely?!
+    // Its an unsigned char, so it should overflow safely
     mStructExternControl.Frame++;
 }
 
@@ -189,7 +191,10 @@ void Kopter::slotSerialPortDataReady()
             const QTime timeOfRequest = mPendingReplies.take(message.getId().toLower());
             if(mPendingReplies.contains(message.getId().toLower()))  qWarning() << "Kopter::slotSerialPortDataReady(): there's another pending message of type" << message.getId().toLower();
 
-            if(timeOfRequest.isNull() && message.getId() != 'k')
+            // If we receive somethign we didn't ask for, start bitching.
+            //  k is mkmag's compass data which cannot be disabled, event though no mkmag is installed
+            //  D  is debug out, which we subscribed to. Its just that one subscription gives multiple replies.
+            if(timeOfRequest.isNull() && message.getId() != 'k' && message.getId() != 'D')
             {
                 qWarning() << "Kopter::slotSerialPortDataReady(): got a reply to an unsent request, message:" << message.toString();
             }
@@ -214,7 +219,7 @@ void Kopter::slotSerialPortDataReady()
                     qDebug() << "Kopter::slotSerialPortDataReady(): received reply to 'b' after ms:" << timeOfRequest.msecsTo(QTime::currentTime()) << "worst:" << mMaxReplyTime;
                 }
 
-                emit externControlReplyReceived();
+//                emit externControlReplyReceived();
             }
             else if(message.getId() == 'D')
             {
@@ -231,34 +236,39 @@ void Kopter::slotSerialPortDataReady()
             {
                 // Read ppm channels request reply.
                 QByteArray payload = message.getPayload();
-                const qint16* ppmChannels = (qint16*)payload.data();
+//                const qint16* ppmChannels = (qint16*)payload.data();
+                const PpmChannels* ppmChannels = (PpmChannels*)payload.data();
 
                 //for(int i=0; i < payload.size()/2; i++) qDebug() << "Kopter::slotSerialPortDataReady(): ppm channel" << i << ":" << ppmChannels[i];
 
+                // These channel values are experienced when read from incoming data. They do NOT match the mikrokopter-tool levels!
                 // ppmChannels[1] is Thrust: -127 is min, 14 is max
                 // ppmChannels[2] is Roll: 93 is max (left on R/C), -93 is min (right on R/C). Positive rolls positive on the Z axis.
                 // ppmChannels[3] is Pitch: 94 is max (up on R/C), -94 is min (down on R/C). Positive pitches negative on the X axis.
                 // ppmChannels[4] is Yaw: 96 is max (left on R/C), -90 is min (right on R/C). Positive yaws positive on the Y axis
-                // ppmChannels[5] is MotorSafety. -122 is disabled (motors can be toggled), 127 is enabled (motor switching blocked)
-                // ppmChannels[7] is ExternalControl. -122 is disabled, 127 is enabled
+                // ppmChannels[5] is SW3 / MotorSafety. -122 is disabled (motors can be toggled), 127 is enabled (motor switching blocked)
+                // ppmChannels[6] is CTRL7. -122 is disabled (motors can be toggled), 127 is enabled (motor switching blocked)
+                // ppmChannels[7] is SW1 / ExternalControl. -122 is disabled, 127 is enabled
+                // ppmChannels[8] is SW4PB8 / Calibration. -122 and 127 are the two states it can reach.
 
-                qDebug() << "Kopter::slotSerialPortDataReady(): remote control limits thrust to" << ppmChannels[1] + 127;
+                qDebug() << "Kopter::slotSerialPortDataReady(): remote control limits thrust to" << ppmChannels->thrust + 127;
 
-                if(ppmChannels[7] > 0 != mExternalControlActivated)
+                if(ppmChannels->externalControl > 0 != mExternalControlActive)
                 {
-                    mExternalControlActivated = ppmChannels[7] > 0;
-                    qDebug() << "Kopter::slotSerialPortDataReady(): externalControlActivated:" << mExternalControlActivated << "ppm[7]:" << ppmChannels[7];
-                    emit slotExternalControlStatusChanged(mExternalControlActivated);
+                    mExternalControlActive = ppmChannels->externalControl > 0;
+                    qDebug() << "Kopter::slotSerialPortDataReady(): externalControlActive:" << mExternalControlActive << "ppm[7]:" << ppmChannels->externalControl;
+                    emit computerControlStatusChanged(mExternalControlActive);
                 }
-/*
-                // signature is thrust, yaw, pitch, roll, motorSafety, externalControl
-                emit ppmChannelValues(
-                            (quint8)(ppmChannels[1]+127),   // thrust, offset to convert to [0;255]
-                            (qint8)ppmChannels[4],          // yaw
-                            (qint8)ppmChannels[3],          // pitch
-                            (qint8)ppmChannels[2],          // roll
-                            ppmChannels[5] > 0,             // motorSafety enabled
-                            ppmChannels[7] > 0);            // externalControl allowed?*/
+
+                // Yes, I am very smart :~)
+                if(abs(ppmChannels->calibration - mLastCalibrationSwitchValue) > 50)
+                {
+                    qDebug() << "Kopter::slotSerialPortDataReady(): calibration switch toggled from" << mLastCalibrationSwitchValue << "to:" << ppmChannels->calibration;
+                    emit calibrationSwitchToggled();
+                    mLastCalibrationSwitchValue = ppmChannels->calibration;
+                }
+
+                //emit ppmChannelValues(*ppmChannels);
             }
             else if(message.getId() == 'T')
             {

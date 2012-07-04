@@ -152,10 +152,10 @@ public:
 #endif
 };
 
-// for using qDebug() << myPose;
+// for using qDebug()
 QDebug operator<<(QDebug dbg, const Pose &pose);
 
-// for streaming poses
+// for streaming
 QDataStream& operator<<(QDataStream &out, const Pose &pose);
 QDataStream& operator>>(QDataStream &in, Pose &pose);
 

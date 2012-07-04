@@ -7,6 +7,7 @@
 #include <gpsstatusinformation.h>
 #include <waypoint.h>
 #include <pose.h>
+#include <motioncommand.h>
 
 class RoverConnection : public QObject
 {

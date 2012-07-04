@@ -9,9 +9,11 @@ SbfParser::SbfParser(QObject *parent) : QObject(parent)
 
     mTimeStampStartup = QDateTime::currentDateTime();
 
-    mPoseClockDivisor = 0;
+    mPacketErrorCount = 0;
 
     mMaxCovariances = 1.0f;
+
+    mGnssDeviceWorkingPrecisely = false;
 }
 
 SbfParser::~SbfParser()
@@ -32,10 +34,12 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offse
         offsetToValidPacket = sbfData.indexOf("$@", (offsetToValidPacket + sizeof(block->Header.Sync)));
 
         // If the sync field "$@" was not found at all, no valid packet can be present. Quit.
-        if(offsetToValidPacket < 0) return false;
+        if(offsetToValidPacket < 0)
+            return false;
 
         // Make sure that we have at least 8 bytes (the header size) to read (including the sync field)
-        if(sbfData.size() < offsetToValidPacket + sizeof(Sbf_Header)) return false;
+        if(sbfData.size() < offsetToValidPacket + sizeof(Sbf_Header))
+            return false;
 
 //        sbfHeader = (Sbf_Header*)(sbfData.data() + offsetToValidPacket);
         block = (Sbf_PVTCartesian*)(sbfData.data() + offsetToValidPacket);
@@ -45,13 +49,16 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offse
         //  b) the packet's header->Length is corrupt
         // If it was a), we could return false, but we cannot be sure its not b), as we haven't checksummed yet. Thus,
         // instead of returning false, we need to look for further packets to guarantee working even in condition b)
-        if(block->Header.Length > sbfData.size() - offsetToValidPacket) continue;
+        if(block->Header.Length > sbfData.size() - offsetToValidPacket)
+            continue;
 
         // If the length is not a multiple of 4, its not a valid packet. Continue searching for another packet
-        if(block->Header.Length % 4 != 0) continue;
+        if(block->Header.Length % 4 != 0)
+            continue;
 
-        // If the packet has a TOW DO-NOT-USE, skip it
-        if(block->TOW == 4294967295) continue;
+        // If the packet has a TOW DO-NOT-USE, skip it. TODO: Really?
+        if(block->TOW == 4294967295)
+            continue;
 
         // Calculate the packet's checksum. For corrupt packets, the Length field might be random, so we bound
         // the bytes-to-be-checksummed to be between 0 and the buffer's remaining bytes after Sync and Crc fields.
@@ -65,7 +72,15 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offse
                     );
 
         // Quit searching if we found a valid packet.
-        if(block->Header.CRC == calculatedCrc) break;
+        if(block->Header.CRC == calculatedCrc)
+        {
+            break;
+        }
+        else
+        {
+            mPacketErrorCount++;
+            qDebug() << "SbfParser::getNextValidPacketInfo(): packet at offset" << offsetToValidPacket << "has CRC error ("<< mPacketErrorCount <<"):" << block->Header.CRC << calculatedCrc << ", will start searching two bytes later";
+        }
     }
 
     // If we're here, we have a valid SBF packet starting at offsetToValidPacket
@@ -118,6 +133,8 @@ void SbfParser::setPose(
                 -((double)roll) * 0.01l, // their roll axis points forward from the vehicle. We have it OpenGL-style with Z pointing backwards
                 (qint32)tow // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
                 );
+
+    mLastPose.precision = precision;
 }
 
 QVector3D SbfParser::convertGeodeticToCartesian(const double &lon, const double &lat, const double &elevation, const quint8& precision)
@@ -126,11 +143,20 @@ QVector3D SbfParser::convertGeodeticToCartesian(const double &lon, const double 
     // This may ONLY happen based on really good positional fixes (=RTK Fixed): if we initialize these
     // origins using e.g. Differential and then switch to RTKFixed, the kopter might remain underground
     // due to a -2m Y-offset between Differential and RtkFixed.
-    if(mOriginLongitude > 10e19 && mOriginLatitude > 10e19 && mOriginElevation > 10e19 && precision & Pose::RtkFixed)
+    if(mOriginLongitude > 10e19 && mOriginLatitude > 10e19 && mOriginElevation > 10e19)
     {
-        mOriginLongitude = lon;
-        mOriginLatitude = lat;
-        mOriginElevation = elevation;
+        // Our world coordinate system is not set yet. If the GNSS measurement is precise enough, define it now. If
+        // its NOT precise, return a null QVector3D.
+        if(precision & Pose::RtkFixed)
+        {
+            mOriginLongitude = lon;
+            mOriginLatitude = lat;
+            mOriginElevation = elevation;
+        }
+        else
+        {
+            return QVector3D();
+        }
     }
 
     // Doesn't matter, as offset isn't hardcoded anymore this is just for historical reference :)
@@ -151,8 +177,9 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     //qDebug() << "SbfParser::processNextValidPacket():" << sbfData.size() << "bytes present.";
 
     quint32 offsetToValidPacket;
+    qint32 tow;
 
-    if(getNextValidPacketInfo(sbfData, &offsetToValidPacket) == false)
+    if(getNextValidPacketInfo(sbfData, &offsetToValidPacket, &tow) == false)
     {
         qDebug() << "SbfParser::processNextValidPacket(): no more valid packets in sbf data of size" << sbfData.size();
         return;
@@ -280,23 +307,26 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                             QString("Heading ambiguity fixed: %1").arg(testBit(block->Info, 11) ? "true" : "false"));
 
-            if(false && !testBitEqual(mGpsStatus.info, block->Info, 12)) // FIXME: until firmware works
+            /* These are disabled: GNSS pos and vel are only used in every 5th pose, so these things cause
+               high traffic for nothing. Zero constraint is used automatically when GNSS doesn't move.
+            if(!testBitEqual(mGpsStatus.info, block->Info, 12)) // FIXME: until firmware works
                 emit message(
                             testBit(block->Info, 12) ? Error : Information, // We don't use this, should be 0
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                             QString("Zero constraint used: %1").arg(testBit(block->Info, 12) ? "true" : "false"));
 
-            if(false && !testBitEqual(mGpsStatus.info, block->Info, 13)) // FIXME: until firmware works
+            if(!testBitEqual(mGpsStatus.info, block->Info, 13)) // FIXME: until firmware works
                 emit message(
                             testBit(block->Info, 13) ? Information : Error,
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                             QString("GNSS position used: %1").arg(testBit(block->Info, 13) ? "true" : "false"));
 
-            if(false && !testBitEqual(mGpsStatus.info, block->Info, 14)) // FIXME: until firmware works
+            if(!testBitEqual(mGpsStatus.info, block->Info, 14)) // FIXME: until firmware works
                 emit message(
                             testBit(block->Info, 14) ? Information : Error,
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                             QString("GNSS velocity used: %1").arg(testBit(block->Info, 14) ? "true" : "false"));
+            */
 
             if(!testBitEqual(mGpsStatus.info, block->Info, 15))
                 emit message(
@@ -304,14 +334,12 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                             QString("GNSS attitude used: %1").arg(testBit(block->Info, 15) ? "true" : "false"));
 
-            // If mode was 26627 or 30723, that would be 11X100000000011
-            if(block->Info == 26627 || block->Info == 30723) Q_ASSERT("Whee, GPS INFO is the way it should be!");
-
             mGpsStatus.info = block->Info;
         }
 
+        /* IntegrationMode changes between integrated and not integrated with 10Hz, we don't honestly care to describe this in some log.
         // Check the Mode-field and emit states if it changes
-        if(mGpsStatus.integrationMode != block->Mode                     && block->Mode == 2) // FIXME: until firmware works?!
+        if(mGpsStatus.integrationMode != block->Mode)
         {
             //qDebug() << t() << "SbfParser::processNextValidPacket(): mode changed from" << mGpsStatus.integrationMode << "to" << block->Mode;
 
@@ -346,9 +374,8 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                             QString("Unknown IntegrationMode %1 at TOW %2").arg(block->Mode).arg(block->TOW));
                 break;
             }
-
-            mGpsStatus.integrationMode = block->Mode;
-        }
+        }*/
+        mGpsStatus.integrationMode = block->Mode;
 
         // Check the Error-field and emit states if it changes
         if(mGpsStatus.error != block->Error)
@@ -383,20 +410,15 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         }
 
         // It is perfectly normal for the GNSSAge to be 0,2,4,6 or 8 milliseconds.
-        if(mGpsStatus.gnssAge != block->GNSSage)
+        if(mGpsStatus.gnssAge != block->GNSSage && block->GNSSage > 10)
         {
-//            qDebug() << t() << "SbfParser::processNextValidPacket(): GnssAge changed from" << mGpsStatus.gnssAge << "to" << block->GNSSage << "at TOW" << block->TOW;
-
-            if(block->GNSSage > 10)
-            {
-                emit message(
-                            block->GNSSage > 0 ? Information : Error,
-                            QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                            QString("No GNSS PVT for %1 seconds").arg(block->GNSSage));
-            }
-
-            mGpsStatus.gnssAge = block->GNSSage;
+            //qDebug() << t() << "SbfParser::processNextValidPacket(): GnssAge changed from" << mGpsStatus.gnssAge << "to" << block->GNSSage << "at TOW" << block->TOW;
+            emit message(
+                        block->GNSSage > 0 ? Information : Error,
+                        QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
+                        QString("No GNSS PVT for %1 milliseconds").arg(block->GNSSage));
         }
+        mGpsStatus.gnssAge = block->GNSSage;
 
         const quint8 numberOfSatellitesUsed = (block->NrSVAnt & 31);
         if(mGpsStatus.numSatellitesUsed != numberOfSatellitesUsed)
@@ -410,7 +432,37 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
             mGpsStatus.numSatellitesUsed = numberOfSatellitesUsed;
         }
 
-        // Only emit a pose if the values are not set to the do-not-use values.
+        quint8 precisionFlags = 0;
+
+        if(block->Heading != 65535 && block->Pitch != -32768 && block->Roll != -32768)
+            precisionFlags |= Pose::AttitudeAvailable;
+
+        if(testBit(block->Info, 11)) // Heading ambiguity is Fixed
+            precisionFlags |= Pose::HeadingFixed;
+
+        // This flag is useless for precision, as non-integrated (the 4 steps between two integrated poses) are good enough for sensor fusion, too.
+        if(block->Mode == 2) // integrated solution, not sensor-only or GNSS-only
+            precisionFlags |= Pose::ModeIntegrated;
+
+        if((block->GNSSPVTMode & 15) == 4) // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().
+            precisionFlags |= Pose::RtkFixed;
+
+        if(mGpsStatus.meanCorrAge < 40) // thats four seconds
+            precisionFlags |= Pose::CorrectionAgeLow;
+
+        setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW, precisionFlags);
+        mLastPose.covariances = mGpsStatus.covariances;
+
+        // Here we emit the gathered pose. Depending on the pose's time and its quality, we emit it for different consumers
+
+        // Emitted at full rate, any precision
+        emit newVehiclePoseLogPlayer(mLastPose);
+
+        // Emitted slowly (2Hz), any precision
+        if(mLastPose.timestamp % 500 == 0)
+            emit newVehiclePoseStatus(mLastPose);
+
+        // Only emit a precise pose if the values are not set to the do-not-use values.
         if(
                 block->Error == 0
                 && block->TOW != 4294967295L
@@ -418,63 +470,51 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                 && block->Lon != -2147483648L
                 && block->Alt != -2147483648L)
         {
+            // Emit only integrated poses for flight control, this will automatically reduce
+            // the rate to 10Hz, which the flightcontrol-board should be able to handle.
+            if(precisionFlags & Pose::ModeIntegrated)
+                emit newVehiclePoseFlightController(mLastPose);
 
-            quint8 precisionFlags = 0;
+            emit newVehiclePoseSensorFuser(mLastPose);
 
-            if(block->Heading != 65535 && block->Pitch != -32768 && block->Roll != -32768)
-                precisionFlags |= Pose::AttitudeAvailable;
-//            else
-//                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, YPR do-not-use";
-
-            if(testBit(block->Info, 11)) // Heading ambiguity is Fixed
-                precisionFlags |= Pose::HeadingFixed;
-//            else
-//                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): pose from PVAAGeod not valid, heading ambiguity is not fixed.";
-
-            // This flag is useless, as non-integrated (the 4 steps between two integrated poses) are good enough for sensor fusion, too.
-            if(block->Mode == 2) // integrated solution, not sensor-only or GNSS-only
-                precisionFlags |= Pose::ModeIntegrated;
-//            else
-//                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, not integrated solution, but" << GpsStatusInformation::getIntegrationMode(block->Mode);
-
-            if((block->GNSSPVTMode & 15) == 4) // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().
-                precisionFlags |= Pose::RtkFixed;
-//            else
-//                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, GnssPvtMode is" << GpsStatusInformation::getGnssMode(block->GNSSPVTMode) << "corrAge:" << mGpsStatus.meanCorrAge << "sec";
-
-            if(mGpsStatus.meanCorrAge < 40) // thats four seconds
-                precisionFlags |= Pose::CorrectionAgeLow;
-
-            /* Not an error! Wait until firmware is fixed?!
-            if(block->GNSSage > 1)
+            // Tell others whether we're working well.
+            if(!mGnssDeviceWorkingPrecisely && precisionFlags & Pose::AttitudeAvailable && precisionFlags & Pose::HeadingFixed && precisionFlags & Pose::RtkFixed && precisionFlags & Pose::CorrectionAgeLow)
             {
-                qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, GNSSAge is" << block->GNSSage;
-            }*/
-
-            setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW, precisionFlags);
-
-            // FIXME: this is fake, for debugging
-            //mLastPose = Pose(QVector3D(0.0, 5.0, 0.0), -block->Heading*0.01f, 0.0f, 10.0f, block->TOW);
-
-            mLastPose.precision = precisionFlags;
-            mLastPose.covariances = mGpsStatus.covariances;
-
-            emit newVehiclePose(mLastPose);
-            mPoseClockDivisor++;
+                mGnssDeviceWorkingPrecisely = true;
+                qDebug() << block->TOW << "SbfParser::processNextValidPacket(): precise pose, setting mGnssDeviceWorkingPrecisely to true, emitting.";
+                emit gnssDeviceWorkingPrecisely(mGnssDeviceWorkingPrecisely);
+            }
+            else if(mGnssDeviceWorkingPrecisely
+                    &&
+                    !
+                    (precisionFlags & Pose::AttitudeAvailable && precisionFlags & Pose::HeadingFixed && precisionFlags & Pose::RtkFixed && precisionFlags & Pose::CorrectionAgeLow)
+                    )
+            {
+                mGnssDeviceWorkingPrecisely = false;
+                qDebug() << block->TOW << "SbfParser::processNextValidPacket(): unprecise pose, setting mGnssDeviceWorkingPrecisely to false, emitting.";
+                emit gnssDeviceWorkingPrecisely(mGnssDeviceWorkingPrecisely);
+            }
         }
         else if(block->Error != 0)
         {
-            qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, error:" << block->Error << "" << GpsStatusInformation::getError(block->Error) ;
+            qDebug() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, error:" << block->Error << "" << GpsStatusInformation::getError(block->Error) ;
+            if(mGnssDeviceWorkingPrecisely)
+            {
+                mGnssDeviceWorkingPrecisely = false;
+                qDebug() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, setting mGnssDeviceWorkingPrecisely to false, emitting.";
+                emit gnssDeviceWorkingPrecisely(mGnssDeviceWorkingPrecisely);
+            }
         }
         else
         {
-            qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, do-not-use values found in elementary fields.";
+            qDebug() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, do-not-use values found in elementary fields.";
+            if(mGnssDeviceWorkingPrecisely)
+            {
+                mGnssDeviceWorkingPrecisely = false;
+                qDebug() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, setting mGnssDeviceWorkingPrecisely to false, emitting.";
+                emit gnssDeviceWorkingPrecisely(mGnssDeviceWorkingPrecisely);
+            }
         }
-
-        // If the last pose is valid (i.e. not default-constructed), emit it now.
-        // On the first time, this will start the laserscanner.
-        if(mPoseClockDivisor % 25 == 0 && mLastPose.timestamp != 0)
-            emit newVehiclePoseLowFreq(mLastPose);
     }
     break;
 
@@ -514,8 +554,8 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     case 5924:
     {
         // ExtEvent
-        qDebug() << "SBF: ExtEvent";
-        const Sbf_ExtEvent *block = (Sbf_ExtEvent*)sbfData.data();
+        //qDebug() << "SBF: ExtEvent";
+        const Sbf_ExtEvent* const block = (Sbf_ExtEvent* const)sbfData.data();
 
         // Laserscanner sync signal is soldered to both ports, but port 1 is broken. If it ever starts working again, I want to know.
         Q_ASSERT(block->Source == 2);
@@ -552,23 +592,38 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     // emit new status if it changed significantly.
     if(mGpsStatus.interestingOrDifferentComparedTo(previousGpsStatus)) emit status(mGpsStatus);
 
+    /*
+     Remove the SBF block body from our incoming buffer, so it contains either nothing or the next SBF
+     message. SBF blocks often end with padding bytes which are NOT included in the msgLength counter.
+     So, after processing a packet, we cut off AT LEAST msgLength bytes and then look for the next SYNC,
+     further removing the padding bytes before that next message starts:
+
+     $@<header/><body>...$@...</body>...padding...$@<header/><body/>...padding...$@
+                         ^^- spurious data showing up as SYNC
+     |<---------- msgLength ------->|
+     |<------------- to be removed ------------->|
+    */
+
+    const quint16 positionOfSyncAfterCompletePacket = sbfData.indexOf("$@", msgLength);
+    const quint16 bytesToRemove = std::max(msgLength, positionOfSyncAfterCompletePacket);
+
     // Announce what packet we just processed. Might be used for logging.
     // ExtEvent is generic enough, the TOW is always at the same location
     const Sbf_ExtEvent *block = (Sbf_ExtEvent*)sbfData.data();
-    emit processedPacket(sbfData.left(msgLength), (qint32)block->TOW);
+    emit processedPacket(sbfData.left(bytesToRemove), (qint32)block->TOW);
 
-    // Remove the SBF block body from our incoming buffer, so it contains either nothing or the next SBF message
-    const int indexOfNextPacket = sbfData.indexOf("$@", offsetToValidPacket+1);
-    if(indexOfNextPacket == -1)
-    {
-        // There is no next packet, so remove the packet, possibly without the padding bytes at the end.
-        sbfData.remove(0, msgLength); // this does not remove the padding bytes after the current packet
-    }
-    else
+    sbfData.remove(0, bytesToRemove);
+
+/*
+    // Remove processed packet
+    sbfData.remove(0, msgLength);
+
+    // Remove processed packet's trailing padding bytes
+    const int indexOfNextPacket = sbfData.indexOf("$@");
+    if(indexOfNextPacket > 0)
     {
         // A next packet was found, so remove everything up to its start (including padding bytes from our current packet)
         sbfData.remove(0, indexOfNextPacket);
     }
-
-    //if(sbfData.size()) qDebug() << "SbfParser::processNextValidPacket(): done processing SBF data, bytes left in buffer:" << sbfData.size() << "bytes:" << sbfData;
+    */
 }

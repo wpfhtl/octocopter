@@ -80,7 +80,7 @@ public slots:
     void slotWayPointsClear();
 
     // Called by UI to clear the drawn trajectory
-    void slotClearVehiclePoses();
+    void slotClearVehicleTrajectory();
 
     void slotCheckWayPointsHashFromRover(const QString& hash);
 

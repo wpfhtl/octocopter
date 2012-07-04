@@ -15,7 +15,7 @@
 // So I can do qDebug() << "string is" << Q(myStringObject) << "."; without having quotes around the string-value inthe output
 #define Q(string) (string).toStdString().c_str()
 
-quint32 getCurrentGpsTowTime();
+qint32 getCurrentGpsTowTime();
 
 //bool isBitSet(quint8 number, quint8 bit);
 bool testBit(quint16 number, quint8 bit);
@@ -40,9 +40,9 @@ QString t();
 
 enum FlightState
 {
-    ManualControl,
-    ApproachingNextWayPoint,
-    Freezing,
+    UserControl,
+    ApproachWayPoint,
+    Hover,
     Idle
 };
 

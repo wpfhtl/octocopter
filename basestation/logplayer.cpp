@@ -36,9 +36,9 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
 
     connect(mSbfParser, SIGNAL(status(GpsStatusInformation::GpsStatus)), SIGNAL(gpsStatus(GpsStatusInformation::GpsStatus)));
     connect(mSbfParser, SIGNAL(message(LogImportance,QString,QString)), SIGNAL(message(LogImportance,QString,QString)));
-    connect(mSbfParser, SIGNAL(newVehiclePose(Pose)), SIGNAL(vehiclePose(Pose)));
+    connect(mSbfParser, SIGNAL(newVehiclePoseLogPlayer(Pose)), SIGNAL(vehiclePose(Pose)));
 
-    connect(mSbfParser, SIGNAL(newVehiclePose(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
+    connect(mSbfParser, SIGNAL(newVehiclePoseSensorFuser(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
     connect(mSbfParser, SIGNAL(processedPacket(QByteArray,qint32)), SLOT(slotNewSbfTime(QByteArray,qint32)));
 //    connect(mSbfParser, SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
 
@@ -116,26 +116,41 @@ void LogPlayer::slotRewind()
     mTimePlaybackStartReal = QTime(); // set invalid
 
     // Whats the minimum TOW in our data? Set progressbar accordingly
-    qint32 towSbf;
+    qint32 towSbf = 0;
 
     if(!mSbfParser->getNextValidPacketInfo(mDataSbf, 0, &towSbf))
         towSbf = 99999999;
 
-    const qint32 towStart = std::min(towSbf, getNextTowLaser());
+    // getNextTowLaser() can be -1 (e.g. if no laser data present). If so, don't let that harm us
+    qint32 towLaser = getNextTowLaser();
+    const qint32 towStart = std::min(towSbf, towLaser < 0 ? (qint32)999999999 : towLaser);
 
+    // Whats the maximum TOW in our data? Set progressbar accordingly
+    towSbf = getLastTowSbf();
+    towLaser = getLastTowLaser();
+    const qint32 towStop = std::max(towSbf, towLaser);
 
-
-    // Whats the minimum TOW in our data? Set progressbar accordingly
-    // Find the last SBF packet in our buffer
-    const QByteArray lastPacketSbf = mDataSbf.right(mDataSbf.size() - mDataSbf.lastIndexOf("$@"));
-
-    if(!mSbfParser->getNextValidPacketInfo(lastPacketSbf, 0, &towSbf))
-        towSbf = -1;
-
-    const qint32 towStop = std::max(towSbf, getLastTowLaser());
     qDebug() << "LogPlayer::slotRewind(): this file contains data between" << towStart << "and" << towStop << "- length in seconds:" << (towStop - towStart)/1000;
     ui->mProgressBarTow->setRange(towStart, towStop);
     ui->mProgressBarTow->setValue(towStart);
+}
+
+qint32 LogPlayer::getLastTowSbf()
+{
+    qint32 towSbf = -1;
+    qint32 lastSearchIndex = -1;
+
+    // Search backwards as long as we cannot find a valid SBF packe to extract TOW from
+    while(towSbf < 0)
+    {
+        QByteArray lastPacketSbf = mDataSbf.right(mDataSbf.size() - mDataSbf.lastIndexOf("$@", lastSearchIndex));
+        mSbfParser->getNextValidPacketInfo(lastPacketSbf, 0, &towSbf);
+
+        // Where to search next if TOW couldn't be extracted
+        lastSearchIndex = mDataSbf.size() - lastPacketSbf.size() - 2;
+    }
+
+    return towSbf;
 }
 
 qint32 LogPlayer::getNextTowLaser()

@@ -103,7 +103,7 @@ void ControlWidget::slotUpdateBattery(const float& voltageCurrent)
 void ControlWidget::slotFlightStateChanged(FlightState fs)
 {
     mLabelFlightState->setText(getFlightStateString(fs));
-    if(fs != Freezing) mLabelFlightState->setStyleSheet(""); else mLabelFlightState->setStyleSheet(getBackgroundCss(true, false));
+    if(fs != Hover) mLabelFlightState->setStyleSheet(""); else mLabelFlightState->setStyleSheet(getBackgroundCss(true, false));
 }
 
 void ControlWidget::slotUpdatePose(const Pose &pose)

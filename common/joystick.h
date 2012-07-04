@@ -13,6 +13,10 @@
 #include <errno.h>
 #include <linux/joystick.h>
 
+#include "common.h"
+
+class MotionCommand;
+
 #define MAX_DEVICE_NUM 4
 
 /*
@@ -46,7 +50,7 @@ signals:
     void buttonStateChanged(quint8 buttonNumber, bool pressed);
 
     // used to set the motor-speeds
-    void motion(const quint8& thrust, const qint8& yaw, const qint8& pitch, const qint8& roll, const qint8& height);
+    void motion(const MotionCommand& mc);
 
 public:
     Joystick();

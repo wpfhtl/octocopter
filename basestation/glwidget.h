@@ -57,6 +57,7 @@ class GlWidget : public QGLWidget
     unsigned int mUboSize;
 
     ShaderProgram *mShaderProgramDefault;
+    ShaderProgram *mShaderProgramParticles; // for testing billboarding of the octree
 
     // Wheel Zooming. For smooth zooming, mZoomFactorCurrent converges toward mZoomFactorTarget
     GLdouble    mZoomFactorTarget, mZoomFactorCurrent;
@@ -95,6 +96,7 @@ public slots:
     void slotOctreeUnregister(Octree* o);
 
     void slotNewVehiclePose(Pose);
+    void slotClearVehicleTrajectory();
 
     void slotEnableTimerRotation(const bool& enable);
     void slotViewFromTop();

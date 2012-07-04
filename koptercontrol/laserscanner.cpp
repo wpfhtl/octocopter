@@ -32,7 +32,7 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
     else
     {
         qDebug() << "LaserScanner::LaserScanner(): connecting to" << mDeviceFileName << "failed: UrgCtrl::connect gave" << mScanner.what();
-        return;
+        qFatal("LaserScanner::LaserScanner(): exiting.");
     }
 
 //    mScanner.setCaptureMode(qrk::IntensityCapture);
@@ -170,8 +170,11 @@ void LaserScanner::slotCaptureScanData()
         // Always write log data for later replay: scannerdata:[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
         QTextStream out(mLogFile);
         out << timeStampScanMiddle;
-        std::vector<long>::iterator itr;
-        for(itr=distances->begin();itr != distances->end(); ++itr) out << " " << *itr;
+
+        // We hope that using a simple loop will be faster than using an iterator
+//        std::vector<long>::iterator itr;
+//        for(itr=distances->begin();itr != distances->end(); ++itr) out << " " << *itr;
+        for(quint16 i=0;i<numRays;i++) out << " " << (*distances)[i];
         out << endl;
 
         // Every full moon, emit the distance from vehicle center to the ground in meters (scanner to vehicle center is 3cm)
