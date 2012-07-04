@@ -48,7 +48,7 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mWirelessDevice, SIGNAL(rssi(qint8)), mControlWidget, SLOT(slotUpdateWirelessRssi(qint8)));
 
     mLogWidget = new LogWidget(this);
-//    addDockWidget(Qt::BottomDockWidgetArea, mLogWidget);
+    addDockWidget(Qt::BottomDockWidgetArea, mLogWidget);
     menuBar()->addAction("Save Log", mLogWidget, SLOT(save()));
 
     // GlWidget and CUDA-based FlightPlanners have a close relationship because cudaGlSetGlDevice() needs to be called in GL context and before any other CUDA calls.
