@@ -1,21 +1,21 @@
-#include "gpsstatusinformation.h"
+#include "gnssstatusinformation.h"
 
-//GpsStatusInformation::GpsStatusInformation()
+//GnssStatusInformation::GnssStatusInformation()
 //{
 //}
 
-QString GpsStatusInformation::getIntegrationMode(const quint8& integrationMode)
+QString GnssStatusInformation::getIntegrationMode(const quint8& integrationMode)
 {
     switch(integrationMode)
     {
     case 0: return "Integrated PV Unavailable"; break;
     case 1: return "IMU only"; break;
-    case 2: return "GPS + IMU"; break;
+    case 2: return "GNSS + IMU"; break;
     default: return QString("Unknown IntMode %1").arg(integrationMode); break;
     }
 }
 
-QString GpsStatusInformation::getGnssMode(const quint8& gnssMode)
+QString GnssStatusInformation::getGnssMode(const quint8& gnssMode)
 {
     QString gnssModeString;
 
@@ -47,7 +47,7 @@ QString GpsStatusInformation::getGnssMode(const quint8& gnssMode)
     case 10: gnssModeString = "PPP Float"; break;
 
     default:
-        qWarning() << "GpsStatusInformation::getGnssMode(): WARNING: unknown GNSSPVTMode code" << gnssPvtMode << "gnssmode" << gnssMode;
+        qWarning() << "GnssStatusInformation::getGnssMode(): WARNING: unknown GNSSPVTMode code" << gnssPvtMode << "gnssmode" << gnssMode;
         gnssModeString = QString("Unknown GNSSPVTMode %1").arg(gnssPvtMode);
         break;
     }
@@ -58,7 +58,7 @@ QString GpsStatusInformation::getGnssMode(const quint8& gnssMode)
     return gnssModeString;
 }
 
-QString GpsStatusInformation::getError(const quint8& error)
+QString GnssStatusInformation::getError(const quint8& error)
 {
     switch(error)
     {
@@ -81,7 +81,7 @@ QString GpsStatusInformation::getError(const quint8& error)
     }
 }
 
-QString GpsStatusInformation::getInfo(const quint16& info)
+QString GnssStatusInformation::getInfo(const quint16& info)
 {
     QString infoString = QString("ACC%1 GYR%2 AMB%3 ZER%4 GPSP%5 GPSV%6 GPSA%7")
             .arg(testBit(info, 0) ? 1 : 0)
@@ -95,7 +95,7 @@ QString GpsStatusInformation::getInfo(const quint16& info)
     return infoString;
 }
 
-QString GpsStatusInformation::getInfoRichText(const quint16& info)
+QString GnssStatusInformation::getInfoRichText(const quint16& info)
 {
     QString infoString = QString("ACC%1 GYR%2 AMB%3 ZER%4 GPSP%5 GPSV%6 GPSA%7")
             .arg(testBit(info, 0) ? "1" : "<font color='red'>0</font>")
@@ -109,7 +109,7 @@ QString GpsStatusInformation::getInfoRichText(const quint16& info)
     return infoString;
 }
 
-QString GpsStatusInformation::getStatusText(const GpsStatusInformation::GpsStatus& status)
+QString GnssStatusInformation::getStatusText(const GnssStatusInformation::GnssStatus& status)
 {
     return QString("GnssMode %1, IntMode %2, Info %3, Error %4, NumSats %5, GnssAge %6, MeanCorrAge %7")
     .arg(status.gnssMode)
@@ -122,13 +122,13 @@ QString GpsStatusInformation::getStatusText(const GpsStatusInformation::GpsStatu
 }
 
 // for streaming
-QDataStream& operator<<(QDataStream &out, const GpsStatusInformation::GpsStatus &status)
+QDataStream& operator<<(QDataStream &out, const GnssStatusInformation::GnssStatus &status)
 {
     out << status.gnssMode << status.integrationMode << status.info << status.error << status.numSatellitesUsed << status.gnssAge << status.meanCorrAge << status.cpuLoad << status.covariances;
     return out;
 }
 
-QDataStream& operator>>(QDataStream &in, GpsStatusInformation::GpsStatus& status)
+QDataStream& operator>>(QDataStream &in, GnssStatusInformation::GnssStatus& status)
 {
     in >> status.gnssMode;
     in >> status.integrationMode;

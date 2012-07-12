@@ -1,5 +1,5 @@
-#ifndef GPSDEVICE_H
-#define GPSDEVICE_H
+#ifndef GNSSDEVICE_H
+#define GNSSDEVICE_H
 
 #include <QCoreApplication>
 #include <QFile>
@@ -16,16 +16,16 @@
 #include <abstractserial.h>
 
 
-class GpsDevice : public QObject
+class GnssDevice : public QObject
 {
     Q_OBJECT
 
 public:
-    GpsDevice(const QString &serialDeviceUsb, const QString &serialDeviceCom, QString logFilePrefix, QObject *parent = 0);
-    ~GpsDevice();
+    GnssDevice(const QString &serialDeviceUsb, const QString &serialDeviceCom, QString logFilePrefix, QObject *parent = 0);
+    ~GnssDevice();
 
     // Our parent (koptercontrol) needs a handle to conect SbfParser to BaseConnection and LaserScanner (to set time)
-    SbfParser* getSbfParser(void) {return mSbfParser;}
+    SbfParser* const getSbfParser(void) {return mSbfParser;}
 
 private:
     QFile* mLogFileSbf;
@@ -40,7 +40,7 @@ private:
     unsigned int mRtkDataCounter;
     QByteArray mLastCommandToDeviceUsb;
     AbstractSerial *mSerialPortUsb, *mSerialPortCom;
-    bool mDeviceIsInitialized; // so we only feed it rtk data when the device is ready for it.
+    bool mDeviceIsReadyToReceiveDiffCorr; // so we only feed it rtk data when the device is ready for it.
 
     // The ports we use to talk to the receiver have a name on the receiver-side, e.g. COM1 or USB2
     // We need to use these names to tell the receiver what communication comes in/out of what ports.
@@ -52,7 +52,7 @@ private:
     QList<QByteArray> mCommandQueueUsb;
 
 
-    // Sets the internal pose according to the given GPS readings
+    // Sets the internal pose according to the given GNSS readings
 //    void setPose(const qint32& lon, const qint32& lat, const qint32& alt, const quint16& heading, const qint16& pitch, const qint16& roll, const qint32& tow);
 
     // This method finds out how many seconds are left before the TOW (time-of-week)
@@ -85,4 +85,4 @@ signals:
     void message(const LogImportance& importance, const QString& source, const QString& message);
 };
 
-#endif // GPSDEVICE_H
+#endif // GnssDevice_H

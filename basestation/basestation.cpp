@@ -189,7 +189,7 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mGlWidget, SLOT(slotNewVehiclePose(Pose)));
         connect(mLogPlayer, SIGNAL(scanData(QVector<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QVector<QVector3D>,QVector3D)));
     //    connect(mLogPlayer, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
-        connect(mLogPlayer, SIGNAL(gpsStatus(GpsStatusInformation::GpsStatus)), mControlWidget, SLOT(slotUpdateGpsStatus(GpsStatusInformation::GpsStatus)));
+        connect(mLogPlayer, SIGNAL(gnssStatus(GnssStatusInformation::GnssStatus)), mControlWidget, SLOT(slotUpdateGnssStatus(GnssStatusInformation::GnssStatus)));
     //    connect(mLogPlayer, SIGNAL(controllerValues(QVector<float>)), mPlotWidget, SLOT(slotAppendData(QVector<float>)));
 /*
         mPtuController = new PtuController("/dev/ttyUSB0", this);

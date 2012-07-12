@@ -10,7 +10,7 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
     initWayPointTable();
 
     // To enable colored text
-    mLabelGpsInfo->setTextFormat(Qt::RichText);
+    mLabelGnssInfo->setTextFormat(Qt::RichText);
 
     connect(mBtnWptPrepend, SIGNAL(clicked()), SLOT(slotWayPointPrepend()));
     connect(mBtnWptAppend, SIGNAL(clicked()), SLOT(slotWayPointAppend()));
@@ -159,34 +159,34 @@ QString ControlWidget::getBackgroundCss(const bool& error, const bool& dark)
     return QString("background-color:%1;").arg(bgColor.name());
 }
 
-void ControlWidget::slotUpdateGpsStatus(const GpsStatusInformation::GpsStatus& gpsStatus)
+void ControlWidget::slotUpdateGnssStatus(const GnssStatusInformation::GnssStatus& gnssStatus)
 {
-    mLabelGpsGnssMode->setText(GpsStatusInformation::getGnssMode(gpsStatus.gnssMode));
-    if(gpsStatus.gnssMode == 4) mLabelGpsGnssMode->setStyleSheet(""); else mLabelGpsGnssMode->setStyleSheet(getBackgroundCss());
+    mLabelGnssMode->setText(GnssStatusInformation::getGnssMode(gnssStatus.gnssMode));
+    if(gnssStatus.gnssMode == 4) mLabelGnssMode->setStyleSheet(""); else mLabelGnssMode->setStyleSheet(getBackgroundCss());
 
-    mLabelGpsIntegrationMode->setText(GpsStatusInformation::getIntegrationMode(gpsStatus.integrationMode));
-    if(gpsStatus.integrationMode == 2) mLabelGpsIntegrationMode->setStyleSheet(""); else mLabelGpsIntegrationMode->setStyleSheet(getBackgroundCss());
+    mLabelGnssIntegrationMode->setText(GnssStatusInformation::getIntegrationMode(gnssStatus.integrationMode));
+    if(gnssStatus.integrationMode == 2) mLabelGnssIntegrationMode->setStyleSheet(""); else mLabelGnssIntegrationMode->setStyleSheet(getBackgroundCss());
 
-    mLabelGpsInfo->setText(GpsStatusInformation::getInfoRichText(gpsStatus.info));
-    mLabelGpsInfo->setToolTip(mLabelGpsInfo->text());
+    mLabelGnssInfo->setText(GnssStatusInformation::getInfoRichText(gnssStatus.info));
+    mLabelGnssInfo->setToolTip(mLabelGnssInfo->text());
 
-    mLabelGpsError->setText(GpsStatusInformation::getError(gpsStatus.error));
-    if(gpsStatus.error == 0) mLabelGpsError->setStyleSheet(""); else mLabelGpsError->setStyleSheet(getBackgroundCss());
+    mLabelGnssError->setText(GnssStatusInformation::getError(gnssStatus.error));
+    if(gnssStatus.error == 0) mLabelGnssError->setStyleSheet(""); else mLabelGnssError->setStyleSheet(getBackgroundCss());
 
-    mLabelGpsNumSats->setText(QString::number(gpsStatus.numSatellitesUsed));
-    if(gpsStatus.numSatellitesUsed > 5) mLabelGpsNumSats->setStyleSheet(""); else mLabelGpsNumSats->setStyleSheet(getBackgroundCss());
+    mLabelGnssNumSats->setText(QString::number(gnssStatus.numSatellitesUsed));
+    if(gnssStatus.numSatellitesUsed > 5) mLabelGnssNumSats->setStyleSheet(""); else mLabelGnssNumSats->setStyleSheet(getBackgroundCss());
 
-    mLabelGnssAge->setText(QString::number(gpsStatus.gnssAge));
-    if(gpsStatus.gnssAge < 1) mLabelGnssAge->setStyleSheet(""); else mLabelGnssAge->setStyleSheet(getBackgroundCss());
+    mLabelGnssAge->setText(QString::number(gnssStatus.gnssAge));
+    if(gnssStatus.gnssAge < 1) mLabelGnssAge->setStyleSheet(""); else mLabelGnssAge->setStyleSheet(getBackgroundCss());
 
-    mLabelGpsCorrAge->setText(QString::number(((float)gpsStatus.meanCorrAge) / 10.0));
-    if(((float)gpsStatus.meanCorrAge)/10.0 < 5) mLabelGpsCorrAge->setStyleSheet(""); else mLabelGpsCorrAge->setStyleSheet(getBackgroundCss());
+    mLabelGnssCorrAge->setText(QString::number(((float)gnssStatus.meanCorrAge) / 10.0));
+    if(((float)gnssStatus.meanCorrAge)/10.0 < 5) mLabelGnssCorrAge->setStyleSheet(""); else mLabelGnssCorrAge->setStyleSheet(getBackgroundCss());
 
-    mLabelGpsCpuLoad->setText(QString::number(gpsStatus.cpuLoad));
-    if(gpsStatus.cpuLoad < 80) mLabelGpsCpuLoad->setStyleSheet(""); else mLabelGpsCpuLoad->setStyleSheet(getBackgroundCss());
+    mLabelGnssCpuLoad->setText(QString::number(gnssStatus.cpuLoad));
+    if(gnssStatus.cpuLoad < 80) mLabelGnssCpuLoad->setStyleSheet(""); else mLabelGnssCpuLoad->setStyleSheet(getBackgroundCss());
 
-    mLabelGpsCovariances->setText(QString::number(gpsStatus.covariances, 'f', 2));
-    if(gpsStatus.covariances < 1.0) mLabelGpsCovariances->setStyleSheet(""); else mLabelGpsCovariances->setStyleSheet(getBackgroundCss());
+    mLabelGnssCovariances->setText(QString::number(gnssStatus.covariances, 'f', 2));
+    if(gnssStatus.covariances < 1.0) mLabelGnssCovariances->setStyleSheet(""); else mLabelGnssCovariances->setStyleSheet(getBackgroundCss());
 }
 
 void ControlWidget::slotUpdateBarometricHeight(const qint16& barometricHeight)

@@ -42,7 +42,7 @@ SET(SRC_FILES
     ../common/pose
     ../common/common
     ../common/plotwidget
-    ../common/gpsstatusinformation
+    ../common/gnssstatusinformation
     ../common/wirelessdevice
     particlesystem
     particlesystem_cuda.cu
@@ -86,7 +86,7 @@ SET(INC_FILES
     ../common/pose.h
     ../common/common.h
     ../common/plotwidget.h
-    ../common/gpsstatusinformation.h
+    ../common/gnssstatusinformation.h
     ../common/wirelessdevice.h
     particlesystem.h
     particlesystem_cuda.cuh

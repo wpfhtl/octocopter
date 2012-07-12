@@ -5,7 +5,7 @@
 #include <QTimer>
 #include <pose.h>
 
-#include <gpsstatusinformation.h>
+#include <gnssstatusinformation.h>
 
 /**
   This class parses binary SBF (Septentrio Binary Format) data and emits
@@ -62,7 +62,7 @@ private:
 
     bool mGnssDeviceWorkingPrecisely;
 
-    GpsStatusInformation::GpsStatus mGpsStatus;
+    GnssStatusInformation::GnssStatus mGnssStatus;
 
     QDateTime mTimeStampStartup; // to determine runtime and clock skew at the end.
 
@@ -263,7 +263,7 @@ public:
 signals:
     void newVehiclePoseLogPlayer(const Pose&); // emitted at full rate, all poses
     void newVehiclePoseSensorFuser(const Pose&); // emitted at full rate, high-precision
-    void newVehiclePoseFlightController(const Pose&); // emitted at 10Hz, high-precision and only integrated poses (not extrapolated)
+    void newVehiclePoseFlightController(const Pose&); // emitted at *up to* 10Hz, high-precision and only integrated poses (not extrapolated)
     void newVehiclePoseStatus(const Pose&); // emitted at 1-2Hz, all Poses
 
     // Emitted when the incoming poses (IntPVAAGeod) from SBF are good enough to be used by anyone.
@@ -274,18 +274,19 @@ signals:
 
     // log/status messages
     void message(const LogImportance& importance, const QString&, const QString& message);
-    void status(const GpsStatusInformation::GpsStatus&);
+    void status(const GnssStatusInformation::GnssStatus&);
 
+    // The SbfParser wants to send a command to the receiver (e.g. for investigating an error)
     void receiverCommand(const QString&);
 
     // Again, timestamp is number of milliseconds since last sunday 00:00:00 AM (midnight)
     void scanFinished(const quint32& timestamp);
 
-    void gpsTimeOfWeekEstablished(const qint32& timestamp);
+    void gnssTimeOfWeekEstablished(const qint32& timestamp);
 
 public slots:
     // Can be called on rover by GpsDevice to ensure base is up to date even when few things change in the fields
-    void slotEmitCurrentGpsStatus();
+    void slotEmitCurrentGnssStatus();
 
 
 };

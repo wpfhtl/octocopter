@@ -1,4 +1,4 @@
-#include "gpsdevice.h"
+#include "gnssdevice.h"
 
 /*
  * This is the receiver's bootup-config concerning I/O:
@@ -20,20 +20,20 @@
  *
  */
 
-GpsDevice::GpsDevice(const QString &serialDeviceFileUsb, const QString &serialDeviceFileCom, QString logFilePrefix, QObject *parent) : QObject(parent)
+GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serialDeviceFileCom, QString logFilePrefix, QObject *parent) : QObject(parent)
 {
-    qDebug() << "GpsDevice::GpsDevice(): Using usb port" << serialDeviceFileUsb << "and com port" << serialDeviceFileCom;
+    qDebug() << "GnssDevice::GnssDevice(): Using usb port" << serialDeviceFileUsb << "and com port" << serialDeviceFileCom;
 
     mLogFileSbf = new QFile(logFilePrefix + QString("gnssdata.sbf"));
-    if(!mLogFileSbf->open(QIODevice::WriteOnly)) qFatal("GpsDevice::GpsDevice(): couldn't open sbf log file for writing, exiting");
+    if(!mLogFileSbf->open(QIODevice::WriteOnly)) qFatal("GnssDevice::GnssDevice(): couldn't open sbf log file for writing, exiting");
 
     mLogFileCmd = new QFile(logFilePrefix + QString("gnsscommands.txt"));
-    if(!mLogFileCmd->open(QIODevice::WriteOnly)) qFatal("GpsDevice::GpsDevice(): couldn't open cmd log file for writing, exiting");
+    if(!mLogFileCmd->open(QIODevice::WriteOnly)) qFatal("GnssDevice::GnssDevice(): couldn't open cmd log file for writing, exiting");
 
     mSbfParser = new SbfParser;
     // If our SBF parser has a question to the device, forward it.
     connect(mSbfParser, SIGNAL(receiverCommand(QString)), SLOT(slotQueueCommand(QString)));
-    connect(mSbfParser, SIGNAL(gpsTimeOfWeekEstablished(qint32)), SLOT(slotSetSystemTime(qint32)));
+    connect(mSbfParser, SIGNAL(gnssTimeOfWeekEstablished(qint32)), SLOT(slotSetSystemTime(qint32)));
     connect(mSbfParser, SIGNAL(gnssDeviceWorkingPrecisely(bool)), SLOT(slotSetPoseFrequency(bool)));
 
     // We first feed SBF data to SbfParser, then we get it back from it via the signal below. A little complicated,
@@ -41,14 +41,13 @@ GpsDevice::GpsDevice(const QString &serialDeviceFileUsb, const QString &serialDe
     // packets.
     connect(mSbfParser, SIGNAL(processedPacket(QByteArray, qint32)), SLOT(slotLogProcessedSbfPacket(QByteArray, qint32)));
 
-    mDeviceIsInitialized = false;
-
+    mDeviceIsReadyToReceiveDiffCorr = false;
     mWaitingForCommandReply = false;
     mRtkDataCounter = 0;
     mSerialPortOnDeviceCom = "COM3";
     mSerialPortOnDeviceUsb = "";
 
-    // We use the USB port to talk to the GPS receiver and receive poses
+    // We use the USB port to talk to the GNSS receiver and receive poses
     mSerialPortUsb = new AbstractSerial();
 //    mSerialPortUsb->enableEmitStatus(true);
 //    connect(mSerialPortUsb, SIGNAL(signalStatus(QString,QDateTime)), SLOT(slotSerialPortStatusChanged(QString,QDateTime)));
@@ -56,7 +55,7 @@ GpsDevice::GpsDevice(const QString &serialDeviceFileUsb, const QString &serialDe
     if(!mSerialPortUsb->open(AbstractSerial::ReadWrite))
     {
         mSerialPortUsb->close();
-        qFatal("GpsDevice::GpsDevice(): Opening serial usb port %s failed, exiting.", qPrintable(serialDeviceFileUsb));
+        qFatal("GnssDevice::GnssDevice(): Opening serial usb port %s failed, exiting.", qPrintable(serialDeviceFileUsb));
     }
     mSerialPortUsb->setBaudRate(AbstractSerial::BaudRate115200);
     mSerialPortUsb->setDataBits(AbstractSerial::DataBits8);
@@ -72,7 +71,7 @@ GpsDevice::GpsDevice(const QString &serialDeviceFileUsb, const QString &serialDe
     if(!mSerialPortCom->open(AbstractSerial::ReadWrite))
     {
         mSerialPortCom->close();
-        qFatal("GpsDevice::GpsDevice(): Opening serial com port %s failed, exiting.", qPrintable(serialDeviceFileCom));
+        qFatal("GnssDevice::GnssDevice(): Opening serial com port %s failed, exiting.", qPrintable(serialDeviceFileCom));
     }
     mSerialPortCom->setBaudRate(AbstractSerial::BaudRate115200);
     mSerialPortCom->setDataBits(AbstractSerial::DataBits8);
@@ -82,14 +81,14 @@ GpsDevice::GpsDevice(const QString &serialDeviceFileUsb, const QString &serialDe
     connect(mSerialPortCom, SIGNAL(readyRead()), SLOT(slotDataReadyOnCom()));
 
     mStatusTimer = new QTimer(this);
-    connect(mStatusTimer, SIGNAL(timeout()), mSbfParser, SLOT(slotEmitCurrentGpsStatus()));
+    connect(mStatusTimer, SIGNAL(timeout()), mSbfParser, SLOT(slotEmitCurrentGnssStatus()));
     mStatusTimer->start(2000); // emit status signal periodically.
 
     // initialize the device whenever we get time to do this. By doing it asynchronously, we can give our creator time to connect our signals and fetch them.
     QTimer::singleShot(0, this, SLOT(slotDetermineSerialPortsOnDevice()));
 }
 
-GpsDevice::~GpsDevice()
+GnssDevice::~GnssDevice()
 {
     mSerialPortUsb->close();
     mSerialPortUsb->deleteLater();
@@ -110,12 +109,12 @@ GpsDevice::~GpsDevice()
 
     mSbfParser->deleteLater();
 
-    qDebug() << "GpsDevice::~GpsDevice(): ports closed, SBF file flushed, destructed.";
+    qDebug() << "GnssDevice::~GnssDevice(): ports closed, SBF file flushed, destructed.";
 }
 
-void GpsDevice::slotQueueCommand(QString command)
+void GnssDevice::slotQueueCommand(QString command)
 {
-    qDebug() << "GpsDevice::slotQueueCommand(): queueing command" << command;
+    qDebug() << "GnssDevice::slotQueueCommand(): queueing command" << command;
     command.replace("#USB#", mSerialPortOnDeviceUsb);
     command.replace("#COM#", mSerialPortOnDeviceCom);
     mCommandQueueUsb.append(command.append("\r\n").toAscii());
@@ -124,13 +123,13 @@ void GpsDevice::slotQueueCommand(QString command)
         slotFlushCommandQueue();
 }
 
-quint8 GpsDevice::slotFlushCommandQueue()
+quint8 GnssDevice::slotFlushCommandQueue()
 {
     if(!mWaitingForCommandReply && mCommandQueueUsb.size())
     {
         mLastCommandToDeviceUsb = mCommandQueueUsb.takeFirst();
-        qDebug() << t() << "GpsDevice::slotFlushCommandQueue(): currently not waiting for a reply, so sending next command:" << mLastCommandToDeviceUsb.trimmed();
-        if(mReceiveBufferUsb.size()) qDebug() << t() << "GpsDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << mReceiveBufferUsb;
+        qDebug() << t() << "GnssDevice::slotFlushCommandQueue(): currently not waiting for a reply, so sending next command:" << mLastCommandToDeviceUsb.trimmed();
+        if(mReceiveBufferUsb.size()) qDebug() << t() << "GnssDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << mReceiveBufferUsb;
         //usleep(100000);
         mSerialPortUsb->write(mLastCommandToDeviceUsb);
         mWaitingForCommandReply = true;
@@ -142,11 +141,11 @@ quint8 GpsDevice::slotFlushCommandQueue()
     }
     else if(mWaitingForCommandReply)
     {
-        qDebug() << "GpsDevice::slotFlushCommandQueue(): still waiting for a usb command-reply, not sending.";
+        qDebug() << "GnssDevice::slotFlushCommandQueue(): still waiting for a usb command-reply, not sending.";
     }
     else
     {
-        qDebug() << "GpsDevice::slotFlushCommandQueue(): nothing to send.";
+        qDebug() << "GnssDevice::slotFlushCommandQueue(): nothing to send.";
     }
 
     // ben 2012-03-21: For some reason, when subscribing at msec20, we don't get called in slotDataReadyOnUsb() because th buffer is still (or already)
@@ -156,14 +155,14 @@ quint8 GpsDevice::slotFlushCommandQueue()
     return mCommandQueueUsb.size();
 }
 
-void GpsDevice::slotLogProcessedSbfPacket(const QByteArray& sbfPacket, const qint32&)
+void GnssDevice::slotLogProcessedSbfPacket(const QByteArray& sbfPacket, const qint32&)
 {
     // Copy all new SBF bytes into our log
     QDataStream s(mLogFileSbf);
     s << sbfPacket;
 }
 
-void GpsDevice::slotDetermineSerialPortsOnDevice()
+void GnssDevice::slotDetermineSerialPortsOnDevice()
 {
     // This method finds the name of the used communication-port on the GPS-device.
     // For example, we might connect using /dev/ttyUSB1, which is a usb2serial adapter
@@ -191,9 +190,9 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
         QByteArray dataUsb;
         while((mSerialPortUsb->bytesAvailable() + dataUsb.size()) < 250)
         {
-            mSerialPortUsb->waitForReadyRead(1000);
+            mSerialPortUsb->waitForReadyRead(2000);
             dataUsb.append(mSerialPortUsb->readAll());
-            qDebug() << "GpsDevice::determineSerialPortOnDevice():" << mSerialPortUsb->bytesAvailable() << "bytes waiting on serial usb port.";
+            qDebug() << "GnssDevice::determineSerialPortOnDevice():" << mSerialPortUsb->bytesAvailable() << "bytes waiting on serial usb port.";
         }
 
         // After waiting for the reply, read and analyze.
@@ -203,11 +202,11 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
         if(dataUsb.right(1) == ">" && (portNameUsb.left(3) == "COM" || portNameUsb.left(3) == "USB"))
         {
             mSerialPortOnDeviceUsb = portNameUsb;
-            qDebug() << "GpsDevice::determineSerialPortOnDevice(): serial usb port on device is now " << mSerialPortOnDeviceUsb;
+            qDebug() << "GnssDevice::determineSerialPortOnDevice(): serial usb port on device is now" << mSerialPortOnDeviceUsb;
         }
         else
         {
-            qWarning() << "GpsDevice::determineSerialPortOnDevice(): couldn't get serialUsbPortOnDevice," << dataUsb.size() << "bytes of data are:" << dataUsb.simplified();
+            qWarning() << "GnssDevice::determineSerialPortOnDevice(): couldn't get serialUsbPortOnDevice," << dataUsb.size() << "bytes of data are:" << dataUsb.simplified();
             emit message(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Couldn't get serialUsbPortOnDevice");
         }
     }
@@ -221,7 +220,7 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
         {
             mSerialPortCom->waitForReadyRead(1000);
             dataCom.append(mSerialPortCom->readAll());
-            qDebug() << "GpsDevice::determineSerialPortOnDevice():" << mSerialPortCom->bytesAvailable() << "bytes waiting on serial com port.";
+            qDebug() << "GnssDevice::determineSerialPortOnDevice():" << mSerialPortCom->bytesAvailable() << "bytes waiting on serial com port.";
         }
 
         // After waiting for the reply, read and analyze.
@@ -231,11 +230,11 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
         if(dataCom.right(1) == ">" && (portNameCom.left(3) == "COM" || portNameCom.left(3) == "USB"))
         {
             mSerialPortOnDeviceCom = portNameCom;
-            qDebug() << "GpsDevice::determineSerialPortOnDevice(): serial com port on device is now " << mSerialPortOnDeviceCom;
+            qDebug() << "GnssDevice::determineSerialPortOnDevice(): serial com port on device is now " << mSerialPortOnDeviceCom;
         }
         else
         {
-            qWarning() << "GpsDevice::determineSerialPortOnDevice(): couldn't get serialComPortOnDevice, data is:" << dataCom;
+            qWarning() << "GnssDevice::determineSerialPortOnDevice(): couldn't get serialComPortOnDevice, data is:" << dataCom;
             emit message(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Couldn't get serialComPortOnDevice");
         }
     }
@@ -247,7 +246,7 @@ void GpsDevice::slotDetermineSerialPortsOnDevice()
     slotCommunicationSetup();
 }
 
-void GpsDevice::slotCommunicationSetup()
+void GnssDevice::slotCommunicationSetup()
 {
     Q_ASSERT(mSerialPortOnDeviceUsb.size() == 4);
     Q_ASSERT(mSerialPortOnDeviceCom.size() == 4);
@@ -255,7 +254,7 @@ void GpsDevice::slotCommunicationSetup()
     // Have a look at the Septentrio Firmware User Manual.pdf. These commands
     // are necessary to set the device into RTK-Rover-Mode
 
-    qDebug() << "GpsDevice::setupCommunication(): setting up communication";
+    qDebug() << "GnssDevice::setupCommunication(): setting up communication";
 
     // use bootup config for now
 
@@ -337,7 +336,7 @@ void GpsDevice::slotCommunicationSetup()
     //  sec:  1, 2, 5, 10, 15, 30, 60
     //  min:  2, 5, 10, 15, 30, 60
 
-    // We want to know the pose 25 times a second. But on startup, we ask for slower data and then raise to msec20 when
+    // We want to know the pose - often. But on startup, we ask for slower data and then raise to msec20 when
     // the poses are of higher quality. See slotSetPoseFrequency()
     slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec500");
 
@@ -360,27 +359,49 @@ void GpsDevice::slotCommunicationSetup()
 
     //slotQueueCommand("setSBFOutput,Stream7,"+mSerialPortOnDeviceUsb+",ExtSensorMeas,msec20");
 
-    slotQueueCommand("setSBFOutput,Stream8,"+mSerialPortOnDeviceUsb+",MeasEpoch,msec100");
+    slotQueueCommand("setSBFOutput,Stream8,"+mSerialPortOnDeviceUsb+",MeasEpoch,msec200");
 
     // show current config
     slotQueueCommand("lstConfigFile,Current");
 
-    qDebug() << "GpsDevice::setupCommunication(): done setting up communication";
+    qDebug() << "GnssDevice::setupCommunication(): done setting up communication";
 }
 
-void GpsDevice::slotSetPoseFrequency(bool highSpeed)
+void GnssDevice::slotSetPoseFrequency(bool highSpeed)
 {
-    qDebug() << "GpsDevice::slotSetPoseFrequency(): setting new interval, highSpeed is" << highSpeed;
+    qDebug() << "GnssDevice::slotSetPoseFrequency(): setting new interval, highSpeed is" << highSpeed;
+
+    /*
+      Different intervals and the consequences:
+
+       - msec20 means 50 poses per second, like this IEEEEIEEEEIEEEEIEEEEI...
+
+       - msec50 means 20 poses per second, like this ?????????????????????...
+
+      I is an integrated pose (GNSS and IMU)
+      E is an extrapolated pose (GNSS from the past plus IMU readings)
+
+      According to the sequences above, msec20 gives us 10 integrated packets per
+      second, which is ideal for forwarding only those to the flightcontroller, which
+      will then have 10Hz input (the kopter cannot deal with 50Hz controller-input)
+
+      As for the msec50 option, I'll have to find out using tests.
+    */
+
     if(highSpeed)
-        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec20");
+    {
+        // Maybe use msec40 instead of msec20 to avoid RxError 64 (congestion on line)
+        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec50");
+    }
     else
-        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec500");
+    {
+        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec250");
+    }
 }
 
-void GpsDevice::slotShutDown()
+void GnssDevice::slotShutDown()
 {
-    qDebug() << "GpsDevice::slotShutDown(): starting shutdown sequence, disabling SBF streams, syncing clock, resetting dataInOut...";
-    mDeviceIsInitialized = false;
+    qDebug() << "GnssDevice::slotShutDown(): starting shutdown sequence, disabling SBF streams, syncing clock, resetting dataInOut...";
 
     slotQueueCommand("setComSettings,all,baud115200,bits8,No,bit1,none");
     slotQueueCommand("setSBFOutput,all,"+mSerialPortOnDeviceUsb+",none");
@@ -390,34 +411,92 @@ void GpsDevice::slotShutDown()
     slotQueueCommand("setPVTMode,Rover,StandAlone");
     slotQueueCommand("shutdown");
 
-    qDebug() << "GpsDevice::slotShutDown(): shutdown sequence processed, waiting for asynchronous shutdown confirmation...";
+    qDebug() << "GnssDevice::slotShutDown(): shutdown sequence processed, waiting for asynchronous shutdown confirmation...";
 }
 
-void GpsDevice::slotDataReadyOnCom()
+void GnssDevice::slotDataReadyOnCom()
 {
     // Move all new bytes into our SBF buffer
     mReceiveBufferCom.append(mSerialPortCom->readAll());
 
-    //qDebug() << "GpsDevice::slotDataReadyOnCom(): size of SBF data is now" << mReceiveBufferCom.size() << "bytes, processing:" << mReceiveBufferCom;
+    //qDebug() << "GnssDevice::slotDataReadyOnCom(): size of SBF data is now" << mReceiveBufferCom.size() << "bytes, processing:" << mReceiveBufferCom;
 
     // Process as much SBF as possible.
     while(mSbfParser->getNextValidPacketInfo(mReceiveBufferCom))
           mSbfParser->processNextValidPacket(mReceiveBufferCom);
 }
 
-void GpsDevice::slotDataReadyOnUsb()
+void GnssDevice::slotDataReadyOnUsb()
 {
-    //qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb()";
+    //qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb()";
 
     // Move all new bytes into our SBF buffer
     mReceiveBufferUsb.append(mSerialPortUsb->readAll());
 
+    // $@<header/><body>...$@...</body>...padding...$R;listCurrentConfig\n\n...........\nUS
+    // $@<header/><body>...$@...</body>...padding...$R;listCurrentConfig\n\n...........\nUSB1>$@<header/><body>...
+
+    while(true)
+    {
+        if(mWaitingForCommandReply)
+        {
+            // Check for command replies before every packet
+            const qint32 positionReplyStart = mReceiveBufferUsb.indexOf("$R");
+            const qint32 positionReplyStop  = mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QChar('>'));
+            if(positionReplyStart != -1 && positionReplyStop != -1)
+            {
+                const QByteArray commandReply = mReceiveBufferUsb.mid(positionReplyStart, positionReplyStop - positionReplyStart);
+
+                qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): received reply to:" << mLastCommandToDeviceUsb.trimmed() << ":" << commandReply.size() << "bytes:" << commandReply.trimmed();
+
+                QTextStream commandLog(mLogFileCmd);
+                commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << " DEV -> HOST: " << commandReply.trimmed() << endl;
+                commandLog << endl << "################################################################################" << endl << endl << endl << endl;
+
+                if(commandReply.contains("$R? ASCII commands between prompts were discarded!"))
+                    qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): WARNING, we were talking too fast!!";
+
+                if(commandReply.contains(QString("setDataInOut,"+mSerialPortOnDeviceCom+",RTCMv3,SBF").toAscii()))
+                {
+                    qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): gnss device now configured to accept diffcorr";
+                    mDeviceIsReadyToReceiveDiffCorr = true;
+                }
+
+                if(commandReply.contains("shutdown"))
+                {
+                    emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Orderly shutdown confirmed by gnss device");
+                    qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): shutdown confirmed by device, quitting.";
+                    QCoreApplication::quit();
+                }
+
+                mReceiveBufferUsb.remove(positionReplyStart, positionReplyStop - positionReplyStart);
+                mWaitingForCommandReply = false;
+
+                slotFlushCommandQueue();
+            }
+        }
+
+        if(mSbfParser->getNextValidPacketInfo(mReceiveBufferUsb))
+        {
+            // There is at least one valid packet in the buffer, process it.
+            mSbfParser->processNextValidPacket(mReceiveBufferUsb);
+        }
+        else
+        {
+            // There is no valid packet in the buffer. Check whether its a coming packet
+            qDebug() << "GnssDevice::slotDataReadyOnUsb(): after parsing," << mReceiveBufferUsb.size() << "bytes left, but this is no valid packet yet:" << mReceiveBufferUsb;
+            return;
+        }
+    }
+
+
+/*
     if(mWaitingForCommandReply)
     {
         // If the receiver replies to "exeSbfOnce" commands, process that data immediately. It might be receivertime, which is time-crucial.
         if(mReceiveBufferUsb.left(2) == QString("$@").toAscii())
         {
-            qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): device sent SBF while we're waiting for a reply, processing" << mReceiveBufferUsb.size() << "SBF bytes.";
+            qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): device sent SBF while we're waiting for a reply, processing" << mReceiveBufferUsb.size() << "SBF bytes.";
 
             while(mSbfParser->getNextValidPacketInfo(mReceiveBufferUsb))
                   mSbfParser->processNextValidPacket(mReceiveBufferUsb);
@@ -430,26 +509,26 @@ void GpsDevice::slotDataReadyOnUsb()
         if(mWaitingForCommandReply && mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QString(">")) != -1)
         {
             const int positionEndOfReply = mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QString(">")) + 5;
-            qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): received reply to:" << mLastCommandToDeviceUsb.trimmed() << ":" << mReceiveBufferUsb.size() << "bytes:" << mReceiveBufferUsb.left(positionEndOfReply).trimmed();
+            qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): received reply to:" << mLastCommandToDeviceUsb.trimmed() << ":" << mReceiveBufferUsb.size() << "bytes:" << mReceiveBufferUsb.left(positionEndOfReply).trimmed();
 
             QTextStream commandLog(mLogFileCmd);
             commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << " DEV -> HOST: " << mReceiveBufferUsb.left(positionEndOfReply).trimmed() << endl;
             commandLog << endl << "################################################################################" << endl << endl << endl << endl;
 
             if(mReceiveBufferUsb.left(positionEndOfReply).contains("$R? ASCII commands between prompts were discarded!"))
-                qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): we were talking too fast!!";
+                qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): we were talking too fast!!";
 
             if(mReceiveBufferUsb.left(positionEndOfReply).contains("shutdown"))
             {
                 emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Orderly shutdown finished");
-                qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): shutdown confirmed by device, quitting.";
+                qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): shutdown confirmed by device, quitting.";
                 QCoreApplication::quit();
             }
 
             mReceiveBufferUsb.remove(0, positionEndOfReply);
             mWaitingForCommandReply = false;
 
-            //qDebug() << "GpsDevice::slotDataReadyOnUsb(): after parsing all input i will send next command, if any";
+            //qDebug() << "GnssDevice::slotDataReadyOnUsb(): after parsing all input i will send next command, if any";
             slotFlushCommandQueue();
         }
 
@@ -459,60 +538,61 @@ void GpsDevice::slotDataReadyOnUsb()
 
         if(mReceiveBufferUsb.size())
         {
-            qDebug() << t() <<  "GpsDevice::slotDataReadyOnUsb(): after parsing all input, rx-buffer still contains:" << mReceiveBufferUsb;
+            qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): after parsing all input, rx-buffer still contains:" << mReceiveBufferUsb;
         }        
     }
     else
     {
         // We're receiving from the device, and it is not a reply to some request we sent ourselves. Thus, the device is
         // talking to us on its own, which only happens after initializing it
-        mDeviceIsInitialized = true;
+//        mDeviceIsReadyToReceiveDiffCorr = true;
 
         // We're not waiting for a reply to a command, this must be SBF data!
-//        qDebug() << "GpsDevice::slotDataReadyOnUsb(): received" << mReceiveBufferUsb.size() << "bytes of SBF data, processing...";
+//        qDebug() << "GnssDevice::slotDataReadyOnUsb(): received" << mReceiveBufferUsb.size() << "bytes of SBF data, processing...";
 
         while(mSbfParser->getNextValidPacketInfo(mReceiveBufferUsb))
               mSbfParser->processNextValidPacket(mReceiveBufferUsb);
     }
 }
 
-void GpsDevice::slotSetRtkData(const QByteArray &data)
+void GnssDevice::slotSetRtkData(const QByteArray &data)
 {
-    if(mDeviceIsInitialized)
+    if(mDeviceIsReadyToReceiveDiffCorr)
     {
         // simply write the RTK data into the com-port
         mRtkDataCounter += data.size();
-        //qDebug() << "GpsDevice::slotSetRtkData(): forwarding" << data.size() << "bytes of rtk-data to gps device, total is" << mRtkDataCounter;
+        //qDebug() << "GnssDevice::slotSetRtkData(): forwarding" << data.size() << "bytes of rtk-data to gps device, total is" << mRtkDataCounter;
         mSerialPortCom->write(data);
-        /*emit message(
-                Information,
-                "GpsDevice::slotSetRtkData()",
-                QString("Fed %1 bytes of RTK data into rover gps device.").arg(data.size())
-                );*/
+//        emit message(
+//                Information,
+//                "GnssDevice::slotSetRtkData()",
+//                QString("Fed %1 bytes of RTK data into rover gps device.").arg(data.size())
+//                );
     }
     else
     {
-        qDebug() << "GpsDevice::slotSetRtkData(): NOT forwarding" << data.size() << "bytes of rtk-data to gps device, its not initialized yet.";
+        qDebug() << "GnssDevice::slotSetRtkData(): NOT forwarding" << data.size() << "bytes of rtk-data to gnss device, its not initialized yet.";
     }
+        */
 }
 
-void GpsDevice::slotSerialPortStatusChanged(const QString& status, const QDateTime& time)
+void GnssDevice::slotSerialPortStatusChanged(const QString& status, const QDateTime& time)
 {
     if(sender() == mSerialPortUsb)
     {
-        qDebug() << "GpsDevice::slotSerialPortStatusChanged(): usb port status" << status << "errorstring" << mSerialPortUsb->errorString();
+        qDebug() << "GnssDevice::slotSerialPortStatusChanged(): usb port status" << status << "errorstring" << mSerialPortUsb->errorString();
     }
     else if(sender() == mSerialPortCom)
     {
-        qDebug() << "GpsDevice::slotSerialPortStatusChanged(): com port status" << status << "errorstring" << mSerialPortCom->errorString();
+        qDebug() << "GnssDevice::slotSerialPortStatusChanged(): com port status" << status << "errorstring" << mSerialPortCom->errorString();
     }
     else
     {
-        qDebug() << "GpsDevice::slotSerialPortStatusChanged(): ??? port status" << status;
+        qDebug() << "GnssDevice::slotSerialPortStatusChanged(): ??? port status" << status;
     }
 }
 
-void GpsDevice::slotSetSystemTime(const qint32& tow)
+void GnssDevice::slotSetSystemTime(const qint32& tow)
 {
     // First, what time is it now?
     struct timeval system;
@@ -523,24 +603,24 @@ void GpsDevice::slotSetSystemTime(const qint32& tow)
 
     // Apply 15000ms = 15 leapseconds offset? Only when we really sync to UTC, which we don't.
     const qint32 offsetHostToGps = tow - getCurrentGpsTowTime() + 7; // Oscilloscope indicates 7ms offset is a good value.
-    qDebug() << "GpsDevice::slotSetSystemTime(): time rollover in" << ((float)secondsToRollOver)/86400.0f << "d, offset host time" << getCurrentGpsTowTime() << "to gps time" << tow << "is" << offsetHostToGps/1000 << "s and" << (offsetHostToGps%1000) << "ms";
+    qDebug() << "GnssDevice::slotSetSystemTime(): time rollover in" << ((float)secondsToRollOver)/86400.0f << "d, offset host time" << getCurrentGpsTowTime() << "to gps time" << tow << "is" << offsetHostToGps/1000 << "s and" << (offsetHostToGps%1000) << "ms";
 
-    // For small clock drifts AND when system is running, adjust clock. Else, set clock
-    if(abs(offsetHostToGps) < 10 && mDeviceIsInitialized)
+    // For small clock drifts, adjust clock. Else, set clock
+    if(abs(offsetHostToGps) < 10)
     {
-        qDebug() << "GpsDevice::slotSetSystemTime(): offset smaller than 10ms, using adjtime to correct clock drift...";
+        qDebug() << "GnssDevice::slotSetSystemTime(): offset smaller than 10ms, using adjtime to correct clock drift...";
         system.tv_sec = 0;
         system.tv_usec = offsetHostToGps * 1000;
         if(adjtime(&system, NULL) < 0)
         {
-            if(errno == EINVAL) qDebug("GpsDevice::slotSetSystemTime(): couldn't adjust system time, values invalid.");
-            else if(errno == EPERM) qDebug("GpsDevice::slotSetSystemTime(): couldn't adjust system time, insufficient permissions.");
-            else qDebug("GpsDevice::slotSetSystemTime(): couldn't adjust system time, no idea why, error %d.", errno);
+            if(errno == EINVAL) qDebug("GnssDevice::slotSetSystemTime(): couldn't adjust system time, values invalid.");
+            else if(errno == EPERM) qDebug("GnssDevice::slotSetSystemTime(): couldn't adjust system time, insufficient permissions.");
+            else qDebug("GnssDevice::slotSetSystemTime(): couldn't adjust system time, no idea why, error %d.", errno);
         }
     }
     else
     {
-        qDebug() << "GpsDevice::slotSetSystemTime(): offset larger than 10ms or device startup, using settimeofday to set clock...";
+        qDebug() << "GnssDevice::slotSetSystemTime(): offset larger than 10ms or device startup, using settimeofday to set clock...";
         system.tv_sec += offsetHostToGps/1000;
         system.tv_usec += (offsetHostToGps%1000)*1000;
 
@@ -553,12 +633,12 @@ void GpsDevice::slotSetSystemTime(const qint32& tow)
 
         if(settimeofday(&system, NULL) < 0)
         {
-            if(errno == EFAULT) qDebug("GpsDevice::slotSetSystemTime(): couldn't set system time, values outside of range.");
-            else if(errno == EINVAL) qDebug("GpsDevice::slotSetSystemTime(): couldn't set system time, values invalid.");
-            else if(errno == EPERM) qDebug("GpsDevice::slotSetSystemTime(): couldn't set system time, insufficient permissions.");
-            else qDebug("GpsDevice::slotSetSystemTime(): couldn't set system time, no idea why, error %d.", errno);
+            if(errno == EFAULT) qDebug("GnssDevice::slotSetSystemTime(): couldn't set system time, values outside of range.");
+            else if(errno == EINVAL) qDebug("GnssDevice::slotSetSystemTime(): couldn't set system time, values invalid.");
+            else if(errno == EPERM) qDebug("GnssDevice::slotSetSystemTime(): couldn't set system time, insufficient permissions.");
+            else qDebug("GnssDevice::slotSetSystemTime(): couldn't set system time, no idea why, error %d.", errno);
         }
     }
 
-    qDebug() << t() << "GpsDevice::slotSetSystemTime(): offset host to gps is" << offsetHostToGps;
+    qDebug() << t() << "GnssDevice::slotSetSystemTime(): offset host to gps is" << offsetHostToGps;
 }

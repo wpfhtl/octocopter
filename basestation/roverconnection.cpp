@@ -135,18 +135,18 @@ void RoverConnection::processPacket(QByteArray data)
 
         emit vehicleStatus(missionRunTime, batteryVoltage, barometricHeight, wirelessRssi);
     }
-    else if(packetType == "gpsstatus")
+    else if(packetType == "gnssstatus")
     {
-        GpsStatusInformation::GpsStatus gpsStatusInformation;
+        GnssStatusInformation::GnssStatus gnssStatusInformation;
 
-        stream >> gpsStatusInformation;
+        stream >> gnssStatusInformation;
 
         emit message(
-                    gpsStatusInformation.error == 0 && gpsStatusInformation.gnssMode & 15 == 4 && gpsStatusInformation.integrationMode == 2 && gpsStatusInformation.gnssAge == 0 && gpsStatusInformation.numSatellitesUsed > 5 ? Information : Error,
+                    gnssStatusInformation.error == 0 && gnssStatusInformation.gnssMode & 15 == 4 && gnssStatusInformation.integrationMode == 2 && gnssStatusInformation.gnssAge == 0 && gnssStatusInformation.numSatellitesUsed >= 5 ? Information : Error,
                     QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                    GpsStatusInformation::getStatusText(gpsStatusInformation));
+                    GnssStatusInformation::getStatusText(gnssStatusInformation));
 
-        emit gpsStatus(gpsStatusInformation);
+        emit gnssStatus(gnssStatusInformation);
     }
     else if(packetType == "posechanged")
     {

@@ -11,7 +11,7 @@
 #include <waypoint.h>
 #include <lidarpoint.h>
 #include <wirelessdevice.h>
-#include <gpsstatusinformation.h>
+#include <gnssstatusinformation.h>
 #include <pose.h>
 
 class Simulator;
@@ -101,8 +101,8 @@ public slots:
         const float& batteryVoltage
         );
 
-    // called by rover to send new gps status to basestation
-    void slotNewGpsStatus(const GpsStatusInformation::GpsStatus&);
+    // called by rover to send new gnss status to basestation
+    void slotNewGnssStatus(const GnssStatusInformation::GnssStatus&);
 
     // called by flightcontroller to send its output to basestation for debugging purposes
     void slotNewControllerDebugValues(const Pose& pose, const MotionCommand& mc);

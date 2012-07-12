@@ -1,13 +1,23 @@
 #include "koptermessage.h"
 
-QDateTime KopterMessage::mLastSentTimeStamp = QDateTime::currentDateTime();
-
 KopterMessage::KopterMessage(unsigned int address, QChar id, QByteArray payload) : QObject()
 {
     mDirection = Outgoing;
+    mIsValid = true; // always for outgoing packets
+
     mAddress = address;
     mId = id;
     mPayload = payload;
+}
+
+
+KopterMessage::KopterMessage(const KopterMessage& other) : QObject()
+{
+    mDirection = other.mDirection;
+    mAddress = other.mAddress;
+    mId = other.mId;
+    mPayload = other.mPayload;
+    mIsValid = other.mIsValid;
 }
 
 KopterMessage::KopterMessage(QByteArray* receiveBuffer) : QObject()
@@ -18,23 +28,47 @@ KopterMessage::KopterMessage(QByteArray* receiveBuffer) : QObject()
     if(position != -1 && position > 5)
     {
         // Copy the packet from the receivebuffer into our own data-field.
-        mData = receiveBuffer->left(position+1);
+        QByteArray packetData = receiveBuffer->left(position+1);
 
         // We actually remove the packet from the receive-buffer!
         receiveBuffer->remove(0, position+1);
 
         // For some reason, messages sometimes start with TWO # instead of just one. Repair this here.
-        mData.remove(0, mData.lastIndexOf("#"));
-        Q_ASSERT(mData.at(0) == '#');
+        packetData.remove(0, packetData.lastIndexOf("#"));
+        Q_ASSERT(packetData.at(0) == '#');
 
         mDirection = Incoming;
-        mAddress = mData.at(1) - 'a';
-        mId = mData.at(2);
-        mPayload = mData.right(mData.size()-3).left(mData.size()-6);
+        mAddress = packetData.at(1) - 'a';
+        mId = packetData.at(2);
+
+        // The payload is everything except the first and last three bytes
+        mPayload = packetData.right(packetData.size()-3).left(packetData.size()-6);
 
 //        qDebug() << "KopterMessage::KopterMessage(): from stream:" << toString();
 
         // FIXME: this fails at times. Do not crash, but rather discard the message.
+
+        // This is an incoming message, compare beginning, end, and its CRC (bytes n-2 and n-1) with the CRC we would compute.
+        if(
+                packetData.size() > 5
+                &&
+                packetData.at(0) == '#'
+                &&
+                packetData.right(3).left(2) == getChecksum(packetData.left(packetData.size()-3))
+                &&
+                packetData.right(1) == "\r"
+        )
+        {
+            mIsValid = true;
+        }
+        else
+        {
+            qDebug () << "KopterMessage::KopterMessage(): invalid, data is:" << packetData;
+            if(packetData.right(3).left(2) != getChecksum(packetData.left(packetData.size()-3))) qDebug() << "KopterMessage::KopterMessage(): false, checksum error, data:" << packetData;
+            if(packetData.right(1) != "\r") qDebug() << "KopterMessage::KopterMessage(): false, no CR at end, data:" << packetData;
+            mIsValid = false;
+        }
+
         if(!isValid())
             qDebug() << "KopterMessage::KopterMessage(): warning, incoming message with address" << mAddress << "id" << mId << "is invalid";
     }
@@ -55,57 +89,39 @@ KopterMessage::KopterMessage(QByteArray* receiveBuffer) : QObject()
     }
 }
 
+
+KopterMessage& KopterMessage::operator=(const KopterMessage& other)
+{
+    mDirection = other.mDirection;
+    mAddress = other.mAddress;
+    mId = other.mId;
+    mPayload = other.mPayload;
+    mIsValid = other.mIsValid;
+
+    return *this;
+}
+
+
 void KopterMessage::setPayload(const QByteArray &payload)
 {
     mPayload = payload;
 }
 
-int KopterMessage::send(QIODevice* port, QMap<QChar, QTime>* pendingReplies)
+bool KopterMessage::send(QIODevice* port) const
 {
     Q_ASSERT(mDirection == Outgoing);
 
-    mData.clear();
+    QByteArray data;
 
-    mData.append('#');
-    mData.append('a' + mAddress);
-    mData.append(mId);
+    data.append('#');
+    data.append('a' + mAddress);
+    data.append(mId);
+    data.append(encode(mPayload));
+    data.append(getChecksum(data));
+//    qDebug() << "KopterMessage::send():" << data;
+    data.append('\r');
 
-    QString stringPendingReplies;
-
-    foreach(const QChar& reply, pendingReplies->keys())
-        stringPendingReplies.append(reply);
-
-//    qDebug() << "KopterMessage::send(): waiting for replies:" << stringPendingReplies;
-
-// #warning    if(pendingReplies->count(mId)) qWarning() << "KopterMessage::send():" << pendingReplies->count(mId) << "messages of type" << mId << "is still underway, should not resend!";
-
-    pendingReplies->insertMulti(mId, QTime::currentTime());
-
-    mData.append(encode(mPayload));
-
-    mData.append(getChecksum(mData));
-
-    qDebug() << "KopterMessage::send():" << mData;
-
-    mData.append('\r');
-
-    // I'm afraid the FC's serial link doesn't support any kind of flow control?!
-    // To try, please read http://code.google.com/p/qextserialport/issues/detail?id=90
-    // If we write() multiple messages in sequence WITHOUT waiting at least ~3ms in
-    // between, data is lost - somwhere. No idea whether the FC can't handle even
-    // 57600baud, or whether some FIFO overflows...
-    // This is especially noticeable when sending multiple 'a' packets to retrieve
-    // debug labels on startup. Thus, we add some latency (and complexity :) here.
-
-    while(mLastSentTimeStamp.msecsTo(QDateTime::currentDateTime()) < 3)
-    {
-//        qDebug() << "KopterMessage::send(): waiting for serial port to clear send-queue...";
-        usleep(10000);
-    }
-
-    mLastSentTimeStamp = QDateTime::currentDateTime();
-
-    return port->write(mData);
+    return port->write(data) > 0;
 }
 
 /*AddCRC calculates two byte sized CRC checksums for the encoded frame and
@@ -186,33 +202,7 @@ QByteArray KopterMessage::decode(const QByteArray &data)
 
 bool KopterMessage::isValid() const
 {
-    if(mDirection == Outgoing)
-    {
-        return true;
-    }
-    else
-    {
-        // This is an incoming message, compare beginning, end, and its CRC (bytes n-2 and n-1) with the CRC we would compute.
-        if(
-                mData.size() > 5
-                &&
-                mData.at(0) == '#'
-                &&
-                mData.right(3).left(2) == getChecksum(mData.left(mData.size()-3))
-                &&
-                mData.right(1) == "\r"
-        )
-        {
-            return true;
-        }
-        else
-        {
-            qDebug () << "KopterMessage::isValid(): data is:" << mData;
-            if(mData.right(3).left(2) != getChecksum(mData.left(mData.size()-3))) qDebug() << "KopterMessage::isValid(): false, checksum error, data:" << mData;
-            if(mData.right(1) != "\r") qDebug() << "KopterMessage::isValid(): false, no CR at end, data:" << mData;
-            return false;
-        }
-    }
+        return mIsValid;
 }
 
 quint8 KopterMessage::getAddress() const { return mAddress; }

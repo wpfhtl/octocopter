@@ -7,13 +7,13 @@
 
 #include <common.h>
 
-class GpsStatusInformation
+class GnssStatusInformation
 {
 //private:
 //    GpsStatusInformation();
 
 public:
-    struct GpsStatus
+    struct GnssStatus
     {
         quint8 gnssMode;
         quint8 integrationMode;
@@ -25,7 +25,7 @@ public:
         quint8 cpuLoad; // in percent
         float covariances;
 
-        GpsStatus()
+        GnssStatus()
         {
             error = 255;
             integrationMode = 255;
@@ -37,12 +37,12 @@ public:
             covariances = 10.0f;
         }
 
-        bool operator!=(const GpsStatus& b)
+        bool operator!=(const GnssStatus& b)
         {
             return !(*(this) == b);
         }
 
-        bool operator==(const GpsStatus& b)
+        bool operator==(const GnssStatus& b)
         {
             return gnssMode == b.gnssMode
                     && integrationMode == b.integrationMode
@@ -55,7 +55,7 @@ public:
                     && covariances == b.covariances;
         }
 
-        bool interestingOrDifferentComparedTo(const GpsStatus& b)
+        bool interestingOrDifferentComparedTo(const GnssStatus& b)
         {
             return gnssMode != b.gnssMode
                     || integrationMode != b.integrationMode
@@ -71,7 +71,7 @@ public:
 
     };
 
-    static QString getStatusText(const GpsStatusInformation::GpsStatus& status);
+    static QString getStatusText(const GnssStatusInformation::GnssStatus& status);
     static QString getGnssMode(const quint8& gnssMode);
     static QString getIntegrationMode(const quint8& integrationMode);
     static QString getError(const quint8& error);
@@ -80,7 +80,7 @@ public:
 };
 
 // for streaming
-QDataStream& operator<<(QDataStream &out, const GpsStatusInformation::GpsStatus &pose);
-QDataStream& operator>>(QDataStream &in, GpsStatusInformation::GpsStatus &pose);
+QDataStream& operator<<(QDataStream &out, const GnssStatusInformation::GnssStatus &pose);
+QDataStream& operator>>(QDataStream &in, GnssStatusInformation::GnssStatus &pose);
 
 #endif // GPSSTATUSINFORMATION_H

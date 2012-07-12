@@ -60,8 +60,8 @@ camera
 ../common/waypoint
 ../common/lidarpoint
 ../common/baseconnection
-../common/gpsstatusinformation
-gpsdevice
+../common/gnssstatusinformation
+gnssdevice
 laserscanner
 )
 
@@ -81,8 +81,8 @@ camera.h
 ../common/waypoint.h
 ../common/lidarpoint.h
 ../common/baseconnection.h
-../common/gpsstatusinformation.h
-gpsdevice.h
+../common/gnssstatusinformation.h
+gnssdevice.h
 laserscanner.h
 )
 

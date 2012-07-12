@@ -56,8 +56,8 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     QString networkInterface = "wlan0";
     QString deviceCamera = "/dev/video0";
     QString deviceSerialKopter = "/dev/ttyUSB0";
-    QString deviceSerialGpsCom = "/dev/ttyUSB1";
-    QString deviceSerialGpsUsb = "/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device-if00"; //"/dev/ttyACM0";
+    QString deviceSerialGnssCom = "/dev/ttyUSB1";
+    QString deviceSerialGnssUsb = "/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device-if00"; //"/dev/ttyACM0";
     QString deviceSerialLaserScanner = "/dev/serial/by-id/usb-Hokuyo_Data_Flex_for_USB_URG-Series_USB_Driver-if00"; // "/dev/ttyACM1";
 
     QStringList commandLine = arguments();
@@ -79,12 +79,12 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     if(commandLine.lastIndexOf("-sgu") != -1 && commandLine.size() > commandLine.lastIndexOf("-sgu") + 1)
     {
-        deviceSerialGpsUsb = commandLine.at(commandLine.lastIndexOf("-sgu") + 1);
+        deviceSerialGnssUsb = commandLine.at(commandLine.lastIndexOf("-sgu") + 1);
     }
 
     if(commandLine.lastIndexOf("-sgc") != -1 && commandLine.size() > commandLine.lastIndexOf("-sgc") + 1)
     {
-        deviceSerialGpsCom = commandLine.at(commandLine.lastIndexOf("-sgc") + 1);
+        deviceSerialGnssCom = commandLine.at(commandLine.lastIndexOf("-sgc") + 1);
     }
 
     if(commandLine.lastIndexOf("-netiface") != -1 && commandLine.size() > commandLine.lastIndexOf("-netiface") + 1)
@@ -92,7 +92,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
         networkInterface = commandLine.at(commandLine.lastIndexOf("-netiface") + 1).toLower();
     }
 
-    qDebug() << "KopterControl::KopterControl(): using serial ports: kopter" << deviceSerialKopter << "gps com" << deviceSerialGpsCom << "gps usb" << deviceSerialGpsUsb;
+    qDebug() << "KopterControl::KopterControl(): using serial ports: kopter" << deviceSerialKopter << "gnss com" << deviceSerialGnssCom << "gnss usb" << deviceSerialGnssUsb;
     qDebug() << "KopterControl::KopterControl(): using laserscanner at" << deviceSerialLaserScanner;
     qDebug() << "KopterControl::KopterControl(): reading RSSI at interface" << networkInterface;
 
@@ -111,7 +111,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
                     ),
                 logFilePrefix
                 );
-    mGpsDevice = new GpsDevice(deviceSerialGpsUsb, deviceSerialGpsCom, logFilePrefix, this);
+    mGnssDevice = new GnssDevice(deviceSerialGnssUsb, deviceSerialGnssCom, logFilePrefix, this);
     mSensorFuser = new SensorFuser(1); // Really lo-res data for septentrio postprocessing tests.
     mSensorFuser->setLaserScannerRelativePose(mLaserScanner->getRelativePose());
 
@@ -132,7 +132,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mKopter, SIGNAL(calibrationSwitchToggled()), mFlightController, SLOT(slotCalibrateImu()));
     connect(mLaserScanner, SIGNAL(heightOverGround(float)), mFlightController, SLOT(slotSetHeightOverGround(float)));
     connect(mBaseConnection, SIGNAL(enableScanning(const bool&)), mLaserScanner, SLOT(slotEnableScanning(const bool&)));
-    connect(mBaseConnection, SIGNAL(rtkDataReady(const QByteArray&)), mGpsDevice, SLOT(slotSetRtkData(const QByteArray&)));
+    connect(mBaseConnection, SIGNAL(rtkDataReady(const QByteArray&)), mGnssDevice, SLOT(slotSetRtkData(const QByteArray&)));
     connect(mBaseConnection, SIGNAL(wayPointInsert(quint16, WayPoint)), mFlightController, SLOT(slotWayPointInsert(quint16, WayPoint)));
     connect(mBaseConnection, SIGNAL(wayPointDelete(quint16)), mFlightController, SLOT(slotWayPointDelete(quint16)));
     connect(mBaseConnection, SIGNAL(wayPoints(QList<WayPoint>)), mFlightController, SLOT(slotSetWayPoints(QList<WayPoint>)));
@@ -142,18 +142,18 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     //    WARNING! THIS ENABLES MOTION!
     connect(mFlightController, SIGNAL(motion(MotionCommand)), mKopter, SLOT(slotSetMotion(MotionCommand)));
 
-    connect(mGpsDevice->getSbfParser(), SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
-    connect(mGpsDevice, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
-    connect(mGpsDevice->getSbfParser(), SIGNAL(gpsTimeOfWeekEstablished(qint32)), mLaserScanner, SLOT(slotSetScannerTimeStamp(qint32)));
+    connect(mGnssDevice->getSbfParser(), SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
+    connect(mGnssDevice, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
+    connect(mGnssDevice->getSbfParser(), SIGNAL(gnssTimeOfWeekEstablished(qint32)), mLaserScanner, SLOT(slotSetScannerTimeStamp(qint32)));
 
-    connect(mGpsDevice->getSbfParser(),SIGNAL(status(GpsStatusInformation::GpsStatus)), mBaseConnection, SLOT(slotNewGpsStatus(GpsStatusInformation::GpsStatus)));
+    connect(mGnssDevice->getSbfParser(),SIGNAL(status(GnssStatusInformation::GnssStatus)), mBaseConnection, SLOT(slotNewGnssStatus(GnssStatusInformation::GnssStatus)));
 
-    // distribute poses from gpsdevice
-    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePoseFlightController(Pose)), mFlightController, SLOT(slotNewVehiclePose(Pose)));
-    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePoseSensorFuser(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
-    connect(mGpsDevice->getSbfParser(), SIGNAL(newVehiclePoseStatus(Pose)), mBaseConnection, SLOT(slotNewVehiclePose(Pose)));
-    connect(mGpsDevice->getSbfParser(), SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
-    connect(mGpsDevice->getSbfParser(), SIGNAL(gnssDeviceWorkingPrecisely(bool)), mLaserScanner, SLOT(slotEnableScanning(bool)));
+    // distribute poses from gnssdevice
+    connect(mGnssDevice->getSbfParser(), SIGNAL(newVehiclePoseFlightController(Pose)), mFlightController, SLOT(slotNewVehiclePose(Pose)));
+    connect(mGnssDevice->getSbfParser(), SIGNAL(newVehiclePoseSensorFuser(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
+    connect(mGnssDevice->getSbfParser(), SIGNAL(newVehiclePoseStatus(Pose)), mBaseConnection, SLOT(slotNewVehiclePose(Pose)));
+    connect(mGnssDevice->getSbfParser(), SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
+    connect(mGnssDevice->getSbfParser(), SIGNAL(gnssDeviceWorkingPrecisely(bool)), mLaserScanner, SLOT(slotEnableScanning(bool)));
     connect(mLaserScanner, SIGNAL(newScanData(qint32, std::vector<long>*const)), mSensorFuser, SLOT(slotNewScanData(qint32,std::vector<long>*const)));
     connect(mSensorFuser, SIGNAL(newScannedPoints(QVector<QVector3D>,QVector3D)), mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector3D>,QVector3D)));
 
@@ -167,7 +167,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 KopterControl::~KopterControl()
 {
     qDebug() << "KopterControl::~KopterControl(): shutting down, deleting objects.";
-    delete mGpsDevice;
+    delete mGnssDevice;
     delete mLaserScanner;
     delete mSensorFuser;
     delete mKopter;
@@ -243,7 +243,7 @@ void KopterControl::slotHandleSignal()
 
     // shutdown orderly
     mLaserScanner->slotEnableScanning(false);
-    mGpsDevice->slotShutDown();
+    mGnssDevice->slotShutDown();
 
 //    quit();
 }

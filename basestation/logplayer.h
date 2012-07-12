@@ -63,7 +63,7 @@ signals:
     void vehiclePose(Pose);
     void scanData(QVector<QVector3D>,QVector3D);
     void vehicleStatus(quint32,float,qint16,qint8);
-    void gpsStatus(GpsStatusInformation::GpsStatus);
+    void gnssStatus(GnssStatusInformation::GnssStatus);
 };
 
 #endif // LOGPLAYER_H
