@@ -6,7 +6,7 @@
 #include "ui_controlwidget.h"
 #include "basestation.h"
 #include "waypoint.h"
-#include "gpsstatusinformation.h"
+#include "gnssstatusinformation.h"
 #include "common.h" // for hash()
 
 #define QT_USE_FAST_CONCATENATION
@@ -35,7 +35,7 @@ public slots:
     void slotUpdateBattery(const float& voltageCurrent);
     void slotUpdateWirelessRssi(const qint8& wirelessRssi);
     void slotUpdateBarometricHeight(const qint16& barometricHeight);
-    void slotUpdateGpsStatus(const GpsStatusInformation::GpsStatus& gpsStatus);
+    void slotUpdateGnssStatus(const GnssStatusInformation::GnssStatus& gnssStatus);
     void slotUpdateConnectionRtk(bool working);
     void slotUpdateConnectionRover(bool connected);
 

@@ -15,7 +15,8 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     mExternalControlActive = false;
     mLastCalibrationSwitchValue = 0; // thats an impossible value, so we use it to detect our first value reading
     mStructExternControl.Frame = 0;
-    mMaxReplyTime = 0;
+
+    mLastSendTime = QTime::currentTime();
 
     qDebug() << "Kopter::Kopter(): Opening serial port" << serialDeviceFile << "succeeded, flowControl is" << mSerialPortFlightCtrl->flowControl();
 
@@ -25,14 +26,13 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     mTimerPpmChannelPublisher->start(250);
     connect(mTimerPpmChannelPublisher, SIGNAL(timeout()), SLOT(slotGetPpmChannelValues()));
 
-    slotGetVersion();
+    slotRequestVersion();
 
     slotSubscribeDebugValues(500);
 
     for(int i=0;i<32;i++)
     {
-        slotGetDebugLabel(i);
-        usleep(20000);
+        slotRequestDebugLabel(i);
     }
 }
 
@@ -55,8 +55,40 @@ void Kopter::slotTestMotors(const QList<unsigned char> &speeds)
     for(int i=0;i<16;i++)
         payload[i] = speeds.at(i);
 
-    KopterMessage message(KopterMessage::Address_FC, 't', payload);
-    message.send(mSerialPortFlightCtrl, &mPendingReplies);
+    send(KopterMessage(KopterMessage::Address_FC, 't', payload));
+}
+
+void Kopter::slotFlushMessageQueue()
+{
+    foreach (const KopterMessage& msg, mSendMessageQueue)
+    {
+        if(mPendingReplies.contains(msg.getId().toUpper()))
+        {
+            // There is another unanswered request of this type in the pipe, do not send yet
+            qDebug() << "Kopter::slotFlushMessageQueue(): there is another unanswered request of this type in the pipe, not sending yet. Will try flushing again after next received packet.";
+        }
+        else
+        {
+            // There is no outstanding reply for this queued packet, we can send.
+            qDebug() << "Kopter::slotFlushMessageQueue(): no outstanding reply of this type, sending...";
+
+            while(mLastSendTime.msecsTo(QTime::currentTime()) < 5)
+            {
+                qDebug() << "KopterMessage::slotFlushMessageQueue(): waiting for serial port to clear send-queue...";
+                usleep(10000);
+            }
+
+            msg.send(mSerialPortFlightCtrl);
+            mPendingReplies.insert(msg.getId().toUpper());
+            mLastSendTime = QTime::currentTime();
+        }
+    }
+}
+
+void Kopter::send(const KopterMessage& message)
+{
+    mSendMessageQueue.append(message);
+    slotFlushMessageQueue();
 }
 
 void Kopter::slotSetMotion(const MotionCommand& mc)
@@ -101,38 +133,33 @@ void Kopter::slotSetMotion(const MotionCommand& mc)
     mStructExternControl.Gier = -mc.yaw;
     mStructExternControl.Height = 0; // I don't know what this is for.
 
-    KopterMessage message(KopterMessage::Address_FC, 'b', QByteArray((const char *)&mStructExternControl, sizeof(mStructExternControl)));
-    message.send(mSerialPortFlightCtrl, &mPendingReplies);
+    send(KopterMessage(KopterMessage::Address_FC, 'b', QByteArray((const char *)&mStructExternControl, sizeof(mStructExternControl))));
 
-    // Its an unsigned char, so it should overflow safely
+    // The frame is an unsigned char, so it should overflow safely
     mStructExternControl.Frame++;
 }
 
 void Kopter::slotReset()
 {
-    KopterMessage message(KopterMessage::Address_FC, 'R', QByteArray());
-    message.send(mSerialPortFlightCtrl, &mPendingReplies);
+    send(KopterMessage(KopterMessage::Address_FC, 'R', QByteArray()));
 }
 
-void Kopter::slotGetDebugLabel(quint8 index)
+void Kopter::slotRequestDebugLabel(quint8 index)
 {
     if(index >= 32)
         qDebug() << "Kopter::slotGetDebugLabel(): received impossible index" << index;
 
-    KopterMessage message(KopterMessage::Address_FC, 'a', QByteArray((const char*)&index, 1));
-    message.send(mSerialPortFlightCtrl, &mPendingReplies);
+    send(KopterMessage(KopterMessage::Address_FC, 'a', QByteArray((const char*)&index, 1)));
 }
 
-void Kopter::slotGetVersion()
+void Kopter::slotRequestVersion()
 {
-    KopterMessage message(KopterMessage::Address_FC, 'v', QByteArray());
-    message.send(mSerialPortFlightCtrl, &mPendingReplies);
+    send(KopterMessage(KopterMessage::Address_FC, 'v', QByteArray()));
 }
 
 void Kopter::slotGetPpmChannelValues()
 {
-    KopterMessage message(KopterMessage::Address_FC, 'p', QByteArray());
-    message.send(mSerialPortFlightCtrl, &mPendingReplies);
+    send(KopterMessage(KopterMessage::Address_FC, 'p', QByteArray()));
 }
 
 void Kopter::slotSubscribeDebugValues(int interval)
@@ -152,8 +179,7 @@ void Kopter::slotSubscribeDebugValues(int interval)
     // Using 0 will disable debug output.
     quint8 interval_byte = std::min(255, mDesiredDebugDataInterval/10);
     //qDebug() << "Kopter::slotSubscribeDebugValues(): effective subscription in ms" << ((int)interval_byte)*10;
-    KopterMessage message(KopterMessage::Address_FC, 'd', QByteArray((const char*)&interval_byte));
-    message.send(mSerialPortFlightCtrl, &mPendingReplies);
+    send(KopterMessage(KopterMessage::Address_FC, 'd', QByteArray((const char*)&interval_byte)));
 
     // The subscription only lasts for 4 seconds as defined by ABO_TIMEOUT in the FC source.
     // To make up for this, we call ourselves periodically to re-subscribe.
@@ -188,16 +214,18 @@ void Kopter::slotSerialPortDataReady()
         if(message.getAddress() == KopterMessage::Address_FC)
         {
             // Remove the record of the pending reply
-            const QTime timeOfRequest = mPendingReplies.take(message.getId().toLower());
-            if(mPendingReplies.contains(message.getId().toLower()))  qWarning() << "Kopter::slotSerialPortDataReady(): there's another pending message of type" << message.getId().toLower();
-
-            // If we receive somethign we didn't ask for, start bitching.
-            //  k is mkmag's compass data which cannot be disabled, event though no mkmag is installed
-            //  D  is debug out, which we subscribed to. Its just that one subscription gives multiple replies.
-            if(timeOfRequest.isNull() && message.getId() != 'k' && message.getId() != 'D')
+            if(!mPendingReplies.remove(message.getId()))
             {
-                qWarning() << "Kopter::slotSerialPortDataReady(): got a reply to an unsent request, message:" << message.toString();
+                // If we receive somethign we didn't ask for, start bitching.
+                //  k is mkmag's compass data which cannot be disabled, event though no mkmag is installed
+                //  D  is debug out, which we subscribed to. Its just that one subscription gives multiple replies.
+                if(message.getId() != 'k' && message.getId() != 'D')
+                {
+                    qWarning() << "Kopter::slotSerialPortDataReady(): got a reply to an unsent request, message:" << message.toString();
+                }
             }
+
+            Q_ASSERT(!mPendingReplies.contains(message.getId()));
 
             if(message.getId() == 'A')
             {
@@ -212,14 +240,6 @@ void Kopter::slotSerialPortDataReady()
                 qDebug() << t() << "Kopter::slotSerialPortDataReady(): received confirmation for externalControl frame:" << (quint8)message.getPayload()[0];
                 if(mPendingReplies.contains('b'))
                     qDebug() << "Kopter::slotSerialPortDataReady(): mPendingReplies contains another b, so at least two requests were underway at the same time. Not so good.";
-
-                if(!timeOfRequest.isNull())
-                {
-                    mMaxReplyTime = std::max(mMaxReplyTime, (qint32)timeOfRequest.msecsTo(QTime::currentTime()));
-                    qDebug() << "Kopter::slotSerialPortDataReady(): received reply to 'b' after ms:" << timeOfRequest.msecsTo(QTime::currentTime()) << "worst:" << mMaxReplyTime;
-                }
-
-//                emit externControlReplyReceived();
             }
             else if(message.getId() == 'D')
             {
@@ -286,15 +306,14 @@ void Kopter::slotSerialPortDataReady()
             }
             else
             {
-                //qWarning() << "Kopter::slotSerialPortDataReady(): got KopterMessage with unknown id:" << message.getId();
+                qWarning() << "Kopter::slotSerialPortDataReady(): got KopterMessage with unknown id:" << message.getId();
             }
         }
         else
         {
-            //qWarning() << "Kopter::slotSerialPortDataReady(): got KopterMessage with id" <<  message.getId() << "from ignored address:" << message.getAddress();
+            qWarning() << "Kopter::slotSerialPortDataReady(): got KopterMessage with id" <<  message.getId() << "from ignored address:" << message.getAddress();
         }
-
-
-
     }
+
+    slotFlushMessageQueue();
 }

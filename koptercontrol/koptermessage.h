@@ -14,7 +14,7 @@ class KopterMessage : public QObject
     enum Direction {Incoming, Outgoing};
 
 private:
-    static QDateTime mLastSentTimeStamp;
+    bool mIsValid; // set immediately after receiving a packet
     Direction mDirection;
     unsigned int mAddress;
     QChar mId;
@@ -24,7 +24,7 @@ private:
 
     // The whole packet will be assembled here for outgoing packets
     // All data fields will be reconstructed from mData for incoming packets
-    QByteArray mData;
+//    QByteArray mData;
 
     static QByteArray getChecksum(const QByteArray &data);
     static QByteArray encode(const QByteArray &data);
@@ -34,18 +34,18 @@ public:
     // Creates a KopterMessage to be sent to the kopter
     KopterMessage(unsigned int address, QChar id, QByteArray payload);
 
+    KopterMessage(const KopterMessage& other);
+
     // Creates a KopterMessage from a receiveBuffer, so this will create an incoming KopterMessage
     KopterMessage(QByteArray *receiveBuffer);
+
+    KopterMessage &operator=(const KopterMessage& other);
 
     enum Address {Address_FC = 1, Address_NC = 2, Address_MK3MAG = 3};
 
     void setPayload(const QByteArray &data);
 
-    // This method sends this message over the given @port and records an expected reply into a QMap.
-    // For example, a 't' message (motortest) yields a 'T' reply, a 'b' message gives a 'B' reply.
-    // This way, we can decide whether it makes any sense to send a packet of a type which is
-    // still being processed by the FC.
-    int send(QIODevice* port, QMap<QChar, QTime>* pendingReplies);
+    bool send(QIODevice* port) const;
 
     quint8 getAddress() const;
     QChar getId() const;

@@ -343,10 +343,10 @@ void BaseConnection::slotNewVehicleStatus(
     slotSendData(data, false);
 }
 
-// called by rover to send new gps status to basestation
-void BaseConnection::slotNewGpsStatus(const GpsStatusInformation::GpsStatus& gpsStatus)
+// called by rover to send new gnss status to basestation
+void BaseConnection::slotNewGnssStatus(const GnssStatusInformation::GnssStatus& gnssStatus)
 {
-/*    qDebug() << t() << "BaseConnection::slotNewGpsStatus(): -> base:"
+/*    qDebug() << t() << "BaseConnection::slotNewGnssStatus(): -> base:"
              << "gnssMode" << gnssMode
              << "integrationMode" << integrationMode
              << "info" << info
@@ -359,8 +359,8 @@ void BaseConnection::slotNewGpsStatus(const GpsStatusInformation::GpsStatus& gps
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
-    stream << QString("gpsstatus");
-    stream << gpsStatus;
+    stream << QString("gnssstatus");
+    stream << gnssStatus;
     slotSendData(data, false);
 }
 

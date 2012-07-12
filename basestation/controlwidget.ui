@@ -393,7 +393,7 @@
           </spacer>
          </item>
          <item>
-          <widget class="QLabel" name="mLabelGpsGnssMode">
+          <widget class="QLabel" name="mLabelGnssMode">
            <property name="text">
             <string>unknown</string>
            </property>
@@ -413,7 +413,7 @@
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_10">
          <item>
-          <widget class="QLabel" name="mLabelGpsStatus">
+          <widget class="QLabel" name="mLabelGnssStatus">
            <property name="text">
             <string>IntegrationMode</string>
            </property>
@@ -433,7 +433,7 @@
           </spacer>
          </item>
          <item>
-          <widget class="QLabel" name="mLabelGpsIntegrationMode">
+          <widget class="QLabel" name="mLabelGnssIntegrationMode">
            <property name="text">
             <string>unknown</string>
            </property>
@@ -464,7 +464,7 @@
           </spacer>
          </item>
          <item>
-          <widget class="QLabel" name="mLabelGpsError">
+          <widget class="QLabel" name="mLabelGnssError">
            <property name="text">
             <string>unknown</string>
            </property>
@@ -495,7 +495,7 @@
           </spacer>
          </item>
          <item>
-          <widget class="QLabel" name="mLabelGpsInfo">
+          <widget class="QLabel" name="mLabelGnssInfo">
            <property name="minimumSize">
             <size>
              <width>0</width>
@@ -528,7 +528,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QLabel" name="mLabelGpsNumSats">
+          <widget class="QLabel" name="mLabelGnssNumSats">
            <property name="text">
             <string>-1</string>
            </property>
@@ -582,7 +582,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QLabel" name="mLabelGpsCorrAge">
+          <widget class="QLabel" name="mLabelGnssCorrAge">
            <property name="text">
             <string>-1</string>
            </property>
@@ -600,7 +600,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QLabel" name="mLabelGpsCpuLoad">
+          <widget class="QLabel" name="mLabelGnssCpuLoad">
            <property name="text">
             <string>-1</string>
            </property>
@@ -627,7 +627,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QLabel" name="mLabelGpsCovariances">
+          <widget class="QLabel" name="mLabelGnssCovariances">
            <property name="minimumSize">
             <size>
              <width>0</width>

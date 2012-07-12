@@ -85,12 +85,25 @@ public:
     ~Kopter();
 
 private:
-    qint32 mMaxReplyTime;
+
+    // I'm afraid the FC's serial link doesn't support any kind of flow control?!
+    // To try, please read http://code.google.com/p/qextserialport/issues/detail?id=90
+    // If we write() multiple messages in sequence WITHOUT waiting at least ~3ms in
+    // between, data is lost - somwhere. No idea whether the FC can't handle even
+    // 57600baud, or whether some FIFO overflows...
+    // This is especially noticeable when sending multiple 'a' packets to retrieve
+    // debug labels on startup. Thus, we add some latency (and complexity :) here to
+    // avoid sending too fast.
+    QTime mLastSendTime;
+
+    // Here, we keep all the messages to-be-sent to the kopter...
+    QList<KopterMessage> mSendMessageQueue;
+
+    // ... which are NOT sent as long as we're still waiting for a reply to the same message-kind.
+    QSet<QChar> mPendingReplies;
 
     QMap<quint8, QString> mAnalogValueLabels;
     ExternControl mStructExternControl;
-
-    QMap<QChar,QTime> mPendingReplies;
 
     // How many milliseconds between two debug outputs?
     int mDesiredDebugDataInterval;
@@ -103,8 +116,11 @@ private:
     bool mExternalControlActive;
     qint8 mLastCalibrationSwitchValue;
 
+    void send(const KopterMessage& message);
+
 private slots:
     void slotSerialPortDataReady();
+    void slotFlushMessageQueue();
 
 public slots:
     void slotSetMotion(const MotionCommand& mc);
@@ -112,8 +128,8 @@ public slots:
     void slotReset();
     // The PPM Channels have the values from the human-remote-control
     void slotGetPpmChannelValues();
-    void slotGetVersion();
-    void slotGetDebugLabel(quint8 index);
+    void slotRequestVersion();
+    void slotRequestDebugLabel(quint8 index);
 
     // Subscribe debug info every @interval milliseconds. 0 disables.
     void slotSubscribeDebugValues(int interval = -1);

@@ -91,9 +91,9 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offse
     return true;
 }
 
-void SbfParser::slotEmitCurrentGpsStatus()
+void SbfParser::slotEmitCurrentGnssStatus()
 {
-    emit status(mGpsStatus);
+    emit status(mGnssStatus);
 }
 
 quint16 SbfParser::computeChecksum(const void *buf, unsigned int length) const
@@ -192,7 +192,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     // If there's garbage before the next valid packet, save it into sbf log and log a warning
     if(offsetToValidPacket != 0)
     {
-        qWarning() << "SbfParser::processNextValidPacket(): WARNING: SBF Sync Marker $@ was not at byte 0, but at" << offsetToValidPacket;
+        qDebug() << "SbfParser::processNextValidPacket(): WARNING: SBF sync was at byte" << offsetToValidPacket << "instead of 0, content:" << sbfData.left(offsetToValidPacket);
         // Log this data for later error analysis
         emit processedPacket(sbfData.left(offsetToValidPacket), -1);
         sbfData.remove(0, offsetToValidPacket);
@@ -205,7 +205,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     const quint16 msgLength = *(quint16*)(sbfData.data() + 6);
 
     // Save our current gpsStatus in a const place, so we can check whether it changed after processing the whole packet
-    const GpsStatusInformation::GpsStatus previousGpsStatus = mGpsStatus;
+    const GnssStatusInformation::GnssStatus previousGpsStatus = mGnssStatus;
 
 //    qDebug() << "SbfParser::processNextValidPacket(): processing" << sbfData.size() << "bytes SBF data with ID" << msgId << "from TOW" << ((Sbf_PVTCartesian*)sbfData.data())->TOW;
 
@@ -220,7 +220,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         const Sbf_PVTCartesian *block = (Sbf_PVTCartesian*)sbfData.data();
         // block->MeanCorrAge is quint16 in hundreds of a second
 //        qDebug() << "SBF: PVTCartesian: MeanCorrAge in seconds:" << ((float)block->MeanCorrAge)/100.0;
-        mGpsStatus.meanCorrAge = std::min(block->MeanCorrAge / 10, 255);
+        mGnssStatus.meanCorrAge = std::min(block->MeanCorrAge / 10, 255);
     }
     break;
 
@@ -230,9 +230,9 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         const Sbf_IntAttCovEuler *block = (Sbf_IntAttCovEuler*)sbfData.data();
 //        qDebug() << "SBF: IntAttCovEuler: covariances for heading, pitch, roll:" << block->Cov_HeadHead << block->Cov_PitchPitch << block->Cov_RollRoll;
         float newCovarianceValue = std::max(std::max(block->Cov_HeadHead, block->Cov_PitchPitch), block->Cov_RollRoll);
-        if(fabs(mGpsStatus.covariances - newCovarianceValue) > 0.02)
+        if(fabs(mGnssStatus.covariances - newCovarianceValue) > 0.02)
         {
-            mGpsStatus.covariances = newCovarianceValue;
+            mGnssStatus.covariances = newCovarianceValue;
 //            emit status(mGpsStatus);
         }
     }
@@ -245,7 +245,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
 
 //        qDebug() << "SBF: ReceiverStatus: CPU Load:" << block->CPULoad;
 
-        mGpsStatus.cpuLoad = block->CPULoad;
+        mGnssStatus.cpuLoad = block->CPULoad;
 
         if(block->CPULoad > 80)
         {
@@ -289,23 +289,23 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
 //        qDebug() << "SBF: IntPVAAGeod";
 
         // Check the Info-field and emit states if it changes
-        if(mGpsStatus.info != block->Info)
+        if(mGnssStatus.info != block->Info)
         {
             //qDebug() << t() << "SbfParser::processNextValidPacket(): info changed from" << mGpsStatus.info << "to" << block->Info;
 
-            if(!testBitEqual(mGpsStatus.info, block->Info, 0))
+            if(!testBitEqual(mGnssStatus.info, block->Info, 0))
                 emit message(
                             testBit(block->Info, 0) ? Information : Error,
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                             QString("ACLR measurements used: %1").arg(testBit(block->Info, 0) ? "true" : "false"));
 
-            if(!testBitEqual(mGpsStatus.info, block->Info, 1))
+            if(!testBitEqual(mGnssStatus.info, block->Info, 1))
                 emit message(
                             testBit(block->Info, 1) ? Information : Error,
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                             QString("GYRO measurements used: %1").arg(testBit(block->Info, 1) ? "true" : "false"));
 
-            if(!testBitEqual(mGpsStatus.info, block->Info, 11))
+            if(!testBitEqual(mGnssStatus.info, block->Info, 11))
                 emit message(
                             testBit(block->Info, 11) ? Information : Error,
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
@@ -332,13 +332,13 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                             QString("GNSS velocity used: %1").arg(testBit(block->Info, 14) ? "true" : "false"));
             */
 
-            if(!testBitEqual(mGpsStatus.info, block->Info, 15))
+            if(!testBitEqual(mGnssStatus.info, block->Info, 15))
                 emit message(
                             testBit(block->Info, 15) ? Information : Error, // Not sure whether GNSS attitude means multi-antenna
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                             QString("GNSS attitude used: %1").arg(testBit(block->Info, 15) ? "true" : "false"));
 
-            mGpsStatus.info = block->Info;
+            mGnssStatus.info = block->Info;
         }
 
         /* IntegrationMode changes between integrated and not integrated with 10Hz, we don't honestly care to describe this in some log.
@@ -379,10 +379,10 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                 break;
             }
         }*/
-        mGpsStatus.integrationMode = block->Mode;
+        mGnssStatus.integrationMode = block->Mode;
 
         // Check the Error-field and emit states if it changes
-        if(mGpsStatus.error != block->Error)
+        if(mGnssStatus.error != block->Error)
         {
 //            qDebug() << t() << "SbfParser::processNextValidPacket(): error changed from" << mGpsStatus.error << "to" << block->Error << "at TOW" << block->TOW;
 
@@ -390,16 +390,16 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                         block->Error == 0 ? Information : Error,
                         QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                         QString("Error changed from %1 (%2) to %3 (%4)")
-                        .arg(mGpsStatus.error)
-                        .arg(GpsStatusInformation::getError(mGpsStatus.error))
+                        .arg(mGnssStatus.error)
+                        .arg(GnssStatusInformation::getError(mGnssStatus.error))
                         .arg(block->Error)
-                        .arg(GpsStatusInformation::getError(block->Error)));
+                        .arg(GnssStatusInformation::getError(block->Error)));
 
-            mGpsStatus.error = block->Error;
+            mGnssStatus.error = block->Error;
         }
 
         // Check the GnssPvtMode-field and emit states if it changes AND if its not DO-NOT-USE
-        if(mGpsStatus.gnssMode != block->GNSSPVTMode && block->GNSSPVTMode != 255)
+        if(mGnssStatus.gnssMode != block->GNSSPVTMode && block->GNSSPVTMode != 255)
         {
 //            qDebug() << t() << "SbfParser::processNextValidPacket(): GnssPvtMode changed from" << mGpsStatus.gnssMode << "to" << block->GNSSPVTMode << "at TOW" << block->TOW;
 
@@ -407,14 +407,14 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                         (block->GNSSPVTMode & 15) == 4 ? Information : Warning,
                         QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                         QString("GnssPvtMode changed: %1 => %2")
-                        .arg(GpsStatusInformation::getGnssMode(mGpsStatus.gnssMode))
-                        .arg(GpsStatusInformation::getGnssMode(block->GNSSPVTMode)));
+                        .arg(GnssStatusInformation::getGnssMode(mGnssStatus.gnssMode))
+                        .arg(GnssStatusInformation::getGnssMode(block->GNSSPVTMode)));
 
-            mGpsStatus.gnssMode = block->GNSSPVTMode;
+            mGnssStatus.gnssMode = block->GNSSPVTMode;
         }
 
         // It is perfectly normal for the GNSSAge to be 0,2,4,6 or 8 milliseconds.
-        if(mGpsStatus.gnssAge != block->GNSSage && block->GNSSage > 10)
+        if(mGnssStatus.gnssAge != block->GNSSage && block->GNSSage > 10)
         {
             //qDebug() << t() << "SbfParser::processNextValidPacket(): GnssAge changed from" << mGpsStatus.gnssAge << "to" << block->GNSSage << "at TOW" << block->TOW;
             emit message(
@@ -422,10 +422,10 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                         QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                         QString("No GNSS PVT for %1 milliseconds").arg(block->GNSSage));
         }
-        mGpsStatus.gnssAge = block->GNSSage;
+        mGnssStatus.gnssAge = block->GNSSage;
 
         const quint8 numberOfSatellitesUsed = (block->NrSVAnt & 31);
-        if(mGpsStatus.numSatellitesUsed != numberOfSatellitesUsed)
+        if(mGnssStatus.numSatellitesUsed != numberOfSatellitesUsed)
         {
 //            qDebug() << t() << "SbfParser::processNextValidPacket(): numSats changed from" << mGpsStatus.numSatellitesUsed << "to" << numberOfSatellitesUsed;
             /*emit message(
@@ -433,7 +433,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                         QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                         QString("Number of used satellites changed from %1 to %2").arg(mGpsStatus.numSatellitesUsed).arg(numberOfSatellitesUsed));*/
 
-            mGpsStatus.numSatellitesUsed = numberOfSatellitesUsed;
+            mGnssStatus.numSatellitesUsed = numberOfSatellitesUsed;
         }
 
         quint8 precisionFlags = 0;
@@ -451,11 +451,11 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         if((block->GNSSPVTMode & 15) == 4) // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().
             precisionFlags |= Pose::RtkFixed;
 
-        if(mGpsStatus.meanCorrAge < 40) // thats four seconds
+        if(mGnssStatus.meanCorrAge < 40) // thats four seconds
             precisionFlags |= Pose::CorrectionAgeLow;
 
         setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW, precisionFlags);
-        mLastPose.covariances = mGpsStatus.covariances;
+        mLastPose.covariances = mGnssStatus.covariances;
 
         // Here we emit the gathered pose. Depending on the pose's time and its quality, we emit it for different consumers
 
@@ -501,7 +501,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         }
         else if(block->Error != 0)
         {
-            qDebug() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, error:" << block->Error << "" << GpsStatusInformation::getError(block->Error) ;
+            qDebug() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, error:" << block->Error << "" << GnssStatusInformation::getError(block->Error) ;
             if(mGnssDeviceWorkingPrecisely)
             {
                 mGnssDeviceWorkingPrecisely = false;
@@ -550,7 +550,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         {
             // Set system time to gps time. Adding a roundtrip-timer is not a good idea, as the board waits until the
             // second leaps, meaning the time from request to output doesn't equal the time from output to reception.
-            emit gpsTimeOfWeekEstablished((qint32)block->TOW);
+            emit gnssTimeOfWeekEstablished((qint32)block->TOW);
         }
     }
     break;
@@ -594,40 +594,63 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     }
 
     // emit new status if it changed significantly.
-    if(mGpsStatus.interestingOrDifferentComparedTo(previousGpsStatus)) emit status(mGpsStatus);
+    if(mGnssStatus.interestingOrDifferentComparedTo(previousGpsStatus)) emit status(mGnssStatus);
 
     /*
-     Remove the SBF block body from our incoming buffer, so it contains either nothing or the next SBF
-     message. SBF blocks often end with padding bytes which are NOT included in the msgLength counter.
-     So, after processing a packet, we cut off AT LEAST msgLength bytes and then look for the next SYNC,
+     Remove the processed SBF block from our incoming buffer, so that it contains either nothing, the next (possibly
+     half-complete) SBF message or a (possibly half-complete) command-reply. SBF blocks often end with padding bytes
+     which are NOT included in the msgLength counter (contrary to SBF guide, pg. 11).
+
+     So, after processing a packet, we cut off AT LEAST msgLength bytes and then look for the next $@ or $R,
      further removing the padding bytes before that next message starts:
 
-     $@<header/><body>...$@...</body>...padding...$@<header/><body/>...padding...$@
-                         ^^- spurious data showing up as SYNC
+     $@<header/><body>...$@...</body>...padding...$R;listCurrentConfig\n\n...........\nUSB1>$@<header/><body/>...padding...$@
+
+                         ^^- *data* showing up as SYNC - thats rare, but it happens
+                                                  ^--------- a reply to a command ---------^
      |<---------- msgLength ------->|
      |<------------- to be removed ------------->|
+
+     We cannot search for the next $R using indexOf() because oftentimes, this won't exist in @sbfData, which is many
+     megabytes in size. Searching through this hundred times per second is slooooow. So, we just search for a $ using
+     the fast indexOf(), and when found look further for a @,R:,R; or R?. This indicates either the next SBF packet,
+     the next command-reply (or garbage, e.g. in padding bytes). Still, this makes sure we won't just delete command-
+     replies.
     */
 
-    const quint16 positionOfSyncAfterCompletePacket = sbfData.indexOf("$@", msgLength);
-    const quint16 bytesToRemove = std::max(msgLength, positionOfSyncAfterCompletePacket);
+    // Search for the next info (command-reply or SBF)
+    bool nextInfoFound = false;
+    qint16 positionOfNextInfo = msgLength;
+    while(positionOfNextInfo >= 0 && !nextInfoFound)
+    {
+        positionOfNextInfo = sbfData.indexOf('$', positionOfNextInfo);
+        if(positionOfNextInfo > msgLength)
+        {
+            const QString sync = QString::fromAscii(sbfData.data() + positionOfNextInfo, 2);
+            if(sync == "$@" || sync == "$R:" || sync == "$R?" || sync == "$R;")
+            {
+                nextInfoFound = true;
+            }
+        }
+    }
+
+    /*
+     If positionOfNextInfo is -1 here, it means that there was no $@ or $R in all of sbfData after the processed packet.
+     While streaming from the device, this means the only data left is padding bytes or trash. In logplayer-mode, it
+     means we're done reading the buffer => in both cases, we can delete the whole buffer!
+    */
+    if(positionOfNextInfo < 0)
+    {
+        qDebug() << "SbfParser::processNextValidPacket(): no $@ or $R* found after processed packet, deleting buffer containig" << sbfData.size() - msgLength << "trailing bytes.";
+        positionOfNextInfo = sbfData.size();
+    }
+
+    const quint16 bytesToRemove = std::max(msgLength, (quint16)positionOfNextInfo);
 
     // Announce what packet we just processed. Might be used for logging.
     // ExtEvent is generic enough, the TOW is always at the same location
-    const Sbf_ExtEvent *block = (Sbf_ExtEvent*)sbfData.data();
+    const Sbf_ExtEvent * const block = (Sbf_ExtEvent*)sbfData.data();
     emit processedPacket(sbfData.left(bytesToRemove), (qint32)block->TOW);
 
     sbfData.remove(0, bytesToRemove);
-
-/*
-    // Remove processed packet
-    sbfData.remove(0, msgLength);
-
-    // Remove processed packet's trailing padding bytes
-    const int indexOfNextPacket = sbfData.indexOf("$@");
-    if(indexOfNextPacket > 0)
-    {
-        // A next packet was found, so remove everything up to its start (including padding bytes from our current packet)
-        sbfData.remove(0, indexOfNextPacket);
-    }
-    */
 }
