@@ -266,8 +266,7 @@ void KopterControl::messageHandler(QtMsgType type, const char *msg)
 {
     Q_ASSERT(mMasterLogStream != 0 && "masterLogSteram is not set!");
 
-//    QString txt(msg);
-    //std::cout << msg << std::endl;
+    std::cout << msg << std::endl;
 
     (*mMasterLogStream) << msg << endl;
 
