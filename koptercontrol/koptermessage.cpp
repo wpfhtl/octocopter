@@ -10,7 +10,6 @@ KopterMessage::KopterMessage(unsigned int address, QChar id, QByteArray payload)
     mPayload = payload;
 }
 
-
 KopterMessage::KopterMessage(const KopterMessage& other) : QObject()
 {
     mDirection = other.mDirection;
@@ -24,14 +23,33 @@ KopterMessage::KopterMessage(QByteArray* receiveBuffer) : QObject()
 {
     // http://www.mikrokopter.de/ucwiki/en/SerialProtocol
     // Decode the packet: Startbyte (#), Addressbyte ('a'+Address), ID-Byte (e.g. 'B'), n-Data-Bytes, Byte CRC1, Byte CRC2, "\r"
-    const int position = receiveBuffer->indexOf('\r');
-    if(position != -1 && position > 5)
+
+    // Find the package's beginning
+    const qint32 positionStart = receiveBuffer->indexOf('#');
+    if(positionStart < 0)
+    {
+        qDebug() << "KopterMessage::KopterMessage(): found no # in buffer, clearing...";
+        receiveBuffer->clear();
+        mIsValid = false;
+        return;
+    }
+
+    if(positionStart != 0)
+    {
+        qDebug() << "KopterMessage::KopterMessage(): position of # is not 0, but:" << receiveBuffer->indexOf('#') << "- cutting heading garbage.";
+        receiveBuffer->remove(0, positionStart);
+    }
+
+    mDirection = Incoming;
+
+    const qint32 positionEnd = receiveBuffer->indexOf('\r');
+    if(positionEnd > 5)
     {
         // Copy the packet from the receivebuffer into our own data-field.
-        QByteArray packetData = receiveBuffer->left(position+1);
+        QByteArray packetData = receiveBuffer->left(positionEnd+1);
 
         // We actually remove the packet from the receive-buffer!
-        receiveBuffer->remove(0, position+1);
+        receiveBuffer->remove(0, positionEnd+1);
 
         // For some reason, messages sometimes start with TWO # instead of just one. Repair this here.
         packetData.remove(0, packetData.lastIndexOf("#"));
@@ -44,15 +62,9 @@ KopterMessage::KopterMessage(QByteArray* receiveBuffer) : QObject()
         // The payload is everything except the first and last three bytes
         mPayload = packetData.right(packetData.size()-3).left(packetData.size()-6);
 
-//        qDebug() << "KopterMessage::KopterMessage(): from stream:" << toString();
-
-        // FIXME: this fails at times. Do not crash, but rather discard the message.
-
         // This is an incoming message, compare beginning, end, and its CRC (bytes n-2 and n-1) with the CRC we would compute.
         if(
-                packetData.size() > 5
-                &&
-                packetData.at(0) == '#'
+                packetData[0] == '#'
                 &&
                 packetData.right(3).left(2) == getChecksum(packetData.left(packetData.size()-3))
                 &&
@@ -66,26 +78,20 @@ KopterMessage::KopterMessage(QByteArray* receiveBuffer) : QObject()
             qDebug () << "KopterMessage::KopterMessage(): invalid, data is:" << packetData;
             if(packetData.right(3).left(2) != getChecksum(packetData.left(packetData.size()-3))) qDebug() << "KopterMessage::KopterMessage(): false, checksum error, data:" << packetData;
             if(packetData.right(1) != "\r") qDebug() << "KopterMessage::KopterMessage(): false, no CR at end, data:" << packetData;
+            qDebug() << "KopterMessage::KopterMessage(): warning, incoming message with address" << mAddress << "id" << mId << "is invalid";
             mIsValid = false;
         }
-
-        if(!isValid())
-            qDebug() << "KopterMessage::KopterMessage(): warning, incoming message with address" << mAddress << "id" << mId << "is invalid";
+    }
+    else if(positionEnd > 0)
+    {
+        qDebug() << "KopterMessage::KopterMessage(): from stream: invalid, position of \\r is only at" << positionEnd << "- too short! Cutting" << positionEnd << "packet bytes";
+        receiveBuffer->remove(0, positionEnd);
+        mIsValid = false;
     }
     else
     {
-        if(position > 0)
-        {
-            qDebug() << "KopterMessage::KopterMessage(): from stream: invalid, position of \\r is" << position << "data is" << receiveBuffer->left(position);
-        }
-        else
-        {
-            qDebug() << "KopterMessage::KopterMessage(): from stream: invalid, position of \\r is" << position;
-        }
-
-        mDirection = Incoming;
-        mAddress = -1;
-        mId = -1;
+        qDebug() << "KopterMessage::KopterMessage(): from stream: invalid, position of \\r is" << positionEnd;
+        mIsValid = false;
     }
 }
 
@@ -116,37 +122,17 @@ bool KopterMessage::send(QIODevice* port) const
     data.append('#');
     data.append('a' + mAddress);
     data.append(mId);
-    data.append(encode(mPayload));
+
+    if(mPayload.size()) data.append(encode(mPayload));
+
     data.append(getChecksum(data));
-//    qDebug() << "KopterMessage::send():" << data;
+
     data.append('\r');
 
     return port->write(data) > 0;
 }
 
-/*AddCRC calculates two byte sized CRC checksums for the encoded frame and
-adds them to the end of the data-frame. Additionally it adds an \r escape
-sequence to the end of the frame (defined by the Mikrokopter-Protocol) */
-QByteArray KopterMessage::getChecksum(const QByteArray &data)
-{
-    QByteArray crc;
-    unsigned int tmpCRC = 0;
-    int i;
-
-    for(i=0; i < data.size(); i++)
-    {
-        tmpCRC += data.at(i);
-    }
-
-    tmpCRC %= 4096;
-
-    crc.append('=' + tmpCRC / 64);
-    crc.append('=' + tmpCRC % 64);
-//    qDebug() << "getCRC bytes are" << crc;
-    return crc;
-}
-
-QByteArray KopterMessage::encode(const QByteArray &data)
+const QByteArray KopterMessage::encode(const QByteArray &data)
 {
     QByteArray encoded;
 
@@ -179,18 +165,21 @@ QByteArray KopterMessage::encode(const QByteArray &data)
     return encoded;
 }
 
-QByteArray KopterMessage::decode(const QByteArray &data)
+const QByteArray KopterMessage::decode(const QByteArray &payload)
 {
     QByteArray decoded;
-    int position = 0;
+    int offset = 0;
     unsigned char a,b,c,d;
+    const unsigned char* data = (const unsigned char*)payload.data();
 
-    while(position + 3 < data.size())
+    while(offset + 3 < payload.size())
     {
-        a = (unsigned char)data.at(position++) - '=';
-        b = (unsigned char)data.at(position++) - '=';
-        c = (unsigned char)data.at(position++) - '=';
-        d = (unsigned char)data.at(position++) - '=';
+        a = *(data+offset+0) - '=';
+        b = *(data+offset+1) - '=';
+        c = *(data+offset+2) - '=';
+        d = *(data+offset+3) - '=';
+
+        offset += 4;
 
         decoded.append((a << 2) | (b >> 4));
         decoded.append(((b & 0x0f) << 4) | (c >> 2));
@@ -200,16 +189,29 @@ QByteArray KopterMessage::decode(const QByteArray &data)
     return decoded;
 }
 
-bool KopterMessage::isValid() const
+/*AddCRC calculates two byte sized CRC checksums for the encoded frame and
+adds them to the end of the data-frame. Additionally it adds an \r escape
+sequence to the end of the frame (defined by the Mikrokopter-Protocol) */
+QByteArray KopterMessage::getChecksum(const QByteArray &data)
 {
-        return mIsValid;
+    QByteArray crc;
+    unsigned int tmpCRC = 0;
+
+    const char* dataChar = data.data();
+    const quint16 size = data.size();
+    for(quint16 i=0; i < size; i++)
+    {
+        tmpCRC += *(dataChar+i);
+    }
+
+    tmpCRC %= 4096;
+
+    crc.append('=' + tmpCRC / 64);
+    crc.append('=' + tmpCRC % 64);
+    return crc;
 }
 
-quint8 KopterMessage::getAddress() const { return mAddress; }
 
-QChar KopterMessage::getId() const { return mId; }
-
-QByteArray KopterMessage::getPayload() const { return decode(mPayload); }
 
 QString KopterMessage::toString() const
 {

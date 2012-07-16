@@ -6,7 +6,7 @@ PROJECT(koptercontrol)
 
 # Starting with gcc-4.6, we might need "-Wl,--no-as-needed" in CMAKE_CXX_FLAGS
 # -pg is for using gprof.
-SET(CMAKE_CXX_FLAGS "-Wl,--no-as-needed -pg")
+SET(CMAKE_CXX_FLAGS "-Wl,--no-as-needed")
 
 cmake_policy(SET CMP0015 NEW)
 
@@ -85,7 +85,6 @@ camera.h
 gnssdevice.h
 laserscanner.h
 )
-
 
 #"Sources" and "Headers" are the group names in Visual Studio.
 SOURCE_GROUP("Sources" FILES ${SRC_FILES_KOPTERCONTROL})

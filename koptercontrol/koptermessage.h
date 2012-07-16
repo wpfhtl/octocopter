@@ -22,13 +22,9 @@ private:
     // The UNENCODED payload data
     QByteArray mPayload;
 
-    // The whole packet will be assembled here for outgoing packets
-    // All data fields will be reconstructed from mData for incoming packets
-//    QByteArray mData;
-
     static QByteArray getChecksum(const QByteArray &data);
-    static QByteArray encode(const QByteArray &data);
-    static QByteArray decode(const QByteArray &data);
+    static const QByteArray encode(const QByteArray &data);
+    static const QByteArray decode(const QByteArray &payload);
 
 public:
     // Creates a KopterMessage to be sent to the kopter
@@ -47,11 +43,13 @@ public:
 
     bool send(QIODevice* port) const;
 
-    quint8 getAddress() const;
-    QChar getId() const;
-    QByteArray getPayload() const;
+    quint8 getAddress() const { return mAddress; }
 
-    bool isValid() const;
+    QChar getId() const { return mId; }
+
+    const QByteArray getPayload() const { return decode(mPayload); }
+
+    bool isValid() const { return mIsValid; }
 
     QString toString() const;
 };

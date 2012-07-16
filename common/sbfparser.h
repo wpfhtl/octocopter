@@ -244,9 +244,13 @@ private:
 
     QVector3D convertGeodeticToCartesian(const double& lon, const double& lat, const double& elevation, const quint8& precision);
 
+
 public:
     SbfParser(QObject *parent = 0);
     ~SbfParser();
+
+    // just for debugging
+    QString readable(const QByteArray& bytes);
 
     // This method analyzes @sbfData, looking for the next valid SBF packet. A packet is valid when
     // its checksum is correct. If it finds a valid packet, it writes the offset from the beginning of

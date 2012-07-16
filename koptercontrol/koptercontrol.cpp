@@ -118,21 +118,20 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     mBaseConnection = new BaseConnection(networkInterface);
     mKopter = new Kopter(deviceSerialKopter, this);
 
-//    mCamera = new Camera(deviceCamera, QSize(320, 240), Pose(), 15);
-//    mVisualOdometry = new VisualOdometry(mCamera);
-
     // For testing motion with a joystick from basestation
     //connect(mBaseConnection, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
 
-//    connect(mCamera, SIGNAL(imageReadyJpeg(QString,QSize,Pose,QQuaternion,const QByteArray*)), mBaseConnection, SLOT(slotNewCameraImage(QString,QSize,Pose,const QByteArray*)));
-//    connect(mCamera, SIGNAL(imageReadyYCbCr(QString,QSize,Pose,QByteArray)), mVisualOdometry, SLOT(slotProcessImage(QString,QSize,Pose,QByteArray)));
+
     connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mKopter, SIGNAL(kopterStatus(quint32, qint16, float)), mBaseConnection, SLOT(slotNewVehicleStatus(quint32, qint16, float)));
     connect(mKopter, SIGNAL(computerControlStatusChanged(bool)), mFlightController, SLOT(slotComputerControlStatusChanged(bool)));
     connect(mKopter, SIGNAL(calibrationSwitchToggled()), mFlightController, SLOT(slotCalibrateImu()));
+
+//  for testing: connect(mKopter, SIGNAL(calibrationSwitchToggled()), mGnssDevice, SLOT(slotTogglePoseFrequencyForTesting()));
+
     connect(mLaserScanner, SIGNAL(heightOverGround(float)), mFlightController, SLOT(slotSetHeightOverGround(float)));
     connect(mBaseConnection, SIGNAL(enableScanning(const bool&)), mLaserScanner, SLOT(slotEnableScanning(const bool&)));
-    connect(mBaseConnection, SIGNAL(rtkDataReady(const QByteArray&)), mGnssDevice, SLOT(slotSetRtkData(const QByteArray&)));
+//    connect(mBaseConnection, SIGNAL(rtkDataReady(const QByteArray&)), mGnssDevice, SLOT(slotSetRtkData(const QByteArray&)));
     connect(mBaseConnection, SIGNAL(wayPointInsert(quint16, WayPoint)), mFlightController, SLOT(slotWayPointInsert(quint16, WayPoint)));
     connect(mBaseConnection, SIGNAL(wayPointDelete(quint16)), mFlightController, SLOT(slotWayPointDelete(quint16)));
     connect(mBaseConnection, SIGNAL(wayPoints(QList<WayPoint>)), mFlightController, SLOT(slotSetWayPoints(QList<WayPoint>)));
@@ -226,9 +225,22 @@ void KopterControl::slotAdaptToSystemLoad()
 
 void KopterControl::signalHandler(int signal)
 {
+    static int abortCounter = 0;
+    abortCounter++;
     char a = 1;
     qDebug() << "KopterControl::signalHandler(): received signal" << signal;
     ::write(signalFd[0], &a, sizeof(a));
+
+    if(abortCounter == 2)
+    {
+        qDebug() << "KopterControl::signalHandler(): received signal" << signal << "for" << abortCounter << "times, quit()ing.";
+        QCoreApplication::quit();
+    }
+    else if(abortCounter > 2)
+    {
+        qDebug() << "KopterControl::signalHandler(): received signal" << signal << "for" << abortCounter << "times, comitting suicide now.";
+        exit(1);
+    }
 }
 
 void KopterControl::slotHandleSignal()
@@ -243,9 +255,9 @@ void KopterControl::slotHandleSignal()
 
     // shutdown orderly
     mLaserScanner->slotEnableScanning(false);
-    mGnssDevice->slotShutDown();
 
-//    quit();
+    // When mGnssDevice finishes device-shutdown, it will quit(), starting the rest of the shutdown sequence.
+    mGnssDevice->slotShutDown();
 }
 
 void KopterControl::installMessageHandler(const QString& logFilePrefix)

@@ -13,24 +13,25 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     mSerialPortFlightCtrl->setFlowControl(AbstractSerial::FlowControlOff);
 
     mExternalControlActive = false;
-    mLastCalibrationSwitchValue = 0; // thats an impossible value, so we use it to detect our first value reading
+    mLastCalibrationSwitchValue = CalibrationSwitchUndefined;
     mStructExternControl.Frame = 0;
 
     mLastSendTime = QTime::currentTime();
+    mMaxReplyTime = 0;
 
     qDebug() << "Kopter::Kopter(): Opening serial port" << serialDeviceFile << "succeeded, flowControl is" << mSerialPortFlightCtrl->flowControl();
 
     connect(mSerialPortFlightCtrl, SIGNAL(readyRead()), SLOT(slotSerialPortDataReady()));
 
     mTimerPpmChannelPublisher = new QTimer(this);
-    mTimerPpmChannelPublisher->start(250);
+    mTimerPpmChannelPublisher->start(500);
     connect(mTimerPpmChannelPublisher, SIGNAL(timeout()), SLOT(slotGetPpmChannelValues()));
 
     slotRequestVersion();
 
-    slotSubscribeDebugValues(500);
+    slotSubscribeDebugValues(2000);
 
-    for(int i=0;i<32;i++)
+    for(int i=0;i<32;i++) // reply only works up until 28! higher values are never returned!
     {
         slotRequestDebugLabel(i);
     }
@@ -38,7 +39,7 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
 
 Kopter::~Kopter()
 {
-    qDebug() << "Kopter::~Kopter(): closing serial port";
+    qDebug() << "Kopter::~Kopter(): closing serial port, max reply time was" << mMaxReplyTime << "milliseconds";
     mSerialPortFlightCtrl->close();
 }
 
@@ -60,33 +61,38 @@ void Kopter::slotTestMotors(const QList<unsigned char> &speeds)
 
 void Kopter::slotFlushMessageQueue()
 {
-    foreach (const KopterMessage& msg, mSendMessageQueue)
+
+    if(!mPendingReply.isNull())
     {
-        if(mPendingReplies.contains(msg.getId().toUpper()))
+//        qDebug() << "Kopter::slotFlushMessageQueue(): pending reply:" << mPendingReply << "-" << mSendMessageQueue.size() << "messages to send.";
+        if(mLastSendTime.msecsTo(QTime::currentTime()) > 100)
         {
-            // There is another unanswered request of this type in the pipe, do not send yet
-            qDebug() << "Kopter::slotFlushMessageQueue(): there is another unanswered request of this type in the pipe, not sending yet. Will try flushing again after next received packet.";
+            qDebug() << "Kopter::slotFlushMessageQueue(): pending reply" << mPendingReply << "is" << mLastSendTime.msecsTo(QTime::currentTime()) << "ms old, deleting and trying again.";
+            mPendingReply = QChar();
+            slotFlushMessageQueue();
         }
-        else
+    }
+    else if(mSendMessageQueue.size())
+    {
+        // There is no outstanding reply for this queued packet, we can send.
+        KopterMessage msg = mSendMessageQueue.takeFirst();
+
+        while(mLastSendTime.msecsTo(QTime::currentTime()) < 10)
         {
-            // There is no outstanding reply for this queued packet, we can send.
-            qDebug() << "Kopter::slotFlushMessageQueue(): no outstanding reply of this type, sending...";
-
-            while(mLastSendTime.msecsTo(QTime::currentTime()) < 5)
-            {
-                qDebug() << "KopterMessage::slotFlushMessageQueue(): waiting for serial port to clear send-queue...";
-                usleep(10000);
-            }
-
-            msg.send(mSerialPortFlightCtrl);
-            mPendingReplies.insert(msg.getId().toUpper());
-            mLastSendTime = QTime::currentTime();
+            qDebug() << "KopterMessage::slotFlushMessageQueue(): waiting for serial port to clear send-queue...";
+            usleep(5000);
         }
+
+        //qDebug() << "KopterMessage::slotFlushMessageQueue(): no pending replies - now sending packet" << msg.getId();
+        msg.send(mSerialPortFlightCtrl);
+        mPendingReply = msg.getId().toUpper();
+        mLastSendTime = QTime::currentTime();
     }
 }
 
 void Kopter::send(const KopterMessage& message)
 {
+//    qDebug() << "Kopter::send(): queueing message" << message.getId() << ", then trying to flush...";
     mSendMessageQueue.append(message);
     slotFlushMessageQueue();
 }
@@ -124,7 +130,7 @@ void Kopter::slotSetMotion(const MotionCommand& mc)
       ExternalControl. I don't know.
     */
 
-    if(mPendingReplies.contains('b')) qWarning() << "Kopter::slotSetMotion(): Still waiting for a 'B', should not send right now," << mPendingReplies.size() << "pending replies";
+    if(mPendingReply == 'B') qWarning() << "Kopter::slotSetMotion(): Still waiting for a 'B', should not send right now," << mSendMessageQueue.size() << "pending commands in queue";
 
     mStructExternControl.Config = 1;
     mStructExternControl.Nick = -mc.pitch;
@@ -197,7 +203,7 @@ void Kopter::slotSerialPortDataReady()
     mReceiveBuffer.append(mSerialPortFlightCtrl->readAll());
 
     // Remove crap before the message starts
-    while(!mReceiveBuffer.startsWith('#')) mReceiveBuffer.remove(0, 1);
+    mReceiveBuffer.remove(0, std::max(0, mReceiveBuffer.indexOf('#')));
 
     //qDebug() << "Kopter::slotSerialPortDataReady(): bytes:" << mReceiveBuffer.size() << "data:" << mReceiveBuffer.replace("\r", " ");
 
@@ -213,37 +219,48 @@ void Kopter::slotSerialPortDataReady()
 
         if(message.getAddress() == KopterMessage::Address_FC)
         {
+
             // Remove the record of the pending reply
-            if(!mPendingReplies.remove(message.getId()))
+            if(mPendingReply == message.getId())
+            {
+                qint16 replyTime = mLastSendTime.msecsTo(QTime::currentTime());
+
+                // Ignore the first (=V) packet, as this is the first time when we're actually slower than the kopter
+                if(replyTime > mMaxReplyTime && message.getId() != 'V')
+                {
+                    qDebug() << t() << "Kopter::slotSerialPortDataReady(): max reply time increased from" << mMaxReplyTime << "to" << replyTime << "for packet:" << mPendingReply;
+                    mMaxReplyTime = replyTime;
+                }
+                mPendingReply = QChar();
+            }
+            else
             {
                 // If we receive somethign we didn't ask for, start bitching.
                 //  k is mkmag's compass data which cannot be disabled, event though no mkmag is installed
                 //  D  is debug out, which we subscribed to. Its just that one subscription gives multiple replies.
                 if(message.getId() != 'k' && message.getId() != 'D')
                 {
-                    qWarning() << "Kopter::slotSerialPortDataReady(): got a reply to an unsent request, message:" << message.toString();
+                    qWarning() << "Kopter::slotSerialPortDataReady(): got reply" << message.getId() << "to an unsent request, mPendingReply:" << (mPendingReply.isNull() ? "null" : QString(mPendingReply));
                 }
             }
 
-            Q_ASSERT(!mPendingReplies.contains(message.getId()));
-
             if(message.getId() == 'A')
             {
-                QByteArray payload = message.getPayload();
+                const QByteArray payload = message.getPayload();
                 char labelChar[16];
                 memcpy(labelChar, payload.data()+1, 15);
-                //qDebug() << "Kopter::slotSerialPortDataReady(): label" << (quint8)payload[0] << "is" << QString(labelChar).simplified();
+                qDebug() << "Kopter::slotSerialPortDataReady(): label" << (quint8)payload[0] << "is" << QString(labelChar).simplified();
                 mAnalogValueLabels.insert((quint8)payload[0], QString(labelChar).simplified());
             }
             else if(message.getId() == 'B')
             {
                 qDebug() << t() << "Kopter::slotSerialPortDataReady(): received confirmation for externalControl frame:" << (quint8)message.getPayload()[0];
-                if(mPendingReplies.contains('b'))
-                    qDebug() << "Kopter::slotSerialPortDataReady(): mPendingReplies contains another b, so at least two requests were underway at the same time. Not so good.";
             }
             else if(message.getId() == 'D')
             {
-                QByteArray payload = message.getPayload();
+//                qDebug() << "Kopter::slotSerialPortDataReady(): received debug packet!";
+
+                const QByteArray payload = message.getPayload();
                 const DebugOut* debugOut = (DebugOut*)payload.data();
 
                 emit kopterStatus(
@@ -255,7 +272,7 @@ void Kopter::slotSerialPortDataReady()
             else if(message.getId() == 'P')
             {
                 // Read ppm channels request reply.
-                QByteArray payload = message.getPayload();
+                const QByteArray payload = message.getPayload();
 //                const qint16* ppmChannels = (qint16*)payload.data();
                 const PpmChannels* ppmChannels = (PpmChannels*)payload.data();
 
@@ -280,15 +297,12 @@ void Kopter::slotSerialPortDataReady()
                     emit computerControlStatusChanged(mExternalControlActive);
                 }
 
-                // Yes, I am very smart :~)
-                if(abs(ppmChannels->calibration - mLastCalibrationSwitchValue) > 50)
+                if(ppmChannels->calibration > 0 != (mLastCalibrationSwitchValue == CalibrationSwitchHigh) && mLastCalibrationSwitchValue != CalibrationSwitchUndefined)
                 {
-                    qDebug() << "Kopter::slotSerialPortDataReady(): calibration switch toggled from" << mLastCalibrationSwitchValue << "to:" << ppmChannels->calibration;
+                    //qDebug() << "Kopter::slotSerialPortDataReady(): calibration switch toggled from" << mLastCalibrationSwitchValue << "to:" << (ppmChannels->calibration > 0);
                     emit calibrationSwitchToggled();
-                    mLastCalibrationSwitchValue = ppmChannels->calibration;
                 }
-
-                //emit ppmChannelValues(*ppmChannels);
+                mLastCalibrationSwitchValue = ppmChannels->calibration > 0 ? CalibrationSwitchHigh : CalibrationSwitchLow;
             }
             else if(message.getId() == 'T')
             {
@@ -296,10 +310,10 @@ void Kopter::slotSerialPortDataReady()
             }
             else if(message.getId() == 'V')
             {
-                QByteArray payload = message.getPayload();
+                const QByteArray payload = message.getPayload();
                 const VersionInfo* versionInfo = (VersionInfo*)payload.data();
-                qDebug() << "Kopter::slotSerialPortDataReady(): MK protocol version is" << versionInfo->ProtoMajor << versionInfo->ProtoMinor;
-                qDebug() << "Kopter::slotSerialPortDataReady(): MK software version is" << versionInfo->SWMajor << versionInfo->SWMinor << versionInfo->SWPatch;
+                qDebug() << t() << "Kopter::slotSerialPortDataReady(): MK protocol version is" << versionInfo->ProtoMajor << versionInfo->ProtoMinor;
+                qDebug() << t() << "Kopter::slotSerialPortDataReady(): MK software version is" << versionInfo->SWMajor << versionInfo->SWMinor << versionInfo->SWPatch;
 
                 if(versionInfo->ProtoMajor != 11 || versionInfo->ProtoMinor != 0) qFatal("Kopter::slotSerialPortDataReady(): MK protocol version mismatch, exiting.");
                 if(versionInfo->SWMajor != 0 || versionInfo->SWMinor != 86 || versionInfo->SWPatch != 3) qFatal("Kopter::slotSerialPortDataReady(): MK software version mismatch, this is untested, exiting.");
@@ -308,12 +322,14 @@ void Kopter::slotSerialPortDataReady()
             {
                 qWarning() << "Kopter::slotSerialPortDataReady(): got KopterMessage with unknown id:" << message.getId();
             }
+
+            // Only flush after we received a message from FC, not from mkmag or others.
+            slotFlushMessageQueue();
         }
         else
         {
-            qWarning() << "Kopter::slotSerialPortDataReady(): got KopterMessage with id" <<  message.getId() << "from ignored address:" << message.getAddress();
+            //qWarning() << "Kopter::slotSerialPortDataReady(): got KopterMessage with id" <<  message.getId() << "from ignored address:" << message.getAddress();
         }
     }
 
-    slotFlushMessageQueue();
 }

@@ -80,6 +80,13 @@ class Kopter : public QObject
         DebugOut() {}
     };
 
+    enum CalibrationSwitch
+    {
+        CalibrationSwitchUndefined,
+        CalibrationSwitchHigh,
+        CalibrationSwitchLow
+    };
+
 public:
     Kopter(QString &serialDeviceFile, QObject *parent = 0);
     ~Kopter();
@@ -96,11 +103,13 @@ private:
     // avoid sending too fast.
     QTime mLastSendTime;
 
+    qint16 mMaxReplyTime; // in milliseconds
+
     // Here, we keep all the messages to-be-sent to the kopter...
     QList<KopterMessage> mSendMessageQueue;
 
-    // ... which are NOT sent as long as we're still waiting for a reply to the same message-kind.
-    QSet<QChar> mPendingReplies;
+    // ... which are NOT sent as long as we're still waiting for a reply (within a specified time).
+    QChar mPendingReply;
 
     QMap<quint8, QString> mAnalogValueLabels;
     ExternControl mStructExternControl;
@@ -114,7 +123,7 @@ private:
     QTimer* mTimerPpmChannelPublisher;
 
     bool mExternalControlActive;
-    qint8 mLastCalibrationSwitchValue;
+    CalibrationSwitch mLastCalibrationSwitchValue;
 
     void send(const KopterMessage& message);
 

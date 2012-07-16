@@ -32,7 +32,7 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
     else
     {
         qDebug() << "LaserScanner::LaserScanner(): connecting to" << mDeviceFileName << "failed: UrgCtrl::connect gave" << mScanner.what();
-        qFatal("LaserScanner::LaserScanner(): exiting.");
+        //qFatal("LaserScanner::LaserScanner(): exiting.");
     }
 
 //    mScanner.setCaptureMode(qrk::IntensityCapture);

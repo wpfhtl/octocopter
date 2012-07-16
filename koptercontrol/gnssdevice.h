@@ -81,6 +81,8 @@ public slots:
     void slotSetRtkData(const QByteArray &data);
     void slotShutDown(); // just calls communicationStop. To be called from the main program's signal handler.
 
+//    for testing void slotTogglePoseFrequencyForTesting();
+
 signals:
     void message(const LogImportance& importance, const QString& source, const QString& message);
 };

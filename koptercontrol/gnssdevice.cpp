@@ -109,7 +109,7 @@ GnssDevice::~GnssDevice()
 
     mSbfParser->deleteLater();
 
-    qDebug() << "GnssDevice::~GnssDevice(): ports closed, SBF file flushed, destructed.";
+    qDebug() << "GnssDevice::~GnssDevice(): ports closed, SBF file flushed, destructed after receiving" << mRtkDataCounter << "bytes diffcorr";
 }
 
 void GnssDevice::slotQueueCommand(QString command)
@@ -128,7 +128,7 @@ quint8 GnssDevice::slotFlushCommandQueue()
     if(!mWaitingForCommandReply && mCommandQueueUsb.size())
     {
         mLastCommandToDeviceUsb = mCommandQueueUsb.takeFirst();
-        qDebug() << t() << "GnssDevice::slotFlushCommandQueue(): currently not waiting for a reply, so sending next command:" << mLastCommandToDeviceUsb.trimmed();
+        qDebug() << t() << "GnssDevice::slotFlushCommandQueue(): no pending replies, sending next command:" << mLastCommandToDeviceUsb.trimmed();
         if(mReceiveBufferUsb.size()) qDebug() << t() << "GnssDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << mReceiveBufferUsb;
         //usleep(100000);
         mSerialPortUsb->write(mLastCommandToDeviceUsb);
@@ -209,6 +209,9 @@ void GnssDevice::slotDetermineSerialPortsOnDevice()
             qWarning() << "GnssDevice::determineSerialPortOnDevice(): couldn't get serialUsbPortOnDevice," << dataUsb.size() << "bytes of data are:" << dataUsb.simplified();
             emit message(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Couldn't get serialUsbPortOnDevice");
         }
+
+//        if(mSerialPortUsb->waitForReadyRead(200) || mSerialPortUsb->bytesAvailable())
+//            qWarning() << "GnssDevice::determineSerialPortOnDevice(): after detecting" << mSerialPortOnDeviceUsb << "there are" << mSerialPortUsb->bytesAvailable() << "bytes left:" << mSerialPortUsb->readAll();
     }
 
     if(mSerialPortOnDeviceCom.isEmpty())
@@ -218,7 +221,7 @@ void GnssDevice::slotDetermineSerialPortsOnDevice()
         QByteArray dataCom;
         while((mSerialPortCom->bytesAvailable() + dataCom.size()) < 250)
         {
-            mSerialPortCom->waitForReadyRead(1000);
+            mSerialPortCom->waitForReadyRead(2000);
             dataCom.append(mSerialPortCom->readAll());
             qDebug() << "GnssDevice::determineSerialPortOnDevice():" << mSerialPortCom->bytesAvailable() << "bytes waiting on serial com port.";
         }
@@ -237,11 +240,15 @@ void GnssDevice::slotDetermineSerialPortsOnDevice()
             qWarning() << "GnssDevice::determineSerialPortOnDevice(): couldn't get serialComPortOnDevice, data is:" << dataCom;
             emit message(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Couldn't get serialComPortOnDevice");
         }
+
+//        if(mSerialPortCom->waitForReadyRead(200) || mSerialPortCom->bytesAvailable())
+//            qWarning() << "GnssDevice::determineSerialPortOnDevice(): after detecting" << mSerialPortOnDeviceCom << "there are" << mSerialPortCom->bytesAvailable() << "bytes left:" << mSerialPortCom->readAll();
     }
 
     // Now that we know what the ports are named, we can setup the board.
     // We connect this signal not in the c'tor but here, because we don't want the slot
     // to be called for answers to requests made in this method.
+    qDebug() << "GnssDevice::determineSerialPortOnDevice(): activating GNSS device output parsing.";
     connect(mSerialPortUsb, SIGNAL(readyRead()), SLOT(slotDataReadyOnUsb()));
     slotCommunicationSetup();
 }
@@ -376,7 +383,7 @@ void GnssDevice::slotSetPoseFrequency(bool highSpeed)
 
        - msec20 means 50 poses per second, like this IEEEEIEEEEIEEEEIEEEEI...
 
-       - msec50 means 20 poses per second, like this ?????????????????????...
+       - msec50 means 20 poses per second, like this IEIEIEIEIEIEIEIEIEIEI...
 
       I is an integrated pose (GNSS and IMU)
       E is an extrapolated pose (GNSS from the past plus IMU readings)
@@ -385,7 +392,8 @@ void GnssDevice::slotSetPoseFrequency(bool highSpeed)
       second, which is ideal for forwarding only those to the flightcontroller, which
       will then have 10Hz input (the kopter cannot deal with 50Hz controller-input)
 
-      As for the msec50 option, I'll have to find out using tests.
+      As for the msec50 option, the result is the same: 10 integrated packets per second.
+      If that is enough for sensorfuser (to be decided), then lets use msec50!
     */
 
     if(highSpeed)
@@ -395,9 +403,28 @@ void GnssDevice::slotSetPoseFrequency(bool highSpeed)
     }
     else
     {
-        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec250");
+        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec200");
     }
 }
+
+/* Same as above, for testing
+void GnssDevice::slotTogglePoseFrequencyForTesting()
+{
+    qDebug() << "switching pose frequency!";
+
+    static bool state = true;
+    if(state)
+    {
+        // Maybe use msec40 instead of msec20 to avoid RxError 64 (congestion on line)
+        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec50");
+    }
+    else
+    {
+        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec200");
+    }
+
+    state = !state;
+}*/
 
 void GnssDevice::slotShutDown()
 {
@@ -428,8 +455,6 @@ void GnssDevice::slotDataReadyOnCom()
 
 void GnssDevice::slotDataReadyOnUsb()
 {
-    //qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb()";
-
     // Move all new bytes into our SBF buffer
     mReceiveBufferUsb.append(mSerialPortUsb->readAll());
 
@@ -442,12 +467,13 @@ void GnssDevice::slotDataReadyOnUsb()
         {
             // Check for command replies before every packet
             const qint32 positionReplyStart = mReceiveBufferUsb.indexOf("$R");
-            const qint32 positionReplyStop  = mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QChar('>'));
+            qint32 positionReplyStop  = mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QChar('>'));
             if(positionReplyStart != -1 && positionReplyStop != -1)
             {
+                positionReplyStop += mSerialPortOnDeviceUsb.length() + 1; // make sure we also include the "USB1>" at the end!
                 const QByteArray commandReply = mReceiveBufferUsb.mid(positionReplyStart, positionReplyStop - positionReplyStart);
 
-                qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): received reply to:" << mLastCommandToDeviceUsb.trimmed() << ":" << commandReply.size() << "bytes:" << commandReply.trimmed();
+                qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): received reply to:" << mLastCommandToDeviceUsb.trimmed() << "-" << commandReply.size() << "bytes:" << commandReply.trimmed();
 
                 QTextStream commandLog(mLogFileCmd);
                 commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << " DEV -> HOST: " << commandReply.trimmed() << endl;
@@ -469,7 +495,8 @@ void GnssDevice::slotDataReadyOnUsb()
                     QCoreApplication::quit();
                 }
 
-                mReceiveBufferUsb.remove(positionReplyStart, positionReplyStop - positionReplyStart);
+                const int bytesToCut = positionReplyStop - positionReplyStart;
+                mReceiveBufferUsb.remove(positionReplyStart, bytesToCut);
                 mWaitingForCommandReply = false;
 
                 slotFlushCommandQueue();
@@ -484,10 +511,50 @@ void GnssDevice::slotDataReadyOnUsb()
         else
         {
             // There is no valid packet in the buffer. Check whether its a coming packet
-            qDebug() << "GnssDevice::slotDataReadyOnUsb(): after parsing," << mReceiveBufferUsb.size() << "bytes left, but this is no valid packet yet:" << mReceiveBufferUsb;
+//            qDebug() << "GnssDevice::slotDataReadyOnUsb():" << mReceiveBufferUsb.size() << "bytes left after parsing, but this is no valid packet yet:" << mSbfParser->readable(mReceiveBufferUsb);
             return;
         }
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 /*
@@ -553,6 +620,8 @@ void GnssDevice::slotDataReadyOnUsb()
         while(mSbfParser->getNextValidPacketInfo(mReceiveBufferUsb))
               mSbfParser->processNextValidPacket(mReceiveBufferUsb);
     }
+
+    */
 }
 
 void GnssDevice::slotSetRtkData(const QByteArray &data)
@@ -573,7 +642,6 @@ void GnssDevice::slotSetRtkData(const QByteArray &data)
     {
         qDebug() << "GnssDevice::slotSetRtkData(): NOT forwarding" << data.size() << "bytes of rtk-data to gnss device, its not initialized yet.";
     }
-        */
 }
 
 void GnssDevice::slotSerialPortStatusChanged(const QString& status, const QDateTime& time)

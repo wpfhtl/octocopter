@@ -593,6 +593,8 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     }
     }
 
+//    qDebug() << "SbfParser::processNextValidPacket(): processed packet id:" << msgIdBlock;
+
     // emit new status if it changed significantly.
     if(mGnssStatus.interestingOrDifferentComparedTo(previousGpsStatus)) emit status(mGnssStatus);
 
@@ -621,16 +623,38 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     // Search for the next info (command-reply or SBF)
     bool nextInfoFound = false;
     qint16 positionOfNextInfo = msgLength;
+//    qDebug() << "SbfParser::processNextValidPacket(): looking for next info, previous msgLength was" << msgLength;
     while(positionOfNextInfo >= 0 && !nextInfoFound)
     {
+//        qDebug() << "SbfParser::processNextValidPacket(): looking for a $ starting at" << positionOfNextInfo;
         positionOfNextInfo = sbfData.indexOf('$', positionOfNextInfo);
-        if(positionOfNextInfo > msgLength)
+//        qDebug() << "SbfParser::processNextValidPacket(): $ found at" << positionOfNextInfo;
+        if(positionOfNextInfo >= msgLength)
         {
-            const QString sync = QString::fromAscii(sbfData.data() + positionOfNextInfo, 2);
-            if(sync == "$@" || sync == "$R:" || sync == "$R?" || sync == "$R;")
+            // construct a string starting at the found position, but make sure not to overrun the buffer-end
+            const QString sync = QString::fromAscii(sbfData.data() + positionOfNextInfo, std::min(3, sbfData.size() - positionOfNextInfo));
+            if(sync.left(2) == "$@" || sync == "$R:" || sync == "$R?" || sync == "$R;")
             {
+//                qDebug() << "SbfParser::processNextValidPacket(): nextInfo found at" << positionOfNextInfo << "- breaking.";
                 nextInfoFound = true;
+                break;
             }
+            else
+            {
+//                qDebug() << "SbfParser::processNextValidPacket(): unfortunately, sync did not match, was:" << sync;
+            }
+        }
+
+        if(positionOfNextInfo > 0 && !nextInfoFound)
+        {
+            // If a $ was found (but no $@, $R*), continue searching AFTER the previous occurence
+            positionOfNextInfo++;
+//            qDebug() << "SbfParser::processNextValidPacket(): next info not found, will continue to look at:" << positionOfNextInfo;
+        }
+        else
+        {
+            // If no $ was found, do not increment positionOfNextInfo
+            // from -1 to 0, otherwise the if above would loop again.
         }
     }
 
@@ -638,11 +662,15 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
      If positionOfNextInfo is -1 here, it means that there was no $@ or $R in all of sbfData after the processed packet.
      While streaming from the device, this means the only data left is padding bytes or trash. In logplayer-mode, it
      means we're done reading the buffer => in both cases, we can delete the whole buffer!
+
+     One exception: If the LAST BYTE of sbfData is a "$", don't delete it, it probably is the start of another packet
+     still coming in via serial port. On next iteration, we'll probably find the missing and neighboring @ or R character.
     */
-    if(positionOfNextInfo < 0)
+    if(positionOfNextInfo < 0 && sbfData.right(1) != "$")
     {
-        qDebug() << "SbfParser::processNextValidPacket(): no $@ or $R* found after processed packet, deleting buffer containig" << sbfData.size() - msgLength << "trailing bytes.";
+//        qDebug() << "SbfParser::processNextValidPacket(): no $@ or $R* found after processed packet (of"<< msgLength << "bytes), deleting buffer containing" << sbfData.size() - msgLength << "trailing bytes.";
         positionOfNextInfo = sbfData.size();
+//        qDebug() << "SbfParser::processNextValidPacket(): to be deleted:" << readable(sbfData.right(sbfData.size() - msgLength));
     }
 
     const quint16 bytesToRemove = std::max(msgLength, (quint16)positionOfNextInfo);
@@ -653,4 +681,21 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     emit processedPacket(sbfData.left(bytesToRemove), (qint32)block->TOW);
 
     sbfData.remove(0, bytesToRemove);
+}
+
+// replace every non-printable char with a special char, for making sbf-data readable
+QString SbfParser::readable(const QByteArray& bytes)
+{
+    QString out;
+
+    for(int i=0;i< bytes.size();i++)
+    {
+        const char *c = (bytes.constData()+i);
+        if(*c > 126 || *c < 32)
+            out.append('X');
+        else
+            out.append(*c);
+    }
+
+    return out;
 }
