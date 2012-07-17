@@ -192,7 +192,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     // If there's garbage before the next valid packet, save it into sbf log and log a warning
     if(offsetToValidPacket != 0)
     {
-        qDebug() << "SbfParser::processNextValidPacket(): WARNING: SBF sync was at byte" << offsetToValidPacket << "instead of 0, content:" << sbfData.left(offsetToValidPacket);
+        qDebug() << "SbfParser::processNextValidPacket(): WARNING: SBF sync was at byte" << offsetToValidPacket << "instead of 0, content:" << readable(sbfData.left(offsetToValidPacket));
         // Log this data for later error analysis
         emit processedPacket(sbfData.left(offsetToValidPacket), -1);
         sbfData.remove(0, offsetToValidPacket);
@@ -628,7 +628,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     {
 //        qDebug() << "SbfParser::processNextValidPacket(): looking for a $ starting at" << positionOfNextInfo;
         positionOfNextInfo = sbfData.indexOf('$', positionOfNextInfo);
-//        qDebug() << "SbfParser::processNextValidPacket(): $ found at" << positionOfNextInfo;
+//        qDebug() << "SbfParser::processNextValidPacket(): $ found at" << positionOfNextInfo  << "of sbfData size:" << sbfData.size();
         if(positionOfNextInfo >= msgLength)
         {
             // construct a string starting at the found position, but make sure not to overrun the buffer-end
@@ -641,7 +641,8 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
             }
             else
             {
-//                qDebug() << "SbfParser::processNextValidPacket(): unfortunately, sync did not match, was:" << sync;
+//                qDebug() << "SbfParser::processNextValidPacket(): unfortunately, sync did not match, was:" << readable(sync.toAscii());
+//                qDebug() << "SbfParser::processNextValidPacket(): sbfData:" << readable(sbfData);
             }
         }
 
@@ -660,17 +661,28 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
 
     /*
      If positionOfNextInfo is -1 here, it means that there was no $@ or $R in all of sbfData after the processed packet.
-     While streaming from the device, this means the only data left is padding bytes or trash. In logplayer-mode, it
-     means we're done reading the buffer => in both cases, we can delete the whole buffer!
-
-     One exception: If the LAST BYTE of sbfData is a "$", don't delete it, it probably is the start of another packet
-     still coming in via serial port. On next iteration, we'll probably find the missing and neighboring @ or R character.
+     If the LAST BYTE of sbfData is a "$", then don't delete it, it probably is the start of another packet still coming
+     in via serial port. On next iteration, we'll probably find the missing and neighboring @ or R character.
     */
-    if(positionOfNextInfo < 0 && sbfData.right(1) != "$")
+    if(positionOfNextInfo < 0)
     {
-//        qDebug() << "SbfParser::processNextValidPacket(): no $@ or $R* found after processed packet (of"<< msgLength << "bytes), deleting buffer containing" << sbfData.size() - msgLength << "trailing bytes.";
-        positionOfNextInfo = sbfData.size();
-//        qDebug() << "SbfParser::processNextValidPacket(): to be deleted:" << readable(sbfData.right(sbfData.size() - msgLength));
+        // If we have more data after the processed message, but no SYNC was found...
+        if((sbfData.size() - msgLength) != 0)
+        {
+//            qDebug() << "SbfParser::processNextValidPacket(): no $@ or $R* found after processed packet (of"<< msgLength << "bytes), deleting buffer containing" << sbfData.size() - msgLength << "trailing bytes.";
+//            qDebug() << "SbfParser::processNextValidPacket(): to be deleted after the processed packet:" << readable(sbfData.right(sbfData.size() - msgLength));
+        }
+
+        if(sbfData.right(1) == "$")
+        {
+//            qDebug() << "SbfParser::processNextValidPacket(): last char was $, so the @ is probably coming in next. Not deleting the $.";
+//            qDebug() << "SbfParser::processNextValidPacket(): sbfData:" << readable(sbfData);
+            positionOfNextInfo = sbfData.size()-1;
+        }
+        else
+        {
+            positionOfNextInfo = sbfData.size();
+        }
     }
 
     const quint16 bytesToRemove = std::max(msgLength, (quint16)positionOfNextInfo);

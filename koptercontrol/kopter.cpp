@@ -17,7 +17,6 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     mStructExternControl.Frame = 0;
 
     mLastSendTime = QTime::currentTime();
-    mMaxReplyTime = 0;
 
     qDebug() << "Kopter::Kopter(): Opening serial port" << serialDeviceFile << "succeeded, flowControl is" << mSerialPortFlightCtrl->flowControl();
 
@@ -39,7 +38,7 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
 
 Kopter::~Kopter()
 {
-    qDebug() << "Kopter::~Kopter(): closing serial port, max reply time was" << mMaxReplyTime << "milliseconds";
+    qDebug() << "Kopter::~Kopter(): closing serial port, max reply times in milliseconds were" << mMaxReplyTimes;
     mSerialPortFlightCtrl->close();
 }
 
@@ -226,10 +225,11 @@ void Kopter::slotSerialPortDataReady()
                 qint16 replyTime = mLastSendTime.msecsTo(QTime::currentTime());
 
                 // Ignore the first (=V) packet, as this is the first time when we're actually slower than the kopter
-                if(replyTime > mMaxReplyTime && message.getId() != 'V')
+                const qint16 maxReplyTimeForThisPacketType = mMaxReplyTimes.value(mPendingReply, 0);
+                if(replyTime > maxReplyTimeForThisPacketType)
                 {
-                    qDebug() << t() << "Kopter::slotSerialPortDataReady(): max reply time increased from" << mMaxReplyTime << "to" << replyTime << "for packet:" << mPendingReply;
-                    mMaxReplyTime = replyTime;
+                    qDebug() << t() << "Kopter::slotSerialPortDataReady(): max reply time increased from" << maxReplyTimeForThisPacketType << "to" << replyTime << "for packet:" << mPendingReply;
+                    mMaxReplyTimes[mPendingReply] = replyTime;
                 }
                 mPendingReply = QChar();
             }

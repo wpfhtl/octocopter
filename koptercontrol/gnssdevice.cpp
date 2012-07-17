@@ -129,7 +129,7 @@ quint8 GnssDevice::slotFlushCommandQueue()
     {
         mLastCommandToDeviceUsb = mCommandQueueUsb.takeFirst();
         qDebug() << t() << "GnssDevice::slotFlushCommandQueue(): no pending replies, sending next command:" << mLastCommandToDeviceUsb.trimmed();
-        if(mReceiveBufferUsb.size()) qDebug() << t() << "GnssDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << mReceiveBufferUsb;
+        if(mReceiveBufferUsb.size()) qDebug() << t() << "GnssDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << mSbfParser->readable(mReceiveBufferUsb);
         //usleep(100000);
         mSerialPortUsb->write(mLastCommandToDeviceUsb);
         mWaitingForCommandReply = true;

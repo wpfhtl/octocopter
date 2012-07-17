@@ -103,7 +103,7 @@ private:
     // avoid sending too fast.
     QTime mLastSendTime;
 
-    qint16 mMaxReplyTime; // in milliseconds
+    QMap<QChar,qint16> mMaxReplyTimes; // in milliseconds, per packet-type
 
     // Here, we keep all the messages to-be-sent to the kopter...
     QList<KopterMessage> mSendMessageQueue;
