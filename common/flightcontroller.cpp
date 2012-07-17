@@ -435,14 +435,17 @@ void FlightController::ensureSafeFlightAfterWaypointsChanged()
 
     if(mWayPoints.size() == 0)
     {
+        // The method has debug output, so call it just once for now.
+        const bool heightOverGroundValueRecent = isHeightOverGroundValueRecent();
+
         // The list is now empty and we are still flying.
-        if(isHeightOverGroundValueRecent() && mLastKnownHeightOverGround < 0.3f)
+        if(heightOverGroundValueRecent && mLastKnownHeightOverGround < 0.3f)
         {
             // We're low anyway, just got to idle mode.
             qDebug() << "FlightController::ensureSafeFlightAfterWaypointsChanged(): wpt list is empty, we're low with valid heightOverGround of" << mLastKnownHeightOverGround << ", idling";
             setFlightState(Idle);
         }
-        else if(isHeightOverGroundValueRecent())
+        else if(heightOverGroundValueRecent)
         {
             qDebug() << "FlightController::ensureSafeFlightAfterWaypointsChanged(): wpt list is empty, heightOverGround is known to be" << mLastKnownHeightOverGround << "inserting landing wpt 0.2m above ground";
             mWayPoints.append(WayPoint(mLastKnownVehiclePose.getPosition() - QVector3D(0.0, mLastKnownHeightOverGround - 0.2, 0.0)));
