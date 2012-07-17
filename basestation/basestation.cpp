@@ -149,7 +149,7 @@ BaseStation::BaseStation() : QMainWindow()
 
         connect(mRoverConnection, SIGNAL(scanData(QVector<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QVector<QVector3D>,QVector3D)));
         connect(mRoverConnection, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
-        connect(mRoverConnection, SIGNAL(gpsStatus(GpsStatusInformation::GpsStatus)), mControlWidget, SLOT(slotUpdateGpsStatus(GpsStatusInformation::GpsStatus)));
+        connect(mRoverConnection, SIGNAL(gnssStatus(GnssStatusInformation::GnssStatus)), mControlWidget, SLOT(slotUpdateGnssStatus(GnssStatusInformation::GnssStatus)));
         connect(mRoverConnection, SIGNAL(controllerValues(QVector<float>)), mPlotWidget, SLOT(slotAppendData(QVector<float>)));
 
         connect(mRoverConnection, SIGNAL(wayPointsHashFromRover(QString)), mFlightPlanner, SLOT(slotCheckWayPointsHashFromRover(QString)));

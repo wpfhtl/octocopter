@@ -34,7 +34,7 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     // emit fused lidarpoints
     connect(mSensorFuser, SIGNAL(newScannedPoints(QVector<QVector3D>,QVector3D)), SIGNAL(scanData(QVector<QVector3D>,QVector3D)));
 
-    connect(mSbfParser, SIGNAL(status(GpsStatusInformation::GpsStatus)), SIGNAL(gpsStatus(GpsStatusInformation::GpsStatus)));
+    connect(mSbfParser, SIGNAL(status(GnssStatusInformation::GnssStatus)), SIGNAL(gnssStatus(GnssStatusInformation::GnssStatus)));
     connect(mSbfParser, SIGNAL(message(LogImportance,QString,QString)), SIGNAL(message(LogImportance,QString,QString)));
     connect(mSbfParser, SIGNAL(newVehiclePoseLogPlayer(Pose)), SIGNAL(vehiclePose(Pose)));
 
