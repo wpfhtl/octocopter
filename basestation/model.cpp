@@ -61,15 +61,6 @@ bool Model::importFile(const QFile& modelFile)
         qDebug() << "Model::importFile(): successfully imported file" << modelFile.fileName();
     }
 
-    /* unnecessary, was to fit into a view window
-        struct aiVector3D scene_min, scene_max, scene_center;
-        getBoundingBox(&scene_min, &scene_max);
-        float tmp;
-        tmp = scene_max.x-scene_min.x;
-        tmp = scene_max.y - scene_min.y > tmp ? scene_max.y - scene_min.y : tmp;
-        tmp = scene_max.z - scene_min.z > tmp ? scene_max.z - scene_min.z : tmp;
-        scaleFactor = 1.f / tmp;*/
-
     // We're done. Everything will be cleaned up by the importer destructor
     return true;
 }

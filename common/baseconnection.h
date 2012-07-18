@@ -12,6 +12,7 @@
 #include <lidarpoint.h>
 #include <wirelessdevice.h>
 #include <gnssstatusinformation.h>
+#include <flightcontrollervalues.h>
 #include <pose.h>
 
 class Simulator;
@@ -105,7 +106,7 @@ public slots:
     void slotNewGnssStatus(const GnssStatusInformation::GnssStatus&);
 
     // called by flightcontroller to send its output to basestation for debugging purposes
-    void slotNewFlightControllerValues(const MotionCommand& mc, const Pose& pose, const WayPoint& wpt);
+    void slotNewFlightControllerValues(const FlightControllerValues& fcv);
 
     // called by rover to send new image to basestation
     void slotNewCameraImage(const QString& name, const QSize& imageSize, const Pose& pose, const QByteArray* image);

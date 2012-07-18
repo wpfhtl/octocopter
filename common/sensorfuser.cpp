@@ -9,7 +9,6 @@ SensorFuser::SensorFuser(const quint8& stridePoint, const quint8& strideScan) : 
     mMaximumFusableRayLength = 200.0;
     mStatsFusedScans = 0;
     mStatsDiscardedScans = 0;
-    mTimeOffsetFromScanToPose = 0;
     mLastRayTime = -1000; // make sure first comparision fails
     mLastScanMiddleTow = 0;
     mMaximumTimeBetweenFusedPoseAndScanMsec = 81; // 2*poseInterval+1
@@ -366,9 +365,9 @@ void SensorFuser::transformScanDataNearestNeighbor()
         for(int j = 0; j < mPoses.size(); ++j)
         {
             const qint16 timeDifferenceOfThisPose = abs(timestampMiddleOfScan - mPoses[j].timestamp);
-            if(timeDifferenceOfThisPose + mTimeOffsetFromScanToPose < 11)
+            if(timeDifferenceOfThisPose < 11)
             {
-                if(timeDifferenceOfThisPose + mTimeOffsetFromScanToPose < smallestTimeDifferenceSoFar)
+                if(timeDifferenceOfThisPose < smallestTimeDifferenceSoFar)
                     poseForThisScan = &mPoses[j];
 
                 smallestTimeDifferenceSoFar = timeDifferenceOfThisPose;

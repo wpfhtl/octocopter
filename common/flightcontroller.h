@@ -5,8 +5,6 @@
 #include <QVector3D>
 #include <QTime>
 
-#include <math.h> // ceil and floor
-
 #include <common.h>
 #include "flightcontrollervalues.h"
 #include <laserscanner.h>
@@ -62,8 +60,6 @@ private:
 
     FlightState mFlightState;
 
-    float mThrustHover;
-
     QTime mTimeOfLastControllerUpdate, mTimeOfLastLaserScan;
 
     float mPrevErrorPitch, mPrevErrorRoll, mPrevErrorYaw, mPrevErrorHeight;
@@ -80,7 +76,7 @@ private:
 //    WayPoint getLandingWayPoint() const;
     void setFlightState(FlightState);
 
-    void logFlightControllerValues(const MotionCommand&);
+    void logFlightControllerValues(const FlightControllerValues&);
 
     // In the first controller iteration, we don't want to build derivatives, they'd be waaayy off and destabilize the controller
     bool mFirstControllerRun;
@@ -91,7 +87,10 @@ private slots:
     void slotComputeBackupMotion();
 
 signals:
-    // used for debugging and to set the motor-speeds
+    // used to set the motor-speeds
+    void motion(const MotionCommand&);
+
+    // used for debugging
     void flightControllerValues(const FlightControllerValues&);
 
     // emitted when a waypoint is reached

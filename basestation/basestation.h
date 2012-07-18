@@ -75,7 +75,7 @@ signals:
 private slots:
     void slotExportCloud(void);
     void slotImportCloud(void);
-    void slotTogglePlot(void);
+//    void slotTogglePlot(void);
 
     void slotClearOctree();
 

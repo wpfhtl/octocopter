@@ -25,7 +25,8 @@ simulator
 ogrewidget
 battery
 ../common/flightcontroller
-../common/gpsstatusinformation
+../common/flightcontrollervalues
+../common/gnssstatusinformation
 ../common/pose
 ../common/motioncommand
 ../common/lidarpoint
@@ -50,7 +51,8 @@ simulator.h
 ogrewidget.h
 battery.h
 ../common/flightcontroller.h
-../common/gpsstatusinformation.h
+../common/flightcontrollervalues.h
+../common/gnssstatusinformation.h
 ../common/pose.h
 ../common/motioncommand.h
 ../common/lidarpoint.h

@@ -96,7 +96,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     qDebug() << "KopterControl::KopterControl(): using laserscanner at" << deviceSerialLaserScanner;
     qDebug() << "KopterControl::KopterControl(): reading RSSI at interface" << networkInterface;
 
-    mFlightController = new FlightController();
+    mFlightController = new FlightController(logFilePrefix);
     mLaserScanner = new LaserScanner(
                 deviceSerialLaserScanner,
                 Pose(
@@ -139,7 +139,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mBaseConnection, SIGNAL(newConnection()), mFlightController, SLOT(slotEmitFlightState()));
 
     //    WARNING! THIS ENABLES MOTION!
-    connect(mFlightController, SIGNAL(flightControllerValues(MotionCommand,Pose,WayPoint)), mKopter, SLOT(slotSetMotion(MotionCommand)));
+    connect(mFlightController, SIGNAL(motion(MotionCommand)), mKopter, SLOT(slotSetMotion(MotionCommand)));
 
     connect(mGnssDevice->getSbfParser(), SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mGnssDevice, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
@@ -157,6 +157,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mSensorFuser, SIGNAL(newScannedPoints(QVector<QVector3D>,QVector3D)), mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector3D>,QVector3D)));
 
     connect(mFlightController, SIGNAL(flightStateChanged(FlightState)), mBaseConnection, SLOT(slotFlightStateChanged(FlightState)));
+    connect(mFlightController, SIGNAL(flightControllerValues(FlightControllerValues)), mBaseConnection, SLOT(slotNewFlightControllerValues(FlightControllerValues)));
 
     mTimerSystemLoadControl = new QTimer(this);
     mTimerSystemLoadControl->start(15000); // every 15 seconds

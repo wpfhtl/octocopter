@@ -6,7 +6,7 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject(), mF
     mLogFile = 0;
     if(!logFilePrefix.isNull())
     {
-        mLogFile = new QFile(logFilePrefix + QString("flightcontroller.txt"));
+        mLogFile = new QFile(logFilePrefix + QString("flightcontroller.flt"));
         if(!mLogFile->open(QIODevice::WriteOnly | QIODevice::Text))
             qFatal("FlightController::FlightController(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
     }
@@ -23,13 +23,6 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject(), mF
     mImuOffsets.pitch = 0.0f;
     mImuOffsets.roll = 0.0f;
 
-    // Tests have shown:
-    // - with metal hood (2425 gram) it hovers at 127/128.
-    // Guesses:
-    // - without metal hood (95g) lets try 126
-    // - without metal hood (95g) and with external wlan (75),  we stay at 127
-    mThrustHover = 127.0;
-
     /*// For testing in simulator
     mWayPoints.append(WayPoint(QVector3D(130,90,110)));
     mWayPoints.append(WayPoint(QVector3D(140,80,130)));
@@ -42,6 +35,12 @@ FlightController::~FlightController()
 {
     mBackupTimerComputeMotion->stop();
     mBackupTimerComputeMotion->deleteLater();
+
+    if(mLogFile)
+    {
+        mLogFile->close();
+        delete mLogFile;
+    }
 }
 
 void FlightController::slotComputeBackupMotion()
@@ -61,7 +60,7 @@ void FlightController::slotComputeMotionCommands()
 
     case Hover:
         qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState: Hover, emitting hover-thrust";
-        emit motion(MotionCommand(mThrustHover));
+        emit motion(MotionCommand(MotionCommand::thrustHover));
         break;
 
     case Idle:
@@ -74,14 +73,14 @@ void FlightController::slotComputeMotionCommands()
         if(mWayPoints.size() < 1)
         {
             qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState: ApproachWayPoint: Cannot approach, no waypoints present!";
-            emit motion(MotionCommand(mThrustHover));
+            emit motion(MotionCommand(MotionCommand::thrustHover));
             return;
         }
 
         if(getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp > 82)
         {
             qDebug() << t() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, vehicle pose update is from" << mLastKnownVehiclePose.timestamp << "and now its" << getCurrentGpsTowTime() << " - this is pretty old!?";
-            emit motion(MotionCommand(mThrustHover));
+            emit motion(MotionCommand(MotionCommand::thrustHover));
             return;
         }
 
@@ -170,7 +169,7 @@ void FlightController::slotComputeMotionCommands()
         }
 
         const float derivativeHeight = mFirstControllerRun ? 0.0f : (errorHeight - mPrevErrorHeight + 0.00001f)/timeDiff;
-        const float outputThrust = mThrustHover + (25.0f * errorHeight) + (0.01f * mErrorIntegralHeight) + (1.0f * derivativeHeight);
+        const float outputThrust = MotionCommand::thrustHover + (25.0f * errorHeight) + (0.01f * mErrorIntegralHeight) + (1.0f * derivativeHeight);
 
         qDebug() << mWayPoints.size() << "waypoints, next wpt height" << nextWayPoint.y() << "curr height" << mLastKnownVehiclePose.getPosition().y();
 
@@ -187,12 +186,17 @@ void FlightController::slotComputeMotionCommands()
         mPrevErrorYaw = errorYaw;
         mPrevErrorHeight = errorHeight;
 
-        const MotionCommand mc(outputThrust, outputYaw, outputPitch, outputRoll);
+        FlightControllerValues fcv;
+        fcv.motionCommand = MotionCommand(outputThrust, outputYaw, outputPitch, outputRoll);
+        fcv.lastKnownPose = mLastKnownVehiclePose;
+        fcv.nextWayPoint = mWayPoints.first();
+        fcv.lastKnownHeightOverGround = mLastKnownHeightOverGround;
 
-        qDebug() << t() << "FlightController::slotComputeMotionCommands():" << mc;
-        emit flightControllerValues(mc, mLastKnownVehiclePose, mWayPoints.first());
+        qDebug() << t() << "FlightController::slotComputeMotionCommands():" << fcv.motionCommand;
+        emit motion(fcv.motionCommand);
+        emit flightControllerValues(fcv);
 
-        logFlightControllerValues(mc);
+        logFlightControllerValues(fcv);
 
         // See whether we've reached the waypoint
         if(mLastKnownVehiclePose.getPosition().distanceToLine(nextWayPoint, QVector3D()) < 0.40f) // close to wp
@@ -212,18 +216,12 @@ void FlightController::slotComputeMotionCommands()
     mTimeOfLastControllerUpdate = QTime::currentTime();
 }
 
-void FlightController::logFlightControllerValues(const MotionCommand &mc)
+void FlightController::logFlightControllerValues(const FlightControllerValues &fcv)
 {
     if(mLogFile)
     {
         QTextStream out(mLogFile);
-        out
-                << mLastKnownVehiclePose.timestamp
-                << " lastknownpose: " << mLastKnownVehiclePose.toStringVerbose()
-                << " nextwpt: " << mWayPoints.first()
-                << " mc: " << mc.toString()
-                << " clamped: " << mc.clampedToSafeLimits().toString()
-                << std::endl;
+        out << fcv.toString() << endl;
     }
 }
 

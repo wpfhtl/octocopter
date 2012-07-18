@@ -197,22 +197,13 @@ void RoverConnection::processPacket(QByteArray data)
 
         emit message((LogImportance)importance, source, text);
     }
-    else if(packetType == "controllervalues")
+    else if(packetType == "flightcontrollervalues")
     {
-        Pose pose;
-        MotionCommand mc;
+        FlightControllerValues fcv;
 
-        stream >> pose;
-        stream >> mc;
+        stream >> fcv;
 
-        // Normalize poseYaw between -180 and 180 for better graphing
-        float poseYaw = pose.getYawDegrees();
-
-        QVector<float> values;
-        values << mc.pitch << mc.roll << mc.thrust << mc.yaw;
-        values << pose.getPitchDegrees() << pose.getRollDegrees() << poseYaw;
-
-        emit controllerValues(values);
+        emit flightControllerValues(fcv);
     }
     else if(packetType == "flightstate")
     {

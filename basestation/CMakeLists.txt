@@ -35,6 +35,7 @@ SET(SRC_FILES
     ../common/sensorfuser
     ../common/plymanager
     ../common/openglutilities
+    ../common/flightcontrollervalues
     ../common/lidarpoint
     ../common/waypoint
     ../common/octree
@@ -79,6 +80,7 @@ SET(INC_FILES
     ../common/sensorfuser.h
     ../common/plymanager.h
     ../common/openglutilities.h
+    ../common/flightcontrollervalues.h
     ../common/lidarpoint.h
     ../common/waypoint.h
     ../common/octree.h

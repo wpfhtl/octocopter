@@ -13,6 +13,13 @@
 
 #include "shaderprogram.h"
 
+/*
+  This class is used to import models, I use only .obj so far, but all assimp-supported formats should work.
+  Using obj, it seems that the last object created in 3dsmax does not show up here. Sometimes, it shows, but
+  only in the first rendered frame. No idea why, I've started adding a simple dummy object as last object,
+  this object NOT showing up doesn't bug me then.
+  */
+
 class Model : public QObject
 {
     Q_OBJECT

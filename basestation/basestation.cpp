@@ -96,7 +96,7 @@ BaseStation::BaseStation() : QMainWindow()
     menuBar()->addAction("ViewFromSide", mGlWidget, SLOT(slotViewFromSide()));
     menuBar()->addAction("ViewFromTop", mGlWidget, SLOT(slotViewFromTop()));
 
-    menuBar()->addAction("TogglePlot", this, SLOT(slotTogglePlot()));
+//    menuBar()->addAction("TogglePlot", this, SLOT(slotTogglePlot()));
 
     menuBar()->addAction("Clear Trajectory", mFlightPlanner, SLOT(slotClearVehicleTrajectory()));
 
@@ -104,7 +104,7 @@ BaseStation::BaseStation() : QMainWindow()
     actionRotateView->setCheckable(true);
     connect(actionRotateView, SIGNAL(triggered(bool)), mGlWidget, SLOT(slotEnableTimerRotation(bool)));
     menuBar()->addAction(actionRotateView);
-
+/*
     mPlotWidget = new PlotWidget(this);
     mPlotWidget->setAllowedAreas(Qt::AllDockWidgetAreas);
     mPlotWidget->setVisible(false);
@@ -118,6 +118,7 @@ BaseStation::BaseStation() : QMainWindow()
     mPlotWidget->createCurve("pPitch");
     mPlotWidget->createCurve("pRoll");
     mPlotWidget->createCurve("pYaw");
+*/
 
     // Only start RTK fetcher, RoverConnection, PtuController etc. if we're working online
     if(mConnectionDialog->result() == QDialog::Accepted)
@@ -150,7 +151,7 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mRoverConnection, SIGNAL(scanData(QVector<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QVector<QVector3D>,QVector3D)));
         connect(mRoverConnection, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
         connect(mRoverConnection, SIGNAL(gnssStatus(GnssStatusInformation::GnssStatus)), mControlWidget, SLOT(slotUpdateGnssStatus(GnssStatusInformation::GnssStatus)));
-        connect(mRoverConnection, SIGNAL(controllerValues(QVector<float>)), mPlotWidget, SLOT(slotAppendData(QVector<float>)));
+        connect(mRoverConnection, SIGNAL(flightControllerValues(FlightControllerValues)), mGlWidget, SLOT(slotSetFlightControllerValues(FlightControllerValues)));
 
         connect(mRoverConnection, SIGNAL(wayPointsHashFromRover(QString)), mFlightPlanner, SLOT(slotCheckWayPointsHashFromRover(QString)));
         connect(mRoverConnection, SIGNAL(wayPointReachedByRover(WayPoint)), mFlightPlanner, SLOT(slotWayPointReached(WayPoint)));
@@ -190,7 +191,7 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mLogPlayer, SIGNAL(scanData(QVector<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QVector<QVector3D>,QVector3D)));
     //    connect(mLogPlayer, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
         connect(mLogPlayer, SIGNAL(gnssStatus(GnssStatusInformation::GnssStatus)), mControlWidget, SLOT(slotUpdateGnssStatus(GnssStatusInformation::GnssStatus)));
-    //    connect(mLogPlayer, SIGNAL(controllerValues(QVector<float>)), mPlotWidget, SLOT(slotAppendData(QVector<float>)));
+        connect(mLogPlayer, SIGNAL(flightControllerValues(FlightControllerValues)), mGlWidget, SLOT(slotSetFlightControllerValues(FlightControllerValues)));
 /*
         mPtuController = new PtuController("/dev/ttyUSB0", this);
         mPtuController->setAllowedAreas(Qt::AllDockWidgetAreas);
@@ -333,10 +334,10 @@ void BaseStation::slotImportCloud()
     }
 }
 
-void BaseStation::slotTogglePlot()
+/*void BaseStation::slotTogglePlot()
 {
     mPlotWidget->setVisible(!mPlotWidget->isVisible());
-}
+}*/
 
 void BaseStation::keyPressEvent(QKeyEvent* event)
 {

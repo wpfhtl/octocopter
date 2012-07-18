@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>495</width>
-    <height>196</height>
+    <height>199</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -19,7 +19,7 @@
   <property name="minimumSize">
    <size>
     <width>317</width>
-    <height>196</height>
+    <height>199</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -257,37 +257,6 @@
        <string>TOW %v</string>
       </property>
      </widget>
-    </item>
-    <item>
-     <layout class="QHBoxLayout" name="horizontalLayout_2">
-      <item>
-       <widget class="QLabel" name="label_8">
-        <property name="text">
-         <string>FusionTimeOffset</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QSlider" name="mSliderFusionTimeOffset">
-        <property name="minimum">
-         <number>-200</number>
-        </property>
-        <property name="maximum">
-         <number>200</number>
-        </property>
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QLabel" name="mLabelFusionTimeOffset">
-        <property name="text">
-         <string>0</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
     </item>
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_3">

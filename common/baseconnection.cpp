@@ -375,15 +375,13 @@ void BaseConnection::slotFlightStateChanged(FlightState flightState)
     slotSendData(data, false);
 }
 
-void BaseConnection::slotNewFlightControllerValues(const MotionCommand& mc, const Pose& pose, const WayPoint& wpt)
+void BaseConnection::slotNewFlightControllerValues(const FlightControllerValues& fcv)
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
     stream << QString("flightcontrollervalues");
-    stream << mc;
-    stream << pose;
-    stream << wpt;
+    stream << fcv;
 
     slotSendData(data, false);
 }

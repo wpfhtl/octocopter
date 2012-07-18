@@ -30,8 +30,6 @@ private:
 
     Pose mLaserScannerRelativePose;
 
-    quint16 mTimeOffsetFromScanToPose;
-
     quint16 mStatsFusedScans;
     quint16 mStatsDiscardedScans;
 
@@ -112,8 +110,6 @@ public slots:
     // event-pin of the gps-receiver-board, which then notifies the PC together with
     // the receiver-time (TOW) when this event happened.
     void slotScanFinished(const quint32& timestamp);
-
-    void slotSetTimeOffsetFromScanToPose(quint16 offset) {mTimeOffsetFromScanToPose = offset;}
 
     // Used to feed data from the laserscanner
     void slotNewScanData(const qint32& timestampScanner, std::vector<long> * const distances);

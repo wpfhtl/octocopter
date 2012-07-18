@@ -8,6 +8,7 @@
 
 #include <abstractserial.h>
 #include "koptermessage.h"
+#include "motioncommand.h"
 #include "common.h"
 
 class MotionCommand;

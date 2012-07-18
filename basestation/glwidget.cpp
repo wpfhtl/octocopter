@@ -6,7 +6,8 @@
 
 GlWidget::GlWidget(QWidget* parent, FlightPlannerInterface* flightPlanner) :
     QGLWidget(parent),
-    mFlightPlanner(flightPlanner)
+    mFlightPlanner(flightPlanner),
+    mLastFlightControllerValues(0)
 {
     QGLFormat glFormat;
     glFormat.setSamples(4);
@@ -143,7 +144,10 @@ void GlWidget::initializeGL()
     // Find the oktokopter model and load it
     QDir modelPath = QDir::current();
     modelPath.cdUp();
+
     mModelVehicle = new Model(QFile(modelPath.absolutePath() + "/media/oktokopter.obj"), QString("../media/"), this);
+    mModelThrust = new Model(QFile(modelPath.absolutePath() + "/media/oktokopter-thrust.obj"), QString("../media/"), this);
+    mModelYawPitchRoll = new Model(QFile(modelPath.absolutePath() + "/media/oktokopter-yawpitchroll.obj"), QString("../media/"), this);
 }
 
 void GlWidget::resizeGL(int w, int h)
@@ -290,8 +294,39 @@ void GlWidget::paintGL()
 
     emit visualizeNow();
 
-    mModelVehicle->slotSetModelTransform(mLastKnownVehiclePose.getMatrix());
+    const QMatrix4x4 transform = mLastKnownVehiclePose.getMatrix();
+
+    if(mLastFlightControllerValues)
+    {
+        QMatrix4x4 trYPR(transform);
+        trYPR.rotate(mLastFlightControllerValues->motionCommand.roll, QVector3D(0,0,1));
+        trYPR.rotate(mLastFlightControllerValues->motionCommand.pitch, QVector3D(1,0,0));
+        trYPR.rotate(mLastFlightControllerValues->motionCommand.yaw, QVector3D(0,1,0));
+        mModelYawPitchRoll->slotSetModelTransform(trYPR);
+        mModelYawPitchRoll->render();
+
+        QMatrix4x4 trThrust(trYPR);
+
+
+        // Move the thrust-arrow according to, well, thrust.
+        trThrust.translate(
+                    QVector3D(
+                        0,
+                        (mLastFlightControllerValues->motionCommand.thrust - MotionCommand::thrustHover) / 100.0f,
+                        0)
+                    );
+
+        // Make the arrow point downwards if thrust is below hover-thrust
+        if(mLastFlightControllerValues->motionCommand.thrust < MotionCommand::thrustHover)
+            trThrust.rotate(180.0f, QVector3D(1,0,0));
+
+        mModelThrust->slotSetModelTransform(trThrust);
+        mModelThrust->render();
+    }
+
+    mModelVehicle->slotSetModelTransform(transform);
     mModelVehicle->render();
+
     //    qDebug() << "GlWidget::paintGL(): rendering time in milliseconds:" << renderTime.elapsed();
 }
 
@@ -521,4 +556,14 @@ void GlWidget::slotOctreeRegister(Octree* o)
 void GlWidget::slotOctreeUnregister(Octree* o)
 {
     mOctrees.removeOne(o);
+}
+
+void GlWidget::slotSetFlightControllerValues(const FlightControllerValues& fcv)
+{
+    if(mLastFlightControllerValues == 0)
+    {
+        mLastFlightControllerValues = new FlightControllerValues;
+    }
+
+    *mLastFlightControllerValues = fcv;
 }

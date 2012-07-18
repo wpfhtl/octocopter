@@ -5,6 +5,23 @@ WayPoint::WayPoint() : QVector3D()
     purpose = SCAN;
 }
 
+WayPoint::WayPoint(const QString& string) : QVector3D()
+{
+    QStringList list = string.split(" ");
+    Q_ASSERT(list.size() == 4);
+
+    bool success = false;
+
+    setX(list.at(1).toInt(&success));
+    Q_ASSERT(success);
+
+    setY(list.at(2).toInt(&success));
+    Q_ASSERT(success);
+
+    setZ(list.at(3).toInt(&success));
+    Q_ASSERT(success);
+}
+
 WayPoint::WayPoint(const WayPoint& other) : QVector3D()
 {
     purpose = other.purpose;
@@ -48,4 +65,9 @@ QString WayPoint::hash(QList<WayPoint> list)
     }
 
     return hash.result();
+}
+
+QString WayPoint::toString() const
+{
+    return QString("wpt %1 %2 %3").arg(x()).arg(y()).arg(z());
 }

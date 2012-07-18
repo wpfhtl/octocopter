@@ -14,6 +14,8 @@
 
 #include "flightplannerinterface.h"
 #include "openglutilities.h"
+#include "flightcontrollervalues.h"
+#include "motioncommand.h"
 #include "shaderprogram.h"
 #include "pose.h"
 
@@ -31,9 +33,12 @@ class GlWidget : public QGLWidget
 
     QVector3D mCamLookAtOffset;
 
-    Model *mModelVehicle;
+    Model *mModelVehicle, *mModelThrust, *mModelYawPitchRoll;
 
     Pose mLastKnownVehiclePose;
+
+    // Set by slotSetFlightControllerValues(), then visualized for FligthController debugging
+    FlightControllerValues* mLastFlightControllerValues;
 
     // Timer
     int mTimerIdZoom, mTimerIdRotate;
@@ -94,6 +99,10 @@ public slots:
     // Ownership remains with the caller, meaning they MUST be deregistered before deletion
     void slotOctreeRegister(Octree* o);
     void slotOctreeUnregister(Octree* o);
+
+    // LogPlayer and RoverConnection set values used/computed by the flightcontroller. These shall be visualized
+    // here in GlWidget for debugging.
+    void slotSetFlightControllerValues(const FlightControllerValues& fcv);
 
     void slotNewVehiclePose(Pose);
     void slotClearVehicleTrajectory();

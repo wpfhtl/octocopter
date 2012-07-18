@@ -36,7 +36,7 @@ Simulator::Simulator(void) :
     mJoystick = new Joystick;
     if(!mJoystick->isValid()) QMessageBox::warning(this, "Joystick not found", "Joystick initialization failed, using manual control will be impossible.");
     connect(mJoystick, SIGNAL(buttonStateChanged(quint8,bool)), SLOT(slotJoystickButtonChanged(quint8, bool)));
-    mJoystickEnabled = false;
+    mJoystickEnabled = true;
 
     connect(mOgreWidget, SIGNAL(setupFinished()), SLOT(slotOgreInitialized()), Qt::QueuedConnection);
 
@@ -57,6 +57,7 @@ Simulator::Simulator(void) :
     connect(mFlightController, SIGNAL(wayPointInserted(quint16,WayPoint)), mBaseConnection, SLOT(slotRoverWayPointInserted(quint16,WayPoint)));
     connect(mFlightController, SIGNAL(currentWayPoints(QList<WayPoint>)), mBaseConnection, SLOT(slotFlightControllerWayPointsChanged(QList<WayPoint>)));
     connect(mFlightController, SIGNAL(flightStateChanged(FlightState)), mBaseConnection, SLOT(slotFlightStateChanged(FlightState)));
+    connect(mFlightController, SIGNAL(flightControllerValues(FlightControllerValues)), mBaseConnection, SLOT(slotNewFlightControllerValues(FlightControllerValues)));
 
     mStatusWidget = new StatusWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mStatusWidget);
@@ -110,8 +111,6 @@ void Simulator::slotOgreInitialized(void)
     // Same thing for StatusWidget, which has the configuration window. Tell it to read the config only after ogre
     // is initialized, so it can create cameras and laserscanners.
     mStatusWidget->mDialogConfiguration->slotReadConfiguration();
-
-    connect(mFlightController, SIGNAL(debugValues(Pose,MotionCommand)), mBaseConnection, SLOT(slotNewControllerDebugValues(Pose,MotionCommand)));
 }
 
 void Simulator::slotSimulationStart(void)
@@ -285,7 +284,7 @@ double Simulator::getTimeFactor(void) const
 
 void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enabled)
 {
-    // This slow is called when pressing and releasing a button, so only act once.
+    // This slot is called when pressing and releasing a button, so only act once.
     if(!enabled) return;
 
     if(button < 4)
@@ -293,13 +292,13 @@ void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enab
         if(mJoystickEnabled)
         {
             slotShowMessage("Disabling Joystick control, enabling FlightController.");
-            mFlightController->slotExternalControlStatusChanged(true);
+            mFlightController->slotComputerControlStatusChanged(true);
             mJoystickEnabled = false;
         }
         else
         {
             slotShowMessage("Enabling Joystick control, disabling FlightController.");
-            mFlightController->slotExternalControlStatusChanged(false);
+            mFlightController->slotComputerControlStatusChanged(false);
             mJoystickEnabled = true;
         }
     }

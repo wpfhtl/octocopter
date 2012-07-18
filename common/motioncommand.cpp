@@ -8,6 +8,27 @@ MotionCommand::MotionCommand(const quint8 thrust, const qint8 yaw, const qint8 p
     this->roll = roll;
 }
 
+MotionCommand::MotionCommand(const QString& string)
+{
+    QStringList list = string.split(" ", QString::KeepEmptyParts);
+    Q_ASSERT(list.size() == 8);
+
+    bool success = false;
+
+    thrust = list.at(1).toInt(&success);
+    Q_ASSERT(success);
+    yaw = list.at(3).toInt(&success);
+    Q_ASSERT(success);
+    pitch = list.at(5).toInt(&success);
+    Q_ASSERT(success);
+    roll = list.at(7).toInt(&success);
+    Q_ASSERT(success);
+}
+
+QString MotionCommand::toString() const
+{
+    return QString ("thrust %1 yaw %2 pitch %3 roll %4").arg(thrust).arg(yaw).arg(pitch).arg(roll);
+}
 QDataStream& operator<<(QDataStream &out, const MotionCommand &mc)
 {
     out << mc.thrust;
@@ -34,24 +55,19 @@ QDebug operator<<(QDebug dbg, const MotionCommand &mc)
     return dbg.space();
 }
 
-QString MotionCommand::toString() const
-{
-    return QString ("thrust %1, yaw %2, pitch %3, roll %4").arg(thrust).arg(yaw).arg(pitch).arg(roll);
-}
-
-MotionCommand MotionCommand::clampedToSafeLimits()
+MotionCommand MotionCommand::clampedToSafeLimits() const
 {
     MotionCommand clamped;
 
-    // As documented in FlightController, about 127 means hovering.
-    clamped.thrust = (quint8)qBound(100.0f, thrust, 140.0f);
+    // As documented in the header, about 127 means hovering.
+    clamped.thrust = (quint8)qBound(100.0f, (float)thrust, 140.0f);
 
     // A yaw of 15 rotates by about 15 degrees per second, which is slooow
     clamped.yaw = (qint8)qBound(-50.0, yaw > 0.0f ? ceil(yaw) : floor(yaw), 50.0);
 
     // Lets limit to 10 for testing, this seems plenty
-    clamped.pitch = (qint8)qBound(-10.0f, pitch, 10.0f);
-    clamped.roll = (qint8)qBound(-10.0f, roll, 10.0f);
+    clamped.pitch = (qint8)qBound(-10.0f, (float)pitch, 10.0f);
+    clamped.roll = (qint8)qBound(-10.0f, (float)roll, 10.0f);
 
     // For safety, we don't need it right now.
     clamped.roll = 0;
