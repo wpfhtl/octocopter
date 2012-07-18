@@ -1,8 +1,16 @@
 #include "flightcontroller.h"
 #include "motioncommand.h"
 
-FlightController::FlightController() : QObject(), mFlightState(UserControl)
+FlightController::FlightController(const QString& logFilePrefix) : QObject(), mFlightState(UserControl)
 {
+    mLogFile = 0;
+    if(!logFilePrefix.isNull())
+    {
+        mLogFile = new QFile(logFilePrefix + QString("flightcontroller.txt"));
+        if(!mLogFile->open(QIODevice::WriteOnly | QIODevice::Text))
+            qFatal("FlightController::FlightController(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
+    }
+
     mPrevErrorPitch = mPrevErrorRoll = mPrevErrorYaw = mPrevErrorHeight = 0.1;
     mErrorIntegralPitch = mErrorIntegralRoll = mErrorIntegralYaw = mErrorIntegralHeight = 0.1;
 
@@ -179,25 +187,15 @@ void FlightController::slotComputeMotionCommands()
         mPrevErrorYaw = errorYaw;
         mPrevErrorHeight = errorHeight;
 
-        MotionCommand mc;
+        const MotionCommand mc(outputThrust, outputYaw, outputPitch, outputRoll);
 
-        mc.thrust = (quint8)qBound(100.0f, outputThrust, 140.0f);
-        // A yaw of 15 rotates by about 15 degrees per second.
-        mc.yaw = (qint8)qBound(-25.0, outputYaw > 0.0f ? ceil(outputYaw) : floor(outputYaw), 25.0);
-        // 20 seems a good pitch/roll-value in production, but lets limit to 10 for testing
-        mc.pitch = (qint8)qBound(-10.0f, outputPitch, 10.0f);
-        mc.roll = (qint8)qBound(-10.0f, outputRoll, 10.0f);
+        qDebug() << t() << "FlightController::slotComputeMotionCommands():" << mc;
+        emit flightControllerValues(mc, mLastKnownVehiclePose, mWayPoints.first());
 
-        // For safety, we don't need it right now.
-        mc.roll = 0;
-
-        qDebug() << t() << "FlightController::slotComputeMotionCommands(): thrust:" << mc.thrust << "yaw:" << mc.yaw << "pitch:" << mc.pitch << "roll:" << mc.roll;
-
-        emit motion(mc);
-        //emit debugValues(mLastKnownVehiclePose, mc);
+        logFlightControllerValues(mc);
 
         // See whether we've reached the waypoint
-        if(mLastKnownVehiclePose.getPosition().distanceToLine(nextWayPoint, QVector3D()) < 1.00f) // close to wp
+        if(mLastKnownVehiclePose.getPosition().distanceToLine(nextWayPoint, QVector3D()) < 0.40f) // close to wp
         {
             nextWayPointReached();
         }
@@ -214,6 +212,21 @@ void FlightController::slotComputeMotionCommands()
     mTimeOfLastControllerUpdate = QTime::currentTime();
 }
 
+void FlightController::logFlightControllerValues(const MotionCommand &mc)
+{
+    if(mLogFile)
+    {
+        QTextStream out(mLogFile);
+        out
+                << mLastKnownVehiclePose.timestamp
+                << " lastknownpose: " << mLastKnownVehiclePose.toStringVerbose()
+                << " nextwpt: " << mWayPoints.first()
+                << " mc: " << mc.toString()
+                << " clamped: " << mc.clampedToSafeLimits().toString()
+                << std::endl;
+    }
+}
+
 void FlightController::slotCalibrateImu()
 {
     mImuOffsets.pitch = mLastKnownVehiclePose.getPitchDegrees();
@@ -228,7 +241,7 @@ void FlightController::nextWayPointReached()
     // The next waypoint has been reached.
     mWayPointsPassed.append(mWayPoints.takeFirst());
 
-    qDebug() << "FlightController::nextWayPointReached(): reached waypoint" << mWayPointsPassed.last();
+    qDebug() << "FlightController::nextWayPointReached(): distance" << mLastKnownVehiclePose.getPosition().distanceToLine(mWayPointsPassed.last(), QVector3D()) << " - reached waypoint" << mWayPointsPassed.last();
 
     // First emit this signal for the base to sync the list, THEN call
     // ensureSafeFlightAfterWaypointsChanged(), which might append more waypoints.

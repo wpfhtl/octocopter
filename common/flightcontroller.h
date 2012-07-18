@@ -8,7 +8,7 @@
 #include <math.h> // ceil and floor
 
 #include <common.h>
-#include "waypoint.h"
+#include "flightcontrollervalues.h"
 #include <laserscanner.h>
 #include "pose.h"
 
@@ -32,7 +32,7 @@ class FlightController : public QObject
     Q_OBJECT
 
 public:
-    FlightController();
+    FlightController(const QString& logFilePrefix = QString());
     ~FlightController();
 
     FlightState getFlightState(void) const;
@@ -41,6 +41,8 @@ public:
     // ??? static int wayPointComponentsEqual(const QVector3D &wpt1, const QVector3D &wpt2);
 
 private:
+    QFile* mLogFile;
+
     // Motion is computed whenever a new pose comes in, so we don't need a timer - except
     // when the GPS board fails to deliver useful poses, we'll need to compute safe values
     // to emit. Thus, when Poses are planned to come in every 100ms, we start this timer
@@ -78,6 +80,8 @@ private:
 //    WayPoint getLandingWayPoint() const;
     void setFlightState(FlightState);
 
+    void logFlightControllerValues(const MotionCommand&);
+
     // In the first controller iteration, we don't want to build derivatives, they'd be waaayy off and destabilize the controller
     bool mFirstControllerRun;
 
@@ -87,12 +91,8 @@ private slots:
     void slotComputeBackupMotion();
 
 signals:
-    // used to set the motor-speeds
-    void motion(const MotionCommand& motion);
-
-    void debugValues(
-        const Pose& usedPose,
-        const MotionCommand& motion);
+    // used for debugging and to set the motor-speeds
+    void flightControllerValues(const FlightControllerValues&);
 
     // emitted when a waypoint is reached
     void wayPointReached(const WayPoint&);

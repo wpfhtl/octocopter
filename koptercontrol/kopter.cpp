@@ -100,7 +100,9 @@ void Kopter::slotSetMotion(const MotionCommand& mc)
 {
     if(!mMissionStartTime.isValid()) mMissionStartTime = QTime::currentTime();
 
-    qDebug() << t() << "Kopter::slotSetMotion(): setting motion, frame:" << mStructExternControl.Frame << "thrust:" << mc.thrust << "yaw:" << mc.yaw << "pitch:" << mc.pitch << "roll:" << mc.roll;
+    const MotionCommand motionClamped = mc.clampedToSafeLimits();
+
+    qDebug() << t() << "Kopter::slotSetMotion(): setting clamped motion, frame:" << mStructExternControl.Frame << "thrust:" << motionClamped.thrust << "yaw:" << motionClamped.yaw << "pitch:" << motionClamped.pitch << "roll:" << motionClamped.roll;
 
     /*
       The kopter has different conventions, at least with default settings (which I intent to keep):
@@ -132,10 +134,10 @@ void Kopter::slotSetMotion(const MotionCommand& mc)
     if(mPendingReply == 'B') qWarning() << "Kopter::slotSetMotion(): Still waiting for a 'B', should not send right now," << mSendMessageQueue.size() << "pending commands in queue";
 
     mStructExternControl.Config = 1;
-    mStructExternControl.Nick = -mc.pitch;
-    mStructExternControl.Roll = mc.roll;
-    mStructExternControl.Gas = mc.thrust;
-    mStructExternControl.Gier = -mc.yaw;
+    mStructExternControl.Nick = -motionClamped.pitch;
+    mStructExternControl.Roll = motionClamped.roll;
+    mStructExternControl.Gas = motionClamped.thrust;
+    mStructExternControl.Gier = -motionClamped.yaw;
     mStructExternControl.Height = 0; // I don't know what this is for.
 
     send(KopterMessage(KopterMessage::Address_FC, 'b', QByteArray((const char *)&mStructExternControl, sizeof(mStructExternControl))));

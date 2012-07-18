@@ -52,6 +52,7 @@ camera
 #visualodometry
 ../common/sensorfuser
 ../common/flightcontroller
+../common/flightcontrollervalues
 ../common/sbfparser
 ../common/common
 ../common/motioncommand
@@ -73,6 +74,7 @@ camera.h
 #visualodometry.h
 ../common/sensorfuser.h
 ../common/flightcontroller.h
+../common/flightcontrollervalues.h
 ../common/sbfparser.h
 ../common/common.h
 ../common/motioncommand.h

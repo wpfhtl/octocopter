@@ -9,6 +9,10 @@ struct MotionCommand
 public:
     MotionCommand(const quint8 thrust = 0, const qint8 yaw = 0, const qint8 pitch = 0, const qint8 roll = 0);
 
+    MotionCommand clampedToSafeLimits();
+
+    QString toString() const;
+
     quint8 thrust;
     qint8 yaw;
     qint8 pitch;

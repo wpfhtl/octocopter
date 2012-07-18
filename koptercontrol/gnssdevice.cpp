@@ -515,113 +515,6 @@ void GnssDevice::slotDataReadyOnUsb()
             return;
         }
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-    if(mWaitingForCommandReply)
-    {
-        // If the receiver replies to "exeSbfOnce" commands, process that data immediately. It might be receivertime, which is time-crucial.
-        if(mReceiveBufferUsb.left(2) == QString("$@").toAscii())
-        {
-            qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): device sent SBF while we're waiting for a reply, processing" << mReceiveBufferUsb.size() << "SBF bytes.";
-
-            while(mSbfParser->getNextValidPacketInfo(mReceiveBufferUsb))
-                  mSbfParser->processNextValidPacket(mReceiveBufferUsb);
-
-            // Its quite possible that AFTER the SBF-data, there was the exeSBFOnce command reply. If so, this reply
-            // is still in the buffer and needs to be processed. Luckily, this is done in the while-loop below.
-        }
-
-        // If we find a complete chat reply, process it!
-        if(mWaitingForCommandReply && mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QString(">")) != -1)
-        {
-            const int positionEndOfReply = mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QString(">")) + 5;
-            qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): received reply to:" << mLastCommandToDeviceUsb.trimmed() << ":" << mReceiveBufferUsb.size() << "bytes:" << mReceiveBufferUsb.left(positionEndOfReply).trimmed();
-
-            QTextStream commandLog(mLogFileCmd);
-            commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << " DEV -> HOST: " << mReceiveBufferUsb.left(positionEndOfReply).trimmed() << endl;
-            commandLog << endl << "################################################################################" << endl << endl << endl << endl;
-
-            if(mReceiveBufferUsb.left(positionEndOfReply).contains("$R? ASCII commands between prompts were discarded!"))
-                qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): we were talking too fast!!";
-
-            if(mReceiveBufferUsb.left(positionEndOfReply).contains("shutdown"))
-            {
-                emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Orderly shutdown finished");
-                qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): shutdown confirmed by device, quitting.";
-                QCoreApplication::quit();
-            }
-
-            mReceiveBufferUsb.remove(0, positionEndOfReply);
-            mWaitingForCommandReply = false;
-
-            //qDebug() << "GnssDevice::slotDataReadyOnUsb(): after parsing all input i will send next command, if any";
-            slotFlushCommandQueue();
-        }
-
-        // Make sure we have processed all available chat replies. It is impossible that there are
-        // others, as we only give command one by one, waiting for replies before sending the next.
-        Q_ASSERT(mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QString(">")) == -1 && "There is another chat reply!");
-
-        if(mReceiveBufferUsb.size())
-        {
-            qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): after parsing all input, rx-buffer still contains:" << mReceiveBufferUsb;
-        }        
-    }
-    else
-    {
-        // We're receiving from the device, and it is not a reply to some request we sent ourselves. Thus, the device is
-        // talking to us on its own, which only happens after initializing it
-//        mDeviceIsReadyToReceiveDiffCorr = true;
-
-        // We're not waiting for a reply to a command, this must be SBF data!
-//        qDebug() << "GnssDevice::slotDataReadyOnUsb(): received" << mReceiveBufferUsb.size() << "bytes of SBF data, processing...";
-
-        while(mSbfParser->getNextValidPacketInfo(mReceiveBufferUsb))
-              mSbfParser->processNextValidPacket(mReceiveBufferUsb);
-    }
-
-    */
 }
 
 void GnssDevice::slotSetRtkData(const QByteArray &data)
@@ -630,7 +523,7 @@ void GnssDevice::slotSetRtkData(const QByteArray &data)
     {
         // simply write the RTK data into the com-port
         mRtkDataCounter += data.size();
-        //qDebug() << "GnssDevice::slotSetRtkData(): forwarding" << data.size() << "bytes of rtk-data to gps device, total is" << mRtkDataCounter;
+//        qDebug() << "GnssDevice::slotSetRtkData(): forwarding" << data.size() << "bytes of rtk-data to gps device, total is" << mRtkDataCounter;
         mSerialPortCom->write(data);
 //        emit message(
 //                Information,

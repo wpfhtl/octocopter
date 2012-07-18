@@ -4,7 +4,7 @@
 #include <iostream>
 #include <fstream>
 
-LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeScannerPose, QString logFilePrefix) : QObject(), mRelativeScannerPose(relativeScannerPose)
+LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeScannerPose, const QString& logFilePrefix) : QObject(), mRelativeScannerPose(relativeScannerPose)
 {
     qDebug() << "LaserScanner::LaserScanner(): initializing laserscanner";
 

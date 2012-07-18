@@ -131,7 +131,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     connect(mLaserScanner, SIGNAL(heightOverGround(float)), mFlightController, SLOT(slotSetHeightOverGround(float)));
     connect(mBaseConnection, SIGNAL(enableScanning(const bool&)), mLaserScanner, SLOT(slotEnableScanning(const bool&)));
-//    connect(mBaseConnection, SIGNAL(rtkDataReady(const QByteArray&)), mGnssDevice, SLOT(slotSetRtkData(const QByteArray&)));
+    connect(mBaseConnection, SIGNAL(rtkDataReady(const QByteArray&)), mGnssDevice, SLOT(slotSetRtkData(const QByteArray&)));
     connect(mBaseConnection, SIGNAL(wayPointInsert(quint16, WayPoint)), mFlightController, SLOT(slotWayPointInsert(quint16, WayPoint)));
     connect(mBaseConnection, SIGNAL(wayPointDelete(quint16)), mFlightController, SLOT(slotWayPointDelete(quint16)));
     connect(mBaseConnection, SIGNAL(wayPoints(QList<WayPoint>)), mFlightController, SLOT(slotSetWayPoints(QList<WayPoint>)));
@@ -139,7 +139,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mBaseConnection, SIGNAL(newConnection()), mFlightController, SLOT(slotEmitFlightState()));
 
     //    WARNING! THIS ENABLES MOTION!
-    connect(mFlightController, SIGNAL(motion(MotionCommand)), mKopter, SLOT(slotSetMotion(MotionCommand)));
+    connect(mFlightController, SIGNAL(flightControllerValues(MotionCommand,Pose,WayPoint)), mKopter, SLOT(slotSetMotion(MotionCommand)));
 
     connect(mGnssDevice->getSbfParser(), SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mGnssDevice, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
