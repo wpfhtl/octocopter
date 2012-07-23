@@ -129,7 +129,7 @@ quint8 GnssDevice::slotFlushCommandQueue()
     {
         mLastCommandToDeviceUsb = mCommandQueueUsb.takeFirst();
         qDebug() << t() << "GnssDevice::slotFlushCommandQueue(): no pending replies, sending next command:" << mLastCommandToDeviceUsb.trimmed();
-        if(mReceiveBufferUsb.size()) qDebug() << t() << "GnssDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << mSbfParser->readable(mReceiveBufferUsb);
+        if(mReceiveBufferUsb.size()) qDebug() << t() << "GnssDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << SbfParser::readable(mReceiveBufferUsb);
         //usleep(100000);
         mSerialPortUsb->write(mLastCommandToDeviceUsb);
         mWaitingForCommandReply = true;
@@ -206,7 +206,8 @@ void GnssDevice::slotDetermineSerialPortsOnDevice()
         }
         else
         {
-            qWarning() << "GnssDevice::determineSerialPortOnDevice(): couldn't get serialUsbPortOnDevice," << dataUsb.size() << "bytes of data are:" << dataUsb.simplified();
+            qWarning() << "GnssDevice::determineSerialPortOnDevice(): couldn't get serialUsbPortOnDevice," << dataUsb.size() << "bytes of data are:" << SbfParser::readable(dataUsb);
+            qFatal("aborting.");
             emit message(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Couldn't get serialUsbPortOnDevice");
         }
 
@@ -511,7 +512,7 @@ void GnssDevice::slotDataReadyOnUsb()
         else
         {
             // There is no valid packet in the buffer. Check whether its a coming packet
-//            qDebug() << "GnssDevice::slotDataReadyOnUsb():" << mReceiveBufferUsb.size() << "bytes left after parsing, but this is no valid packet yet:" << mSbfParser->readable(mReceiveBufferUsb);
+//            qDebug() << "GnssDevice::slotDataReadyOnUsb():" << mReceiveBufferUsb.size() << "bytes left after parsing, but this is no valid packet yet:" << SbfParser::readable(mReceiveBufferUsb);
             return;
         }
     }

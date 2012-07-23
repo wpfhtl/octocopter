@@ -124,7 +124,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mKopter, SIGNAL(kopterStatus(quint32, qint16, float)), mBaseConnection, SLOT(slotNewVehicleStatus(quint32, qint16, float)));
-    connect(mKopter, SIGNAL(flightStateSwitchValueChanged(bool)), mFlightController, SLOT(slotFlightStateSwitchValueChanged(bool)));
+    connect(mKopter, SIGNAL(flightStateSwitchValueChanged(FlightStateSwitch)), mFlightController, SLOT(slotFlightStateSwitchValueChanged(FlightStateSwitch)));
     connect(mKopter, SIGNAL(calibrationSwitchToggled()), mFlightController, SLOT(slotCalibrateImu()));
 
 //  for testing: connect(mKopter, SIGNAL(calibrationSwitchToggled()), mGnssDevice, SLOT(slotTogglePoseFrequencyForTesting()));
@@ -135,7 +135,6 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mBaseConnection, SIGNAL(wayPointInsert(quint16, WayPoint)), mFlightController, SLOT(slotWayPointInsert(quint16, WayPoint)));
     connect(mBaseConnection, SIGNAL(wayPointDelete(quint16)), mFlightController, SLOT(slotWayPointDelete(quint16)));
     connect(mBaseConnection, SIGNAL(wayPoints(QList<WayPoint>)), mFlightController, SLOT(slotSetWayPoints(QList<WayPoint>)));
-    connect(mBaseConnection, SIGNAL(holdPosition()), mFlightController, SLOT(slotHoldPosition()));
     connect(mBaseConnection, SIGNAL(newConnection()), mFlightController, SLOT(slotEmitFlightState()));
 
     connect(mGnssDevice->getSbfParser(), SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));

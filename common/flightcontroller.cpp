@@ -354,6 +354,7 @@ void FlightController::slotNewVehiclePose(const Pose& pose)
 
     case Hover:
         Q_ASSERT(mBackupTimerComputeMotion->interval() == backupTimerIntervalSlow && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): Hover has inactive backup timer or wrong interval!");
+        we should also compute motion commands for hovering here!
         break;
 
     case Idle:
@@ -364,11 +365,6 @@ void FlightController::slotNewVehiclePose(const Pose& pose)
         Q_ASSERT(false && "illegal flightstate in FlightController::slotNewVehiclePose()!");
     }
 
-}
-
-void FlightController::slotHoldPosition()
-{
-    setFlightState(Hover);
 }
 
 void FlightController::setFlightState(FlightState newFlightState)
@@ -399,6 +395,10 @@ void FlightController::setFlightState(FlightState newFlightState)
 
         mFirstControllerRun = true;
         mBackupTimerComputeMotion->start(backupTimerIntervalFast);
+
+        // Make sure there actually ARE waypoints. If not, create some for landing.
+        ensureSafeFlightAfterWaypointsChanged();
+
         break;
 
     case Hover:
@@ -407,6 +407,7 @@ void FlightController::setFlightState(FlightState newFlightState)
         break;
 
     case UserControl:
+        // We don't need the timer, as the remote control will overrule our output anyway.
         qDebug() << t() << "FlightController::setFlightState(): disabling backup motion timer.";
         mBackupTimerComputeMotion->stop();
         break;
@@ -481,76 +482,97 @@ void FlightController::ensureSafeFlightAfterWaypointsChanged()
     }
 }
 
-void FlightController::slotFlightStateSwitchValueChanged(bool computerControl)
+void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch& fssv)
 {
-    qDebug() << t() << "FlightController::slotFlightStateSwitchValueChanged(): flightstate" << getFlightStateString(mFlightState) << "computer control changed to:" << computerControl;
+    // This method does nothing more than some sanity checks and verbose flightstae switching.
+
+    qDebug() << t() << "FlightController::slotFlightStateSwitchValueChanged(): flightstate" << getFlightStateString(mFlightState) << "FlightStateSwitch changed to:" << fssv.toString();
 
     switch(mFlightState)
     {
     case UserControl:
-        if(computerControl)
+        switch(fssv.value)
         {
-            // We are in UserControl, but switching to ComputerControl.
-            setFlightState(ApproachWayPoint);
-
-            // Make sure there actually ARE waypoints. If not, create some for landing.
-            ensureSafeFlightAfterWaypointsChanged();
-        }
-        else
-        {
+        case FlightStateSwitch::UserControl:
             // This is an illegal state: We are already in UserControl, and now we're
             // told that the user has disabled computerControl. Thats impossible.
-            Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in UserControl and now computercontrol was disabled?!");
+            Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in UserControl and now user switched to UserControl. Error.");
+            break;
+        case FlightStateSwitch::Hover:
+            setFlightState(Hover);
+            break;
+        case FlightStateSwitch::ApproachWayPoint:
+            // We are in UserControl, but switching to ComputerControl.
+            setFlightState(ApproachWayPoint);
+            break;
+        default:
+            Q_ASSERT("FlightController::slotFlightStateSwitchValueChanged(): Undefined FlightStateSwitchValue!");
+            break;
         }
         break;
+
     case ApproachWayPoint:
-        if(computerControl)
+        switch(fssv.value)
         {
-            // We are approaching waypoints, and now the user changed to ComputerControl?
-            // Thats impossible, because we are already in ComputerControl (ApproachWayPoint)
-            Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in ApproachWayPoint and now computercontrol was enabled?!");
-        }
-        else
-        {
+        case FlightStateSwitch::UserControl:
             // We are approaching waypoints, but the user wants to take over control. Ok.
             setFlightState(UserControl);
-
-            // We don't need the timer, as the remote control will overrule our output anyway.
-            mBackupTimerComputeMotion->stop();
+            break;
+        case FlightStateSwitch::Hover:
+            setFlightState(Hover);
+            break;
+        case FlightStateSwitch::ApproachWayPoint:
+            // We are approaching waypoints, and now the user changed to ComputerControl?
+            // Thats impossible, because we are already in ComputerControl (ApproachWayPoint)
+            Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in ApproachWayPoint and now user switched to ApproachWayPoint. Error.");
+            break;
+        default:
+            Q_ASSERT("FlightController::slotFlightStateSwitchValueChanged(): Undefined FlightStateSwitchValue!");
+            break;
         }
         break;
+
     case Hover:
-        if(computerControl)
+        switch(fssv.value)
         {
-            // We are in Hover, and now the user changed to ComputerControl?
-            // Thats impossible, because we are already in ComputerControl (Hover)
-            Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in Hover and now computercontrol was enabled?!");
-        }
-        else
-        {
-            // We are hovering, but the user wants to take over control. Ok.
+        case FlightStateSwitch::UserControl:
+            // We are approaching waypoints, but the user wants to take over control. Ok.
             setFlightState(UserControl);
-
-            // We don't need the timer, as the remote control will overrule our output anyway.
-            mBackupTimerComputeMotion->stop();
+            break;
+        case FlightStateSwitch::Hover:
+            Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in Hover and now user switched to Hover. Error.");
+            break;
+        case FlightStateSwitch::ApproachWayPoint:
+            setFlightState(ApproachWayPoint);
+            break;
+        default:
+            Q_ASSERT("FlightController::slotFlightStateSwitchValueChanged(): Undefined FlightStateSwitchValue!");
+            break;
         }
         break;
+
     case Idle:
-        if(computerControl)
+        switch(fssv.value)
         {
-            // We are Idle, and now the user changed to ComputerControl?
-            // Thats impossible, because we are already in ComputerControl (Idle)
-            Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in Idle and now computercontrol was enabled?!");
-        }
-        else
-        {
-            // We are Idle, but the user wants to take over control. Ok.
+        case FlightStateSwitch::UserControl:
+            // We are idling, but the user wants to take over control. Ok.
             setFlightState(UserControl);
-
-            // We don't need the timer, as the remote control will overrule our output anyway.
-            mBackupTimerComputeMotion->stop();
+            break;
+        case FlightStateSwitch::Hover:
+            // We are idling, but the user wants us to hover. Hovering on the ground is not healthy!
+            qDebug() << "FlightController::slotFlightStateSwitchValueChanged(): going from idle to hover, this doesn't seem like a good idea, as the current height will be kept.";
+            setFlightState(Hover);
+            break;
+        case FlightStateSwitch::ApproachWayPoint:
+            // We are in UserControl, but switching to ComputerControl.
+            setFlightState(ApproachWayPoint);
+            break;
+        default:
+            Q_ASSERT("FlightController::slotFlightStateSwitchValueChanged(): Undefined FlightStateSwitchValue!");
+            break;
         }
         break;
+
     default:
         Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): illegal flightstate!");
     }

@@ -56,10 +56,6 @@ signals:
     void wayPointDelete(const quint16& index);
     void wayPoints(const QList<WayPoint>& wayPoints);
 
-    // emitted when the basestation wants the kopter to freeze in mid-air
-    // (i.e. hold the position, not stop the motors)
-    void holdPosition();
-
     // emitted when the basestation wants to send direct ExternalControl motion commands,
     // which is only used for testing.
     void motion(const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height);

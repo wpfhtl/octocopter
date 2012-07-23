@@ -12,7 +12,7 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     mSerialPortFlightCtrl->setStopBits(AbstractSerial::StopBits1);
     mSerialPortFlightCtrl->setFlowControl(AbstractSerial::FlowControlOff);
 
-    mExternalControlActive = false;
+    mLastFlightStateSwitch.value = FlightStateSwitch::UserControl;
     mLastCalibrationSwitchValue = CalibrationSwitchUndefined;
     mStructExternControl.Frame = 0;
 
@@ -291,21 +291,15 @@ void Kopter::slotSerialPortDataReady()
                 // ppmChannels[8] is SW4PB8 / Calibration. -122 and 127 are the two states it can reach.
 
                 qDebug() << "Kopter::slotSerialPortDataReady(): remote control limits thrust to" << ppmChannels->thrust + 127;
-                qDebug() << "Kopter::slotSerialPortDataReady(): flightstate switch" << ppmChannels->externalControl;
 
-                FlightStateSwitchValue fssv;
-                if(ppmChannels->externalControl < -120)
-                    fssv = FlightStateSwitchUserControl;
-                else if(ppmChannels->externalControl > -60 && ppmChannels->externalControl < 60)
-                    fssv = FlightStateSwitchHover;
-                else
-                    fssv = FlightStateSwitchApproachWayPoint;
+                FlightStateSwitch fssv(ppmChannels->externalControl);
+                qDebug() << "Kopter::slotSerialPortDataReady(): flightstate switch" << ppmChannels->externalControl << "is state:" << fssv.toString();
 
-                if(mLastFlightStateSwitchValue != fssv)
+                if(mLastFlightStateSwitch != fssv)
                 {
-                    mLastFlightStateSwitchValue = fssv;
-                    qDebug() << "Kopter::slotSerialPortDataReady(): flighstate switch changed to" << fssv;
-                    emit flightStateSwitchValueChanged(mLastFlightStateSwitchValue);
+                    mLastFlightStateSwitch = fssv;
+                    qDebug() << "Kopter::slotSerialPortDataReady(): flighstate switch changed to" << fssv.toString();
+                    emit flightStateSwitchValueChanged(mLastFlightStateSwitch);
                 }
 
                 if(ppmChannels->calibration > 0 != (mLastCalibrationSwitchValue == CalibrationSwitchHigh) && mLastCalibrationSwitchValue != CalibrationSwitchUndefined)

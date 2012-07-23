@@ -123,15 +123,13 @@ public slots:
     void slotCalibrateImu();
 
     // This signal comes from Kopter (the MK's serial connection), and we use it only to derive the flightstate from the RemoteControl's flightstate-switch
-    void slotFlightStateSwitchValueChanged(FlightStateSwitchValue externalControl);
+    void slotFlightStateSwitchValueChanged(const FlightStateSwitch& fssv);
 
     // Called regularly by our parent, we compute the motion commands then and emit motion(...).
     void slotComputeMotionCommands();
 
     // Called by LaserScanner to set the last known distance of the ray pointing down in vehicle frame
     void slotSetHeightOverGround(const float&);
-
-    void slotHoldPosition();
 };
 
 #endif

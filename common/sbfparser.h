@@ -250,7 +250,7 @@ public:
     ~SbfParser();
 
     // just for debugging
-    QString readable(const QByteArray& bytes);
+    static QString readable(const QByteArray& bytes);
 
     // This method analyzes @sbfData, looking for the next valid SBF packet. A packet is valid when
     // its checksum is correct. If it finds a valid packet, it writes the offset from the beginning of
