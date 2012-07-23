@@ -481,9 +481,9 @@ void FlightController::ensureSafeFlightAfterWaypointsChanged()
     }
 }
 
-void FlightController::slotComputerControlStatusChanged(bool computerControl)
+void FlightController::slotFlightStateSwitchValueChanged(bool computerControl)
 {
-    qDebug() << t() << "FlightController::slotComputerControlStatusChanged(): flightstate" << getFlightStateString(mFlightState) << "computer control changed to:" << computerControl;
+    qDebug() << t() << "FlightController::slotFlightStateSwitchValueChanged(): flightstate" << getFlightStateString(mFlightState) << "computer control changed to:" << computerControl;
 
     switch(mFlightState)
     {
@@ -500,7 +500,7 @@ void FlightController::slotComputerControlStatusChanged(bool computerControl)
         {
             // This is an illegal state: We are already in UserControl, and now we're
             // told that the user has disabled computerControl. Thats impossible.
-            Q_ASSERT(false && "FlightController::slotComputerControlStatusChanged(): we're in UserControl and now computercontrol was disabled?!");
+            Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in UserControl and now computercontrol was disabled?!");
         }
         break;
     case ApproachWayPoint:
@@ -508,7 +508,7 @@ void FlightController::slotComputerControlStatusChanged(bool computerControl)
         {
             // We are approaching waypoints, and now the user changed to ComputerControl?
             // Thats impossible, because we are already in ComputerControl (ApproachWayPoint)
-            Q_ASSERT(false && "FlightController::slotComputerControlStatusChanged(): we're in ApproachWayPoint and now computercontrol was enabled?!");
+            Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in ApproachWayPoint and now computercontrol was enabled?!");
         }
         else
         {
@@ -524,7 +524,7 @@ void FlightController::slotComputerControlStatusChanged(bool computerControl)
         {
             // We are in Hover, and now the user changed to ComputerControl?
             // Thats impossible, because we are already in ComputerControl (Hover)
-            Q_ASSERT(false && "FlightController::slotComputerControlStatusChanged(): we're in Hover and now computercontrol was enabled?!");
+            Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in Hover and now computercontrol was enabled?!");
         }
         else
         {
@@ -540,7 +540,7 @@ void FlightController::slotComputerControlStatusChanged(bool computerControl)
         {
             // We are Idle, and now the user changed to ComputerControl?
             // Thats impossible, because we are already in ComputerControl (Idle)
-            Q_ASSERT(false && "FlightController::slotComputerControlStatusChanged(): we're in Idle and now computercontrol was enabled?!");
+            Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in Idle and now computercontrol was enabled?!");
         }
         else
         {
@@ -552,10 +552,10 @@ void FlightController::slotComputerControlStatusChanged(bool computerControl)
         }
         break;
     default:
-        Q_ASSERT(false && "FlightController::slotComputerControlStatusChanged(): illegal flightstate!");
+        Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): illegal flightstate!");
     }
 
-    qDebug() << t() << "FlightController::slotComputerControlStatusChanged(): done, new flightstate" << getFlightStateString(mFlightState);
+    qDebug() << t() << "FlightController::slotFlightStateSwitchValueChanged(): done, new flightstate" << getFlightStateString(mFlightState);
 }
 
 void FlightController::slotEmitFlightState()

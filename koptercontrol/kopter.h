@@ -43,7 +43,9 @@ class Kopter : public QObject
         ppmChannels[4] is Yaw: 96 is max (left on R/C), -90 is min (right on R/C). Positive yaws positive on the Y axis
         ppmChannels[5] is SW3 / MotorSafety. -122 is disabled (motors can be toggled), 127 is enabled (motor switching blocked)
         ppmChannels[6] is CTRL7. -122 is disabled (motors can be toggled), 127 is enabled (motor switching blocked)
-        ppmChannels[7] is SW1 / ExternalControl. -122 is disabled, 127 is enabled
+        ppmChannels[7] is SW6/7 / ExternalControl, 3-State-Switch. Set to non-linear in remote-control, so that only the first
+                          state is below 127 (ExternControl disabled), while state 2 and 3 are above, enabling ExternalControl.
+                          Values in KopterTool: 0 (towards user)/154(center)/254(away from user), in code we read -127, X and 127.
         ppmChannels[8] is SW4PB8 / Calibration. -122 and 127 are the two states it can reach.
     */
     struct PpmChannels
@@ -81,7 +83,7 @@ class Kopter : public QObject
         DebugOut() {}
     };
 
-    enum CalibrationSwitch
+    enum CalibrationSwitchValue
     {
         CalibrationSwitchUndefined,
         CalibrationSwitchHigh,
@@ -123,8 +125,8 @@ private:
     QTime mMissionStartTime;
     QTimer* mTimerPpmChannelPublisher;
 
-    bool mExternalControlActive;
-    CalibrationSwitch mLastCalibrationSwitchValue;
+    FlightStateSwitchValue mLastFlightStateSwitchValue;
+    CalibrationSwitchValue mLastCalibrationSwitchValue;
 
     void send(const KopterMessage& message);
 
@@ -148,7 +150,7 @@ signals:
     void kopterStatus(const quint32 missionRunTimeMsecs, const qint16& baroheight, const float& voltage);
     //void ppmChannelValues(PpmChannels);
     // Mikrokopter calls control from non-remote-control sources "ExternalControl". This reflects SW1 on the RC.
-    void computerControlStatusChanged(bool);
+    void flightStateSwitchValueChanged(FlightStateSwitchValue);
     void calibrationSwitchToggled();
 //    void externControlReplyReceived();
 

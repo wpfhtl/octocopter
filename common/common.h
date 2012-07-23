@@ -41,9 +41,17 @@ QString t();
 enum FlightState
 {
     UserControl,
-    ApproachWayPoint,
     Hover,
+    ApproachWayPoint,
     Idle
+};
+
+
+enum FlightStateSwitchValue
+{
+    FlightStateSwitchUserControl,       // ~-127
+    FlightStateSwitchHover,             // ~0
+    FlightStateSwitchApproachWayPoint   // ~+127
 };
 
 QString getFlightStateString(const FlightState);

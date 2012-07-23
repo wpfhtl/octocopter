@@ -106,7 +106,7 @@ signals:
     void currentWayPoints(QList<WayPoint>);
 
     // log/status messages
-    void message(const QString&, const LogImportance& importance, const QString& message);
+    void message(const LogImportance& importance, const QString&, const QString& message);
 
 public slots:
     void slotNewVehiclePose(const Pose&);
@@ -122,8 +122,8 @@ public slots:
     // FlightController then saves the currently read IMU values as offsets. Easy, huh?
     void slotCalibrateImu();
 
-    // This signal comes from Kopter (the MK's serial connection), and we use it only to derive the flightstate from the RemoteControl's externalControl-switch
-    void slotComputerControlStatusChanged(bool externalControl);
+    // This signal comes from Kopter (the MK's serial connection), and we use it only to derive the flightstate from the RemoteControl's flightstate-switch
+    void slotFlightStateSwitchValueChanged(FlightStateSwitchValue externalControl);
 
     // Called regularly by our parent, we compute the motion commands then and emit motion(...).
     void slotComputeMotionCommands();

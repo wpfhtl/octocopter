@@ -291,12 +291,21 @@ void Kopter::slotSerialPortDataReady()
                 // ppmChannels[8] is SW4PB8 / Calibration. -122 and 127 are the two states it can reach.
 
                 qDebug() << "Kopter::slotSerialPortDataReady(): remote control limits thrust to" << ppmChannels->thrust + 127;
+                qDebug() << "Kopter::slotSerialPortDataReady(): flightstate switch" << ppmChannels->externalControl;
 
-                if(ppmChannels->externalControl > 0 != mExternalControlActive)
+                FlightStateSwitchValue fssv;
+                if(ppmChannels->externalControl < -120)
+                    fssv = FlightStateSwitchUserControl;
+                else if(ppmChannels->externalControl > -60 && ppmChannels->externalControl < 60)
+                    fssv = FlightStateSwitchHover;
+                else
+                    fssv = FlightStateSwitchApproachWayPoint;
+
+                if(mLastFlightStateSwitchValue != fssv)
                 {
-                    mExternalControlActive = ppmChannels->externalControl > 0;
-                    qDebug() << "Kopter::slotSerialPortDataReady(): externalControlActive:" << mExternalControlActive << "ppm[7]:" << ppmChannels->externalControl;
-                    emit computerControlStatusChanged(mExternalControlActive);
+                    mLastFlightStateSwitchValue = fssv;
+                    qDebug() << "Kopter::slotSerialPortDataReady(): flighstate switch changed to" << fssv;
+                    emit flightStateSwitchValueChanged(mLastFlightStateSwitchValue);
                 }
 
                 if(ppmChannels->calibration > 0 != (mLastCalibrationSwitchValue == CalibrationSwitchHigh) && mLastCalibrationSwitchValue != CalibrationSwitchUndefined)
