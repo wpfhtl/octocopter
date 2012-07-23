@@ -17,6 +17,9 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject(), mF
     mTimeOfLastControllerUpdate = QTime::currentTime();
     mFirstControllerRun = true;
 
+    mLastKnownVehiclePose = Pose();
+    qDebug() << "FlightController::FlightController(): setting pose to identity, transform is" << mLastKnownVehiclePose.getPosition();
+
     mBackupTimerComputeMotion = new QTimer(this);
     connect(mBackupTimerComputeMotion, SIGNAL(timeout()), SLOT(slotComputeBackupMotion()));
 
@@ -60,12 +63,12 @@ void FlightController::slotComputeMotionCommands()
 
     case Hover:
         qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState: Hover, emitting hover-thrust";
-        emit motion(MotionCommand(MotionCommand::thrustHover));
+        emit motion(MotionCommand(MotionCommand::thrustHover, 0, 0, 0));
         break;
 
     case Idle:
         qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState: Idle, emitting idle-thrust.";
-        emit motion(MotionCommand(90));
+        emit motion(MotionCommand((quint8)90, 0, 0, 0));
         break;
 
     case ApproachWayPoint:
@@ -73,14 +76,14 @@ void FlightController::slotComputeMotionCommands()
         if(mWayPoints.size() < 1)
         {
             qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState: ApproachWayPoint: Cannot approach, no waypoints present!";
-            emit motion(MotionCommand(MotionCommand::thrustHover));
+            emit motion(MotionCommand(MotionCommand::thrustHover, 0, 0, 0));
             return;
         }
 
         if(getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp > 82)
         {
             qDebug() << t() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, vehicle pose update is from" << mLastKnownVehiclePose.timestamp << "and now its" << getCurrentGpsTowTime() << " - this is pretty old!?";
-            emit motion(MotionCommand(MotionCommand::thrustHover));
+            emit motion(MotionCommand(MotionCommand::thrustHover, 0, 0, 0));
             return;
         }
 
@@ -127,6 +130,7 @@ void FlightController::slotComputeMotionCommands()
         // adjust pitch/roll to reach target, maximum pitch is -20 degrees (forward)
         float desiredRoll = 0.0f;
         float desiredPitch = -pow(20.0f - qBound(0.0, fabs(errorYaw), 20.0), 2.0f) / 20.0f;
+        desiredPitch *= factorPlanarDistance;
 
         // try to get ourselves straight up
         const float currentPitch = mLastKnownVehiclePose.getPitchDegrees() - mImuOffsets.pitch;
@@ -169,7 +173,7 @@ void FlightController::slotComputeMotionCommands()
         }
 
         const float derivativeHeight = mFirstControllerRun ? 0.0f : (errorHeight - mPrevErrorHeight + 0.00001f)/timeDiff;
-        const float outputThrust = MotionCommand::thrustHover + (25.0f * errorHeight) + (0.01f * mErrorIntegralHeight) + (1.0f * derivativeHeight);
+        const float outputThrust = MotionCommand::thrustHover + (25.0f * errorHeight) + (0.001f * mErrorIntegralHeight) + (1.0f * derivativeHeight);
 
         qDebug() << mWayPoints.size() << "waypoints, next wpt height" << nextWayPoint.y() << "curr height" << mLastKnownVehiclePose.getPosition().y();
 

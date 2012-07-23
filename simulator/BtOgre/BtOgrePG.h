@@ -49,16 +49,27 @@ class RigidBodyState : public QObject, public btMotionState
             mTransform = in;
             btTransform transform = in * mCenterOfMassOffset;
 
-            btQuaternion rot = transform.getRotation();
-            btVector3 pos = transform.getOrigin();
+            btQuaternion rotBt = transform.getRotation();
+            btVector3 posBt = transform.getOrigin();
 
             float y,p,r=2;
             transform.getBasis().getEulerZYX(y,p,r);
 
             if(mNode)
             {
-                mNode->setOrientation(rot.w(), rot.x(), rot.y(), rot.z());
-                mNode->setPosition(pos.x(), pos.y(), pos.z());
+                Ogre::Quaternion rotO(rotBt.w(), rotBt.x(), rotBt.y(), rotBt.z());
+
+                if(rotO.isNaN())
+                    rotO = Ogre::Quaternion::IDENTITY;
+
+                mNode->setOrientation(rotO);
+
+                Ogre::Vector3 posO(posBt.x(), posBt.y(), posBt.z());
+
+                if(posO.isNaN())
+                    posO = Ogre::Vector3(0.0f, 0.0f ,0.0f);
+
+                mNode->setPosition(posO);
 
 //                float yaw, pitch, roll;
 //                transform.getBasis().getEulerZYX(yaw, pitch, roll, 2);
@@ -70,7 +81,7 @@ class RigidBodyState : public QObject, public btMotionState
                 mat.ToEulerAnglesYXZ(yaw, pitch, roll);
 
                 Pose p(
-                            QVector3D(pos.x(), pos.y(), pos.z()),
+                            QVector3D(posO.x, posO.y, posO.z),
                             //fmod(yaw.valueRadians() + Ogre::Degree(360.0).valueRadians(), 360.0*M_PI/180.0),
                             fmod(yaw.valueDegrees() + Ogre::Degree(360.0).valueDegrees(), 360.0),
                             pitch.valueDegrees(),

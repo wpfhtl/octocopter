@@ -247,8 +247,11 @@ Pose::Pose(const QVector3D &position, const float &yawDegrees, const float &pitc
 
 const QVector3D Pose::getPosition() const
 {
-    const QVector4D unitVector = QVector4D(0.0f, 0.0f, 0.0f, 1.0f);
-    return mTransform.map(unitVector).toVector3D();
+    // FIXME: testing!
+    return mTransform.column(3).toVector3D();
+
+//    const QVector4D unitVector = QVector4D(0.0f, 0.0f, 0.0f, 1.0f);
+//    return mTransform.map(unitVector).toVector3D();
 }
 
 void Pose::getEulerAnglesDegrees(float& yaw, float &pitch, float &roll) const

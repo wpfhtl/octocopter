@@ -9,7 +9,7 @@ Physics::Physics(Simulator *simulator, OgreWidget *ogreWidget) :
     mSimulator = simulator;
     mOgreWidget = ogreWidget;
 
-    mTotalVehicleWeight = 2.350;
+    mTotalVehicleWeight = 2.250;
 
     initializeWind();
 
@@ -344,7 +344,7 @@ Physics::~Physics()
 void Physics::slotSetMotion(const MotionCommand& mc)
 {
     const MotionCommand motionCommandClamped = mc.clampedToSafeLimits();
-    //qDebug() << "Physics::slotSetMotion(): updating physics forces with thrust" << motionCommandClamped.thrust << "pitch" << motionCommandClamped.pitch << "roll" << motionCommandClamped.roll << "yaw" << motionCommandClamped.yaw;
+    qDebug() << "Physics::slotSetMotion(): updating physics forces with thrust" << motionCommandClamped.thrust << "pitch" << motionCommandClamped.pitch << "roll" << motionCommandClamped.roll << "yaw" << motionCommandClamped.yaw;
 
     /*
       The MikroKopter moves in his own ways, this is how it translates the given externControls into motion:

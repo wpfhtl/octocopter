@@ -1,11 +1,27 @@
 #include "motioncommand.h"
 
+MotionCommand::MotionCommand()
+{
+    thrust = thrustHover;
+    yaw = 0;
+    pitch = 0;
+    roll = 0;
+}
+
 MotionCommand::MotionCommand(const quint8 thrust, const qint8 yaw, const qint8 pitch, const qint8 roll)
 {
     this->thrust = thrust;
     this->yaw = yaw;
     this->pitch = pitch;
     this->roll = roll;
+}
+
+MotionCommand::MotionCommand(const float thrust, const float yaw, const float pitch, const float roll)
+{
+    this->thrust = (quint8)qBound(0.0f, thrust, 255.0f);
+    this->yaw = (qint8)qBound(-127.0f, yaw, 127.0f);
+    this->pitch = (qint8)qBound(-127.0f, pitch, 127.0f);
+    this->roll = (qint8)qBound(-127.0f, roll, 127.0f);
 }
 
 MotionCommand::MotionCommand(const QString& string)

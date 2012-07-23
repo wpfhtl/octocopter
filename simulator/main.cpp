@@ -11,7 +11,6 @@
 #endif
 #include <fenv.h>
 
-
 int main(int argc, char *argv[])
 {
 //    feenableexcept(FE_INVALID  | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);

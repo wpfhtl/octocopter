@@ -566,4 +566,5 @@ void GlWidget::slotSetFlightControllerValues(const FlightControllerValues& fcv)
     }
 
     *mLastFlightControllerValues = fcv;
+    mLastFlightControllerValues->motionCommand = mLastFlightControllerValues->motionCommand.clampedToSafeLimits();
 }
