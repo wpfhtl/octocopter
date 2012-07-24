@@ -24,7 +24,7 @@
 
     - positive yaw turns CCW as seen from the top.
     - positive pitch turns CCW as seen from the right / pilot pulls up.
-    - positive roll turns CCW as seen from the back / pilot rotates left
+    - positive roll turns CCW as seen from the back / pilot rotates left wing hanging down
 
   As a pose also represents a transformation (from origin to current position and orientation,
   we need to agree that translation always comes first, then rotation.

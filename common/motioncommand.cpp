@@ -24,6 +24,14 @@ MotionCommand::MotionCommand(const float thrust, const float yaw, const float pi
     this->roll = (qint8)qBound(-127.0f, roll, 127.0f);
 }
 
+MotionCommand::MotionCommand(const quint8 thrust, const float yaw, const float pitch, const float roll)
+{
+    this->thrust = thrust;
+    this->yaw = (qint8)qBound(-127.0f, yaw, 127.0f);
+    this->pitch = (qint8)qBound(-127.0f, pitch, 127.0f);
+    this->roll = (qint8)qBound(-127.0f, roll, 127.0f);
+}
+
 MotionCommand::MotionCommand(const QString& string)
 {
     QStringList list = string.split(" ", QString::KeepEmptyParts);

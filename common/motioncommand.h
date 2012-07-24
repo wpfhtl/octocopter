@@ -22,6 +22,8 @@ public:
     // which is NOT what we want. Thus, we create a float-constructor that does the right thing.
     MotionCommand(const float thrust, const float yaw, const float pitch, const float roll);
 
+    MotionCommand(const quint8 thrust, const float yaw, const float pitch, const float roll);
+
     // Must be able to deserialize toString()
     MotionCommand(const QString& string);
 

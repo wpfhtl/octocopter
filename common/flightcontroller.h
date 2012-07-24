@@ -51,6 +51,9 @@ private:
 
     QList<WayPoint> mWayPoints, mWayPointsPassed;
 
+    // In Hover mode, this is where we want to be. Set when we enter hover-state
+    QVector3D mHoverPosition;
+
     struct ImuOffsets {
         float pitch;
         float roll;

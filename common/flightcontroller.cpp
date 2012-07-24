@@ -60,30 +60,26 @@ void FlightController::slotComputeMotionCommands()
     switch(mFlightState)
     {
 
-
-    case Hover:
-        qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState: Hover, emitting hover-thrust";
-        emit motion(MotionCommand(MotionCommand::thrustHover, 0, 0, 0));
-        break;
-
     case Idle:
+    {
         qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState: Idle, emitting idle-thrust.";
-        emit motion(MotionCommand((quint8)90, 0, 0, 0));
+        emit motion(MotionCommand((quint8)90, 0.0f, 0.0f, 0.0f));
         break;
+    }
 
     case ApproachWayPoint:
     {
         if(mWayPoints.size() < 1)
         {
             qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState: ApproachWayPoint: Cannot approach, no waypoints present!";
-            emit motion(MotionCommand(MotionCommand::thrustHover, 0, 0, 0));
+            emit motion(MotionCommand(MotionCommand::thrustHover, 0.0f, 0.0f, 0.0f));
             return;
         }
 
         if(getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp > 82)
         {
             qDebug() << t() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, vehicle pose update is from" << mLastKnownVehiclePose.timestamp << "and now its" << getCurrentGpsTowTime() << " - this is pretty old!?";
-            emit motion(MotionCommand(MotionCommand::thrustHover, 0, 0, 0));
+            emit motion(MotionCommand(MotionCommand::thrustHover, 0.0f, 0.0f, 0.0f));
             return;
         }
 
@@ -96,7 +92,7 @@ void FlightController::slotComputeMotionCommands()
         //        qDebug() << "mLastKnownVehiclePose.getPlanarPosition()" << mLastKnownVehiclePose.getPlanarPosition();
         //        qDebug() << "nextWayPoint.getPositionOnPlane():" << nextWayPoint.getPositionOnPlane();
         qDebug() << "FlightController::slotComputeMotionCommands(): LastKnownPose:" << mLastKnownVehiclePose << "NextWayPoint:" << nextWayPoint;
-        qDebug() << "directionNorthToWayPoint:" << RAD2DEG(directionNorthToWayPointRadians) << "angleToTurnToWayPoint: turn" << (angleToTurnToWayPoint < 0 ? "right" : "left") << RAD2DEG(angleToTurnToWayPoint);
+        qDebug() << "directionNorthToWayPoint:" << RAD2DEG(directionNorthToWayPointRadians) << "angleToTurnToWayPoint: turn" << (angleToTurnToWayPoint < 0.0f ? "right" : "left") << RAD2DEG(angleToTurnToWayPoint);
 
         // http://en.wikipedia.org/wiki/PID_controller, thanks Minorsky!
 
@@ -209,8 +205,48 @@ void FlightController::slotComputeMotionCommands()
         }
 
         mFirstControllerRun = false;
+        break;
     }
-    break;
+
+    case Hover:
+    {
+        qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState: Hover, emitting hover-thrust";
+
+
+        const QVector2D vectorVehicleToOrigin = -mLastKnownVehiclePose.getPlanarPosition();
+        const float directionNorthToOriginRadians = atan2(-vectorVehicleToOrigin.x(), -vectorVehicleToOrigin.y());
+
+        // We want to point exactly away from the origin, because thats probably where the user is standing. And steering is easier
+        // if the vehilce's forward arm points away from the user.
+        const float angleToTurnAwayFromOrigin = Pose::getShortestTurnRadians(-directionNorthToOriginRadians - mLastKnownVehiclePose.getYawRadians());
+
+        //        qDebug() << "mLastKnownVehiclePose.getPlanarPosition()" << mLastKnownVehiclePose.getPlanarPosition();
+        //        qDebug() << "nextWayPoint.getPositionOnPlane():" << nextWayPoint.getPositionOnPlane();
+        qDebug() << "FlightController::slotComputeMotionCommands(): LastKnownPose:" << mLastKnownVehiclePose;
+        qDebug() << "directionNorthToOrigin:" << RAD2DEG(directionNorthToOriginRadians) << "angleToTurn: turn" << (angleToTurnAwayFromOrigin < 0.0f ? "right" : "left") << RAD2DEG(angleToTurnAwayFromOrigin);
+
+        // If the planar distance to the next waypoint is very small (this happens when only the height is off),
+        // we don't want to yaw and pitch. So, we introduce a factor [0;1], which becomes 0 with small distance
+        const float factorPlanarDistance = qBound(0.0f, (float)(mLastKnownVehiclePose.getPlanarPosition() - mHoverPosition).length() * 2.0f, 1.0f);
+
+        // Elapsed time since last call in seconds. May not become zero (divide by zero)
+        // and shouldn't grow too high, as that will screw up the controllers.
+        const float timeDiff = qBound(
+                    0.01f,
+                    mTimeOfLastControllerUpdate.msecsTo(QTime::currentTime()) / 1000.0f,
+                    0.2f);
+
+        // Thats how much we want to yaw just in order to point away from the origin/user
+        const float yaw = RAD2DEG(angleToTurnAwayFromOrigin);
+
+        // A vehicle-yaw-value of 0 menas we're pointing north, 90 degrees point west. See pose.h for details.
+        const float pitch = cos(-yaw);
+        const float roll = sin(-yaw);
+
+        emit motion(MotionCommand(MotionCommand::thrustHover, yaw, pitch, roll));
+        break;
+    }
+
 
     default:
         qDebug() << t() << "FlightController::slotComputeMotionCommands(): FLIGHTSTATE NOT DEFINED:" << mFlightState;
@@ -334,7 +370,7 @@ void FlightController::slotNewVehiclePose(const Pose& pose)
     case ApproachWayPoint:
         Q_ASSERT(mBackupTimerComputeMotion->interval() == backupTimerIntervalFast && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): ApproachWayPoint has inactive backup timer or wrong interval!");
 
-        // Note that we don't expect ModeIntegrated, because only 1 of 5 packets is integrated - and thats ok.
+        // Note that we don't expect ModeIntegrated, because only 1 of 2_or_5 packets is integrated - and thats ok.
         if(pose.precision & Pose::AttitudeAvailable && pose.precision & Pose::HeadingFixed && pose.precision && Pose::RtkFixed)
         {
             qDebug() << "FlightController::slotNewVehiclePose(): received a usable:" << pose << ": computing motion.";
@@ -353,8 +389,24 @@ void FlightController::slotNewVehiclePose(const Pose& pose)
         break;
 
     case Hover:
-        Q_ASSERT(mBackupTimerComputeMotion->interval() == backupTimerIntervalSlow && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): Hover has inactive backup timer or wrong interval!");
-        we should also compute motion commands for hovering here!
+        Q_ASSERT(mBackupTimerComputeMotion->interval() == backupTimerIntervalFast && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): Hover has inactive backup timer or wrong interval!");
+
+        // Note that we don't expect ModeIntegrated, because only 1 of 2_or_5 packets is integrated - and thats ok.
+        if(pose.precision & Pose::AttitudeAvailable && pose.precision & Pose::HeadingFixed && pose.precision && Pose::RtkFixed)
+        {
+            qDebug() << "FlightController::slotNewVehiclePose(): received a usable:" << pose << ": computing motion.";
+
+            // This method was called with a new pose, so lets use it to compute motion
+            slotComputeMotionCommands();
+
+            // Re-set the safety timer, making it fire 50ms in the future - not when its scheduled, which might be sooner.
+            // So that when no new pose comes in for too long, we'll compute a backup motion.
+            mBackupTimerComputeMotion->start(backupTimerIntervalFast);
+        }
+        else
+        {
+            qDebug() << "FlightController::slotNewVehiclePose(): received a useless" << pose.toStringVerbose() << ": doing nothing.";
+        }
         break;
 
     case Idle:
@@ -402,8 +454,9 @@ void FlightController::setFlightState(FlightState newFlightState)
         break;
 
     case Hover:
-        qDebug() << t() << "FlightController::setFlightState(): setting backup motion timer to low-freq";
-        mBackupTimerComputeMotion->start(backupTimerIntervalSlow);
+        mHoverPosition = mLastKnownVehiclePose.getPosition();
+        qDebug() << t() << "FlightController::setFlightState(): going to hover, setting backup motion timer to high-freq and staying at" << mHoverPosition;
+        mBackupTimerComputeMotion->start(backupTimerIntervalFast);
         break;
 
     case UserControl:
