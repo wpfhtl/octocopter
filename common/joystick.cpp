@@ -128,10 +128,26 @@ bool Joystick::updateValues()
                     r = event.value;
                     break;
                 case 4:
-                    qDebug() << "coolie l/r!";
+                    // Case 4&5 are a hack: They switch on the correct button of the coolie-hat (=> 4 buttons)
+                    // but they switch off both when the hat returns to its center. FIXME.
+//                    qDebug() << "coolie l/r!" << event.value;
+                    if(event.value > 0) emit buttonStateChanged(6, true);
+                    else if(event.value < 0) emit buttonStateChanged(7, true);
+                    else
+                    {
+                        emit buttonStateChanged(6, false);
+                        emit buttonStateChanged(7, false);
+                    }
                     break;
                 case 5:
-                    qDebug() << "coolie u/d!";
+//                    qDebug() << "coolie u/d!" << event.value;
+                    if(event.value > 0) emit buttonStateChanged(8, true);
+                    else if(event.value < 0) emit buttonStateChanged(9, true);
+                    else
+                    {
+                        emit buttonStateChanged(8, false);
+                        emit buttonStateChanged(9, false);
+                    }
                     break;
                 }
                 break;
@@ -140,7 +156,7 @@ bool Joystick::updateValues()
                 // button pressed is 1, released 0
                 mButtons[event.number] = event.value;
                 emit buttonStateChanged(event.number, event.value == 1);
-                //            qDebug() << "button" << event.number << "is now" << (event.value == 1);
+                qDebug() << "button" << event.number << "is now" << (event.value == 1);
             break;
             }
         }

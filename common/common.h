@@ -51,6 +51,14 @@ QString getFlightStateString(const FlightState);
 class FlightStateSwitch
 {
 public:
+
+    enum FlightStateSwitchValue
+    {
+        UserControl,       // ~-129
+        Hover,             // ~22
+        ApproachWayPoint   // ~+184
+    };
+
     FlightStateSwitch()
     {
         value = UserControl;
@@ -66,12 +74,10 @@ public:
             value = ApproachWayPoint;
     }
 
-    enum FlightStateSwitchValue
+    FlightStateSwitch(const FlightStateSwitch::FlightStateSwitchValue fssw)
     {
-        UserControl,       // ~-129
-        Hover,             // ~22
-        ApproachWayPoint   // ~+184
-    };
+        value = fssw;
+    }
 
     // The actual value of the switch
     FlightStateSwitchValue value;

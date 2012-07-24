@@ -19,7 +19,7 @@ public:
     QString toString() const;
 
     MotionCommand motionCommand;
-    WayPoint nextWayPoint;
+    QVector3D targetPosition;
     Pose lastKnownPose;
     float lastKnownHeightOverGround;
 };

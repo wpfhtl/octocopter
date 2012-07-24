@@ -90,11 +90,8 @@ MotionCommand MotionCommand::clampedToSafeLimits() const
     clamped.yaw = (qint8)qBound(-50.0, yaw > 0.0f ? ceil(yaw) : floor(yaw), 50.0);
 
     // Lets limit to 10 for testing, this seems plenty
-    clamped.pitch = (qint8)qBound(-10.0f, (float)pitch, 10.0f);
-    clamped.roll = (qint8)qBound(-10.0f, (float)roll, 10.0f);
-
-    // For safety, we don't need it right now.
-    clamped.roll = 0;
+    clamped.pitch = (qint8)qBound(-5.0f, (float)pitch, 5.0f);
+    clamped.roll = (qint8)qBound(-5.0f, (float)roll, 5.0f);
 
     return clamped;
 }

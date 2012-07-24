@@ -284,25 +284,50 @@ double Simulator::getTimeFactor(void) const
 
 void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enabled)
 {
+//    qDebug() << "Simulator::slotJoystickButtonChanged(): button" << button << ":" << enabled;
     // This slot is called when pressing and releasing a button, so only act once.
     if(!enabled) return;
 
-    if(button < 4)
+    switch(button)
     {
-        if(mJoystickEnabled)
-        {
-            slotShowMessage("Disabling Joystick control, enabling FlightController.");
-            mFlightController->slotComputerControlStatusChanged(true);
-            mJoystickEnabled = false;
-        }
-        else
-        {
-            slotShowMessage("Enabling Joystick control, disabling FlightController.");
-            mFlightController->slotComputerControlStatusChanged(false);
-            mJoystickEnabled = true;
-        }
+
+    case 6:
+    {
+        // coolie->right, idle?! nothing yet.
+        break;
     }
-    else
+
+    case 7:
+    {
+        // coolie->left, Hover
+        slotShowMessage("Disabling Joystick control, setting FlightController to Hover");
+        if(mFlightController->getFlightState() != Hover)
+            mFlightController->slotFlightStateSwitchValueChanged(FlightStateSwitch(FlightStateSwitch::Hover));
+        mJoystickEnabled = false;
+        break;
+    }
+
+    case 8:
+    {
+        // coolie->down, UserControl
+        slotShowMessage("Enabling Joystick control, setting FlightController to UserControl");
+        if(mFlightController->getFlightState() != UserControl)
+            mFlightController->slotFlightStateSwitchValueChanged(FlightStateSwitch(FlightStateSwitch::UserControl));
+        mJoystickEnabled = true;
+        break;
+    }
+
+    case 9:
+    {
+        // coolie->up, ApproachWayPoint
+        slotShowMessage("Disabling Joystick control, setting FlightController to ApproachWayPoint");
+        if(mFlightController->getFlightState() != ApproachWayPoint)
+            mFlightController->slotFlightStateSwitchValueChanged(FlightStateSwitch(FlightStateSwitch::ApproachWayPoint));
+        mJoystickEnabled = false;
+        break;
+    }
+
+    default:
     {
         if(mUpdateTimer->isActive())
         {
@@ -314,6 +339,8 @@ void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enab
             slotShowMessage("Starting simulation due to Joystick request.");
             slotSimulationStart();
         }
+    }
+
     }
 }
 

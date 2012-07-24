@@ -73,6 +73,8 @@ private:
     QTime mLastKnownHeightOverGroundTimestamp;
     float mLastKnownHeightOverGround;
 
+    void initializeControllers();
+
     bool isHeightOverGroundValueRecent() const;
 
     void nextWayPointReached();

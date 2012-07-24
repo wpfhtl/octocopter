@@ -322,6 +322,8 @@ void GlWidget::paintGL()
 
         mModelThrust->slotSetModelTransform(trThrust);
         mModelThrust->render();
+
+        // TODO: render target position!
     }
 
     mModelVehicle->slotSetModelTransform(transform);
