@@ -6,9 +6,9 @@
 #include <QMatrix4x4>
 
 
-#include <assimp/assimp.hpp>
-#include <assimp/aiPostProcess.h>
-#include <assimp/aiScene.h>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+#include <assimp/Importer.hpp>
 
 
 #include "shaderprogram.h"
@@ -36,7 +36,7 @@ class Model : public QObject
 
 
     void setFloat4(float f[4], float a, float b, float c, float d) const;
-    void color4ToFloat4(const struct aiColor4D *c, float f[4]) const;
+    void color4ToFloat4(const aiColor4D *c, float f[4]) const;
 
     // Information to render each assimp node
     struct MyMesh{

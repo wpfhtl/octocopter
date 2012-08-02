@@ -150,7 +150,7 @@ void Model::setFloat4(float f[4], float a, float b, float c, float d) const
     f[3] = d;
 }
 
-void Model::color4ToFloat4(const struct aiColor4D *c, float f[4]) const
+void Model::color4ToFloat4(const aiColor4D *c, float f[4]) const
 {
     f[0] = c->r;
     f[1] = c->g;

@@ -1,13 +1,12 @@
 # The name of our project is "SIMULATOR". CMakeLists files in this project can
 # refer to the root source directory of the project as ${SIMULATOR_SOURCE_DIR} and
 # to the root binary directory of the project as ${SIMULATOR_BINARY_DIR}.
-CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.6)
 PROJECT(basestation)
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} /usr/share/cmake/Modules/)
 
 SET(SRC_FILES
-    main
     basestation
     glwidget
     logwidget
@@ -50,6 +49,11 @@ SET(SRC_FILES
     particlerenderer
     #particleskernel.cu
     computefreecolumns.cu
+)
+
+SET(TEST_SRC_FILES
+    testmain
+    testptu
 )
 
 SET(INC_FILES
@@ -96,38 +100,6 @@ SET(INC_FILES
     particleskernel.cuh
 )
 
-SET(MOC_FILES
-    basestation.h
-    glwidget.h
-    logwidget.h
-    logplayer.h
-    ptucontroller.h
-    camerawidget.h
-    flightplannerinterface.h
-    flightplannerbasic.h
-    flightplannercuda.h
-    flightplannerparticles.h
-    flightplannerphysics.h
-    flightplannerphysicsdialog.h
-    rtkfetcher.h
-    model.h
-    controlwidget.h
-    connectiondialog.h
-    roverconnection.h
-    voxelmanager.h
-    shaderprogram.h
-    ../common/joystick.h
-    ../common/sbfparser.h
-    ../common/sensorfuser.h
-    ../common/plymanager.h
-    ../common/lidarpoint.h
-    ../common/octree.h
-    ../common/plotwidget.h
-    ../common/wirelessdevice.h
-    particlesystem.h
-    particlerenderer.h
-)
-
 SET(UI_FILES
     controlwidget.ui
     logplayer.ui
@@ -153,12 +125,14 @@ SET(QT_USE_QTGUI 1)
 SET(QT_USE_QTXML 1)
 SET(QT_USE_QTOPENGL 1)
 SET(QT_USE_QTNETWORK 1)
+SET(QT_USE_QTTEST 1)
 INCLUDE(${QT_USE_FILE})
 
 FIND_PACKAGE(CUDA)
 FIND_PACKAGE(DevIL)
 
-QT4_WRAP_CPP(MOC_SRCS ${MOC_FILES})
+ADD_DEFINITIONS(-std=c++11)
+
 QT4_WRAP_UI(UI_SRCS ${UI_FILES})
 QT4_ADD_RESOURCES(RESOURCE_SRCS ${RESOURCE_FILES})
 
@@ -180,14 +154,17 @@ INCLUDE_DIRECTORIES(/usr/include
                     ${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 LINK_DIRECTORIES(/usr/lib/ /usr/local/lib/)
-CUDA_ADD_EXECUTABLE(basestation ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-TARGET_LINK_LIBRARIES(basestation
-                      qwt
-                      ${QT_LIBRARIES}
-                      ${BULLET_LIBRARIES}
-                      ${IL_LIBRARIES}
-                      GL
-                      GLEW
-                      qserialdeviced
-                      assimp
-                      IL)
+SET(LIBRARIES
+    qwt
+    ${QT_LIBRARIES}
+    ${BULLET_LIBRARIES}
+    ${IL_LIBRARIES}
+    GL
+    GLEW
+    qserialdeviced
+    assimp)
+CUDA_ADD_EXECUTABLE(basestation ${SRC_FILES} main.cpp ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
+CUDA_ADD_EXECUTABLE(teststation ${SRC_FILES} ${TEST_SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
+SET_TARGET_PROPERTIES(basestation teststation PROPERTIES AUTOMOC TRUE)
+TARGET_LINK_LIBRARIES(basestation ${LIBRARIES})
+TARGET_LINK_LIBRARIES(teststation ${LIBRARIES})

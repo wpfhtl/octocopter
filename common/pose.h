@@ -64,7 +64,7 @@ public:
     float covariances;
     quint8 precision;
 
-    const static float maximumUsableCovariance = 1.0f;
+    constexpr static float maximumUsableCovariance = 1.0f;
 
     enum Precision
     {

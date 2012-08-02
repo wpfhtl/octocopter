@@ -33,6 +33,9 @@ public:
     const Pose* getPosePtuBase() const {return &mPosePtuBase;}
     bool isOpened() const {return mSerialPortPtu->isOpen();}
 
+    //static float getAngleBetween(QVector3D vec1, QVector3D vec2);
+    static Pose determinePtuPose(QVector3D positionCameraSensor, QVector3D positionInFrustrumCenter);
+
 private:
     Ui::PtuController *ui;
     QTimer* mTimerUpdateStatus;
@@ -48,9 +51,6 @@ private:
     double mMaxPanPositions;
     double mMinTiltPositions;
     double mMaxTiltPositions;
-
-    static Pose getAngleBetween();
-    static Pose determinePtuPose(QVector3D positionCameraSensor, QVector3D positionInFrustrumCenter);
 
 private slots:
     void slotSerialPortStatusChanged(const QString& status, const QDateTime& time);
