@@ -49,7 +49,8 @@ private:
     double mMinTiltPositions;
     double mMaxTiltPositions;
 
-    void determinePtuPose();
+    static Pose getAngleBetween();
+    static Pose determinePtuPose(QVector3D positionCameraSensor, QVector3D positionInFrustrumCenter);
 
 private slots:
     void slotSerialPortStatusChanged(const QString& status, const QDateTime& time);

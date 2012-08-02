@@ -184,17 +184,12 @@ void PtuController::slotSerialPortStatusChanged(const QString& status, const QDa
 
 void PtuController::slotVehiclePoseChanged(const Pose& pose)
 {
-    static int counter = 0;
-    if(counter % 2)
-    {
-        counter++;
-        return;
-    }
     mLastKnownVehiclePose = pose;
     //qDebug() << pose;
 
     if(ui->mPushButtonToggleControllerState->isChecked())
     {
+
         // make ptu point at pose
         const QVector3D ptuToVehicle = pose.getPosition() - mPosePtuBase.getPosition();
         float yawAngle = RAD2DEG(atan2(ptuToVehicle.x(), ptuToVehicle.z()));
@@ -288,10 +283,10 @@ void PtuController::slotSetPositionFrustumCenter()
     }
 }
 
-void PtuController::determinePtuPose()
+QSharedPointer<Pose> PtuController::determinePtuPose(QVector3D positionInFrustumCenter, QVector3D positionCameraSensor)
 {
     // Both mPositionCameraSensor and mPositionInFrustumCenter are known, so we have a ray defining the camera setup
-    const QVector3D ptuOrientation = mPositionInFrustumCenter - mPositionCameraSensor;
+    const QVector3D ptuOrientation = positionInFrustumCenter - positionCameraSensor;
 
     float yawAngle = RAD2DEG(atan2(ptuOrientation.x(), ptuOrientation.z()));
     qDebug() << "ptuOrientation yaw: " << yawAngle;
@@ -300,8 +295,9 @@ void PtuController::determinePtuPose()
     qDebug() << "ptuOrientation pitch: " << pitchAngle;
     Q_ASSERT(abs(pitchAngle) < 90 && "Invalid pitch");
 
-    mPosePtuBase = Pose(mPositionCameraSensor, yawAngle, pitchAngle, 0);
-    qDebug() << "PtuController::determinePtuPose(): " << mPosePtuBase;
+    QSharedPointer<Pose> ptuPose(new Pose(positionCameraSensor, yawAngle, pitchAngle, 0));
+    qDebug() << "PtuController::determinePtuPose(): " << ptuPose;
+    return ptuPose;
 }
 
 void PtuController::slotDataReady()
