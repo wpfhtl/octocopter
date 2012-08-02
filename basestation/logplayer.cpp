@@ -162,13 +162,15 @@ qint32 LogPlayer::getLastTow(const DataSource& source)
 
     case Source_Laser:
     {
-        const QByteArray lastLine = mDataLaser.right(mDataLaser.size() - mDataLaser.lastIndexOf("\n", mDataLaser.lastIndexOf("\n") - 1) - 1);
+        const QByteArray magic("LASER");
+        const int lastPos = mDataLaser.lastIndexOf(magic);
+        qDebug() << "LogPlayer::getLastTow(): last laser packet startpos is" << lastPos;
 
-        // If we can extract something, fine. If not, we might just not have any data at all. In that case we'll return -1
-        if(lastLine.size())
-            tow = lastLine.split(' ').at(0).toInt();
+        if(lastPos == -1) return -1;
 
-        if(tow == 0) tow = -1;
+        tow = *((qint32*)(mDataLaser.data() + lastPos + 5 + sizeof(quint16)));
+
+        qDebug() << "LogPlayer::getLastTow(): last laser tow is" << tow;
     }
     break;
 
@@ -210,13 +212,8 @@ qint32 LogPlayer::getNextTow(const DataSource& source)
 
     case Source_Laser:
     {
-        const QByteArray nextPacket = getNextPacket(source);
-
-        // If we can extract something, fine. If not, we might just not have any laser data at all. In that case we'll return -1
-        if(nextPacket.size())
-            tow = nextPacket.split(' ').at(0).toInt();
-
-        if(tow == 0) tow = -1;
+        // 5 bytes is magic packet LASER, 2 is two bytes packetlength
+        tow = *((qint32*)(mDataLaser.data() + mIndexLaser + 5 + sizeof(quint16)));
     }
     break;
 
@@ -253,12 +250,11 @@ QByteArray LogPlayer::getNextPacket(const DataSource& source)
         if(mIndexLaser >= mDataLaser.size() || !mDataLaser.size())
             return result;
 
-        const int indexEndOfNextPacketLaser = mDataLaser.indexOf("\n", mIndexLaser);
-        if(indexEndOfNextPacketLaser > 0)
-            result = QByteArray(mDataLaser.data() + mIndexLaser, indexEndOfNextPacketLaser - mIndexLaser);
+        const quint16 length = *((quint16*)(mDataLaser.constData() + mIndexLaser + 5));
 
-        Q_ASSERT(mIndexLaser == 0 || mDataLaser.at(mIndexLaser-1) == '\n');
-        Q_ASSERT(!result.contains("\n") && "contains a newline!");
+        result = mDataLaser.mid(mIndexLaser, length);
+
+        Q_ASSERT(result.size() == length);
     }
     break;
 
@@ -339,7 +335,7 @@ bool LogPlayer::slotStepForward()
     {
         // process laser data
         QByteArray packet = getNextPacket(Source_Laser);
-        mIndexLaser += packet.size() + 1; // skip the newline (\n)
+        mIndexLaser += packet.size();
         processPacket(source, packet);
     }
     break;
@@ -372,17 +368,32 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const QByteAr
     {
     case Source_Laser:
     {
-        const QList<QByteArray> scanLine = packet.split(' ');
-        Q_ASSERT(scanLine.at(0).size() == 9 && "TOW incorrect for scan!");
+        const quint16 length = *((quint16*)(packet.constData() + 5));
+
+        const qint32 tow = *((qint32*)(packet.constData() + 5 + sizeof(length)));
+
+        const quint16 indexStart = *((quint16*)(packet.constData() + 5 + sizeof(length) + sizeof(tow)));
+
         std::vector<long>* data = new std::vector<long>;
-        for(int i=1;i<scanLine.size();i++)
+
+        for(int i=0;i<indexStart;i++)
+            data->push_back(1);
+
+        const quint16 rayBytes = length
+                -5                // LASER
+                - sizeof(quint16) // length at beginning
+                - sizeof(qint32)  // tow
+                - sizeof(quint16);// indexStart
+
+        const quint16 numRaysSaved = rayBytes / sizeof(quint16);
+
+        for(int i=0;i<numRaysSaved;i++)
         {
-            bool success = false;
-            data->push_back(scanLine.at(i).toInt(&success));
-            if(!success) qDebug() << "LogPlayer: couldn't parse scannerdata-distance at index" << i << ", value was:" << scanLine.at(i);
+            const quint16 distance = *((quint16*)(packet.constData() + 5 + sizeof(length) + sizeof(tow) + sizeof(indexStart) + (i*sizeof(quint16))));
+            data->push_back(distance);
         }
 
-        mSensorFuser->slotNewScanData(scanLine.at(0).toInt(), data);
+        mSensorFuser->slotNewScanData(tow, data);
     }
     break;
 

@@ -210,6 +210,13 @@ void FlightController::slotComputeMotionCommands()
 
     case Hover:
     {
+        if(getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp > 82)
+        {
+            qDebug() << t() << "FlightController::slotComputeMotionCommands(): Hover, vehicle pose update is from" << mLastKnownVehiclePose.timestamp << "and now its" << getCurrentGpsTowTime() << " - this is pretty old!?";
+            emit motion(MotionCommand(MotionCommand::thrustHover, 0.0f, 0.0f, 0.0f));
+            return;
+        }
+
         const QVector2D vectorVehicleToOrigin = -mLastKnownVehiclePose.getPlanarPosition();
 
         // We want to point exactly away from the origin, because thats probably where the user is
@@ -281,7 +288,6 @@ void FlightController::slotComputeMotionCommands()
         const float derivativeHeight = mFirstControllerRun ? 0.0f : (errorHeight - mPrevErrorHeight + 0.00001f)/timeDiff;
         const float outputThrust = MotionCommand::thrustHover + (25.0f * errorHeight) + (0.001f * mErrorIntegralHeight) + (1.0f * derivativeHeight);
         mPrevErrorHeight = errorHeight;
-
 
         FlightControllerValues fcv;
         fcv.motionCommand = MotionCommand(outputThrust, yaw, outputPitch, outputRoll);
