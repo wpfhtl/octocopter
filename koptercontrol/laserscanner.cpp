@@ -10,8 +10,8 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
 
     mDeviceFileName = deviceFileName;
 
-    mLogFile = new QFile(logFilePrefix + QString("scannerdata.lsr"));
-    if(!mLogFile->open(QIODevice::WriteOnly | QIODevice::Text))
+    mLogFile = new QFile(logFilePrefix + QString("scannerdata.lsrb"));
+    if(!mLogFile->open(QIODevice::WriteOnly)) // binary file, better "compression"
         qFatal("LaserScanner::LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
 
     mLastScannerTimeStamp = 0;
@@ -47,6 +47,11 @@ LaserScanner::~LaserScanner()
     mScanner.disconnect();
     mTimerScan->stop();
     mTimerScan->deleteLater();
+
+    mLogFile->flush();
+    mLogFile->close();
+    mLogFile->deleteLater();
+
 }
 
 const bool LaserScanner::isScanning() const
@@ -167,15 +172,40 @@ void LaserScanner::slotCaptureScanData()
         //emit bottomBeamLength((*distances)[540]/1000.0f);
         qint32 timeStampScanMiddle = mLastScannerTimeStamp + mOffsetTimeScannerToTow + 9;
 
-        // Always write log data for later replay: scannerdata:[space]timestamp[space]V1[space]V2[space]...[space]Vn\n
-        QTextStream out(mLogFile);
-        out << timeStampScanMiddle;
+        // Always write log data in binary format for later replay. Format is:
+        // PackageLengthInBytes(quint16) TOW(qint32) StartIndex(quint16) N-DISTANCES(quint16)
+        // StarIndex denotes the start of usable data (not 1s)
 
-        // We hope that using a simple loop will be faster than using an iterator
-//        std::vector<long>::iterator itr;
-//        for(itr=distances->begin();itr != distances->end(); ++itr) out << " " << *itr;
-        for(quint16 i=0;i<numRays;i++) out << " " << (*distances)[i];
-        out << endl;
+        // A usual dataset contains 200 1's at the beginning and 200 1's at the end.
+        // We "compress" the leading 1s and drop the trailing 1s
+        quint16 indexStart = 0;
+        while((*distances)[indexStart] == 1)
+            indexStart++;
+
+        quint16 indexStop = numRays-1;
+        while((*distances)[indexStop] == 1)
+            indexStop--;
+
+        // Write the total amount of bytes of this scan into the stream
+        quint16 length = 5 // LASER
+                + sizeof(quint16) // length at beginning
+                + sizeof(timeStampScanMiddle)
+                + sizeof(indexStart)
+                + ((indexStop - indexStart ) + 1) * sizeof(quint16); // size of the distance-data
+
+        QByteArray magic("LASER");
+        Q_ASSERT(magic.length() == 5);
+
+        mLogFile->write(magic.constData(), magic.size());
+        mLogFile->write((const char*)&length, sizeof(length));
+        mLogFile->write((const char*)&timeStampScanMiddle, sizeof(timeStampScanMiddle));
+        mLogFile->write((const char*)&indexStart, sizeof(indexStart));
+
+        while(indexStart<=indexStop)
+        {
+            const quint16 distance = ((*distances)[indexStart++]);
+            mLogFile->write((const char*)&distance, sizeof(distance));
+        }
 
         // Every full moon, emit the distance from vehicle center to the ground in meters (scanner to vehicle center is 3cm)
         if(mHeightOverGroundClockDivisor == 0) emit heightOverGround(distances->at(540)/1000.0f + 0.03f);
