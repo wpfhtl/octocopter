@@ -10,7 +10,7 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
 
     mDeviceFileName = deviceFileName;
 
-    mLogFile = new QFile(logFilePrefix + QString("scannerdata.lsrb"));
+    mLogFile = new QFile(logFilePrefix + QString("scannerdata.lsr"));
     if(!mLogFile->open(QIODevice::WriteOnly)) // binary file, better "compression"
         qFatal("LaserScanner::LaserScanner(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
 

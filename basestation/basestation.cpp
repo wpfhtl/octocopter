@@ -192,6 +192,7 @@ BaseStation::BaseStation() : QMainWindow()
     //    connect(mLogPlayer, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
         connect(mLogPlayer, SIGNAL(gnssStatus(GnssStatusInformation::GnssStatus)), mControlWidget, SLOT(slotUpdateGnssStatus(GnssStatusInformation::GnssStatus)));
         connect(mLogPlayer, SIGNAL(flightControllerValues(FlightControllerValues)), mGlWidget, SLOT(slotSetFlightControllerValues(FlightControllerValues)));
+        connect(mLogPlayer, SIGNAL(flightState(FlightState)), mControlWidget, SLOT(slotFlightStateChanged(FlightState)));
 
         mPtuController = new PtuController("/dev/ttyUSB0", this);
         mPtuController->setAllowedAreas(Qt::AllDockWidgetAreas);

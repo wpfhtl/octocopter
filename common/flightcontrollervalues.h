@@ -19,6 +19,7 @@ public:
     QString toString() const;
 
     MotionCommand motionCommand;
+    FlightState flightState;
     QVector3D targetPosition;
     Pose lastKnownPose;
     float lastKnownHeightOverGround;

@@ -59,7 +59,7 @@ public:
         {
             return gnssMode != b.gnssMode
                     || integrationMode != b.integrationMode
-                    || info != b.info
+                    //|| info != b.info // useless high-traffic babble
                     || error != b.error
                     || abs(numSatellitesUsed - b.numSatellitesUsed) > 1
                     || abs(gnssAge - b.gnssAge) > 6

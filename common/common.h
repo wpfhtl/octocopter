@@ -46,6 +46,7 @@ enum FlightState
     Idle
 };
 QString getFlightStateString(const FlightState);
+FlightState getFlightState(const QString& flightStateString);
 
 
 class FlightStateSwitch

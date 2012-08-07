@@ -192,7 +192,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     // If there's garbage before the next valid packet, save it into sbf log and log a warning
     if(offsetToValidPacket != 0)
     {
-        qDebug() << "SbfParser::processNextValidPacket(): WARNING: SBF sync was at byte" << offsetToValidPacket << "instead of 0, content:" << readable(sbfData.left(offsetToValidPacket));
+        qDebug() << "SbfParser::processNextValidPacket(): WARNING: offset to valid packet was" << offsetToValidPacket << "instead of 0, content:" << readable(sbfData.left(offsetToValidPacket));
         // Log this data for later error analysis
         emit processedPacket(sbfData.left(offsetToValidPacket), -1);
         sbfData.remove(0, offsetToValidPacket);
@@ -233,7 +233,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         if(fabs(mGnssStatus.covariances - newCovarianceValue) > 0.02)
         {
             mGnssStatus.covariances = newCovarianceValue;
-//            emit status(mGpsStatus);
+//            emit status(mGnssStatus);
         }
     }
     break;
@@ -291,7 +291,17 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         // Check the Info-field and emit states if it changes
         if(mGnssStatus.info != block->Info)
         {
-            //qDebug() << t() << "SbfParser::processNextValidPacket(): info changed from" << mGpsStatus.info << "to" << block->Info;
+            //qDebug() << t() << "SbfParser::processNextValidPacket(): info changed from" << mGnssStatus.info << "to" << block->Info;
+
+
+            if(!testBitEqual(mGnssStatus.info, block->Info, 11))
+                emit message(
+                            testBit(block->Info, 11) ? Information : Error,
+                            QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
+                            QString("Heading ambiguity fixed: %1").arg(testBit(block->Info, 11) ? "true" : "false"));
+
+            /* These are disabled: GNSS pos and vel are only used in every 5th pose, so these things cause
+               high traffic for nothing. Zero constraint is used automatically when GNSS doesn't move.
 
             if(!testBitEqual(mGnssStatus.info, block->Info, 0))
                 emit message(
@@ -305,47 +315,39 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                             QString("GYRO measurements used: %1").arg(testBit(block->Info, 1) ? "true" : "false"));
 
-            if(!testBitEqual(mGnssStatus.info, block->Info, 11))
-                emit message(
-                            testBit(block->Info, 11) ? Information : Error,
-                            QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                            QString("Heading ambiguity fixed: %1").arg(testBit(block->Info, 11) ? "true" : "false"));
-
-            /* These are disabled: GNSS pos and vel are only used in every 5th pose, so these things cause
-               high traffic for nothing. Zero constraint is used automatically when GNSS doesn't move.
-            if(!testBitEqual(mGpsStatus.info, block->Info, 12)) // FIXME: until firmware works
+            if(!testBitEqual(mGnssStatus.info, block->Info, 12)) // FIXME: until firmware works
                 emit message(
                             testBit(block->Info, 12) ? Error : Information, // We don't use this, should be 0
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                             QString("Zero constraint used: %1").arg(testBit(block->Info, 12) ? "true" : "false"));
 
-            if(!testBitEqual(mGpsStatus.info, block->Info, 13)) // FIXME: until firmware works
+            if(!testBitEqual(mGnssStatus.info, block->Info, 13)) // FIXME: until firmware works
                 emit message(
                             testBit(block->Info, 13) ? Information : Error,
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                             QString("GNSS position used: %1").arg(testBit(block->Info, 13) ? "true" : "false"));
 
-            if(!testBitEqual(mGpsStatus.info, block->Info, 14)) // FIXME: until firmware works
+            if(!testBitEqual(mGnssStatus.info, block->Info, 14)) // FIXME: until firmware works
                 emit message(
                             testBit(block->Info, 14) ? Information : Error,
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                             QString("GNSS velocity used: %1").arg(testBit(block->Info, 14) ? "true" : "false"));
-            */
 
             if(!testBitEqual(mGnssStatus.info, block->Info, 15))
                 emit message(
-                            testBit(block->Info, 15) ? Information : Error, // Not sure whether GNSS attitude means multi-antenna
+                            testBit(block->Info, 15) ? Information : Error, // GNSS attitude means multi-antenna, so we don't use it.
                             QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                             QString("GNSS attitude used: %1").arg(testBit(block->Info, 15) ? "true" : "false"));
+            */
 
             mGnssStatus.info = block->Info;
         }
 
         /* IntegrationMode changes between integrated and not integrated with 10Hz, we don't honestly care to describe this in some log.
         // Check the Mode-field and emit states if it changes
-        if(mGpsStatus.integrationMode != block->Mode)
+        if(mGnssStatus.integrationMode != block->Mode)
         {
-            //qDebug() << t() << "SbfParser::processNextValidPacket(): mode changed from" << mGpsStatus.integrationMode << "to" << block->Mode;
+            //qDebug() << t() << "SbfParser::processNextValidPacket(): mode changed from" << mGnssStatus.integrationMode << "to" << block->Mode;
 
             switch(block->Mode)
             {
@@ -384,7 +386,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         // Check the Error-field and emit states if it changes
         if(mGnssStatus.error != block->Error)
         {
-//            qDebug() << t() << "SbfParser::processNextValidPacket(): error changed from" << mGpsStatus.error << "to" << block->Error << "at TOW" << block->TOW;
+//            qDebug() << t() << "SbfParser::processNextValidPacket(): error changed from" << mGnssStatus.error << "to" << block->Error << "at TOW" << block->TOW;
 
             emit message(
                         block->Error == 0 ? Information : Error,
@@ -401,7 +403,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         // Check the GnssPvtMode-field and emit states if it changes AND if its not DO-NOT-USE
         if(mGnssStatus.gnssMode != block->GNSSPVTMode && block->GNSSPVTMode != 255)
         {
-//            qDebug() << t() << "SbfParser::processNextValidPacket(): GnssPvtMode changed from" << mGpsStatus.gnssMode << "to" << block->GNSSPVTMode << "at TOW" << block->TOW;
+//            qDebug() << t() << "SbfParser::processNextValidPacket(): GnssPvtMode changed from" << mGnssStatus.gnssMode << "to" << block->GNSSPVTMode << "at TOW" << block->TOW;
 
             emit message(
                         (block->GNSSPVTMode & 15) == 4 ? Information : Warning,
@@ -416,7 +418,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         // It is perfectly normal for the GNSSAge to be 0,2,4,6 or 8 milliseconds.
         if(mGnssStatus.gnssAge != block->GNSSage && block->GNSSage > 10)
         {
-            //qDebug() << t() << "SbfParser::processNextValidPacket(): GnssAge changed from" << mGpsStatus.gnssAge << "to" << block->GNSSage << "at TOW" << block->TOW;
+            //qDebug() << t() << "SbfParser::processNextValidPacket(): GnssAge changed from" << mGnssStatus.gnssAge << "to" << block->GNSSage << "at TOW" << block->TOW;
             emit message(
                         block->GNSSage > 0 ? Information : Error,
                         QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
@@ -427,11 +429,11 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         const quint8 numberOfSatellitesUsed = (block->NrSVAnt & 31);
         if(mGnssStatus.numSatellitesUsed != numberOfSatellitesUsed)
         {
-//            qDebug() << t() << "SbfParser::processNextValidPacket(): numSats changed from" << mGpsStatus.numSatellitesUsed << "to" << numberOfSatellitesUsed;
+//            qDebug() << t() << "SbfParser::processNextValidPacket(): numSats changed from" << mGnssStatus.numSatellitesUsed << "to" << numberOfSatellitesUsed;
             /*emit message(
                         numberOfSatellitesUsed > 5 ? Information : Warning,
                         QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                        QString("Number of used satellites changed from %1 to %2").arg(mGpsStatus.numSatellitesUsed).arg(numberOfSatellitesUsed));*/
+                        QString("Number of used satellites changed from %1 to %2").arg(mGnssStatus.numSatellitesUsed).arg(numberOfSatellitesUsed));*/
 
             mGnssStatus.numSatellitesUsed = numberOfSatellitesUsed;
         }

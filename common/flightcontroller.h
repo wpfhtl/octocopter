@@ -41,6 +41,8 @@ public:
 private:
     QFile* mLogFile;
 
+    FlightControllerValues mLastFlightControllerValues;
+
     // Motion is computed whenever a new pose comes in, so we don't need a timer - except
     // when the GPS board fails to deliver useful poses, we'll need to compute safe values
     // to emit. Thus, when Poses are planned to come in every 100ms, we start this timer
@@ -81,7 +83,7 @@ private:
 //    WayPoint getLandingWayPoint() const;
     void setFlightState(FlightState);
 
-    void logFlightControllerValues(const FlightControllerValues&);
+    void logFlightControllerValues();
 
     // In the first controller iteration, we don't want to build derivatives, they'd be waaayy off and destabilize the controller
     bool mFirstControllerRun;

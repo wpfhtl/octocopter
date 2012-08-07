@@ -70,12 +70,13 @@ void LogPlayer::slotLaserScannerRelativePoseChanged()
 bool LogPlayer::slotOpenLogFiles()
 {
     QString logFileName;
+    QString fileNameOfNextLogFile;
 
     logFileName = QFileDialog::getOpenFileName(this, "Select SBF log", QString(), "SBF Data (*.sbf)");
     if(logFileName.isEmpty()) return false;
 
-    QFile logFile1(logFileName);
-    if(!logFile1.open(QIODevice::ReadOnly))
+    QFile logFileSbf(logFileName);
+    if(!logFileSbf.open(QIODevice::ReadOnly))
     {
         emit message(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Unable to open SBF log file");
         QMessageBox::critical(this, "Error opening file", "Unable to open SBF log file");
@@ -84,34 +85,34 @@ bool LogPlayer::slotOpenLogFiles()
 
     emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Reading SBF log file %1...").arg(logFileName));
     // Fill the sbf backup copy. The real data will be filled in slotRewind()
-    mDataSbfCopy = logFile1.readAll();
-
+    mDataSbfCopy = logFileSbf.readAll();
 
     // We try to open the laser log. But even if this fails, do not abort, as SBF only is still something we can work with for playing back
-    logFileName = QFileDialog::getOpenFileName(this, "Select laser log", QString(), "Laser Data (*.lsr)");
-    QFile logFile2(logFileName);
-    if(!logFile2.open(QIODevice::ReadOnly))
+    fileNameOfNextLogFile = logFileName.replace("gnssdata.sbf", "scannerdata.lsr");
+    logFileName = QFileDialog::getOpenFileName(this, "Select laser log", fileNameOfNextLogFile, "Laser Data (*.lsr)");
+    QFile logFileLaser(logFileName);
+    if(!logFileLaser.open(QIODevice::ReadOnly))
     {
         emit message(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Unable to open Laser log file %1").arg(logFileName));
     }
     else
     {
         emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Reading Laser log file %1...").arg(logFileName));
-        mDataLaser = logFile2.readAll();
+        mDataLaser = logFileLaser.readAll();
     }
 
-
     // We try to open the flightcontroller log. But even if this fails, do not abort, as SBF only is still something we can work with for playing back
-    logFileName = QFileDialog::getOpenFileName(this, "Select flightcontroller log", QString(), "Flightcontroller Log Data (*.flt)");
-    QFile logFile3(logFileName);
-    if(!logFile3.open(QIODevice::ReadOnly))
+    fileNameOfNextLogFile = logFileName.replace("scannerdata.lsr", "flightcontroller.flt");
+    logFileName = QFileDialog::getOpenFileName(this, "Select flightcontroller log", fileNameOfNextLogFile, "Flightcontroller Log Data (*.flt)");
+    QFile logFileFlightController(logFileName);
+    if(!logFileFlightController.open(QIODevice::ReadOnly))
     {
         emit message(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Unable to open FlightController log file %1").arg(logFileName));
     }
     else
     {
         emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Reading FlightController log file %1...").arg(logFileName));
-        mDataFlightController = logFile3.readAll();
+        mDataFlightController = logFileFlightController.readAll();
     }
 
     slotRewind();
@@ -401,6 +402,7 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const QByteAr
     case Source_FlightController:
     {
         FlightControllerValues fcv(packet);
+        emit flightState(fcv.flightState);
         emit flightControllerValues(fcv);
     }
     break;

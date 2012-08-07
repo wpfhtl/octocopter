@@ -44,3 +44,17 @@ QString getFlightStateString(const FlightState flightState)
 
     qDebug() << "getFlightStateString(): FLIGHTSTATE" << flightState << "UNDEFINED!";
 }
+
+FlightState getFlightState(const QString& flightStateString)
+{
+    if(flightStateString == "UserControl")
+        return UserControl;
+    else if(flightStateString == "ApproachWayPoint")
+        return ApproachWayPoint;
+    if(flightStateString == "Hover")
+        return Hover;
+    if(flightStateString == "Idle")
+        return Idle;
+
+    qDebug() << "undefined flightstate string!";
+}

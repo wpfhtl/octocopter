@@ -146,8 +146,11 @@ void GlWidget::initializeGL()
     modelPath.cdUp();
 
     mModelVehicle = new Model(QFile(modelPath.absolutePath() + "/media/oktokopter.obj"), QString("../media/"), this);
-    mModelThrust = new Model(QFile(modelPath.absolutePath() + "/media/oktokopter-thrust.obj"), QString("../media/"), this);
-    mModelYawPitchRoll = new Model(QFile(modelPath.absolutePath() + "/media/oktokopter-yawpitchroll.obj"), QString("../media/"), this);
+    mModelThrust = new Model(QFile(modelPath.absolutePath() + "/media/cone-grey.obj"), QString("../media/"), this);
+    mModelConeYaw = new Model(QFile(modelPath.absolutePath() + "/media/cone-green.obj"), QString("../media/"), this);
+    mModelConePitch = new Model(QFile(modelPath.absolutePath() + "/media/cone-red.obj"), QString("../media/"), this);
+    mModelConeRoll = new Model(QFile(modelPath.absolutePath() + "/media/cone-blue.obj"), QString("../media/"), this);
+    mModelTarget = new Model(QFile(modelPath.absolutePath() + "/media/target.obj"), QString("../media/"), this);
 }
 
 void GlWidget::resizeGL(int w, int h)
@@ -296,34 +299,63 @@ void GlWidget::paintGL()
 
     const QMatrix4x4 transform = mLastKnownVehiclePose.getMatrix();
 
-    if(mLastFlightControllerValues)
+    // Only show controller input if its present and less than 500 ms old.
+    if(mLastFlightControllerValues && mLastKnownVehiclePose.timestamp - mLastFlightControllerValues->lastKnownPose.timestamp < 500)
     {
-        QMatrix4x4 trYPR(transform);
-        trYPR.rotate(mLastFlightControllerValues->motionCommand.roll, QVector3D(0,0,1));
-        trYPR.rotate(mLastFlightControllerValues->motionCommand.pitch, QVector3D(1,0,0));
-        trYPR.rotate(mLastFlightControllerValues->motionCommand.yaw, QVector3D(0,1,0));
-        mModelYawPitchRoll->slotSetModelTransform(trYPR);
-        mModelYawPitchRoll->render();
+        qDebug() << "now visualizing motioncommand from" << mLastFlightControllerValues->lastKnownPose.timestamp << mLastFlightControllerValues->motionCommand;
+        QMatrix4x4 transformVehicle(mLastKnownVehiclePose.getMatrix());
 
-        QMatrix4x4 trThrust(trYPR);
+        // Render controller yaw input
+        QMatrix4x4 trYaw(transformVehicle);
+        trYaw.rotate(mLastFlightControllerValues->motionCommand.yaw, QVector3D(0,1,0));
+        if(mLastFlightControllerValues->motionCommand.yaw > 0)
+            trYaw.rotate(90.0f, QVector3D(0,0,1));
+        else
+            trYaw.rotate(-90.0f, QVector3D(0,0,1));
+        trYaw.translate(0, 0, -0.7);
+        mModelConeYaw->slotSetModelTransform(trYaw);
+        mModelConeYaw->render();
 
+        // Render controller pitch input
+        QMatrix4x4 trPitch(transformVehicle);
+        trPitch.translate(0, fabs(mLastFlightControllerValues->motionCommand.pitch) / 20.0f, 0);
+        if(mLastFlightControllerValues->motionCommand.pitch > 0)
+            trPitch.translate(0, 0, -0.7);
+        else
+            trPitch.translate(0, 0, 0.7);
+        mModelConePitch->slotSetModelTransform(trPitch);
+        mModelConePitch->render();
 
+        // Render controller roll input
+        QMatrix4x4 trRoll(transformVehicle);
+        trRoll.translate(0, fabs(mLastFlightControllerValues->motionCommand.roll) / 20.0f, 0);
+        if(mLastFlightControllerValues->motionCommand.roll > 0)
+            trRoll.translate(0.7, 0, 0);
+        else
+            trRoll.translate(-0.7, 0, 0);
+        mModelConeRoll->slotSetModelTransform(trRoll);
+        mModelConeRoll->render();
+
+        // Render controller thrust input
+        QMatrix4x4 trThrust(transformVehicle);
         // Move the thrust-arrow according to, well, thrust.
         trThrust.translate(
                     QVector3D(
                         0,
-                        (mLastFlightControllerValues->motionCommand.thrust - MotionCommand::thrustHover) / 100.0f,
+                        (mLastFlightControllerValues->motionCommand.thrust - MotionCommand::thrustHover) / 50.0f,
                         0)
                     );
-
         // Make the arrow point downwards if thrust is below hover-thrust
         if(mLastFlightControllerValues->motionCommand.thrust < MotionCommand::thrustHover)
             trThrust.rotate(180.0f, QVector3D(1,0,0));
-
         mModelThrust->slotSetModelTransform(trThrust);
         mModelThrust->render();
 
-        // TODO: render target position!
+        // Render target position!
+        QMatrix4x4 trTarget;
+        trTarget.translate(mLastFlightControllerValues->targetPosition);
+        mModelTarget->slotSetModelTransform(trTarget);
+        mModelTarget->render();
     }
 
     mModelVehicle->slotSetModelTransform(transform);

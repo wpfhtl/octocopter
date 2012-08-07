@@ -186,17 +186,16 @@ void FlightController::slotComputeMotionCommands()
         mPrevErrorYaw = errorYaw;
         mPrevErrorHeight = errorHeight;
 
-        FlightControllerValues fcv;
-        fcv.motionCommand = MotionCommand(outputThrust, outputYaw, outputPitch, outputRoll);
-        fcv.lastKnownPose = mLastKnownVehiclePose;
-        fcv.targetPosition = mWayPoints.first();
-        fcv.lastKnownHeightOverGround = mLastKnownHeightOverGround;
+        mLastFlightControllerValues.flightState = mFlightState;
+        mLastFlightControllerValues.motionCommand = MotionCommand(outputThrust, outputYaw, outputPitch, outputRoll);
+        mLastFlightControllerValues.targetPosition = mWayPoints.first();
+        mLastFlightControllerValues.lastKnownHeightOverGround = mLastKnownHeightOverGround;
 
-        qDebug() << t() << "FlightController::slotComputeMotionCommands():" << fcv.motionCommand;
-        emit motion(fcv.motionCommand);
-        emit flightControllerValues(fcv);
+        qDebug() << t() << "FlightController::slotComputeMotionCommands():" << mLastFlightControllerValues.motionCommand;
+        emit motion(mLastFlightControllerValues.motionCommand);
+        emit flightControllerValues(mLastFlightControllerValues);
 
-        logFlightControllerValues(fcv);
+        logFlightControllerValues();
 
         // See whether we've reached the waypoint
         if(mLastKnownVehiclePose.getPosition().distanceToLine(nextWayPoint, QVector3D()) < 0.40f) // close to wp
@@ -289,17 +288,16 @@ void FlightController::slotComputeMotionCommands()
         const float outputThrust = MotionCommand::thrustHover + (25.0f * errorHeight) + (0.001f * mErrorIntegralHeight) + (1.0f * derivativeHeight);
         mPrevErrorHeight = errorHeight;
 
-        FlightControllerValues fcv;
-        fcv.motionCommand = MotionCommand(outputThrust, yaw, outputPitch, outputRoll);
-        fcv.lastKnownPose = mLastKnownVehiclePose;
-        fcv.targetPosition = mHoverPosition;
-        fcv.lastKnownHeightOverGround = mLastKnownHeightOverGround;
+        mLastFlightControllerValues.flightState = mFlightState;
+        mLastFlightControllerValues.motionCommand = MotionCommand(outputThrust, yaw, outputPitch, outputRoll);
+        mLastFlightControllerValues.targetPosition = mHoverPosition;
+        mLastFlightControllerValues.lastKnownHeightOverGround = mLastKnownHeightOverGround;
 
-        qDebug() << t() << "FlightController::slotComputeMotionCommands():" << fcv.motionCommand;
-        emit motion(fcv.motionCommand);
-        emit flightControllerValues(fcv);
+        qDebug() << t() << "FlightController::slotComputeMotionCommands():" << mLastFlightControllerValues.motionCommand;
+        emit motion(mLastFlightControllerValues.motionCommand);
+        emit flightControllerValues(mLastFlightControllerValues);
 
-        logFlightControllerValues(fcv);
+        logFlightControllerValues();
 
         mFirstControllerRun = false;
 
@@ -315,12 +313,12 @@ void FlightController::slotComputeMotionCommands()
     mTimeOfLastControllerUpdate = QTime::currentTime();
 }
 
-void FlightController::logFlightControllerValues(const FlightControllerValues &fcv)
+void FlightController::logFlightControllerValues()
 {
     if(mLogFile)
     {
         QTextStream out(mLogFile);
-        out << fcv.toString() << endl;
+        out << mLastFlightControllerValues.toString() << endl;
     }
 }
 
@@ -418,11 +416,16 @@ void FlightController::slotNewVehiclePose(const Pose& pose)
 
     // Whatever precision and flightstate, save the pose.
     mLastKnownVehiclePose = pose;
+    mLastFlightControllerValues.lastKnownPose = mLastKnownVehiclePose;
 
     switch(mFlightState)
     {
     case UserControl:
         // Keep ourselves disabled in UserControl.
+        mLastFlightControllerValues = FlightControllerValues();
+        mLastFlightControllerValues.flightState = UserControl;
+        logFlightControllerValues();
+
         Q_ASSERT(!mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): UserControl has active backup timer!");
         break;
 
@@ -469,6 +472,10 @@ void FlightController::slotNewVehiclePose(const Pose& pose)
         break;
 
     case Idle:
+        mLastFlightControllerValues = FlightControllerValues();
+        mLastFlightControllerValues.flightState = Idle;
+        logFlightControllerValues();
+
         Q_ASSERT(mBackupTimerComputeMotion->interval() == backupTimerIntervalSlow && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): Idle has inactive backup timer or wrong interval!");
         break;
 
