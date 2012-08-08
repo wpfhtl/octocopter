@@ -306,35 +306,44 @@ void GlWidget::paintGL()
         QMatrix4x4 transformVehicle(mLastKnownVehiclePose.getMatrix());
 
         // Render controller yaw input
-        QMatrix4x4 trYaw(transformVehicle);
-        trYaw.rotate(mLastFlightControllerValues->motionCommand.yaw, QVector3D(0,1,0));
-        if(mLastFlightControllerValues->motionCommand.yaw > 0)
-            trYaw.rotate(90.0f, QVector3D(0,0,1));
-        else
-            trYaw.rotate(-90.0f, QVector3D(0,0,1));
-        trYaw.translate(0, 0, -0.7);
-        mModelConeYaw->slotSetModelTransform(trYaw);
-        mModelConeYaw->render();
+        if(fabs(mLastFlightControllerValues->motionCommand.yaw) > 0.1f)
+        {
+            QMatrix4x4 trYaw(transformVehicle);
+            trYaw.rotate(mLastFlightControllerValues->motionCommand.yaw, QVector3D(0,1,0));
+            if(mLastFlightControllerValues->motionCommand.yaw > 0)
+                trYaw.rotate(90.0f, QVector3D(0,0,1));
+            else
+                trYaw.rotate(-90.0f, QVector3D(0,0,1));
+            trYaw.translate(0, 0, -0.7);
+            mModelConeYaw->slotSetModelTransform(trYaw);
+            mModelConeYaw->render();
+        }
 
         // Render controller pitch input
-        QMatrix4x4 trPitch(transformVehicle);
-        trPitch.translate(0, fabs(mLastFlightControllerValues->motionCommand.pitch) / 20.0f, 0);
-        if(mLastFlightControllerValues->motionCommand.pitch > 0)
-            trPitch.translate(0, 0, -0.7);
-        else
-            trPitch.translate(0, 0, 0.7);
-        mModelConePitch->slotSetModelTransform(trPitch);
-        mModelConePitch->render();
+        if(fabs(mLastFlightControllerValues->motionCommand.pitch) > 0.1f)
+        {
+            QMatrix4x4 trPitch(transformVehicle);
+            trPitch.translate(0, fabs(mLastFlightControllerValues->motionCommand.pitch) / 20.0f, 0);
+            if(mLastFlightControllerValues->motionCommand.pitch > 0)
+                trPitch.translate(0, 0, -0.7);
+            else
+                trPitch.translate(0, 0, 0.7);
+            mModelConePitch->slotSetModelTransform(trPitch);
+            mModelConePitch->render();
+        }
 
         // Render controller roll input
-        QMatrix4x4 trRoll(transformVehicle);
-        trRoll.translate(0, fabs(mLastFlightControllerValues->motionCommand.roll) / 20.0f, 0);
-        if(mLastFlightControllerValues->motionCommand.roll > 0)
-            trRoll.translate(0.7, 0, 0);
-        else
-            trRoll.translate(-0.7, 0, 0);
-        mModelConeRoll->slotSetModelTransform(trRoll);
-        mModelConeRoll->render();
+        if(fabs(mLastFlightControllerValues->motionCommand.roll) > 0.1f)
+        {
+            QMatrix4x4 trRoll(transformVehicle);
+            trRoll.translate(0, fabs(mLastFlightControllerValues->motionCommand.roll) / 20.0f, 0);
+            if(mLastFlightControllerValues->motionCommand.roll > 0)
+                trRoll.translate(0.7, 0, 0);
+            else
+                trRoll.translate(-0.7, 0, 0);
+            mModelConeRoll->slotSetModelTransform(trRoll);
+            mModelConeRoll->render();
+        }
 
         // Render controller thrust input
         QMatrix4x4 trThrust(transformVehicle);
