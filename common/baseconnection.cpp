@@ -370,7 +370,7 @@ void BaseConnection::slotFlightStateChanged(FlightState flightState)
     QDataStream stream(&data, QIODevice::WriteOnly);
 
     stream << QString("flightstate");
-    const quint8 fs = (quint8)flightState;
+    const quint8 fs = (quint8)flightState.state;
     stream << fs;
     slotSendData(data, false);
 }

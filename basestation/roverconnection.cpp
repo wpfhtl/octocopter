@@ -207,10 +207,8 @@ void RoverConnection::processPacket(QByteArray data)
     }
     else if(packetType == "flightstate")
     {
-        quint8 fs;
         FlightState flightState;
-        stream >> fs;
-        flightState = (FlightState)fs;
+        stream >> flightState;
         emit flightStateChanged(flightState);
     }
     else

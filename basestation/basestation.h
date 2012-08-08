@@ -58,7 +58,7 @@ private:
 
     QTimer *mTimerStats;
     QFile *mStatsFile;
-    QDateTime mDateTimeLastLidarInput;
+//    QDateTime mDateTimeLastLidarInput;
 
     void keyPressEvent(QKeyEvent* event);
 
@@ -82,8 +82,8 @@ private slots:
     // Send motion commands to rover WHILE button 1 is pressed
     void slotManageJoystick(quint8 button, bool pressed);
 
-    void slotWriteStats();
-    void slotAddLogFileMarkForPaper(QList<WayPoint> wptList);
+//    void slotWriteStats();
+//    void slotAddLogFileMarkForPaper(QList<WayPoint> wptList);
 
     // These are called by ConnectionRover when new data arrived
     void slotNewScanData(const QVector<QVector3D>& pointList, const QVector3D& scannerPosition);

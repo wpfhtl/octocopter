@@ -1,7 +1,7 @@
 # The name of our project is "lrfreader". CMakeLists files in this project can
 # refer to the root source directory of the project as ${SIMULATOR_SOURCE_DIR} and
 # to the root binary directory of the project as ${SIMULATOR_BINARY_DIR}.
-CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
+CMAKE_MINIMUM_REQUIRED (VERSION 2.8.6)
 PROJECT(koptercontrol)
 
 # Starting with gcc-4.6, we might need "-Wl,--no-as-needed" in CMAKE_CXX_FLAGS
@@ -9,6 +9,8 @@ PROJECT(koptercontrol)
 SET(CMAKE_CXX_FLAGS "-Wl,--no-as-needed")
 
 cmake_policy(SET CMP0015 NEW)
+
+ADD_DEFINITIONS(-std=c++0x -fpermissive)
 
 FIND_PACKAGE(SDL REQUIRED)
 FIND_PACKAGE(Qt4 REQUIRED)
@@ -56,7 +58,8 @@ camera
 ../common/sbfparser
 ../common/common
 ../common/motioncommand
-#../common/plymanager
+../common/flightstate
+../common/flightstateswitch
 ../common/pose
 ../common/waypoint
 ../common/lidarpoint
@@ -78,7 +81,8 @@ camera.h
 ../common/sbfparser.h
 ../common/common.h
 ../common/motioncommand.h
-#../common/plymanager.h
+../common/flightstate.h
+../common/flightstateswitch.h
 ../common/pose.h
 ../common/waypoint.h
 ../common/lidarpoint.h
@@ -92,7 +96,8 @@ laserscanner.h
 SOURCE_GROUP("Sources" FILES ${SRC_FILES_KOPTERCONTROL})
 SOURCE_GROUP("Headers" FILES ${INC_FILES_KOPTERCONTROL})
 
-QT4_WRAP_CPP(MOC_SRCS_KOPTERCONTROL ${INC_FILES_KOPTERCONTROL})
+#QT4_WRAP_CPP(MOC_SRCS_KOPTERCONTROL ${INC_FILES_KOPTERCONTROL})
 
-ADD_EXECUTABLE(koptercontrol ${SRC_FILES_KOPTERCONTROL} ${MOC_SRCS_KOPTERCONTROL})
+ADD_EXECUTABLE(koptercontrol ${SRC_FILES_KOPTERCONTROL} ${MOC_SRCS})
+SET_TARGET_PROPERTIES(koptercontrol PROPERTIES AUTOMOC TRUE)
 TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES} -lqserialdevice)

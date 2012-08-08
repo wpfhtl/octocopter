@@ -10,23 +10,24 @@ FlightControllerValues::FlightControllerValues(const QString& fcvString)
     // timestamp SEPARATOR flightState SEPARATOR pose SEPARATOR waypoint SEPARATOR motioncommand
     QStringList list = fcvString.split(SEPARATOR, QString::KeepEmptyParts);
 
-    flightState = getFlightState(list.at(1));
+    flightState = FlightState::fromString(list.at(1));
 
     lastKnownPose = Pose(list.at(2));
 
     // Target position and motion command are only present in some flightStates, not all of them.
-    if(list.size() > 3)
-    {
+    // WRONG: always present, sometimes zero.
+//    if(list.size() > 3)
+//    {
         const QStringList targetPositionStringList = list.at(3).split(" ");
         targetPosition.setX(targetPositionStringList.at(0).toDouble());
         targetPosition.setY(targetPositionStringList.at(1).toDouble());
         targetPosition.setZ(targetPositionStringList.at(2).toDouble());
-    }
+//    }
 
-    if(list.size() > 4)
-    {
+//    if(list.size() > 4)
+//    {
         motionCommand = MotionCommand(list.at(4));
-    }
+//    }
 }
 
 // for streaming
@@ -53,7 +54,7 @@ QString FlightControllerValues::toString() const
 
     out.append(QString::number(lastKnownPose.timestamp));
     out.append(SEPARATOR);
-    out.append(getFlightStateString(flightState));
+    out.append(flightState.toString());
     out.append(SEPARATOR);
     out.append(lastKnownPose.toString());
     out.append(SEPARATOR);

@@ -29,7 +29,7 @@ public:
     ~ControlWidget();
 
 public slots:
-    void slotFlightStateChanged(FlightState);
+    void slotFlightStateChanged(FlightState fs);
     void slotUpdatePose(const Pose &pose);
     void slotUpdateMissionRunTime(const quint32& time);
     void slotUpdateBattery(const float& voltageCurrent);

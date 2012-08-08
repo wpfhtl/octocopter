@@ -36,8 +36,6 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     connect(mSbfParser, SIGNAL(status(GnssStatusInformation::GnssStatus)), SIGNAL(gnssStatus(GnssStatusInformation::GnssStatus)));
     connect(mSbfParser, SIGNAL(message(LogImportance,QString,QString)), SIGNAL(message(LogImportance,QString,QString)));
     connect(mSbfParser, SIGNAL(newVehiclePoseLogPlayer(Pose)), SIGNAL(vehiclePose(Pose)));
-    connect(mSbfParser, SIGNAL(newVehiclePose(Pose)), SIGNAL(vehiclePose(Pose)));
-
     connect(mSbfParser, SIGNAL(newVehiclePoseSensorFuser(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
     connect(mSbfParser, SIGNAL(processedPacket(QByteArray,qint32)), SLOT(slotNewSbfTime(QByteArray,qint32)));
 //    connect(mSbfParser, SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
@@ -102,7 +100,7 @@ bool LogPlayer::slotOpenLogFiles()
     }
 
     // We try to open the flightcontroller log. But even if this fails, do not abort, as SBF only is still something we can work with for playing back
-    fileNameOfNextLogFile = logFileName.replace("scannerdata.lsr", "flightcontroller.flt");
+    fileNameOfNextLogFile = fileNameOfNextLogFile.replace("scannerdata.lsr", "flightcontroller.flt");
     logFileName = QFileDialog::getOpenFileName(this, "Select flightcontroller log", fileNameOfNextLogFile, "Flightcontroller Log Data (*.flt)");
     QFile logFileFlightController(logFileName);
     if(!logFileFlightController.open(QIODevice::ReadOnly))
@@ -215,7 +213,10 @@ qint32 LogPlayer::getNextTow(const DataSource& source)
     case Source_Laser:
     {
         // 5 bytes is magic packet LASER, 2 is two bytes packetlength
-        tow = *((qint32*)(mDataLaser.data() + mIndexLaser + 5 + sizeof(quint16)));
+        const quint32 offset = mIndexLaser + 5 + sizeof(quint16);
+
+        if(offset + sizeof(qint32) <= mDataLaser.size())
+            tow = *((qint32*)(mDataLaser.data() + offset));
     }
     break;
 
@@ -436,7 +437,7 @@ void LogPlayer::slotPlay()
         }
 
         qint32 minTowAfter;
-        getNextDataSource(&minTowAfter);
+        DataSource s = getNextDataSource(&minTowAfter);
 
         mTimerAnimation->stop();
 

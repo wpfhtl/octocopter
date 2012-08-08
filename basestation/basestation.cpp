@@ -25,7 +25,7 @@ BaseStation::BaseStation() : QMainWindow()
     mConnectionDialog->exec();
 
     mOctree->setMinimumPointDistance(.01f);
-
+/*
     mTimerStats = new QTimer(this);
     mTimerStats->start(1000);
 
@@ -39,7 +39,7 @@ BaseStation::BaseStation() : QMainWindow()
     QTextStream out(mStatsFile);
     out << "# FlightTime;ItemsInOctreeFine;ItemsInOctreeCoarse\n";
     out.flush();
-    connect(mTimerStats, SIGNAL(timeout()), SLOT(slotWriteStats()));
+    connect(mTimerStats, SIGNAL(timeout()), SLOT(slotWriteStats()));*/
 
     mControlWidget = new ControlWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mControlWidget);
@@ -66,9 +66,6 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mGlWidget, SIGNAL(mouseClickedAtWorldPos(Qt::MouseButton, QVector3D)), mControlWidget, SLOT(slotSetWayPointCoordinateFields(Qt::MouseButton, QVector3D)));
     setCentralWidget(mGlWidget);
 
-
-    // Just for adding a line to the log file for marking a new waypoint generation iteration
-    connect(mFlightPlanner, SIGNAL(wayPointsSetOnRover(QList<WayPoint>)), SLOT(slotAddLogFileMarkForPaper(QList<WayPoint>)));
     connect(mFlightPlanner, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
 
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
@@ -219,7 +216,7 @@ BaseStation::BaseStation() : QMainWindow()
 BaseStation::~BaseStation()
 {
     delete mPtuController;
-    mStatsFile->close();
+//    mStatsFile->close();
 }
 
 void BaseStation::slotManageJoystick(quint8 button, bool pressed)
@@ -275,7 +272,7 @@ void BaseStation::slotNewScanData(const QVector<QVector3D>& pointList, const QVe
     }
 
     // We only run/stats/logs for efficiency (paper) when scanning is in progress
-    mDateTimeLastLidarInput = QDateTime::currentDateTime();
+//    mDateTimeLastLidarInput = QDateTime::currentDateTime();
 
     //mGlWidget->slotInsertLidarPoints(pointList);
 
@@ -344,7 +341,7 @@ void BaseStation::keyPressEvent(QKeyEvent* event)
 //    if(event->key() == Qt::Key_Space)
 //        addRandomPoint();
 }
-
+/*
 void BaseStation::slotWriteStats()
 {
     return;
@@ -369,7 +366,7 @@ void BaseStation::slotAddLogFileMarkForPaper(QList<WayPoint> wptList)
 {
     QTextStream out(mStatsFile);
     out << "# Generated" << wptList.size() << "waypoints\n";
-}
+}*/
 
 void BaseStation::slotClearOctree()
 {

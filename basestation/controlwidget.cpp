@@ -102,8 +102,8 @@ void ControlWidget::slotUpdateBattery(const float& voltageCurrent)
 
 void ControlWidget::slotFlightStateChanged(FlightState fs)
 {
-    mLabelFlightState->setText(getFlightStateString(fs));
-    if(fs != UserControl) mLabelFlightState->setStyleSheet(""); else mLabelFlightState->setStyleSheet(getBackgroundCss(true, false));
+    mLabelFlightState->setText(fs.toString());
+    if(fs.state != FlightState::Value::Undefined) mLabelFlightState->setStyleSheet(""); else mLabelFlightState->setStyleSheet(getBackgroundCss(true, false));
 }
 
 void ControlWidget::slotUpdatePose(const Pose &pose)

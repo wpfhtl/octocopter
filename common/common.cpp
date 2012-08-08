@@ -29,32 +29,3 @@ bool testBitEqual(quint16 number1, quint16 number2, quint8 bit)
 }
 
 QString t() { return QTime::currentTime().toString("HH:mm:ss:zzz"); }
-
-
-
-QString getFlightStateString(const FlightState flightState)
-{
-    switch(flightState)
-    {
-    case UserControl: return "UserControl"; break;
-    case ApproachWayPoint: return "ApproachWayPoint"; break;
-    case Hover: return "Hover"; break;
-    case Idle: return "Idle"; break;
-    }
-
-    qDebug() << "getFlightStateString(): FLIGHTSTATE" << flightState << "UNDEFINED!";
-}
-
-FlightState getFlightState(const QString& flightStateString)
-{
-    if(flightStateString == "UserControl")
-        return UserControl;
-    else if(flightStateString == "ApproachWayPoint")
-        return ApproachWayPoint;
-    if(flightStateString == "Hover")
-        return Hover;
-    if(flightStateString == "Idle")
-        return Idle;
-
-    qDebug() << "undefined flightstate string!";
-}

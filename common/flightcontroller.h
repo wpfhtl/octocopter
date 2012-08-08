@@ -6,6 +6,8 @@
 #include <QTime>
 
 #include <common.h>
+#include "flightstate.h"
+#include "flightstateswitch.h"
 #include "flightcontrollervalues.h"
 #include <laserscanner.h>
 #include "pose.h"
@@ -108,7 +110,7 @@ signals:
     void wayPointInserted(quint16 index, const WayPoint& wayPoint);
 
     // emitted when the flightState changed
-    void flightStateChanged(FlightState);
+    void flightStateChanged(FlightState::Value);
 
     void currentWayPoints(QList<WayPoint>);
 

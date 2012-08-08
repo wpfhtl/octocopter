@@ -4,6 +4,7 @@
 #include "waypoint.h"
 #include "motioncommand.h"
 #include "pose.h"
+#include "flightstate.h"
 
 #define SEPARATOR " -#- "
 

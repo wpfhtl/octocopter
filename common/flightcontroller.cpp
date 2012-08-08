@@ -1,7 +1,7 @@
 #include "flightcontroller.h"
 #include "motioncommand.h"
 
-FlightController::FlightController(const QString& logFilePrefix) : QObject(), mFlightState(UserControl)
+FlightController::FlightController(const QString& logFilePrefix) : QObject()
 {
     mLogFile = 0;
     if(!logFilePrefix.isNull())
@@ -10,6 +10,8 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject(), mF
         if(!mLogFile->open(QIODevice::WriteOnly | QIODevice::Text))
             qFatal("FlightController::FlightController(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
     }
+
+    mFlightState = FlightState(FlightState::Value::Undefined);
 
     mPrevErrorPitch = mPrevErrorRoll = mPrevErrorYaw = mPrevErrorHeight = 0.1;
     mErrorIntegralPitch = mErrorIntegralRoll = mErrorIntegralYaw = mErrorIntegralHeight = 0.1;
@@ -25,13 +27,6 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject(), mF
 
     mImuOffsets.pitch = 0.0f;
     mImuOffsets.roll = 0.0f;
-
-    /*// For testing in simulator
-    mWayPoints.append(WayPoint(QVector3D(130,90,110)));
-    mWayPoints.append(WayPoint(QVector3D(140,80,130)));
-    mWayPoints.append(WayPoint(QVector3D(120,90,120)));
-    mWayPoints.append(WayPoint(QVector3D(150,80,150)));
-    setFlightState(ApproachWayPoint);*/
 }
 
 FlightController::~FlightController()
@@ -48,7 +43,7 @@ FlightController::~FlightController()
 
 void FlightController::slotComputeBackupMotion()
 {
-    qDebug() << t() << "FlightController::slotComputeBackupMotion(): no pose for" << mBackupTimerComputeMotion->interval() << "ms, flightstate" << getFlightStateString(mFlightState) << ": starting backup motion computation.";
+    qDebug() << t() << "FlightController::slotComputeBackupMotion(): no pose for" << mBackupTimerComputeMotion->interval() << "ms, flightstate" << mFlightState.toString() << ": starting backup motion computation.";
     Q_ASSERT(mFlightState != UserControl && "FlightController::slotComputeBackupMotion(): i was called in FlightState UserControl");
     slotComputeMotionCommands();
 }
@@ -57,17 +52,17 @@ void FlightController::slotComputeMotionCommands()
 {
     Q_ASSERT(mFlightState != UserControl && "FlightController::slotComputeMotionCommands(): i was called in FlightState UserControl");
 
-    switch(mFlightState)
+    switch(mFlightState.state)
     {
 
-    case Idle:
+    case FlightState::Value::Idle:
     {
         qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState: Idle, emitting idle-thrust.";
         emit motion(MotionCommand((quint8)90, 0.0f, 0.0f, 0.0f));
         break;
     }
 
-    case ApproachWayPoint:
+    case FlightState::Value::ApproachWayPoint:
     {
         if(mWayPoints.size() < 1)
         {
@@ -78,7 +73,7 @@ void FlightController::slotComputeMotionCommands()
 
         if(getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp > 82)
         {
-            qDebug() << t() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, vehicle pose update is from" << mLastKnownVehiclePose.timestamp << "and now its" << getCurrentGpsTowTime() << " - this is pretty old!?";
+            qDebug() << t() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, vehicle pose update is from" << mLastKnownVehiclePose.timestamp << "and now its" << getCurrentGpsTowTime() << " - age in ms:" << getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp;
             emit motion(MotionCommand(MotionCommand::thrustHover, 0.0f, 0.0f, 0.0f));
             return;
         }
@@ -207,11 +202,11 @@ void FlightController::slotComputeMotionCommands()
         break;
     }
 
-    case Hover:
+    case FlightState::Value::Hover:
     {
         if(getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp > 82)
         {
-            qDebug() << t() << "FlightController::slotComputeMotionCommands(): Hover, vehicle pose update is from" << mLastKnownVehiclePose.timestamp << "and now its" << getCurrentGpsTowTime() << " - this is pretty old!?";
+            qDebug() << t() << "FlightController::slotComputeMotionCommands(): Hover, vehicle pose update is from" << mLastKnownVehiclePose.timestamp << "and now its" << getCurrentGpsTowTime() << " - age in ms:" << getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp;
             emit motion(MotionCommand(MotionCommand::thrustHover, 0.0f, 0.0f, 0.0f));
             return;
         }
@@ -226,7 +221,7 @@ void FlightController::slotComputeMotionCommands()
 
         // If the planar distance to mHoverPosition is very small (this happens when only the height is off),
         // we don't want to yaw and pitch. So, we introduce a factor [0;1], which becomes 0 with small distance
-        const float factorPlanarDistance = qBound(0.0f, (float)(mLastKnownVehiclePose.getPlanarPosition() - mHoverPosition).length(), 2.0f);
+        const float factorPlanarDistance = qBound(0.0f, (float)(mLastKnownVehiclePose.getPlanarPosition() - mHoverPosition).length(), 1.0f);
 
         // Elapsed time since last call in seconds. May not become zero (divide by zero)
         // and shouldn't grow too high, as that will screw up the controllers.
@@ -306,7 +301,7 @@ void FlightController::slotComputeMotionCommands()
 
 
     default:
-        qDebug() << t() << "FlightController::slotComputeMotionCommands(): FLIGHTSTATE NOT DEFINED:" << mFlightState;
+        qDebug() << t() << "FlightController::slotComputeMotionCommands(): FLIGHTSTATE NOT DEFINED:" << mFlightState.toString();
         Q_ASSERT(false);
     }
 
@@ -331,7 +326,7 @@ void FlightController::slotCalibrateImu()
 
 void FlightController::nextWayPointReached()
 {
-    Q_ASSERT(mFlightState == ApproachWayPoint && "FlightController::nextWayPointReached(): reached waypoint, but am not in ApproachWayPoint state. Expect trouble!");
+    Q_ASSERT(mFlightState.state == FlightState::Value::ApproachWayPoint && "FlightController::nextWayPointReached(): reached waypoint, but am not in ApproachWayPoint state. Expect trouble!");
 
     // The next waypoint has been reached.
     mWayPointsPassed.append(mWayPoints.takeFirst());
@@ -349,15 +344,15 @@ void FlightController::nextWayPointReached()
 
 void FlightController::slotWayPointInsert(const quint16& index, const WayPoint& wayPoint)
 {
-    qDebug() << "FlightController::slotSetNextWayPoint(): state is" << getFlightStateString(mFlightState) << "inserting waypoint" << wayPoint << "into index" << index;
+    qDebug() << "FlightController::slotSetNextWayPoint(): state is" << mFlightState.toString() << "inserting waypoint" << wayPoint << "into index" << index;
     mWayPoints.insert(index, wayPoint);
     emit currentWayPoints(mWayPoints);
 
     // Just in case we were idle before...
-    if(mFlightState == Idle)
+    if(mFlightState.state == FlightState::Value::Idle)
     {
         qDebug() << t() << "FlightController::slotWayPointInsert(): we were idle, switching to ApproachWayPoint";
-        setFlightState(ApproachWayPoint);
+        setFlightState(FlightState::Value::ApproachWayPoint);
     }
 }
 
@@ -373,7 +368,7 @@ void FlightController::slotWayPointDelete(const quint16& index)
         mWayPoints.removeAt(index);
 
         // The list might now be empty, so me might have to land.
-        if(mFlightState == ApproachWayPoint)
+        if(mFlightState.state == FlightState::Value::ApproachWayPoint)
             ensureSafeFlightAfterWaypointsChanged();
     }
     qDebug() << "FlightController::slotWayPointDelete(): after deleting wpt, emitting new wpt list of size" << mWayPoints.size();
@@ -385,14 +380,14 @@ void FlightController::slotSetWayPoints(const QList<WayPoint>& wayPoints)
     mWayPoints = wayPoints;
 
     // Just in case we were idle before...
-    if(mFlightState == Idle && mWayPoints.size())
+    if(mFlightState.state == FlightState::Value::Idle && mWayPoints.size())
     {
         qDebug() << t() << "FlightController::slotSetWayPoints(): we were idle and got new waypoints, switching to ApproachWayPoint";
-        setFlightState(ApproachWayPoint);
+        setFlightState(FlightState::Value::ApproachWayPoint);
     }
 
     // The list might now be empty, so we might have to land.
-    if(mFlightState == ApproachWayPoint)
+    if(mFlightState.state == FlightState::Value::ApproachWayPoint)
         ensureSafeFlightAfterWaypointsChanged();
 
     emit currentWayPoints(mWayPoints);
@@ -412,24 +407,36 @@ FlightState FlightController::getFlightState(void) const { return mFlightState; 
 
 void FlightController::slotNewVehiclePose(const Pose& pose)
 {
-    qDebug() << pose.timestamp << "FlightController::slotNewVehiclePose(): flightstate:" << getFlightStateString(mFlightState);
+    qDebug() << pose.timestamp << "FlightController::slotNewVehiclePose(): flightstate:" << mFlightState.toString();
 
     // Whatever precision and flightstate, save the pose.
     mLastKnownVehiclePose = pose;
+
+    mLastFlightControllerValues = FlightControllerValues();
     mLastFlightControllerValues.lastKnownPose = mLastKnownVehiclePose;
 
-    switch(mFlightState)
+    switch(mFlightState.state)
     {
-    case UserControl:
+    case FlightState::Value::UserControl:
+    {
         // Keep ourselves disabled in UserControl.
-        mLastFlightControllerValues = FlightControllerValues();
-        mLastFlightControllerValues.flightState = UserControl;
+        mLastFlightControllerValues.flightState.state = FlightState::Value::UserControl;
         logFlightControllerValues();
-
         Q_ASSERT(!mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): UserControl has active backup timer!");
         break;
+    }
 
-    case ApproachWayPoint:
+    case FlightState::Value::Idle:
+    {
+        mLastFlightControllerValues.flightState.state = FlightState::Value::Idle;
+        logFlightControllerValues();
+
+        Q_ASSERT(mBackupTimerComputeMotion->interval() == backupTimerIntervalSlow && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): Idle has inactive backup timer or wrong interval!");
+        break;
+    }
+
+    case FlightState::Value::ApproachWayPoint:
+    {
         Q_ASSERT(mBackupTimerComputeMotion->interval() == backupTimerIntervalFast && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): ApproachWayPoint has inactive backup timer or wrong interval!");
 
         // Note that we don't expect ModeIntegrated, because only 1 of 2_or_5 packets is integrated - and thats ok.
@@ -449,8 +456,10 @@ void FlightController::slotNewVehiclePose(const Pose& pose)
             qDebug() << "FlightController::slotNewVehiclePose(): received a useless" << pose.toStringVerbose() << ": doing nothing.";
         }
         break;
+    }
 
-    case Hover:
+    case FlightState::Value::Hover:
+    {
         Q_ASSERT(mBackupTimerComputeMotion->interval() == backupTimerIntervalFast && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): Hover has inactive backup timer or wrong interval!");
 
         // Note that we don't expect ModeIntegrated, because only 1 of 2_or_5 packets is integrated - and thats ok.
@@ -470,14 +479,7 @@ void FlightController::slotNewVehiclePose(const Pose& pose)
             qDebug() << "FlightController::slotNewVehiclePose(): received a useless" << pose.toStringVerbose() << ": doing nothing.";
         }
         break;
-
-    case Idle:
-        mLastFlightControllerValues = FlightControllerValues();
-        mLastFlightControllerValues.flightState = Idle;
-        logFlightControllerValues();
-
-        Q_ASSERT(mBackupTimerComputeMotion->interval() == backupTimerIntervalSlow && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): Idle has inactive backup timer or wrong interval!");
-        break;
+    }
 
     default:
         Q_ASSERT(false && "illegal flightstate in FlightController::slotNewVehiclePose()!");
@@ -487,16 +489,17 @@ void FlightController::slotNewVehiclePose(const Pose& pose)
 
 void FlightController::setFlightState(FlightState newFlightState)
 {
-    qDebug() << t() << "FlightController::setFlightState():" << getFlightStateString(mFlightState) << "=>" << getFlightStateString(newFlightState);
+    qDebug() << t() << "FlightController::setFlightState():" << mFlightState.toString() << "=>" << newFlightState.toString();
+
     if(mFlightState == newFlightState)
     {
         qDebug() << t() << "FlightController::setFlightState(): switching to same flightstate doesn't make much sense, returning.";
         return;
     }
 
-    switch(newFlightState)
+    switch(newFlightState.state)
     {
-    case ApproachWayPoint:
+    case FlightState::Value::ApproachWayPoint:
     {
         qDebug() << t() << "FlightController::setFlightState(): ApproachWayPoint - initializing controllers, setting backup motion timer to high-freq";
 
@@ -514,7 +517,7 @@ void FlightController::setFlightState(FlightState newFlightState)
         break;
     }
 
-    case Hover:
+    case FlightState::Value::Hover:
     {
         mHoverPosition = mLastKnownVehiclePose.getPosition();
         qDebug() << t() << "FlightController::setFlightState(): going to hover, setting backup motion timer to high-freq and staying at" << mHoverPosition;
@@ -527,7 +530,7 @@ void FlightController::setFlightState(FlightState newFlightState)
         break;
     }
 
-    case UserControl:
+    case FlightState::Value::UserControl:
     {
         // We don't need the timer, as the remote control will overrule our output anyway.
         qDebug() << t() << "FlightController::setFlightState(): disabling backup motion timer.";
@@ -536,7 +539,7 @@ void FlightController::setFlightState(FlightState newFlightState)
         break;
     }
 
-    case Idle:
+    case FlightState::Value::Idle:
     {
         qDebug() << t() << "FlightController::setFlightState(): setting backup motion timer to low-freq";
         mBackupTimerComputeMotion->start(backupTimerIntervalSlow);
@@ -548,7 +551,7 @@ void FlightController::setFlightState(FlightState newFlightState)
         Q_ASSERT(false && "FlightController::setFlightState(): undefined flightstate");
     }
 
-    emit flightStateChanged(mFlightState);
+    emit flightStateChanged(mFlightState.state);
 }
 
 void FlightController::initializeControllers()
@@ -595,7 +598,7 @@ void FlightController::ensureSafeFlightAfterWaypointsChanged()
     if(mWayPoints.size() == 0)
     {
         qDebug() << "FlightController::ensureSafeFlightAfterWaypointsChanged(): wpt list is empty, going to hover";
-        setFlightState(Hover);
+        setFlightState(FlightState::Value::Hover);
 
         /* Still too untested
         // The method has debug output, so call it just once for now.
@@ -634,11 +637,11 @@ void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch
 {
     // This method does nothing more than some sanity checks and verbose flightstae switching.
 
-    qDebug() << t() << "FlightController::slotFlightStateSwitchValueChanged(): flightstate" << getFlightStateString(mFlightState) << "FlightStateSwitch changed to:" << fssv.toString();
+    qDebug() << t() << "FlightController::slotFlightStateSwitchValueChanged(): flightstate" << mFlightState.toString() << "FlightStateSwitch changed to:" << fssv.toString();
 
-    switch(mFlightState)
+    switch(mFlightState.state)
     {
-    case UserControl:
+    case FlightState::Value::UserControl:
         switch(fssv.value)
         {
         case FlightStateSwitch::UserControl:
@@ -647,11 +650,11 @@ void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch
             Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in UserControl and now user switched to UserControl. Error.");
             break;
         case FlightStateSwitch::Hover:
-            setFlightState(Hover);
+            setFlightState(FlightState::Value::Hover);
             break;
         case FlightStateSwitch::ApproachWayPoint:
             // We are in UserControl, but switching to ComputerControl.
-            setFlightState(ApproachWayPoint);
+            setFlightState(FlightState::Value::ApproachWayPoint);
             break;
         default:
             Q_ASSERT("FlightController::slotFlightStateSwitchValueChanged(): Undefined FlightStateSwitchValue!");
@@ -659,15 +662,15 @@ void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch
         }
         break;
 
-    case ApproachWayPoint:
+    case FlightState::Value::ApproachWayPoint:
         switch(fssv.value)
         {
         case FlightStateSwitch::UserControl:
             // We are approaching waypoints, but the user wants to take over control. Ok.
-            setFlightState(UserControl);
+            setFlightState(FlightState::Value::UserControl);
             break;
         case FlightStateSwitch::Hover:
-            setFlightState(Hover);
+            setFlightState(FlightState::Value::Hover);
             break;
         case FlightStateSwitch::ApproachWayPoint:
             // We are approaching waypoints, and now the user changed to ComputerControl?
@@ -680,18 +683,18 @@ void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch
         }
         break;
 
-    case Hover:
+    case FlightState::Value::Hover:
         switch(fssv.value)
         {
         case FlightStateSwitch::UserControl:
             // We are approaching waypoints, but the user wants to take over control. Ok.
-            setFlightState(UserControl);
+            setFlightState(FlightState::Value::UserControl);
             break;
         case FlightStateSwitch::Hover:
             Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in Hover and now user switched to Hover. Error.");
             break;
         case FlightStateSwitch::ApproachWayPoint:
-            setFlightState(ApproachWayPoint);
+            setFlightState(FlightState::Value::ApproachWayPoint);
             break;
         default:
             Q_ASSERT("FlightController::slotFlightStateSwitchValueChanged(): Undefined FlightStateSwitchValue!");
@@ -699,21 +702,21 @@ void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch
         }
         break;
 
-    case Idle:
+    case FlightState::Value::Idle:
         switch(fssv.value)
         {
         case FlightStateSwitch::UserControl:
             // We are idling, but the user wants to take over control. Ok.
-            setFlightState(UserControl);
+            setFlightState(FlightState::Value::UserControl);
             break;
         case FlightStateSwitch::Hover:
             // We are idling, but the user wants us to hover. Hovering on the ground is not healthy!
             qDebug() << "FlightController::slotFlightStateSwitchValueChanged(): going from idle to hover, this doesn't seem like a good idea, as the current height will be kept.";
-            setFlightState(Hover);
+            setFlightState(FlightState::Value::Hover);
             break;
         case FlightStateSwitch::ApproachWayPoint:
             // We are in UserControl, but switching to ComputerControl.
-            setFlightState(ApproachWayPoint);
+            setFlightState(FlightState::Value::ApproachWayPoint);
             break;
         default:
             Q_ASSERT("FlightController::slotFlightStateSwitchValueChanged(): Undefined FlightStateSwitchValue!");
@@ -725,10 +728,10 @@ void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch
         Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): illegal flightstate!");
     }
 
-    qDebug() << t() << "FlightController::slotFlightStateSwitchValueChanged(): done, new flightstate" << getFlightStateString(mFlightState);
+    qDebug() << t() << "FlightController::slotFlightStateSwitchValueChanged(): done, new flightstate" << mFlightState.toString();
 }
 
 void FlightController::slotEmitFlightState()
 {
-    emit flightStateChanged(mFlightState);
+    emit flightStateChanged(mFlightState.state);
 }
