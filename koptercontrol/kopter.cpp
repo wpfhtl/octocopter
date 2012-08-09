@@ -102,7 +102,7 @@ void Kopter::slotSetMotion(const MotionCommand& mc)
 
     const MotionCommand motionClamped = mc.clampedToSafeLimits();
 
-    qDebug() << t() << "Kopter::slotSetMotion(): setting clamped motion, frame:" << mStructExternControl.Frame << "thrust:" << motionClamped.thrust << "yaw:" << motionClamped.yaw << "pitch:" << motionClamped.pitch << "roll:" << motionClamped.roll;
+    qDebug() << "Kopter::slotSetMotion(): setting clamped motion, frame:" << mStructExternControl.Frame << "thrust:" << motionClamped.thrust << "yaw:" << motionClamped.yaw << "pitch:" << motionClamped.pitch << "roll:" << motionClamped.roll;
 
     /*
       The kopter has different conventions, at least with default settings (which I intent to keep):
@@ -230,7 +230,7 @@ void Kopter::slotSerialPortDataReady()
                 const qint16 maxReplyTimeForThisPacketType = mMaxReplyTimes.value(mPendingReply, 0);
                 if(replyTime > maxReplyTimeForThisPacketType)
                 {
-                    qDebug() << t() << "Kopter::slotSerialPortDataReady(): max reply time increased from" << maxReplyTimeForThisPacketType << "to" << replyTime << "for packet:" << mPendingReply;
+                    qDebug() << "Kopter::slotSerialPortDataReady(): max reply time increased from" << maxReplyTimeForThisPacketType << "to" << replyTime << "for packet:" << mPendingReply;
                     mMaxReplyTimes[mPendingReply] = replyTime;
                 }
                 mPendingReply = QChar();
@@ -256,7 +256,7 @@ void Kopter::slotSerialPortDataReady()
             }
             else if(message.getId() == 'B')
             {
-                qDebug() << t() << "Kopter::slotSerialPortDataReady(): received confirmation for externalControl frame:" << (quint8)message.getPayload()[0];
+                qDebug() << "Kopter::slotSerialPortDataReady(): received confirmation for externalControl frame:" << (quint8)message.getPayload()[0];
             }
             else if(message.getId() == 'D')
             {
@@ -317,8 +317,8 @@ void Kopter::slotSerialPortDataReady()
             {
                 const QByteArray payload = message.getPayload();
                 const VersionInfo* versionInfo = (VersionInfo*)payload.data();
-                qDebug() << t() << "Kopter::slotSerialPortDataReady(): MK protocol version is" << versionInfo->ProtoMajor << versionInfo->ProtoMinor;
-                qDebug() << t() << "Kopter::slotSerialPortDataReady(): MK software version is" << versionInfo->SWMajor << versionInfo->SWMinor << versionInfo->SWPatch;
+                qDebug() << "Kopter::slotSerialPortDataReady(): MK protocol version is" << versionInfo->ProtoMajor << versionInfo->ProtoMinor;
+                qDebug() << "Kopter::slotSerialPortDataReady(): MK software version is" << versionInfo->SWMajor << versionInfo->SWMinor << versionInfo->SWPatch;
 
                 if(versionInfo->ProtoMajor != 11 || versionInfo->ProtoMinor != 0) qFatal("Kopter::slotSerialPortDataReady(): MK protocol version mismatch, exiting.");
                 if(versionInfo->SWMajor != 0 || versionInfo->SWMinor != 86 || versionInfo->SWPatch != 3) qFatal("Kopter::slotSerialPortDataReady(): MK software version mismatch, this is untested, exiting.");

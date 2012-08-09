@@ -6,6 +6,7 @@
 #include <QTime>
 
 #include <common.h>
+#include "gnsstime.h"
 #include "flightstate.h"
 #include "flightstateswitch.h"
 #include "flightcontrollervalues.h"

@@ -128,8 +128,8 @@ quint8 GnssDevice::slotFlushCommandQueue()
     if(!mWaitingForCommandReply && mCommandQueueUsb.size())
     {
         mLastCommandToDeviceUsb = mCommandQueueUsb.takeFirst();
-        qDebug() << t() << "GnssDevice::slotFlushCommandQueue(): no pending replies, sending next command:" << mLastCommandToDeviceUsb.trimmed();
-        if(mReceiveBufferUsb.size()) qDebug() << t() << "GnssDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << SbfParser::readable(mReceiveBufferUsb);
+        qDebug() << "GnssDevice::slotFlushCommandQueue(): no pending replies, sending next command:" << mLastCommandToDeviceUsb.trimmed();
+        if(mReceiveBufferUsb.size()) qDebug() << "GnssDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << SbfParser::readable(mReceiveBufferUsb);
         //usleep(100000);
         mSerialPortUsb->write(mLastCommandToDeviceUsb);
         mWaitingForCommandReply = true;
@@ -474,25 +474,25 @@ void GnssDevice::slotDataReadyOnUsb()
                 positionReplyStop += mSerialPortOnDeviceUsb.length() + 1; // make sure we also include the "USB1>" at the end!
                 const QByteArray commandReply = mReceiveBufferUsb.mid(positionReplyStart, positionReplyStop - positionReplyStart);
 
-                qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): received reply to:" << mLastCommandToDeviceUsb.trimmed() << "-" << commandReply.size() << "bytes:" << commandReply.trimmed();
+                qDebug() << "GnssDevice::slotDataReadyOnUsb(): received reply to:" << mLastCommandToDeviceUsb.trimmed() << "-" << commandReply.size() << "bytes:" << commandReply.trimmed();
 
                 QTextStream commandLog(mLogFileCmd);
                 commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << " DEV -> HOST: " << commandReply.trimmed() << endl;
                 commandLog << endl << "################################################################################" << endl << endl << endl << endl;
 
                 if(commandReply.contains("$R? ASCII commands between prompts were discarded!"))
-                    qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): WARNING, we were talking too fast!!";
+                    qDebug() << "GnssDevice::slotDataReadyOnUsb(): WARNING, we were talking too fast!!";
 
                 if(commandReply.contains(QString("setDataInOut,"+mSerialPortOnDeviceCom+",RTCMv3,SBF").toAscii()))
                 {
-                    qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): gnss device now configured to accept diffcorr";
+                    qDebug() << "GnssDevice::slotDataReadyOnUsb(): gnss device now configured to accept diffcorr";
                     mDeviceIsReadyToReceiveDiffCorr = true;
                 }
 
                 if(commandReply.contains("shutdown"))
                 {
                     emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Orderly shutdown confirmed by gnss device");
-                    qDebug() << t() <<  "GnssDevice::slotDataReadyOnUsb(): shutdown confirmed by device, quitting.";
+                    qDebug() << "GnssDevice::slotDataReadyOnUsb(): shutdown confirmed by device, quitting.";
                     QCoreApplication::quit();
                 }
 
@@ -564,8 +564,8 @@ void GnssDevice::slotSetSystemTime(const qint32& tow)
     const quint32 secondsToRollOver = (7 * 86400) - (tow / 1000);
 
     // Apply 15000ms = 15 leapseconds offset? Only when we really sync to UTC, which we don't.
-    const qint32 offsetHostToGps = tow - getCurrentGpsTowTime() + 7; // Oscilloscope indicates 7ms offset is a good value.
-    qDebug() << "GnssDevice::slotSetSystemTime(): time rollover in" << ((float)secondsToRollOver)/86400.0f << "d, offset host time" << getCurrentGpsTowTime() << "to gps time" << tow << "is" << offsetHostToGps/1000 << "s and" << (offsetHostToGps%1000) << "ms";
+    const qint32 offsetHostToGps = tow - GnssTime::currentTow() + 7; // Oscilloscope indicates 7ms offset is a good value.
+    qDebug() << "GnssDevice::slotSetSystemTime(): time rollover in" << ((float)secondsToRollOver)/86400.0f << "d, offset host time" << GnssTime::currentTow() << "to gps time" << tow << "is" << offsetHostToGps/1000 << "s and" << (offsetHostToGps%1000) << "ms";
 
     // For small clock drifts, adjust clock. Else, set clock
     if(abs(offsetHostToGps) < 10)
@@ -602,5 +602,5 @@ void GnssDevice::slotSetSystemTime(const qint32& tow)
         }
     }
 
-    qDebug() << t() << "GnssDevice::slotSetSystemTime(): offset host to gps is" << offsetHostToGps;
+    qDebug() << "GnssDevice::slotSetSystemTime(): offset host to gps is" << offsetHostToGps;
 }
