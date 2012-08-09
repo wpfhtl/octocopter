@@ -73,7 +73,7 @@ signals:
     void message(const LogImportance& importance, const QString& source, const QString& message);
 
     void vehiclePose(Pose);
-    void vehiclePoseLowFreq(Pose);
+    //void vehiclePoseLowFreq(Pose);
     void flightState(FlightState);
     void scanData(QVector<QVector3D>,QVector3D);
     void vehicleStatus(quint32,float,qint16,qint8);

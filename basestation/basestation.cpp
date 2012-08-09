@@ -66,6 +66,20 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mGlWidget, SIGNAL(mouseClickedAtWorldPos(Qt::MouseButton, QVector3D)), mControlWidget, SLOT(slotSetWayPointCoordinateFields(Qt::MouseButton, QVector3D)));
     setCentralWidget(mGlWidget);
 
+    mPtuController = new PtuController("/dev/ttyUSB0", this);
+    mPtuController->setAllowedAreas(Qt::AllDockWidgetAreas);
+    mPtuController->setVisible(true);
+    addDockWidget(Qt::BottomDockWidgetArea, mPtuController);
+
+    if(mPtuController->isOpened())
+    {
+        mLogWidget->log(Information, "BaseStation::BaseStation()", "Enabling PtuController with real PTU.");
+    }
+    else
+    {
+        mLogWidget->log(Information, "BaseStation::BaseStation()", "Enabling PtuController with dummy PTU.");
+    }
+
     connect(mFlightPlanner, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
 
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
@@ -86,6 +100,7 @@ BaseStation::BaseStation() : QMainWindow()
     menuBar()->addAction("Clear Cloud", this, SLOT(slotClearOctree()));
 
     connect(mGlWidget, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
+    connect(mGlWidget, SIGNAL(visualizeNow()), mPtuController, SLOT(slotVisualize()));
     connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWidget, SLOT(slotUpdateView()));
 
     menuBar()->addAction("Screenshot", mGlWidget, SLOT(slotSaveImage()));
@@ -141,6 +156,10 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mControlWidget, SLOT(slotUpdatePose(Pose)));
         connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose)));
 
+        //connect(mLogPlayer, SIGNAL(vehiclePoseLowFreq(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
+        connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
+        connect(mPtuController, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
+
         connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mGlWidget, SLOT(slotNewVehiclePose(Pose)));
 
         connect(mRoverConnection, SIGNAL(connectionStatusRover(bool)), mControlWidget, SLOT(slotUpdateConnectionRover(bool)));
@@ -166,14 +185,6 @@ BaseStation::BaseStation() : QMainWindow()
         menuBar()->addAction("Connect", mRoverConnection, SLOT(slotConnectToRover()));
 
         mRoverConnection->slotConnectToRover();
-/*
-        mPtuController = new PtuController("/dev/ttyUSB0", this);
-        mPtuController->setAllowedAreas(Qt::AllDockWidgetAreas);
-        mPtuController->setVisible(true);
-        addDockWidget(Qt::BottomDockWidgetArea, mPtuController);
-        connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
-        connect(mPtuController, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
-*/
         mLogWidget->log(Information, "BaseStation::BaseStation()", "Working online, enabling RoverConnection+RtkFetcher+PtuController, disabling LogPlayer.");
     }
     else
@@ -184,28 +195,17 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mLogPlayer, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
         connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mControlWidget, SLOT(slotUpdatePose(Pose)));
         connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose)));
+
+        //connect(mLogPlayer, SIGNAL(vehiclePoseLowFreq(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
+        connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
+        connect(mPtuController, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
+
         connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mGlWidget, SLOT(slotNewVehiclePose(Pose)));
         connect(mLogPlayer, SIGNAL(scanData(QVector<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QVector<QVector3D>,QVector3D)));
     //    connect(mLogPlayer, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
         connect(mLogPlayer, SIGNAL(gnssStatus(GnssStatusInformation::GnssStatus)), mControlWidget, SLOT(slotUpdateGnssStatus(GnssStatusInformation::GnssStatus)));
         connect(mLogPlayer, SIGNAL(flightControllerValues(FlightControllerValues)), mGlWidget, SLOT(slotSetFlightControllerValues(FlightControllerValues)));
         connect(mLogPlayer, SIGNAL(flightState(FlightState)), mControlWidget, SLOT(slotFlightStateChanged(FlightState)));
-
-        mPtuController = new PtuController("/dev/ttyUSB0", this);
-        mPtuController->setAllowedAreas(Qt::AllDockWidgetAreas);
-        mPtuController->setVisible(true);
-        addDockWidget(Qt::BottomDockWidgetArea, mPtuController);
-        connect(mLogPlayer, SIGNAL(vehiclePoseLowFreq(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
-        connect(mPtuController, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
-
-        if(mPtuController->isOpened())
-        {
-            mLogWidget->log(Information, "BaseStation::BaseStation()", "Enabling PtuController with real PTU.");
-        }
-        else
-        {
-            mLogWidget->log(Information, "BaseStation::BaseStation()", "Enabling PtuController with dummy PTU.");
-        }
 
         mLogWidget->log(Information, "BaseStation::BaseStation()", "Working offline, disabling RoverConnection+RtkFetcher, enabling LogPlayer.");
     }

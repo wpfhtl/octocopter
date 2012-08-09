@@ -188,7 +188,8 @@ void GlWidget::paintGL()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().getPosition();
-    const QVector3D camLookAt = mCamLookAtOffset + vehiclePosition;
+    //const QVector3D camLookAt = mCamLookAtOffset + vehiclePosition;
+    const QVector3D camLookAt = mCamLookAtOffset;
 
     QQuaternion cameraRotation =
             QQuaternion::fromAxisAndAngle(QVector3D(0.0f, 0.0f, 1.0f), rotZ)

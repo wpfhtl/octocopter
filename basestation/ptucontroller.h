@@ -10,6 +10,8 @@
 
 #include <abstractserial.h>
 #include "pose.h"
+#include "model.h"
+#include "shaderprogram.h"
 
 namespace Ui {
     class PtuController;
@@ -33,14 +35,20 @@ public:
     const Pose* getPosePtuBase() const {return &mPosePtuBase;}
     bool isOpened() const {return mSerialPortPtu->isOpen();}
 
-    //static float getAngleBetween(QVector3D vec1, QVector3D vec2);
     static Pose determinePtuPose(QVector3D positionCameraSensor, QVector3D positionInFrustrumCenter);
 
 private:
     Ui::PtuController *ui;
     QTimer* mTimerUpdateStatus;
     AbstractSerial *mSerialPortPtu;
+
+    // This first pose as calculated by the very first determinePtuPose when the enable-button is clicked.
+    // Further updates on vehiclePoseChanged will only change mTiltToVehicle and mPanToVehicle.
     Pose mPosePtuBase;
+
+    double mPanToVehicle;
+    double mTiltToVehicle;
+
     Pose mLastKnownVehiclePose;
     QVector3D mPositionCameraSensor;
     QVector3D mPositionInFrustumCenter;
@@ -51,6 +59,9 @@ private:
     double mMaxPanPositions;
     double mMinTiltPositions;
     double mMaxTiltPositions;
+    Model* mModelPtuBase;
+    Model* mModelPtuPan;
+    Model* mModelPtuTilt;
 
 private slots:
     void slotSerialPortStatusChanged(const QString& status, const QDateTime& time);
@@ -64,10 +75,12 @@ private slots:
     void slotSetPanLimits(float degreeMinimum, float degreeMaximum);
     void slotSetTiltLimits(float degreeMinimum, float degreeMaximum);
     void slotSendCommandToPtu(const QString& command);
+    void slotCalculateBasePose();
 
 public slots:
     void slotVehiclePoseChanged(const Pose& pose);
     void slotSetSpeed(Axis axis, quint16 speed);
+    void slotVisualize();
 
 signals:
     void message(const LogImportance& importance, const QString& source, const QString& message);
