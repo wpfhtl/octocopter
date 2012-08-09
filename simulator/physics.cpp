@@ -343,7 +343,7 @@ Physics::~Physics()
 
 void Physics::slotSetMotion(const MotionCommand& mc)
 {
-    const MotionCommand motionCommandClamped = mc.clampedToSafeLimits();
+    const MotionCommand motionCommandClamped = mc;//.clampedToSafeLimits();
     qDebug() << "Physics::slotSetMotion(): updating physics forces with thrust" << motionCommandClamped.thrust << "pitch" << motionCommandClamped.pitch << "roll" << motionCommandClamped.roll << "yaw" << motionCommandClamped.yaw;
 
     /*

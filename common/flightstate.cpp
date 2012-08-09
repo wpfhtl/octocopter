@@ -9,7 +9,7 @@ QString FlightState::toString(const FlightState& fs)
     case FlightState::Value::Hover: return "Hover"; break;
     case FlightState::Value::Idle: return "Idle"; break;
     default:
-        qDebug() << "getFlightStateString(): FLIGHTSTATE" << (quint8)fs.state << "UNDEFINED!";
+        qDebug() << "FlightState::toString(): WARNING, state" << (quint8)fs.state << "is undefined!";
         return "Undefined";
         break;
     }
@@ -29,7 +29,7 @@ FlightState FlightState::fromString(const QString& flightStateString)
     if(flightStateString == "Undefined")
         return FlightState(FlightState::Value::Undefined);
 
-    qDebug() << "undefined flightstate string!";
+    qDebug() << "FlightState::fromString(): undefined flightstate string:" << flightStateString;
 }
 
 FlightState& FlightState::operator=(const FlightState& other)
