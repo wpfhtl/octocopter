@@ -11,7 +11,7 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
             qFatal("FlightController::FlightController(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
     }
 
-    mFlightState = FlightState(FlightState::Value::Undefined);
+    mFlightState = FlightState(FlightState::Value::UserControl);
 
     mPrevErrorPitch = mPrevErrorRoll = mPrevErrorYaw = mPrevErrorHeight = 0.1;
     mErrorIntegralPitch = mErrorIntegralRoll = mErrorIntegralYaw = mErrorIntegralHeight = 0.1;

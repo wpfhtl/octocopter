@@ -71,6 +71,8 @@ BaseStation::BaseStation() : QMainWindow()
     mPtuController->setVisible(true);
     addDockWidget(Qt::BottomDockWidgetArea, mPtuController);
 
+    connect(mPtuController, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
+
     if(mPtuController->isOpened())
     {
         mLogWidget->log(Information, "BaseStation::BaseStation()", "Enabling PtuController with real PTU.");
@@ -144,7 +146,7 @@ BaseStation::BaseStation() : QMainWindow()
         }
         else
         {
-            connect(mJoystick, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mRoverConnection, SLOT(slotSendMotionToKopter(quint8,qint8,qint8,qint8,qint8)));
+            connect(mJoystick, SIGNAL(motion(MotionCommand)), mRoverConnection, SLOT(slotSendMotionToKopter(MotionCommand)));
             connect(mJoystick, SIGNAL(buttonStateChanged(quint8,bool)), SLOT(slotManageJoystick(quint8,bool)));
             mTimerJoystick = new QTimer(this);
             connect(mTimerJoystick, SIGNAL(timeout()), mJoystick, SLOT(slotEmitMotionCommands()));
@@ -156,9 +158,7 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mControlWidget, SLOT(slotUpdatePose(Pose)));
         connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose)));
 
-        //connect(mLogPlayer, SIGNAL(vehiclePoseLowFreq(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
-        connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
-        connect(mPtuController, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
+        connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
 
         connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mGlWidget, SLOT(slotNewVehiclePose(Pose)));
 
@@ -198,7 +198,7 @@ BaseStation::BaseStation() : QMainWindow()
 
         //connect(mLogPlayer, SIGNAL(vehiclePoseLowFreq(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
         connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
-        connect(mPtuController, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
+
 
         connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mGlWidget, SLOT(slotNewVehiclePose(Pose)));
         connect(mLogPlayer, SIGNAL(scanData(QVector<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QVector<QVector3D>,QVector3D)));

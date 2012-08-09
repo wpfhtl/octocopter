@@ -126,22 +126,14 @@ void BaseConnection::processPacket(QByteArray packet)
         emit wayPoints(wayPointList);
         qDebug() << "BaseConnection::processPacket(): received" << wayPointList.size() << "waypoints from base. Done.";
     }
-    else if(command == "motionvalues")
+    else if(command == "motioncommand")
     {
         qDebug() << "BaseConnection::processPacket(): motionvalues received, emitting.";
-        quint8 thrust;
-        qint8 pitch;
-        qint8 roll;
-        qint8 yaw;
-        qint8 height;
+        MotionCommand mc;
 
-        stream >> thrust;
-        stream >> pitch;
-        stream >> roll;
-        stream >> yaw;
-        stream >> height;
+        stream >> mc;
 
-        emit motion(thrust, pitch, roll, yaw, height);
+        emit motion(mc);
     }
     else if(command == "enablescanning")
     {

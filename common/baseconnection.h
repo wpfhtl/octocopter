@@ -56,9 +56,8 @@ signals:
     void wayPointDelete(const quint16& index);
     void wayPoints(const QList<WayPoint>& wayPoints);
 
-    // emitted when the basestation wants to send direct ExternalControl motion commands,
-    // which is only used for testing.
-    void motion(const quint8& thrust, const qint8& pitch, const qint8& roll, const qint8& yaw, const qint8& height);
+    // emitted when the basestation wants to send direct ExternalControl motion commands, which is only used for testing.
+    void motion(const MotionCommand& mc);
 
     void enableScanning(const bool& enable);
 

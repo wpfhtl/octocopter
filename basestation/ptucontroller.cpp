@@ -463,8 +463,10 @@ void PtuController::slotVisualize()
 
     // For tilt we need to first apply yaw and then pitch
     QMatrix4x4 trTilt = transform;
-    trTilt.rotate(mTiltToVehicle, QVector3D(0,1,0));
+    trTilt.translate(0.0f, -0.092f, 0.0f);
+    trTilt.rotate(mPanToVehicle, QVector3D(0,1,0));
     trTilt.rotate(mTiltToVehicle, QVector3D(1,0,0));
+    trTilt.translate(0.0f, +0.092f, 0.0f);
     mModelPtuTilt->slotSetModelTransform(trTilt);
     //qDebug() << "tilt transform: " << trTilt;
 
