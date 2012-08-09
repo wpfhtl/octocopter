@@ -149,9 +149,6 @@ void PtuController::slotInitialize()
     // Enable terse mode for better parsing
     slotSendCommandToPtu("FT");
 
-    // Reset position
-    slotSendCommandToPtu("R");
-
     // Wait before proceeding
     slotSendCommandToPtu("A");
 
@@ -162,7 +159,10 @@ void PtuController::slotInitialize()
     slotSendCommandToPtu("V");
 
     // Enable continuous pan mode
-    //slotSendCommandToPtu("PCE");
+    slotSendCommandToPtu("PCE");
+
+    // Reset position
+    slotSendCommandToPtu("R");
 
     // Go to immediate mode
     slotSendCommandToPtu("I");
@@ -217,7 +217,7 @@ void PtuController::slotVehiclePoseChanged(const Pose& pose)
 {
     mLastKnownVehiclePose = pose;
 
-    if(ui->mPushButtonToggleControllerState->isChecked() && mElapsedTimer.elapsed() > 1000)
+    if(ui->mPushButtonToggleControllerState->isChecked() && mElapsedTimer.elapsed() > 200)
     {
         mElapsedTimer.restart();
 
@@ -255,7 +255,7 @@ void PtuController::slotVehiclePoseChanged(const Pose& pose)
         //pitchAngle = Pose::getShortestTurnDegrees(pitchAngle);
         //qDebug() << "PtuController::slotVehiclePoseChanged(): yaw: " << yawAngle << " pitch: " << pitchAngle;
 //
-        slotSetPosition(mPanToVehicle, mTiltToVehicle);
+        //slotSetPosition(mPanToVehicle, mTiltToVehicle);
     }
 }
 
@@ -263,8 +263,8 @@ void PtuController::slotSetPanDegrees(float degreePan)
 {
     if(mSerialPortPtu->isOpen())
     {
-        qDebug() << "ptu degrees: " << Pose::getShortestTurnDegrees(degreePan + 360);
-        float degrees = Pose::getShortestTurnDegrees(degreePan + 360) * mPositionsPerDegreePan; // -180 due to back-mounted camera
+        qDebug() << "ptu degrees: " << Pose::getShortestTurnDegrees(degreePan);
+        float degrees = Pose::getShortestTurnDegrees(degreePan) * mPositionsPerDegreePan * -1; // -180 due to back-mounted camera
         slotSendCommandToPtu("PP"+QString::number(degrees));
     }
 }
