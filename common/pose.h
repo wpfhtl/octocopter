@@ -13,6 +13,7 @@
   #include <bullet/btBulletDynamicsCommon.h>
 #endif
 
+#include <gnsstime.h>
 #include <common.h>
 #include <math.h>
 #include <float.h>

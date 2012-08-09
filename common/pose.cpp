@@ -202,7 +202,7 @@ Pose::Pose(const QMatrix4x4& matrix, const qint32& timestamp)
     mTransform = matrix;
 
     if(timestamp == 0)
-        this->timestamp = getCurrentGpsTowTime();
+        this->timestamp = GnssTime::currentTow();
     else
         this->timestamp = timestamp;
 }
@@ -240,7 +240,7 @@ Pose::Pose(const QVector3D &position, const float &yawDegrees, const float &pitc
     covariances = 100.0f;
 
     if(timestamp == 0)
-        this->timestamp = getCurrentGpsTowTime();
+        this->timestamp = GnssTime::currentTow();
     else
         this->timestamp = timestamp;
 }

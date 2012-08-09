@@ -20,6 +20,7 @@
 //#include "visualodometry.h"
 #include "baseconnection.h"
 #include "flightcontroller.h"
+#include "messagehandler.h"
 
 class KopterControl : public QCoreApplication
 {
@@ -31,15 +32,16 @@ public:
 
     // Unix signal handler
     static void signalHandler(int unused);
-    static void messageHandler(QtMsgType type, const char *msg);
 
 public slots:
     void slotHandleSignal();
 
 private:
-    void installMessageHandler(const QString& logFilePrefix);
+//    void installMessageHandler(const QString& logFilePrefix);
     // We use this pipe for all signals.
     static int signalFd[2];
+
+    MessageHandler* mMessageHandler;
 
     Kopter *mKopter;
     Camera* mCamera;

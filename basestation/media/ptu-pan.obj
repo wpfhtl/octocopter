@@ -1,5 +1,5 @@
 # 3ds Max Wavefront OBJ-Export v0.97b - (c)2007 guruware
-# Datei erstellt: 08.08.2012 17:10:10
+# Datei erstellt: 08.08.2012 17:19:52
 
 mtllib ptu-pan.mtl
 
@@ -504,7 +504,7 @@ vt 1.0000 0.0000 0.0000
 # 152 texture coords
 
 g AbgekQuader002
-usemtl wire_225143087
+usemtl wire_132132132
 s 1
 f 1/1/1 2/2/2 3/3/3 4/4/4 
 f 2/2/2 5/5/5 6/6/6 3/3/3 
@@ -794,7 +794,7 @@ vt 0.5000 1.0000 0.0000
 # 37 texture coords
 
 g Zylinder005
-usemtl wire_214229166
+usemtl wire_132132132
 s 1
 f 177/153/163 178/154/163 179/155/163 180/156/163 
 f 177/153/163 181/157/163 182/158/163 178/159/163 
@@ -932,7 +932,7 @@ vt 0.5000 1.0000 0.0000
 # 37 texture coords
 
 g Zylinder007
-usemtl wire_027177148
+usemtl wire_132132132
 s 1
 f 211/190/181 212/191/181 213/192/181 214/193/181 
 f 211/190/181 215/194/181 216/195/181 212/196/181 

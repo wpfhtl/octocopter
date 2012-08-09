@@ -1,9 +1,6 @@
 #include "koptercontrol.h"
 #include <math.h>
 
-QFile* mMasterLogFile = 0;
-QTextStream* mMasterLogStream = 0;
-
 int KopterControl::signalFd[] = {0,0};
 
 void setupUnixSignalHandlers()
@@ -50,8 +47,9 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
             .arg(QString::number(QCoreApplication::applicationPid()));
     const QStringList args = QCoreApplication::arguments();
     if(args.size() == 2) logFilePrefix.append(QString("%1-").arg(args.last()));
-    installMessageHandler(logFilePrefix);
     qDebug() << "KopterControl::KopterControl(): logfile prefix is" << logFilePrefix;
+
+    mMessageHandler = new MessageHandler(logFilePrefix);
 
     QString networkInterface = "wlan0";
     QString deviceCamera = "/dev/video0";
@@ -176,18 +174,7 @@ KopterControl::~KopterControl()
     delete mSensorFuser;
     delete mKopter;
     delete snSignalPipe;
-
-    if(mMasterLogStream)
-    {
-        mMasterLogStream->flush();
-        delete mMasterLogStream;
-    }
-    if(mMasterLogFile)
-    {
-        mMasterLogFile->flush();
-        mMasterLogFile->close();
-        delete mMasterLogFile;
-    }
+    delete mMessageHandler;
 
     // Delete logfiles with a size of 0 (emtpty) or 100 (just ply header, no data)
     const QFileInfoList list = QDir().entryInfoList((QStringList() << "scannerdata-*" << "pointcloud-*"), QDir::Files | QDir::NoSymLinks);
@@ -263,31 +250,6 @@ void KopterControl::slotHandleSignal()
 
     // When mGnssDevice finishes device-shutdown, it will quit(), starting the rest of the shutdown sequence.
     mGnssDevice->slotShutDown();
-}
-
-void KopterControl::installMessageHandler(const QString& logFilePrefix)
-{
-    qDebug() << "KopterControl::installMessageHandler(): setting up console logging...";
-    mMasterLogFile = new QFile(logFilePrefix + QString("console.txt"));
-    if(!mMasterLogFile->open(QIODevice::WriteOnly | QIODevice::Append))
-    {
-        qFatal("Cannot open logfile: %s, exiting", qPrintable(mMasterLogFile->fileName()));
-    }
-    mMasterLogStream = new QTextStream(mMasterLogFile);
-
-    qInstallMsgHandler(KopterControl::messageHandler);
-    qDebug() << "KopterControl::installMessageHandler(): successfully set up console logging.";
-}
-
-void KopterControl::messageHandler(QtMsgType type, const char *msg)
-{
-    Q_ASSERT(mMasterLogStream != 0 && "masterLogSteram is not set!");
-
-    std::cout << msg << std::endl;
-
-    (*mMasterLogStream) << msg << endl;
-
-    if(type == QtFatalMsg) abort();
 }
 
 int main(int argc, char **argv)

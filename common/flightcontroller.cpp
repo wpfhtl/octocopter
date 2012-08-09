@@ -71,9 +71,9 @@ void FlightController::slotComputeMotionCommands()
             return;
         }
 
-        if(getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp > 82)
+        if(GnssTime::currentTow() - mLastKnownVehiclePose.timestamp > 82)
         {
-            qDebug() << t() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, vehicle pose update is from" << mLastKnownVehiclePose.timestamp << "and now its" << getCurrentGpsTowTime() << " - age in ms:" << getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp;
+            qDebug() << t() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, vehicle pose update is from" << mLastKnownVehiclePose.timestamp << "and now its" << GnssTime::currentTow() << " - age in ms:" << GnssTime::currentTow() - mLastKnownVehiclePose.timestamp;
             emit motion(MotionCommand(MotionCommand::thrustHover, 0.0f, 0.0f, 0.0f));
             return;
         }
@@ -204,9 +204,9 @@ void FlightController::slotComputeMotionCommands()
 
     case FlightState::Value::Hover:
     {
-        if(getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp > 82)
+        if(GnssTime::currentTow() - mLastKnownVehiclePose.timestamp > 82)
         {
-            qDebug() << t() << "FlightController::slotComputeMotionCommands(): Hover, vehicle pose update is from" << mLastKnownVehiclePose.timestamp << "and now its" << getCurrentGpsTowTime() << " - age in ms:" << getCurrentGpsTowTime() - mLastKnownVehiclePose.timestamp;
+            qDebug() << t() << "FlightController::slotComputeMotionCommands(): Hover, vehicle pose update is from" << mLastKnownVehiclePose.timestamp << "and now its" << GnssTime::currentTow() << " - age in ms:" << GnssTime::currentTow() - mLastKnownVehiclePose.timestamp;
             emit motion(MotionCommand(MotionCommand::thrustHover, 0.0f, 0.0f, 0.0f));
             return;
         }

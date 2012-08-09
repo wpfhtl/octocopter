@@ -51,7 +51,8 @@ koptercontrol
 koptermessage
 kopter
 camera
-#visualodometry
+messagehandler
+../common/gnsstime
 ../common/sensorfuser
 ../common/flightcontroller
 ../common/flightcontrollervalues
@@ -74,7 +75,8 @@ koptercontrol.h
 koptermessage.h
 kopter.h
 camera.h
-#visualodometry.h
+messagehandler.h
+../common/gnsstime.h
 ../common/sensorfuser.h
 ../common/flightcontroller.h
 ../common/flightcontrollervalues.h
