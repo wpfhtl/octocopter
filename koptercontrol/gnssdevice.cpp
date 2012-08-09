@@ -456,14 +456,15 @@ void GnssDevice::slotDataReadyOnCom()
 
 void GnssDevice::slotDataReadyOnUsb()
 {
-    // Move all new bytes into our SBF buffer
-    mReceiveBufferUsb.append(mSerialPortUsb->readAll());
-
-    // $@<header/><body>...$@...</body>...padding...$R;listCurrentConfig\n\n...........\nUS
-    // $@<header/><body>...$@...</body>...padding...$R;listCurrentConfig\n\n...........\nUSB1>$@<header/><body>...
-
     while(true)
     {
+        // Move all new bytes into our SBF buffer
+        if(mSerialPortUsb->bytesAvailable())
+            mReceiveBufferUsb.append(mSerialPortUsb->readAll());
+
+        // $@<header/><body>...$@...</body>...padding...$R;listCurrentConfig\n\n...........\nUS
+        // $@<header/><body>...$@...</body>...padding...$R;listCurrentConfig\n\n...........\nUSB1>$@<header/><body>...
+
         if(mWaitingForCommandReply)
         {
             // Check for command replies before every packet
@@ -602,5 +603,5 @@ void GnssDevice::slotSetSystemTime(const qint32& tow)
         }
     }
 
-    qDebug() << "GnssDevice::slotSetSystemTime(): offset host to gps is" << offsetHostToGps;
+    qDebug() << "GnssDevice::slotSetSystemTime(): time synchronized, offset host to gps was" << offsetHostToGps << "ms";
 }

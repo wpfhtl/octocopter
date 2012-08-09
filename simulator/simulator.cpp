@@ -301,7 +301,7 @@ void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enab
     {
         // coolie->left, Hover
         slotShowMessage("Disabling Joystick control, setting FlightController to Hover");
-        if(mFlightController->getFlightState() != Hover)
+        if(mFlightController->getFlightState().state != FlightState::Value::Hover)
             mFlightController->slotFlightStateSwitchValueChanged(FlightStateSwitch(FlightStateSwitch::Hover));
         mJoystickEnabled = false;
         break;
@@ -311,7 +311,7 @@ void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enab
     {
         // coolie->down, UserControl
         slotShowMessage("Enabling Joystick control, setting FlightController to UserControl");
-        if(mFlightController->getFlightState() != UserControl)
+        if(mFlightController->getFlightState().state != FlightState::Value::UserControl)
             mFlightController->slotFlightStateSwitchValueChanged(FlightStateSwitch(FlightStateSwitch::UserControl));
         mJoystickEnabled = true;
         break;
@@ -321,7 +321,7 @@ void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enab
     {
         // coolie->up, ApproachWayPoint
         slotShowMessage("Disabling Joystick control, setting FlightController to ApproachWayPoint");
-        if(mFlightController->getFlightState() != ApproachWayPoint)
+        if(mFlightController->getFlightState().state != FlightState::Value::ApproachWayPoint)
             mFlightController->slotFlightStateSwitchValueChanged(FlightStateSwitch(FlightStateSwitch::ApproachWayPoint));
         mJoystickEnabled = false;
         break;

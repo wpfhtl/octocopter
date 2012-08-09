@@ -26,7 +26,14 @@ public:
     QString toString() const {return FlightState::toString(state);}
 
     bool operator==(FlightState const& other) const {return other.state == state;}
+    bool operator!=(FlightState const& other) const {return other.state != state;}
+
+    bool operator==(FlightState::Value const& other) const {return other == state;}
+    bool operator!=(FlightState::Value const& other) const {return other != state;}
+
+
     FlightState &operator=(const FlightState& other);
+
 
     static QString toString(const FlightState& fs);
     static FlightState fromString(const QString& flightStateString);

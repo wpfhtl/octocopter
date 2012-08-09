@@ -36,7 +36,7 @@ public:
     FlightController(const QString& logFilePrefix = QString());
     ~FlightController();
 
-    FlightState getFlightState(void) const;
+    const FlightState& getFlightState(void) const;
     Pose getLastKnownPose(void) const;
     QList<WayPoint> getWayPoints();
     // ??? static int wayPointComponentsEqual(const QVector3D &wpt1, const QVector3D &wpt2);
@@ -111,7 +111,7 @@ signals:
     void wayPointInserted(quint16 index, const WayPoint& wayPoint);
 
     // emitted when the flightState changed
-    void flightStateChanged(FlightState::Value);
+    void flightStateChanged(FlightState);
 
     void currentWayPoints(QList<WayPoint>);
 

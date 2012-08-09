@@ -14,8 +14,8 @@
  * =====================================================================================
  */
 
-#ifndef _BtOgrePG_H_
-#define _BtOgrePG_H_
+#ifndef _BtOgreGP_H
+#define _BtOgreGP_H
 
 #include "btBulletDynamicsCommon.h"
 #include "BtOgreExtras.h"

@@ -43,21 +43,23 @@ FlightController::~FlightController()
 
 void FlightController::slotComputeBackupMotion()
 {
-    qDebug() << t() << "FlightController::slotComputeBackupMotion(): no pose for" << mBackupTimerComputeMotion->interval() << "ms, flightstate" << mFlightState.toString() << ": starting backup motion computation.";
-    Q_ASSERT(mFlightState != UserControl && "FlightController::slotComputeBackupMotion(): i was called in FlightState UserControl");
+    qDebug() << "FlightController::slotComputeBackupMotion(): no pose for" << mBackupTimerComputeMotion->interval() << "ms, flightstate" << mFlightState.toString() << ": starting backup motion computation.";
+    Q_ASSERT(mFlightState != FlightState::Value::UserControl && "FlightController::slotComputeBackupMotion(): i was called in FlightState UserControl");
     slotComputeMotionCommands();
 }
 
 void FlightController::slotComputeMotionCommands()
 {
-    Q_ASSERT(mFlightState != UserControl && "FlightController::slotComputeMotionCommands(): i was called in FlightState UserControl");
+    Q_ASSERT(mFlightState != FlightState::Value::UserControl && "FlightController::slotComputeMotionCommands(): i was called in FlightState UserControl");
+
+    const qint32 poseAge = GnssTime::currentTow() - mLastKnownVehiclePose.timestamp;
 
     switch(mFlightState.state)
     {
 
     case FlightState::Value::Idle:
     {
-        qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState: Idle, emitting idle-thrust.";
+        qDebug() << "FlightController::slotComputeMotionCommands(): FlightState: Idle, emitting idle-thrust.";
         emit motion(MotionCommand((quint8)90, 0.0f, 0.0f, 0.0f));
         break;
     }
@@ -66,14 +68,14 @@ void FlightController::slotComputeMotionCommands()
     {
         if(mWayPoints.size() < 1)
         {
-            qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState: ApproachWayPoint: Cannot approach, no waypoints present!";
+            qDebug() << "FlightController::slotComputeMotionCommands(): FlightState: ApproachWayPoint: Cannot approach, no waypoints present!";
             emit motion(MotionCommand(MotionCommand::thrustHover, 0.0f, 0.0f, 0.0f));
             return;
         }
 
-        if(GnssTime::currentTow() - mLastKnownVehiclePose.timestamp > 82)
+        if(poseAge > 82)
         {
-            qDebug() << t() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, vehicle pose update is from" << mLastKnownVehiclePose.timestamp << "and now its" << GnssTime::currentTow() << " - age in ms:" << GnssTime::currentTow() - mLastKnownVehiclePose.timestamp;
+            qDebug() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, vehicle pose update is from" << mLastKnownVehiclePose.timestamp << "and now its" << GnssTime::currentTow() << " - age in ms:" << poseAge << "- emitting safe hover values";
             emit motion(MotionCommand(MotionCommand::thrustHover, 0.0f, 0.0f, 0.0f));
             return;
         }
@@ -87,7 +89,7 @@ void FlightController::slotComputeMotionCommands()
         //        qDebug() << "mLastKnownVehiclePose.getPlanarPosition()" << mLastKnownVehiclePose.getPlanarPosition();
         //        qDebug() << "nextWayPoint.getPositionOnPlane():" << nextWayPoint.getPositionOnPlane();
         qDebug() << "FlightController::slotComputeMotionCommands(): LastKnownPose:" << mLastKnownVehiclePose << "NextWayPoint:" << nextWayPoint;
-        qDebug() << "directionNorthToWayPoint:" << RAD2DEG(directionNorthToWayPointRadians) << "angleToTurnToWayPoint: turn" << (angleToTurnToWayPoint < 0.0f ? "right" : "left") << RAD2DEG(angleToTurnToWayPoint);
+//        qDebug() << "directionNorthToWayPoint:" << RAD2DEG(directionNorthToWayPointRadians) << "angleToTurnToWayPoint: turn" << (angleToTurnToWayPoint < 0.0f ? "right" : "left") << RAD2DEG(angleToTurnToWayPoint);
 
         // http://en.wikipedia.org/wiki/PID_controller, thanks Minorsky!
 
@@ -186,7 +188,7 @@ void FlightController::slotComputeMotionCommands()
         mLastFlightControllerValues.targetPosition = mWayPoints.first();
         mLastFlightControllerValues.lastKnownHeightOverGround = mLastKnownHeightOverGround;
 
-        qDebug() << t() << "FlightController::slotComputeMotionCommands():" << mLastFlightControllerValues.motionCommand;
+        qDebug() << "FlightController::slotComputeMotionCommands():" << mLastFlightControllerValues.motionCommand;
         emit motion(mLastFlightControllerValues.motionCommand);
         emit flightControllerValues(mLastFlightControllerValues);
 
@@ -204,9 +206,9 @@ void FlightController::slotComputeMotionCommands()
 
     case FlightState::Value::Hover:
     {
-        if(GnssTime::currentTow() - mLastKnownVehiclePose.timestamp > 82)
+        if(poseAge > 82)
         {
-            qDebug() << t() << "FlightController::slotComputeMotionCommands(): Hover, vehicle pose update is from" << mLastKnownVehiclePose.timestamp << "and now its" << GnssTime::currentTow() << " - age in ms:" << GnssTime::currentTow() - mLastKnownVehiclePose.timestamp;
+            qDebug() << "FlightController::slotComputeMotionCommands(): Hover, vehicle pose update is from" << mLastKnownVehiclePose.timestamp << "and now its" << GnssTime::currentTow() << " - age in ms:" << poseAge << "- emitting safe hover values";
             emit motion(MotionCommand(MotionCommand::thrustHover, 0.0f, 0.0f, 0.0f));
             return;
         }
@@ -217,7 +219,7 @@ void FlightController::slotComputeMotionCommands()
         // standing - steering is easier if the vehicle's forward arm points away from the user.
         const float angleToTurnAwayFromOrigin = Pose::getShortestTurnRadians(-Pose::getShortestTurnRadians(DEG2RAD(180.0f) - atan2(-vectorVehicleToOrigin.x(), -vectorVehicleToOrigin.y())) - mLastKnownVehiclePose.getYawRadians());
 
-        qDebug() << t() << "FlightController::slotComputeMotionCommands(): FlightState Hover, mHoverPosition:" << mHoverPosition << "angleToTurnAwayFromOrigin" << "angleToTurnAwayFromOrigin: turn" << (angleToTurnAwayFromOrigin < 0.0f ? "right" : "left") << RAD2DEG(angleToTurnAwayFromOrigin);
+        qDebug() << "FlightController::slotComputeMotionCommands(): FlightState Hover, mHoverPosition:" << mHoverPosition << "angleToTurnAwayFromOrigin" << "angleToTurnAwayFromOrigin: turn" << (angleToTurnAwayFromOrigin < 0.0f ? "right" : "left") << RAD2DEG(angleToTurnAwayFromOrigin);
 
         // If the planar distance to mHoverPosition is very small (this happens when only the height is off),
         // we don't want to yaw and pitch. So, we introduce a factor [0;1], which becomes 0 with small distance
@@ -288,7 +290,7 @@ void FlightController::slotComputeMotionCommands()
         mLastFlightControllerValues.targetPosition = mHoverPosition;
         mLastFlightControllerValues.lastKnownHeightOverGround = mLastKnownHeightOverGround;
 
-        qDebug() << t() << "FlightController::slotComputeMotionCommands():" << mLastFlightControllerValues.motionCommand;
+        qDebug() << "FlightController::slotComputeMotionCommands():" << mLastFlightControllerValues.motionCommand;
         emit motion(mLastFlightControllerValues.motionCommand);
         emit flightControllerValues(mLastFlightControllerValues);
 
@@ -301,7 +303,7 @@ void FlightController::slotComputeMotionCommands()
 
 
     default:
-        qDebug() << t() << "FlightController::slotComputeMotionCommands(): FLIGHTSTATE NOT DEFINED:" << mFlightState.toString();
+        qDebug() << "FlightController::slotComputeMotionCommands(): FLIGHTSTATE NOT DEFINED:" << mFlightState.toString();
         Q_ASSERT(false);
     }
 
@@ -321,12 +323,12 @@ void FlightController::slotCalibrateImu()
 {
     mImuOffsets.pitch = mLastKnownVehiclePose.getPitchDegrees();
     mImuOffsets.roll = mLastKnownVehiclePose.getRollDegrees();
-    qDebug() << t() << "FlightController::slotCalibrateImu(): calibrated IMU offsets to pitch" << mImuOffsets.pitch << "and roll" << mImuOffsets.roll << "from pose TOW" << mLastKnownVehiclePose.timestamp;
+    qDebug() << "FlightController::slotCalibrateImu(): calibrated IMU offsets to pitch" << mImuOffsets.pitch << "and roll" << mImuOffsets.roll << "from pose TOW" << mLastKnownVehiclePose.timestamp;
 }
 
 void FlightController::nextWayPointReached()
 {
-    Q_ASSERT(mFlightState.state == FlightState::Value::ApproachWayPoint && "FlightController::nextWayPointReached(): reached waypoint, but am not in ApproachWayPoint state. Expect trouble!");
+    Q_ASSERT(mFlightState == FlightState::Value::ApproachWayPoint && "FlightController::nextWayPointReached(): reached waypoint, but am not in ApproachWayPoint state. Expect trouble!");
 
     // The next waypoint has been reached.
     mWayPointsPassed.append(mWayPoints.takeFirst());
@@ -349,9 +351,9 @@ void FlightController::slotWayPointInsert(const quint16& index, const WayPoint& 
     emit currentWayPoints(mWayPoints);
 
     // Just in case we were idle before...
-    if(mFlightState.state == FlightState::Value::Idle)
+    if(mFlightState == FlightState::Value::Idle)
     {
-        qDebug() << t() << "FlightController::slotWayPointInsert(): we were idle, switching to ApproachWayPoint";
+        qDebug() << "FlightController::slotWayPointInsert(): we were idle, switching to ApproachWayPoint";
         setFlightState(FlightState::Value::ApproachWayPoint);
     }
 }
@@ -368,7 +370,7 @@ void FlightController::slotWayPointDelete(const quint16& index)
         mWayPoints.removeAt(index);
 
         // The list might now be empty, so me might have to land.
-        if(mFlightState.state == FlightState::Value::ApproachWayPoint)
+        if(mFlightState == FlightState::Value::ApproachWayPoint)
             ensureSafeFlightAfterWaypointsChanged();
     }
     qDebug() << "FlightController::slotWayPointDelete(): after deleting wpt, emitting new wpt list of size" << mWayPoints.size();
@@ -380,14 +382,14 @@ void FlightController::slotSetWayPoints(const QList<WayPoint>& wayPoints)
     mWayPoints = wayPoints;
 
     // Just in case we were idle before...
-    if(mFlightState.state == FlightState::Value::Idle && mWayPoints.size())
+    if(mFlightState == FlightState::Value::Idle && mWayPoints.size())
     {
-        qDebug() << t() << "FlightController::slotSetWayPoints(): we were idle and got new waypoints, switching to ApproachWayPoint";
+        qDebug() << "FlightController::slotSetWayPoints(): we were idle and got new waypoints, switching to ApproachWayPoint";
         setFlightState(FlightState::Value::ApproachWayPoint);
     }
 
     // The list might now be empty, so we might have to land.
-    if(mFlightState.state == FlightState::Value::ApproachWayPoint)
+    if(mFlightState == FlightState::Value::ApproachWayPoint)
         ensureSafeFlightAfterWaypointsChanged();
 
     emit currentWayPoints(mWayPoints);
@@ -403,11 +405,11 @@ QList<WayPoint> FlightController::getWayPoints()
     return mWayPoints;
 }
 
-FlightState FlightController::getFlightState(void) const { return mFlightState; }
+const FlightState& FlightController::getFlightState(void) const { return mFlightState; }
 
 void FlightController::slotNewVehiclePose(const Pose& pose)
 {
-    qDebug() << pose.timestamp << "FlightController::slotNewVehiclePose(): flightstate:" << mFlightState.toString();
+    qDebug() << "FlightController::slotNewVehiclePose(): flightstate:" << mFlightState.toString() << ": new pose from" << pose.timestamp << "has age" << GnssTime::currentTow() - pose.timestamp;
 
     // Whatever precision and flightstate, save the pose.
     mLastKnownVehiclePose = pose;
@@ -489,11 +491,11 @@ void FlightController::slotNewVehiclePose(const Pose& pose)
 
 void FlightController::setFlightState(FlightState newFlightState)
 {
-    qDebug() << t() << "FlightController::setFlightState():" << mFlightState.toString() << "=>" << newFlightState.toString();
+    qDebug() << "FlightController::setFlightState():" << mFlightState.toString() << "=>" << newFlightState.toString();
 
     if(mFlightState == newFlightState)
     {
-        qDebug() << t() << "FlightController::setFlightState(): switching to same flightstate doesn't make much sense, returning.";
+        qDebug() << "FlightController::setFlightState(): switching to same flightstate doesn't make much sense, returning.";
         return;
     }
 
@@ -501,7 +503,7 @@ void FlightController::setFlightState(FlightState newFlightState)
     {
     case FlightState::Value::ApproachWayPoint:
     {
-        qDebug() << t() << "FlightController::setFlightState(): ApproachWayPoint - initializing controllers, setting backup motion timer to high-freq";
+        qDebug() << "FlightController::setFlightState(): ApproachWayPoint - initializing controllers, setting backup motion timer to high-freq";
 
         // We're going to use the controllers, so make sure to initialize them.
         initializeControllers();
@@ -520,7 +522,7 @@ void FlightController::setFlightState(FlightState newFlightState)
     case FlightState::Value::Hover:
     {
         mHoverPosition = mLastKnownVehiclePose.getPosition();
-        qDebug() << t() << "FlightController::setFlightState(): going to hover, setting backup motion timer to high-freq and staying at" << mHoverPosition;
+        qDebug() << "FlightController::setFlightState(): going to hover, setting backup motion timer to high-freq and staying at" << mHoverPosition;
 
         // We're going to use the controllers, so make sure to initialize them.
         initializeControllers();
@@ -533,7 +535,7 @@ void FlightController::setFlightState(FlightState newFlightState)
     case FlightState::Value::UserControl:
     {
         // We don't need the timer, as the remote control will overrule our output anyway.
-        qDebug() << t() << "FlightController::setFlightState(): disabling backup motion timer.";
+        qDebug() << "FlightController::setFlightState(): disabling backup motion timer.";
         mBackupTimerComputeMotion->stop();
         mFlightState = newFlightState;
         break;
@@ -541,7 +543,7 @@ void FlightController::setFlightState(FlightState newFlightState)
 
     case FlightState::Value::Idle:
     {
-        qDebug() << t() << "FlightController::setFlightState(): setting backup motion timer to low-freq";
+        qDebug() << "FlightController::setFlightState(): setting backup motion timer to low-freq";
         mBackupTimerComputeMotion->start(backupTimerIntervalSlow);
         mFlightState = newFlightState;
         break;
@@ -551,7 +553,7 @@ void FlightController::setFlightState(FlightState newFlightState)
         Q_ASSERT(false && "FlightController::setFlightState(): undefined flightstate");
     }
 
-    emit flightStateChanged(mFlightState.state);
+    emit flightStateChanged(mFlightState);
 }
 
 void FlightController::initializeControllers()
@@ -573,14 +575,14 @@ void FlightController::initializeControllers()
 void FlightController::slotSetHeightOverGround(const float& beamLength)
 {
     // Height is given from vehicle center to ground, but we care about the bottom of the landing gear.
-    qDebug() << t() << "FlightController::slotSetHeightOverGround()" << beamLength - 0.16f << "meters";
+    qDebug() << "FlightController::slotSetHeightOverGround()" << beamLength - 0.16f << "meters";
     mLastKnownHeightOverGroundTimestamp = QTime::currentTime();
     mLastKnownHeightOverGround = beamLength - 0.16f;
 }
 
 bool FlightController::isHeightOverGroundValueRecent() const
 {
-    qDebug() << t() << "FlightController::isHeightOverGroundValueRecent(): age of last heightOverGround measurement is" << mLastKnownHeightOverGroundTimestamp.msecsTo(QTime::currentTime()) << "msecs";
+    qDebug() << "FlightController::isHeightOverGroundValueRecent(): age of last heightOverGround measurement is" << mLastKnownHeightOverGroundTimestamp.msecsTo(QTime::currentTime()) << "msecs";
     return mLastKnownHeightOverGroundTimestamp.msecsTo(QTime::currentTime()) < 750;
 }
 
@@ -593,7 +595,7 @@ void FlightController::ensureSafeFlightAfterWaypointsChanged()
 {
     mFirstControllerRun = true; // to tame the derivatives
 
-    Q_ASSERT(mFlightState == ApproachWayPoint && "FlightController::ensureSafeFlightAfterWaypointsChanged(): flightstate is NOT ApproachWayPoint!");
+    Q_ASSERT(mFlightState == FlightState::Value::ApproachWayPoint && "FlightController::ensureSafeFlightAfterWaypointsChanged(): flightstate is NOT ApproachWayPoint!");
 
     if(mWayPoints.size() == 0)
     {
@@ -637,7 +639,7 @@ void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch
 {
     // This method does nothing more than some sanity checks and verbose flightstae switching.
 
-    qDebug() << t() << "FlightController::slotFlightStateSwitchValueChanged(): flightstate" << mFlightState.toString() << "FlightStateSwitch changed to:" << fssv.toString();
+    qDebug() << "FlightController::slotFlightStateSwitchValueChanged(): flightstate" << mFlightState.toString() << "FlightStateSwitch changed to:" << fssv.toString();
 
     switch(mFlightState.state)
     {
@@ -728,10 +730,10 @@ void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch
         Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): illegal flightstate!");
     }
 
-    qDebug() << t() << "FlightController::slotFlightStateSwitchValueChanged(): done, new flightstate" << mFlightState.toString();
+    qDebug() << "FlightController::slotFlightStateSwitchValueChanged(): done, new flightstate" << mFlightState.toString();
 }
 
 void FlightController::slotEmitFlightState()
 {
-    emit flightStateChanged(mFlightState.state);
+    emit flightStateChanged(mFlightState);
 }

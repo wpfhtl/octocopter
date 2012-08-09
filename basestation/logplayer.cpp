@@ -14,6 +14,9 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     //mSensorFuser->setMaximumFusableRayLength(20.0f);
     mSbfParser = new SbfParser(this);
 
+    QLocale german(QLocale::German);
+    ui->mProgressBarTow->setLocale(german);
+
     mIndexLaser = -1;
     mIndexFlightController = -1;
 

@@ -14,6 +14,7 @@
 #include "joystick.h"
 #include "laserscanner.h"
 #include "baseconnection.h"
+#include "flightstate.h"
 #include "flightcontroller.h"
 #include "camera.h"
 #include "statuswidget.h"

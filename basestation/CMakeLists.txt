@@ -38,6 +38,7 @@ SET(SRC_FILES
     ../common/flightstate
     ../common/lidarpoint
     ../common/waypoint
+    ../common/gnsstime
     ../common/octree
     ../common/node
     ../common/pose
@@ -89,6 +90,7 @@ SET(INC_FILES
     ../common/flightstate.h
     ../common/lidarpoint.h
     ../common/waypoint.h
+    ../common/gnsstime.h
     ../common/octree.h
     ../common/node.h
     ../common/pose.h
@@ -167,6 +169,7 @@ SET(LIBRARIES
     assimp)
 CUDA_ADD_EXECUTABLE(basestation ${SRC_FILES} main.cpp ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
 CUDA_ADD_EXECUTABLE(teststation ${SRC_FILES} ${TEST_SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-SET_TARGET_PROPERTIES(basestation teststation PROPERTIES AUTOMOC TRUE)
+SET_TARGET_PROPERTIES(basestation PROPERTIES AUTOMOC TRUE)
+SET_TARGET_PROPERTIES(teststation PROPERTIES AUTOMOC TRUE)
 TARGET_LINK_LIBRARIES(basestation ${LIBRARIES})
 TARGET_LINK_LIBRARIES(teststation ${LIBRARIES})

@@ -1,18 +1,18 @@
 # The name of our project is "SIMULATOR". CMakeLists files in this project can
 # refer to the root source directory of the project as ${SIMULATOR_SOURCE_DIR} and
 # to the root binary directory of the project as ${SIMULATOR_BINARY_DIR}.
-CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
+CMAKE_MINIMUM_REQUIRED (VERSION 2.8.6)
 
 #
 # If the user specifies -DCMAKE_BUILD_TYPE on the command line, take their definition
 # and dump it in the cache along with proper documentation, otherwise set CMAKE_BUILD_TYPE
 # to Debug prior to calling PROJECT()
 #
-IF(DEFINED CMAKE_BUILD_TYPE)
-   SET(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel.")
-ELSE()
-   SET(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel.")
-ENDIF()
+#IF(DEFINED CMAKE_BUILD_TYPE)
+#   SET(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel.")
+#ELSE()
+#   SET(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel.")
+#ENDIF()
 
 PROJECT(simulator)
 
@@ -24,9 +24,11 @@ simulator
 ../common/baseconnection
 ogrewidget
 battery
+../common/flightstate
 ../common/flightcontroller
 ../common/flightcontrollervalues
 ../common/gnssstatusinformation
+../common/gnsstime
 ../common/pose
 ../common/motioncommand
 ../common/lidarpoint
@@ -43,6 +45,7 @@ physics
 ../common/coordinateconverter
 ../common/common
 BtOgre/BtOgre
+BtOgre/BtOgrePG.h
 )
 
 SET(INC_FILES
@@ -50,9 +53,11 @@ simulator.h
 ../common/baseconnection.h
 ogrewidget.h
 battery.h
+../common/flightstate.h
 ../common/flightcontroller.h
 ../common/flightcontrollervalues.h
 ../common/gnssstatusinformation.h
+../common/gnsstime.h
 ../common/pose.h
 ../common/motioncommand.h
 ../common/lidarpoint.h
@@ -69,6 +74,8 @@ physics.h
 ../common/coordinateconverter.h
 ../common/common.h
 BtOgre/BtOgrePG.h
+BtOgre/BtOgreGP.h
+BtOgre/BtOgreExtras.h
 )
 
 SET(UI_FILES
@@ -98,13 +105,15 @@ SET(QT_USE_QTXML 1)
 SET(QT_USE_QTNETWORK 1)
 INCLUDE(${QT_USE_FILE})
 
-QT4_WRAP_CPP(MOC_SRCS ${INC_FILES})
+#QT4_WRAP_CPP(MOC_SRCS ${INC_FILES})
 QT4_WRAP_UI(UI_SRCS ${UI_FILES})
 QT4_ADD_RESOURCES(RESOURCE_SRCS ${RESOURCE_FILES})
 
 #SET(CMAKE_DEBUG_POSTFIX "_d")
 #SET(DEBUG_POSTFIX "_d")
 SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING "debug oder nicht")
+
+ADD_DEFINITIONS(-std=c++0x)
 
 INCLUDE_DIRECTORIES(
     /usr/include
@@ -116,7 +125,11 @@ INCLUDE_DIRECTORIES(
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 
+
+SET(CMAKE_AUTOMOC_RELAXED_MODE TRUE)
+SET(CMAKE_AUTOMOC TRUE)
 ADD_EXECUTABLE(simulator ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
+#SET_TARGET_PROPERTIES(simulator PROPERTIES AUTOMOC TRUE)
 
 TARGET_LINK_LIBRARIES(simulator ${BULLET_LIBRARIES} ${QT_LIBRARIES} ${OGRE_LIBRARY_NAMES} ${OGRE_Terrain_LIBRARY_NAMES} ${OGRE_RTShaderSystem_LIBRARY_NAMES} ${OGRE_Paging_LIBRARY_NAMES})
 

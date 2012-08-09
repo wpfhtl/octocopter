@@ -1,5 +1,5 @@
-#ifndef _BtOgreGP_H_
-#define _BtOgreGP_H_
+#ifndef _BtOgrePG_H
+#define _BtOgrePG_H
 
 #include <QObject>
 
