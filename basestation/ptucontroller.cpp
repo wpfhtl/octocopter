@@ -47,6 +47,7 @@ PtuController::PtuController(const QString& deviceFile, QWidget *parent) :
     mPanToVehicle = 0;
     mTiltToVehicle = 0;
 
+
     mModelPtuBase = 0;
     mModelPtuPan = 0;
     mModelPtuTilt = 0;
@@ -203,6 +204,8 @@ void PtuController::slotInitialize()
 
     // Set user tilt position limits (don't damage the PTU itself or the camera or the lens)
     //slotSendCommandToPtu("");
+
+    mElapsedTimer.start();
 }
 
 void PtuController::slotSerialPortStatusChanged(const QString& status, const QDateTime& time)
@@ -214,8 +217,10 @@ void PtuController::slotVehiclePoseChanged(const Pose& pose)
 {
     mLastKnownVehiclePose = pose;
 
-    if(ui->mPushButtonToggleControllerState->isChecked())
+    if(ui->mPushButtonToggleControllerState->isChecked() && mElapsedTimer.elapsed() > 1000)
     {
+        mElapsedTimer.restart();
+
         if(mPositionInFrustumCenter.isNull() || mPositionCameraSensor.isNull())
             qDebug("WTF");
 
@@ -226,7 +231,7 @@ void PtuController::slotVehiclePoseChanged(const Pose& pose)
         mTiltToVehicle = tempPose.getPitchDegrees();
         qDebug() << "pan :" << mPanToVehicle << " tilt: " << mTiltToVehicle;
         slotSetPanDegrees(mPanToVehicle);
-        slotSetPanDegrees(mTiltToVehicle);
+        slotSetTiltDegrees(mTiltToVehicle);
 
         //mPosePtuBase = determinePtuPose(mPositionCameraSensor, mPositionInFrustumCenter);
 
@@ -258,7 +263,8 @@ void PtuController::slotSetPanDegrees(float degreePan)
 {
     if(mSerialPortPtu->isOpen())
     {
-        float degrees = Pose::getShortestTurnDegrees(degreePan) * mPositionsPerDegreePan;
+        qDebug() << "ptu degrees: " << Pose::getShortestTurnDegrees(degreePan + 360);
+        float degrees = Pose::getShortestTurnDegrees(degreePan + 360) * mPositionsPerDegreePan; // -180 due to back-mounted camera
         slotSendCommandToPtu("PP"+QString::number(degrees));
     }
 }
@@ -267,7 +273,7 @@ void PtuController::slotSetTiltDegrees(float degreeTilt)
 {
     if(mSerialPortPtu->isOpen())
     {
-        float degrees = degreeTilt * mPositionsPerDegreeTilt;
+        float degrees = degreeTilt * mPositionsPerDegreeTilt * -1; // * -1 due to back-mounted camera
         slotSendCommandToPtu("TP"+QString::number(degrees));
     }
 }

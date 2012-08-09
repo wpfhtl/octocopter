@@ -6,6 +6,7 @@
 #include <QTimer>
 #include <QFileDialog>
 #include <QString>
+#include <QElapsedTimer>
 #include <QByteArray>
 
 #include <abstractserial.h>
@@ -62,6 +63,7 @@ private:
     Model* mModelPtuBase;
     Model* mModelPtuPan;
     Model* mModelPtuTilt;
+    QElapsedTimer mElapsedTimer;
 
 private slots:
     void slotSerialPortStatusChanged(const QString& status, const QDateTime& time);
