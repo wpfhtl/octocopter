@@ -71,6 +71,8 @@ private slots:
     void slotSetPositionCamera();
     void slotSetPositionFrustumCenter();
     void slotRetrieveStatus();
+    void slotSetPanDegrees(float degreePan);
+    void slotSetTiltDegrees(float degreeTilt);
     void slotSetPosition(float degreePan, float degreeTilt);
     void slotSetPanLimits(float degreeMinimum, float degreeMaximum);
     void slotSetTiltLimits(float degreeMinimum, float degreeMaximum);

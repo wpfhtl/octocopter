@@ -1,6 +1,8 @@
 #include "ptucontroller.h"
 #include "ui_ptucontroller.h"
 
+#include <QRegExp>
+
 PtuController::PtuController(const QString& deviceFile, QWidget *parent) :
     QDockWidget(parent),
     ui(new Ui::PtuController),
@@ -90,9 +92,11 @@ void PtuController::slotSendDirectCommand()
     QString command = ui->mDirectInput->text();
 
     // Parse command
+
     if(command.contains("/"))
     {
         // For sending fake vehicle poses
+
         QStringList coordinates = command.split("/");
         qDebug() << coordinates.size();
         if(coordinates.size() == 3)
@@ -110,8 +114,24 @@ void PtuController::slotSendDirectCommand()
             qDebug() << "PtuController::slotSendDirectCommand(): sending debug pose: " << pose;
         }
     }
+    else if(command.contains(QRegExp("^-?[0-9]+p?$"))) {
+        // For sending pan in degrees
+
+        command.remove("p");
+        float degrees = command.toFloat();
+        slotSetPanDegrees(degrees);
+    }
+    else if(command.contains(QRegExp("^-?[0-9]+t?$"))) {
+        // For sending tilt in degrees
+
+        command.remove("t");
+        float degrees = command.toFloat();
+        slotSetTiltDegrees(degrees);
+    }
     else
     {
+        // Send PTU command directly (see PTU command reference)
+
         slotSendCommandToPtu(command);
     }
     ui->mDirectInput->clear();
@@ -205,6 +225,8 @@ void PtuController::slotVehiclePoseChanged(const Pose& pose)
         mPanToVehicle = tempPose.getYawDegrees();
         mTiltToVehicle = tempPose.getPitchDegrees();
         qDebug() << "pan :" << mPanToVehicle << " tilt: " << mTiltToVehicle;
+        slotSetPanDegrees(mPanToVehicle);
+        slotSetPanDegrees(mTiltToVehicle);
 
         //mPosePtuBase = determinePtuPose(mPositionCameraSensor, mPositionInFrustumCenter);
 
@@ -228,7 +250,25 @@ void PtuController::slotVehiclePoseChanged(const Pose& pose)
         //pitchAngle = Pose::getShortestTurnDegrees(pitchAngle);
         //qDebug() << "PtuController::slotVehiclePoseChanged(): yaw: " << yawAngle << " pitch: " << pitchAngle;
 //
-        //slotSetPosition(yawAngle, pitchAngle);
+        slotSetPosition(mPanToVehicle, mTiltToVehicle);
+    }
+}
+
+void PtuController::slotSetPanDegrees(float degreePan)
+{
+    if(mSerialPortPtu->isOpen())
+    {
+        float degrees = Pose::getShortestTurnDegrees(degreePan) * mPositionsPerDegreePan;
+        slotSendCommandToPtu("PP"+QString::number(degrees));
+    }
+}
+
+void PtuController::slotSetTiltDegrees(float degreeTilt)
+{
+    if(mSerialPortPtu->isOpen())
+    {
+        float degrees = degreeTilt * mPositionsPerDegreeTilt;
+        slotSendCommandToPtu("TP"+QString::number(degrees));
     }
 }
 
@@ -236,6 +276,8 @@ void PtuController::slotSetPosition(float degreePan, float degreeTilt)
 {
     if(mSerialPortPtu->isOpen())
     {
+
+        /*
         int ptuPan = mPositionsPerDegreePan * -degreePan;
         ptuPan = Pose::getShortestTurnDegrees(180 + ptuPan); // Camera mounted backwards
         //if(ptuPan < mMaxPanPositionsClockwise && ptuPan > mMaxPanPositionsCounterClockwise)
@@ -264,6 +306,7 @@ void PtuController::slotSetPosition(float degreePan, float degreeTilt)
             qDebug() << "PtuController::slotSetPosition(): " << "sending TP"+QString::number(ptuTilt);
             slotSendCommandToPtu("TP"+QString::number(ptuTilt));
         }
+        */
     }
 }
 
