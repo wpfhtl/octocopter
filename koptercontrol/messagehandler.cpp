@@ -5,7 +5,7 @@ QTextStream* mMasterLogStream = 0;
 
 MessageHandler::MessageHandler(const QString& logFilePrefix)
 {
-    qDebug() << "KopterControl::installMessageHandler(): setting up console logging...";
+    qDebug() << "MessageHandler::installMessageHandler(): setting up console logging...";
 
     mNumPunct = new comma_numpunct();
     mLocale = new std::locale(std::locale(), mNumPunct);
@@ -17,7 +17,7 @@ MessageHandler::MessageHandler(const QString& logFilePrefix)
     mMasterLogFile = new QFile(logFilePrefix + QString("console.txt"));
     if(!mMasterLogFile->open(QIODevice::WriteOnly | QIODevice::Append))
     {
-        qFatal("Cannot open logfile: %s, exiting", qPrintable(mMasterLogFile->fileName()));
+        qFatal("MessageHandler::MessageHandler(): cannot open logfile: %s, exiting", qPrintable(mMasterLogFile->fileName()));
     }
 
     mMasterLogStream = new QTextStream(mMasterLogFile);
@@ -27,21 +27,27 @@ MessageHandler::MessageHandler(const QString& logFilePrefix)
     mMasterLogStream->setLocale(german);
 
     qInstallMsgHandler(MessageHandler::handleMessage);
-    qDebug() << "KopterControl::installMessageHandler(): successfully set up console logging.";
+    qDebug() << "MessageHandler::MessageHandler(): successfully set up console logging.";
 }
 
 MessageHandler::~MessageHandler()
 {
+    qDebug() << "MessageHandler::~MessageHandler(): shutting down logmessage handler...";
     delete mNumPunct;
     delete mLocale;
 
+    // Re-set logging to the default handler.
+    qInstallMsgHandler(0);
+
     if(mMasterLogStream)
     {
+        qDebug() << "MessageHandler::~MessageHandler(): shutting down logstream";
         mMasterLogStream->flush();
         delete mMasterLogStream;
     }
     if(mMasterLogFile)
     {
+        qDebug() << "MessageHandler::~MessageHandler(): closing logfile";
         mMasterLogFile->flush();
         mMasterLogFile->close();
         delete mMasterLogFile;
@@ -57,7 +63,8 @@ void MessageHandler::handleMessage(QtMsgType type, const char *msg)
     std::cout << tow << ' ';
     std::cout << msg << std::endl;
 
-    (*mMasterLogStream) << tow << ' ' << msg << endl;
+    // Don't use endl, as that would flush the file to sd-card, which is sloooooow
+    (*mMasterLogStream) << tow << ' ' << msg << '\n';
 
     if(type == QtFatalMsg) abort();
 }

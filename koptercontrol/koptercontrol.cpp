@@ -160,10 +160,6 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     //    WARNING! THIS ENABLES MOTION!
     connect(mFlightController, SIGNAL(motion(MotionCommand)), mKopter, SLOT(slotSetMotion(MotionCommand)));
-
-    mTimerSystemLoadControl = new QTimer(this);
-    mTimerSystemLoadControl->start(15000); // every 15 seconds
-    connect(mTimerSystemLoadControl, SIGNAL(timeout()), SLOT(slotAdaptToSystemLoad()));
 }
 
 KopterControl::~KopterControl()
@@ -186,32 +182,6 @@ KopterControl::~KopterControl()
             qDebug() << "LaserScanner::~LaserScanner(): moving useless logfile to /tmp:" << fileInfo.fileName();
             QFile::rename(fileInfo.canonicalFilePath(), fileInfo.fileName().prepend("/tmp/"));
         }
-    }
-}
-
-void KopterControl::slotAdaptToSystemLoad()
-{
-    double avgLoad[1];
-    if(getloadavg(avgLoad, 1) == 1) // get the average load from last minute
-    {
-        if(avgLoad[0] > 0.8)
-        {
-            mSensorFuser->setStridePoint(qBound(2, mSensorFuser->getStridePoint()+1, 255));
-            qDebug() << "KopterControl::slotAdaptToSystemLoad(): high load:" << avgLoad[0] << "stridePoint increased to" << mSensorFuser->getStridePoint();
-        }
-        else if(avgLoad[0] < 0.7)
-        {
-            mSensorFuser->setStridePoint(qBound(1, mSensorFuser->getStridePoint()-1, 255));
-            qDebug() << "KopterControl::slotAdaptToSystemLoad(): low load:" << avgLoad[0] << "stridePoint decreased to" << mSensorFuser->getStridePoint();
-        }
-        else
-        {
-            qDebug() << "KopterControl::slotAdaptToSystemLoad(): normal load:" << avgLoad[0] << "stridePoint remains at" << mSensorFuser->getStridePoint();
-        }
-    }
-    else
-    {
-        qDebug() << "KopterControl::slotAdaptToSystemLoad(): average load couldn't be determined, skipping";
     }
 }
 

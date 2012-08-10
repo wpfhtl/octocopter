@@ -37,9 +37,12 @@ public:
     ~FlightController();
 
     const FlightState& getFlightState(void) const;
-    Pose getLastKnownPose(void) const;
-    QList<WayPoint> getWayPoints();
-    // ??? static int wayPointComponentsEqual(const QVector3D &wpt1, const QVector3D &wpt2);
+
+    Pose FlightController::getLastKnownPose(void) const { return mLastKnownVehiclePose; }
+
+    QList<WayPoint> FlightController::getWayPoints() { return mWayPoints; }
+
+    const FlightState& FlightController::getFlightState(void) const { return mFlightState; }
 
 private:
     QFile* mLogFile;

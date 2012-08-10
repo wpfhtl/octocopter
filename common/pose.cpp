@@ -184,11 +184,6 @@
         return (Eul_FromHMatrix(M, order));
     }
 
-
-
-
-
-
 Pose::Pose()
 {
     mTransform.setToIdentity();
@@ -206,27 +201,6 @@ Pose::Pose(const QMatrix4x4& matrix, const qint32& timestamp)
     else
         this->timestamp = timestamp;
 }
-/*
-Pose::Pose(const QVector3D &position, const QQuaternion &orientation, const qint32& timestamp)
-{
-    const float yaw = keepWithinRangeRadians(getYawRadians(orientation, true));
-    const float pitch = keepWithinRangeRadians(getPitchRadians(orientation, true));
-    const float roll = keepWithinRangeRadians(getRollRadians(orientation, true));
-
-    mTransform.setToIdentity();
-    mTransform.translate(position);
-    mTransform.rotate(yaw, QVector3D(0,1,0));
-    mTransform.rotate(pitch, QVector3D(1,0,0));
-    mTransform.rotate(roll, QVector3D(0,0,1));
-
-    if(timestamp == 0)
-        this->timestamp = getCurrentGpsTowTime();
-    else
-        this->timestamp = timestamp;
-
-    precision = 0;
-    covariances = 100.0f;
-}*/
 
 Pose::Pose(const QVector3D &position, const float &yawDegrees, const float &pitchDegrees, const float &rollDegrees, const qint32& timestamp)
 {
@@ -391,11 +365,6 @@ Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before,
     return p;
 }
 
-/*
-  **************************************************************************
-  ************************                       ***************************
-  **************************************************************************
-  */
 float Pose::getShortestTurnRadians(float angle)
 {
     return DEG2RAD(getShortestTurnDegrees(RAD2DEG(angle)));
@@ -454,6 +423,7 @@ const QString Pose::getFlagsString() const
     if(precision & Pose::CorrectionAgeLow) flags.append(" +COR"); else flags.append(" -COR");
     if(precision & Pose::RtkFixed) flags.append(" +RTK"); else flags.append(" -RTK");
     if(precision & Pose::ModeIntegrated) flags.append(" +INT"); else flags.append(" -INT");
+    if(precision & Pose::HeadingFixed) flags.append(" +HDG"); else flags.append(" -HDG");
     return flags;
 }
 
@@ -550,86 +520,3 @@ QDataStream& operator>>(QDataStream &in, Pose &pose)
 
     return in;
 }
-/*
-float Pose::getRollRadians(const QQuaternion& orientation, bool reprojectAxis)
-{
-    if(reprojectAxis)
-    {
-        // ben: this was Real in ogre, so it might be better to use double
-        // roll = atan2(localx.y, localx.x)
-        // pick parts of xAxis() implementation that we need
-        float fTx  = 2.0 * orientation.x();
-        float fTy  = 2.0 * orientation.y();
-        float fTz  = 2.0 * orientation.z();
-        float fTwz = fTz * orientation.scalar();
-        float fTxy = fTy * orientation.x();
-        float fTyy = fTy * orientation.y();
-        float fTzz = fTz * orientation.z();
-
-        // Vector3(1.0-(fTyy+fTzz), fTxy+fTwz, fTxz-fTwy);
-        return atan2(fTxy+fTwz, 1.0-(fTyy+fTzz));
-    }
-    else
-    {
-        return atan2(2*(orientation.x() * orientation.y() + orientation.scalar() * orientation.z() ), orientation.scalar() * orientation.scalar() + orientation.x() * orientation.x() - orientation.y() * orientation.y() - orientation.z() * orientation.z());
-    }
-}
-
-float Pose::getPitchRadians(const QQuaternion& orientation, bool reprojectAxis)
-{
-    if(reprojectAxis)
-    {
-        // pitch = atan2(localy.z, localy.y)
-        // pick parts of yAxis() implementation that we need
-        float fTx  = 2.0 * orientation.x();
-        float fTy  = 2.0 * orientation.y();
-        float fTz  = 2.0 * orientation.z();
-        float fTwx = fTx * orientation.scalar();
-        float fTxx = fTx * orientation.x();
-        float fTyz = fTz * orientation.y();
-        float fTzz = fTz * orientation.z();
-
-        // Vector3(fTxy-fTwz, 1.0-(fTxx+fTzz), fTyz+fTwx);
-        return atan2(fTyz+fTwx, 1.0-(fTxx+fTzz));
-    }
-    else
-    {
-        // internal version
-        return atan2(2*(orientation.y() * orientation.z() + orientation.scalar() * orientation.x() ), orientation.scalar() * orientation.scalar() - orientation.x() * orientation.x() - orientation.y() * orientation.y() + orientation.z() * orientation.z());
-    }
-}
-
-float Pose::getYawRadians(const QQuaternion& orientation, bool reprojectAxis)
-{
-    if(reprojectAxis)
-    {
-        // yaw = atan2(localz.x, localz.z)
-        // pick parts of zAxis() implementation that we need
-        float fTx  = 2.0 * orientation.x();
-        float fTy  = 2.0 * orientation.y();
-        float fTz  = 2.0 * orientation.z();
-        float fTwy = fTy * orientation.scalar();
-        float fTxx = fTx * orientation.x();
-        float fTxz = fTz * orientation.x();
-        float fTyy = fTy * orientation.y();
-
-        // Vector3(fTxz+fTwy, fTyz-fTwx, 1.0-(fTxx+fTyy));
-        return atan2(fTxz+fTwy, 1.0-(fTxx+fTyy));
-    }
-    else
-    {
-        // internal version
-        return asin(-2*(orientation.x() * orientation.z() - orientation.scalar() * orientation.y()));
-    }
-}
-*/
-
-
-
-
-
-
-
-
-
-

@@ -41,7 +41,7 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
 
 LaserScanner::~LaserScanner()
 {
-    qDebug() << "LaserScanner::~LaserScanner(): shutting down laserscanner...";
+    qDebug() << "LaserScanner::~LaserScanner(): shutting down laserscanner and closing logfile...";
     mScanner.setLaserOutput(false);
     mScanner.stop();
     mScanner.disconnect();
@@ -52,6 +52,7 @@ LaserScanner::~LaserScanner()
     mLogFile->close();
     mLogFile->deleteLater();
 
+    qDebug() << "LaserScanner::~LaserScanner(): done.";
 }
 
 const bool LaserScanner::isScanning() const

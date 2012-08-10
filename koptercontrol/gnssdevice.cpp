@@ -90,6 +90,8 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
 
 GnssDevice::~GnssDevice()
 {
+    qDebug() << "GnssDevice::~GnssDevice(): closing ports and logfiles...";
+
     mSerialPortUsb->close();
     mSerialPortUsb->deleteLater();
 
@@ -109,7 +111,7 @@ GnssDevice::~GnssDevice()
 
     mSbfParser->deleteLater();
 
-    qDebug() << "GnssDevice::~GnssDevice(): ports closed, SBF file flushed, destructed after receiving" << mRtkDataCounter << "bytes diffcorr";
+    qDebug() << "GnssDevice::~GnssDevice(): ports closed, log files flushed, destructed after receiving" << mRtkDataCounter << "bytes diffcorr";
 }
 
 void GnssDevice::slotQueueCommand(QString command)
@@ -135,9 +137,9 @@ quint8 GnssDevice::slotFlushCommandQueue()
         mWaitingForCommandReply = true;
 
         QTextStream commandLog(mLogFileCmd);
-        commandLog << endl << endl << "################################################################################" << endl << endl;
-        commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << " HOST -> DEV: " << mLastCommandToDeviceUsb << endl;
-        commandLog << "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" << endl << endl;
+        commandLog << '\n' << '\n' << "################################################################################" << '\n' << '\n';
+        commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << " HOST -> DEV: " << mLastCommandToDeviceUsb << '\n';
+        commandLog << "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" << '\n' << '\n';
     }
     else if(mWaitingForCommandReply)
     {
@@ -478,8 +480,8 @@ void GnssDevice::slotDataReadyOnUsb()
                 qDebug() << "GnssDevice::slotDataReadyOnUsb(): received reply to:" << mLastCommandToDeviceUsb.trimmed() << "-" << commandReply.size() << "bytes:" << commandReply.trimmed();
 
                 QTextStream commandLog(mLogFileCmd);
-                commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << " DEV -> HOST: " << commandReply.trimmed() << endl;
-                commandLog << endl << "################################################################################" << endl << endl << endl << endl;
+                commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << " DEV -> HOST: " << commandReply.trimmed() << '\n';
+                commandLog << '\n' << "################################################################################" << '\n' << '\n' << '\n' << '\n';
 
                 if(commandReply.contains("$R? ASCII commands between prompts were discarded!"))
                     qDebug() << "GnssDevice::slotDataReadyOnUsb(): WARNING, we were talking too fast!!";

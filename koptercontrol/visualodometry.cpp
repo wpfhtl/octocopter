@@ -155,7 +155,7 @@ void VisualOdometry::slotProcessImage(const QString& name, const QSize& imageSiz
                 mLastAverageHorizontalSpeed = averageDirectionX/12;
 
                 QTextStream out(mLogFile);
-                out << "frame " << mNumberOfFramesProcessed << " " << averageDirectionX << " " << averageDirectionY << endl;
+                out << "frame " << mNumberOfFramesProcessed << " " << averageDirectionX << " " << averageDirectionY << '\n';
 
                 cvLine( mImage1, p1, p2, CV_RGB(255,255,255), 1, CV_AA, 0 );
                 sprintf(filename, "frame_%d.jpg", mNumberOfFramesProcessed);

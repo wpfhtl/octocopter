@@ -78,6 +78,9 @@ public:
 
     const QString getFlagsString() const;
 
+    // How old os this pose in milliseconds? Requires a synchronized system clock.
+    qint32 getAge() const { return GnssTime::currentTow() - timestamp; }
+
     const QString toString() const;
     const QString toStringVerbose() const; // includes human readable precision flags
 

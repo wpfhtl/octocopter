@@ -37,7 +37,6 @@ public slots:
     void slotHandleSignal();
 
 private:
-//    void installMessageHandler(const QString& logFilePrefix);
     // We use this pipe for all signals.
     static int signalFd[2];
 
@@ -53,8 +52,6 @@ private:
 //    VisualOdometry* mVisualOdometry;
 
     QSocketNotifier *snSignalPipe;
-
-    QTimer* mTimerSystemLoadControl;
 
 private slots:
     void slotAdaptToSystemLoad();
