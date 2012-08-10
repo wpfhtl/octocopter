@@ -66,7 +66,7 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mGlWidget, SIGNAL(mouseClickedAtWorldPos(Qt::MouseButton, QVector3D)), mControlWidget, SLOT(slotSetWayPointCoordinateFields(Qt::MouseButton, QVector3D)));
     setCentralWidget(mGlWidget);
 
-    mPtuController = new PtuController("/dev/ttyUSB0", this);
+    mPtuController = new PtuController("/dev/serial/by-id/usb-Hjelmslund_Electronics_USB485_ISO4W_HEVGI92A-if00-port0", this);
     mPtuController->setAllowedAreas(Qt::AllDockWidgetAreas);
     mPtuController->setVisible(true);
     addDockWidget(Qt::BottomDockWidgetArea, mPtuController);
