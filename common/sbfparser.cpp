@@ -465,7 +465,8 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         emit newVehiclePoseLogPlayer(mLastPose);
 
         // Emitted slowly (2Hz), any precision
-        if(mLastPose.timestamp % 500 == 0)
+	// Update: Need higher rate for PTU-tracking (10Hz)
+        if(mLastPose.timestamp % 100 == 0)
             emit newVehiclePoseStatus(mLastPose);
 
         // Only emit a precise pose if the values are not set to the do-not-use values.
