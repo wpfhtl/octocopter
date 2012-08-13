@@ -52,9 +52,6 @@ private:
 //    VisualOdometry* mVisualOdometry;
 
     QSocketNotifier *snSignalPipe;
-
-private slots:
-    void slotAdaptToSystemLoad();
 };
 
 #endif

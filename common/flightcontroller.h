@@ -36,13 +36,11 @@ public:
     FlightController(const QString& logFilePrefix = QString());
     ~FlightController();
 
-    const FlightState& getFlightState(void) const;
+    Pose getLastKnownPose(void) const { return mLastKnownVehiclePose; }
 
-    Pose FlightController::getLastKnownPose(void) const { return mLastKnownVehiclePose; }
+    QList<WayPoint> getWayPoints() { return mWayPoints; }
 
-    QList<WayPoint> FlightController::getWayPoints() { return mWayPoints; }
-
-    const FlightState& FlightController::getFlightState(void) const { return mFlightState; }
+    const FlightState& getFlightState(void) const { return mFlightState; }
 
 private:
     QFile* mLogFile;
@@ -61,6 +59,13 @@ private:
 
     // In Hover mode, this is where we want to be. Set when we enter hover-state
     QVector3D mHoverPosition;
+
+    // The following method mixes the new controller outpuit with the last one to achieve smoothing
+    // This is an attempt to smooth out GNSS reception problems in single GNSS-packets that would
+    // otherwise lead to a bouncing vehicle while flip-flopping between safe control values and
+    // hover/approachwaypoint.
+    MotionCommand mLastMotionCommand;
+    void smoothenControllerOutput(MotionCommand& mc);
 
     struct ImuOffsets {
         float pitch;

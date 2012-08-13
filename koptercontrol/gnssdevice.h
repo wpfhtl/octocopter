@@ -46,14 +46,8 @@ private:
     // We need to use these names to tell the receiver what communication comes in/out of what ports.
     QString mSerialPortOnDeviceUsb, mSerialPortOnDeviceCom;
 
-
-
     QByteArray mReceiveBufferUsb, mReceiveBufferCom;
     QList<QByteArray> mCommandQueueUsb;
-
-
-    // Sets the internal pose according to the given GNSS readings
-//    void setPose(const qint32& lon, const qint32& lat, const qint32& alt, const quint16& heading, const qint16& pitch, const qint16& roll, const qint32& tow);
 
     // This method finds out how many seconds are left before the TOW (time-of-week)
     // value in the receiver rolls over, potentially screwing up our calculcations.
@@ -80,8 +74,6 @@ private slots:
 public slots:
     void slotSetRtkData(const QByteArray &data);
     void slotShutDown(); // just calls communicationStop. To be called from the main program's signal handler.
-
-//    for testing void slotTogglePoseFrequencyForTesting();
 
 signals:
     void message(const LogImportance& importance, const QString& source, const QString& message);

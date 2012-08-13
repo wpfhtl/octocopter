@@ -12,6 +12,8 @@
 #include "motioncommand.h"
 #include "common.h"
 
+#include <unistd.h> // usleep()
+
 class MotionCommand;
 
 class Kopter : public QObject
@@ -149,11 +151,9 @@ public slots:
 
 signals:
     void kopterStatus(const quint32 missionRunTimeMsecs, const qint16& baroheight, const float& voltage);
-    //void ppmChannelValues(PpmChannels);
     // Mikrokopter calls control from non-remote-control sources "ExternalControl". This reflects SW1 on the RC.
     void flightStateSwitchValueChanged(FlightStateSwitch);
     void calibrationSwitchToggled();
-//    void externControlReplyReceived();
 
 };
 

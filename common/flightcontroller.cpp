@@ -20,6 +20,7 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
     mFirstControllerRun = true;
 
     mLastKnownVehiclePose = Pose();
+    mLastMotionCommand = MotionCommand((quint8)0, (qint8)0, (qint8)0, (qint8)0);
 
     mBackupTimerComputeMotion = new QTimer(this);
     connect(mBackupTimerComputeMotion, SIGNAL(timeout()), SLOT(slotComputeBackupMotion()));
@@ -85,7 +86,7 @@ void FlightController::slotComputeMotionCommands()
         if(
                 mLastKnownVehiclePose.getAge() < 80 &&
                 // If pose is unprecise, emit safe stuff. Note that we don't expect ModeIntegrated, because only 1 of 2_or_5 packets is integrated - and thats ok.
-                pose.precision & Pose::AttitudeAvailable && pose.precision & Pose::HeadingFixed && pose.precision && Pose::RtkFixed
+                mLastKnownVehiclePose.precision & Pose::AttitudeAvailable && mLastKnownVehiclePose.precision & Pose::HeadingFixed && mLastKnownVehiclePose.precision && Pose::RtkFixed
                 )
         {
             const WayPoint nextWayPoint = mWayPoints.first();
@@ -216,7 +217,7 @@ void FlightController::slotComputeMotionCommands()
         if(
                 mLastKnownVehiclePose.getAge() < 80 &&
                 // If pose is unprecise, emit safe stuff. Note that we don't expect ModeIntegrated, because only 1 of 2_or_5 packets is integrated - and thats ok.
-                pose.precision & Pose::AttitudeAvailable && pose.precision & Pose::HeadingFixed && pose.precision && Pose::RtkFixed
+                mLastKnownVehiclePose.precision & Pose::AttitudeAvailable && mLastKnownVehiclePose.precision & Pose::HeadingFixed && mLastKnownVehiclePose.precision && Pose::RtkFixed
                 )
         {
             const QVector2D vectorVehicleToOrigin = -mLastKnownVehiclePose.getPlanarPosition();
@@ -310,10 +311,25 @@ void FlightController::slotComputeMotionCommands()
 
     mTimeOfLastControllerUpdate = QTime::currentTime();
 
-    qDebug() << "FlightController::slotComputeMotionCommands():" << mLastFlightControllerValues.motionCommand;
+    smoothenControllerOutput(mLastFlightControllerValues.motionCommand);
+
+    qDebug() << "FlightController::slotComputeMotionCommands(): after smoothing:" << mLastFlightControllerValues.motionCommand;
     emit motion(mLastFlightControllerValues.motionCommand);
+
+    // Mostly useful in simulator
     emit flightControllerValues(mLastFlightControllerValues);
+
     logFlightControllerValues();
+}
+
+void FlightController::smoothenControllerOutput(MotionCommand& mc)
+{
+    mc.thrust = (mc.thrust + mLastMotionCommand.thrust) / 2.0f;
+    mc.yaw = (mc.yaw + mLastMotionCommand.yaw) / 2.0f;
+    mc.pitch = (mc.pitch + mLastMotionCommand.pitch) / 2.0f;
+    mc.roll = (mc.roll + mLastMotionCommand.roll) / 2.0f;
+
+    mLastMotionCommand = mc;
 }
 
 void FlightController::logFlightControllerValues()
