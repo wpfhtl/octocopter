@@ -27,7 +27,7 @@ battery
 ../common/flightstate
 ../common/flightcontroller
 ../common/flightcontrollervalues
-../common/gnssstatusinformation
+../common/gnssstatus
 ../common/gnsstime
 ../common/pose
 ../common/motioncommand
@@ -56,7 +56,7 @@ battery.h
 ../common/flightstate.h
 ../common/flightcontroller.h
 ../common/flightcontrollervalues.h
-../common/gnssstatusinformation.h
+../common/gnssstatus.h
 ../common/gnsstime.h
 ../common/pose.h
 ../common/motioncommand.h
@@ -83,7 +83,7 @@ dialogconfiguration.ui
 statuswidget.ui
 )
 
-SET(RESOURCE_FILES
+SET(RESOURCE_FILES^
 )
 
 # use this if bullet is also compiled with double precision

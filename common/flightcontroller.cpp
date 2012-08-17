@@ -37,7 +37,6 @@ FlightController::~FlightController()
     if(mLogFile)
     {
         qDebug() << "FlightController::~FlightController(): closing logfile...";
-        mLogFile->flush();
         mLogFile->close();
         mLogFile->deleteLater();
         qDebug() << "FlightController::~FlightController(): done.";
@@ -84,9 +83,11 @@ void FlightController::slotComputeMotionCommands()
         mLastFlightControllerValues.motionCommand = MotionCommand(MotionCommand::thrustHover, 0.0f, 0.0f, 0.0f);
 
         if(
-                mLastKnownVehiclePose.getAge() < 80 &&
+                mLastKnownVehiclePose.getAge() < 80
                 // If pose is unprecise, emit safe stuff. Note that we don't expect ModeIntegrated, because only 1 of 2_or_5 packets is integrated - and thats ok.
-                mLastKnownVehiclePose.precision & Pose::AttitudeAvailable && mLastKnownVehiclePose.precision & Pose::HeadingFixed && mLastKnownVehiclePose.precision && Pose::RtkFixed
+                && mLastKnownVehiclePose.precision & Pose::AttitudeAvailable
+                && mLastKnownVehiclePose.precision & Pose::HeadingFixed
+                && mLastKnownVehiclePose.precision & Pose::RtkFixed
                 )
         {
             const WayPoint nextWayPoint = mWayPoints.first();
@@ -95,7 +96,7 @@ void FlightController::slotComputeMotionCommands()
             const float directionNorthToWayPointRadians = atan2(-vectorVehicleToWayPoint.x(), -vectorVehicleToWayPoint.y());
             const float angleToTurnToWayPoint = Pose::getShortestTurnRadians(directionNorthToWayPointRadians - mLastKnownVehiclePose.getYawRadians());
 
-            qDebug() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, lastKnownPose:" << mLastKnownVehiclePose << "nextWayPoint:" << nextWayPoint;
+            qDebug() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, lastKnownPose:" << mLastKnownVehiclePose.toStringVerbose() << "nextWayPoint:" << nextWayPoint;
 
             // http://en.wikipedia.org/wiki/PID_controller, thanks Minorsky!
 
@@ -176,13 +177,13 @@ void FlightController::slotComputeMotionCommands()
 
             qDebug() << mWayPoints.size() << "waypoints, next wpt height" << nextWayPoint.y() << "curr height" << mLastKnownVehiclePose.getPosition().y();
 
-            qDebug() << "values PRYH:" << QString::number(currentPitch, 'f', 2) << "\t" << QString::number(currentRoll, 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.getYawDegrees(), 'f', 2) << "\t" << QString::number(mLastKnownVehiclePose.getPosition().y(), 'f', 2);
-            qDebug() << "should PRYH:" << QString::number(desiredPitch, 'f', 2) << "\t" << QString::number(desiredRoll, 'f', 2) << "\t" << QString::number(RAD2DEG(directionNorthToWayPointRadians), 'f', 2) << "\t" << QString::number(nextWayPoint.y(), 'f', 2);
-            qDebug() << "error  PRYH:" << QString::number(errorPitch, 'f', 2) << "\t" << QString::number(errorRoll, 'f', 2) << "\t" << QString::number(errorYaw, 'f', 2) << "\t" << QString::number(errorHeight, 'f', 2);
-            qDebug() << "derivt PRYH:" << QString::number(derivativePitch, 'f', 2) << "\t" << QString::number(derivativeRoll, 'f', 2) << "\t" << QString::number(derivativeYaw, 'f', 2) << "\t" << QString::number(derivativeHeight, 'f', 2);
-            qDebug() << "prevEr PRYH:" << QString::number(mPrevErrorPitch, 'f', 2) << "\t" << QString::number(mPrevErrorRoll, 'f', 2) << "\t" << QString::number(mPrevErrorYaw, 'f', 2) << "\t" << QString::number(mPrevErrorHeight, 'f', 2);
-            qDebug() << "inteEr PRYH:" << QString::number(mErrorIntegralPitch, 'f', 2) << "\t" << QString::number(mErrorIntegralRoll, 'f', 2) << "\t" << QString::number(mErrorIntegralYaw, 'f', 2) << "\t" << QString::number(mErrorIntegralHeight, 'f', 2);
-            qDebug() << "output PRYH:" << QString::number(outputPitch, 'f', 2) << "\t" << QString::number(outputRoll, 'f', 2) << "\t" << QString::number(outputYaw, 'f', 2) << "\t" << QString::number(outputThrust, 'f', 2);
+            qDebug() << qSetRealNumberPrecision(4) << "values PRYH:" << currentPitch << "\t" << currentRoll << "\t" << mLastKnownVehiclePose.getYawDegrees() << "\t" << mLastKnownVehiclePose.getPosition().y();
+            qDebug() << qSetRealNumberPrecision(4) << "should PRYH:" << desiredPitch << "\t" << desiredRoll << "\t" << RAD2DEG(directionNorthToWayPointRadians) << "\t" << nextWayPoint.y();
+            qDebug() << qSetRealNumberPrecision(4) << "error  PRYH:" << errorPitch << "\t" << errorRoll << "\t" << errorYaw << "\t" << errorHeight;
+            qDebug() << qSetRealNumberPrecision(4) << "derivt PRYH:" << derivativePitch << "\t" << derivativeRoll << "\t" << derivativeYaw << "\t" << derivativeHeight;
+            qDebug() << qSetRealNumberPrecision(4) << "prevEr PRYH:" << mPrevErrorPitch << "\t" << mPrevErrorRoll << "\t" << mPrevErrorYaw << "\t" << mPrevErrorHeight;
+            qDebug() << qSetRealNumberPrecision(4) << "inteEr PRYH:" << mErrorIntegralPitch << "\t" << mErrorIntegralRoll << "\t" << mErrorIntegralYaw << "\t" << mErrorIntegralHeight;
+            qDebug() << qSetRealNumberPrecision(4) << "output PRYH:" << outputPitch << "\t" << outputRoll << "\t" << outputYaw << "\t" << outputThrust;
 
             mPrevErrorPitch = errorPitch;
             mPrevErrorRoll = errorRoll;
@@ -215,18 +216,20 @@ void FlightController::slotComputeMotionCommands()
         mLastFlightControllerValues.motionCommand = MotionCommand(MotionCommand::thrustHover, 0.0f, 0.0f, 0.0f);
 
         if(
-                mLastKnownVehiclePose.getAge() < 80 &&
+                mLastKnownVehiclePose.getAge() < 80
                 // If pose is unprecise, emit safe stuff. Note that we don't expect ModeIntegrated, because only 1 of 2_or_5 packets is integrated - and thats ok.
-                mLastKnownVehiclePose.precision & Pose::AttitudeAvailable && mLastKnownVehiclePose.precision & Pose::HeadingFixed && mLastKnownVehiclePose.precision && Pose::RtkFixed
+                && mLastKnownVehiclePose.precision & Pose::AttitudeAvailable
+                && mLastKnownVehiclePose.precision & Pose::HeadingFixed
+                // && mLastKnownVehiclePose.precision & Pose::RtkFixed // Hover even in non-precise modes
                 )
         {
             const QVector2D vectorVehicleToOrigin = -mLastKnownVehiclePose.getPlanarPosition();
 
             // We want to point exactly away from the origin, because thats probably where the user is
             // standing - steering is easier if the vehicle's forward arm points away from the user.
-            const float angleToTurnAwayFromOrigin = Pose::getShortestTurnRadians(-Pose::getShortestTurnRadians(DEG2RAD(180.0f) - atan2(-vectorVehicleToOrigin.x(), -vectorVehicleToOrigin.y())) - mLastKnownVehiclePose.getYawRadians());
+            const float angleToTurnAwayFromOrigin = RAD2DEG(Pose::getShortestTurnRadians(-Pose::getShortestTurnRadians(DEG2RAD(180.0f) - atan2(-vectorVehicleToOrigin.x(), -vectorVehicleToOrigin.y())) - mLastKnownVehiclePose.getYawRadians()));
 
-            qDebug() << "FlightController::slotComputeMotionCommands(): FlightState Hover, mHoverPosition:" << mHoverPosition << "angleToTurnAwayFromOrigin: turn" << (angleToTurnAwayFromOrigin < 0.0f ? "right" : "left") << RAD2DEG(angleToTurnAwayFromOrigin);
+            qDebug() << "FlightController::slotComputeMotionCommands(): FlightState Hover, mHoverPosition:" << mHoverPosition << "angleToTurnAwayFromOrigin: turn" << (angleToTurnAwayFromOrigin < 0.0f ? "right" : "left") << angleToTurnAwayFromOrigin;
 
             // If the planar distance to mHoverPosition is very small (this happens when only the height is off),
             // we don't want to yaw and pitch. So, we introduce a factor [0;1], which becomes 0 with small distance
@@ -239,9 +242,6 @@ void FlightController::slotComputeMotionCommands()
                         mTimeOfLastControllerUpdate.msecsTo(QTime::currentTime()) / 1000.0f,
                         0.2f);
 
-            // Thats how much we want to yaw just in order to point away from the origin/user
-            const float yaw = RAD2DEG(angleToTurnAwayFromOrigin) * factorPlanarDistance;
-
             // Now that we've yawed to look away from the origin, pitch/roll to move towards hover-position
             const QVector3D vectorVehicleToHoverPosition = mLastKnownVehiclePose.getPlanarPosition() - QVector2D(mHoverPosition.x(), mHoverPosition.z());
             const float angleToTurnToHoverPosition = Pose::getShortestTurnRadians(
@@ -249,26 +249,29 @@ void FlightController::slotComputeMotionCommands()
                         - mLastKnownVehiclePose.getYawRadians()
                         );
 
-            float desiredPitch = cos(-angleToTurnToHoverPosition) * 5.0f;
-            float desiredRoll = sin(-angleToTurnToHoverPosition) * 5.0f;
+            float desiredPitch = cos(-angleToTurnToHoverPosition) * 10.0f;
+            float desiredRoll = sin(-angleToTurnToHoverPosition) * 10.0f;
 
             desiredPitch = qBound(
-                        -5.0,
+                        -10.0,
                         pow(factorPlanarDistance, 4.0) * desiredPitch,
-                        5.0);
+                        10.0);
 
             desiredRoll  = qBound(
-                        -5.0,
+                        -10.0,
                         pow(factorPlanarDistance, 4.0) * desiredRoll,
-                        5.0);
+                        10.0);
 
-            // try to reach mHoverPosition
+            const float errorYaw = angleToTurnAwayFromOrigin * factorPlanarDistance;
+            mErrorIntegralYaw += errorYaw * timeDiff;
+            const float derivativeYaw = mFirstControllerRun ? 0.0f : (errorYaw - mPrevErrorYaw + 0.00001f)/timeDiff;
+            const float outputYaw = ((1.0f * errorYaw) + (0.0f * mErrorIntegralYaw) + (0.3f/*0.5f*/ * derivativeYaw));
+
             const float currentPitch = mLastKnownVehiclePose.getPitchDegrees() - mImuOffsets.pitch;
             const float errorPitch = desiredPitch - currentPitch;
             mErrorIntegralPitch += errorPitch * timeDiff;
             const float derivativePitch = mFirstControllerRun ? 0.0f : (errorPitch - mPrevErrorPitch + 0.00001f)/timeDiff;
             const float outputPitch = (3.0f * errorPitch) + (0.2f * mErrorIntegralPitch) + (0.0f * derivativePitch);
-
 
             const float currentRoll = mLastKnownVehiclePose.getRollDegrees() - mImuOffsets.roll;
             const float errorRoll = desiredRoll - currentRoll;
@@ -276,25 +279,27 @@ void FlightController::slotComputeMotionCommands()
             const float derivativeRoll = mFirstControllerRun ? 0.0f : (errorRoll - mPrevErrorRoll + 0.00001f)/timeDiff;
             const float outputRoll = (3.0f * errorRoll) + (0.2f * mErrorIntegralRoll) + (0.0f * derivativeRoll);
 
-
-            const float errorHeight = mHoverPosition.y() - mLastKnownVehiclePose.getPosition().y();
+            const float currentHeight = mLastKnownVehiclePose.getPosition().y();
+            const float errorHeight = mHoverPosition.y() - currentHeight;
             mErrorIntegralHeight += errorHeight * timeDiff;
-
-            // We do need to use the I-controller, but we should clear the integrated error once we have crossed the height of a waypoint.
-            // Otherwise, the integral will grow large while ascending and then keep the kopter above the waypoint for a loooong time.
-            if((mPrevErrorHeight > 0.0f && errorHeight < 0.0f) || (mPrevErrorHeight < 0.0f && errorHeight > 0.0f))
-            {
-                qDebug() << "FlightController::slotComputeMotionCommands(): crossed waypoint height, cutting mErrorIntegralHeight to a third.";
-                mErrorIntegralHeight /= 3.0f;
-            }
-
             const float derivativeHeight = mFirstControllerRun ? 0.0f : (errorHeight - mPrevErrorHeight + 0.00001f)/timeDiff;
             const float outputThrust = MotionCommand::thrustHover + (25.0f * errorHeight) + (0.001f * mErrorIntegralHeight) + (1.0f * derivativeHeight);
-            mPrevErrorHeight = errorHeight;
 
+            qDebug() << qSetRealNumberPrecision(4) << "values PRYH:" << currentPitch << "\t" << currentRoll << "\t" << mLastKnownVehiclePose.getYawDegrees() << "\t" << mLastKnownVehiclePose.getPosition().y();
+            qDebug() << qSetRealNumberPrecision(4) << "should PRYH:" << desiredPitch << "\t" << desiredRoll << "\t" << atan2(-vectorVehicleToOrigin.x(), -vectorVehicleToOrigin.y()) << "\t" << mHoverPosition.y();
+            qDebug() << qSetRealNumberPrecision(4) << "error  PRYH:" << errorPitch << "\t" << errorRoll << "\t" << angleToTurnAwayFromOrigin << "\t" << errorHeight;
+            qDebug() << qSetRealNumberPrecision(4) << "derivt PRYH:" << derivativePitch << "\t" << derivativeRoll << "\t" << derivativeYaw << "\t" << derivativeHeight;
+            qDebug() << qSetRealNumberPrecision(4) << "prevEr PRYH:" << mPrevErrorPitch << "\t" << mPrevErrorRoll << "\t" << mPrevErrorYaw << "\t" << mPrevErrorHeight;
+            qDebug() << qSetRealNumberPrecision(4) << "inteEr PRYH:" << mErrorIntegralPitch << "\t" << mErrorIntegralRoll << "\t" << mErrorIntegralYaw << "\t" << mErrorIntegralHeight;
+            qDebug() << qSetRealNumberPrecision(4) << "output PRYH:" << outputPitch << "\t" << outputRoll << "\t" << outputYaw << "\t" << outputThrust;
+
+            mPrevErrorPitch = errorPitch;
+            mPrevErrorRoll = errorRoll;
+            mPrevErrorYaw = errorYaw;
+            mPrevErrorHeight = errorHeight;
             mFirstControllerRun = false;
 
-            mLastFlightControllerValues.motionCommand = MotionCommand(outputThrust, yaw, outputPitch, outputRoll);
+            mLastFlightControllerValues.motionCommand = MotionCommand(outputThrust, outputYaw, outputPitch, outputRoll);
         }
         else
         {
@@ -324,10 +329,10 @@ void FlightController::slotComputeMotionCommands()
 
 void FlightController::smoothenControllerOutput(MotionCommand& mc)
 {
-    mc.thrust = (mc.thrust + mLastMotionCommand.thrust) / 2.0f;
-    mc.yaw = (mc.yaw + mLastMotionCommand.yaw) / 2.0f;
-    mc.pitch = (mc.pitch + mLastMotionCommand.pitch) / 2.0f;
-    mc.roll = (mc.roll + mLastMotionCommand.roll) / 2.0f;
+    mc.thrust = (quint8)(((quint16)mc.thrust + (quint16)mLastMotionCommand.thrust) / 2.0f);
+    mc.yaw = (quint8)(((quint16)mc.yaw + (quint16)mLastMotionCommand.yaw) / 2.0f);
+    mc.pitch = (quint8)(((quint16)mc.pitch + (quint16)mLastMotionCommand.pitch) / 2.0f);
+    mc.roll = (quint8)(((quint16)mc.roll + (quint16)mLastMotionCommand.roll) / 2.0f);
 
     mLastMotionCommand = mc;
 }
@@ -337,7 +342,7 @@ void FlightController::logFlightControllerValues()
     if(mLogFile)
     {
         QTextStream out(mLogFile);
-        out << mLastFlightControllerValues.toString() << '\n';
+        out << GnssTime::currentTow() << ' ' << mLastFlightControllerValues.toString() << '\n';
     }
 }
 

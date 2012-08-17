@@ -501,7 +501,7 @@ Pose::Pose(const QString& poseString)
 
 QDataStream& operator<<(QDataStream &out, const Pose &pose)
 {
-    out << pose.getMatrix();
+    out << pose.getMatrixConst();
     out << pose.timestamp;
     out << pose.precision;
     out << pose.covariances;

@@ -336,7 +336,7 @@ void BaseConnection::slotNewVehicleStatus(
 }
 
 // called by rover to send new gnss status to basestation
-void BaseConnection::slotNewGnssStatus(const GnssStatusInformation::GnssStatus& gnssStatus)
+void BaseConnection::slotNewGnssStatus(const GnssStatus& gnssStatus)
 {
 /*    qDebug() << t() << "BaseConnection::slotNewGnssStatus(): -> base:"
              << "gnssMode" << gnssMode

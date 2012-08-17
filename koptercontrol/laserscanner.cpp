@@ -48,7 +48,6 @@ LaserScanner::~LaserScanner()
     mTimerScan->stop();
     mTimerScan->deleteLater();
 
-    mLogFile->flush();
     mLogFile->close();
     mLogFile->deleteLater();
 

@@ -14,6 +14,9 @@ SbfParser::SbfParser(QObject *parent) : QObject(parent)
     mMaxCovariances = 1.0f;
 
     mGnssDeviceWorkingPrecisely = false;
+
+    // Offset from ARP to vehicle center in meters, local vehicle coordinate system
+    mTransformArpToVehicle.translate(0.1f, -0.39f, -0.04f);
 }
 
 SbfParser::~SbfParser()
@@ -134,6 +137,12 @@ void SbfParser::setPose(
                 (qint32)tow // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
                 );
 
+    qDebug() << "arp:" << mLastPose;
+
+    mLastPose.getMatrixRef() *= mTransformArpToVehicle;
+
+    qDebug() << "vec:" << mLastPose;
+
     mLastPose.precision = precision;
 }
 
@@ -151,7 +160,7 @@ QVector3D SbfParser::convertGeodeticToCartesian(const double &lon, const double 
         {
             mOriginLongitude = lon;
             mOriginLatitude = lat;
-            mOriginElevation = elevation;
+            mOriginElevation = elevation + mTransformArpToVehicle(1, 3);
         }
         else
         {
@@ -162,7 +171,6 @@ QVector3D SbfParser::convertGeodeticToCartesian(const double &lon, const double 
     // Doesn't matter, as offset isn't hardcoded anymore this is just for historical reference :)
     // FBI in Hamburg is 53.600515,09.931478 with elevation of about 70m
     // PPM in Penzberg is 47.757201,11.377133 with elevation of about 656m
-
 
     // X is Longitude   (+ East/ - West)
     // Y is Elevation / Height
@@ -205,7 +213,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     const quint16 msgLength = *(quint16*)(sbfData.data() + 6);
 
     // Save our current gpsStatus in a const place, so we can check whether it changed after processing the whole packet
-    const GnssStatusInformation::GnssStatus previousGpsStatus = mGnssStatus;
+    const GnssStatus previousGpsStatus = mGnssStatus;
 
 //    qDebug() << "SbfParser::processNextValidPacket(): processing" << sbfData.size() << "bytes SBF data with ID" << msgId << "from TOW" << ((Sbf_PVTCartesian*)sbfData.data())->TOW;
 
@@ -381,27 +389,25 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                 break;
             }
         }*/
-        mGnssStatus.integrationMode = block->Mode;
+        mGnssStatus.setIntegrationMode(block->Mode);
 
         // Check the Error-field and emit states if it changes
-        if(mGnssStatus.error != block->Error)
+        if(! mGnssStatus.hasError(block->Error))
         {
 //            qDebug() << t() << "SbfParser::processNextValidPacket(): error changed from" << mGnssStatus.error << "to" << block->Error << "at TOW" << block->TOW;
 
             emit message(
                         block->Error == 0 ? Information : Error,
                         QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                        QString("Error changed from %1 (%2) to %3 (%4)")
-                        .arg(mGnssStatus.error)
-                        .arg(GnssStatusInformation::getError(mGnssStatus.error))
-                        .arg(block->Error)
-                        .arg(GnssStatusInformation::getError(block->Error)));
+                        QString("Error changed from (%1) to (%2)")
+                        .arg(mGnssStatus.getError())
+                        .arg(GnssStatus::getError(block->Error)));
 
-            mGnssStatus.error = block->Error;
+            mGnssStatus.setError(block->Error);
         }
 
         // Check the GnssPvtMode-field and emit states if it changes AND if its not DO-NOT-USE
-        if(mGnssStatus.gnssMode != block->GNSSPVTMode && block->GNSSPVTMode != 255)
+        if(! mGnssStatus.hasPvtMode(block->GNSSPVTMode) && block->GNSSPVTMode != 255)
         {
 //            qDebug() << t() << "SbfParser::processNextValidPacket(): GnssPvtMode changed from" << mGnssStatus.gnssMode << "to" << block->GNSSPVTMode << "at TOW" << block->TOW;
 
@@ -409,10 +415,10 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                         (block->GNSSPVTMode & 15) == 4 ? Information : Warning,
                         QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                         QString("GnssPvtMode changed: %1 => %2")
-                        .arg(GnssStatusInformation::getGnssMode(mGnssStatus.gnssMode))
-                        .arg(GnssStatusInformation::getGnssMode(block->GNSSPVTMode)));
+                        .arg(mGnssStatus.getPvtMode())
+                        .arg(GnssStatus::getPvtMode(block->GNSSPVTMode)));
 
-            mGnssStatus.gnssMode = block->GNSSPVTMode;
+            mGnssStatus.setPvtMode(block->GNSSPVTMode);
         }
 
         // It is perfectly normal for the GNSSAge to be 0,2,4,6 or 8 milliseconds.
@@ -504,7 +510,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         }
         else if(block->Error != 0)
         {
-            qDebug() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, error:" << block->Error << "" << GnssStatusInformation::getError(block->Error) ;
+            qDebug() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, error:" << block->Error << "" << GnssStatus::getError(block->Error) ;
             if(mGnssDeviceWorkingPrecisely)
             {
                 mGnssDeviceWorkingPrecisely = false;

@@ -11,7 +11,7 @@
 #include <waypoint.h>
 #include <lidarpoint.h>
 #include <wirelessdevice.h>
-#include <gnssstatusinformation.h>
+#include <gnssstatus.h>
 #include <flightcontrollervalues.h>
 #include <pose.h>
 
@@ -98,7 +98,7 @@ public slots:
         );
 
     // called by rover to send new gnss status to basestation
-    void slotNewGnssStatus(const GnssStatusInformation::GnssStatus&);
+    void slotNewGnssStatus(const GnssStatus&);
 
     // called by flightcontroller to send its output to basestation for debugging purposes
     void slotNewFlightControllerValues(const FlightControllerValues& fcv);

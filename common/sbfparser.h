@@ -5,7 +5,7 @@
 #include <QTimer>
 #include <pose.h>
 
-#include <gnssstatusinformation.h>
+#include <gnssstatus.h>
 
 /**
   This class parses binary SBF (Septentrio Binary Format) data and emits
@@ -13,7 +13,6 @@
 
   The processSbfData() method takes a QByteArray
   */
-
 
 static const quint16 CRC_16CCIT_LookUp[256] = {
 
@@ -62,7 +61,7 @@ private:
 
     bool mGnssDeviceWorkingPrecisely;
 
-    GnssStatusInformation::GnssStatus mGnssStatus;
+    GnssStatus mGnssStatus;
 
     QDateTime mTimeStampStartup; // to determine runtime and clock skew at the end.
 
@@ -244,13 +243,18 @@ private:
 
     QVector3D convertGeodeticToCartesian(const double& lon, const double& lat, const double& elevation, const quint8& precision);
 
+    QMatrix4x4 mTransformArpToVehicle;
 
 public:
     SbfParser(QObject *parent = 0);
     ~SbfParser();
 
-    // just for debugging
+    // For debugging, this converts a binary string to something readable by replacing binary 'chars' with 'X'
     static QString readable(const QByteArray& bytes);
+
+    // The GNSS device returns the pose of the antenna ARP, not the pose of the vehicle. To convert,
+    // SbfParser needs the offset.
+    void slotSetTransformArpToVehicle(const QMatrix4x4& tf) { mTransformArpToVehicle = tf; }
 
     // This method analyzes @sbfData, looking for the next valid SBF packet. A packet is valid when
     // its checksum is correct. If it finds a valid packet, it writes the offset from the beginning of
@@ -278,7 +282,7 @@ signals:
 
     // log/status messages
     void message(const LogImportance& importance, const QString&, const QString& message);
-    void status(const GnssStatusInformation::GnssStatus&);
+    void status(const GnssStatus&);
 
     // The SbfParser wants to send a command to the receiver (e.g. for investigating an error)
     void receiverCommand(const QString&);

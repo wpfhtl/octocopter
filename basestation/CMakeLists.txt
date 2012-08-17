@@ -8,6 +8,7 @@ SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} /usr/share/cmake/Modules/)
 
 SET(SRC_FILES
     basestation
+    audioplayer
     glwidget
     logwidget
     logplayer
@@ -44,7 +45,7 @@ SET(SRC_FILES
     ../common/pose
     ../common/common
     ../common/plotwidget
-    ../common/gnssstatusinformation
+    ../common/gnssstatus
     ../common/wirelessdevice
     particlesystem
     particlesystem_cuda.cu
@@ -60,6 +61,7 @@ SET(TEST_SRC_FILES
 
 SET(INC_FILES
     basestation.h
+    audioplayer.h
     glwidget.h
     logwidget.h
     logplayer.h
@@ -96,7 +98,7 @@ SET(INC_FILES
     ../common/pose.h
     ../common/common.h
     ../common/plotwidget.h
-    ../common/gnssstatusinformation.h
+    ../common/gnssstatus.h
     ../common/wirelessdevice.h
     particlesystem.h
     particlesystem_cuda.cuh
@@ -130,6 +132,7 @@ SET(QT_USE_QTXML 1)
 SET(QT_USE_QTOPENGL 1)
 SET(QT_USE_QTNETWORK 1)
 SET(QT_USE_QTTEST 1)
+SET(QT_USE_PHONON 1)
 INCLUDE(${QT_USE_FILE})
 
 FIND_PACKAGE(CUDA)

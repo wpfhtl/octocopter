@@ -188,8 +188,8 @@ void GlWidget::paintGL()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().getPosition();
-    //const QVector3D camLookAt = mCamLookAtOffset + vehiclePosition;
-    const QVector3D camLookAt = mCamLookAtOffset;
+    const QVector3D camLookAt = mCamLookAtOffset + vehiclePosition;
+//    const QVector3D camLookAt = mCamLookAtOffset;
 
     QQuaternion cameraRotation =
             QQuaternion::fromAxisAndAngle(QVector3D(0.0f, 0.0f, 1.0f), rotZ)
@@ -284,7 +284,7 @@ void GlWidget::paintGL()
                 glDrawArrays(GL_LINES, 0, 12);
                 // At the vehicle
                 mShaderProgramDefault->setUniformValue("useMatrixExtra", true);
-                mShaderProgramDefault->setUniformValue("matrixExtra", mLastKnownVehiclePose.getMatrix());
+                mShaderProgramDefault->setUniformValue("matrixExtra", mLastKnownVehiclePose.getMatrixRef());
                 glDrawArrays(GL_LINES, 0, 12);
                 glDisableVertexAttribArray(0);
                 glDisableVertexAttribArray(1);
@@ -298,13 +298,12 @@ void GlWidget::paintGL()
 
     emit visualizeNow();
 
-    const QMatrix4x4 transform = mLastKnownVehiclePose.getMatrix();
+    const QMatrix4x4& transformVehicle = mLastKnownVehiclePose.getMatrixConst();
 
     // Only show controller input if its present and less than 500 ms old.
     if(mLastFlightControllerValues && mLastKnownVehiclePose.timestamp - mLastFlightControllerValues->lastKnownPose.timestamp < 500)
     {
         qDebug() << "now visualizing motioncommand from" << mLastFlightControllerValues->lastKnownPose.timestamp << mLastFlightControllerValues->motionCommand;
-        QMatrix4x4 transformVehicle(mLastKnownVehiclePose.getMatrix());
 
         // Render controller yaw input
         if(fabs(mLastFlightControllerValues->motionCommand.yaw) > 0.1f)
@@ -346,29 +345,35 @@ void GlWidget::paintGL()
             mModelConeRoll->render();
         }
 
-        // Render controller thrust input
-        QMatrix4x4 trThrust(transformVehicle);
-        // Move the thrust-arrow according to, well, thrust.
-        trThrust.translate(
-                    QVector3D(
-                        0,
-                        (mLastFlightControllerValues->motionCommand.thrust - MotionCommand::thrustHover) / 50.0f,
-                        0)
-                    );
-        // Make the arrow point downwards if thrust is below hover-thrust
-        if(mLastFlightControllerValues->motionCommand.thrust < MotionCommand::thrustHover)
-            trThrust.rotate(180.0f, QVector3D(1,0,0));
-        mModelThrust->slotSetModelTransform(trThrust);
-        mModelThrust->render();
+        if(mLastFlightControllerValues->motionCommand.thrust != mLastFlightControllerValues->motionCommand.thrustHover)
+        {
+            // Render controller thrust input
+            QMatrix4x4 trThrust(transformVehicle);
+            // Move the thrust-arrow according to, well, thrust.
+            trThrust.translate(
+                        QVector3D(
+                            0,
+                            (mLastFlightControllerValues->motionCommand.thrust - MotionCommand::thrustHover) / 50.0f,
+                            0)
+                        );
+            // Make the arrow point downwards if thrust is below hover-thrust
+            if(mLastFlightControllerValues->motionCommand.thrust < MotionCommand::thrustHover)
+                trThrust.rotate(180.0f, QVector3D(1,0,0));
+            mModelThrust->slotSetModelTransform(trThrust);
+            mModelThrust->render();
+        }
 
         // Render target position!
-        QMatrix4x4 trTarget;
-        trTarget.translate(mLastFlightControllerValues->targetPosition);
-        mModelTarget->slotSetModelTransform(trTarget);
-        mModelTarget->render();
+        if(!mLastFlightControllerValues->targetPosition.isNull())
+        {
+            QMatrix4x4 trTarget;
+            trTarget.translate(mLastFlightControllerValues->targetPosition);
+            mModelTarget->slotSetModelTransform(trTarget);
+            mModelTarget->render();
+        }
     }
 
-    mModelVehicle->slotSetModelTransform(transform);
+    mModelVehicle->slotSetModelTransform(transformVehicle);
     mModelVehicle->render();
 
     //    qDebug() << "GlWidget::paintGL(): rendering time in milliseconds:" << renderTime.elapsed();

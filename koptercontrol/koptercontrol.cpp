@@ -136,7 +136,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mGnssDevice, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mGnssDevice->getSbfParser(), SIGNAL(gnssTimeOfWeekEstablished(qint32)), mLaserScanner, SLOT(slotSetScannerTimeStamp(qint32)));
 
-    connect(mGnssDevice->getSbfParser(),SIGNAL(status(GnssStatusInformation::GnssStatus)), mBaseConnection, SLOT(slotNewGnssStatus(GnssStatusInformation::GnssStatus)));
+    connect(mGnssDevice->getSbfParser(),SIGNAL(status(GnssStatus)), mBaseConnection, SLOT(slotNewGnssStatus(GnssStatus)));
 
     // distribute poses from gnssdevice
     connect(mGnssDevice->getSbfParser(), SIGNAL(newVehiclePoseFlightController(Pose)), mFlightController, SLOT(slotNewVehiclePose(Pose)));

@@ -77,7 +77,7 @@ signals:
     void flightState(FlightState);
     void scanData(QVector<QVector3D>,QVector3D);
     void vehicleStatus(quint32,float,qint16,qint8);
-    void gnssStatus(GnssStatusInformation::GnssStatus);
+    void gnssStatus(GnssStatus);
 
     void flightControllerValues(const FlightControllerValues&);
 };

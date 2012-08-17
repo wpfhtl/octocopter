@@ -4,7 +4,7 @@
 #include <QObject>
 #include <QtNetwork>
 #include <common.h>
-#include <gnssstatusinformation.h>
+#include <gnssstatus.h>
 #include <flightcontrollervalues.h>
 #include <waypoint.h>
 #include <pose.h>
@@ -37,7 +37,7 @@ signals:
     void scanData(const QVector<QVector3D>& pointList, const QVector3D& scannerPosition);
     void image(const QString& cameraName, const QSize& imageSize, const Pose& cameraPose, const QByteArray& imageData);
     void vehicleStatus(const quint32& missionRunTime, const float& batteryVoltage, const qint16& barometricHeight, const qint8& wirelessRssi);
-    void gnssStatus(GnssStatusInformation::GnssStatus);
+    void gnssStatus(GnssStatus);
     void flightControllerValues(const FlightControllerValues& fcv);
     void flightStateChanged(FlightState);
 

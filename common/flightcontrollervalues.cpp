@@ -7,27 +7,22 @@ FlightControllerValues::FlightControllerValues()
 
 FlightControllerValues::FlightControllerValues(const QString& fcvString)
 {
-    // timestamp SEPARATOR flightState SEPARATOR pose SEPARATOR waypoint SEPARATOR motioncommand
-    QStringList list = fcvString.split(SEPARATOR, QString::KeepEmptyParts);
+    // The string is of format:
+    // timestamp SPACE flightState SEPARATOR pose SEPARATOR waypoint SEPARATOR motioncommand
+    // We remove the timestamp at the beginning and split the rest using SEPARATOR
+    QStringList list = fcvString.mid(fcvString.indexOf(' ') + 1).split(SEPARATOR, QString::SkipEmptyParts);
 
-    flightState = FlightState::fromString(list.at(1));
+    flightState = FlightState::fromString(list.at(0));
 
-    lastKnownPose = Pose(list.at(2));
+    lastKnownPose = Pose(list.at(1));
 
-    // Target position and motion command are only present in some flightStates, not all of them.
-    // WRONG: always present, sometimes zero.
-//    if(list.size() > 3)
-//    {
-        const QStringList targetPositionStringList = list.at(3).split(" ");
-        targetPosition.setX(targetPositionStringList.at(0).toDouble());
-        targetPosition.setY(targetPositionStringList.at(1).toDouble());
-        targetPosition.setZ(targetPositionStringList.at(2).toDouble());
-//    }
+    // Target position and motion command are always present, just sometimes zero.
+    const QStringList targetPositionStringList = list.at(2).split(" ");
+    targetPosition.setX(targetPositionStringList.at(0).toDouble());
+    targetPosition.setY(targetPositionStringList.at(1).toDouble());
+    targetPosition.setZ(targetPositionStringList.at(2).toDouble());
 
-//    if(list.size() > 4)
-//    {
-        motionCommand = MotionCommand(list.at(4));
-//    }
+    motionCommand = MotionCommand(list.at(3));
 }
 
 // for streaming
@@ -52,8 +47,6 @@ QString FlightControllerValues::toString() const
 {
     QString out;
 
-    out.append(QString::number(lastKnownPose.timestamp));
-    out.append(SEPARATOR);
     out.append(flightState.toString());
     out.append(SEPARATOR);
     out.append(lastKnownPose.toString());

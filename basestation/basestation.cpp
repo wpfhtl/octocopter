@@ -20,6 +20,7 @@ BaseStation::BaseStation() : QMainWindow()
     mProgress = 0;
 
     mPtuController = 0;
+    mAudioPlayer = 0;
 
     mConnectionDialog = new ConnectionDialog(this);
     mConnectionDialog->exec();
@@ -166,7 +167,7 @@ BaseStation::BaseStation() : QMainWindow()
 
         connect(mRoverConnection, SIGNAL(scanData(QVector<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QVector<QVector3D>,QVector3D)));
         connect(mRoverConnection, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
-        connect(mRoverConnection, SIGNAL(gnssStatus(GnssStatusInformation::GnssStatus)), mControlWidget, SLOT(slotUpdateGnssStatus(GnssStatusInformation::GnssStatus)));
+        connect(mRoverConnection, SIGNAL(gnssStatus(GnssStatus)), mControlWidget, SLOT(slotUpdateGnssStatus(GnssStatus)));
         connect(mRoverConnection, SIGNAL(flightControllerValues(FlightControllerValues)), mGlWidget, SLOT(slotSetFlightControllerValues(FlightControllerValues)));
 
         connect(mRoverConnection, SIGNAL(wayPointsHashFromRover(QString)), mFlightPlanner, SLOT(slotCheckWayPointsHashFromRover(QString)));
@@ -183,6 +184,9 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mRtkFetcher, SIGNAL(connectionStatus(bool)), mControlWidget, SLOT(slotUpdateConnectionRtk(bool)));
 
         menuBar()->addAction("Connect", mRoverConnection, SLOT(slotConnectToRover()));
+
+        mAudioPlayer = new AudioPlayer;
+        connect(mRoverConnection, SIGNAL(gnssStatus(GnssStatus)), SLOT(slotSpeakGnssStatus(GnssStatus)));
 
         mRoverConnection->slotConnectToRover();
         mLogWidget->log(Information, "BaseStation::BaseStation()", "Working online, enabling RoverConnection+RtkFetcher+PtuController, disabling LogPlayer.");
@@ -203,7 +207,14 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mGlWidget, SLOT(slotNewVehiclePose(Pose)));
         connect(mLogPlayer, SIGNAL(scanData(QVector<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QVector<QVector3D>,QVector3D)));
     //    connect(mLogPlayer, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
-        connect(mLogPlayer, SIGNAL(gnssStatus(GnssStatusInformation::GnssStatus)), mControlWidget, SLOT(slotUpdateGnssStatus(GnssStatusInformation::GnssStatus)));
+        connect(mLogPlayer, SIGNAL(gnssStatus(GnssStatus)), mControlWidget, SLOT(slotUpdateGnssStatus(GnssStatus)));
+
+
+        // testing!
+        mAudioPlayer = new AudioPlayer;
+        connect(mLogPlayer, SIGNAL(gnssStatus(GnssStatus)), SLOT(slotSpeakGnssStatus(GnssStatus)));
+
+
         connect(mLogPlayer, SIGNAL(flightControllerValues(FlightControllerValues)), mGlWidget, SLOT(slotSetFlightControllerValues(FlightControllerValues)));
         connect(mLogPlayer, SIGNAL(flightState(FlightState)), mControlWidget, SLOT(slotFlightStateChanged(FlightState)));
 
@@ -372,4 +383,19 @@ void BaseStation::slotClearOctree()
 {
     mOctree->slotReset();
     mGlWidget->update();
+}
+
+void BaseStation::slotSpeakGnssStatus(const GnssStatus& status)
+{
+    if(mAudioPlayer)
+    {
+        if(status.error != GnssStatus::Error::NoError)
+            mAudioPlayer->playSound(QString("../media/ins_error_%1.ogg").arg(status.getError().toLower().replace(' ', '_')));
+        else if(status.pvtMode != GnssStatus::PvtMode::RtkFixed)
+            mAudioPlayer->playSound(QString("../media/gnss_mode_%1.ogg").arg(status.getPvtMode().toLower().replace(' ', '_')));
+        else if(status.covariances > Pose::maximumUsableCovariance)
+            mAudioPlayer->playSound(QString("../media/ins_covariances_too_high.ogg").arg(status.getPvtMode().toLower().replace(' ', '_')));
+        else
+            mAudioPlayer->playSound(QString("../media/ins_nominal.ogg"));
+    }
 }

@@ -7,6 +7,7 @@
 #include <QInputDialog>
 
 #include "glwidget.h"
+#include "audioplayer.h"
 #include "flightplannercuda.h"
 #include "logplayer.h"
 #include "ptucontroller.h"
@@ -50,6 +51,7 @@ private:
     PlotWidget* mPlotWidget;
     LogPlayer* mLogPlayer;
     PtuController* mPtuController;
+    AudioPlayer* mAudioPlayer;
 
     // a container for collected rays, or rather the world coordinates of where they ended
     Octree* mOctree;
@@ -76,6 +78,8 @@ private slots:
     void slotExportCloud(void);
     void slotImportCloud(void);
 //    void slotTogglePlot(void);
+
+    void slotSpeakGnssStatus(const GnssStatus &status);
 
     void slotClearOctree();
 

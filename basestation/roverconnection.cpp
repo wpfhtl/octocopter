@@ -137,16 +137,16 @@ void RoverConnection::processPacket(QByteArray data)
     }
     else if(packetType == "gnssstatus")
     {
-        GnssStatusInformation::GnssStatus gnssStatusInformation;
+        GnssStatus gs;
 
-        stream >> gnssStatusInformation;
+        stream >> gs;
 
         emit message(
-                    gnssStatusInformation.error == 0 && gnssStatusInformation.gnssMode & 15 == 4 && gnssStatusInformation.integrationMode == 2 && gnssStatusInformation.gnssAge == 0 && gnssStatusInformation.numSatellitesUsed >= 5 ? Information : Error,
+                    gs.error == GnssStatus::Error::NoError && gs.pvtMode == GnssStatus::PvtMode::RtkFixed && gs.integrationMode != GnssStatus::IntegrationMode::Unavailable && gs.numSatellitesUsed >= 5 ? Information : Error,
                     QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                    GnssStatusInformation::getStatusText(gnssStatusInformation));
+                    gs.toString());
 
-        emit gnssStatus(gnssStatusInformation);
+        emit gnssStatus(gs);
     }
     else if(packetType == "posechanged")
     {

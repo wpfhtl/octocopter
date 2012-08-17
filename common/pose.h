@@ -106,7 +106,7 @@ public:
 
     Pose operator*(const Pose &p) const
     {
-        const QMatrix4x4 newTransform = mTransform * p.getMatrix();
+        const QMatrix4x4 newTransform = mTransform * p.getMatrixConst();
         return Pose(newTransform, std::max(timestamp, p.timestamp));
     }
 
@@ -117,7 +117,10 @@ public:
 
     QVector2D getPlanarPosition() const;
 
-    QMatrix4x4 getMatrix() const {return mTransform;}
+    const QMatrix4x4& getMatrixConst() const {return mTransform;}
+    QMatrix4x4& getMatrixRef() {return mTransform;}
+    QMatrix4x4 getMatrixCopy() const {return mTransform;}
+
     void setMatrix(const QMatrix4x4& transform) {mTransform = transform;}
 
     static QVector2D getPlanarPosition(const Pose& p) { return QVector2D(p.getPosition().x(), p.getPosition().z()); }

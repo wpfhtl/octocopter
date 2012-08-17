@@ -454,7 +454,7 @@ void PtuController::slotVisualize()
         mModelPtuTilt = new Model(QFile(modelPath.absolutePath() + "/media/ptu-tilt.obj"), QString("../media/"), this);
     }
 
-    QMatrix4x4 transform = mPosePtuBase.getMatrix();
+    const QMatrix4x4& transform = mPosePtuBase.getMatrixRef();
 
     // Set initial starting position
     mModelPtuBase->slotSetModelTransform(transform);

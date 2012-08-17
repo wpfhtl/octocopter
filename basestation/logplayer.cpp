@@ -36,7 +36,7 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     // emit fused lidarpoints
     connect(mSensorFuser, SIGNAL(newScannedPoints(QVector<QVector3D>,QVector3D)), SIGNAL(scanData(QVector<QVector3D>,QVector3D)));
 
-    connect(mSbfParser, SIGNAL(status(GnssStatusInformation::GnssStatus)), SIGNAL(gnssStatus(GnssStatusInformation::GnssStatus)));
+    connect(mSbfParser, SIGNAL(status(GnssStatus)), SIGNAL(gnssStatus(GnssStatus)));
     connect(mSbfParser, SIGNAL(message(LogImportance,QString,QString)), SIGNAL(message(LogImportance,QString,QString)));
     connect(mSbfParser, SIGNAL(newVehiclePoseLogPlayer(Pose)), SIGNAL(vehiclePose(Pose)));
     connect(mSbfParser, SIGNAL(newVehiclePoseSensorFuser(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
@@ -400,11 +400,14 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const QByteAr
         }
 
         mSensorFuser->slotNewScanData(tow, data);
+
+        ui->mProgressBarTow->setValue(tow);
     }
     break;
 
     case Source_FlightController:
     {
+        ui->mProgressBarTow->setValue(packet.left(packet.indexOf(' ')).trimmed().toInt());
         FlightControllerValues fcv(packet);
         emit flightState(fcv.flightState);
         emit flightControllerValues(fcv);

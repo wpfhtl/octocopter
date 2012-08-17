@@ -159,19 +159,19 @@ QString ControlWidget::getBackgroundCss(const bool& error, const bool& dark)
     return QString("background-color:%1;").arg(bgColor.name());
 }
 
-void ControlWidget::slotUpdateGnssStatus(const GnssStatusInformation::GnssStatus& gnssStatus)
+void ControlWidget::slotUpdateGnssStatus(const GnssStatus& gnssStatus)
 {
-    mLabelGnssMode->setText(GnssStatusInformation::getGnssMode(gnssStatus.gnssMode));
-    if(gnssStatus.gnssMode == 4) mLabelGnssMode->setStyleSheet(""); else mLabelGnssMode->setStyleSheet(getBackgroundCss());
+    mLabelGnssMode->setText(gnssStatus.getPvtMode());
+    if(gnssStatus.pvtMode == GnssStatus::PvtMode::RtkFixed) mLabelGnssMode->setStyleSheet(""); else mLabelGnssMode->setStyleSheet(getBackgroundCss());
 
-    mLabelGnssIntegrationMode->setText(GnssStatusInformation::getIntegrationMode(gnssStatus.integrationMode));
-    if(gnssStatus.integrationMode == 2) mLabelGnssIntegrationMode->setStyleSheet(""); else mLabelGnssIntegrationMode->setStyleSheet(getBackgroundCss());
+    mLabelGnssIntegrationMode->setText(gnssStatus.getIntegrationMode());
+    if(gnssStatus.integrationMode != GnssStatus::IntegrationMode::Unavailable) mLabelGnssIntegrationMode->setStyleSheet(""); else mLabelGnssIntegrationMode->setStyleSheet(getBackgroundCss());
 
-    mLabelGnssInfo->setText(GnssStatusInformation::getInfoRichText(gnssStatus.info));
+    mLabelGnssInfo->setText(gnssStatus.getInfoRichText());
     mLabelGnssInfo->setToolTip(mLabelGnssInfo->text());
 
-    mLabelGnssError->setText(GnssStatusInformation::getError(gnssStatus.error));
-    if(gnssStatus.error == 0) mLabelGnssError->setStyleSheet(""); else mLabelGnssError->setStyleSheet(getBackgroundCss());
+    mLabelGnssError->setText(gnssStatus.getError());
+    if(gnssStatus.error == GnssStatus::Error::NoError) mLabelGnssError->setStyleSheet(""); else mLabelGnssError->setStyleSheet(getBackgroundCss());
 
     mLabelGnssNumSats->setText(QString::number(gnssStatus.numSatellitesUsed));
     if(gnssStatus.numSatellitesUsed > 5) mLabelGnssNumSats->setStyleSheet(""); else mLabelGnssNumSats->setStyleSheet(getBackgroundCss());

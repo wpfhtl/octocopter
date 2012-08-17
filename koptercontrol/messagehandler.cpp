@@ -60,10 +60,9 @@ void MessageHandler::handleMessage(QtMsgType type, const char *msg)
 
     const qint32 tow = GnssTime::currentTow();
 
-    std::cout << tow << ' ';
-    std::cout << msg << std::endl;
+    std::cout << tow << ' ' << msg << std::endl;
 
-    // Don't use endl, as that would flush the file to sd-card, which is sloooooow
+    // Don't use endl, as that would flush the line/file to sd-card, which is sloooooow
     (*mMasterLogStream) << tow << ' ' << msg << '\n';
 
     if(type == QtFatalMsg) abort();

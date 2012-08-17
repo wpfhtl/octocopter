@@ -1,0 +1,160 @@
+#include "gnssstatus.h"
+
+QString GnssStatus::getIntegrationMode(const GnssStatus::IntegrationMode& integrationMode)
+{
+    switch(integrationMode)
+    {
+    case IntegrationMode::Unavailable: return "Integrated PV Unavailable"; break;
+    case IntegrationMode::IMU: return "IMU only"; break;
+    case IntegrationMode::IMU_GNSS: return "IMU + GNSS"; break;
+    default: return QString("Unknown IntMode %1").arg(static_cast<quint8>(integrationMode)); break;
+    }
+}
+
+QString GnssStatus::getPvtMode(const GnssStatus::PvtMode& pvtMode)
+{
+    QString pvtModeString;
+
+    switch(pvtMode)
+    {
+    case PvtMode::Error: pvtModeString = "Error"; break;
+
+    case PvtMode::StandAlone: pvtModeString = "StandAlone"; break;
+
+    case PvtMode::Differential: pvtModeString = "Differential"; break;
+
+    case PvtMode::FixedLocation: pvtModeString = "FixedLocation"; break;
+
+    case PvtMode::RtkFixed: pvtModeString = "RTK Fixed"; break;
+
+    case PvtMode::RtkFloat: pvtModeString = "RTK Float"; break;
+
+    case PvtMode::SbasAided: pvtModeString = "SBAS aided"; break;
+
+    case PvtMode::RtkMovingBaseFixed: pvtModeString = "RTK MovingBase Fixed"; break;
+
+    case PvtMode::RtkMovingBaseFloat: pvtModeString = "RTK MovingBase Float"; break;
+
+    case PvtMode::PppFixed: pvtModeString = "PPP Fixed"; break;
+
+    case PvtMode::PppFloat: pvtModeString = "PPP Float"; break;
+
+    default:
+        qWarning() << "GnssStatus::getGnssMode(): WARNING: unknown gnssmode" << static_cast<quint8>(pvtMode);
+        pvtModeString = QString("Unknown GNSSPVTMode %1").arg(static_cast<quint8>(pvtMode));
+        break;
+    }
+
+    return pvtModeString;
+}
+
+
+QString GnssStatus::getError(const GnssStatus::Error& error)
+{
+    switch(error)
+    {
+    case Error::NoError: return "No Error"; break;
+    case Error::NotEnoughMeasurements: return "Not enough measurements"; break;
+    case Error::NotEnoughEphemeridesAvailable: return "Not enough ephemerides available"; break;
+    case Error::DopTooLarge: return "DOP too large"; break;
+    case Error::SumOfSquaredResidualsTooLarge: return "Sum of squared residuals too large"; break;
+    case Error::NoConvergence: return "No convergence"; break;
+    case Error::NotEnoughMeasurementsAfterOutlierRejection: return "Not enough measurements after outlier rejection"; break;
+    case Error::PositionOutputProhibitedDueToExportLaws: return "Position output prohibited due to export laws"; break;
+    case Error::NotEnoughDifferentialCorrectionsAvailable: return "Not enough differential corrections available"; break;
+    case Error::BasestationCoordinatesNotAvailable: return "Basestation coordinates not available"; break;
+    case Error::IntegratedPvNotRequestedByUser: return "Integrated PV not requested by user"; break;
+    case Error::NotEnoughValidExtSensorValues: return "Not enough valid ext sensor values"; break;
+    case Error::CalibrationNotReady: return "Calibration not ready"; break;
+    case Error::AlignmentNotReady: return "Alignment not ready"; break;
+    case Error::WaitingForGnssPvt: return "Waiting for GNSS PVT"; break;
+    default: return QString("Unknown Error %1").arg(static_cast<quint8>(error)); break;
+    }
+}
+
+QString GnssStatus::getInfo(const quint16& info)
+{
+    QString infoString = QString("ACC%1 GYR%2 AMB%3 ZER%4 GPSP%5 GPSV%6 GPSA%7")
+            .arg(testBit(info, 0) ? 1 : 0)
+            .arg(testBit(info, 1) ? 1 : 0)
+            .arg(testBit(info, 11) ? 1 : 0)
+            .arg(testBit(info, 12) ? 1 : 0)
+            .arg(testBit(info, 13) ? 1 : 0)
+            .arg(testBit(info, 14) ? 1 : 0)
+            .arg(testBit(info, 15) ? 1 : 0);
+
+    return infoString;
+}
+
+QString GnssStatus::getInfoRichText(const quint16& info)
+{
+    QString infoString = QString("ACC%1 GYR%2 AMB%3 ZER%4 GPSP%5 GPSV%6 GPSA%7")
+            .arg(testBit(info, 0) ? "1" : "<font color='red'>0</font>")
+            .arg(testBit(info, 1) ? "1" : "<font color='red'>0</font>")
+            .arg(testBit(info, 11) ? "1" : "<font color='red'>0</font>")
+            .arg(testBit(info, 12) ? "1" : "0")
+            .arg(testBit(info, 13) ? "1" : "<font color='red'>0</font>")
+            .arg(testBit(info, 14) ? "1" : "<font color='red'>0</font>")
+            .arg(testBit(info, 15) ? "<font color='red'>1</font>" : "0");
+
+    return infoString;
+}
+
+QString GnssStatus::toString() const
+{
+    return QString("GnssMode %1, IntMode %2, Error %3, Info %4, NumSats %5, GnssAge %6, MeanCorrAge %7")
+    .arg(static_cast<quint8>(pvtMode))
+    .arg(static_cast<quint8>(integrationMode))
+    .arg(static_cast<quint8>(error))
+    .arg(info)
+    .arg(numSatellitesUsed)
+    .arg(gnssAge)
+    .arg(meanCorrAge);
+}
+
+void GnssStatus::setPvtMode(const quint8 pvtModeCode)
+{
+    // the &15 bitmask ignores the bitfield inicating 2d and basestation operation modes
+    pvtMode = static_cast<PvtMode>(pvtModeCode & 15);
+}
+
+void GnssStatus::setIntegrationMode(const quint8 integrationModeCode)
+{
+    integrationMode = static_cast<IntegrationMode>(integrationModeCode);
+}
+
+void GnssStatus::setError(const quint8 errorCode)
+{
+    error = static_cast<Error>(errorCode);
+}
+
+// for streaming
+QDataStream& operator<<(QDataStream &out, const GnssStatus &status)
+{
+    out << static_cast<quint8>(status.pvtMode) << static_cast<quint8>(status.integrationMode) << static_cast<quint8>(status.error) << status.info << status.numSatellitesUsed << status.gnssAge << status.meanCorrAge << status.cpuLoad << status.covariances;
+    return out;
+}
+
+QDataStream& operator>>(QDataStream &in, GnssStatus& status)
+{
+    quint8 intPvtMode;
+    in >> intPvtMode;
+    status.pvtMode = static_cast<GnssStatus::PvtMode>(intPvtMode);
+
+    quint8 intIntegrationMode;
+    in >> intIntegrationMode;
+    status.integrationMode = static_cast<GnssStatus::IntegrationMode>(intIntegrationMode);
+
+    quint8 intError;
+    in >> intError;
+    status.error = static_cast<GnssStatus::Error>(intError);
+
+    in >> status.info;
+    in >> status.numSatellitesUsed;
+    in >> status.gnssAge;
+    in >> status.meanCorrAge;
+    in >> status.cpuLoad;
+    in >> status.covariances;
+
+    return in;
+}
