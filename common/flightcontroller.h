@@ -47,6 +47,13 @@ private:
 
     FlightControllerValues mLastFlightControllerValues;
 
+    // When approaching waypoints, we first yaw until we point towards the waypoint. As soon as
+    // that's done, we activate the roll to keep the vehicle on the virtual line between vehicle
+    // and target. If we didn't do this, wind would make the kopter drift, causing it to constantly
+    // re-yaw to point to the target, making the vehicle circle around the target. See e.g.
+    // kopterlog-20120813-133812-1621-bernd1 for an example of this behaviour.
+    bool mApproachUsingRoll;
+
     // Motion is computed whenever a new pose comes in, so we don't need a timer - except
     // when the GPS board fails to deliver useful poses, we'll need to compute safe values
     // to emit. Thus, when Poses are planned to come in every 100ms, we start this timer

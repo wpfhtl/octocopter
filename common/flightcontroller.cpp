@@ -96,19 +96,19 @@ void FlightController::slotComputeMotionCommands()
             const float directionNorthToWayPointRadians = atan2(-vectorVehicleToWayPoint.x(), -vectorVehicleToWayPoint.y());
             const float angleToTurnToWayPoint = Pose::getShortestTurnRadians(directionNorthToWayPointRadians - mLastKnownVehiclePose.getYawRadians());
 
-            qDebug() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, lastKnownPose:" << mLastKnownVehiclePose.toStringVerbose() << "nextWayPoint:" << nextWayPoint;
-
             // http://en.wikipedia.org/wiki/PID_controller, thanks Minorsky!
 
             // If the planar distance to the next waypoint is very small (this happens when only the height is off),
             // we don't want to yaw and pitch. So, we introduce a factor [0;1], which becomes 0 with small distance
-            const float factorPlanarDistance = qBound(0.0f, (float)(mLastKnownVehiclePose.getPlanarPosition() - Pose::getPlanarPosition(nextWayPoint)).length() * 2.0f, 1.0f);
+            const float planarDistanceToWayPoint = (mLastKnownVehiclePose.getPlanarPosition() - Pose::getPlanarPosition(nextWayPoint)).length();
+            const float factorPlanarDistance = qBound(0.0f, planarDistanceToWayPoint * 2.0f, 1.0f);
 
             // If the height very small (this happens during liftoff and landing),
             // we don't want to yaw and pitch. So, we introduce a factor [0;1], which becomes 0 with small distance
             // We don't check for mLastKnownHeightOverGroundTimestamp, as an old value means that the scanner hasn't
             // seen anything for a long time, which SHOULD mean we're high up.
             const float factorHeight = qBound(0.0f, mLastKnownHeightOverGround, 1.0f);
+
 
             // Elapsed time since last call in seconds. May not become zero (divide by zero)
             // and shouldn't grow too high, as that will screw up the controllers.
@@ -117,7 +117,8 @@ void FlightController::slotComputeMotionCommands()
                         mTimeOfLastControllerUpdate.msecsTo(QTime::currentTime()) / 1000.0f,
                         0.2f);
 
-            qDebug() << "FlightController::slotComputeMotionCommands(): timediff:" << timeDiff << "factorPlanarDistance" << factorPlanarDistance << "factorHeight" << factorHeight;
+            qDebug() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, lastKnownPose:" << mLastKnownVehiclePose.toStringVerbose() << "nextWayPoint:" << nextWayPoint;
+            qDebug() << "FlightController::slotComputeMotionCommands(): timediff:" << timeDiff << "angleToTurn" << RAD2DEG(angleToTurnToWayPoint) << "planar distance:" << planarDistanceToWayPoint << "factorPlanarDistance" << factorPlanarDistance << "factorHeight" << factorHeight;
 
             // If angleToTurnToWayPoint is:
             // - positive, we need to rotate CCW, which needs a negative yaw value.
@@ -128,7 +129,23 @@ void FlightController::slotComputeMotionCommands()
             const float outputYaw = factorHeight * factorPlanarDistance * ((1.0f * errorYaw) + (0.0f * mErrorIntegralYaw) + (0.3f/*0.5f*/ * derivativeYaw));
 
             // adjust pitch/roll to reach target, maximum pitch is -20 degrees (forward)
+            if(!mApproachUsingRoll && errorYaw < 3.0f)
+            {
+                qDebug() << "FlightController::slotComputeMotionCommands(): pointing at target, approaching using yaw AND roll";
+                mApproachUsingRoll = true;
+            }
+
             float desiredRoll = 0.0f;
+            if(mApproachUsingRoll)
+            {
+                // Lateral offset between vehicle and line. A positive value means the
+                // vehicle is too far on the right, so it should roll positively.
+                float lateralOffsetFromLine = sin(angleToTurnToWayPoint) * planarDistanceToWayPoint;
+                desiredRoll = qBound(-10.0f, lateralOffsetFromLine * 10.0f, 10.0f);
+                desiredRoll *= factorPlanarDistance;
+                qDebug() << "FlightController::slotComputeMotionCommands(): lateral vehicle offset: vehicle is" << lateralOffsetFromLine << "m too far" << (lateralOffsetFromLine > 0.0f ? "right" : "left") << "- desiredRoll is" << desiredRoll;
+            }
+
             float desiredPitch = -pow(20.0f - qBound(0.0, fabs(errorYaw), 20.0), 2.0f) / 20.0f;
             desiredPitch *= factorPlanarDistance;
 
@@ -195,7 +212,7 @@ void FlightController::slotComputeMotionCommands()
             mLastFlightControllerValues.motionCommand = MotionCommand(outputThrust, outputYaw, outputPitch, outputRoll);
 
             // See whether we've reached the waypoint
-            if(mLastKnownVehiclePose.getPosition().distanceToLine(nextWayPoint, QVector3D()) < 0.40f) // close to wp
+            if(mLastKnownVehiclePose.getPosition().distanceToLine(nextWayPoint, QVector3D()) < 0.80f) // close to wp
             {
                 nextWayPointReached();
             }
@@ -574,6 +591,9 @@ void FlightController::initializeControllers()
     mErrorIntegralHeight = 0.1;
 
     mFirstControllerRun = true;
+
+    // We want to approach a target using roll only after the vehicle points at it.
+    mApproachUsingRoll = false;
 }
 
 void FlightController::slotSetHeightOverGround(const float& beamLength)
@@ -597,7 +617,7 @@ bool FlightController::isHeightOverGroundValueRecent() const
 //  - descend slowly if heightOverGround is unknown
 void FlightController::ensureSafeFlightAfterWaypointsChanged()
 {
-    mFirstControllerRun = true; // to tame the derivatives
+    initializeControllers();
 
     Q_ASSERT(mFlightState == FlightState::Value::ApproachWayPoint && "FlightController::ensureSafeFlightAfterWaypointsChanged(): flightstate is NOT ApproachWayPoint!");
 

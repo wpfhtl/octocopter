@@ -391,6 +391,8 @@ void BaseStation::slotSpeakGnssStatus(const GnssStatus& status)
     {
         if(status.error != GnssStatus::Error::NoError)
             mAudioPlayer->playSound(QString("../media/ins_error_%1.ogg").arg(status.getError().toLower().replace(' ', '_')));
+        else if(!testBit(status.info, 11))
+            mAudioPlayer->playSound(QString("../media/ins_error_heading_ambiguous.ogg"));
         else if(status.pvtMode != GnssStatus::PvtMode::RtkFixed)
             mAudioPlayer->playSound(QString("../media/gnss_mode_%1.ogg").arg(status.getPvtMode().toLower().replace(' ', '_')));
         else if(status.covariances > Pose::maximumUsableCovariance)

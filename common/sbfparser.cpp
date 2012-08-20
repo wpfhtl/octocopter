@@ -137,11 +137,11 @@ void SbfParser::setPose(
                 (qint32)tow // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
                 );
 
-    qDebug() << "arp:" << mLastPose;
+//    qDebug() << "arp:" << mLastPose;
 
     mLastPose.getMatrixRef() *= mTransformArpToVehicle;
 
-    qDebug() << "vec:" << mLastPose;
+//    qDebug() << "vec:" << mLastPose;
 
     mLastPose.precision = precision;
 }
