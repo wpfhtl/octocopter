@@ -137,6 +137,8 @@ INCLUDE(${QT_USE_FILE})
 
 FIND_PACKAGE(CUDA)
 FIND_PACKAGE(DevIL)
+Find_PACKAGE(SDL)
+Find_PACKAGE(SDL_mixer)
 
 ADD_DEFINITIONS(-std=c++0x -fpermissive)
 
@@ -166,6 +168,9 @@ SET(LIBRARIES
     ${QT_LIBRARIES}
     ${BULLET_LIBRARIES}
     ${IL_LIBRARIES}
+    ${SDL_LIBRARY}
+    ${SDLMIXER_LIBRARY}
+    SDLmain
     GL
     GLEW
     qserialdeviced
