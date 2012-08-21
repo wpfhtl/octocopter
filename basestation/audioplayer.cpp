@@ -40,6 +40,7 @@ bool AudioPlayer::setSound(const QString& soundFile)
     {
 //        qDebug() << "AudioPlayer::playSound(): ending silence, playing sound" << soundFile;
         mCurrentlyPlaying = soundFile;
+        playSound();
     }
     else if(soundFile != mCurrentlyPlaying)
     {
@@ -62,6 +63,7 @@ void AudioPlayer::playSound()
 {
     QFileInfo fi(mCurrentlyPlaying);
     mSound = Mix_LoadMUS(qPrintable(fi.absoluteFilePath()));
+    printf("playin sound %s\n", qPrintable(fi.absoluteFilePath()));
     Mix_PlayMusic(mSound, -1);
 //    Mix_HookMusicFinished(playingFinished);
 }

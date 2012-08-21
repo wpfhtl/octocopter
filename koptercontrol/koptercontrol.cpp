@@ -149,7 +149,8 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     connect(mFlightController, SIGNAL(flightStateChanged(FlightState)), mBaseConnection, SLOT(slotFlightStateChanged(FlightState)));
     // Lots of traffic - for what?
-    //connect(mFlightController, SIGNAL(flightControllerValues(FlightControllerValues)), mBaseConnection, SLOT(slotNewFlightControllerValues(FlightControllerValues)));
+    connect(mFlightController, SIGNAL(flightControllerValues(FlightControllerValues)), mBaseConnection, SLOT(slotNewFlightControllerValues(FlightControllerValues)));
+
     connect(mFlightController, SIGNAL(wayPointReached(WayPoint)), mBaseConnection, SLOT(slotWayPointReached(WayPoint)));
     connect(mFlightController, SIGNAL(wayPointInserted(quint16,WayPoint)), mBaseConnection, SLOT(slotRoverWayPointInserted(quint16,WayPoint)));
     connect(mFlightController, SIGNAL(currentWayPoints(QList<WayPoint>)), mBaseConnection, SLOT(slotFlightControllerWayPointsChanged(QList<WayPoint>)));

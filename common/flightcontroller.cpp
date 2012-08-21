@@ -327,7 +327,7 @@ void FlightController::slotComputeMotionCommands()
         }
         else
         {
-            qDebug() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, pose precision" << mLastKnownVehiclePose.precision << "- update is from" << mLastKnownVehiclePose.timestamp << " - age in ms:" << mLastKnownVehiclePose.getAge() << "- not overwriting safe hover values";
+            qDebug() << "FlightController::slotComputeMotionCommands(): Hover, pose precision" << mLastKnownVehiclePose.precision << "- update is from" << mLastKnownVehiclePose.timestamp << " - age in ms:" << mLastKnownVehiclePose.getAge() << "- not overwriting safe hover values";
         }
 
         break;

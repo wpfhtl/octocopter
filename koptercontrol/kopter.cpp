@@ -78,7 +78,7 @@ void Kopter::slotFlushMessageQueue()
 
         while(mLastSendTime.msecsTo(QTime::currentTime()) < 10)
         {
-            qDebug() << "KopterMessage::slotFlushMessageQueue(): waiting for serial port to clear send-queue...";
+            qDebug() << "KopterMessage::slotFlushMessageQueue(): waiting 5ms for serial port to clear send-queue consisting of" << mSendMessageQueue.size() << "messages";
             usleep(5000);
         }
 

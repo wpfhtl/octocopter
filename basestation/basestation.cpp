@@ -193,7 +193,7 @@ BaseStation::BaseStation() : QMainWindow()
         menuBar()->addAction("Connect", mRoverConnection, SLOT(slotConnectToRover()));
 
         mAudioPlayer = new AudioPlayer;
-        connect(mRoverConnection, SIGNAL(gnssStatus(GnssStatus)), SLOT(slotSpeakGnssStatus(GnssStatus)));
+        connect(mRoverConnection, SIGNAL(gnssStatus(GnssStatus)), this, SLOT(slotSpeakGnssStatus(GnssStatus)));
 
         mRoverConnection->slotConnectToRover();
         mLogWidget->log(Information, "BaseStation::BaseStation()", "Working online, enabling RoverConnection+RtkFetcher+PtuController, disabling LogPlayer.");
