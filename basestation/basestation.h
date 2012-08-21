@@ -52,6 +52,7 @@ private:
     LogPlayer* mLogPlayer;
     PtuController* mPtuController;
     AudioPlayer* mAudioPlayer;
+    QAction* mActionEnableAudio;
 
     // a container for collected rays, or rather the world coordinates of where they ended
     Octree* mOctree;

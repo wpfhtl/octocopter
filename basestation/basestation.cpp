@@ -119,6 +119,13 @@ BaseStation::BaseStation() : QMainWindow()
     actionRotateView->setCheckable(true);
     connect(actionRotateView, SIGNAL(triggered(bool)), mGlWidget, SLOT(slotEnableTimerRotation(bool)));
     menuBar()->addAction(actionRotateView);
+
+    mActionEnableAudio = new QAction("AudioOut", this);
+    mActionEnableAudio->setCheckable(true);
+//    connect(actionEnableAudio, SIGNAL(triggered(bool)), mGlWidget, SLOT(slotEnableTimerRotation(bool)));
+    menuBar()->addAction(mActionEnableAudio);
+
+
 /*
     mPlotWidget = new PlotWidget(this);
     mPlotWidget->setAllowedAreas(Qt::AllDockWidgetAreas);
@@ -387,7 +394,7 @@ void BaseStation::slotClearOctree()
 
 void BaseStation::slotSpeakGnssStatus(const GnssStatus& status)
 {
-    if(mAudioPlayer)
+    if(mAudioPlayer && mActionEnableAudio->isChecked())
     {
         if(status.error != GnssStatus::Error::NoError)
             mAudioPlayer->setSound(QString("../media/ins_error_%1.ogg").arg(status.getError().toLower().replace(' ', '_')));

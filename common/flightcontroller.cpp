@@ -129,14 +129,17 @@ void FlightController::slotComputeMotionCommands()
             const float outputYaw = factorHeight * factorPlanarDistance * ((1.0f * errorYaw) + (0.0f * mErrorIntegralYaw) + (0.3f/*0.5f*/ * derivativeYaw));
 
             // adjust pitch/roll to reach target, maximum pitch is -20 degrees (forward)
-            if(!mApproachUsingRoll && errorYaw < 3.0f)
+            if(mApproachPhase == ApproachPhase::OrientTowardsTarget && errorYaw < 3.0f)
             {
-                qDebug() << "FlightController::slotComputeMotionCommands(): pointing at target, approaching using yaw AND roll";
-                mApproachUsingRoll = true;
+                qDebug() << "FlightController::slotComputeMotionCommands(): pointing at target, switching from orientation to approach phase";
+                mApproachPhase == ApproachPhase::ApproachTarget;
             }
 
             float desiredRoll = 0.0f;
-            if(mApproachUsingRoll)
+            float desiredPitch = 0.0f;
+
+            // In ApproachTarget, activate roll to correct lateral offset
+            if(mApproachPhase == ApproachPhase::ApproachTarget)
             {
                 // Lateral offset between vehicle and line. A positive value means the
                 // vehicle is too far on the right, so it should roll positively.
@@ -145,9 +148,13 @@ void FlightController::slotComputeMotionCommands()
                 desiredRoll *= factorPlanarDistance;
                 qDebug() << "FlightController::slotComputeMotionCommands(): lateral vehicle offset: vehicle is" << lateralOffsetFromLine << "m too far" << (lateralOffsetFromLine > 0.0f ? "right" : "left") << "- desiredRoll is" << desiredRoll;
             }
-
-            float desiredPitch = -pow(20.0f - qBound(0.0, fabs(errorYaw), 20.0), 2.0f) / 20.0f;
+            else if(mApproachPhase == ApproachPhase::OrientTowardsTarget)
+            {
+                // TODO: stay on position while turning!
+            }
+            desiredPitch = -pow(20.0f - qBound(0.0, fabs(errorYaw), 20.0), 2.0f) / 20.0f;
             desiredPitch *= factorPlanarDistance;
+
 
             // try to get ourselves straight up
             const float currentPitch = mLastKnownVehiclePose.getPitchDegrees() - mImuOffsets.pitch;
@@ -593,7 +600,8 @@ void FlightController::initializeControllers()
     mFirstControllerRun = true;
 
     // We want to approach a target using roll only after the vehicle points at it.
-    mApproachUsingRoll = false;
+//    mApproachUsingRoll = false;
+    mApproachPhase = ApproachPhase::OrientTowardsTarget;
 }
 
 void FlightController::slotSetHeightOverGround(const float& beamLength)

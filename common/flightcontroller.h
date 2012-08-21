@@ -54,6 +54,14 @@ private:
     // kopterlog-20120813-133812-1621-bernd1 for an example of this behaviour.
     bool mApproachUsingRoll;
 
+    enum struct ApproachPhase
+    {
+        OrientTowardsTarget,
+        ApproachTarget
+    };
+
+    ApproachPhase mApproachPhase;
+
     // Motion is computed whenever a new pose comes in, so we don't need a timer - except
     // when the GPS board fails to deliver useful poses, we'll need to compute safe values
     // to emit. Thus, when Poses are planned to come in every 100ms, we start this timer
