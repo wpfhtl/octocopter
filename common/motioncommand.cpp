@@ -75,8 +75,8 @@ QDataStream& operator>>(QDataStream &in, MotionCommand &mc)
 
 QDebug operator<<(QDebug dbg, const MotionCommand &mc)
 {
-    dbg.nospace() << "thrust:" << mc.thrust << ", yaw:" << mc.yaw << ", pitch:" << mc.pitch << ", roll:" << mc.roll;
-    return dbg.space();
+    dbg << mc.toString();
+    return dbg;
 }
 
 MotionCommand MotionCommand::clampedToSafeLimits() const

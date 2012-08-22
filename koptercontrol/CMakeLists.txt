@@ -57,6 +57,7 @@ messagehandler
 ../common/flightcontroller
 ../common/flightcontrollervalues
 ../common/sbfparser
+../common/pidcontroller
 ../common/common
 ../common/motioncommand
 ../common/flightstate
@@ -81,6 +82,7 @@ messagehandler.h
 ../common/flightcontroller.h
 ../common/flightcontrollervalues.h
 ../common/sbfparser.h
+../common/pidcontroller.h
 ../common/common.h
 ../common/motioncommand.h
 ../common/flightstate.h

@@ -38,7 +38,7 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
 
     connect(mSbfParser, SIGNAL(status(GnssStatus)), SIGNAL(gnssStatus(GnssStatus)));
     connect(mSbfParser, SIGNAL(message(LogImportance,QString,QString)), SIGNAL(message(LogImportance,QString,QString)));
-    connect(mSbfParser, SIGNAL(newVehiclePoseLogPlayer(Pose)), SIGNAL(vehiclePose(Pose)));
+    connect(mSbfParser, SIGNAL(newVehiclePose(Pose)), SIGNAL(vehiclePose(Pose)));
     connect(mSbfParser, SIGNAL(newVehiclePoseSensorFuser(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
     connect(mSbfParser, SIGNAL(processedPacket(QByteArray,qint32)), SLOT(slotNewSbfTime(QByteArray,qint32)));
 //    connect(mSbfParser, SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
@@ -179,13 +179,15 @@ qint32 LogPlayer::getLastTow(const DataSource& source)
 
     case Source_FlightController:
     {
-        const QByteArray lastLine = mDataFlightController.right(mDataFlightController.size() - mDataFlightController.lastIndexOf("\n", mDataFlightController.lastIndexOf("\n") - 1) - 1);
+        const qint32 packetSize = sizeof(qint32) + sizeof(FlightControllerValues);
+        if(mDataFlightController.size() >= packetSize)
+        {
+            const QByteArray lastPacket = mDataFlightController.right(packetSize);
+            QDataStream stream(lastPacket);
 
-        // If we can extract something, fine. If not, we might just not have any data at all. In that case we'll return -1
-        if(lastLine.size())
-            tow = lastLine.split(' ').at(0).toInt();
-
-        if(tow == 0) tow = -1;
+            qint32 tow;
+            stream >> tow;
+        }
     }
     break;
 
@@ -229,9 +231,10 @@ qint32 LogPlayer::getNextTow(const DataSource& source)
 
         // If we can extract something, fine. If not, we might just not have any laser data at all. In that case we'll return -1
         if(nextPacket.size())
-            tow = nextPacket.split(' ').at(0).toInt();
-
-        if(tow == 0) tow = -1;
+        {
+            QDataStream stream(nextPacket);
+            stream >> tow;
+        }
     }
     break;
 
@@ -266,16 +269,13 @@ QByteArray LogPlayer::getNextPacket(const DataSource& source)
 
     case Source_FlightController:
     {
+        const qint32 packetSize = sizeof(qint32) + sizeof(FlightControllerValues);
+
         // check uninitialized and out-of-bounds conditions
-        if(mIndexFlightController >= mDataFlightController.size() || !mDataFlightController.size())
+        if(mIndexFlightController + packetSize > mDataFlightController.size() || !mDataFlightController.size())
             return result;
 
-        const int indexEndOfNextPacketLaser = mDataFlightController.indexOf("\n", mIndexFlightController);
-        if(indexEndOfNextPacketLaser > 0)
-            result = QByteArray(mDataFlightController.data() + mIndexFlightController, indexEndOfNextPacketLaser - mIndexFlightController);
-
-        Q_ASSERT(mIndexFlightController == 0 || mDataFlightController.at(mIndexFlightController-1) == '\n');
-        Q_ASSERT(!result.contains("\n") && "contains a newline!");
+        result = mDataFlightController.mid(mIndexFlightController, packetSize);
     }
     break;
 
@@ -407,8 +407,14 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const QByteAr
 
     case Source_FlightController:
     {
-        ui->mProgressBarTow->setValue(packet.left(packet.indexOf(' ')).trimmed().toInt());
-        FlightControllerValues fcv(packet);
+        QDataStream stream(packet);
+
+        qint32 tow;
+        stream >> tow;
+        ui->mProgressBarTow->setValue(tow);
+        FlightControllerValues fcv;
+        stream >> fcv;
+
         emit flightState(fcv.flightState);
         emit flightControllerValues(fcv);
     }

@@ -5,30 +5,20 @@ FlightControllerValues::FlightControllerValues()
 
 }
 
-FlightControllerValues::FlightControllerValues(const QString& fcvString)
-{
-    // The string is of format:
-    // timestamp SPACE flightState SEPARATOR pose SEPARATOR waypoint SEPARATOR motioncommand
-    // We remove the timestamp at the beginning and split the rest using SEPARATOR
-    QStringList list = fcvString.mid(fcvString.indexOf(' ') + 1).split(SEPARATOR, QString::SkipEmptyParts);
-
-    flightState = FlightState::fromString(list.at(0));
-
-    lastKnownPose = Pose(list.at(1));
-
-    // Target position and motion command are always present, just sometimes zero.
-    const QStringList targetPositionStringList = list.at(2).split(" ");
-    targetPosition.setX(targetPositionStringList.at(0).toDouble());
-    targetPosition.setY(targetPositionStringList.at(1).toDouble());
-    targetPosition.setZ(targetPositionStringList.at(2).toDouble());
-
-    motionCommand = MotionCommand(list.at(3));
-}
-
 // for streaming
 QDataStream& operator<<(QDataStream &out, const FlightControllerValues &fcv)
 {
-    out << fcv.motionCommand << fcv.flightState << fcv.targetPosition << fcv.lastKnownPose << fcv.lastKnownHeightOverGround;
+    out
+            << fcv.motionCommand
+            << fcv.flightState
+            << fcv.targetPosition
+            << fcv.lastKnownPose
+            << fcv.lastKnownHeightOverGround
+            << fcv.controllerThrust
+            << fcv.controllerYaw
+            << fcv.controllerPitch
+            << fcv.controllerRoll;
+
     return out;
 }
 
@@ -39,10 +29,15 @@ QDataStream& operator>>(QDataStream &in, FlightControllerValues& fcv)
     in >> fcv.targetPosition;
     in >> fcv.lastKnownPose;
     in >> fcv.lastKnownHeightOverGround;
+
+    in >> fcv.controllerThrust;
+    in >> fcv.controllerYaw;
+    in >> fcv.controllerPitch;
+    in >> fcv.controllerRoll;
     return in;
 }
 
-
+/*
 QString FlightControllerValues::toString() const
 {
     QString out;
@@ -55,6 +50,15 @@ QString FlightControllerValues::toString() const
     out.append(targetPositionString);
     out.append(SEPARATOR);
     out.append(motionCommand.toString());
+    out.append(SEPARATOR);
+    out.append(controllerThrust.toString());
+    out.append(SEPARATOR);
+    out.append(controllerYaw.toString());
+    out.append(SEPARATOR);
+    out.append(controllerPitch.toString());
+    out.append(SEPARATOR);
+    out.append(controllerRoll.toString());
 
     return out;
 }
+*/

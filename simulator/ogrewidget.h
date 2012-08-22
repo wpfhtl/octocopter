@@ -133,9 +133,6 @@ public:
     void createRttCamera(Ogre::Camera** camera, Ogre::RenderTarget** renderTarget, Ogre::SceneNode** sceneNode, const QString name, const QSize size);
     void destroyRttCamera(const QString name/*, Ogre::RenderTarget* renderTarget, Ogre::Camera* camera*/);
 
-    // returns ogre-world-coordinate-vector.
-    Ogre::Vector3 getVehiclePosition(void) const;
-
     Ogre::SceneManager* sceneManager();
 
     // Public access needed for the laserscanners rayIntersects()
@@ -153,17 +150,6 @@ public:
 
 public slots:
     void setBackgroundColor(QColor c);
-    void setCameraPosition(
-            const Ogre::Vector3 &vector,
-            const TranslationMode &mode = OgreWidget::TRANSLATION_RELATIVE,
-            const Ogre::Node::TransformSpace &transformSpace = Ogre::Node::TS_LOCAL,
-            const Ogre::SceneNode* lookAt = 0);
-
-    void setVehiclePosition(
-            const Ogre::Vector3 &vector,
-            const TranslationMode &mode = OgreWidget::TRANSLATION_RELATIVE,
-            const Ogre::Node::TransformSpace &transformSpace = Ogre::Node::TS_LOCAL,
-            const bool reAimCamera = false);
 
     void slotVisualizeTrajectory(const QVector3D& start, const QList<WayPoint>& waypoints);
 

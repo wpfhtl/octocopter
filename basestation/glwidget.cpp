@@ -320,7 +320,7 @@ void GlWidget::paintGL()
         }
 
         // Render controller pitch input
-        if(fabs(mLastFlightControllerValues->motionCommand.pitch) > 0.1f)
+        if(fabs(mLastFlightControllerValues->motionCommand.pitch) > 0.01f)
         {
             QMatrix4x4 trPitch(transformVehicle);
             trPitch.translate(0, fabs(mLastFlightControllerValues->motionCommand.pitch) / 20.0f, 0);
@@ -333,7 +333,7 @@ void GlWidget::paintGL()
         }
 
         // Render controller roll input
-        if(fabs(mLastFlightControllerValues->motionCommand.roll) > 0.1f)
+        if(fabs(mLastFlightControllerValues->motionCommand.roll) > 0.01f)
         {
             QMatrix4x4 trRoll(transformVehicle);
             trRoll.translate(0, fabs(mLastFlightControllerValues->motionCommand.roll) / 20.0f, 0);

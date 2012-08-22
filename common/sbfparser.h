@@ -269,7 +269,7 @@ public:
     void processNextValidPacket(QByteArray& sbfData);
 
 signals:
-    void newVehiclePoseLogPlayer(const Pose&); // emitted at full rate, all poses
+    void newVehiclePose(const Pose&); // emitted at full rate, all poses
     void newVehiclePoseSensorFuser(const Pose&); // emitted at full rate, high-precision
     void newVehiclePoseFlightController(const Pose&); // emitted at *up to* 10Hz, high-precision and only integrated poses (not extrapolated)
     void newVehiclePoseStatus(const Pose&); // emitted at 10Hz, all Poses

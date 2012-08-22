@@ -194,6 +194,7 @@ BaseStation::BaseStation() : QMainWindow()
 
         mAudioPlayer = new AudioPlayer;
         connect(mRoverConnection, SIGNAL(gnssStatus(GnssStatus)), this, SLOT(slotSpeakGnssStatus(GnssStatus)));
+        mActionEnableAudio->setChecked(true); // enable audio out by default when in the field
 
         mRoverConnection->slotConnectToRover();
         mLogWidget->log(Information, "BaseStation::BaseStation()", "Working online, enabling RoverConnection+RtkFetcher+PtuController, disabling LogPlayer.");

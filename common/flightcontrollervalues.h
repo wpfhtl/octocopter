@@ -5,8 +5,7 @@
 #include "motioncommand.h"
 #include "pose.h"
 #include "flightstate.h"
-
-#define SEPARATOR " -#- "
+#include "pidcontroller.h"
 
 // This class/struct just contains a set of values that flightcontroller consumes and produces.
 // Instances of this class are sent around for debugging and to the kopter for actual control.
@@ -15,10 +14,8 @@ class FlightControllerValues
 {
 public:
     FlightControllerValues();
-    FlightControllerValues(const QString& fcvString);
 
-    QString toString() const;
-
+    PidController controllerThrust, controllerYaw, controllerPitch, controllerRoll;
     MotionCommand motionCommand;
     FlightState flightState;
     QVector3D targetPosition;

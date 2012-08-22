@@ -82,13 +82,6 @@ Physics::Physics(Simulator *simulator, OgreWidget *ogreWidget) :
         qDebug() << "Vehicle::Vehicle(): creating vehicle, setting to height" << rayResult.position.y + 20.0;
     }
 
-    // Make camera look at vehicle
-//    mOgreWidget->setCameraPosition(
-//            mVehicleNode->_getDerivedPosition() + Ogre::Vector3(0.0,2.0,-10.0),
-//            OgreWidget::TRANSLATION_ABSOLUTE,
-//            Ogre::Node::TS_WORLD,
-//            mVehicleNode);
-
     // Create collision shape
 //    BtOgre::StaticMeshToShapeConverter converter(mVehicleEntity);
 //    mVehicleShape = converter.createConvex();
@@ -121,9 +114,14 @@ Physics::Physics(Simulator *simulator, OgreWidget *ogreWidget) :
     btVector3 inertia;
     mVehicleShape->calculateLocalInertia(mTotalVehicleWeight, inertia);
 
-    //Create BtOgre MotionState (connects Ogre and Bullet).
+    // Create BtOgre MotionState, connecting Ogre and Bullet.
     mVehicleState = new BtOgre::RigidBodyState(mVehicleNode);
-    connect(mVehicleState, SIGNAL(newPose(const Pose&)), SIGNAL(newVehiclePose(const Pose&)));
+
+    // This would cause newVehcilePose() to be emitted multiple times during
+    // slotUpdatePhysics() - whenever bullet decides to do multiple simulation sub-steps.
+    // To fix this, we do not connect the signals, but rather emit it manually after
+    // stepSimulation in slotUpdatePhysics();
+    //connect(mVehicleState, SIGNAL(newPose(const Pose&)), SIGNAL(newVehiclePose(const Pose&)));
 
     //Create the Body.
     mVehicleBody = new btRigidBody(mTotalVehicleWeight, mVehicleState, mVehicleShape, inertia);
@@ -344,7 +342,7 @@ Physics::~Physics()
 void Physics::slotSetMotion(const MotionCommand& mc)
 {
     const MotionCommand motionCommandClamped = mc;//.clampedToSafeLimits();
-    qDebug() << "Physics::slotSetMotion(): updating physics forces with thrust" << motionCommandClamped.thrust << "pitch" << motionCommandClamped.pitch << "roll" << motionCommandClamped.roll << "yaw" << motionCommandClamped.yaw;
+//    qDebug() << "Physics::slotSetMotion(): updating physics forces with thrust" << motionCommandClamped.thrust << "pitch" << motionCommandClamped.pitch << "roll" << motionCommandClamped.roll << "yaw" << motionCommandClamped.yaw;
 
     /*
       The MikroKopter moves in his own ways, this is how it translates the given externControls into motion:
@@ -424,15 +422,9 @@ void Physics::slotSetMotion(const MotionCommand& mc)
 //    qDebug() << "llctrlout p should" << pitch << "is" << currentPitch.valueDegrees() << "error" << errorPitch << "derivative" << derivativePitch << "output" << outputPitch;
 //    qDebug() << "llctrlout r should" << roll << "is" << currentRoll.valueDegrees() << "error" << errorRoll << "derivative" << derivativeRoll << "output" << outputRoll;
 
-    // Don't forget to rotate motors according to thrust
+    // Rotate motors according to thrust
     for(int i=0;i<mEngineNodes.size();i++)
     {
-        // rotate thrust-independent
-//        if(i % 2 == 0)
-//            mEngineNodes.at(i)->setOrientation(mEngineNodes.at(i)->getOrientation() * Ogre::Quaternion(Ogre::Degree(+Ogre::Math::RangeRandom(35, 50)), Ogre::Vector3(0,1,0)));
-//        else
-//            mEngineNodes.at(i)->setOrientation(mEngineNodes.at(i)->getOrientation() * Ogre::Quaternion(Ogre::Degree(-Ogre::Math::RangeRandom(35, 50)), Ogre::Vector3(0,1,0)));
-
         // rotate thrust-dependent
         if(i % 2 == 0)
             mEngineNodes.at(i)->setOrientation(mEngineNodes.at(i)->getOrientation() * Ogre::Quaternion(Ogre::Degree(motionCommandClamped.thrust+Ogre::Math::RangeRandom(0, 5)), Ogre::Vector3(0,1,0)));
@@ -486,17 +478,14 @@ void Physics::slotSetWindSetting(const bool& enable, const float& factor)
 
 void Physics::slotUpdateWind()
 {
-    if(mWindEnable && mWindFactor != 0.0 && !mVectorWind.empty())
+    if(mWindEnable && mWindFactor > 0.001f && !mVectorWind.empty())
     {
         const quint32 sampleNumber = (mSimulator->getSimulationTime() / 100) % mVectorWind.size();
 
         btVector3 windVector = mVectorWind.at(sampleNumber);
         mVehicleBody->applyCentralForce(windVector * mWindFactor);
-
 //        qDebug() << "Physics::slotUpdateWind(): applying wind sample" << sampleNumber << ":" << windVector.x() << windVector.y() << windVector.z() << "and factor" << mWindFactor;
     }
-//    else
-//        qDebug() << "Physics::slotUpdateWind(): not applying wind: enabled:" << mWindEnable << "factor" << mWindFactor << "samples:" << mVectorWind.size();
 }
 
 float Physics::getHeightAboveGround()
@@ -517,13 +506,13 @@ void Physics::slotUpdateEngineRotations()
 
 void Physics::slotUpdatePhysics(void)
 {
-    slotUpdateWind();
 
     const int simulationTime = mSimulator->getSimulationTime(); // milliseconds
-    const btScalar deltaS = std::max(0.0f, (simulationTime - mTimeOfLastPhysicsUpdate) / 1000.0f); // elapsed time since last call in seconds
+    const btScalar deltaS = qBound(0.0f, (simulationTime - mTimeOfLastPhysicsUpdate) / 1000.0f, 0.1f); // elapsed time since last call in seconds
     const int maxSubSteps = 20;
     const btScalar fixedTimeStep = 1.0 / 60.0;
 //    qDebug() << "Physics::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
+    slotUpdateWind();
 
     mVehicleBody->applyDamping(deltaS);
 
@@ -543,11 +532,12 @@ void Physics::slotUpdatePhysics(void)
     QList<LaserScanner*>* laserScanners = mSimulator->getLaserScannerList();
     foreach(LaserScanner* ls, *laserScanners)
     {
-//        Ogre::SceneNode* scannerNode = mOgreWidget->sceneManager()->getSceneNode(ls->objectName().append("_node").toStdString());
         Ogre::SceneNode* scannerNode = ls->getSceneNode();
             scannerNode->_update(false, true);
         ls->slotSetScannerPose(scannerNode->_getDerivedPosition(), scannerNode->_getDerivedOrientation());
     }
+
+    emit newVehiclePose(getVehiclePose());
 }
 
 QVector3D Physics::getVehicleLinearVelocity() const
