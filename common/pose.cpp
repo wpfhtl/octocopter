@@ -255,6 +255,40 @@ void Pose::getEulerAnglesRadians(float& yaw, float &pitch, float &roll) const
   **************************************************************************
   */
 
+Pose Pose::extrapolateLinear(const Pose &first, const Pose &second, const quint32 &timeAfter)
+{
+    // timeDelta is how many milliseconds after second we want to extrapolate into the future
+    Q_ASSERT(timeAfter >= 0);
+
+    float firstYaw, firstPitch, firstRoll;
+    float secondYaw, secondPitch, secondRoll;
+
+    first.getEulerAnglesDegrees(firstYaw, firstPitch, firstRoll);
+    second.getEulerAnglesDegrees(secondYaw, secondPitch, secondRoll);
+    qDebug() << second;
+
+    QVector3D distance(second.getPosition() - first.getPosition());
+    float yawDelta = secondYaw - firstYaw;
+    float pitchDelta = secondPitch - firstPitch;
+    float rollDelta = secondRoll - firstRoll;
+
+    quint32 timeDelta = second.timestamp - first.timestamp;
+    float timeDeltaFrac = 1.f * timeAfter / timeDelta;
+
+    Pose p(
+                second.getPosition() + distance * timeDeltaFrac,
+                secondYaw + yawDelta * timeDeltaFrac,
+                secondPitch + pitchDelta * timeDeltaFrac,
+                secondRoll + rollDelta * timeDeltaFrac,
+                second.timestamp + timeAfter
+                );
+
+    p.covariances = (second.covariances - first.covariances) + second.covariances * timeDeltaFrac;
+    p.precision = second.precision & first.precision;
+
+    return p;
+}
+
 Pose Pose::interpolateLinear(const Pose &before, const Pose &after, const float &mu)
 {
     Q_ASSERT(mu <= 0.0 && mu <= 1.0);

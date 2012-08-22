@@ -87,6 +87,8 @@ public:
     const QVector3D getPosition() const;
     const QQuaternion getOrientation() const;
 
+    static Pose extrapolateLinear(const Pose &first, const Pose &before, const quint32 &timeAfter);
+
     static Pose interpolateLinear(const Pose &before, const Pose &after, const float &mu);
 
     // Returns a pose between @before and @after, also needs @first and @last, as its bicubic. @mu specifies the position between @before and @after.
