@@ -9,6 +9,7 @@ class TestPtu : public QObject
 private slots:
     void testFromTop();
     void testFromSide();
+    void testBasePoseAlignment();
 };
 
 #endif // TESTPTU_HPP

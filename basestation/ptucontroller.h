@@ -37,6 +37,7 @@ public:
     bool isOpened() const {return mSerialPortPtu->isOpen();}
 
     static Pose determinePtuPose(QVector3D positionCameraSensor, QVector3D positionInFrustrumCenter);
+    static void getPanTilt(QVector3D vehiclePosition, Pose ptuBase, float& pan, float& tilt);
 
 private:
     Ui::PtuController *ui;
@@ -75,7 +76,6 @@ private slots:
     void slotRetrieveStatus();
     void slotSetPanDegrees(float degreePan);
     void slotSetTiltDegrees(float degreeTilt);
-    void slotSetPosition(float degreePan, float degreeTilt);
     void slotSetPanLimits(float degreeMinimum, float degreeMaximum);
     void slotSetTiltLimits(float degreeMinimum, float degreeMaximum);
     void slotSendCommandToPtu(const QString& command);

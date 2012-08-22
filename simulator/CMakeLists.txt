@@ -16,7 +16,7 @@ ENDIF()
 
 PROJECT(simulator)
 
-SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} /usr/lib64/OGRE/cmake/ /usr/local/lib/OGRE/cmake/ /usr/share/cmake/Modules/)
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} /usr/lib64/OGRE/cmake/ /usr/local/lib/OGRE/cmake/ /usr/share/cmake/Modules/ /usr/lib/OGRE/cmake)
 
 SET(SRC_FILES
 main
