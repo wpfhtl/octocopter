@@ -185,6 +185,8 @@ void FlightController::slotComputeMotionCommands()
                 // If pose is unprecise, emit safe stuff. Note that we don't expect ModeIntegrated, because only 1 of 2_or_5 packets is integrated - and thats ok.
                 && mLastKnownVehiclePose.precision & Pose::AttitudeAvailable
                 && mLastKnownVehiclePose.precision & Pose::HeadingFixed
+                && mLastKnownVehiclePose.precision & Pose::CorrectionAgeLow
+                // && mLastKnownVehiclePose.precision & Pose::ModeIntegrated // Also use non-integrated poses. Position might be off, but angles could be helpful
                 // && mLastKnownVehiclePose.precision & Pose::RtkFixed // Hover even in non-precise modes
                 )
         {
