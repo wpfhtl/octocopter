@@ -314,7 +314,7 @@ void PtuController::getPanTilt(QVector3D vehiclePosition, Pose ptuBase, float& p
     pan = Pose::getShortestTurnDegrees(whereToPan);
     const QVector3D ptuOrientation = vehiclePosition - ptuBase.getPosition();
     QVector2D basePlaneVector = QVector2D(ptuOrientation.x(), ptuOrientation.z());
-    tilt = RAD2DEG(atan2(ptuOrientation.y(), basePlaneVector.length()));
+    tilt = RAD2DEG(atan2(ptuOrientation.y(), basePlaneVector.length())) - ptuBase.getPitchDegrees();
 }
 
 void PtuController::slotDataReady()
@@ -409,6 +409,11 @@ void PtuController::slotVisualize()
     mModelPtuBase->slotSetModelTransform(transform);
     mModelPtuPan->slotSetModelTransform(transform);
     mModelPtuTilt->slotSetModelTransform(transform);
+
+    // Somehow the model is tilted the wrong way so let's reverse that
+    //QMatrix4x4 trBase = transform;
+    //trBase.rotate(-mPosePtuBase.getPitchDegrees() * 2, QVector3D(1, 0, 0));
+    //mModelPtuBase->slotSetModelTransform(trBase);
 
     // For pan we need to only apply the yaw
     QMatrix4x4 trPan = transform;
