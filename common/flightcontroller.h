@@ -45,16 +45,15 @@ public:
 
 private:
     QFile* mLogFile;
+    QDataStream* mLogStream;
 
     FlightControllerValues mLastFlightControllerValues;
 
-    // When approaching waypoints, we first yaw until we point towards the waypoint. As soon as
+    // When approaching waypoints, we first yaw until we point towards the target. As soon as
     // that's done, we activate the roll to keep the vehicle on the virtual line between vehicle
     // and target. If we didn't do this, wind would make the kopter drift, causing it to constantly
     // re-yaw to point to the target, making the vehicle circle around the target. See e.g.
     // kopterlog-20120813-133812-1621-bernd1 for an example of this behaviour.
-    bool mApproachUsingRoll;
-
     enum struct ApproachPhase
     {
         OrientTowardsTarget,
@@ -99,9 +98,6 @@ private:
 
     QTime mTimeOfLastControllerUpdate, mTimeOfLastLaserScan;
 
-//    float mPrevErrorPitch, mPrevErrorRoll, mPrevErrorYaw, mPrevErrorHeight;
-//    float mErrorIntegralPitch, mErrorIntegralRoll, mErrorIntegralYaw, mErrorIntegralHeight;
-
     Pose mLastKnownVehiclePose;
 
     QTime mLastKnownHeightOverGroundTimestamp;
@@ -115,9 +111,6 @@ private:
     void setFlightState(FlightState);
 
     void logFlightControllerValues();
-
-
-//    bool mFirstControllerRun;
 
     void ensureSafeFlightAfterWaypointsChanged();
 

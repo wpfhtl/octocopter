@@ -4,10 +4,13 @@
 FlightController::FlightController(const QString& logFilePrefix) : QObject()
 {
     mLogFile = 0;
+    mLogStream = 0;
     if(!logFilePrefix.isNull())
     {
         mLogFile = new QFile(logFilePrefix + QString("flightcontroller.flt"));
-        if(!mLogFile->open(QIODevice::WriteOnly | QIODevice::Text))
+        if(mLogFile->open(QIODevice::WriteOnly))
+            mLogStream = new QDataStream(mLogFile);
+        else
             qFatal("FlightController::FlightController(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
     }
 
@@ -17,12 +20,6 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
     mControllerYaw = new PidController("yaw");
     mControllerPitch = new PidController("pitch");
     mControllerRoll = new PidController("roll");
-
-//    mPrevErrorPitch = mPrevErrorRoll = mPrevErrorYaw = mPrevErrorHeight = 0.1;
-//    mErrorIntegralPitch = mErrorIntegralRoll = mErrorIntegralYaw = mErrorIntegralHeight = 0.1;
-
-//    mTimeOfLastControllerUpdate = QTime::currentTime();
-//    mFirstControllerRun = true;
 
     mLastKnownVehiclePose = Pose();
     mLastMotionCommand = MotionCommand((quint8)0, (qint8)0, (qint8)0, (qint8)0);
@@ -249,11 +246,9 @@ void FlightController::slotComputeMotionCommands()
         Q_ASSERT(false);
     }
 
-//    mTimeOfLastControllerUpdate = QTime::currentTime();
+//    smoothenControllerOutput(mLastFlightControllerValues.motionCommand);
 
-    smoothenControllerOutput(mLastFlightControllerValues.motionCommand);
-
-    qDebug() << "FlightController::slotComputeMotionCommands(): after smoothing:" << mLastFlightControllerValues.motionCommand;
+    qDebug() << "FlightController::slotComputeMotionCommands(): emitting motion:" << mLastFlightControllerValues.motionCommand;
     emit motion(mLastFlightControllerValues.motionCommand);
 
     // Mostly useful in simulator
@@ -274,10 +269,9 @@ void FlightController::smoothenControllerOutput(MotionCommand& mc)
 
 void FlightController::logFlightControllerValues()
 {
-    if(mLogFile)
+    if(mLogStream)
     {
-        QDataStream out(mLogFile);
-        out << GnssTime::currentTow() << mLastFlightControllerValues;
+        (*mLogStream) << GnssTime::currentTow() << mLastFlightControllerValues;
     }
 }
 
