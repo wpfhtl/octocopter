@@ -52,6 +52,7 @@ private:
     double mTiltToVehicle;
 
     Pose mLastKnownVehiclePose;
+    Pose mPreviousKnownVehiclePose;
     QVector3D mPositionCameraSensor;
     QVector3D mPositionInFrustumCenter;
     QByteArray mDataFromPtu;

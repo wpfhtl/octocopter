@@ -215,26 +215,28 @@ void PtuController::slotSerialPortStatusChanged(const QString& status, const QDa
 
 void PtuController::slotVehiclePoseChanged(const Pose& pose)
 {
+
     mLastKnownVehiclePose = pose;
 
     if(ui->mPushButtonToggleControllerState->isChecked() && mElapsedTimer.elapsed() > 200)
     {
         mElapsedTimer.restart();
 
-        if(mPositionInFrustumCenter.isNull() || mPositionCameraSensor.isNull())
-            qDebug("WTF");
+        Q_ASSERT(!mPositionInFrustumCenter.isNull() && !mPositionCameraSensor.isNull());
 
         // Change orientation of mPosePtuBase to look at vehicle
         float pan, tilt;
-        getPanTilt(mLastKnownVehiclePose.getPosition(), mPosePtuBase, pan, tilt);
+        getPanTilt(Pose::extrapolateLinear(mPreviousKnownVehiclePose, mLastKnownVehiclePose, 600).getPosition(), mPosePtuBase, pan, tilt);
         //Pose tempPose = determinePtuPose(mLastKnownVehiclePose.getPosition(), mPosePtuBase.getPosition());
+
+        mPreviousKnownVehiclePose = mLastKnownVehiclePose;
 
         //mPanToVehicle = tempPose.getYawDegrees();
         mPanToVehicle = pan;
         //mTiltToVehicle = tempPose.getPitchDegrees();
         mTiltToVehicle = tilt;
-        qDebug() << "PoseBase " << mPosePtuBase;
-        qDebug() << "pan :" << mPanToVehicle << " tilt: " << mTiltToVehicle;
+        //qDebug() << "PoseBase " << mPosePtuBase;
+        //qDebug() << "pan :" << mPanToVehicle << " tilt: " << mTiltToVehicle;
         slotSetPanDegrees(mPanToVehicle);
         slotSetTiltDegrees(mTiltToVehicle);
     }
@@ -244,7 +246,6 @@ void PtuController::slotSetPanDegrees(float degreePan)
 {
     if(mSerialPortPtu->isOpen())
     {
-        qDebug() << "ptu degrees: " << Pose::getShortestTurnDegrees(degreePan);
         float degrees = Pose::getShortestTurnDegrees(degreePan) * mPositionsPerDegreePan * -1; // -180 due to back-mounted camera
         slotSendCommandToPtu("PP"+QString::number(degrees));
     }
@@ -299,7 +300,7 @@ Pose PtuController::determinePtuPose(QVector3D positionInFrustumCenter, QVector3
     float yawAngle = RAD2DEG(atan2(ptuOrientation.x(), ptuOrientation.z()));
 
     QVector2D basePlaneVector = QVector2D(ptuOrientation.x(), ptuOrientation.z());
-    float pitchAngle = RAD2DEG(atan2(ptuOrientation.y(), basePlaneVector.length()));
+    float pitchAngle = -RAD2DEG(atan2(ptuOrientation.y(), basePlaneVector.length()));
 
     Pose ptuPose(positionCameraSensor, yawAngle, pitchAngle, 0);
     return ptuPose;
@@ -315,6 +316,9 @@ void PtuController::getPanTilt(QVector3D vehiclePosition, Pose ptuBase, float& p
     const QVector3D ptuOrientation = vehiclePosition - ptuBase.getPosition();
     QVector2D basePlaneVector = QVector2D(ptuOrientation.x(), ptuOrientation.z());
     tilt = RAD2DEG(atan2(ptuOrientation.y(), basePlaneVector.length())) - ptuBase.getPitchDegrees();
+
+    //qDebug() << ptuBase;
+    //qDebug() << "pan:" << pan << "tilt:" << tilt;
 }
 
 void PtuController::slotDataReady()
