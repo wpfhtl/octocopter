@@ -36,6 +36,7 @@ SET(SRC_FILES
     ../common/plymanager
     ../common/openglutilities
     ../common/flightcontrollervalues
+    ../common/pidcontroller
     ../common/flightstate
     ../common/lidarpoint
     ../common/waypoint
@@ -89,6 +90,7 @@ SET(INC_FILES
     ../common/plymanager.h
     ../common/openglutilities.h
     ../common/flightcontrollervalues.h
+    ../common/pidcontroller.h
     ../common/flightstate.h
     ../common/lidarpoint.h
     ../common/waypoint.h

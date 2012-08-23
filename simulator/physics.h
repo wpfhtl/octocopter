@@ -79,6 +79,7 @@ public:
     QVector3D getVehicleLinearVelocity() const;
     QVector3D getVehicleAngularVelocity() const;
     float getHeightAboveGround();
+    const Pose getVehiclePose() {return mVehicleState->getPose();}
 
     FlightController* mFlightController;
 

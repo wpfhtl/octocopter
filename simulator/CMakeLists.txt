@@ -26,6 +26,7 @@ ogrewidget
 battery
 ../common/flightstate
 ../common/flightcontroller
+../common/pidcontroller
 ../common/flightcontrollervalues
 ../common/gnssstatus
 ../common/gnsstime
@@ -55,6 +56,7 @@ ogrewidget.h
 battery.h
 ../common/flightstate.h
 ../common/flightcontroller.h
+../common/pidcontroller.h
 ../common/flightcontrollervalues.h
 ../common/gnssstatus.h
 ../common/gnsstime.h

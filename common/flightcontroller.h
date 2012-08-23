@@ -12,6 +12,7 @@
 #include "flightcontrollervalues.h"
 #include <laserscanner.h>
 #include "pose.h"
+#include "pidcontroller.h"
 
 class MotionCommand;
 
@@ -66,6 +67,9 @@ private:
     // when the GPS board fails to deliver useful poses, we'll need to compute safe values
     // to emit. Thus, when Poses are planned to come in every 100ms, we start this timer
     // 150ms, and it will call slotComputeMotionCommands() regularly when GNSS board fails.
+    //
+    // When used in the simulator, we want to pause this timer when the simulation is paused,
+    // so this is what setPause(bool) is for - it is to be used ONLY in simulation.
     static const quint16 backupTimerIntervalFast = 150;
     static const quint16 backupTimerIntervalSlow = 500;
     QTimer *mBackupTimerComputeMotion;
@@ -91,10 +95,12 @@ private:
 
     FlightState mFlightState;
 
+    PidController *mControllerThrust, *mControllerYaw, *mControllerPitch, *mControllerRoll;
+
     QTime mTimeOfLastControllerUpdate, mTimeOfLastLaserScan;
 
-    float mPrevErrorPitch, mPrevErrorRoll, mPrevErrorYaw, mPrevErrorHeight;
-    float mErrorIntegralPitch, mErrorIntegralRoll, mErrorIntegralYaw, mErrorIntegralHeight;
+//    float mPrevErrorPitch, mPrevErrorRoll, mPrevErrorYaw, mPrevErrorHeight;
+//    float mErrorIntegralPitch, mErrorIntegralRoll, mErrorIntegralYaw, mErrorIntegralHeight;
 
     Pose mLastKnownVehiclePose;
 
@@ -106,13 +112,12 @@ private:
     bool isHeightOverGroundValueRecent() const;
 
     void nextWayPointReached();
-//    WayPoint getLandingWayPoint() const;
     void setFlightState(FlightState);
 
     void logFlightControllerValues();
 
-    // In the first controller iteration, we don't want to build derivatives, they'd be waaayy off and destabilize the controller
-    bool mFirstControllerRun;
+
+//    bool mFirstControllerRun;
 
     void ensureSafeFlightAfterWaypointsChanged();
 
@@ -142,6 +147,7 @@ signals:
     void message(const LogImportance& importance, const QString&, const QString& message);
 
 public slots:
+    void slotSetPause(bool pause) {if(pause) mBackupTimerComputeMotion->stop(); else mBackupTimerComputeMotion->start();}
     void slotNewVehiclePose(const Pose&);
     void slotWayPointInsert(const quint16& index, const WayPoint& wayPoint);
     void slotWayPointDelete(const quint16& index);

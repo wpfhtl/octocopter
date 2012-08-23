@@ -47,16 +47,13 @@ class RigidBodyState : public QObject, public btMotionState
         virtual void setWorldTransform(const btTransform &in)
         {
             mTransform = in;
-            btTransform transform = in * mCenterOfMassOffset;
-
-            btQuaternion rotBt = transform.getRotation();
-            btVector3 posBt = transform.getOrigin();
-
-            float y,p,r=2;
-            transform.getBasis().getEulerZYX(y,p,r);
 
             if(mNode)
             {
+                btTransform transform = in * mCenterOfMassOffset;
+                const btQuaternion rotBt = transform.getRotation();
+                const btVector3 posBt = transform.getOrigin();
+
                 Ogre::Quaternion rotO(rotBt.w(), rotBt.x(), rotBt.y(), rotBt.z());
 
                 if(rotO.isNaN())
@@ -71,30 +68,33 @@ class RigidBodyState : public QObject, public btMotionState
 
                 mNode->setPosition(posO);
 
-//                float yaw, pitch, roll;
-//                transform.getBasis().getEulerZYX(yaw, pitch, roll, 2);
-
-                Ogre::Matrix3 mat;
-                mNode->_getDerivedOrientation().ToRotationMatrix(mat);
-
-                Ogre::Radian yaw, pitch, roll;
-                mat.ToEulerAnglesYXZ(yaw, pitch, roll);
-
-                Pose p(
-                            QVector3D(posO.x, posO.y, posO.z),
-                            //fmod(yaw.valueRadians() + Ogre::Degree(360.0).valueRadians(), 360.0*M_PI/180.0),
-                            fmod(yaw.valueDegrees() + Ogre::Degree(360.0).valueDegrees(), 360.0),
-                            pitch.valueDegrees(),
-                            roll.valueDegrees()
-                            );
-
-                // Whee, we are precise!!
-                p.precision = Pose::ModeIntegrated | Pose::AttitudeAvailable | Pose::HeadingFixed | Pose::RtkFixed | Pose::CorrectionAgeLow;
-
-//                qDebug() << "RigidBodyState::setWorldTransform(): new" << p;
-                emit newPose(p);
+//                qDebug() << "RigidBodyState::setWorldTransform(): emitting new pose";
+//                emit newPose(getPose());
             }
+        }
 
+        const Pose getPose()
+        {
+            Ogre::Matrix3 mat;
+            mNode->_getDerivedOrientation().ToRotationMatrix(mat);
+
+            Ogre::Radian yaw, pitch, roll;
+            mat.ToEulerAnglesYXZ(yaw, pitch, roll);
+
+            btVector3 posBt = (mTransform * mCenterOfMassOffset).getOrigin();
+
+            Pose p(
+                        QVector3D(posBt.x(), posBt.y(), posBt.z()),
+                        //fmod(yaw.valueRadians() + Ogre::Degree(360.0).valueRadians(), 360.0*M_PI/180.0),
+                        fmod(yaw.valueDegrees() + Ogre::Degree(360.0).valueDegrees(), 360.0),
+                        pitch.valueDegrees(),
+                        roll.valueDegrees()
+                        );
+
+            // Whee, we are precise!!
+            p.precision = Pose::ModeIntegrated | Pose::AttitudeAvailable | Pose::HeadingFixed | Pose::RtkFixed | Pose::CorrectionAgeLow;
+
+            return p;
         }
 
         Ogre::Vector3 getPosition(void) const
@@ -120,8 +120,7 @@ class RigidBodyState : public QObject, public btMotionState
         }
 
     signals:
-//        void newPose(const Ogre::Vector3 pos, const Ogre::Quaternion rot);
-        void newPose(const Pose& pose);
+//        void newPose(const Pose& pose);
 };
 
 //Softbody-Ogre connection goes here!

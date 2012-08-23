@@ -85,7 +85,7 @@ void OgreWidget::setBackgroundColor(QColor c)
         ogreViewport->setBackgroundColour(ogreColour);
     }
 }
-
+/*
 void OgreWidget::setCameraPosition(const Ogre::Vector3 &vector, const TranslationMode &mode, const Ogre::Node::TransformSpace &transformSpace, const Ogre::SceneNode* lookAt)
 {
     qDebug() << "OgreWidget::setCameraPosition()";
@@ -101,16 +101,10 @@ void OgreWidget::setCameraPosition(const Ogre::Vector3 &vector, const Translatio
     update();
 
     emit cameraPositionChanged(mCameraNode->getPosition());
-}
+}*/
 
-Ogre::Vector3 OgreWidget::getVehiclePosition(void) const
-{
-    Q_ASSERT(false);
-    QMutexLocker locker(&mMutex);
-//    qDebug() << "OgreWidget::getVehiclePosition()";
-    return mVehicleNode->getPosition();
-}
 
+/*
 void OgreWidget::setVehiclePosition(const Ogre::Vector3 &vector, const TranslationMode &mode, const Ogre::Node::TransformSpace &transformSpace, const bool reAimCamera)
 {
     Q_ASSERT(false);
@@ -129,7 +123,7 @@ void OgreWidget::setVehiclePosition(const Ogre::Vector3 &vector, const Translati
     }
 
     update();
-}
+}*/
 
 void OgreWidget::keyPressEvent(QKeyEvent *e)
 {

@@ -468,7 +468,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         // Here we emit the gathered pose. Depending on the pose's time and its quality, we emit it for different consumers
 
         // Emitted at full rate, any precision
-        emit newVehiclePoseLogPlayer(mLastPose);
+        emit newVehiclePose(mLastPose);
 
         // Emitted slowly (2Hz), any precision
 	// Update: Need higher rate for PTU-tracking (10Hz)

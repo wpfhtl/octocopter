@@ -99,8 +99,8 @@ void Simulator::slotOgreInitialized(void)
     // Vehicle creates SceneNode and Entity in OgreWidget. But OgreWidget is not initialized after instatiation, but only when
     // the window is initialized. Thus, vehicle needs to be created after ogreWidget initialization.
     mPhysics = new Physics(this, mOgreWidget);
-    connect(mPhysics, SIGNAL(newVehiclePose(const Pose&)), mFlightController, SLOT(slotNewVehiclePose(Pose)));
     connect(mPhysics, SIGNAL(newVehiclePose(const Pose&)), mStatusWidget, SLOT(slotUpdatePose(const Pose&)));
+    connect(mPhysics, SIGNAL(newVehiclePose(const Pose&)), mFlightController, SLOT(slotNewVehiclePose(Pose)));
 
     connect(mStatusWidget, SIGNAL(windDetailChanged(bool,float)), mPhysics, SLOT(slotSetWindSetting(bool, float)));
 
@@ -151,8 +151,11 @@ void Simulator::slotSimulationStart(void)
         QMetaObject::invokeMethod(mCameras->at(i), "slotStart", Qt::QueuedConnection);
     }
 
+    if(mFlightController->getFlightState() == FlightState::Value::Hover || mFlightController->getFlightState() == FlightState::Value::ApproachWayPoint)
+    mFlightController->slotSetPause(false);
+
     // Set the timer to update mOgreWidget every 25th of a second.
-    mUpdateTimer->start(1000/60);
+    mUpdateTimer->start(1000/30);
 }
 
 void Simulator::slotSimulationPause(void)
@@ -175,6 +178,8 @@ void Simulator::slotSimulationPause(void)
     // Cameras currently don't live in a separate thread.
     for(int i=0; i < mCameras->size(); i++)
         QMetaObject::invokeMethod(mCameras->at(i), "slotPause", Qt::QueuedConnection);
+
+    mFlightController->slotSetPause(true);
 
     // Stop the update timer for the GL view
     mUpdateTimer->stop();
@@ -353,12 +358,14 @@ void Simulator::slotUpdate()
     else
     {
         // This will compute and emit motion commands, which are then used by vehicle.
-        mFlightController->slotComputeMotionCommands();
+//        mFlightController->slotComputeMotionCommands();
     }
 
-    // Do the physics. This will move the vehicle, which will make the vehicle's motion
+    // Do the physics. This will move the vehicle, which will make the vehicle'smotion
     // state emit its new position, which will go into flightcontroller. Sweet!
     mPhysics->slotUpdatePhysics();
+
+//    mFlightController->slotNewVehiclePose(mPhysics->getVehiclePose());
 
     mOgreWidget->slotVisualizeTrajectory(
                 mFlightController->getLastKnownPose().getPosition(),
