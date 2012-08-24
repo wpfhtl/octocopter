@@ -126,17 +126,18 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     connect(mLaserScanner, SIGNAL(heightOverGround(float)), mFlightController, SLOT(slotSetHeightOverGround(float)));
     connect(mBaseConnection, SIGNAL(enableScanning(const bool&)), mLaserScanner, SLOT(slotEnableScanning(const bool&)));
-    connect(mBaseConnection, SIGNAL(rtkDataReady(const QByteArray&)), mGnssDevice, SLOT(slotSetRtkData(const QByteArray&)));
+    connect(mBaseConnection, SIGNAL(differentialCorrections(QByteArray)), mGnssDevice, SLOT(slotSetDifferentialCorrections(const QByteArray&)));
     connect(mBaseConnection, SIGNAL(wayPointInsert(quint16, WayPoint)), mFlightController, SLOT(slotWayPointInsert(quint16, WayPoint)));
     connect(mBaseConnection, SIGNAL(wayPointDelete(quint16)), mFlightController, SLOT(slotWayPointDelete(quint16)));
     connect(mBaseConnection, SIGNAL(wayPoints(QList<WayPoint>)), mFlightController, SLOT(slotSetWayPoints(QList<WayPoint>)));
-    connect(mBaseConnection, SIGNAL(newConnection()), mFlightController, SLOT(slotEmitFlightState()));
+    connect(mBaseConnection, SIGNAL(newConnection()), mFlightController, SLOT(slotEmitFlightControllerInfo()));
+    connect(mBaseConnection, SIGNAL(controllerWeights(QString,QMap<QString,float>)), mFlightController, SLOT(slotSetControllerWeights(QString,QMap<QString,float>)));
 
     connect(mGnssDevice->getSbfParser(), SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mGnssDevice, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mGnssDevice->getSbfParser(), SIGNAL(gnssTimeOfWeekEstablished(qint32)), mLaserScanner, SLOT(slotSetScannerTimeStamp(qint32)));
 
-    connect(mGnssDevice->getSbfParser(),SIGNAL(status(GnssStatus)), mBaseConnection, SLOT(slotNewGnssStatus(GnssStatus)));
+    connect(mGnssDevice->getSbfParser(),SIGNAL(status(GnssStatus*)), mBaseConnection, SLOT(slotNewGnssStatus(GnssStatus*)));
 
     // distribute poses from gnssdevice
     connect(mGnssDevice->getSbfParser(), SIGNAL(newVehiclePose(Pose)), mFlightController, SLOT(slotNewVehiclePose(Pose)));
@@ -145,11 +146,10 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mGnssDevice->getSbfParser(), SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
     connect(mGnssDevice->getSbfParser(), SIGNAL(gnssDeviceWorkingPrecisely(bool)), mLaserScanner, SLOT(slotEnableScanning(bool)));
     connect(mLaserScanner, SIGNAL(newScanData(qint32, std::vector<long>*const)), mSensorFuser, SLOT(slotNewScanData(qint32,std::vector<long>*const)));
-    connect(mSensorFuser, SIGNAL(newScannedPoints(QVector<QVector3D>,QVector3D)), mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector3D>,QVector3D)));
+    connect(mSensorFuser, SIGNAL(newScannedPoints(QVector<QVector3D>*,QVector3D)), mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector3D>*,QVector3D)));
 
-    connect(mFlightController, SIGNAL(flightStateChanged(FlightState)), mBaseConnection, SLOT(slotFlightStateChanged(FlightState)));
     // Lots of traffic - for what?
-    connect(mFlightController, SIGNAL(flightControllerValues(FlightControllerValues)), mBaseConnection, SLOT(slotNewFlightControllerValues(FlightControllerValues)));
+    connect(mFlightController, SIGNAL(flightControllerValues(FlightControllerValues*)), mBaseConnection, SLOT(slotNewFlightControllerValues(FlightControllerValues*)));
 
     connect(mFlightController, SIGNAL(wayPointReached(WayPoint)), mBaseConnection, SLOT(slotWayPointReached(WayPoint)));
     connect(mFlightController, SIGNAL(wayPointInserted(quint16,WayPoint)), mBaseConnection, SLOT(slotRoverWayPointInserted(quint16,WayPoint)));

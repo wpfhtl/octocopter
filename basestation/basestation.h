@@ -13,7 +13,8 @@
 #include "ptucontroller.h"
 #include "octree.h"
 #include "joystick.h"
-#include "rtkfetcher.h"
+#include "diffcorrfetcher.h"
+#include "pidcontrollerwidget.h"
 #include "lidarpoint.h"
 #include "flightplannerbasic.h"
 #include "flightplannerphysics.h"
@@ -30,7 +31,6 @@
 #include <waypoint.h>
 #include <pose.h>
 
-class ControlWidget;
 class FlightPlannerInterface;
 class GlWidget;
 
@@ -39,15 +39,17 @@ class BaseStation : public QMainWindow
     Q_OBJECT
 
 private:
+    QMenu *mMenuWindowList, *mMenuFile, *mMenuView;
     QTimer* mTimerJoystick;
     WirelessDevice* mWirelessDevice;
     ConnectionDialog* mConnectionDialog;
     RoverConnection* mRoverConnection;
     FlightPlannerInterface* mFlightPlanner;
     Joystick* mJoystick;
-    RtkFetcher* mRtkFetcher;
+    DiffCorrFetcher* mDiffCorrFetcher;
     ControlWidget* mControlWidget;
     LogWidget* mLogWidget;
+    PidControllerWidget* mPidControllerWidget;
     PlotWidget* mPlotWidget;
     LogPlayer* mLogPlayer;
     PtuController* mPtuController;
@@ -58,10 +60,6 @@ private:
     Octree* mOctree;
 
     GlWidget *mGlWidget;
-
-    QTimer *mTimerStats;
-    QFile *mStatsFile;
-//    QDateTime mDateTimeLastLidarInput;
 
     void keyPressEvent(QKeyEvent* event);
 
@@ -78,17 +76,19 @@ signals:
 private slots:
     void slotExportCloud(void);
     void slotImportCloud(void);
-//    void slotTogglePlot(void);
+    void slotToggleLogWidget(void) {if(mLogWidget) mLogWidget->setVisible(!mLogWidget->isVisible());}
+    void slotTogglePlotWidget(void) {if(mPlotWidget) mPlotWidget->setVisible(!mPlotWidget->isVisible());}
+    void slotToggleControlWidget(void) {if(mControlWidget) mControlWidget->setVisible(!mControlWidget->isVisible());}
+    void slotTogglePidControllerWidget() {if(mPidControllerWidget) mPidControllerWidget->setVisible(! mPidControllerWidget->isVisible());}
+    void slotTogglePtuControllerWidget() {if(mPtuController) mPtuController->setVisible(! mPtuController->isVisible());}
 
+    void slotSetFlightControllerValues(const FlightControllerValues& fcv);
     void slotSpeakGnssStatus(const GnssStatus &status);
 
     void slotClearOctree();
 
     // Send motion commands to rover WHILE button 1 is pressed
     void slotManageJoystick(quint8 button, bool pressed);
-
-//    void slotWriteStats();
-//    void slotAddLogFileMarkForPaper(QList<WayPoint> wptList);
 
     // These are called by ConnectionRover when new data arrived
     void slotNewScanData(const QVector<QVector3D>& pointList, const QVector3D& scannerPosition);

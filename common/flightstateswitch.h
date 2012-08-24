@@ -7,7 +7,7 @@ class FlightStateSwitch
 {
 public:
 
-    enum FlightStateSwitchValue
+    enum class Value
     {
         UserControl,       // ~-129
         Hover,             // ~22
@@ -16,26 +16,26 @@ public:
 
     FlightStateSwitch()
     {
-        value = UserControl;
+        value = Value::UserControl;
     }
 
     FlightStateSwitch(const qint16 ppmValue)
     {
         if(ppmValue <= -80)
-            value = UserControl;
+            value = Value::UserControl;
         else if(ppmValue > -80 && ppmValue < 80)
-            value = Hover;
+            value = Value::Hover;
         else
-            value = ApproachWayPoint;
+            value = Value::ApproachWayPoint;
     }
 
-    FlightStateSwitch(const FlightStateSwitch::FlightStateSwitchValue fssw)
+    FlightStateSwitch(const FlightStateSwitch::Value fssw)
     {
         value = fssw;
     }
 
     // The actual value of the switch
-    FlightStateSwitchValue value;
+    Value value;
 
     bool operator!=(const FlightStateSwitch& b) const
     {
@@ -52,12 +52,12 @@ public:
     {
         switch(value)
         {
-        case UserControl: return "UserControl"; break;
-        case Hover: return "Hover"; break;
-        case ApproachWayPoint: return "ApproachWayPoint"; break;
+        case Value::UserControl: return "UserControl"; break;
+        case Value::Hover: return "Hover"; break;
+        case Value::ApproachWayPoint: return "ApproachWayPoint"; break;
         }
 
-        return QString("undefined FlightStateSwitchValue");
+        return QString("undefined Value");
     }
 };
 

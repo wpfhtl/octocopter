@@ -209,8 +209,9 @@ void SensorFuser::transformScanDataCubic()
 
             mStatsFusedScans++;
 
-            QVector<QVector3D> scannedPoints; // Do not reserve full length, will be less poins due to reflections on the vehicle being filtered
-            scannedPoints.reserve(800);
+            // Do not reserve full length, will be less poins due to reflections on the vehicle being filtered
+            mRegisteredPoints.clear();
+            mRegisteredPoints.reserve(800);
 
             for(int index=0; index < scanDistances->size(); index++)
             {
@@ -278,12 +279,12 @@ void SensorFuser::transformScanDataCubic()
 
                 mLastRayTime = timeOfCurrentRay;
 
-                scannedPoints.append(getWorldPositionOfScannedPoint(mLastInterpolatedPose, index, distance));
+                mRegisteredPoints.append(getWorldPositionOfScannedPoint(mLastInterpolatedPose, index, distance));
 
                 mPointCloudSize++;
             }
 
-            emit newScannedPoints(scannedPoints, posesForThisScan[2]->getPosition());
+            emit newScannedPoints(&mRegisteredPoints, posesForThisScan[2]->getPosition());
 
             // This scan has been processed. Delete it.
             delete iteratorSavedScans.value();
@@ -398,8 +399,8 @@ void SensorFuser::transformScanDataNearestNeighbor()
 
             mStatsFusedScans++;
 
-            QVector<QVector3D> scannedPoints; // Do not reserve full length, will be less poins due to reflections on the vehicle being filtered
-            scannedPoints.reserve(800);
+            mRegisteredPoints.clear();
+            mRegisteredPoints.reserve(800);
 
             QTime profiler = QTime::currentTime(); profiler.start();
 
@@ -428,14 +429,14 @@ void SensorFuser::transformScanDataNearestNeighbor()
                             -cos(0.0043633231299858238686f * (indexRay - 540)) * distance); // Z in meters
 
                 const QVector3D dot = (*poseForThisScan) * vectorScannerToPoint;
-                scannedPoints.append(dot);
+                mRegisteredPoints.append(dot);
 
                 mPointCloudSize++;
             }
 
 //            qDebug() << "Fusing single scan took" << profiler.elapsed() << "milliseconds";
 
-            emit newScannedPoints(scannedPoints, poseForThisScan->getPosition());
+            emit newScannedPoints(&mRegisteredPoints, poseForThisScan->getPosition());
 
             // This scan has been processed. Delete it.
             delete iteratorSavedScans.value();

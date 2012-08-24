@@ -2,24 +2,20 @@
 #define CONTROLWIDGET_H
 
 #include <QtGui>
-//#include <Ogre.h>
 #include "ui_controlwidget.h"
-#include "basestation.h"
-#include "waypoint.h"
-#include "gnssstatus.h"
-#include "common.h" // for hash()
+#include <waypoint.h>
+#include <gnssstatus.h>
+#include <flightstate.h>
+#include <pose.h>
+#include <common.h> // for hash()
 
 #define QT_USE_FAST_CONCATENATION
 #define QT_USE_FAST_OPERATOR_PLUS
-
-class BaseStation;
 
 class ControlWidget : public QDockWidget, public Ui::ControlWidget
 {
 Q_OBJECT
 private:
-    BaseStation *mBaseStation;
-
     QString getBackgroundCss(const bool& error = true, const bool& dark = false);
 
     void initWayPointTable();
@@ -76,4 +72,4 @@ signals:
     void wayPointSwap(const quint16& i, const quint16& j);
 };
 
-#endif // ControlWidget_H
+#endif

@@ -12,7 +12,7 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     mSerialPortFlightCtrl->setStopBits(AbstractSerial::StopBits1);
     mSerialPortFlightCtrl->setFlowControl(AbstractSerial::FlowControlOff);
 
-    mLastFlightStateSwitch.value = FlightStateSwitch::UserControl;
+    mLastFlightStateSwitch.value = FlightStateSwitch::Value::UserControl;
     mLastCalibrationSwitchValue = CalibrationSwitchUndefined;
     mStructExternControl.Frame = 0;
 

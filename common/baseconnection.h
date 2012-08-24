@@ -26,14 +26,16 @@ private:
     mutable QMutex mMutex;
 //    int mSockfd; // socket for reading RSSI
 //    QString mInterface; // used only for RSSI reading in case of WLAN connection
+    //    WirelessDevice* mWirelessDevice;
+    //    qint8 getRssi();
+
+
     QTcpSocket* mTcpSocket;
     QTcpServer* mTcpServer;
     QByteArray mIncomingDataBuffer, mOutgoingDataBuffer;
-//    WirelessDevice* mWirelessDevice;
 
     void processPacket(QByteArray packet);
 
-//    qint8 getRssi();
 
 private slots:
     void slotNewConnection(void);
@@ -65,7 +67,9 @@ signals:
     // lidar-data when link is saturated. TODO: combine with RSSI?
     void networkSaturationChanged(const quint8& percentage);
 
-    void rtkDataReady(const QByteArray&);
+    void differentialCorrections(const QByteArray&);
+
+    void controllerWeights(QString name, QMap<QString,float> weights);
 
     // can be used to send a newly connected basestation information that would otherwise
     // take a long time to come in, e.g. flightState
@@ -85,10 +89,10 @@ public slots:
     void slotNewVehiclePose(const Pose& pose);
 
     // called by rover when the flightstate changes
-    void slotFlightStateChanged(FlightState);
+//    void slotFlightStateChanged(FlightState);
 
     // called by rover to send lidarpoints to the basestation
-    void slotNewScannedPoints(const QVector<QVector3D>& points, const QVector3D& scanPosition);
+    void slotNewScannedPoints(const QVector<QVector3D>* points, const QVector3D& scanPosition);
 
     // called by rover to send new vehicle status to basestation
     void slotNewVehicleStatus(
@@ -98,10 +102,10 @@ public slots:
         );
 
     // called by rover to send new gnss status to basestation
-    void slotNewGnssStatus(const GnssStatus&);
+    void slotNewGnssStatus(const GnssStatus *);
 
     // called by flightcontroller to send its output to basestation for debugging purposes
-    void slotNewFlightControllerValues(const FlightControllerValues& fcv);
+    void slotNewFlightControllerValues(const FlightControllerValues *fcv);
 
     // called by rover to send new image to basestation
     void slotNewCameraImage(const QString& name, const QSize& imageSize, const Pose& pose, const QByteArray* image);

@@ -15,12 +15,13 @@ class FlightControllerValues
 public:
     FlightControllerValues();
 
-    PidController controllerThrust, controllerYaw, controllerPitch, controllerRoll;
+    QMap<QString, PidController> pidControllers;
     MotionCommand motionCommand;
     FlightState flightState;
     QVector3D targetPosition;
     Pose lastKnownPose;
     float lastKnownHeightOverGround;
+    QTime lastKnownHeightOverGroundTimestamp;
 };
 
 // for streaming

@@ -64,6 +64,9 @@ private:
     // This scanner's beam, used for the RSQ against terrain and our own custom rsq against meshes.
     Ogre::Ray mLaserBeam;
 
+    // a container for collected rays, or rather the world coordinates of where they ended
+    QVector<QVector3D> mRegisteredPoints;
+
 //    CoordinateConverter *mCoordinateConverter;
 
     // Cache the scanner position. If it hasn't changed, there's no need to scan again.
@@ -138,7 +141,7 @@ public slots:
 signals:
     void heightOverGround(const float&);
 
-    void newLidarPoints(const QVector<QVector3D>&, const QVector3D&);
+    void newLidarPoints(const QVector<QVector3D>*, const QVector3D&);
 
     void scanFinished(const quint32&);
 };

@@ -11,6 +11,7 @@ SET(SRC_FILES
     audioplayer
     glwidget
     logwidget
+    pidcontrollerwidget
     logplayer
     ptucontroller
     camerawidget
@@ -21,7 +22,7 @@ SET(SRC_FILES
     flightplannerparticles
     flightplannerphysics
     flightplannerphysicsdialog
-    rtkfetcher
+    diffcorrfetcher
     model
     controlwidget
     connectiondialog
@@ -65,6 +66,7 @@ SET(INC_FILES
     audioplayer.h
     glwidget.h
     logwidget.h
+    pidcontrollerwidget.h
     logplayer.h
     ptucontroller.h
     camerawidget.h
@@ -75,7 +77,7 @@ SET(INC_FILES
     flightplannerparticles.h
     flightplannerphysics.h
     flightplannerphysicsdialog.h
-    rtkfetcher.h
+    diffcorrfetcher.h
     model.h
     controlwidget.h
     connectiondialog.h
@@ -114,6 +116,7 @@ SET(UI_FILES
     ptucontroller.ui
     logwidget.ui
     connectiondialog.ui
+    pidcontrollerwidget.ui
     flightplannerphysicsdialog.ui
 )
 

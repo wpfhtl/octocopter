@@ -53,6 +53,8 @@ void FlightPlannerInterface::slotClearVehicleTrajectory()
 {
     mVehiclePoses.clear();
     if(mGlWidget) mGlWidget->slotClearVehicleTrajectory();
+
+    emit suggestVisualization();
 }
 
 void FlightPlannerInterface::slotCheckWayPointsHashFromRover(const QString &hash)

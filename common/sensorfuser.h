@@ -47,6 +47,8 @@ private:
 
     QList<Pose> mPoses;
 
+    QVector<QVector3D> mRegisteredPoints;
+
     /*
       These two containers store a timestamp of a scan and a pointer to its scandata.
       For each scan, we get two timestamps:
@@ -115,7 +117,7 @@ public slots:
     void slotNewScanData(const qint32& timestampScanner, std::vector<long> * const distances);
 
 signals:
-    void newScannedPoints(const QVector<QVector3D>&, const QVector3D& scanPosition);
+    void newScannedPoints(const QVector<QVector3D>*, const QVector3D& scanPosition);
 };
 
 #endif // SENSORFUSER_H

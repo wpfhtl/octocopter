@@ -37,17 +37,17 @@ public:
     FlightController(const QString& logFilePrefix = QString());
     ~FlightController();
 
-    Pose getLastKnownPose(void) const { return mLastKnownVehiclePose; }
+    Pose getLastKnownPose(void) const { return mFlightControllerValues.lastKnownPose; }
 
     QList<WayPoint> getWayPoints() { return mWayPoints; }
 
-    const FlightState& getFlightState(void) const { return mFlightState; }
+    const FlightState& getFlightState(void) const { return mFlightControllerValues.flightState; }
 
 private:
     QFile* mLogFile;
     QDataStream* mLogStream;
 
-    FlightControllerValues mLastFlightControllerValues;
+    FlightControllerValues mFlightControllerValues;
 
     // When approaching waypoints, we first yaw until we point towards the target. As soon as
     // that's done, we activate the roll to keep the vehicle on the virtual line between vehicle
@@ -75,9 +75,6 @@ private:
 
     QList<WayPoint> mWayPoints, mWayPointsPassed;
 
-    // In Hover mode, this is where we want to be. Set when we enter hover-state
-    QVector3D mHoverPosition;
-
     // The following method mixes the new controller outpuit with the last one to achieve smoothing
     // This is an attempt to smooth out GNSS reception problems in single GNSS-packets that would
     // otherwise lead to a bouncing vehicle while flip-flopping between safe control values and
@@ -91,17 +88,6 @@ private:
     };
 
     ImuOffsets mImuOffsets;
-
-    FlightState mFlightState;
-
-    PidController *mControllerThrust, *mControllerYaw, *mControllerPitch, *mControllerRoll;
-
-    QTime mTimeOfLastControllerUpdate, mTimeOfLastLaserScan;
-
-    Pose mLastKnownVehiclePose;
-
-    QTime mLastKnownHeightOverGroundTimestamp;
-    float mLastKnownHeightOverGround;
 
     void initializeControllers();
 
@@ -122,7 +108,7 @@ signals:
     void motion(const MotionCommand&);
 
     // used for debugging
-    void flightControllerValues(const FlightControllerValues&);
+    void flightControllerValues(const FlightControllerValues*);
 
     // emitted when a waypoint is reached
     void wayPointReached(const WayPoint&);
@@ -146,7 +132,9 @@ public slots:
     void slotWayPointDelete(const quint16& index);
     void slotSetWayPoints(const QList<WayPoint>&);
 
-    void slotEmitFlightState();
+    void slotEmitFlightControllerInfo();
+
+    void slotSetControllerWeights(QString controllerName, QMap<QString,float> controllerWeights);
 
     // The IMU is not mounted perfectly straight on the helicopter. Even if it was, the helicopter is a bent mess by now.
     // This means that reading IMU values and then setting the kopter's pitch/roll from there leads to big drifting. To

@@ -130,9 +130,8 @@ void LaserScanner::slotDoScan()
 
     int numberOfRays = 0;
 
-    // a container for collected rays, or rather the world coordinates of where they ended
-    QVector<QVector3D> scanContainer;
-    scanContainer.reserve((mAngleStop - mAngleStart) / mAngleStep + 10);
+    mRegisteredPoints.clear();
+    mRegisteredPoints.reserve((mAngleStop - mAngleStart) / mAngleStep + 10);
 
     while(mCurrentScanAngle <= mAngleStop)
     {
@@ -225,7 +224,7 @@ void LaserScanner::slotDoScan()
                 }
             }
 
-            scanContainer << QVector3D(point.x, point.y, point.z);
+            mRegisteredPoints << QVector3D(point.x, point.y, point.z);
         }
 
         // Increase mCurrentScanAngle by mAngleStep for the next laserBeam
@@ -246,14 +245,14 @@ void LaserScanner::slotDoScan()
 //    const long long timeDiff = (timeNow.tv_sec - timeStart.tv_sec) * 1000000 + (timeNow.tv_usec - timeStart.tv_usec);
 //    qDebug() << "LaserScanner::slotDoScan(): took" << timeDiff << "us, should have been" << (long long)(realTimeBetweenRaysUS * ((mAngleStop - mAngleStart)/mAngleStep));
 
-    if(scanContainer.size())
+    if(mRegisteredPoints.size())
     {
         emit scanFinished(mSimulator->getSimulationTime());
 
         //    qDebug() << "LaserScanner::doScan(): emitting" << scanContainer.size() << "points.";
 
         emit newLidarPoints(
-                    scanContainer,
+                    &mRegisteredPoints,
                     QVector3D(mScannerPosition.x, mScannerPosition.y, mScannerPosition.z)
                     );
     }
@@ -268,7 +267,7 @@ void LaserScanner::slotDoScan()
     const long long scanTimeElapsed = (timeNow.tv_sec - timeStart.tv_sec) * 1000000 + (timeNow.tv_usec - timeStart.tv_usec);
     const long long timeRest = (1000000/(mSpeed/60)) * (1.0 / mTimeFactor) - scanTimeElapsed;
 //    qDebug() << "LaserScanner::slotDoScan(): emitted results, resting" << timeRest << "us after scan.";
-    scanContainer.clear();
+    mRegisteredPoints.clear();
     usleep(std::max(0, (int)timeRest));
 }
 

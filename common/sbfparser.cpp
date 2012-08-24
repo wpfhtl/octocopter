@@ -96,7 +96,7 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offse
 
 void SbfParser::slotEmitCurrentGnssStatus()
 {
-    emit status(mGnssStatus);
+    emit status(&mGnssStatus);
 }
 
 quint16 SbfParser::computeChecksum(const void *buf, unsigned int length) const
@@ -241,7 +241,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         if(fabs(mGnssStatus.covariances - newCovarianceValue) > 0.02)
         {
             mGnssStatus.covariances = newCovarianceValue;
-//            emit status(mGnssStatus);
+//            emit status(&mGnssStatus);
         }
     }
     break;
@@ -605,7 +605,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
 //    qDebug() << "SbfParser::processNextValidPacket(): processed packet id:" << msgIdBlock;
 
     // emit new status if it changed significantly.
-    if(mGnssStatus.interestingOrDifferentComparedTo(previousGpsStatus)) emit status(mGnssStatus);
+    if(mGnssStatus.interestingOrDifferentComparedTo(previousGpsStatus)) emit status(&mGnssStatus);
 
     /*
      Remove the processed SBF block from our incoming buffer, so that it contains either nothing, the next (possibly

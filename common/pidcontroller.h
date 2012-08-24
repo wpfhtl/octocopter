@@ -11,7 +11,7 @@ class PidController
 {
 
 private:
-    QString mName;
+//    QString mName;
     float mP, mI, mD;
 
     // In the first controller iteration, we don't want to build derivatives, they'd be waaayy off and destabilize the controller
@@ -28,11 +28,13 @@ private:
 
     QTime mTimeOfLastUpdate;
 
-public:
-    PidController(const QString& name = QString(), const float p = 0.0f, const float i = 0.0f, const float d = 0.0f);
 
-    void setName(const QString& name) {mName = name;}
+public:
+    PidController(const float p = 0.0f, const float i = 0.0f, const float d = 0.0f);
+
+//    void setName(const QString& name) {mName = name;}
     void setWeights(const float p, const float i, const float d);
+    void setWeights(QMap<QString,float> controllerWeights);
     void setDesiredValue(const float value) {mValueDesired = value;}
 
     float computeOutput(const float input);
@@ -40,6 +42,8 @@ public:
     QString toString() const;
 
     const float& getLastError() {return mLastError;}
+
+    const float getWeight(const QString& weight) const;
     
     void reset();
 //    void slotClearErrorIntegral() {mErrorIntegral = 0.0f;}
@@ -47,7 +51,7 @@ public:
     // for streaming
     friend QDataStream& operator<<(QDataStream &out, const PidController &pc)
     {
-        out << pc.mName;
+//        out << pc.mName;
         out << pc.mP << pc.mI << pc.mD;
         out << pc.mFirstControllerRun;
         out << pc.mLastTimeDiff;
@@ -64,7 +68,7 @@ public:
 
     friend QDataStream& operator>>(QDataStream &in, PidController &pc)
     {
-        in >> pc.mName;
+//        in >> pc.mName;
         in >> pc.mP;
         in >> pc.mI;
         in >> pc.mD;

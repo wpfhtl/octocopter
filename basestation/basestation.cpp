@@ -19,38 +19,31 @@ BaseStation::BaseStation() : QMainWindow()
 
     mProgress = 0;
 
+    mPlotWidget = 0;
+    mLogPlayer = 0;
     mPtuController = 0;
     mAudioPlayer = 0;
+
+    mMenuFile = menuBar()->addMenu("File");
+    mMenuView = menuBar()->addMenu("View");
+    mMenuWindowList = menuBar()->addMenu("Windows");
 
     mConnectionDialog = new ConnectionDialog(this);
     mConnectionDialog->exec();
 
     mOctree->setMinimumPointDistance(.01f);
-/*
-    mTimerStats = new QTimer(this);
-    mTimerStats->start(1000);
-
-    //mDateTimeProgramStart = QDateTime::currentDateTime();
-
-    mStatsFile = new QFile(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz").prepend("stats-").append(".txt"));
-    if(!mStatsFile->open(QIODevice::WriteOnly | QIODevice::Text))
-    {
-        QMessageBox::critical(this, "File Error", QString("Couldn't open stats-file %1 for writing!").arg(mStatsFile->fileName()));
-    }
-    QTextStream out(mStatsFile);
-    out << "# FlightTime;ItemsInOctreeFine;ItemsInOctreeCoarse\n";
-    out.flush();
-    connect(mTimerStats, SIGNAL(timeout()), SLOT(slotWriteStats()));*/
 
     mControlWidget = new ControlWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mControlWidget);
+    mMenuWindowList->addAction("Control Widget", this, SLOT(slotToggleControlWidget()));
 
     mWirelessDevice = new WirelessDevice("wlan0");
     connect(mWirelessDevice, SIGNAL(rssi(qint8)), mControlWidget, SLOT(slotUpdateWirelessRssi(qint8)));
 
     mLogWidget = new LogWidget(this);
     addDockWidget(Qt::BottomDockWidgetArea, mLogWidget);
-    menuBar()->addAction("Save Log", mLogWidget, SLOT(save()));
+    mMenuFile->addAction("Save Log", mLogWidget, SLOT(save()));
+    mMenuWindowList->addAction("Log Viewer", this, SLOT(slotToggleLogWidget()));
 
     // GlWidget and CUDA-based FlightPlanners have a close relationship because cudaGlSetGlDevice() needs to be called in GL context and before any other CUDA calls.
     //mFlightPlanner = new FlightPlannerCuda(this, mOctree);
@@ -68,10 +61,8 @@ BaseStation::BaseStation() : QMainWindow()
     setCentralWidget(mGlWidget);
 
     mPtuController = new PtuController("/dev/serial/by-id/usb-Hjelmslund_Electronics_USB485_ISO4W_HEVGI92A-if00-port0", this);
-    mPtuController->setAllowedAreas(Qt::AllDockWidgetAreas);
-    mPtuController->setVisible(true);
     addDockWidget(Qt::BottomDockWidgetArea, mPtuController);
-
+    mMenuWindowList->addAction("PTU Controller", this, SLOT(slotTogglePtuControllerWidget()));
     connect(mPtuController, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
 
     if(mPtuController->isOpened())
@@ -98,33 +89,31 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mFlightPlanner, SIGNAL(wayPoints(QList<WayPoint>)), mControlWidget, SLOT(slotSetWayPoints(QList<WayPoint>)));
     connect(mFlightPlanner, SIGNAL(wayPointInserted(quint16,WayPoint)), mControlWidget, SLOT(slotWayPointInserted(quint16,WayPoint)));
 
-    menuBar()->addAction("Save Cloud", this, SLOT(slotExportCloud()));
-    menuBar()->addAction("Load Cloud", this, SLOT(slotImportCloud()));
-    menuBar()->addAction("Clear Cloud", this, SLOT(slotClearOctree()));
+    mMenuFile->addAction("Save Cloud", this, SLOT(slotExportCloud()));
+    mMenuFile->addAction("Load Cloud", this, SLOT(slotImportCloud()));
+    mMenuFile->addAction("Clear Cloud", this, SLOT(slotClearOctree()));
 
     connect(mGlWidget, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
     connect(mGlWidget, SIGNAL(visualizeNow()), mPtuController, SLOT(slotVisualize()));
     connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWidget, SLOT(slotUpdateView()));
 
-    menuBar()->addAction("Screenshot", mGlWidget, SLOT(slotSaveImage()));
-
-    menuBar()->addAction("ViewFromSide", mGlWidget, SLOT(slotViewFromSide()));
-    menuBar()->addAction("ViewFromTop", mGlWidget, SLOT(slotViewFromTop()));
-
-//    menuBar()->addAction("TogglePlot", this, SLOT(slotTogglePlot()));
-
-    menuBar()->addAction("Clear Trajectory", mFlightPlanner, SLOT(slotClearVehicleTrajectory()));
+    mMenuFile->addAction("Screenshot", mGlWidget, SLOT(slotSaveImage()));
+    mMenuView->addAction("ViewFromSide", mGlWidget, SLOT(slotViewFromSide()));
+    mMenuView->addAction("ViewFromTop", mGlWidget, SLOT(slotViewFromTop()));
+    mMenuView->addAction("Clear Trajectory", mFlightPlanner, SLOT(slotClearVehicleTrajectory()));
 
     QAction* actionRotateView = new QAction("Rotate View", this);
     actionRotateView->setCheckable(true);
     connect(actionRotateView, SIGNAL(triggered(bool)), mGlWidget, SLOT(slotEnableTimerRotation(bool)));
-    menuBar()->addAction(actionRotateView);
+    mMenuView->addAction(actionRotateView);
 
     mActionEnableAudio = new QAction("AudioOut", this);
     mActionEnableAudio->setCheckable(true);
-//    connect(actionEnableAudio, SIGNAL(triggered(bool)), mGlWidget, SLOT(slotEnableTimerRotation(bool)));
     menuBar()->addAction(mActionEnableAudio);
 
+    mPidControllerWidget = new PidControllerWidget(this);
+    addDockWidget(Qt::BottomDockWidgetArea, mPidControllerWidget);
+    mMenuWindowList->addAction("PID Controllers", this, SLOT(slotTogglePidControllerWidget()));
 
 /*
     mPlotWidget = new PlotWidget(this);
@@ -140,6 +129,7 @@ BaseStation::BaseStation() : QMainWindow()
     mPlotWidget->createCurve("pPitch");
     mPlotWidget->createCurve("pRoll");
     mPlotWidget->createCurve("pYaw");
+    menuBar()->addAction("TogglePlot", this, SLOT(slotTogglePlotWidget()));
 */
 
     // Only start RTK fetcher, RoverConnection, PtuController etc. if we're working online
@@ -160,9 +150,10 @@ BaseStation::BaseStation() : QMainWindow()
             connect(mTimerJoystick, SIGNAL(timeout()), mJoystick, SLOT(slotEmitMotionCommands()));
         }
 
+        connect(mPidControllerWidget, SIGNAL(controllerWeight(QString, QMap<QString,float>)), mRoverConnection, SLOT(slotSendControllerWeights(QString, QMap<QString,float>)));
+
         connect(mRoverConnection, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
 
-        connect(mRoverConnection, SIGNAL(flightStateChanged(FlightState)), mControlWidget, SLOT(slotFlightStateChanged(FlightState)));
         connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mControlWidget, SLOT(slotUpdatePose(Pose)));
         connect(mRoverConnection, SIGNAL(vehiclePose(Pose)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose)));
 
@@ -175,7 +166,7 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mRoverConnection, SIGNAL(scanData(QVector<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QVector<QVector3D>,QVector3D)));
         connect(mRoverConnection, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
         connect(mRoverConnection, SIGNAL(gnssStatus(GnssStatus)), mControlWidget, SLOT(slotUpdateGnssStatus(GnssStatus)));
-        connect(mRoverConnection, SIGNAL(flightControllerValues(FlightControllerValues)), mGlWidget, SLOT(slotSetFlightControllerValues(FlightControllerValues)));
+        connect(mRoverConnection, SIGNAL(flightControllerValues(FlightControllerValues)), SLOT(slotSetFlightControllerValues(FlightControllerValues)));
 
         connect(mRoverConnection, SIGNAL(wayPointsHashFromRover(QString)), mFlightPlanner, SLOT(slotCheckWayPointsHashFromRover(QString)));
         connect(mRoverConnection, SIGNAL(wayPointReachedByRover(WayPoint)), mFlightPlanner, SLOT(slotWayPointReached(WayPoint)));
@@ -186,9 +177,9 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mFlightPlanner, SIGNAL(wayPointDeleteOnRover(quint16)), mRoverConnection, SLOT(slotRoverWayPointDelete(quint16)));
         connect(mFlightPlanner, SIGNAL(wayPointsSetOnRover(QList<WayPoint>)), mRoverConnection, SLOT(slotRoverWayPointsSet(QList<WayPoint>)));
 
-        mRtkFetcher = new RtkFetcher(mConnectionDialog->getRtkBaseHostName(), mConnectionDialog->getRtkBasePort(), this);
-        connect(mRtkFetcher, SIGNAL(rtkData(QByteArray)), mRoverConnection, SLOT(slotSendRtkDataToRover(QByteArray)));
-        connect(mRtkFetcher, SIGNAL(connectionStatus(bool)), mControlWidget, SLOT(slotUpdateConnectionRtk(bool)));
+        mDiffCorrFetcher = new DiffCorrFetcher(mConnectionDialog->getRtkBaseHostName(), mConnectionDialog->getRtkBasePort(), this);
+        connect(mDiffCorrFetcher, SIGNAL(differentialCorrections(QByteArray)), mRoverConnection, SLOT(slotSendDiffCorrToRover(QByteArray)));
+        connect(mDiffCorrFetcher, SIGNAL(connectionStatus(bool)), mControlWidget, SLOT(slotUpdateConnectionRtk(bool)));
 
         menuBar()->addAction("Connect", mRoverConnection, SLOT(slotConnectToRover()));
 
@@ -211,20 +202,16 @@ BaseStation::BaseStation() : QMainWindow()
         //connect(mLogPlayer, SIGNAL(vehiclePoseLowFreq(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
         connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
 
-
         connect(mLogPlayer, SIGNAL(vehiclePose(Pose)), mGlWidget, SLOT(slotNewVehiclePose(Pose)));
         connect(mLogPlayer, SIGNAL(scanData(QVector<QVector3D>,QVector3D)), this, SLOT(slotNewScanData(QVector<QVector3D>,QVector3D)));
     //    connect(mLogPlayer, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
         connect(mLogPlayer, SIGNAL(gnssStatus(GnssStatus)), mControlWidget, SLOT(slotUpdateGnssStatus(GnssStatus)));
 
-
-        // testing!
         mAudioPlayer = new AudioPlayer;
         connect(mLogPlayer, SIGNAL(gnssStatus(GnssStatus)), SLOT(slotSpeakGnssStatus(GnssStatus)));
 
 
-        connect(mLogPlayer, SIGNAL(flightControllerValues(FlightControllerValues)), mGlWidget, SLOT(slotSetFlightControllerValues(FlightControllerValues)));
-        connect(mLogPlayer, SIGNAL(flightState(FlightState)), mControlWidget, SLOT(slotFlightStateChanged(FlightState)));
+        connect(mLogPlayer, SIGNAL(flightControllerValues(FlightControllerValues)), SLOT(slotSetFlightControllerValues(FlightControllerValues)));
 
         mLogWidget->log(Information, "BaseStation::BaseStation()", "Working offline, disabling RoverConnection+RtkFetcher, enabling LogPlayer.");
     }
@@ -235,7 +222,16 @@ BaseStation::BaseStation() : QMainWindow()
 BaseStation::~BaseStation()
 {
     delete mPtuController;
-//    mStatsFile->close();
+    delete mPlotWidget;
+    delete mPidControllerWidget;
+    delete mLogPlayer;
+    delete mFlightPlanner;
+    delete mDiffCorrFetcher;
+    delete mTimerJoystick;
+    delete mGlWidget;
+    delete mWirelessDevice;
+    delete mAudioPlayer;
+    delete mOctree;
 }
 
 void BaseStation::slotManageJoystick(quint8 button, bool pressed)
@@ -289,11 +285,6 @@ void BaseStation::slotNewScanData(const QVector<QVector3D>& pointList, const QVe
         if(i%10 == 0)
             mFlightPlanner->insertPoint(new LidarPoint(p, scannerPosition));
     }
-
-    // We only run/stats/logs for efficiency (paper) when scanning is in progress
-//    mDateTimeLastLidarInput = QDateTime::currentDateTime();
-
-    //mGlWidget->slotInsertLidarPoints(pointList);
 
     mGlWidget->slotUpdateView();
 
@@ -350,42 +341,11 @@ void BaseStation::slotImportCloud()
     }
 }
 
-/*void BaseStation::slotTogglePlot()
-{
-    mPlotWidget->setVisible(!mPlotWidget->isVisible());
-}*/
-
 void BaseStation::keyPressEvent(QKeyEvent* event)
 {
 //    if(event->key() == Qt::Key_Space)
 //        addRandomPoint();
 }
-/*
-void BaseStation::slotWriteStats()
-{
-    return;
-    static int second = 0;
-    if(mOctree->getNumberOfItems() == 0 || mDateTimeLastLidarInput.secsTo(QDateTime::currentDateTime()) > 1)
-    {
-//        mDateTimeProgramStart = QDateTime::currentDateTime();
-        return;
-    }
-
-//    if(!mDateTimeLastLidarInput.isValid()) mDateTimeLastLidarInput = QDateTime::currentDateTime();
-
-    QTextStream out(mStatsFile);
-//    out << mDateTimeProgramStart.secsTo(QDateTime::currentDateTime()) << "\t";
-    out << second << "\t";
-    out << mOctree->getNumberOfItems() << "\t";
-    out << ((FlightPlannerPhysics*)mFlightPlanner)->getNumberOfPointsInCollisionOctree() << "\n";
-    second++;
-}
-
-void BaseStation::slotAddLogFileMarkForPaper(QList<WayPoint> wptList)
-{
-    QTextStream out(mStatsFile);
-    out << "# Generated" << wptList.size() << "waypoints\n";
-}*/
 
 void BaseStation::slotClearOctree()
 {
@@ -408,4 +368,19 @@ void BaseStation::slotSpeakGnssStatus(const GnssStatus& status)
         else
             mAudioPlayer->setSound(QString("../media/ins_nominal.ogg"));
     }
+}
+
+void BaseStation::slotSetFlightControllerValues(const FlightControllerValues& fcv)
+{
+    // visualize pose and controller values
+    mGlWidget->slotSetFlightControllerValues(fcv);
+
+    mControlWidget->slotFlightStateChanged(fcv.flightState);
+
+    if(!mPidControllerWidget->isPopulated())
+    {
+        mPidControllerWidget->setWeights(fcv.pidControllers);
+    }
+    // set controller weights in PidControllerWidget? No, that should be up to date anyway.
+    //mPidControllerWidget->
 }

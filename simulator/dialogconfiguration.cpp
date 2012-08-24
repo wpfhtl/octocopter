@@ -160,7 +160,7 @@ void DialogConfiguration::slotReadConfigurationLaserScanner()
 
         laserScanners->append(newLaserScanner);
 
-        connect(newLaserScanner, SIGNAL(newLidarPoints(const QVector<QVector3D>&, const QVector3D&)), mSimulator->mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector3D>,QVector3D)));
+        connect(newLaserScanner, SIGNAL(newLidarPoints(const QVector<QVector3D>*,QVector3D)), mSimulator->mBaseConnection, SLOT(slotNewScannedPoints(const QVector<QVector3D>*,QVector3D)));
         connect(newLaserScanner, SIGNAL(heightOverGround(float)), mSimulator->mFlightController, SLOT(slotSetHeightOverGround(float)));
 
         // Now create a row in the LaserScannerTable

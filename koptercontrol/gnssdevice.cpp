@@ -43,7 +43,7 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
 
     mDeviceIsReadyToReceiveDiffCorr = false;
     mWaitingForCommandReply = false;
-    mRtkDataCounter = 0;
+    mDiffCorrDataCounter = 0;
     mSerialPortOnDeviceCom = "COM3";
     mSerialPortOnDeviceUsb = "";
 
@@ -109,7 +109,7 @@ GnssDevice::~GnssDevice()
 
     mSbfParser->deleteLater();
 
-    qDebug() << "GnssDevice::~GnssDevice(): ports closed, log files flushed, destructed after receiving" << mRtkDataCounter << "bytes diffcorr";
+    qDebug() << "GnssDevice::~GnssDevice(): ports closed, log files flushed, destructed after receiving" << mDiffCorrDataCounter << "bytes diffcorr";
 }
 
 void GnssDevice::slotQueueCommand(QString command)
@@ -519,17 +519,17 @@ void GnssDevice::slotDataReadyOnUsb()
     }
 }
 
-void GnssDevice::slotSetRtkData(const QByteArray &data)
+void GnssDevice::slotSetDifferentialCorrections(const QByteArray &data)
 {
     if(mDeviceIsReadyToReceiveDiffCorr)
     {
         // simply write the RTK data into the com-port
-        mRtkDataCounter += data.size();
-//        qDebug() << "GnssDevice::slotSetRtkData(): forwarding" << data.size() << "bytes of rtk-data to gps device, total is" << mRtkDataCounter;
+        mDiffCorrDataCounter += data.size();
+//        qDebug() << "GnssDevice::slotSetDifferentialCorrections(): forwarding" << data.size() << "bytes of diffcorr to gps device, total is" << mRtkDataCounter;
         mSerialPortCom->write(data);
 //        emit message(
 //                Information,
-//                "GnssDevice::slotSetRtkData()",
+//                "GnssDevice::slotSetDifferentialCorrections()",
 //                QString("Fed %1 bytes of RTK data into rover gps device.").arg(data.size())
 //                );
     }

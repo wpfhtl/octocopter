@@ -303,7 +303,7 @@ void GlWidget::paintGL()
     // Only show controller input if its present and less than 500 ms old.
     if(mLastFlightControllerValues && mLastKnownVehiclePose.timestamp - mLastFlightControllerValues->lastKnownPose.timestamp < 500)
     {
-        qDebug() << "now visualizing motioncommand from" << mLastFlightControllerValues->lastKnownPose.timestamp << mLastFlightControllerValues->motionCommand;
+//        qDebug() << "now visualizing motioncommand from" << mLastFlightControllerValues->lastKnownPose.timestamp << mLastFlightControllerValues->motionCommand;
 
         // Render controller yaw input
         if(fabs(mLastFlightControllerValues->motionCommand.yaw) > 0.1f)

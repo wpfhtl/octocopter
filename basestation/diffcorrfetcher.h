@@ -1,10 +1,10 @@
-#ifndef RTKFETCHER_H
-#define RTKFETCHER_H
+#ifndef DIFFCORRFETCHER_H
+#define DIFFCORRFETCHER_H
 
 #include <QtCore>
 #include <QtNetwork>
 
-class RtkFetcher : public QObject
+class DiffCorrFetcher : public QObject
 {
     Q_OBJECT
 
@@ -40,14 +40,14 @@ private slots:
     void slotFlushCommandQueue();
 
 public:
-    RtkFetcher(const QString &hostName, const uint &port, QObject* parent = 0);
+    DiffCorrFetcher(const QString &hostName, const uint &port, QObject* parent = 0);
 
-    ~RtkFetcher();
+    ~DiffCorrFetcher();
 
     bool isReceiving(void) const;
 
 signals:
-    void rtkData(const QByteArray& data);
+    void differentialCorrections(const QByteArray& data);
     void connectionStatus(const bool& connected);
 };
 

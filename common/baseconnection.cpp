@@ -141,11 +141,21 @@ void BaseConnection::processPacket(QByteArray packet)
         stream >> enable;
         emit enableScanning(enable);
     }
-    else if(command == "rtkdata")
+    else if(command == "diffcorr")
     {
-        QByteArray rtkData;
-        stream >> rtkData;
-        emit rtkDataReady(rtkData);
+        QByteArray diffCorr;
+        stream >> diffCorr;
+        emit differentialCorrections(diffCorr);
+    }
+    else if(command == "controllerweights")
+    {
+        QString name;
+        QMap<QString,float> weights;
+
+        stream >> name;
+        stream >> weights;
+
+        emit controllerWeights(name, weights);
     }
     else
     {
@@ -298,14 +308,14 @@ void BaseConnection::slotNewVehiclePose(const Pose& pose)
 }
 
 // called by rover to send lidarpoints to the basestation
-void BaseConnection::slotNewScannedPoints(const QVector<QVector3D>& points, const QVector3D& scannerPosition)
+void BaseConnection::slotNewScannedPoints(const QVector<QVector3D>* points, const QVector3D& scannerPosition)
 {
 //    qDebug() << "sending" << points.size() << "new lidarpoints to base";
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
     stream << QString("lidarpoints");
-    stream << points;
+    stream << (*points);
     stream << scannerPosition;
     slotSendData(data, false);
 }
@@ -336,44 +346,23 @@ void BaseConnection::slotNewVehicleStatus(
 }
 
 // called by rover to send new gnss status to basestation
-void BaseConnection::slotNewGnssStatus(const GnssStatus& gnssStatus)
+void BaseConnection::slotNewGnssStatus(const GnssStatus* gnssStatus)
 {
-/*    qDebug() << t() << "BaseConnection::slotNewGnssStatus(): -> base:"
-             << "gnssMode" << gnssMode
-             << "integrationMode" << integrationMode
-             << "info" << info
-             << "error" << error
-             << "numsats" << numSatellitesTracked
-             << "lastPvtAge" << lastPvtAge
-             << "meanCorrAge" << meanCorrAge
-             << "status" << status;
-*/
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
     stream << QString("gnssstatus");
-    stream << gnssStatus;
+    stream << (*gnssStatus);
     slotSendData(data, false);
 }
 
-void BaseConnection::slotFlightStateChanged(FlightState flightState)
-{
-    QByteArray data;
-    QDataStream stream(&data, QIODevice::WriteOnly);
-
-    stream << QString("flightstate");
-    const quint8 fs = (quint8)flightState.state;
-    stream << fs;
-    slotSendData(data, false);
-}
-
-void BaseConnection::slotNewFlightControllerValues(const FlightControllerValues& fcv)
+void BaseConnection::slotNewFlightControllerValues(const FlightControllerValues* fcv)
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
     stream << QString("flightcontrollervalues");
-    stream << fcv;
+    stream << (*fcv);
 
     slotSendData(data, false);
 }

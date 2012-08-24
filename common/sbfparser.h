@@ -282,7 +282,7 @@ signals:
 
     // log/status messages
     void message(const LogImportance& importance, const QString&, const QString& message);
-    void status(const GnssStatus&);
+    void status(const GnssStatus*);
 
     // The SbfParser wants to send a command to the receiver (e.g. for investigating an error)
     void receiverCommand(const QString&);

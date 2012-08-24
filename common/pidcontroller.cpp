@@ -1,7 +1,7 @@
 #include "pidcontroller.h"
 
-PidController::PidController(const QString& name, const float p, const float i, const float d) :
-    mName(name),
+PidController::PidController(/*const QString& name, */const float p, const float i, const float d) :
+//    mName(name),
     mP(p),
     mI(i),
     mD(d)
@@ -43,10 +43,10 @@ float PidController::computeOutput(const float input)
     // "amplify" smaller numbers to survive becoming integers :)
     mLastOutput = mLastOutput > 0.0f ? ceil(mLastOutput) : floor(mLastOutput);
 
+    qDebug() << toString();
+
     mPreviousError = mLastError;
     mFirstControllerRun = false;
-
-    qDebug() << toString();
 
     mTimeOfLastUpdate = QTime::currentTime();
 
@@ -55,8 +55,8 @@ float PidController::computeOutput(const float input)
 
 QString PidController::toString() const
 {
-    return QString ("controller %1: p%2 i%3 d%4, firstrun: %5, time %6, value %7, should %8, prev-error %9, error %10, deriv %11, integ %12, output %13")
-            .arg(mName)
+    return QString ("controller p%1 i%2 d%3, firstrun: %4, time %5, value %6, should %7, prev-error %8, error %9, deriv %10, integ %11, output %12")
+//            .arg(mName)
             .arg(mP, 3, 'f', 2).arg(mI, 3, 'f', 2).arg(mD, 3, 'f', 2)
             .arg(mFirstControllerRun)
             .arg(mLastTimeDiff, 3, 'f', 2)
@@ -73,4 +73,20 @@ QDebug operator<<(QDebug dbg, const PidController &pc)
 {
     dbg << pc.toString();
     return dbg;
+}
+
+void PidController::setWeights(QMap<QString,float> controllerWeights)
+{
+    mP = controllerWeights["p"];
+    mI = controllerWeights["i"];
+    mD = controllerWeights["d"];
+}
+
+const float PidController::getWeight(const QString& weight) const
+{
+    if(weight.toLower() == "p") return mP;
+    if(weight.toLower() == "i") return mI;
+    if(weight.toLower() == "d") return mD;
+
+    return 0.0f;
 }

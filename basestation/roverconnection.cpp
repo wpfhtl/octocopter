@@ -205,12 +205,12 @@ void RoverConnection::processPacket(QByteArray data)
 
         emit flightControllerValues(fcv);
     }
-    else if(packetType == "flightstate")
+/*    else if(packetType == "flightstate")
     {
         FlightState flightState;
         stream >> flightState;
         emit flightStateChanged(flightState);
-    }
+    }*/
     else
     {
         qDebug() << "RoverConnection::processPacket(): unknown packetType" << packetType;
@@ -298,18 +298,37 @@ void RoverConnection::slotRoverWayPointDelete(const quint16& index)
     slotSendData(data);
 }
 
-void RoverConnection::slotSendRtkDataToRover(const QByteArray& rtkData)
+void RoverConnection::slotSendControllerWeights(QString name, QMap<QString,float> weights)
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
-    stream << QString("rtkdata");
-    stream << rtkData;
+    qDebug() << "RoverConnection::slotSendControllerWeights(): sending controller" << name << "weights" << weights;
+
+    stream << QString("controllerweights");
+    stream << name;
+    stream << weights;
 
     emit message(
                 Information,
                 QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                QString("sending %1 bytes of rtk data to rover").arg(rtkData.size()));
+                QString("Sending new controller weights for controller %1").arg(name));
+
+    slotSendData(data);
+}
+
+void RoverConnection::slotSendDiffCorrToRover(const QByteArray& diffcorr)
+{
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    stream << QString("diffcorr");
+    stream << diffcorr;
+
+    emit message(
+                Information,
+                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
+                QString("sending %1 bytes of diffcorr to rover").arg(diffcorr.size()));
 
     slotSendData(data);
 }

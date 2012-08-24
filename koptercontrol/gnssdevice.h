@@ -37,7 +37,7 @@ private:
     SbfParser* mSbfParser;
 
     bool mWaitingForCommandReply; // true when we're waiting for a reply from septentrio board (on usb port).
-    unsigned int mRtkDataCounter;
+    unsigned int mDiffCorrDataCounter;
     QByteArray mLastCommandToDeviceUsb;
     AbstractSerial *mSerialPortUsb, *mSerialPortCom;
     bool mDeviceIsReadyToReceiveDiffCorr; // so we only feed it rtk data when the device is ready for it.
@@ -72,7 +72,7 @@ private slots:
     void slotSetSystemTime(const qint32& tow);
 
 public slots:
-    void slotSetRtkData(const QByteArray &data);
+    void slotSetDifferentialCorrections(const QByteArray &data);
     void slotShutDown(); // just calls communicationStop. To be called from the main program's signal handler.
 
 signals:
