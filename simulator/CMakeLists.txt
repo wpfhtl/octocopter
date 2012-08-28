@@ -29,6 +29,7 @@ battery
 ../common/pidcontroller
 ../common/flightcontrollervalues
 ../common/gnssstatus
+../common/vehiclestatus
 ../common/gnsstime
 ../common/pose
 ../common/motioncommand
@@ -59,6 +60,7 @@ battery.h
 ../common/pidcontroller.h
 ../common/flightcontrollervalues.h
 ../common/gnssstatus.h
+../common/vehiclestatus.h
 ../common/gnsstime.h
 ../common/pose.h
 ../common/motioncommand.h

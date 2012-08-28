@@ -37,7 +37,7 @@ public:
     FlightController(const QString& logFilePrefix = QString());
     ~FlightController();
 
-    Pose getLastKnownPose(void) const { return mFlightControllerValues.lastKnownPose; }
+    const Pose* const getLastKnownPose(void) const { return &mFlightControllerValues.lastKnownPose; }
 
     QList<WayPoint> getWayPoints() { return mWayPoints; }
 
@@ -45,7 +45,7 @@ public:
 
 private:
     QFile* mLogFile;
-    QDataStream* mLogStream;
+//    QDataStream* mLogStream;
 
     FlightControllerValues mFlightControllerValues;
 
@@ -105,10 +105,10 @@ private slots:
 
 signals:
     // used to set the motor-speeds
-    void motion(const MotionCommand&);
+    void motion(const MotionCommand* const mc);
 
     // used for debugging
-    void flightControllerValues(const FlightControllerValues*);
+    void flightControllerValues(const FlightControllerValues* const);
 
     // emitted when a waypoint is reached
     void wayPointReached(const WayPoint&);
@@ -118,23 +118,26 @@ signals:
     void wayPointInserted(quint16 index, const WayPoint& wayPoint);
 
     // emitted when the flightState changed
-    void flightStateChanged(FlightState);
+    void flightStateChanged(const FlightState* const fs);
 
-    void currentWayPoints(QList<WayPoint>);
+    // The weights themselves are part of FlightControllerValues
+    void flightControllerWeightsChanged();
+
+    void currentWayPoints(const QList<WayPoint>* const wpt);
 
     // log/status messages
     void message(const LogImportance& importance, const QString&, const QString& message);
 
 public slots:
     void slotSetPause(bool pause) {if(pause) mBackupTimerComputeMotion->stop(); else mBackupTimerComputeMotion->start();}
-    void slotNewVehiclePose(const Pose&);
+    void slotNewVehiclePose(const Pose *const);
     void slotWayPointInsert(const quint16& index, const WayPoint& wayPoint);
     void slotWayPointDelete(const quint16& index);
     void slotSetWayPoints(const QList<WayPoint>&);
 
     void slotEmitFlightControllerInfo();
 
-    void slotSetControllerWeights(QString controllerName, QMap<QString,float> controllerWeights);
+    void slotSetControllerWeights(const QString *const controllerName, const QMap<QString, float> *const controllerWeights);
 
     // The IMU is not mounted perfectly straight on the helicopter. Even if it was, the helicopter is a bent mess by now.
     // This means that reading IMU values and then setting the kopter's pitch/roll from there leads to big drifting. To
@@ -143,7 +146,7 @@ public slots:
     void slotCalibrateImu();
 
     // This signal comes from Kopter (the MK's serial connection), and we use it only to derive the flightstate from the RemoteControl's flightstate-switch
-    void slotFlightStateSwitchValueChanged(const FlightStateSwitch& fssv);
+    void slotFlightStateSwitchValueChanged(const FlightStateSwitch *const fssv);
 
     // Called regularly by our parent, we compute the motion commands then and emit motion(...).
     void slotComputeMotionCommands();

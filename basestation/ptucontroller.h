@@ -51,7 +51,7 @@ private:
     double mPanToVehicle;
     double mTiltToVehicle;
 
-    Pose mLastKnownVehiclePose;
+    const Pose* mLastKnownVehiclePose;
     Pose mPreviousKnownVehiclePose;
     QVector3D mPositionCameraSensor;
     QVector3D mPositionInFrustumCenter;
@@ -83,7 +83,7 @@ private slots:
     void slotCalculateBasePose();
 
 public slots:
-    void slotVehiclePoseChanged(const Pose& pose);
+    void slotVehiclePoseChanged(const Pose *const pose);
     void slotSetSpeed(Axis axis, quint16 speed);
     void slotVisualize();
 

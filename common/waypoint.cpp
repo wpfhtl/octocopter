@@ -54,10 +54,10 @@ QVector2D WayPoint::getPositionOnPlane() const
     return QVector2D(x(), z());
 }
 
-QString WayPoint::hash(QList<WayPoint> list)
+QString WayPoint::hash(const QList<WayPoint>* const list)
 {
     QCryptographicHash hash(QCryptographicHash::Md4);
-    foreach(const WayPoint v, list)
+    foreach(const WayPoint v, *list)
     {
         hash.addData(QByteArray::number(v.x()));
         hash.addData(QByteArray::number(v.y()));

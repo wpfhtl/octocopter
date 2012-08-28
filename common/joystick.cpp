@@ -1,5 +1,4 @@
 #include "joystick.h"
-#include "motioncommand.h"
 
 Joystick::Joystick() : QObject()
 {
@@ -194,13 +193,12 @@ void Joystick::slotEmitMotionCommands()
 //             << "roll" << (((float)-x)/32768.0) * 127.0
 //             << "yaw" << (((float)-z)/32768.0) * 127.0;
 
-    MotionCommand mc;
-    mc.thrust = ((((float)-r)/32768.0) + 1.0) * 128.0; // thrust 0-255
-    mc.yaw = (((float)-z)/32768.0) * 127.0; // qint8 yaw   -127-+127
-    mc.pitch = (((float)y)/32768.0) * 127.0 * 0.8; // qint8 pitch -127-+127
-    mc.roll = (((float)-x)/32768.0) * 127.0 * 0.8; // qint8 roll  -127-+127
+    mMotionCommand.thrust = ((((float)-r)/32768.0) + 1.0) * 128.0; // thrust 0-255
+    mMotionCommand.yaw = (((float)-z)/32768.0) * 127.0; // qint8 yaw   -127-+127
+    mMotionCommand.pitch = (((float)y)/32768.0) * 127.0 * 0.8; // qint8 pitch -127-+127
+    mMotionCommand.roll = (((float)-x)/32768.0) * 127.0 * 0.8; // qint8 roll  -127-+127
 
-    emit motion(mc);
+    emit motion(&mMotionCommand);
 }
 
 bool Joystick::isButtonPressed(const unsigned short number)

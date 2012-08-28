@@ -48,6 +48,7 @@ private:
     QList<Pose> mPoses;
 
     QVector<QVector3D> mRegisteredPoints;
+    QVector3D mLastScanPosition;
 
     /*
       These two containers store a timestamp of a scan and a pointer to its scandata.
@@ -106,7 +107,7 @@ private:
 
 public slots:
     // The pose also contains a timestamp (receiver-time) of when that pose was recorded.
-    void slotNewVehiclePose(const Pose& pose);
+    void slotNewVehiclePose(const Pose *const pose);
 
     // When a laserscan is finished, the lidar changes the electrical level on the
     // event-pin of the gps-receiver-board, which then notifies the PC together with
@@ -117,7 +118,8 @@ public slots:
     void slotNewScanData(const qint32& timestampScanner, std::vector<long> * const distances);
 
 signals:
-    void newScannedPoints(const QVector<QVector3D>*, const QVector3D& scanPosition);
+    // Emits a pointer to a vector of registered points. The data is always owned by SensorFuser!
+    void newScannedPoints(const QVector<QVector3D>*, const QVector3D* const scanPosition);
 };
 
 #endif // SENSORFUSER_H

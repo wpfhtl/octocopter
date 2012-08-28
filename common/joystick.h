@@ -15,7 +15,7 @@
 
 #include "common.h"
 
-class MotionCommand;
+#include <motioncommand.h>
 
 #define MAX_DEVICE_NUM 4
 
@@ -40,6 +40,7 @@ private:
     QString deviceFile;
     QString mJoystickName;
     char* mButtons;
+    MotionCommand mMotionCommand;
 
 
 private slots:
@@ -50,7 +51,7 @@ signals:
     void buttonStateChanged(quint8 buttonNumber, bool pressed);
 
     // used to set the motor-speeds
-    void motion(const MotionCommand& mc);
+    void motion(const MotionCommand* const mc);
 
 public:
     Joystick();

@@ -468,12 +468,12 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         // Here we emit the gathered pose. Depending on the pose's time and its quality, we emit it for different consumers
 
         // Emitted at full rate, any precision
-        emit newVehiclePose(mLastPose);
+        emit newVehiclePose(&mLastPose);
 
         // Emitted slowly (2Hz), any precision
 	// Update: Need higher rate for PTU-tracking (10Hz)
         if(mLastPose.timestamp % 100 == 0)
-            emit newVehiclePoseStatus(mLastPose);
+            emit newVehiclePoseStatus(&mLastPose);
 
         // Only emit a precise pose if the values are not set to the do-not-use values.
         if(
@@ -486,9 +486,9 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
             // Emit only integrated poses for flight control, this will automatically reduce
             // the rate to 10Hz, which the flightcontrol-board should be able to handle.
             if(precisionFlags & Pose::ModeIntegrated)
-                emit newVehiclePoseFlightController(mLastPose);
+                emit newVehiclePoseFlightController(&mLastPose);
 
-            emit newVehiclePoseSensorFuser(mLastPose);
+            emit newVehiclePoseSensorFuser(&mLastPose);
 
             // Tell others whether we're working well.
             if(!mGnssDeviceWorkingPrecisely && precisionFlags & Pose::AttitudeAvailable && precisionFlags & Pose::HeadingFixed && precisionFlags & Pose::RtkFixed && precisionFlags & Pose::CorrectionAgeLow)

@@ -153,7 +153,7 @@ void FlightPlannerParticles::slotWayPointReached(const WayPoint wpt)
     //    slotCreateSafePathToNextWayPoint();
 }
 
-void FlightPlannerParticles::slotVehiclePoseChanged(const Pose& pose)
+void FlightPlannerParticles::slotVehiclePoseChanged(const Pose* const pose)
 {
     FlightPlannerInterface::slotVehiclePoseChanged(pose);
 

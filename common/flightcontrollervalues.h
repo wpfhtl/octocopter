@@ -15,7 +15,8 @@ class FlightControllerValues
 public:
     FlightControllerValues();
 
-    QMap<QString, PidController> pidControllers;
+    qint32 timestamp;
+    PidController controllerThrust, controllerYaw, controllerPitch, controllerRoll;
     MotionCommand motionCommand;
     FlightState flightState;
     QVector3D targetPosition;

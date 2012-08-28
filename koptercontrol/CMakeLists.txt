@@ -67,6 +67,7 @@ messagehandler
 ../common/lidarpoint
 ../common/baseconnection
 ../common/gnssstatus
+../common/vehiclestatus
 gnssdevice
 laserscanner
 )
@@ -92,6 +93,7 @@ messagehandler.h
 ../common/lidarpoint.h
 ../common/baseconnection.h
 ../common/gnssstatus.h
+../common/vehiclestatus.h
 gnssdevice.h
 laserscanner.h
 )

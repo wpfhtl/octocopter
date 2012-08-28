@@ -32,7 +32,7 @@ public:
 public slots:
     void slotSetButtonStartEnabled(bool);
     void slotSetButtonPauseEnabled(bool);
-    void slotUpdatePose(const Pose &pose);
+    void slotUpdatePose(const Pose *const pose);
 
 private slots:
     void slotUpdateBattery(const int chargeStateInPercent);

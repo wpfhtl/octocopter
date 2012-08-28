@@ -49,6 +49,7 @@ SET(SRC_FILES
     ../common/plotwidget
     ../common/gnssstatus
     ../common/wirelessdevice
+    ../common/vehiclestatus
     particlesystem
     particlesystem_cuda.cu
     particlerenderer
@@ -104,6 +105,7 @@ SET(INC_FILES
     ../common/plotwidget.h
     ../common/gnssstatus.h
     ../common/wirelessdevice.h
+    ../common/vehiclestatus.h
     particlesystem.h
     particlesystem_cuda.cuh
     particlerenderer.h

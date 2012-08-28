@@ -6,7 +6,7 @@
 #include <QString>
 #include <QMap>
 
-#include <pidcontroller.h>
+#include <flightcontrollervalues.h>
 
 namespace Ui {
 class PidControllerWidget;
@@ -21,22 +21,26 @@ public:
     ~PidControllerWidget();
 
     QWidget* mParent;
-    QMap<QString, PidController> mControllers;
+    QMap<QString, const PidController*> mControllers;
 
-    void setWeights(QMap<QString, PidController> controllers);
+    void setControllers(const FlightControllerValues *const fcv);
 
     bool isPopulated() const {return mPopulated;}
 
 signals:
+    // signals that a weight for a single controller was changed. Transmits all the weights.
     void controllerWeight(QString, QMap<QString, float>);
     
 private:
     Ui::PidControllerWidget *ui;
     bool mPopulated;
-    void buildTable();
 
 private slots:
     void slotWeightChanged(int row, int column);
+
+public slots:
+    void slotRebuild();
+//    void slotClear() {mPopulated = false;}
 };
 
 #endif

@@ -41,6 +41,7 @@ private:
     QList<Ogre::SceneNode*> mEngineNodes;
     float mTotalVehicleWeight;
     QVector<btVector3> mVectorWind;
+    Pose mVehiclePose;
 
     // for the pitch/roll-low-level-controller
     float mErrorIntegralPitch, mErrorIntegralRoll;
@@ -79,18 +80,18 @@ public:
     QVector3D getVehicleLinearVelocity() const;
     QVector3D getVehicleAngularVelocity() const;
     float getHeightAboveGround();
-    const Pose getVehiclePose() {return mVehicleState->getPose();}
+    const Pose* const getVehiclePose() {return &mVehiclePose;}
 
     FlightController* mFlightController;
 
 signals:
-    void newVehiclePose(const Pose&);
+    void newVehiclePose(const Pose* const);
     void windInitialized(const bool&);
 
 public slots:
 //    void start(void);
 //    void stop(void);
-    void slotSetMotion(const MotionCommand& mc);
+    void slotSetMotion(const MotionCommand *const mc);
     void slotSetWindSetting(const bool& enable, const float& factor);
     void slotSetTotalVehicleWeight(const float&);
     void slotUpdatePhysics(void);

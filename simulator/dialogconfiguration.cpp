@@ -53,7 +53,7 @@ void DialogConfiguration::slotWindDetailChanged()
 
 void DialogConfiguration::slotOkPressed()
 {
-    qDebug() << "SimulationControlWidget::slotOkPressed(): saving config";
+    qDebug() << "DialogConfiguration::slotOkPressed(): saving config";
     slotSaveConfiguration();
     hide();
 }
@@ -115,14 +115,14 @@ void DialogConfiguration::slotReadConfigurationLaserScanner()
     while(mTableWidgetLaserScanners->rowCount()) mTableWidgetLaserScanners->removeRow(0);
 
     const int numberOfLaserScanners = mSettings.beginReadArray("scanners");
-    qDebug() << "SimulationControlWidget::slotReadConfigurationLaserScanner(): number of scanners found" << numberOfLaserScanners;
+    qDebug() << "DialogConfiguration::slotReadConfigurationLaserScanner(): number of scanners found" << numberOfLaserScanners;
 
     for(int i = 0; i < numberOfLaserScanners; ++i)
     {
         mSettings.setArrayIndex(i);
         mTableWidgetLaserScanners->insertRow(i);
 
-        qDebug() << "SimulationControlWidget::slotReadConfigurationLaserScanner(): creating scanner" << i << "from configuration";
+        qDebug() << "DialogConfiguration::slotReadConfigurationLaserScanner(): creating scanner" << i << "from configuration";
 
         // By default, laserscanners are slooow
         LaserScanner* newLaserScanner = new LaserScanner(
@@ -151,7 +151,7 @@ void DialogConfiguration::slotReadConfigurationLaserScanner()
         Ogre::Quaternion roll(Ogre::Degree(mSettings.value("rotRoll", 0.0).toReal()), Ogre::Vector3::UNIT_Z);
         newLaserScanner->setOrientation(yaw * pitch * roll);
 
-        qDebug() << "SimulationControlWidget::slotReadConfigurationLaserScanner(): scanner" << i << "orientation YPR:"
+        qDebug() << "DialogConfiguration::slotReadConfigurationLaserScanner(): scanner" << i << "orientation YPR:"
                  << mSettings.value("rotYaw", 0.0).toReal()
                  << mSettings.value("rotPitch", 0.0).toReal()
                  << mSettings.value("rotRoll", 0.0).toReal();
@@ -160,7 +160,7 @@ void DialogConfiguration::slotReadConfigurationLaserScanner()
 
         laserScanners->append(newLaserScanner);
 
-        connect(newLaserScanner, SIGNAL(newLidarPoints(const QVector<QVector3D>*,QVector3D)), mSimulator->mBaseConnection, SLOT(slotNewScannedPoints(const QVector<QVector3D>*,QVector3D)));
+        connect(newLaserScanner, SIGNAL(newLidarPoints(const QVector<QVector3D>*const,QVector3D*const)), mSimulator->mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector3D>*const,QVector3D*const)));
         connect(newLaserScanner, SIGNAL(heightOverGround(float)), mSimulator->mFlightController, SLOT(slotSetHeightOverGround(float)));
 
         // Now create a row in the LaserScannerTable
@@ -238,7 +238,7 @@ void DialogConfiguration::slotReadConfigurationCamera()
         mSettings.setArrayIndex(i);
         mTableWidgetCameras->insertRow(i);
 
-        qDebug() << "SimulationControlWidget::slotReadConfigurationCamera(): creating camera" << i << "from configuration";
+        qDebug() << "DialogConfiguration::slotReadConfigurationCamera(): creating camera" << i << "from configuration";
 
         Camera* newCamera = new Camera(mSimulator, mOgreWidget, QSize(mSettings.value("width", 800).toInt(), mSettings.value("height", 600).toInt()), mSettings.value("fovy", 45).toFloat(), mSettings.value("interval", 2000).toInt());
 
@@ -437,7 +437,7 @@ void DialogConfiguration::slotLaserScannerAdd()
     mTableWidgetLaserScanners->setItem(row, 10,new QTableWidgetItem("0.25"));
     mTableWidgetLaserScanners->blockSignals(false);
 
-    connect(newLaserScanner, SIGNAL(newLidarPoints(const QVector<QVector3D>&, const QVector3D&)), mSimulator->mBaseConnection, SLOT(slotNewScannedPoints(const QVector<QVector3D>&, const QVector3D&)));
+    connect(newLaserScanner, SIGNAL(newLidarPoints(const QVector<QVector3D>*const,QVector3D)), mSimulator->mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector3D>*const,QVector3D*const)));
     connect(newLaserScanner, SIGNAL(heightOverGround(float)), mSimulator->mFlightController, SLOT(slotSetHeightOverGround(float)));
 
     newLaserScanner->start();

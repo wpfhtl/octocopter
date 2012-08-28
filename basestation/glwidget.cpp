@@ -4,10 +4,11 @@
 #include "octree.h"
 #include "glwidget.h"
 
-GlWidget::GlWidget(QWidget* parent, FlightPlannerInterface* flightPlanner) :
+GlWidget::GlWidget(QWidget* parent/*, FlightPlannerInterface* flightPlanner*/) :
     QGLWidget(parent),
-    mFlightPlanner(flightPlanner),
-    mLastFlightControllerValues(0)
+//    mFlightPlanner(flightPlanner),
+    mLastFlightControllerValues(0),
+    mLastKnownVehiclePose(0)
 {
     QGLFormat glFormat;
     glFormat.setSamples(4);
@@ -151,6 +152,10 @@ void GlWidget::initializeGL()
     mModelConePitch = new Model(QFile(modelPath.absolutePath() + "/media/cone-red.obj"), QString("../media/"), this);
     mModelConeRoll = new Model(QFile(modelPath.absolutePath() + "/media/cone-blue.obj"), QString("../media/"), this);
     mModelTarget = new Model(QFile(modelPath.absolutePath() + "/media/target.obj"), QString("../media/"), this);
+
+    mModelControllerP = new Model(QFile(modelPath.absolutePath() + "/media/controller-p.obj"), QString("../media/"), this);
+    mModelControllerI = new Model(QFile(modelPath.absolutePath() + "/media/controller-i.obj"), QString("../media/"), this);
+    mModelControllerD = new Model(QFile(modelPath.absolutePath() + "/media/controller-d.obj"), QString("../media/"), this);
 }
 
 void GlWidget::resizeGL(int w, int h)
@@ -181,15 +186,10 @@ void GlWidget::moveCamera(const QVector3D &pos)
 
 void GlWidget::paintGL()
 {
-    QTime renderTime;
-    renderTime.start();
-
     // Clear color buffer and depth buffer
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().getPosition();
-    const QVector3D camLookAt = mCamLookAtOffset + vehiclePosition;
-//    const QVector3D camLookAt = mCamLookAtOffset;
+    const QVector3D camLookAt = mCamLookAtOffset + (mLastKnownVehiclePose ? mLastKnownVehiclePose->getPosition() : QVector3D());
 
     QQuaternion cameraRotation =
             QQuaternion::fromAxisAndAngle(QVector3D(0.0f, 0.0f, 1.0f), rotZ)
@@ -282,14 +282,18 @@ void GlWidget::paintGL()
                 glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0); // positions
                 glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, (void*)(12 * sizeof(float) * 4)); // colors
                 glDrawArrays(GL_LINES, 0, 12);
+
                 // At the vehicle
-                mShaderProgramDefault->setUniformValue("useMatrixExtra", true);
-                mShaderProgramDefault->setUniformValue("matrixExtra", mLastKnownVehiclePose.getMatrixRef());
-                glDrawArrays(GL_LINES, 0, 12);
-                glDisableVertexAttribArray(0);
-                glDisableVertexAttribArray(1);
-                glBindBuffer(GL_ARRAY_BUFFER, 0);
-                mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
+                if(mLastKnownVehiclePose)
+                {
+                    mShaderProgramDefault->setUniformValue("useMatrixExtra", true);
+                    mShaderProgramDefault->setUniformValue("matrixExtra", mLastKnownVehiclePose->getMatrixConst());
+                    glDrawArrays(GL_LINES, 0, 12);
+                    glDisableVertexAttribArray(0);
+                    glDisableVertexAttribArray(1);
+                    glBindBuffer(GL_ARRAY_BUFFER, 0);
+                    mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
+                }
             }
         }
         glDisable(GL_BLEND);
@@ -298,10 +302,13 @@ void GlWidget::paintGL()
 
     emit visualizeNow();
 
-    const QMatrix4x4& transformVehicle = mLastKnownVehiclePose.getMatrixConst();
+    QMatrix4x4 transformVehicle;
+
+    // At startup, a vehiclePose might not exist yet. If so, use the identty matrix
+    if(mLastKnownVehiclePose) transformVehicle = mLastKnownVehiclePose->getMatrixConst();
 
     // Only show controller input if its present and less than 500 ms old.
-    if(mLastFlightControllerValues && mLastKnownVehiclePose.timestamp - mLastFlightControllerValues->lastKnownPose.timestamp < 500)
+    if(mLastFlightControllerValues/* && mLastKnownVehiclePose->timestamp - mLastFlightControllerValues->lastKnownPose.timestamp < 500*/)
     {
 //        qDebug() << "now visualizing motioncommand from" << mLastFlightControllerValues->lastKnownPose.timestamp << mLastFlightControllerValues->motionCommand;
 
@@ -317,32 +324,52 @@ void GlWidget::paintGL()
             trYaw.translate(0, 0, -0.7);
             mModelConeYaw->slotSetModelTransform(trYaw);
             mModelConeYaw->render();
+
+            QMatrix4x4 trControllerYaw(transformVehicle);
+            trControllerYaw.rotate(mLastFlightControllerValues->motionCommand.yaw, QVector3D(0,1,0));
+            trControllerYaw.translate(0, 0, -0.7);
+//            renderController(trControllerYaw, &mLastFlightControllerValues->controllerYaw);
         }
 
         // Render controller pitch input
         if(fabs(mLastFlightControllerValues->motionCommand.pitch) > 0.01f)
         {
-            QMatrix4x4 trPitch(transformVehicle);
-            trPitch.translate(0, fabs(mLastFlightControllerValues->motionCommand.pitch) / 20.0f, 0);
-            if(mLastFlightControllerValues->motionCommand.pitch > 0)
-                trPitch.translate(0, 0, -0.7);
+//            QMatrix4x4 trPitch(transformVehicle);
+//            trPitch.translate(0, fabs(mLastFlightControllerValues->motionCommand.pitch) / 20.0f, 0);
+//            if(mLastFlightControllerValues->motionCommand.pitch > 0)
+//                trPitch.translate(0, 0, -0.7);
+//            else
+//                trPitch.translate(0, 0, 0.7);
+//            mModelConePitch->slotSetModelTransform(trPitch);
+//            mModelConePitch->render();
+
+            QMatrix4x4 trPitchController(transformVehicle);
+            if(mLastFlightControllerValues->motionCommand.pitch < 0)
+                trPitchController.translate(0, 0, -0.7);
             else
-                trPitch.translate(0, 0, 0.7);
-            mModelConePitch->slotSetModelTransform(trPitch);
-            mModelConePitch->render();
+                trPitchController.translate(0, 0, 0.7);
+            renderController(trPitchController, &mLastFlightControllerValues->controllerPitch);
         }
 
         // Render controller roll input
         if(fabs(mLastFlightControllerValues->motionCommand.roll) > 0.01f)
         {
-            QMatrix4x4 trRoll(transformVehicle);
-            trRoll.translate(0, fabs(mLastFlightControllerValues->motionCommand.roll) / 20.0f, 0);
+            QMatrix4x4 trRollCone(transformVehicle);
+            trRollCone.translate(0, fabs(mLastFlightControllerValues->motionCommand.roll) / 20.0f, 0);
             if(mLastFlightControllerValues->motionCommand.roll > 0)
-                trRoll.translate(0.7, 0, 0);
+                trRollCone.translate(0.7, 0, 0);
             else
-                trRoll.translate(-0.7, 0, 0);
-            mModelConeRoll->slotSetModelTransform(trRoll);
+                trRollCone.translate(-0.7, 0, 0);
+            mModelConeRoll->slotSetModelTransform(trRollCone);
             mModelConeRoll->render();
+
+            QMatrix4x4 trRollController(transformVehicle);
+            if(mLastFlightControllerValues->motionCommand.roll > 0)
+                trRollCone.translate(0.7, 0, 0);
+            else
+                trRollCone.translate(-0.7, 0, 0);
+
+//            renderController(trRollCone, &mLastFlightControllerValues->controllerRoll);
         }
 
         if(mLastFlightControllerValues->motionCommand.thrust != mLastFlightControllerValues->motionCommand.thrustHover)
@@ -375,31 +402,62 @@ void GlWidget::paintGL()
 
     mModelVehicle->slotSetModelTransform(transformVehicle);
     mModelVehicle->render();
-
-    //    qDebug() << "GlWidget::paintGL(): rendering time in milliseconds:" << renderTime.elapsed();
 }
 
-void GlWidget::slotNewVehiclePose(Pose pose)
+void GlWidget::renderController(QMatrix4x4 transform, const PidController* const controller)
+{
+    // Now render the controller-values
+    QMatrix4x4 trControllerP(transform);
+    trControllerP.translate(0.0f, 0.0f, controller->getWeightP()/8);
+    trControllerP.scale(
+                controller->getWeightP(),
+                controller->getLastOutputP(),
+                controller->getWeightP());
+
+    mModelControllerP->slotSetModelTransform(trControllerP);
+    mModelControllerP->render();
+
+    QMatrix4x4 trControllerI(transform);
+    trControllerI.translate(0.0f, 0.0f, controller->getWeightP()/4);
+    trControllerI.scale(
+                controller->getWeightI(),
+                controller->getLastOutputI(),
+                controller->getWeightI());
+
+    mModelControllerI->slotSetModelTransform(trControllerI);
+    mModelControllerI->render();
+
+    QMatrix4x4 trControllerD(transform);
+    trControllerD.translate(0.0f, 0.0f, controller->getWeightP()/4 + controller->getWeightI());
+    trControllerD.scale(
+                controller->getWeightD(),
+                controller->getLastOutputD(),
+                controller->getWeightD());
+
+    mModelControllerD->slotSetModelTransform(trControllerD);
+    mModelControllerD->render();
+}
+
+void GlWidget::slotNewVehiclePose(const Pose* const pose)
 {
     if(mVboVehiclePathBytesCurrent + mVboVehiclePathElementSize < mVboVehiclePathBytesMaximum)
     {
-        const QVector3D pos = pose.getPosition();
-        const QVector3D vel = (pos - mLastKnownVehiclePose.getPosition()) / ((mLastKnownVehiclePose.timestamp - pose.timestamp) / 1000.0f);
+        const QVector3D pos = pose->getPosition();
 
         QColor color;
         if(
-                pose.precision & Pose::RtkFixed &&
-                pose.precision & Pose::AttitudeAvailable &&
-                pose.precision & Pose::CorrectionAgeLow &&
-                pose.precision & Pose::HeadingFixed &&
-                pose.precision & Pose::ModeIntegrated
+                pose->precision & Pose::RtkFixed &&
+                pose->precision & Pose::AttitudeAvailable &&
+                pose->precision & Pose::CorrectionAgeLow &&
+                pose->precision & Pose::HeadingFixed &&
+                pose->precision & Pose::ModeIntegrated
                 )
             color.setRgb(0, 255, 0);
         else
             color.setRgb(255, 0, 0);
 
         // If the poses CV sucks, fade it.
-        if(pose.covariances > Pose::maximumUsableCovariance) color.setAlpha(128);
+        if(pose->covariances > Pose::maximumUsableCovariance) color.setAlpha(128);
 
         const float data[] = {pos.x(), pos.y(), pos.z(), color.redF(), color.greenF(), color.blueF(), color.alphaF()};
 
@@ -449,7 +507,7 @@ void GlWidget::mousePressEvent(QMouseEvent *event)
 {
     mLastMousePosition = event->pos();
 
-    emit mouseClickedAtWorldPos(event->button(), convertMouseToWorldPosition(event->pos()));
+//    emit mouseClickedAtWorldPos(event->button(), convertMouseToWorldPosition(event->pos()));
 }
 
 void GlWidget::mouseMoveEvent(QMouseEvent *event)
@@ -553,50 +611,6 @@ void GlWidget::slotSaveImage()
     renderPixmap(0, 0, true).save(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz").prepend("snapshot-").append(".png"));
 }
 
-QVector3D GlWidget::convertMouseToWorldPosition(const QPoint& point)
-{
-    return QVector3D();
-    GLint viewport[4];
-    GLdouble modelview[16];
-    GLdouble projection[16];
-    GLfloat winX, winY, winZ;
-    GLdouble posX, posY, posZ;
-
-    glLoadIdentity();
-    const QVector3D vehiclePosition = mFlightPlanner->getLastKnownVehiclePose().getPosition();
-    mCamLookAtOffset = vehiclePosition;
-    QVector3D min, max;
-    mFlightPlanner->getScanVolume(min, max);
-    mCamLookAtOffset = min + (max - min)/2.0;
-
-    gluLookAt(0.0, 500.0, 500.0,
-              mCamLookAtOffset.x(), mCamLookAtOffset.y(), mCamLookAtOffset.z(),
-              0.0, 1.0, 0.0);
-
-    glTranslatef(mCamLookAtOffset.x(), mCamLookAtOffset.y(), mCamLookAtOffset.z());
-
-    // Mouse Move Rotations
-    glRotatef(rotX,1.0,0.0,0.0);
-    glRotatef(rotY,0.0,1.0,0.0);
-    glRotatef(rotZ,0.0,0.0,1.0);
-
-    glTranslatef(-mCamLookAtOffset.x(), -mCamLookAtOffset.y(), -mCamLookAtOffset.z());
-
-    glGetDoublev( GL_MODELVIEW_MATRIX, modelview );
-    glGetDoublev( GL_PROJECTION_MATRIX, projection );
-    glGetIntegerv( GL_VIEWPORT, viewport );
-
-    winX = (float)point.x();
-    winY = (float)viewport[3] - (float)point.y();
-    glReadPixels( point.x(), int(winY), 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &winZ );
-
-    gluUnProject(winX, winY, winZ, modelview, projection, viewport, &posX, &posY, &posZ);
-
-    //    qDebug() << "world pos of mouse" << point.x() << point.y() << "is" << posX << posY << posZ;
-
-    return QVector3D(posX, posY, posZ);
-}
-
 void GlWidget::slotOctreeRegister(Octree* o)
 {
     mOctrees.append(o);
@@ -607,13 +621,9 @@ void GlWidget::slotOctreeUnregister(Octree* o)
     mOctrees.removeOne(o);
 }
 
-void GlWidget::slotSetFlightControllerValues(const FlightControllerValues& fcv)
+void GlWidget::slotSetFlightControllerValues(const FlightControllerValues* const fcv)
 {
-    if(mLastFlightControllerValues == 0)
-    {
-        mLastFlightControllerValues = new FlightControllerValues;
-    }
-
-    *mLastFlightControllerValues = fcv;
-    mLastFlightControllerValues->motionCommand = mLastFlightControllerValues->motionCommand.clampedToSafeLimits();
+    mLastFlightControllerValues = fcv;
+    mLastKnownVehiclePose = &fcv->lastKnownPose;
+    slotUpdateView();
 }

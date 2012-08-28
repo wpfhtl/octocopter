@@ -2,7 +2,6 @@
 
 FlightControllerValues::FlightControllerValues()
 {
-
 }
 
 // for streaming
@@ -15,7 +14,10 @@ QDataStream& operator<<(QDataStream &out, const FlightControllerValues &fcv)
             << fcv.lastKnownPose
             << fcv.lastKnownHeightOverGround
             << fcv.lastKnownHeightOverGroundTimestamp
-            << fcv.pidControllers;
+            << fcv.controllerThrust
+            << fcv.controllerYaw
+            << fcv.controllerPitch
+            << fcv.controllerRoll;
 
     return out;
 }
@@ -28,6 +30,9 @@ QDataStream& operator>>(QDataStream &in, FlightControllerValues& fcv)
     in >> fcv.lastKnownPose;
     in >> fcv.lastKnownHeightOverGround;
     in >> fcv.lastKnownHeightOverGroundTimestamp;
-    in >> fcv.pidControllers;
+    in >> fcv.controllerThrust;
+    in >> fcv.controllerYaw;
+    in >> fcv.controllerPitch;
+    in >> fcv.controllerRoll;
     return in;
 }

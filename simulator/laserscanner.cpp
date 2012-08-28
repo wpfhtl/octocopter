@@ -251,9 +251,11 @@ void LaserScanner::slotDoScan()
 
         //    qDebug() << "LaserScanner::doScan(): emitting" << scanContainer.size() << "points.";
 
+        mScannerPositionQt = QVector3D(mScannerPosition.x, mScannerPosition.y, mScannerPosition.z);
+
         emit newLidarPoints(
                     &mRegisteredPoints,
-                    QVector3D(mScannerPosition.x, mScannerPosition.y, mScannerPosition.z)
+                    &mScannerPositionQt
                     );
     }
 

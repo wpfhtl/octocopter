@@ -100,12 +100,10 @@ void RoverConnection::processPacket(QByteArray data)
 
     if(packetType == "lidarpoints")
     {
-        QVector3D scannerPosition;
-        QVector<QVector3D> points;
-        stream >> points;
-        stream >> scannerPosition;
+        stream >> mRegisteredPoints;
+        stream >> mScannerPosition;
 
-        emit scanData(points, scannerPosition);
+        emit scanData(&mRegisteredPoints, &mScannerPosition);
     }
     else if(packetType == "image")
     {
@@ -123,17 +121,13 @@ void RoverConnection::processPacket(QByteArray data)
     }
     else if(packetType == "vehiclestatus")
     {
-        quint32 missionRunTime;
-        float batteryVoltage;
-        qint16 barometricHeight;
-        qint8 wirelessRssi;
+        stream >> mVehicleStatus;
 
-        stream >> missionRunTime;
-        stream >> barometricHeight;
-        stream >> batteryVoltage;
-        stream >> wirelessRssi;
-
-        emit vehicleStatus(missionRunTime, batteryVoltage, barometricHeight, wirelessRssi);
+        emit vehicleStatus(&mVehicleStatus);
+    }
+    else if(packetType == "flightcontrollerweightschanged")
+    {
+        emit flightControllerWeightsChanged();
     }
     else if(packetType == "gnssstatus")
     {
@@ -146,14 +140,13 @@ void RoverConnection::processPacket(QByteArray data)
                     QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                     gs.toString());
 
-        emit gnssStatus(gs);
+        emit gnssStatus(&gs);
     }
-    else if(packetType == "posechanged")
+    else if(packetType == "pose")
     {
-        Pose p;
-        stream >> p;
+        stream >> mPose;
 
-        emit vehiclePose(p);
+        emit vehiclePose(&mPose);
     }
     else if(packetType == "currentwaypointshash")
     {
@@ -197,20 +190,18 @@ void RoverConnection::processPacket(QByteArray data)
 
         emit message((LogImportance)importance, source, text);
     }
+    else if(packetType == "flightstate")
+    {
+        stream >> mFlightState;
+
+        emit flightState(&mFlightState);
+    }
     else if(packetType == "flightcontrollervalues")
     {
-        FlightControllerValues fcv;
+        stream >> mFlightControllerValues;
 
-        stream >> fcv;
-
-        emit flightControllerValues(fcv);
+        emit flightControllerValues(&mFlightControllerValues);
     }
-/*    else if(packetType == "flightstate")
-    {
-        FlightState flightState;
-        stream >> flightState;
-        emit flightStateChanged(flightState);
-    }*/
     else
     {
         qDebug() << "RoverConnection::processPacket(): unknown packetType" << packetType;
@@ -223,14 +214,14 @@ void RoverConnection::processPacket(QByteArray data)
     }
 }
 
-void RoverConnection::slotSendMotionToKopter(const MotionCommand &mc)
+void RoverConnection::slotSendMotionToKopter(const MotionCommand* const mc)
 {
-    qDebug() << "RoverConnection::processPacket(): slotSendMotionToKopter:" << mc.toString();
+    qDebug() << "RoverConnection::processPacket(): slotSendMotionToKopter:" << mc->toString();
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
     stream << QString("motioncommand");
-    stream << mc;
+    stream << *mc;
 
     /*emit message(
                 Information,

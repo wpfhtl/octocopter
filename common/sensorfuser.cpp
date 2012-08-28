@@ -284,7 +284,8 @@ void SensorFuser::transformScanDataCubic()
                 mPointCloudSize++;
             }
 
-            emit newScannedPoints(&mRegisteredPoints, posesForThisScan[2]->getPosition());
+            mLastScanPosition = posesForThisScan[2]->getPosition();
+            emit newScannedPoints(&mRegisteredPoints, &mLastScanPosition);
 
             // This scan has been processed. Delete it.
             delete iteratorSavedScans.value();
@@ -436,7 +437,9 @@ void SensorFuser::transformScanDataNearestNeighbor()
 
 //            qDebug() << "Fusing single scan took" << profiler.elapsed() << "milliseconds";
 
-            emit newScannedPoints(&mRegisteredPoints, poseForThisScan->getPosition());
+            mLastScanPosition = poseForThisScan->getPosition();
+
+            emit newScannedPoints(&mRegisteredPoints, &mLastScanPosition);
 
             // This scan has been processed. Delete it.
             delete iteratorSavedScans.value();
@@ -610,15 +613,15 @@ void SensorFuser::setLaserScannerRelativePose(const Pose& pose)
     mLaserScannerRelativePose.covariances = 0.0f;
 }
 
-void SensorFuser::slotNewVehiclePose(const Pose& pose)
+void SensorFuser::slotNewVehiclePose(const Pose* const pose)
 {
     if(!(
-            pose.precision & Pose::AttitudeAvailable &&
-            pose.precision & Pose::RtkFixed &&
-            pose.precision & Pose::CorrectionAgeLow &&
-            pose.precision & Pose::HeadingFixed &&
-            //pose.precision & Pose::ModeIntegrated &&
-            pose.covariances < Pose::maximumUsableCovariance
+            pose->precision & Pose::AttitudeAvailable &&
+            pose->precision & Pose::RtkFixed &&
+            pose->precision & Pose::CorrectionAgeLow &&
+            pose->precision & Pose::HeadingFixed &&
+            //pose->precision & Pose::ModeIntegrated &&
+            pose->covariances < Pose::maximumUsableCovariance
             ))
     {
 //        qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received pose is not precise enough for fusing, ignoring it";
@@ -628,11 +631,11 @@ void SensorFuser::slotNewVehiclePose(const Pose& pose)
 //    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a " << pose;
 
     // Append pose to our list
-    mPoses.append(pose * mLaserScannerRelativePose);
+    mPoses.append((*pose) * mLaserScannerRelativePose);
 
     //qDebug() << "SensorFuser::slotNewVehiclePose(): vehicle" << pose << "relative scanner" << mLaserScannerRelativePose << "result" << mPoses.last();
 
-    mNewestDataTime = std::max(mNewestDataTime, pose.timestamp);
+    mNewestDataTime = std::max(mNewestDataTime, pose->timestamp);
 
     cleanUnusableData();
 

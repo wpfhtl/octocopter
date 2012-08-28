@@ -79,7 +79,7 @@ public slots:
     void slotWayPointReached(const WayPoint);
 
     // Overridden from base to move vehicle physics object and check for collisions
-    void slotVehiclePoseChanged(const Pose& pose);
+    void slotVehiclePoseChanged(const Pose *const pose);
 
     void slotVisualize();
 

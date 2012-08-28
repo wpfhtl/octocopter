@@ -96,11 +96,11 @@ void Kopter::send(const KopterMessage& message)
     slotFlushMessageQueue();
 }
 
-void Kopter::slotSetMotion(const MotionCommand& mc)
+void Kopter::slotSetMotion(const MotionCommand* const mc)
 {
     if(!mMissionStartTime.isValid()) mMissionStartTime = QTime::currentTime();
 
-    const MotionCommand motionClamped = mc.clampedToSafeLimits();
+    const MotionCommand motionClamped = mc->clampedToSafeLimits();
 
     qDebug() << "Kopter::slotSetMotion(): setting clamped motion, frame:" << mStructExternControl.Frame << "thrust:" << motionClamped.thrust << "yaw:" << motionClamped.yaw << "pitch:" << motionClamped.pitch << "roll:" << motionClamped.roll;
 
@@ -265,11 +265,11 @@ void Kopter::slotSerialPortDataReady()
                 const QByteArray payload = message.getPayload();
                 const DebugOut* debugOut = (DebugOut*)payload.data();
 
-                emit kopterStatus(
-                            mMissionStartTime.isValid() ? (quint32)mMissionStartTime.msecsTo(QTime::currentTime()) : 0,
-                            debugOut->Analog[5],
-                            (float)(debugOut->Analog[9])/10.0
-                            );
+                mVehicleStatus.missionRunTime = mMissionStartTime.isValid() ? (quint32)mMissionStartTime.msecsTo(QTime::currentTime()) : 0;
+                mVehicleStatus.barometricHeight = debugOut->Analog[5];
+                mVehicleStatus.batteryVoltage = (float)(debugOut->Analog[9])/10.0;
+
+                emit vehicleStatus(&mVehicleStatus);
             }
             else if(message.getId() == 'P')
             {
@@ -299,7 +299,7 @@ void Kopter::slotSerialPortDataReady()
                 {
                     mLastFlightStateSwitch = fssv;
                     qDebug() << "Kopter::slotSerialPortDataReady(): flighstate switch changed to" << fssv.toString();
-                    emit flightStateSwitchValueChanged(mLastFlightStateSwitch);
+                    emit flightStateSwitchValueChanged(&mLastFlightStateSwitch);
                 }
 
                 if(ppmChannels->calibration > 0 != (mLastCalibrationSwitchValue == CalibrationSwitchHigh) && mLastCalibrationSwitchValue != CalibrationSwitchUndefined)

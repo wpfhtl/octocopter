@@ -87,7 +87,9 @@ public:
     const QVector3D getPosition() const;
     const QQuaternion getOrientation() const;
 
-    static Pose extrapolateLinear(const Pose &first, const Pose &before, const quint32 &timeAfter);
+//    static Pose extrapolateLinear(const Pose &first, const Pose &second, const quint32 &timeAfter);
+
+    static Pose extrapolateLinear(const Pose &p1, const Pose &p2, const qint32 &timeInFuture);
 
     static Pose interpolateLinear(const Pose &before, const Pose &after, const float &mu);
 

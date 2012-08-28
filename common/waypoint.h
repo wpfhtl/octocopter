@@ -26,7 +26,7 @@ public:
 
     WayPoint &operator=(const WayPoint& other);
 
-    static QString hash(QList<WayPoint> list);
+    static QString hash(const QList<WayPoint> *const list);
     QVector2D getPositionOnPlane() const;
 };
 

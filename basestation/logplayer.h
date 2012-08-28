@@ -8,9 +8,11 @@
 #include <QString>
 #include <QByteArray>
 
-#include "sbfparser.h"
-#include "flightcontrollervalues.h"
-#include "sensorfuser.h"
+#include <sbfparser.h>
+#include <gnssstatus.h>
+#include <vehiclestatus.h>
+#include <flightcontrollervalues.h>
+#include <sensorfuser.h>
 
 namespace Ui {
     class LogPlayer;
@@ -57,8 +59,16 @@ private:
 
     qint32 getLastTowSbf();
 
-
     void processPacket(const LogPlayer::DataSource& source, const QByteArray& packetLaser);
+
+    // This class keeps instances of objects that are updated from the logfiles. After they are,
+    // we simply emit pointers to this data.
+    GnssStatus mGnssStatus;
+    FlightControllerValues mFlightControllerValues;
+    Pose mPose; // is also within FlightControllerValues!?
+    QVector<QVector3D> mRegisteredPoints;
+    QVector3D mScannerPosition;
+    VehicleStatus mVehicleStatus;
 
 private slots:
     void slotLaserScannerRelativePoseChanged();
@@ -72,14 +82,11 @@ private slots:
 signals:
     void message(const LogImportance& importance, const QString& source, const QString& message);
 
-    void vehiclePose(Pose);
-    //void vehiclePoseLowFreq(Pose);
-    void flightState(FlightState);
-    void scanData(QVector<QVector3D>,QVector3D);
-    void vehicleStatus(quint32,float,qint16,qint8);
-    void gnssStatus(GnssStatus);
-
-    void flightControllerValues(const FlightControllerValues&);
+    void vehiclePose(const Pose* const);
+    void scanData(const QVector<QVector3D>* const, const QVector3D* const);
+    void vehicleStatus(const VehicleStatus* const);
+    void gnssStatus(const GnssStatus* const);
+    void flightControllerValues(const FlightControllerValues* const);
 };
 
 #endif // LOGPLAYER_H

@@ -46,18 +46,21 @@ Simulator::Simulator(void) :
     mUpdateTimer = new QTimer(this);
     connect(mUpdateTimer, SIGNAL(timeout()), SLOT(slotUpdate()));
 
-    mFlightController = new FlightController;
+    // Make it create logfiles!
+    mFlightController = new FlightController(QString("simulator-%1-").arg(QDateTime::currentDateTime().toString("yyyy-MM-dd-HHmmsszzz")));
 
     mBaseConnection = new BaseConnection("eth0");
     connect(mBaseConnection, SIGNAL(wayPointInsert(quint16,WayPoint)), mFlightController, SLOT(slotWayPointInsert(quint16,WayPoint)));
     connect(mBaseConnection, SIGNAL(wayPointDelete(quint16)), mFlightController, SLOT(slotWayPointDelete(quint16)));
     connect(mBaseConnection, SIGNAL(wayPoints(QList<WayPoint>)), mFlightController, SLOT(slotSetWayPoints(QList<WayPoint>)));
-    connect(mBaseConnection, SIGNAL(controllerWeights(QString,QMap<QString,float>)), mFlightController, SLOT(slotSetControllerWeights(QString,QMap<QString,float>)));
+    connect(mBaseConnection, SIGNAL(controllerWeights(const QString* const,const QMap<QString,float>* const)), mFlightController, SLOT(slotSetControllerWeights(const QString* const, const QMap<QString,float>* const)));
+    connect(mBaseConnection, SIGNAL(newConnection()), SLOT(slotNewConnection()));
 
     connect(mFlightController, SIGNAL(wayPointReached(WayPoint)), mBaseConnection, SLOT(slotWayPointReached(WayPoint)));
     connect(mFlightController, SIGNAL(wayPointInserted(quint16,WayPoint)), mBaseConnection, SLOT(slotRoverWayPointInserted(quint16,WayPoint)));
-    connect(mFlightController, SIGNAL(currentWayPoints(QList<WayPoint>)), mBaseConnection, SLOT(slotFlightControllerWayPointsChanged(QList<WayPoint>)));
-    connect(mFlightController, SIGNAL(flightControllerValues(const FlightControllerValues*)), mBaseConnection, SLOT(slotNewFlightControllerValues(const FlightControllerValues*)));
+    connect(mFlightController, SIGNAL(currentWayPoints(const QList<WayPoint>* const)), mBaseConnection, SLOT(slotFlightControllerWayPointsChanged(const QList<WayPoint>*const)));
+    connect(mFlightController, SIGNAL(flightStateChanged(FlightState*const)), mBaseConnection, SLOT(slotFlightStateChanged(FlightState*const)));
+    connect(mFlightController, SIGNAL(flightControllerValues(const FlightControllerValues* const)), mBaseConnection, SLOT(slotNewFlightControllerValues(const FlightControllerValues* const)));
 
     mStatusWidget = new StatusWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mStatusWidget);
@@ -99,14 +102,14 @@ void Simulator::slotOgreInitialized(void)
     // Vehicle creates SceneNode and Entity in OgreWidget. But OgreWidget is not initialized after instatiation, but only when
     // the window is initialized. Thus, vehicle needs to be created after ogreWidget initialization.
     mPhysics = new Physics(this, mOgreWidget);
-    connect(mPhysics, SIGNAL(newVehiclePose(const Pose&)), mStatusWidget, SLOT(slotUpdatePose(const Pose&)));
-    connect(mPhysics, SIGNAL(newVehiclePose(const Pose&)), mFlightController, SLOT(slotNewVehiclePose(Pose)));
+    connect(mPhysics, SIGNAL(newVehiclePose(const Pose* const)), mStatusWidget, SLOT(slotUpdatePose(const Pose* const)));
+    connect(mPhysics, SIGNAL(newVehiclePose(const Pose* const)), mFlightController, SLOT(slotNewVehiclePose(const Pose* const)));
 
     connect(mStatusWidget, SIGNAL(windDetailChanged(bool,float)), mPhysics, SLOT(slotSetWindSetting(bool, float)));
 
     // Only one of the two objects will emit motion signals depending on mJoystickEnabled
-    connect(mFlightController, SIGNAL(motion(MotionCommand)), mPhysics, SLOT(slotSetMotion(MotionCommand)));
-    connect(mJoystick, SIGNAL(motion(MotionCommand)), mPhysics, SLOT(slotSetMotion(MotionCommand)));
+    connect(mFlightController, SIGNAL(motion(const MotionCommand* const)), mPhysics, SLOT(slotSetMotion(const MotionCommand* const)));
+    connect(mJoystick, SIGNAL(motion(const MotionCommand* const)), mPhysics, SLOT(slotSetMotion(const MotionCommand* const)));
 
     // Same thing for StatusWidget, which has the configuration window. Tell it to read the config only after ogre
     // is initialized, so it can create cameras and laserscanners.
@@ -307,7 +310,10 @@ void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enab
         // coolie->left, Hover
         slotShowMessage("Disabling Joystick control, setting FlightController to Hover");
         if(mFlightController->getFlightState().state != FlightState::Value::Hover)
-            mFlightController->slotFlightStateSwitchValueChanged(FlightStateSwitch(FlightStateSwitch::Value::Hover));
+        {
+            mFlightStateSwitch.value = FlightStateSwitch::Value::Hover;
+            mFlightController->slotFlightStateSwitchValueChanged(&mFlightStateSwitch);
+        }
         mJoystickEnabled = false;
         break;
     }
@@ -317,7 +323,10 @@ void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enab
         // coolie->down, UserControl
         slotShowMessage("Enabling Joystick control, setting FlightController to UserControl");
         if(mFlightController->getFlightState().state != FlightState::Value::UserControl)
-            mFlightController->slotFlightStateSwitchValueChanged(FlightStateSwitch(FlightStateSwitch::Value::UserControl));
+        {
+            mFlightStateSwitch.value = FlightStateSwitch::Value::UserControl;
+            mFlightController->slotFlightStateSwitchValueChanged(&mFlightStateSwitch);
+        }
         mJoystickEnabled = true;
         break;
     }
@@ -327,7 +336,10 @@ void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enab
         // coolie->up, ApproachWayPoint
         slotShowMessage("Disabling Joystick control, setting FlightController to ApproachWayPoint");
         if(mFlightController->getFlightState().state != FlightState::Value::ApproachWayPoint)
-            mFlightController->slotFlightStateSwitchValueChanged(FlightStateSwitch(FlightStateSwitch::Value::ApproachWayPoint));
+        {
+            mFlightStateSwitch.value = FlightStateSwitch::Value::ApproachWayPoint;
+            mFlightController->slotFlightStateSwitchValueChanged(&mFlightStateSwitch);
+        }
         mJoystickEnabled = false;
         break;
     }
@@ -368,7 +380,7 @@ void Simulator::slotUpdate()
 //    mFlightController->slotNewVehiclePose(mPhysics->getVehiclePose());
 
     mOgreWidget->slotVisualizeTrajectory(
-                mFlightController->getLastKnownPose().getPosition(),
+                mFlightController->getLastKnownPose()->getPosition(),
                 mFlightController->getWayPoints()
                 );
 
@@ -376,12 +388,10 @@ void Simulator::slotUpdate()
     mClockDivisorBaseConnectionUpdate++;
     if(mClockDivisorBaseConnectionUpdate % ((1000/4) / mUpdateTimer->interval()))
     {
-        mBaseConnection->slotNewVehicleStatus(
-                    getSimulationTime(),
-                    mFlightController->getLastKnownPose().getPosition().y(),
-                    mBattery->voltageCurrent()
-                    );
-
+        mVehicleStatus.missionRunTime = getSimulationTime();
+        mVehicleStatus.barometricHeight = mFlightController->getLastKnownPose()->getPosition().y();
+        mVehicleStatus.batteryVoltage = mBattery->voltageCurrent();
+        mBaseConnection->slotNewVehicleStatus(&mVehicleStatus);
         mBaseConnection->slotNewVehiclePose(mFlightController->getLastKnownPose());
     }
 
@@ -392,4 +402,13 @@ void Simulator::slotUpdate()
 QList<LaserScanner*>* Simulator::getLaserScannerList(void)
 {
     return mLaserScanners;
+}
+
+void Simulator::slotNewConnection()
+{
+    // feed new data to basestation
+    mBaseConnection->slotFlightStateChanged(&mFlightController->getFlightState());
+
+    mBaseConnection->slotNewVehicleStatus(&mVehicleStatus);
+    mBaseConnection->slotNewVehiclePose(mFlightController->getLastKnownPose());
 }

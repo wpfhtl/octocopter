@@ -111,7 +111,7 @@ void PtuController::slotSendDirectCommand()
             determinePtuPose(mPositionInFrustumCenter, mPositionCameraSensor);
             ui->mPushButtonToggleControllerState->setEnabled(true);
             ui->mPushButtonToggleControllerState->setChecked(true);
-            slotVehiclePoseChanged(pose);
+//            slotVehiclePoseChanged(pose);
             qDebug() << "PtuController::slotSendDirectCommand(): sending debug pose: " << pose;
         }
     }
@@ -213,9 +213,8 @@ void PtuController::slotSerialPortStatusChanged(const QString& status, const QDa
      qDebug() << "PtuController::slotSerialPortStatusChanged(): usb port status" << status;// << "errorstring" << mSerialPortPtu->errorString();
 }
 
-void PtuController::slotVehiclePoseChanged(const Pose& pose)
+void PtuController::slotVehiclePoseChanged(const Pose* const pose)
 {
-
     mLastKnownVehiclePose = pose;
 
     if(ui->mPushButtonToggleControllerState->isChecked() && mElapsedTimer.elapsed() > 200)
@@ -226,10 +225,10 @@ void PtuController::slotVehiclePoseChanged(const Pose& pose)
 
         // Change orientation of mPosePtuBase to look at vehicle
         float pan, tilt;
-        getPanTilt(Pose::extrapolateLinear(mPreviousKnownVehiclePose, mLastKnownVehiclePose, 600).getPosition(), mPosePtuBase, pan, tilt);
+        getPanTilt(Pose::extrapolateLinear(mPreviousKnownVehiclePose, *mLastKnownVehiclePose, mLastKnownVehiclePose->timestamp + 600).getPosition(), mPosePtuBase, pan, tilt);
         //Pose tempPose = determinePtuPose(mLastKnownVehiclePose.getPosition(), mPosePtuBase.getPosition());
 
-        mPreviousKnownVehiclePose = mLastKnownVehiclePose;
+        mPreviousKnownVehiclePose = *mLastKnownVehiclePose;
 
         //mPanToVehicle = tempPose.getYawDegrees();
         mPanToVehicle = pan;
@@ -272,7 +271,7 @@ void PtuController::slotSetTiltLimits(float degreeMinimum, float degreeMaximum)
 
 void PtuController::slotSetPositionCamera()
 {
-    mPositionCameraSensor = mLastKnownVehiclePose.getPosition();
+    mPositionCameraSensor = mLastKnownVehiclePose->getPosition();
     ui->mLabelPositionCamera->setText(QString("%1/%2/%3").arg(mPositionCameraSensor.x()).arg(mPositionCameraSensor.y()).arg(mPositionCameraSensor.z()));
     if(!mPositionInFrustumCenter.isNull())
     {
@@ -282,7 +281,7 @@ void PtuController::slotSetPositionCamera()
 
 void PtuController::slotSetPositionFrustumCenter()
 {
-    mPositionInFrustumCenter = mLastKnownVehiclePose.getPosition();
+    mPositionInFrustumCenter = mLastKnownVehiclePose->getPosition();
     ui->mLabelPositionLens->setText(QString("%1/%2/%3").arg(mPositionInFrustumCenter.x()).arg(mPositionInFrustumCenter.y()).arg(mPositionInFrustumCenter.z()));
     if(!mPositionCameraSensor.isNull())
     {

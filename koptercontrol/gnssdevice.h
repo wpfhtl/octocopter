@@ -72,7 +72,7 @@ private slots:
     void slotSetSystemTime(const qint32& tow);
 
 public slots:
-    void slotSetDifferentialCorrections(const QByteArray &data);
+    void slotSetDifferentialCorrections(const QByteArray* const differentialCorrections);
     void slotShutDown(); // just calls communicationStop. To be called from the main program's signal handler.
 
 signals:

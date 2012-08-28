@@ -34,14 +34,14 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     connect(ui->mSpinBoxLaserScannerRoll, SIGNAL(valueChanged(double)), SLOT(slotLaserScannerRelativePoseChanged()));
 
     // emit fused lidarpoints
-    connect(mSensorFuser, SIGNAL(newScannedPoints(QVector<QVector3D>,QVector3D)), SIGNAL(scanData(QVector<QVector3D>,QVector3D)));
+    connect(mSensorFuser, SIGNAL(newScannedPoints(const QVector<QVector3D>* const, const QVector3D* const)), SIGNAL(scanData(const QVector<QVector3D>* const, const QVector3D* const)));
 
-    connect(mSbfParser, SIGNAL(status(GnssStatus)), SIGNAL(gnssStatus(GnssStatus)));
+    connect(mSbfParser, SIGNAL(status(const GnssStatus* const)), SIGNAL(gnssStatus(const GnssStatus* const)));
     connect(mSbfParser, SIGNAL(message(LogImportance,QString,QString)), SIGNAL(message(LogImportance,QString,QString)));
-    connect(mSbfParser, SIGNAL(newVehiclePose(Pose)), SIGNAL(vehiclePose(Pose)));
-    connect(mSbfParser, SIGNAL(newVehiclePoseSensorFuser(Pose)), mSensorFuser, SLOT(slotNewVehiclePose(Pose)));
+    connect(mSbfParser, SIGNAL(newVehiclePose(const Pose* const)), SIGNAL(vehiclePose(const Pose* const)));
+    connect(mSbfParser, SIGNAL(newVehiclePoseSensorFuser(const Pose* const)), mSensorFuser, SLOT(slotNewVehiclePose(const Pose* const)));
     connect(mSbfParser, SIGNAL(processedPacket(QByteArray,qint32)), SLOT(slotNewSbfTime(QByteArray,qint32)));
-//    connect(mSbfParser, SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
+    connect(mSbfParser, SIGNAL(scanFinished(const quint32&)), mSensorFuser, SLOT(slotScanFinished(const quint32&)));
 
     // Actually invoke slotLaserScannerRelativePoseChanged() AFTER our parent
     // has connected our signals, so the values are propagated to sensorfuser.
@@ -74,19 +74,21 @@ bool LogPlayer::slotOpenLogFiles()
     QString fileNameOfNextLogFile;
 
     logFileName = QFileDialog::getOpenFileName(this, "Select SBF log", QString(), "SBF Data (*.sbf)");
-    if(logFileName.isEmpty()) return false;
+//    if(logFileName.isEmpty()) return false;
 
     QFile logFileSbf(logFileName);
     if(!logFileSbf.open(QIODevice::ReadOnly))
     {
         emit message(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Unable to open SBF log file");
-        QMessageBox::critical(this, "Error opening file", "Unable to open SBF log file");
-        return false;
+//        QMessageBox::critical(this, "Error opening file", "Unable to open SBF log file");
+//        return false;
     }
-
-    emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Reading SBF log file %1...").arg(logFileName));
-    // Fill the sbf backup copy. The real data will be filled in slotRewind()
-    mDataSbfCopy = logFileSbf.readAll();
+    else
+    {
+        emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Reading SBF log file %1...").arg(logFileName));
+        // Fill the sbf backup copy. The real data will be filled in slotRewind()
+        mDataSbfCopy = logFileSbf.readAll();
+    }
 
     // We try to open the laser log. But even if this fails, do not abort, as SBF only is still something we can work with for playing back
     fileNameOfNextLogFile = logFileName.replace("gnssdata.sbf", "scannerdata.lsr");
@@ -152,7 +154,7 @@ qint32 LogPlayer::getLastTow(const DataSource& source)
         qint32 lastSearchIndex = -1;
 
         // Search backwards as long as we cannot find a valid SBF packe to extract TOW from
-        while(tow < 0)
+        while(lastSearchIndex > -2 && tow < 0)
         {
             QByteArray lastPacketSbf = mDataSbf.right(mDataSbf.size() - mDataSbf.lastIndexOf("$@", lastSearchIndex));
             mSbfParser->getNextValidPacketInfo(lastPacketSbf, 0, &tow);
@@ -179,14 +181,13 @@ qint32 LogPlayer::getLastTow(const DataSource& source)
 
     case Source_FlightController:
     {
-        const qint32 packetSize = sizeof(qint32) + sizeof(FlightControllerValues);
+        const qint32 packetSize = sizeof(FlightControllerValues);
         if(mDataFlightController.size() >= packetSize)
         {
             const QByteArray lastPacket = mDataFlightController.right(packetSize);
-            QDataStream stream(lastPacket);
 
-            qint32 tow;
-            stream >> tow;
+            FlightControllerValues* fcv = (FlightControllerValues*)lastPacket.data();
+            tow = fcv->timestamp;
         }
     }
     break;
@@ -232,8 +233,8 @@ qint32 LogPlayer::getNextTow(const DataSource& source)
         // If we can extract something, fine. If not, we might just not have any laser data at all. In that case we'll return -1
         if(nextPacket.size())
         {
-            QDataStream stream(nextPacket);
-            stream >> tow;
+            FlightControllerValues* fcv = (FlightControllerValues*)nextPacket.data();
+            tow = fcv->timestamp;
         }
     }
     break;
@@ -269,7 +270,7 @@ QByteArray LogPlayer::getNextPacket(const DataSource& source)
 
     case Source_FlightController:
     {
-        const qint32 packetSize = sizeof(qint32) + sizeof(FlightControllerValues);
+        const qint32 packetSize = sizeof(FlightControllerValues);
 
         // check uninitialized and out-of-bounds conditions
         if(mIndexFlightController + packetSize > mDataFlightController.size() || !mDataFlightController.size())
@@ -350,7 +351,7 @@ bool LogPlayer::slotStepForward()
     {
         // process FlightController data
         QByteArray packet = getNextPacket(Source_FlightController);
-        mIndexFlightController += packet.size() + 1; // skip the newline (\n)
+        mIndexFlightController += packet.size();
         processPacket(source, packet);
     }
     break;
@@ -407,16 +408,9 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const QByteAr
 
     case Source_FlightController:
     {
-        QDataStream stream(packet);
-
-        qint32 tow;
-        stream >> tow;
-        ui->mProgressBarTow->setValue(tow);
-        FlightControllerValues fcv;
-        stream >> fcv;
-
-        emit flightState(fcv.flightState);
-        emit flightControllerValues(fcv);
+        mFlightControllerValues = *(FlightControllerValues*)packet.data();
+        ui->mProgressBarTow->setValue(mFlightControllerValues.timestamp);
+        emit flightControllerValues(&mFlightControllerValues);
     }
     break;
     }

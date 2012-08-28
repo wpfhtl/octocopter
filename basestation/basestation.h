@@ -82,8 +82,8 @@ private slots:
     void slotTogglePidControllerWidget() {if(mPidControllerWidget) mPidControllerWidget->setVisible(! mPidControllerWidget->isVisible());}
     void slotTogglePtuControllerWidget() {if(mPtuController) mPtuController->setVisible(! mPtuController->isVisible());}
 
-    void slotSetFlightControllerValues(const FlightControllerValues& fcv);
-    void slotSpeakGnssStatus(const GnssStatus &status);
+    void slotSetFlightControllerValues(const FlightControllerValues *const fcv);
+    void slotSpeakGnssStatus(const GnssStatus *const status);
 
     void slotClearOctree();
 
@@ -91,9 +91,8 @@ private slots:
     void slotManageJoystick(quint8 button, bool pressed);
 
     // These are called by ConnectionRover when new data arrived
-    void slotNewScanData(const QVector<QVector3D>& pointList, const QVector3D& scannerPosition);
+    void slotNewScanData(const QVector<QVector3D> *const pointList, const QVector3D *const scannerPosition);
     void slotNewImage(const QString& cameraName, const QSize& imageSize, const Pose& cameraPose, const QByteArray& imageData);
-    void slotNewVehicleStatus(const quint32& missionRunTime, const float& batteryVoltage, const qint16& barometricHeight, const qint8& wirelessRssi);
 
 public:
     BaseStation(void);

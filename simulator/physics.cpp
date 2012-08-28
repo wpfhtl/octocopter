@@ -339,9 +339,9 @@ Physics::~Physics()
     delete mBtBroadphase;
 }
 
-void Physics::slotSetMotion(const MotionCommand& mc)
+void Physics::slotSetMotion(const MotionCommand* const mc)
 {
-    const MotionCommand motionCommandClamped = mc;//.clampedToSafeLimits();
+    const MotionCommand motionCommandClamped = *mc;//.clampedToSafeLimits();
 //    qDebug() << "Physics::slotSetMotion(): updating physics forces with thrust" << motionCommandClamped.thrust << "pitch" << motionCommandClamped.pitch << "roll" << motionCommandClamped.roll << "yaw" << motionCommandClamped.yaw;
 
     /*
@@ -537,7 +537,8 @@ void Physics::slotUpdatePhysics(void)
         ls->slotSetScannerPose(scannerNode->_getDerivedPosition(), scannerNode->_getDerivedOrientation());
     }
 
-    emit newVehiclePose(getVehiclePose());
+    mVehiclePose = mVehicleState->getPose();
+    emit newVehiclePose(&mVehiclePose);
 }
 
 QVector3D Physics::getVehicleLinearVelocity() const

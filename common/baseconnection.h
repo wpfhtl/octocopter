@@ -11,6 +11,7 @@
 #include <waypoint.h>
 #include <lidarpoint.h>
 #include <wirelessdevice.h>
+#include <vehiclestatus.h>
 #include <gnssstatus.h>
 #include <flightcontrollervalues.h>
 #include <pose.h>
@@ -33,6 +34,12 @@ private:
     QTcpSocket* mTcpSocket;
     QTcpServer* mTcpServer;
     QByteArray mIncomingDataBuffer, mOutgoingDataBuffer;
+
+    // Data is sent from base into these members, then pointers to them are emitted
+    MotionCommand mMotionCommand;
+    QString mControllerName;
+    QMap<QString,float> mControllerWeights;
+    QByteArray mDifferentialCorrections;
 
     void processPacket(QByteArray packet);
 
@@ -59,17 +66,17 @@ signals:
     void wayPoints(const QList<WayPoint>& wayPoints);
 
     // emitted when the basestation wants to send direct ExternalControl motion commands, which is only used for testing.
-    void motion(const MotionCommand& mc);
+    void motion(const MotionCommand* const mc);
 
-    void enableScanning(const bool& enable);
+    void enableScanning(const bool enable);
 
     // emitted to indicate saturation of connection. Idea is to send less
     // lidar-data when link is saturated. TODO: combine with RSSI?
     void networkSaturationChanged(const quint8& percentage);
 
-    void differentialCorrections(const QByteArray&);
+    void differentialCorrections(const QByteArray* const diffcorr);
 
-    void controllerWeights(QString name, QMap<QString,float> weights);
+    void controllerWeights(const QString* const name, const QMap<QString,float>* const weights);
 
     // can be used to send a newly connected basestation information that would otherwise
     // take a long time to come in, e.g. flightState
@@ -83,29 +90,28 @@ public slots:
     void slotWayPointReached(const WayPoint&wpt);
 
     // called by flightcontroller when waypoints are changed (by basestation, just to compare afterwards)
-    void slotFlightControllerWayPointsChanged(const QList<WayPoint>&);
+    void slotFlightControllerWayPointsChanged(const QList<WayPoint> *const);
 
     // called by rover to send updated pose to basestation (called frequently)
-    void slotNewVehiclePose(const Pose& pose);
+    void slotNewVehiclePose(const Pose* const pose);
 
     // called by rover when the flightstate changes
-//    void slotFlightStateChanged(FlightState);
+    void slotFlightStateChanged(const FlightState* const fs);
+
+    // called by rover when flightcontroller's pidcontroller-weights have been changed (due to a request from basestation)
+    void slotFlightControllerWeightsChanged();
 
     // called by rover to send lidarpoints to the basestation
-    void slotNewScannedPoints(const QVector<QVector3D>* points, const QVector3D& scanPosition);
+    void slotNewScannedPoints(const QVector<QVector3D> *const points, const QVector3D *const scanPosition);
 
     // called by rover to send new vehicle status to basestation
-    void slotNewVehicleStatus(
-        const quint32& missionRunTime, // milliseconds
-        const qint16& barometricHeight,
-        const float& batteryVoltage
-        );
+    void slotNewVehicleStatus(const VehicleStatus* const vs);
 
     // called by rover to send new gnss status to basestation
-    void slotNewGnssStatus(const GnssStatus *);
+    void slotNewGnssStatus(const GnssStatus* const gs);
 
     // called by flightcontroller to send its output to basestation for debugging purposes
-    void slotNewFlightControllerValues(const FlightControllerValues *fcv);
+    void slotNewFlightControllerValues(const FlightControllerValues* const fcv);
 
     // called by rover to send new image to basestation
     void slotNewCameraImage(const QString& name, const QSize& imageSize, const Pose& pose, const QByteArray* image);

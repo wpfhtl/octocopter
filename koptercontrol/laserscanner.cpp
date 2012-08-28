@@ -73,7 +73,7 @@ const float LaserScanner::getHeightAboveGround() const
     return -1.0;
 }*/
 
-void LaserScanner::slotSetScannerTimeStamp(const qint32& timestamp)
+void LaserScanner::slotSetScannerTimeStamp(const qint32 timestamp)
 {
     // We were called after the host was synchronized with the GPS clock, so @timestamp
     // should be pretty much now.
@@ -110,7 +110,7 @@ void LaserScanner::slotSetScannerTimeStamp(const qint32& timestamp)
     }
 }
 
-void LaserScanner::slotEnableScanning(const bool& value)
+void LaserScanner::slotEnableScanning(const bool value)
 {
     if(mOffsetTimeScannerToTow == 0)
     {

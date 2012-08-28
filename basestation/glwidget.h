@@ -12,12 +12,12 @@
 
 #include <cuda_gl_interop.h>
 
-#include "flightplannerinterface.h"
+//#include "flightplannerinterface.h"
 #include "openglutilities.h"
 #include "flightcontrollervalues.h"
-#include "motioncommand.h"
+//#include "motioncommand.h"
 #include "shaderprogram.h"
-#include "pose.h"
+//#include "pose.h"
 
 class Octree;
 
@@ -29,16 +29,17 @@ class GlWidget : public QGLWidget
     Q_OBJECT
 
     QList<Octree*> mOctrees;
-    FlightPlannerInterface *mFlightPlanner;
+//    FlightPlannerInterface *mFlightPlanner;
 
     QVector3D mCamLookAtOffset;
 
     Model *mModelVehicle, *mModelThrust, *mModelConeYaw, *mModelConePitch, *mModelConeRoll, *mModelTarget;
+    Model *mModelControllerP, *mModelControllerI, *mModelControllerD;
 
-    Pose mLastKnownVehiclePose;
+    const Pose* mLastKnownVehiclePose;
 
     // Set by slotSetFlightControllerValues(), then visualized for FligthController debugging
-    FlightControllerValues* mLastFlightControllerValues;
+    const FlightControllerValues* mLastFlightControllerValues;
 
     // Timer
     int mTimerIdZoom, mTimerIdRotate;
@@ -71,10 +72,12 @@ class GlWidget : public QGLWidget
     void mouseMoveEvent(QMouseEvent *event);
     void wheelEvent(QWheelEvent *event);
     void zoom(double zoomFactor);
-    QVector3D convertMouseToWorldPosition(const QPoint&);
+//    QVector3D convertMouseToWorldPosition(const QPoint&);
+
+    void renderController(QMatrix4x4 transform, const PidController* const controller);
 
 public:
-    GlWidget(QWidget* parent, FlightPlannerInterface* flightPlanner);
+    GlWidget(QWidget* parent/*, FlightPlannerInterface* flightPlanner*/);
     void moveCamera(const QVector3D &pos);
 
 protected:
@@ -86,7 +89,7 @@ protected:
 signals:
     void initializingInGlContext();
     void visualizeNow();
-    void mouseClickedAtWorldPos(Qt::MouseButton, QVector3D);
+//    void mouseClickedAtWorldPos(Qt::MouseButton, QVector3D);
 
 public slots:
     // When this is called, we take note of the time of last external update. Because when zooming/rotating
@@ -102,9 +105,9 @@ public slots:
 
     // LogPlayer and RoverConnection set values used/computed by the flightcontroller. These shall be visualized
     // here in GlWidget for debugging.
-    void slotSetFlightControllerValues(const FlightControllerValues& fcv);
+    void slotSetFlightControllerValues(const FlightControllerValues *const fcv);
 
-    void slotNewVehiclePose(Pose);
+    void slotNewVehiclePose(const Pose *const);
     void slotClearVehicleTrajectory();
 
     void slotEnableTimerRotation(const bool& enable);

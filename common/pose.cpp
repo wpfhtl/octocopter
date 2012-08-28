@@ -255,36 +255,43 @@ void Pose::getEulerAnglesRadians(float& yaw, float &pitch, float &roll) const
   **************************************************************************
   */
 
-Pose Pose::extrapolateLinear(const Pose &first, const Pose &second, const quint32 &timeAfter)
+Pose Pose::extrapolateLinear(const Pose &p1, const Pose &p2, const qint32 &timeInFuture)
 {
-    // timeDelta is how many milliseconds after second we want to extrapolate into the future
-    Q_ASSERT(timeAfter >= 0);
+    Q_ASSERT(p2.timestamp >= p1.timestamp);
 
-    float firstYaw, firstPitch, firstRoll;
-    float secondYaw, secondPitch, secondRoll;
+    const QQuaternion& q1 = p1.getOrientation();
+    const QQuaternion& q2 = p2.getOrientation();
 
-    first.getEulerAnglesDegrees(firstYaw, firstPitch, firstRoll);
-    second.getEulerAnglesDegrees(secondYaw, secondPitch, secondRoll);
-    qDebug() << second;
+    const QQuaternion delta = q2 * q1.conjugate();
+    const float extrapolationFactor = (timeInFuture-p1.timestamp)/(p2.timestamp-p1.timestamp);
 
-    QVector3D distance(second.getPosition() - first.getPosition());
-    float yawDelta = secondYaw - firstYaw;
-    float pitchDelta = secondPitch - firstPitch;
-    float rollDelta = secondRoll - firstRoll;
+//    qDebug() << "ext:" << p1.timestamp << p2.timestamp << timeInFuture << extrapolationFactor;
 
-    quint32 timeDelta = second.timestamp - first.timestamp;
-    float timeDeltaFrac = 1.f * timeAfter / timeDelta;
-
-    Pose p(
-                second.getPosition() + distance * timeDeltaFrac,
-                secondYaw + yawDelta * timeDeltaFrac,
-                secondPitch + pitchDelta * timeDeltaFrac,
-                secondRoll + rollDelta * timeDeltaFrac,
-                second.timestamp + timeAfter
+    const QVector3D rotationAxis(
+                delta.x() / sqrt(1-delta.scalar()*delta.scalar()),
+                delta.y() / sqrt(1-delta.scalar()*delta.scalar()),
+                delta.z() / sqrt(1-delta.scalar()*delta.scalar())
                 );
 
-    p.covariances = (second.covariances - first.covariances) + second.covariances * timeDeltaFrac;
-    p.precision = second.precision & first.precision;
+    float rotationAngle = 2 * acos(delta.scalar());
+    while (rotationAngle > 180.0f) rotationAngle -= 360.0f;
+    rotationAngle = rotationAngle * extrapolationFactor;
+    rotationAngle = fmod(rotationAngle, 360.0f);
+
+    //    qDebug() << "ext: rotation of" << RAD2DEG(rotationAngle) << "around" << rotationAxis;
+
+    QQuaternion q3 = QQuaternion::fromAxisAndAngle(rotationAxis, RAD2DEG(rotationAngle));
+
+    Pose p(
+                (p2.getPosition()-p1.getPosition()) * extrapolationFactor, // linear extrapolation of position
+                0, 0, 0, // set rotations to zero. We'll set them later using our quaternions
+                timeInFuture); // this is the time we wanted
+
+    p.getMatrixRef().rotate(q1); // apply original rotation
+    p.getMatrixRef().rotate(q3); // add extrapolated rotation
+
+    p.covariances = p2.covariances + (p2.covariances - p1.covariances) * extrapolationFactor;
+    p.precision = p1.precision & p2.precision;
 
     return p;
 }

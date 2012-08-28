@@ -17,14 +17,18 @@ PidControllerWidget::~PidControllerWidget()
     delete ui;
 }
 
-void PidControllerWidget::setWeights(QMap<QString, PidController> controllers)
+void PidControllerWidget::setControllers(const FlightControllerValues* const fcv)
 {
-//    qDebug() << "PidControllerWidget::setWeights(): now setting weights:" << controllers << endl;
-    mControllers = controllers;
-    buildTable();
+    mControllers.clear();
+    mControllers.insert("thrust", &fcv->controllerThrust);
+    mControllers.insert("yaw", &fcv->controllerYaw);
+    mControllers.insert("pitch", &fcv->controllerPitch);
+    mControllers.insert("roll", &fcv->controllerRoll);
+
+    mPopulated = false;
 }
 
-void PidControllerWidget::buildTable()
+void PidControllerWidget::slotRebuild()
 {
     disconnect(ui->mTableControllerWeights, SIGNAL(cellChanged(int,int)), this, SLOT(slotWeightChanged(int,int)));
 
@@ -39,7 +43,7 @@ void PidControllerWidget::buildTable()
         ui->mTableControllerWeights->setHorizontalHeaderItem(1, new QTableWidgetItem("i"));
         ui->mTableControllerWeights->setHorizontalHeaderItem(2, new QTableWidgetItem("d"));
 
-        QMapIterator<QString, PidController> i(mControllers);
+        QMapIterator<QString, const PidController*> i(mControllers);
 
         int row = 0;
         while(i.hasNext())
@@ -48,9 +52,9 @@ void PidControllerWidget::buildTable()
 
             ui->mTableControllerWeights->setVerticalHeaderItem(row, new QTableWidgetItem(i.key()));
 
-            ui->mTableControllerWeights->setItem(row, 0, new QTableWidgetItem(QString::number(i.value().getWeight("p"), 'f', 2)));
-            ui->mTableControllerWeights->setItem(row, 1, new QTableWidgetItem(QString::number(i.value().getWeight("i"), 'f', 2)));
-            ui->mTableControllerWeights->setItem(row, 2, new QTableWidgetItem(QString::number(i.value().getWeight("d"), 'f', 2)));
+            ui->mTableControllerWeights->setItem(row, 0, new QTableWidgetItem(QString::number(i.value()->getWeightP(), 'f', 2)));
+            ui->mTableControllerWeights->setItem(row, 1, new QTableWidgetItem(QString::number(i.value()->getWeightI(), 'f', 2)));
+            ui->mTableControllerWeights->setItem(row, 2, new QTableWidgetItem(QString::number(i.value()->getWeightD(), 'f', 2)));
             row++;
         }
     }
@@ -101,5 +105,5 @@ void PidControllerWidget::slotWeightChanged(int row, int column)
     emit controllerWeight(name, weights);
 
     // So that the table will be rebuilt/acknowledged
-    mPopulated = false;
+//    mPopulated = false;
 }

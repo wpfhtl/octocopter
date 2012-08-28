@@ -269,10 +269,10 @@ public:
     void processNextValidPacket(QByteArray& sbfData);
 
 signals:
-    void newVehiclePose(const Pose&); // emitted at full rate, all poses
-    void newVehiclePoseSensorFuser(const Pose&); // emitted at full rate, high-precision
-    void newVehiclePoseFlightController(const Pose&); // emitted at *up to* 10Hz, high-precision and only integrated poses (not extrapolated)
-    void newVehiclePoseStatus(const Pose&); // emitted at 10Hz, all Poses
+    void newVehiclePose(const Pose* const); // emitted at full rate, all poses
+    void newVehiclePoseSensorFuser(const Pose* const); // emitted at full rate, high-precision
+    void newVehiclePoseFlightController(const Pose* const); // emitted at *up to* 10Hz, high-precision and only integrated poses (not extrapolated)
+    void newVehiclePoseStatus(const Pose* const); // emitted at 10Hz, all Poses
 
     // Emitted when the incoming poses (IntPVAAGeod) from SBF are good enough to be used by anyone.
     // Used to tell GpsDevice to decrease the IntPVAAGeod interval to msec20 (and to enable/disable the laserscanner?)
@@ -282,7 +282,7 @@ signals:
 
     // log/status messages
     void message(const LogImportance& importance, const QString&, const QString& message);
-    void status(const GnssStatus*);
+    void status(const GnssStatus* const);
 
     // The SbfParser wants to send a command to the receiver (e.g. for investigating an error)
     void receiverCommand(const QString&);
@@ -290,13 +290,11 @@ signals:
     // Again, timestamp is number of milliseconds since last sunday 00:00:00 AM (midnight)
     void scanFinished(const quint32& timestamp);
 
-    void gnssTimeOfWeekEstablished(const qint32& timestamp);
+    void gnssTimeOfWeekEstablished(qint32 timestamp);
 
 public slots:
     // Can be called on rover by GpsDevice to ensure base is up to date even when few things change in the fields
     void slotEmitCurrentGnssStatus();
-
-
 };
 
 #endif // SBFPARSER_H

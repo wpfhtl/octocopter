@@ -157,9 +157,10 @@ quint8 GnssDevice::slotFlushCommandQueue()
 
 void GnssDevice::slotLogProcessedSbfPacket(const QByteArray& sbfPacket, const qint32&)
 {
-    // Copy all new SBF bytes into our log
-    QDataStream s(mLogFileSbf);
-    s << sbfPacket;
+    // Copy all new SBF bytes into our log. Don't use a datastream,
+    // as that would add record-keeping-bytes in between the packets
+
+    mLogFileSbf->write(sbfPacket);
 }
 
 void GnssDevice::slotDetermineSerialPortsOnDevice()
@@ -519,14 +520,14 @@ void GnssDevice::slotDataReadyOnUsb()
     }
 }
 
-void GnssDevice::slotSetDifferentialCorrections(const QByteArray &data)
+void GnssDevice::slotSetDifferentialCorrections(const QByteArray* const differentialCorrections)
 {
     if(mDeviceIsReadyToReceiveDiffCorr)
     {
         // simply write the RTK data into the com-port
-        mDiffCorrDataCounter += data.size();
+        mDiffCorrDataCounter += differentialCorrections->size();
 //        qDebug() << "GnssDevice::slotSetDifferentialCorrections(): forwarding" << data.size() << "bytes of diffcorr to gps device, total is" << mRtkDataCounter;
-        mSerialPortCom->write(data);
+        mSerialPortCom->write(*differentialCorrections);
 //        emit message(
 //                Information,
 //                "GnssDevice::slotSetDifferentialCorrections()",
@@ -535,7 +536,7 @@ void GnssDevice::slotSetDifferentialCorrections(const QByteArray &data)
     }
     else
     {
-        qDebug() << "GnssDevice::slotSetRtkData(): NOT forwarding" << data.size() << "bytes of rtk-data to gnss device, its not initialized yet.";
+        qDebug() << "GnssDevice::slotSetRtkData(): NOT forwarding" << differentialCorrections->size() << "bytes of rtk-data to gnss device, its not initialized yet.";
     }
 }
 

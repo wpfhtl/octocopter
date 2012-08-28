@@ -10,6 +10,7 @@
 #include "koptermessage.h"
 #include "flightstateswitch.h"
 #include "motioncommand.h"
+#include "vehiclestatus.h"
 #include "common.h"
 
 #include <unistd.h> // usleep()
@@ -128,6 +129,7 @@ private:
     QTime mMissionStartTime;
     QTimer* mTimerPpmChannelPublisher;
 
+    VehicleStatus mVehicleStatus;
     FlightStateSwitch mLastFlightStateSwitch;
     CalibrationSwitchValue mLastCalibrationSwitchValue;
 
@@ -138,7 +140,7 @@ private slots:
     void slotFlushMessageQueue();
 
 public slots:
-    void slotSetMotion(const MotionCommand& mc);
+    void slotSetMotion(const MotionCommand *const mc);
     void slotTestMotors(const QList<unsigned char> &speeds);
     void slotReset();
     // The PPM Channels have the values from the human-remote-control
@@ -150,9 +152,9 @@ public slots:
     void slotSubscribeDebugValues(int interval = -1);
 
 signals:
-    void kopterStatus(const quint32 missionRunTimeMsecs, const qint16& baroheight, const float& voltage);
+    void vehicleStatus(const VehicleStatus* const vs);
     // Mikrokopter calls control from non-remote-control sources "ExternalControl". This reflects SW1 on the RC.
-    void flightStateSwitchValueChanged(FlightStateSwitch);
+    void flightStateSwitchValueChanged(const FlightStateSwitch* const fss);
     void calibrationSwitchToggled();
 
 };

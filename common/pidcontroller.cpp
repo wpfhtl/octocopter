@@ -17,7 +17,9 @@ void PidController::reset()
     mLastError = 0.0f;
     mLastDerivative = 0.0f;
     mLastValue = 0.0f;
-    mLastOutput = 0.0f;
+    mLastOutputP = 0.0f;
+    mLastOutputI = 0.0f;
+    mLastOutputD = 0.0f;
 }
 
 void PidController::setWeights(const float p, const float i, const float d)
@@ -38,10 +40,14 @@ float PidController::computeOutput(const float input)
     mLastError = mValueDesired - mLastValue;
     mErrorIntegral += mLastError * mLastTimeDiff;
     mLastDerivative = mFirstControllerRun ? 0.0f : (mLastError - mPreviousError) / mLastTimeDiff;
-    mLastOutput = (mP * mLastError) + (mI * mErrorIntegral) + (mD * mLastDerivative);
+    mLastOutputP = mP * mLastError;
+    mLastOutputI = mI * mErrorIntegral;
+    mLastOutputD = mD * mLastDerivative;
+
+    float output = mLastOutputP + mLastOutputI + mLastOutputD;
 
     // "amplify" smaller numbers to survive becoming integers :)
-    mLastOutput = mLastOutput > 0.0f ? ceil(mLastOutput) : floor(mLastOutput);
+    output = output > 0.0f ? ceil(output) : floor(output);
 
     qDebug() << toString();
 
@@ -50,7 +56,7 @@ float PidController::computeOutput(const float input)
 
     mTimeOfLastUpdate = QTime::currentTime();
 
-    return mLastOutput;
+    return output;
 }
 
 QString PidController::toString() const
@@ -66,7 +72,7 @@ QString PidController::toString() const
             .arg(mLastError, 3, 'f', 2)
             .arg(mLastDerivative, 3, 'f', 2)
             .arg(mErrorIntegral, 3, 'f', 2)
-            .arg(mLastOutput, 3, 'f', 2);
+            .arg(mLastOutputP + mLastOutputI + mLastOutputD, 3, 'f', 2);
 }
 
 QDebug operator<<(QDebug dbg, const PidController &pc)
@@ -75,18 +81,9 @@ QDebug operator<<(QDebug dbg, const PidController &pc)
     return dbg;
 }
 
-void PidController::setWeights(QMap<QString,float> controllerWeights)
+void PidController::setWeights(const QMap<QString,float>* const controllerWeights)
 {
-    mP = controllerWeights["p"];
-    mI = controllerWeights["i"];
-    mD = controllerWeights["d"];
-}
-
-const float PidController::getWeight(const QString& weight) const
-{
-    if(weight.toLower() == "p") return mP;
-    if(weight.toLower() == "i") return mI;
-    if(weight.toLower() == "d") return mD;
-
-    return 0.0f;
+    mP = controllerWeights->value("p", 0.0f);
+    mI = controllerWeights->value("i", 0.0f);
+    mD = controllerWeights->value("d", 0.0f);
 }

@@ -6,6 +6,7 @@
 #include <waypoint.h>
 #include <gnssstatus.h>
 #include <flightstate.h>
+#include <vehiclestatus.h>
 #include <pose.h>
 #include <common.h> // for hash()
 
@@ -25,17 +26,14 @@ public:
     ~ControlWidget();
 
 public slots:
-    void slotFlightStateChanged(FlightState fs);
-    void slotUpdatePose(const Pose &pose);
-    void slotUpdateMissionRunTime(const quint32& time);
-    void slotUpdateBattery(const float& voltageCurrent);
-    void slotUpdateWirelessRssi(const qint8& wirelessRssi);
-    void slotUpdateBarometricHeight(const qint16& barometricHeight);
-    void slotUpdateGnssStatus(const GnssStatus& gnssStatus);
-    void slotUpdateConnectionRtk(bool working);
-    void slotUpdateConnectionRover(bool connected);
+    void slotFlightStateChanged(const FlightState *const fs);
+    void slotUpdatePose(const Pose *const pose);
+    void slotUpdateVehicleStatus(const VehicleStatus* const vs);
+    void slotUpdateGnssStatus(const GnssStatus* const gnssStatus);
+    void slotUpdateConnectionRtk(const bool working);
+    void slotUpdateConnectionRover(const bool connected);
 
-    void slotSetWayPointCoordinateFields(Qt::MouseButton, QVector3D);
+//    void slotSetWayPointCoordinateFields(Qt::MouseButton, QVector3D);
 
     // Called by FlightPlanner when it has changed its internal list.
     void slotWayPointInserted(const quint16& index, const WayPoint& waypoint);

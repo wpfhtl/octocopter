@@ -4,22 +4,18 @@
 FlightController::FlightController(const QString& logFilePrefix) : QObject()
 {
     mLogFile = 0;
-    mLogStream = 0;
+//    mLogStream = 0;
     if(!logFilePrefix.isNull())
     {
+        qDebug()<< "fcv size:" << sizeof(FlightControllerValues);
         mLogFile = new QFile(logFilePrefix + QString("flightcontroller.flt"));
-        if(mLogFile->open(QIODevice::WriteOnly))
-            mLogStream = new QDataStream(mLogFile);
-        else
+        if(!mLogFile->open(QIODevice::WriteOnly))
+//            mLogStream = new QDataStream(mLogFile);
+//        else
             qFatal("FlightController::FlightController(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
     }
 
     mFlightControllerValues.flightState = FlightState(FlightState::Value::UserControl);
-
-    mFlightControllerValues.pidControllers.insert("thrust", PidController());
-    mFlightControllerValues.pidControllers.insert("yaw", PidController());
-    mFlightControllerValues.pidControllers.insert("pitch", PidController());
-    mFlightControllerValues.pidControllers.insert("roll", PidController());
 
     mFlightControllerValues.motionCommand = MotionCommand((quint8)0, (qint8)0, (qint8)0, (qint8)0);
 
@@ -114,7 +110,7 @@ void FlightController::slotComputeMotionCommands()
             qDebug() << "FlightController::slotComputeMotionCommands(): angleToTurn" << RAD2DEG(angleToTurnToWayPoint) << "planar distance:" << planarDistanceToWayPoint << "factorPlanarDistance" << factorPlanarDistance << "factorHeight" << factorHeight;
 
             // adjust pitch/roll to reach target, maximum pitch is -20 degrees (forward)
-            if(mApproachPhase == ApproachPhase::OrientTowardsTarget && mFlightControllerValues.pidControllers["yaw"].getLastError() < 3.0f)
+            if(mApproachPhase == ApproachPhase::OrientTowardsTarget && mFlightControllerValues.controllerYaw.getLastError() < 3.0f)
             {
                 qDebug() << "FlightController::slotComputeMotionCommands(): pointing at target, switching from orientation to approach phase";
                 mApproachPhase == ApproachPhase::ApproachTarget;
@@ -137,23 +133,23 @@ void FlightController::slotComputeMotionCommands()
             {
                 // TODO: stay on position while turning!
             }
-            desiredPitch = -pow(20.0f - qBound(0.0, fabs(mFlightControllerValues.pidControllers["yaw"].getLastError()), 20.0), 2.0f) / 20.0f;
+            desiredPitch = -pow(20.0f - qBound(0.0, fabs(mFlightControllerValues.controllerYaw.getLastError()), 20.0), 2.0f) / 20.0f;
             desiredPitch *= factorPlanarDistance;
 
-            mFlightControllerValues.pidControllers["thrust"].setDesiredValue(nextWayPoint.y());
-            const float outputThrust = MotionCommand::thrustHover + mFlightControllerValues.pidControllers["thrust"].computeOutput(mFlightControllerValues.lastKnownPose.getPosition().y());
+            mFlightControllerValues.controllerThrust.setDesiredValue(nextWayPoint.y());
+            const float outputThrust = MotionCommand::thrustHover + mFlightControllerValues.controllerThrust.computeOutput(mFlightControllerValues.lastKnownPose.getPosition().y());
 
             // If angleToTurnToWayPoint is:
             // - positive, we need to rotate CCW, which needs a negative yaw value.
             // - negative, we need to rotate  CW, which needs a positive yaw value.
-            mFlightControllerValues.pidControllers["yaw"].setDesiredValue(0.0f);
-            const float outputYaw = factorHeight * factorPlanarDistance * mFlightControllerValues.pidControllers["yaw"].computeOutput(RAD2DEG(angleToTurnToWayPoint));
+            mFlightControllerValues.controllerYaw.setDesiredValue(0.0f);
+            const float outputYaw = factorHeight * factorPlanarDistance * mFlightControllerValues.controllerYaw.computeOutput(RAD2DEG(angleToTurnToWayPoint));
 
-            mFlightControllerValues.pidControllers["pitch"].setDesiredValue(desiredPitch);
-            const float outputPitch = factorHeight * factorPlanarDistance * mFlightControllerValues.pidControllers["pitch"].computeOutput(mFlightControllerValues.lastKnownPose.getPitchDegrees() - mImuOffsets.pitch);
+            mFlightControllerValues.controllerPitch.setDesiredValue(desiredPitch);
+            const float outputPitch = factorHeight * factorPlanarDistance * mFlightControllerValues.controllerPitch.computeOutput(mFlightControllerValues.lastKnownPose.getPitchDegrees() - mImuOffsets.pitch);
 
-            mFlightControllerValues.pidControllers["roll"].setDesiredValue(desiredRoll);
-            const float outputRoll = factorHeight * factorPlanarDistance * mFlightControllerValues.pidControllers["roll"].computeOutput(mFlightControllerValues.lastKnownPose.getRollDegrees() - mImuOffsets.roll);
+            mFlightControllerValues.controllerRoll.setDesiredValue(desiredRoll);
+            const float outputRoll = factorHeight * factorPlanarDistance * mFlightControllerValues.controllerRoll.computeOutput(mFlightControllerValues.lastKnownPose.getRollDegrees() - mImuOffsets.roll);
 
             mFlightControllerValues.motionCommand = MotionCommand(outputThrust, outputYaw, outputPitch, outputRoll);
 
@@ -213,10 +209,10 @@ void FlightController::slotComputeMotionCommands()
                         - mFlightControllerValues.lastKnownPose.getYawRadians()
                         );
 
-            mFlightControllerValues.pidControllers["thrust"].setDesiredValue(mFlightControllerValues.targetPosition.y());
-            const float outputThrust = MotionCommand::thrustHover + mFlightControllerValues.pidControllers["thrust"].computeOutput(mFlightControllerValues.lastKnownPose.getPosition().y());
+            mFlightControllerValues.controllerThrust.setDesiredValue(mFlightControllerValues.targetPosition.y());
+            const float outputThrust = MotionCommand::thrustHover + mFlightControllerValues.controllerThrust.computeOutput(mFlightControllerValues.lastKnownPose.getPosition().y());
 
-            mFlightControllerValues.pidControllers["yaw"].setDesiredValue(
+            mFlightControllerValues.controllerYaw.setDesiredValue(
                         RAD2DEG(
                             -Pose::getShortestTurnRadians(
                                 DEG2RAD(180.0f)
@@ -224,13 +220,13 @@ void FlightController::slotComputeMotionCommands()
                                 )
                             ));
 
-            const float outputYaw = mFlightControllerValues.pidControllers["yaw"].computeOutput(mFlightControllerValues.lastKnownPose.getYawDegrees());
+            const float outputYaw = mFlightControllerValues.controllerYaw.computeOutput(mFlightControllerValues.lastKnownPose.getYawDegrees());
 
-            mFlightControllerValues.pidControllers["pitch"].setDesiredValue(0.0f);
-            const float outputPitch = mFlightControllerValues.pidControllers["pitch"].computeOutput(-cos(angleToTurnToHoverOrientation) * planarDistanceToTarget); // lateral offset in meters
+            mFlightControllerValues.controllerPitch.setDesiredValue(0.0f);
+            const float outputPitch = mFlightControllerValues.controllerPitch.computeOutput(-cos(angleToTurnToHoverOrientation) * planarDistanceToTarget); // lateral offset in meters
 
-            mFlightControllerValues.pidControllers["roll"].setDesiredValue(0.0f);
-            const float outputRoll = mFlightControllerValues.pidControllers["roll"].computeOutput(sin(angleToTurnToHoverOrientation) * planarDistanceToTarget); // lateral offset in meters
+            mFlightControllerValues.controllerRoll.setDesiredValue(0.0f);
+            const float outputRoll = mFlightControllerValues.controllerRoll.computeOutput(sin(angleToTurnToHoverOrientation) * planarDistanceToTarget); // lateral offset in meters
 
             mFlightControllerValues.motionCommand = MotionCommand(outputThrust, outputYaw, outputPitch, outputRoll);
         }
@@ -250,7 +246,7 @@ void FlightController::slotComputeMotionCommands()
 //    smoothenControllerOutput(mLastFlightControllerValues.motionCommand);
 
     qDebug() << "FlightController::slotComputeMotionCommands(): emitting motion:" << mFlightControllerValues.motionCommand;
-    emit motion(mFlightControllerValues.motionCommand);
+    emit motion(&mFlightControllerValues.motionCommand);
 
     emit flightControllerValues(&mFlightControllerValues);
 
@@ -269,9 +265,12 @@ void FlightController::smoothenControllerOutput(MotionCommand& mc)
 
 void FlightController::logFlightControllerValues()
 {
-    if(mLogStream)
+    if(mLogFile)
     {
-        (*mLogStream) << GnssTime::currentTow() << mFlightControllerValues;
+        mFlightControllerValues.timestamp = GnssTime::currentTow();
+
+        mLogFile->write((const char*)&mFlightControllerValues, sizeof(FlightControllerValues));
+//        (*mLogStream) << GnssTime::currentTow() << mFlightControllerValues;
     }
 }
 
@@ -297,14 +296,14 @@ void FlightController::nextWayPointReached()
 
     ensureSafeFlightAfterWaypointsChanged();
 
-    emit currentWayPoints(mWayPoints);
+    emit currentWayPoints(&mWayPoints);
 }
 
 void FlightController::slotWayPointInsert(const quint16& index, const WayPoint& wayPoint)
 {
     qDebug() << "FlightController::slotSetNextWayPoint(): state is" << mFlightControllerValues.flightState.toString() << "inserting waypoint" << wayPoint << "into index" << index;
     mWayPoints.insert(index, wayPoint);
-    emit currentWayPoints(mWayPoints);
+    emit currentWayPoints(&mWayPoints);
 
     // Just in case we were idle before...
     if(mFlightControllerValues.flightState == FlightState::Value::Idle)
@@ -330,7 +329,7 @@ void FlightController::slotWayPointDelete(const quint16& index)
             ensureSafeFlightAfterWaypointsChanged();
     }
     qDebug() << "FlightController::slotWayPointDelete(): after deleting wpt, emitting new wpt list of size" << mWayPoints.size();
-    emit currentWayPoints(mWayPoints);
+    emit currentWayPoints(&mWayPoints);
 }
 
 void FlightController::slotSetWayPoints(const QList<WayPoint>& wayPoints)
@@ -348,18 +347,18 @@ void FlightController::slotSetWayPoints(const QList<WayPoint>& wayPoints)
     if(mFlightControllerValues.flightState == FlightState::Value::ApproachWayPoint)
         ensureSafeFlightAfterWaypointsChanged();
 
-    emit currentWayPoints(mWayPoints);
+    emit currentWayPoints(&mWayPoints);
 }
 
-void FlightController::slotNewVehiclePose(const Pose& pose)
+void FlightController::slotNewVehiclePose(const Pose* const pose)
 {
-    qDebug() << "FlightController::slotNewVehiclePose(): flightstate:" << mFlightControllerValues.flightState.toString() << ": new pose from" << pose.timestamp << "has age" << GnssTime::currentTow() - pose.timestamp;
+    qDebug() << "FlightController::slotNewVehiclePose(): flightstate:" << mFlightControllerValues.flightState.toString() << ": new pose from" << pose->timestamp << "has age" << GnssTime::currentTow() - pose->timestamp;
 
     // Whatever precision and flightstate, save the pose. We also save unprecise poses here, which comes in handy
     // for IMU calibration (which doesn't require e.g. RTK). Instead, IMU calibration requires a very recent pose.
     //
     // Of course, this means that we need to check this pose before we actually use it for flight control!
-    mFlightControllerValues.lastKnownPose = pose;
+    mFlightControllerValues.lastKnownPose = *pose;
 
     switch(mFlightControllerValues.flightState.state)
     {
@@ -481,24 +480,24 @@ void FlightController::setFlightState(FlightState newFlightState)
         Q_ASSERT(false && "FlightController::setFlightState(): undefined flightstate");
     }
 
-    emit flightStateChanged(mFlightControllerValues.flightState);
+    emit flightStateChanged(&mFlightControllerValues.flightState);
 }
 
 void FlightController::initializeControllers()
 {
     qDebug() << "FlightController::initializeControllers(): initializing controllers...";
 
-    mFlightControllerValues.pidControllers["thrust"].reset();
-    mFlightControllerValues.pidControllers["thrust"].setWeights(25.0f, 0.001f, 1.0f);
+    mFlightControllerValues.controllerThrust.reset();
+    mFlightControllerValues.controllerThrust.setWeights(25.0f, 0.001f, 1.0f);
 
-    mFlightControllerValues.pidControllers["yaw"].reset();
-    mFlightControllerValues.pidControllers["yaw"].setWeights(1.0f, 0.0f, 0.3f);
+    mFlightControllerValues.controllerYaw.reset();
+    mFlightControllerValues.controllerYaw.setWeights(1.0f, 0.0f, 0.3f);
 
-    mFlightControllerValues.pidControllers["pitch"].reset();
-    mFlightControllerValues.pidControllers["pitch"].setWeights(3.0f, 0.02f, 1.5f);
+    mFlightControllerValues.controllerPitch.reset();
+    mFlightControllerValues.controllerPitch.setWeights(3.0f, 0.02f, 1.5f);
 
-    mFlightControllerValues.pidControllers["roll"].reset();
-    mFlightControllerValues.pidControllers["roll"].setWeights(3.0f, 0.02f, 1.5f);
+    mFlightControllerValues.controllerRoll.reset();
+    mFlightControllerValues.controllerRoll.setWeights(3.0f, 0.02f, 1.5f);
 
     // We want to approach a target using roll only after the vehicle points at it.
     mApproachPhase = ApproachPhase::OrientTowardsTarget;
@@ -567,16 +566,16 @@ void FlightController::ensureSafeFlightAfterWaypointsChanged()
     }
 }
 
-void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch& fssv)
+void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch* const fssv)
 {
     // This method does nothing more than some sanity checks and verbose flightstae switching.
 
-    qDebug() << "FlightController::slotFlightStateSwitchValueChanged(): flightstate" << mFlightControllerValues.flightState.toString() << "FlightStateSwitch changed to:" << fssv.toString();
+    qDebug() << "FlightController::slotFlightStateSwitchValueChanged(): flightstate" << mFlightControllerValues.flightState.toString() << "FlightStateSwitch changed to:" << fssv->toString();
 
     switch(mFlightControllerValues.flightState.state)
     {
     case FlightState::Value::UserControl:
-        switch(fssv.value)
+        switch(fssv->value)
         {
         case FlightStateSwitch::Value::UserControl:
             // This is an illegal state: We are already in UserControl, and now we're
@@ -597,7 +596,7 @@ void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch
         break;
 
     case FlightState::Value::ApproachWayPoint:
-        switch(fssv.value)
+        switch(fssv->value)
         {
         case FlightStateSwitch::Value::UserControl:
             // We are approaching waypoints, but the user wants to take over control. Ok.
@@ -618,7 +617,7 @@ void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch
         break;
 
     case FlightState::Value::Hover:
-        switch(fssv.value)
+        switch(fssv->value)
         {
         case FlightStateSwitch::Value::UserControl:
             // We are approaching waypoints, but the user wants to take over control. Ok.
@@ -637,7 +636,7 @@ void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch
         break;
 
     case FlightState::Value::Idle:
-        switch(fssv.value)
+        switch(fssv->value)
         {
         case FlightStateSwitch::Value::UserControl:
             // We are idling, but the user wants to take over control. Ok.
@@ -670,7 +669,16 @@ void FlightController::slotEmitFlightControllerInfo()
     emit flightControllerValues(&mFlightControllerValues);
 }
 
-void FlightController::slotSetControllerWeights(QString controllerName, QMap<QString,float> controllerWeights)
+void FlightController::slotSetControllerWeights(const QString* const controllerName, const QMap<QString,float>* const controllerWeights)
 {
-    mFlightControllerValues.pidControllers[controllerName].setWeights(controllerWeights);
+    if(controllerName->toLower() == "thrust")
+        mFlightControllerValues.controllerThrust.setWeights(controllerWeights);
+    else if(controllerName->toLower() == "yaw")
+        mFlightControllerValues.controllerYaw.setWeights(controllerWeights);
+    else if(controllerName->toLower() == "pitch")
+        mFlightControllerValues.controllerPitch.setWeights(controllerWeights);
+    else if(controllerName->toLower() == "roll")
+        mFlightControllerValues.controllerRoll.setWeights(controllerWeights);
+
+    emit flightControllerWeightsChanged();
 }

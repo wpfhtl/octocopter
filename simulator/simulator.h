@@ -17,6 +17,7 @@
 #include "flightstate.h"
 #include "flightcontroller.h"
 #include "camera.h"
+#include <vehiclestatus.h>
 #include "statuswidget.h"
 #include "coordinateconverter.h"
 
@@ -49,6 +50,9 @@ public:
     QList<Camera*> *mCameras;
 
     FlightController* mFlightController;
+    FlightStateSwitch mFlightStateSwitch;
+    VehicleStatus mVehicleStatus;
+
 
 private:
     mutable QMutex mMutex;
@@ -69,6 +73,7 @@ private slots:
     void slotNotifyDevicesOfNewTimeFactor();
     void slotUpdate();
     void slotJoystickButtonChanged(const quint8& button, const bool& enabled);
+    void slotNewConnection();
 
 public slots:
     void slotSimulationStart(void);

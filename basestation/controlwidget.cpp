@@ -50,7 +50,7 @@ void ControlWidget::initWayPointTable()
     mWayPointTable->setColumnWidth(2, 53);
 }
 
-void ControlWidget::slotUpdateConnectionRover(bool connected)
+void ControlWidget::slotUpdateConnectionRover(const bool connected)
 {
     if(connected)
     {
@@ -72,7 +72,7 @@ void ControlWidget::slotUpdateConnectionRover(bool connected)
     }
 }
 
-void ControlWidget::slotUpdateConnectionRtk(bool working)
+void ControlWidget::slotUpdateConnectionRtk(const bool working)
 {
     if(working)
     {
@@ -94,21 +94,15 @@ void ControlWidget::slotUpdateConnectionRtk(bool working)
     }
 }
 
-void ControlWidget::slotUpdateBattery(const float& voltageCurrent)
+void ControlWidget::slotFlightStateChanged(const FlightState* const fs)
 {
-    mLabelBatteryVoltage->setText(QString::number(voltageCurrent, 'f', 2) + " V");
-    if(voltageCurrent > 13.5) mLabelBatteryVoltage->setStyleSheet(""); else mLabelBatteryVoltage->setStyleSheet(getBackgroundCss(true, false));
+    mLabelFlightState->setText(fs->toString());
+    if(fs->state != FlightState::Value::Undefined) mLabelFlightState->setStyleSheet(""); else mLabelFlightState->setStyleSheet(getBackgroundCss(true, false));
 }
 
-void ControlWidget::slotFlightStateChanged(FlightState fs)
+void ControlWidget::slotUpdatePose(const Pose * const pose)
 {
-    mLabelFlightState->setText(fs.toString());
-    if(fs.state != FlightState::Value::Undefined) mLabelFlightState->setStyleSheet(""); else mLabelFlightState->setStyleSheet(getBackgroundCss(true, false));
-}
-
-void ControlWidget::slotUpdatePose(const Pose &pose)
-{
-    const QVector3D position = pose.getPosition();
+    const QVector3D position = pose->getPosition();
     mLabelPoseOgreX->setText(QString("%1").arg(position.x(), 4, 'f', 3, '0'));
     mLabelPoseOgreY->setText(QString("%1").arg(position.y(), 4, 'f', 3, '0'));
     mLabelPoseOgreZ->setText(QString("%1").arg(position.z(), 4, 'f', 3, '0'));
@@ -117,17 +111,16 @@ void ControlWidget::slotUpdatePose(const Pose &pose)
     deg.sprintf("%c", 176);
     deg.prepend("%1");
 
-    mLabelPitch->setText(deg.arg(pose.getPitchDegrees(), 3, 'f', 2, '0'));
-    mLabelRoll->setText(deg.arg(pose.getRollDegrees(), 3, 'f', 2, '0'));
-    mLabelYaw->setText(deg.arg(pose.getYawDegrees(), 3, 'f', 2, '0'));
+    mLabelPitch->setText(deg.arg(pose->getPitchDegrees(), 3, 'f', 2, '0'));
+    mLabelRoll->setText(deg.arg(pose->getRollDegrees(), 3, 'f', 2, '0'));
+    mLabelYaw->setText(deg.arg(pose->getYawDegrees(), 3, 'f', 2, '0'));
 
-    mCompass->setValue(pose.getYawDegrees()+180);
+    mCompass->setValue(pose->getYawDegrees()+180.0f);
 }
 
-void ControlWidget::slotUpdateMissionRunTime(const quint32& time)
+void ControlWidget::slotUpdateVehicleStatus(const VehicleStatus *const vs)
 {
-    //qDebug() << "time passed:"<< time;
-    const int secsPassed = time / 1000;
+    const int secsPassed = vs->missionRunTime / 1000.0f;
     const int secs = secsPassed % 60;
     const int mins = (secsPassed+1) / 60;
     const int hours = (mins+1) / 60;
@@ -135,20 +128,23 @@ void ControlWidget::slotUpdateMissionRunTime(const quint32& time)
     mLabelMissionRunTime->setText(
             QString("%1:%2:%3").arg(QString::number(hours), 2, '0').arg(QString::number(mins), 2, '0').arg(QString::number(secs), 2, '0')
             );
-}
 
-void ControlWidget::slotUpdateWirelessRssi(const qint8& wirelessRssi)
-{
-    if(wirelessRssi < 0 && mBarWirelessRssi->maximum() == 100)
+    if(vs->wirelessRssi < 0 && mBarWirelessRssi->maximum() == 100)
     {
         mBarWirelessRssi->setRange(0, 0);
     }
     else
     {
         mBarWirelessRssi->setRange(0, 100);
-        mBarWirelessRssi->setValue(wirelessRssi);
+        mBarWirelessRssi->setValue(vs->wirelessRssi);
     }
+
+    mLabelBatteryVoltage->setText(QString::number(vs->batteryVoltage, 'f', 2) + " V");
+    if(vs->batteryVoltage > 13.5) mLabelBatteryVoltage->setStyleSheet(""); else mLabelBatteryVoltage->setStyleSheet(getBackgroundCss(true, false));
+
+    mLabelBarometricHeight->setText(QString::number(vs->barometricHeight));
 }
+
 
 QString ControlWidget::getBackgroundCss(const bool& error, const bool& dark)
 {
@@ -159,39 +155,34 @@ QString ControlWidget::getBackgroundCss(const bool& error, const bool& dark)
     return QString("background-color:%1;").arg(bgColor.name());
 }
 
-void ControlWidget::slotUpdateGnssStatus(const GnssStatus& gnssStatus)
+void ControlWidget::slotUpdateGnssStatus(const GnssStatus* const gnssStatus)
 {
-    mLabelGnssMode->setText(gnssStatus.getPvtMode());
-    if(gnssStatus.pvtMode == GnssStatus::PvtMode::RtkFixed) mLabelGnssMode->setStyleSheet(""); else mLabelGnssMode->setStyleSheet(getBackgroundCss());
+    mLabelGnssMode->setText(gnssStatus->getPvtMode());
+    if(gnssStatus->pvtMode == GnssStatus::PvtMode::RtkFixed) mLabelGnssMode->setStyleSheet(""); else mLabelGnssMode->setStyleSheet(getBackgroundCss());
 
-    mLabelGnssIntegrationMode->setText(gnssStatus.getIntegrationMode());
-    if(gnssStatus.integrationMode != GnssStatus::IntegrationMode::Unavailable) mLabelGnssIntegrationMode->setStyleSheet(""); else mLabelGnssIntegrationMode->setStyleSheet(getBackgroundCss());
+    mLabelGnssIntegrationMode->setText(gnssStatus->getIntegrationMode());
+    if(gnssStatus->integrationMode != GnssStatus::IntegrationMode::Unavailable) mLabelGnssIntegrationMode->setStyleSheet(""); else mLabelGnssIntegrationMode->setStyleSheet(getBackgroundCss());
 
-    mLabelGnssInfo->setText(gnssStatus.getInfoRichText());
+    mLabelGnssInfo->setText(gnssStatus->getInfoRichText());
     mLabelGnssInfo->setToolTip(mLabelGnssInfo->text());
 
-    mLabelGnssError->setText(gnssStatus.getError());
-    if(gnssStatus.error == GnssStatus::Error::NoError) mLabelGnssError->setStyleSheet(""); else mLabelGnssError->setStyleSheet(getBackgroundCss());
+    mLabelGnssError->setText(gnssStatus->getError());
+    if(gnssStatus->error == GnssStatus::Error::NoError) mLabelGnssError->setStyleSheet(""); else mLabelGnssError->setStyleSheet(getBackgroundCss());
 
-    mLabelGnssNumSats->setText(QString::number(gnssStatus.numSatellitesUsed));
-    if(gnssStatus.numSatellitesUsed > 5) mLabelGnssNumSats->setStyleSheet(""); else mLabelGnssNumSats->setStyleSheet(getBackgroundCss());
+    mLabelGnssNumSats->setText(QString::number(gnssStatus->numSatellitesUsed));
+    if(gnssStatus->numSatellitesUsed > 5) mLabelGnssNumSats->setStyleSheet(""); else mLabelGnssNumSats->setStyleSheet(getBackgroundCss());
 
-    mLabelGnssAge->setText(QString::number(gnssStatus.gnssAge));
-    if(gnssStatus.gnssAge < 1) mLabelGnssAge->setStyleSheet(""); else mLabelGnssAge->setStyleSheet(getBackgroundCss());
+    mLabelGnssAge->setText(QString::number(gnssStatus->gnssAge));
+    if(gnssStatus->gnssAge < 1) mLabelGnssAge->setStyleSheet(""); else mLabelGnssAge->setStyleSheet(getBackgroundCss());
 
-    mLabelGnssCorrAge->setText(QString::number(((float)gnssStatus.meanCorrAge) / 10.0));
-    if(((float)gnssStatus.meanCorrAge)/10.0 < 5) mLabelGnssCorrAge->setStyleSheet(""); else mLabelGnssCorrAge->setStyleSheet(getBackgroundCss());
+    mLabelGnssCorrAge->setText(QString::number(((float)gnssStatus->meanCorrAge) / 10.0));
+    if(((float)gnssStatus->meanCorrAge)/10.0 < 5) mLabelGnssCorrAge->setStyleSheet(""); else mLabelGnssCorrAge->setStyleSheet(getBackgroundCss());
 
-    mLabelGnssCpuLoad->setText(QString::number(gnssStatus.cpuLoad));
-    if(gnssStatus.cpuLoad < 80) mLabelGnssCpuLoad->setStyleSheet(""); else mLabelGnssCpuLoad->setStyleSheet(getBackgroundCss());
+    mLabelGnssCpuLoad->setText(QString::number(gnssStatus->cpuLoad));
+    if(gnssStatus->cpuLoad < 80) mLabelGnssCpuLoad->setStyleSheet(""); else mLabelGnssCpuLoad->setStyleSheet(getBackgroundCss());
 
-    mLabelGnssCovariances->setText(QString::number(gnssStatus.covariances, 'f', 2));
-    if(gnssStatus.covariances < 1.0) mLabelGnssCovariances->setStyleSheet(""); else mLabelGnssCovariances->setStyleSheet(getBackgroundCss());
-}
-
-void ControlWidget::slotUpdateBarometricHeight(const qint16& barometricHeight)
-{
-    mLabelBarometricHeight->setText(QString::number(barometricHeight));
+    mLabelGnssCovariances->setText(QString::number(gnssStatus->covariances, 'f', 2));
+    if(gnssStatus->covariances < 1.0) mLabelGnssCovariances->setStyleSheet(""); else mLabelGnssCovariances->setStyleSheet(getBackgroundCss());
 }
 
 void ControlWidget::slotSetScanVolume()
@@ -396,12 +387,12 @@ void ControlWidget::slotWayPointSave()
     }
 }
 
-void ControlWidget::slotSetWayPointCoordinateFields(Qt::MouseButton btn, QVector3D pos)
-{
-    if(btn == Qt::MiddleButton)
-    {
-        mSpinBoxWptX->setValue(pos.x());
-        mSpinBoxWptY->setValue(pos.y());
-        mSpinBoxWptZ->setValue(pos.z());
-    }
-}
+//void ControlWidget::slotSetWayPointCoordinateFields(Qt::MouseButton btn, QVector3D pos)
+//{
+//    if(btn == Qt::MiddleButton)
+//    {
+//        mSpinBoxWptX->setValue(pos.x());
+//        mSpinBoxWptY->setValue(pos.y());
+//        mSpinBoxWptZ->setValue(pos.z());
+//    }
+//}

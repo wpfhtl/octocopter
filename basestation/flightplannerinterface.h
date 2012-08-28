@@ -64,7 +64,7 @@ public:
     const Pose getLastKnownVehiclePose(void) const;
     const QVector3D getCurrentVehicleVelocity() const;
 
-    const QList<WayPoint> getWayPoints();
+    const QList<WayPoint> *const getWayPoints();
 
     void getScanVolume(QVector3D& min, QVector3D& max);
 
@@ -94,7 +94,7 @@ public slots:
     virtual void slotGenerateWaypoints() = 0;
     virtual void slotVisualize();
 
-    void slotVehiclePoseChanged(const Pose& pose);
+    void slotVehiclePoseChanged(const Pose *const pose);
 
 signals:
     void message(const LogImportance& importance, const QString& source, const QString& message);
@@ -110,8 +110,8 @@ signals:
     // Emitted to tell the rover that it should delete waypoint @index
     void wayPointDeleteOnRover(const quint16& index);
 
-    void wayPointsSetOnRover(const QList<WayPoint>);
-    void wayPoints(const QList<WayPoint>);
+    void wayPointsSetOnRover(const QList<WayPoint>* const);
+    void wayPoints(const QList<WayPoint>* const);
 
     void suggestVisualization();
 };

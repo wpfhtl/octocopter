@@ -79,9 +79,9 @@ const Pose FlightPlannerInterface::getLastKnownVehiclePose(void) const
         return Pose();
 }
 
-void FlightPlannerInterface::slotVehiclePoseChanged(const Pose& pose)
+void FlightPlannerInterface::slotVehiclePoseChanged(const Pose* const pose)
 {
-    mVehiclePoses.append(pose);
+    mVehiclePoses.append(*pose);
     //    if(mVehiclePoses.size() > 2) mVehiclePoses.takeFirst();
 }
 
@@ -174,8 +174,8 @@ void FlightPlannerInterface::slotWayPointSwap(const quint16& i, const quint16& j
 void FlightPlannerInterface::slotWayPointsClear()
 {
     mWaypointListMap["ahead"]->clear();
-    emit wayPointsSetOnRover(*mWaypointListMap["ahead"]->list());
-    emit wayPoints(*mWaypointListMap["ahead"]->list());
+    emit wayPointsSetOnRover(mWaypointListMap["ahead"]->list());
+    emit wayPoints(mWaypointListMap["ahead"]->list());
     emit suggestVisualization();
 }
 
@@ -200,9 +200,9 @@ void FlightPlannerInterface::slotWayPointReached(const WayPoint& wpt)
     emit suggestVisualization();
 }
 
-const QList<WayPoint> FlightPlannerInterface::getWayPoints()
+const QList<WayPoint>* const FlightPlannerInterface::getWayPoints()
 {
-    return *mWaypointListMap.value("ahead")->list();
+    return mWaypointListMap.value("ahead")->list();
     //return *mWayPointsAhead;
 }
 
@@ -426,8 +426,8 @@ void FlightPlannerInterface::slotSubmitGeneratedWayPoints()
     mWaypointListMap["ahead"]->append(mWaypointListMap.value("generated"));
     mWaypointListMap["generated"]->clear();
     mWaypointListMap["ahead"]->sortToShortestPath(mVehiclePoses.last().getPosition());
-    emit wayPointsSetOnRover(*mWaypointListMap.value("ahead")->list());
-    emit wayPoints(*mWaypointListMap.value("ahead")->list());
+    emit wayPointsSetOnRover(mWaypointListMap.value("ahead")->list());
+    emit wayPoints(mWaypointListMap.value("ahead")->list());
 
     emit suggestVisualization();
 }

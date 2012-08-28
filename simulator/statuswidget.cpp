@@ -90,9 +90,9 @@ void StatusWidget::slotUpdateVisualization(QSize windowSize, int triangles, floa
             );
 }
 
-void StatusWidget::slotUpdatePose(const Pose &pose)
+void StatusWidget::slotUpdatePose(const Pose* const pose)
 {
-    const QVector3D position = pose.getPosition();
+    const QVector3D position = pose->getPosition();
     mLabelPoseOgreX->setText(QString("%1m").arg(position.x(), 3, 'f', 1, '0'));
     mLabelPoseOgreY->setText(QString("%1m").arg(position.y(), 3, 'f', 1, '0'));
     mLabelPoseOgreZ->setText(QString("%1m").arg(position.z(), 3, 'f', 1, '0'));
@@ -107,11 +107,11 @@ void StatusWidget::slotUpdatePose(const Pose &pose)
     deg.sprintf("%c", 176);
     deg.prepend("%1");
 
-    mLabelPitch->setText(deg.arg((int)pose.getPitchDegrees(), 3, 10, QLatin1Char('0')));
-    mLabelRoll->setText(deg.arg((int)pose.getRollDegrees(), 3, 10, QLatin1Char('0')));
-    mLabelYaw->setText(deg.arg((int)pose.getYawDegrees(), 3, 10, QLatin1Char('0')));
+    mLabelPitch->setText(deg.arg((int)pose->getPitchDegrees(), 3, 10, QLatin1Char('0')));
+    mLabelRoll->setText(deg.arg((int)pose->getRollDegrees(), 3, 10, QLatin1Char('0')));
+    mLabelYaw->setText(deg.arg((int)pose->getYawDegrees(), 3, 10, QLatin1Char('0')));
 
-    mCompass->setValue(fmod(180.0 + pose.getYawDegrees(), 360.0));
+    mCompass->setValue(fmod(180.0 + pose->getYawDegrees(), 360.0));
 
     // flight dynamics
     QVector3D vL = mSimulator->mPhysics->getVehicleLinearVelocity();

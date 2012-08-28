@@ -65,6 +65,7 @@ private:
     Ogre::Ray mLaserBeam;
 
     // a container for collected rays, or rather the world coordinates of where they ended
+    QVector3D mScannerPositionQt;
     QVector<QVector3D> mRegisteredPoints;
 
 //    CoordinateConverter *mCoordinateConverter;
@@ -141,7 +142,7 @@ public slots:
 signals:
     void heightOverGround(const float&);
 
-    void newLidarPoints(const QVector<QVector3D>*, const QVector3D&);
+    void newLidarPoints(const QVector<QVector3D>* const, const QVector3D* const);
 
     void scanFinished(const quint32&);
 };

@@ -864,8 +864,8 @@ void FlightPlannerPhysics::slotSubmitGeneratedWayPoints()
     else
         mWaypointListMap["ahead"]->sortToShortestPath(QVector3D(0,0,0));
 
-    emit wayPointsSetOnRover(*mWaypointListMap.value("ahead")->list());
-    emit wayPoints(*mWaypointListMap.value("ahead")->list());
+    emit wayPointsSetOnRover(mWaypointListMap.value("ahead")->list());
+    emit wayPoints(mWaypointListMap.value("ahead")->list());
 
     // just for creating paper-screenshots
     slotDeleteSampleGeometry();
@@ -895,11 +895,11 @@ void FlightPlannerPhysics::slotWayPointReached(const WayPoint wpt)
     //    slotCreateSafePathToNextWayPoint();
 }
 
-void FlightPlannerPhysics::slotVehiclePoseChanged(const Pose& pose)
+void FlightPlannerPhysics::slotVehiclePoseChanged(const Pose* const pose)
 {
     FlightPlannerInterface::slotVehiclePoseChanged(pose);
 
-    mTransformVehicle = pose.getTransform();
+    mTransformVehicle = pose->getTransform();
     mBodyVehicle->setWorldTransform(mTransformVehicle);
     mBodyVehicle->getMotionState()->setWorldTransform(mTransformVehicle);
     mGhostObjectVehicle->setWorldTransform(mTransformVehicle);

@@ -223,7 +223,7 @@ void FlightPlannerCuda::slotWayPointReached(const WayPoint wpt)
 //    slotCreateSafePathToNextWayPoint();
 }
 
-void FlightPlannerCuda::slotVehiclePoseChanged(const Pose& pose)
+void FlightPlannerCuda::slotVehiclePoseChanged(const Pose* const pose)
 {
     FlightPlannerInterface::slotVehiclePoseChanged(pose);
 

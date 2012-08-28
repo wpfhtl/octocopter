@@ -24,17 +24,17 @@ private:
     float mLastError;
     float mLastDerivative;
     float mErrorIntegral;
-    float mLastOutput;
+    float mLastOutputP, mLastOutputI, mLastOutputD;
 
     QTime mTimeOfLastUpdate;
 
 
 public:
-    PidController(const float p = 0.0f, const float i = 0.0f, const float d = 0.0f);
+    PidController(/*const QString& name = QString(),*/ const float p = 0.0f, const float i = 0.0f, const float d = 0.0f);
 
 //    void setName(const QString& name) {mName = name;}
     void setWeights(const float p, const float i, const float d);
-    void setWeights(QMap<QString,float> controllerWeights);
+    void setWeights(const QMap<QString, float> *const controllerWeights);
     void setDesiredValue(const float value) {mValueDesired = value;}
 
     float computeOutput(const float input);
@@ -43,9 +43,17 @@ public:
 
     const float& getLastError() {return mLastError;}
 
-    const float getWeight(const QString& weight) const;
+    const float getWeightP() const {return mP;}
+    const float getWeightI() const {return mI;}
+    const float getWeightD() const {return mD;}
     
     void reset();
+
+    const float getLastOutput() const {return mLastOutputP + mLastOutputI + mLastOutputD;}
+    const float getLastOutputP() const {return mLastOutputP;}
+    const float getLastOutputI() const {return mLastOutputI;}
+    const float getLastOutputD() const {return mLastOutputD;}
+
 //    void slotClearErrorIntegral() {mErrorIntegral = 0.0f;}
     
     // for streaming
@@ -61,7 +69,9 @@ public:
         out << pc.mLastError;
         out << pc.mLastDerivative;
         out << pc.mErrorIntegral;
-        out << pc.mLastOutput;
+        out << pc.mLastOutputP;
+        out << pc.mLastOutputI;
+        out << pc.mLastOutputD;
 
         return out;
     }
@@ -80,7 +90,9 @@ public:
         in >> pc.mLastError;
         in >> pc.mLastDerivative;
         in >> pc.mErrorIntegral;
-        in >> pc.mLastOutput;
+        in >> pc.mLastOutputP;
+        in >> pc.mLastOutputI;
+        in >> pc.mLastOutputD;
 
         return in;
     }

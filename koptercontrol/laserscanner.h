@@ -45,10 +45,10 @@ public:
     inline static quint8 getScanDuration() {return 25;}
 
 public slots:
-    void slotEnableScanning(const bool& = true);
+    void slotEnableScanning(const bool = true);
 
     // To set the laserscanner's timestamp to the gps time. Hopefully.
-    void slotSetScannerTimeStamp(const qint32& timestamp);
+    void slotSetScannerTimeStamp(const qint32 timestamp);
 
 signals:
     // the distance from the vehicle's center to the ground in meters
