@@ -119,7 +119,7 @@ public slots:
 
 signals:
     // Emits a pointer to a vector of registered points. The data is always owned by SensorFuser!
-    void newScannedPoints(const QVector<QVector3D>*, const QVector3D* const scanPosition);
+    void newScannedPoints(const QVector<QVector3D>* const, const QVector3D* const scanPosition);
 };
 
 #endif // SENSORFUSER_H
