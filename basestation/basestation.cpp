@@ -16,10 +16,32 @@ BaseStation::BaseStation() : QMainWindow()
                 2000000 // maxExpectedSize
                 );
     mOctree->mPointColor = QColor(128,128,128, 128);
+/*
+
+
+
+    QFile f("/home/ben/Dissertation/Logdata/kopterlog-20120829-103716-1507-pid1-flightcontroller.flt");
+    f.open(QIODevice::ReadOnly);
+    QByteArray data = f.readAll();
+
+    QByteArray magic("FLTCLR");
+
+    qint32 cursor = 0;
+    while(cursor < data.size())
+    {
+        data.insert(cursor, magic);
+        cursor += 422;
+    }
+
+    QFile o("/home/ben/Dissertation/Logdata/kopterlog-20120829-103716-1507-pid1-flightcontroller-fixed.flt");
+    o.open(QIODevice::WriteOnly);
+    o.write(data);
+    o.close();*/
 
     mProgress = 0;
 
     mPlotWidget = 0;
+    mTimerJoystick = 0;
     mLogPlayer = 0;
     mPtuController = 0;
     mAudioPlayer = 0;
@@ -217,6 +239,10 @@ BaseStation::BaseStation() : QMainWindow()
 
         mAudioPlayer = new AudioPlayer;
         connect(mLogPlayer, SIGNAL(gnssStatus(const GnssStatus* const)), this, SLOT(slotSpeakGnssStatus(const GnssStatus* const)));
+
+        mPidControllerWidget->setEnabled(false); // do not allow changes to PID values while playing a recorded flight.
+        mPidControllerWidget->setControllers(mLogPlayer->getFlightControllerValues()); // set this once. Table is rebuilt when signal from roverconnection comes in
+        connect(mLogPlayer, SIGNAL(flightControllerWeightsChanged()), mPidControllerWidget, SLOT(slotRebuild()));
 
 
         connect(mLogPlayer, SIGNAL(flightControllerValues(const FlightControllerValues* const)), SLOT(slotSetFlightControllerValues(const FlightControllerValues* const)));

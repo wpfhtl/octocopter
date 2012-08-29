@@ -194,8 +194,6 @@ void LaserScanner::slotCaptureScanData()
                 + ((indexStop - indexStart ) + 1) * sizeof(quint16); // size of the distance-data
 
         QByteArray magic("LASER");
-        Q_ASSERT(magic.length() == 5);
-
         mLogFile->write(magic.constData(), magic.size());
         mLogFile->write((const char*)&length, sizeof(length));
         mLogFile->write((const char*)&timeStampScanMiddle, sizeof(timeStampScanMiddle));

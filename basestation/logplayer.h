@@ -26,6 +26,8 @@ public:
     LogPlayer(QWidget *parent = 0);
     ~LogPlayer();
 
+    const FlightControllerValues* const getFlightControllerValues() const {return &mFlightControllerValues;}
+
 private:
 
     enum DataSource
@@ -57,8 +59,6 @@ private:
 
     DataSource getNextDataSource(qint32* tow = 0);
 
-    qint32 getLastTowSbf();
-
     void processPacket(const LogPlayer::DataSource& source, const QByteArray& packetLaser);
 
     // This class keeps instances of objects that are updated from the logfiles. After they are,
@@ -87,6 +87,7 @@ signals:
     void vehicleStatus(const VehicleStatus* const);
     void gnssStatus(const GnssStatus* const);
     void flightControllerValues(const FlightControllerValues* const);
+    void flightControllerWeightsChanged();
 };
 
 #endif // LOGPLAYER_H
