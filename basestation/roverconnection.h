@@ -67,7 +67,7 @@ public slots:
 
     void slotRoverWayPointInsert(const quint16&, const WayPoint&);
     void slotRoverWayPointDelete(const quint16&);
-    void slotRoverWayPointsSet(const QList<WayPoint>&);
+    void slotRoverWayPointsSet(const QList<WayPoint> *const);
 
     void slotSendDiffCorrToRover(const QByteArray& diffcorr);
 

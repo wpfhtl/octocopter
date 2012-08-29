@@ -87,7 +87,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     // When the flightplanner changed waypoints, tell controlwidget, so changes are reflected inthe UI
     connect(mFlightPlanner, SIGNAL(wayPointDeleted(quint16)), mControlWidget, SLOT(slotWayPointDeleted(quint16)));
-    connect(mFlightPlanner, SIGNAL(wayPoints(QList<WayPoint>)), mControlWidget, SLOT(slotSetWayPoints(QList<WayPoint>)));
+    connect(mFlightPlanner, SIGNAL(wayPoints(QList<WayPoint>*const)), mControlWidget, SLOT(slotSetWayPoints(QList<WayPoint>*const)));
     connect(mFlightPlanner, SIGNAL(wayPointInserted(quint16,WayPoint)), mControlWidget, SLOT(slotWayPointInserted(quint16,WayPoint)));
 
     mMenuFile->addAction("Save Cloud", this, SLOT(slotExportCloud()));
@@ -110,6 +110,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     mActionEnableAudio = new QAction("AudioOut", this);
     mActionEnableAudio->setCheckable(true);
+    mActionEnableAudio->setChecked(true);
     menuBar()->addAction(mActionEnableAudio);
 
     mPidControllerWidget = new PidControllerWidget(this);
@@ -182,7 +183,7 @@ BaseStation::BaseStation() : QMainWindow()
         // When FlightPlanner wants us to send waypoint updates to the rover...
         connect(mFlightPlanner, SIGNAL(wayPointInsertOnRover(quint16,WayPoint)), mRoverConnection, SLOT(slotRoverWayPointInsert(quint16,WayPoint)));
         connect(mFlightPlanner, SIGNAL(wayPointDeleteOnRover(quint16)), mRoverConnection, SLOT(slotRoverWayPointDelete(quint16)));
-        connect(mFlightPlanner, SIGNAL(wayPointsSetOnRover(QList<WayPoint>)), mRoverConnection, SLOT(slotRoverWayPointsSet(QList<WayPoint>)));
+        connect(mFlightPlanner, SIGNAL(wayPointsSetOnRover(QList<WayPoint>*const)), mRoverConnection, SLOT(slotRoverWayPointsSet(const QList<WayPoint>* const)));
 
         mDiffCorrFetcher = new DiffCorrFetcher(mConnectionDialog->getRtkBaseHostName(), mConnectionDialog->getRtkBasePort(), this);
         connect(mDiffCorrFetcher, SIGNAL(differentialCorrections(QByteArray)), mRoverConnection, SLOT(slotSendDiffCorrToRover(QByteArray)));

@@ -38,7 +38,7 @@ public slots:
     // Called by FlightPlanner when it has changed its internal list.
     void slotWayPointInserted(const quint16& index, const WayPoint& waypoint);
     void slotWayPointDeleted(const quint16& index);
-    void slotSetWayPoints(QList<WayPoint>);
+    void slotSetWayPoints(const QList<WayPoint> *const);
     void slotWayPointsCleared();
 
 private slots:

@@ -289,17 +289,17 @@ void ControlWidget::slotWayPointDeleted(const quint16& index)
     mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
 }
 
-void ControlWidget::slotSetWayPoints(QList<WayPoint> wayPoints)
+void ControlWidget::slotSetWayPoints(const QList<WayPoint>* const wayPoints)
 {
-    qDebug() << "ControlWidget::slotSetWayPoints():" << wayPoints.size() << "waypoints set by rover or flightplanner";
+    qDebug() << "ControlWidget::slotSetWayPoints():" << wayPoints->size() << "waypoints set by rover or flightplanner";
     mWayPointTable->clear();
     mWayPointTable->setRowCount(0);
 
     mWayPointTable->blockSignals(true);
 
-    for(int i=0;i<wayPoints.size();i++)
+    for(int i=0;i<wayPoints->size();i++)
     {
-        const WayPoint waypoint = wayPoints.at(i);
+        const WayPoint waypoint = wayPoints->at(i);
 
         mWayPointTable->insertRow(i);
 
