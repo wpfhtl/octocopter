@@ -45,7 +45,6 @@ public:
 
 private:
     QFile* mLogFile;
-//    QDataStream* mLogStream;
 
     FlightControllerValues mFlightControllerValues;
 

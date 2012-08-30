@@ -5,14 +5,11 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
 {
     mLogFile = 0;
 
-//    mLogStream = 0;
     if(!logFilePrefix.isNull())
     {
         qDebug()<< "fcv size:" << sizeof(FlightControllerValues);
         mLogFile = new QFile(logFilePrefix + QString("flightcontroller.flt"));
         if(!mLogFile->open(QIODevice::WriteOnly))
-//            mLogStream = new QDataStream(mLogFile);
-//        else
             qFatal("FlightController::FlightController(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
     }
 
@@ -201,7 +198,7 @@ void FlightController::slotComputeMotionCommands()
 
             float planarDistanceToTarget = (mFlightControllerValues.lastKnownPose.getPlanarPosition() - QVector2D(mFlightControllerValues.targetPosition.x(), mFlightControllerValues.targetPosition.z())).length();
 
-            qDebug() << "FlightController::slotComputeMotionCommands(): Hover, target:" << mFlightControllerValues.targetPosition << "planarDistance:" << planarDistanceToTarget << "angleToTurnAwayFromOrigin: turn" << (angleToTurnAwayFromOrigin < 0.0f ? "right" : "left") << angleToTurnAwayFromOrigin;
+            qDebug() << "FlightController::slotComputeMotionCommands(): Hover," << mFlightControllerValues.lastKnownPose << "target:" << mFlightControllerValues.targetPosition << "planarDistance:" << planarDistanceToTarget << "angleToTurnAwayFromOrigin: turn" << (angleToTurnAwayFromOrigin < 0.0f ? "right" : "left") << angleToTurnAwayFromOrigin;
 
             // Now that we've yawed to look away from the origin, pitch/roll to move towards hover-position
             const QVector3D vectorVehicleToHoverPosition = mFlightControllerValues.lastKnownPose.getPlanarPosition() - QVector2D(mFlightControllerValues.targetPosition.x(), mFlightControllerValues.targetPosition.z());
@@ -504,10 +501,10 @@ void FlightController::initializeControllers()
     mFlightControllerValues.controllerYaw.setWeights(1.0f, 0.0f, 0.3f);
 
     mFlightControllerValues.controllerPitch.reset();
-    mFlightControllerValues.controllerPitch.setWeights(3.0f, 0.02f, 1.5f);
+    mFlightControllerValues.controllerPitch.setWeights(4.0f, 0.02f, 1.5f);
 
     mFlightControllerValues.controllerRoll.reset();
-    mFlightControllerValues.controllerRoll.setWeights(3.0f, 0.02f, 1.5f);
+    mFlightControllerValues.controllerRoll.setWeights(4.0f, 0.02f, 1.5f);
 
     // We want to approach a target using roll only after the vehicle points at it.
     mApproachPhase = ApproachPhase::OrientTowardsTarget;
@@ -677,6 +674,7 @@ void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch
 void FlightController::slotEmitFlightControllerInfo()
 {
     // Usually called from BaseConnection::newConnection(), tell base about us...
+    qDebug() << "FlightController::slotEmitFlightControllerInfo(): emitting flightcontrollervalues, flightstate, controllerweights and waypoints.";
     emit flightControllerValues(&mFlightControllerValues);
     emit flightControllerWeightsChanged();
     emit flightStateChanged(&mFlightControllerValues.flightState);

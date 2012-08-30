@@ -313,7 +313,7 @@ void GlWidget::paintGL()
 //        qDebug() << "now visualizing motioncommand from" << mLastFlightControllerValues->lastKnownPose.timestamp << mLastFlightControllerValues->motionCommand;
 
         // Render controller yaw input
-        if(false && fabs(mLastFlightControllerValues->motionCommand.yaw) > 0.1f)
+        if(fabs(mLastFlightControllerValues->motionCommand.yaw) > 0.1f)
         {
             QMatrix4x4 trYaw(transformVehicle);
             trYaw.rotate(mLastFlightControllerValues->motionCommand.yaw, QVector3D(0,1,0));
@@ -326,16 +326,16 @@ void GlWidget::paintGL()
             mModelConeYaw->render();
 
             QMatrix4x4 trControllerYaw(transformVehicle);
-            trControllerYaw.rotate(mLastFlightControllerValues->motionCommand.yaw, QVector3D(0,1,0));
-            trControllerYaw.translate(0, 0, -0.7);
-//            renderController(trControllerYaw, &mLastFlightControllerValues->controllerYaw);
+            trControllerYaw.translate(0, 0, -0.7); // move forward on red arm, away from x axis.
+            trControllerYaw.rotate(-90.0f, QVector3D(1,0,0)); // pitch forward, so bars go forward instead of upwards.
+            renderController(trControllerYaw, &mLastFlightControllerValues->controllerYaw);
         }
 
         // Render controller pitch input
         if(fabs(mLastFlightControllerValues->motionCommand.pitch) > 0.01f)
         {
             QMatrix4x4 trPitch(transformVehicle);
-            trPitch.translate(0, sqrt(fabs(mLastFlightControllerValues->motionCommand.pitch)) * 0.1f, 0);
+            trPitch.translate(0, fabs(mLastFlightControllerValues->motionCommand.pitch) * 0.1f, 0);
             if(mLastFlightControllerValues->motionCommand.pitch > 0)
                 trPitch.translate(0, 0, -0.7);
             else
@@ -350,27 +350,25 @@ void GlWidget::paintGL()
         }
 
         // Render controller roll input
-        if(false && fabs(mLastFlightControllerValues->motionCommand.roll) > 0.01f)
+        if(fabs(mLastFlightControllerValues->motionCommand.roll) > 0.01f)
         {
-            QMatrix4x4 trRollCone(transformVehicle);
-            trRollCone.translate(0, fabs(mLastFlightControllerValues->motionCommand.roll) / 20.0f, 0);
+            QMatrix4x4 trRoll(transformVehicle);
+            trRoll.translate(0, fabs(mLastFlightControllerValues->motionCommand.roll) * 0.1f, 0);
+            trRoll.rotate(-90.0f, QVector3D(0,1,0));
             if(mLastFlightControllerValues->motionCommand.roll > 0)
-                trRollCone.translate(0.7, 0, 0);
+                trRoll.translate(0, 0, -0.7);
             else
-                trRollCone.translate(-0.7, 0, 0);
-            mModelConeRoll->slotSetModelTransform(trRollCone);
+                trRoll.translate(0, 0, 0.7);
+            mModelConeRoll->slotSetModelTransform(trRoll);
             mModelConeRoll->render();
 
             QMatrix4x4 trRollController(transformVehicle);
-            if(mLastFlightControllerValues->motionCommand.roll > 0)
-                trRollCone.translate(0.7, 0, 0);
-            else
-                trRollCone.translate(-0.7, 0, 0);
-
-//            renderController(trRollCone, &mLastFlightControllerValues->controllerRoll);
+            // turn right 90deg, so that renderController can move pos or neg depending on controller outputs?
+            trRollController.rotate(0.0f, QVector3D(0.0f, 1.0f, 0.0f));
+            renderController(trRollController, &mLastFlightControllerValues->controllerRoll);
         }
 
-        if(false && mLastFlightControllerValues->motionCommand.thrust != mLastFlightControllerValues->motionCommand.thrustHover)
+        if(mLastFlightControllerValues->motionCommand.thrust != mLastFlightControllerValues->motionCommand.thrustHover)
         {
             // Render controller thrust input
             QMatrix4x4 trThrust(transformVehicle);
@@ -386,6 +384,11 @@ void GlWidget::paintGL()
                 trThrust.rotate(180.0f, QVector3D(1,0,0));
             mModelThrust->slotSetModelTransform(trThrust);
             mModelThrust->render();
+
+            QMatrix4x4 trThrustController(transformVehicle);
+            // turn right 90deg, so that renderController can move pos or neg depending on controller outputs?
+            trThrustController.rotate(45.0f, QVector3D(0,1,0));
+//            renderController(trThrustController, &mLastFlightControllerValues->controllerThrust);
         }
 
         // Render target position!
@@ -402,7 +405,7 @@ void GlWidget::paintGL()
     mModelVehicle->render();
 }
 
-void GlWidget::renderController(QMatrix4x4 transform, const PidController* const controller)
+void GlWidget::renderController(const QMatrix4x4& transform, const PidController* const controller)
 {
     // Now render the controller-values
     QMatrix4x4 trControllerP(transform);
