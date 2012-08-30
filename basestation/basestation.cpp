@@ -16,11 +16,9 @@ BaseStation::BaseStation() : QMainWindow()
                 2000000 // maxExpectedSize
                 );
     mOctree->mPointColor = QColor(128,128,128, 128);
-/*
 
-
-
-    QFile f("/home/ben/Dissertation/Logdata/kopterlog-20120829-103716-1507-pid1-flightcontroller.flt");
+    /*
+    QFile f("/home/ben/Dissertation/Logdata/kopterlog-20120830-103618-1391-pid2-flightcontroller.flt");
     f.open(QIODevice::ReadOnly);
     QByteArray data = f.readAll();
 
@@ -33,7 +31,7 @@ BaseStation::BaseStation() : QMainWindow()
         cursor += 422;
     }
 
-    QFile o("/home/ben/Dissertation/Logdata/kopterlog-20120829-103716-1507-pid1-flightcontroller-fixed.flt");
+    QFile o("/home/ben/Dissertation/Logdata/kopterlog-20120830-103618-1391-pid2-flightcontroller-fixed.flt");
     o.open(QIODevice::WriteOnly);
     o.write(data);
     o.close();*/
@@ -85,6 +83,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     mPtuController = new PtuController("/dev/serial/by-id/usb-Hjelmslund_Electronics_USB485_ISO4W_HEVGI92A-if00-port0", this);
     addDockWidget(Qt::BottomDockWidgetArea, mPtuController);
+    mPtuController->setVisible(false);
     mMenuWindowList->addAction("PTU Controller", this, SLOT(slotTogglePtuControllerWidget()));
     connect(mPtuController, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
 

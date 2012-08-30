@@ -15,7 +15,7 @@ private:
     float mP, mI, mD;
 
     // In the first controller iteration, we don't want to build derivatives, they'd be waaayy off and destabilize the controller
-    bool mFirstControllerRun;
+    bool mBeforeFirstIteration;
 
     float mLastTimeDiff;
     float mLastValue;
@@ -37,7 +37,11 @@ public:
     void setWeights(const QMap<QString, float> *const controllerWeights);
     void setDesiredValue(const float value) {mValueDesired = value;}
 
-    float computeOutput(const float input);
+    float computeOutputFromValue(const float& input);
+    float computeOutputFromError(const float& error);
+
+    // returns true when the controller has been reset, but not yet used.
+    const bool beforeFirstIteration() const {return mBeforeFirstIteration;}
 
     QString toString() const;
 
@@ -63,7 +67,7 @@ public:
     {
 //        out << pc.mName;
         out << pc.mP << pc.mI << pc.mD;
-        out << pc.mFirstControllerRun;
+        out << pc.mBeforeFirstIteration;
         out << pc.mLastTimeDiff;
         out << pc.mLastValue;
         out << pc.mValueDesired;
@@ -84,7 +88,7 @@ public:
         in >> pc.mP;
         in >> pc.mI;
         in >> pc.mD;
-        in >> pc.mFirstControllerRun;
+        in >> pc.mBeforeFirstIteration;
         in >> pc.mLastTimeDiff;
         in >> pc.mLastValue;
         in >> pc.mValueDesired;

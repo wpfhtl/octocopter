@@ -132,8 +132,6 @@ Physics::Physics(Simulator *simulator, OgreWidget *ogreWidget) :
     // linear, angular
     mVehicleBody->setDamping(.5, .7);
 
-    mFlightController = new FlightController;
-
     mVehicleBody->setActivationState(DISABLE_DEACTIVATION); // probably unnecessary
     mBtWorld->addRigidBody(mVehicleBody);
 //    mVehicleBody->setActivationState(ISLAND_SLEEPING);
@@ -339,9 +337,8 @@ Physics::~Physics()
     delete mBtBroadphase;
 }
 
-void Physics::slotSetMotion(const MotionCommand* const mc)
+void Physics::slotSetMotion(const MotionCommand* const motionCommand)
 {
-    const MotionCommand motionCommandClamped = *mc;//.clampedToSafeLimits();
 //    qDebug() << "Physics::slotSetMotion(): updating physics forces with thrust" << motionCommandClamped.thrust << "pitch" << motionCommandClamped.pitch << "roll" << motionCommandClamped.roll << "yaw" << motionCommandClamped.yaw;
 
     /*
@@ -369,7 +366,7 @@ void Physics::slotSetMotion(const MotionCommand* const mc)
     // http://gallery.mikrokopter.de/main.php/v/tech/Okto2_5000_Payload.gif.html?g2_imageViewsIndex=1,
 
     // Apply general thrust. A value of 255 means 100% thrust, which means around 4.5A per single motor at full battery
-    const float thrustCurrent = (((float)motionCommandClamped.thrust) / 255.0f) * 4.5f * (mSimulator->mBattery->voltageCurrent() / mSimulator->mBattery->voltageMax());
+    const float thrustCurrent = (((float)motionCommand->thrust) / 255.0f) * 4.5f * (mSimulator->mBattery->voltageCurrent() / mSimulator->mBattery->voltageMax());
     const float thrustScalar = mEngine.calculateThrust(thrustCurrent) * 8.0f;
     const Ogre::Vector3 thrustVectorOgre = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0, thrustScalar, 0.0f);
     mVehicleBody->applyCentralForce(btVector3(thrustVectorOgre.x, thrustVectorOgre.y, thrustVectorOgre.z));
@@ -382,7 +379,7 @@ void Physics::slotSetMotion(const MotionCommand* const mc)
 
     // Yaw!
     // Let us wildly assume that the motors go 2000rpm faster/slower on maximum yaw
-    const float torqueScalarYaw = mEngine.calculateTorque(2000.0f * (((float)motionCommandClamped.yaw) / 128.0f));
+    const float torqueScalarYaw = mEngine.calculateTorque(2000.0f * (((float)motionCommand->yaw) / 128.0f));
     //qDebug() << "Physics::slotSetMotion(): torqueScalarYaw is" << torqueScalarYaw;
     Ogre::Vector3 torqueVectorYaw = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0.0f, torqueScalarYaw, 0.0f);
     mVehicleBody->applyTorque(btVector3(torqueVectorYaw.x, torqueVectorYaw.y, torqueVectorYaw.z));
@@ -400,7 +397,7 @@ void Physics::slotSetMotion(const MotionCommand* const mc)
     const float mikrokopterPitchRollD = 10.0f;
 
     // Pitch
-    const float errorPitch = ((float)motionCommandClamped.pitch) - currentPitch.valueDegrees();
+    const float errorPitch = ((float)motionCommand->pitch) - currentPitch.valueDegrees();
     mErrorIntegralPitch += errorPitch*timeDiff;
     const float derivativePitch = (errorPitch - mPrevErrorPitch + 0.00001f)/timeDiff;
     const float outputPitch = (mikrokopterPitchRollP * errorPitch) + (mikrokopterPitchRollI * mErrorIntegralPitch) + (mikrokopterPitchRollD * derivativePitch);
@@ -410,7 +407,7 @@ void Physics::slotSetMotion(const MotionCommand* const mc)
     mVehicleBody->applyTorque(btVector3(torqueVectorPitch.x, torqueVectorPitch.y, torqueVectorPitch.z));
 
     // Roll
-    const float errorRoll = ((float)motionCommandClamped.roll) - currentRoll.valueDegrees();
+    const float errorRoll = ((float)motionCommand->roll) - currentRoll.valueDegrees();
     mErrorIntegralRoll += errorRoll*timeDiff;
     const float derivativeRoll = (errorRoll - mPrevErrorRoll + 0.00001f)/timeDiff;
     const float outputRoll = (mikrokopterPitchRollP * errorRoll) + (mikrokopterPitchRollI * mErrorIntegralRoll) + (mikrokopterPitchRollD * derivativeRoll);
@@ -427,9 +424,9 @@ void Physics::slotSetMotion(const MotionCommand* const mc)
     {
         // rotate thrust-dependent
         if(i % 2 == 0)
-            mEngineNodes.at(i)->setOrientation(mEngineNodes.at(i)->getOrientation() * Ogre::Quaternion(Ogre::Degree(motionCommandClamped.thrust+Ogre::Math::RangeRandom(0, 5)), Ogre::Vector3(0,1,0)));
+            mEngineNodes.at(i)->setOrientation(mEngineNodes.at(i)->getOrientation() * Ogre::Quaternion(Ogre::Degree(motionCommand->thrust+Ogre::Math::RangeRandom(0, 5)), Ogre::Vector3(0,1,0)));
         else
-            mEngineNodes.at(i)->setOrientation(mEngineNodes.at(i)->getOrientation() * Ogre::Quaternion(Ogre::Degree(-motionCommandClamped.thrust-Ogre::Math::RangeRandom(0, 5)), Ogre::Vector3(0,1,0)));
+            mEngineNodes.at(i)->setOrientation(mEngineNodes.at(i)->getOrientation() * Ogre::Quaternion(Ogre::Degree(-motionCommand->thrust-Ogre::Math::RangeRandom(0, 5)), Ogre::Vector3(0,1,0)));
     }
 }
 

@@ -293,7 +293,7 @@ void Kopter::slotSerialPortDataReady()
                 qDebug() << "Kopter::slotSerialPortDataReady(): remote control limits thrust to" << ppmChannels->thrust + 127;
 
                 FlightStateSwitch fssv(ppmChannels->externalControl);
-                qDebug() << "Kopter::slotSerialPortDataReady(): flightstate switch" << ppmChannels->externalControl << "is state:" << fssv.toString();
+//                qDebug() << "Kopter::slotSerialPortDataReady(): flightstate switch value" << ppmChannels->externalControl << "is state:" << fssv.toString();
 
                 if(mLastFlightStateSwitch != fssv)
                 {

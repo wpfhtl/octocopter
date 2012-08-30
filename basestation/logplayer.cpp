@@ -275,13 +275,17 @@ QByteArray LogPlayer::getNextPacket(const DataSource& source)
 
     case Source_FlightController:
     {
-        const qint16 packetSize = sizeof(FlightControllerValues) + 6; // MAGIC BYTES, FLTCLR
+        const qint16 packetSize = sizeof(FlightControllerValues) + 6 - 8; // MAGIC BYTES, FLTCLR
 
         // check uninitialized and out-of-bounds conditions
-        if(mIndexFlightController + packetSize > mDataFlightController.size() || !mDataFlightController.size())
+        if(mIndexFlightController + sizeof(FlightControllerValues) > mDataFlightController.size() || !mDataFlightController.size())
             return result;
 
-        result = mDataFlightController.mid(mIndexFlightController, packetSize);
+        // search for packet-end right after its beginning, otherwise we find out own beginning. As optimization, we skip
+        // sizeof(FlightControllerValues bytes, in which there must not be the MAGIC bytes.
+        const qint32 posEndOfPacket = mDataFlightController.indexOf(QByteArray("FLTCLR"), mIndexFlightController + sizeof(FlightControllerValues) - 1);
+
+        result = mDataFlightController.mid(mIndexFlightController, posEndOfPacket - mIndexFlightController);
     }
     break;
 
@@ -330,10 +334,8 @@ LogPlayer::DataSource LogPlayer::getNextDataSource(qint32* tow)
     }
 }
 
-bool LogPlayer::slotStepForward()
+bool LogPlayer::slotStepForward(const DataSource& source)
 {
-    DataSource source = getNextDataSource();
-
     switch(source)
     {
     case Source_Sbf:
@@ -445,7 +447,7 @@ void LogPlayer::slotPlay()
     if(ui->mPushButtonPlay->isChecked())
     {
         qint32 minTowBefore;
-        getNextDataSource(&minTowBefore);
+        const DataSource ds = getNextDataSource(&minTowBefore);
 
         if(!mTimePlaybackStartReal.isValid())
         {
@@ -455,7 +457,7 @@ void LogPlayer::slotPlay()
             mTimePlaybackStartTow = minTowBefore;
         }
 
-        if(!slotStepForward())
+        if(!slotStepForward(ds))
         {
             // Playback failed, we're probably at the end
             qDebug() << "LogPlayer::slotPlay(): slotStepForward() failed, we're probably at the end, stopping timer.";

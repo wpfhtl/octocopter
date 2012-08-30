@@ -16,6 +16,7 @@
 #include "baseconnection.h"
 #include "flightstate.h"
 #include "flightcontroller.h"
+#include "motioncommand.h"
 #include "camera.h"
 #include <vehiclestatus.h>
 #include "statuswidget.h"
@@ -74,6 +75,7 @@ private slots:
     void slotUpdate();
     void slotJoystickButtonChanged(const quint8& button, const bool& enabled);
     void slotNewConnection();
+    void slotSetClampedMotion(const MotionCommand* const mc);
 
 public slots:
     void slotSimulationStart(void);

@@ -19,7 +19,7 @@
 #include "simulator.h"
 #include "engine.h"
 #include "ogrewidget.h"
-#include "flightcontroller.h"
+//#include "flightcontroller.h"
 #include <pose.h>
 
 class Simulator;
@@ -82,7 +82,7 @@ public:
     float getHeightAboveGround();
     const Pose* const getVehiclePose() {return &mVehiclePose;}
 
-    FlightController* mFlightController;
+//    FlightController* mFlightController;
 
 signals:
     void newVehiclePose(const Pose* const);

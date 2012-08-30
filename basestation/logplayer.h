@@ -75,7 +75,7 @@ private slots:
     void slotNewSbfTime(QByteArray,qint32 tow);
 
     bool slotOpenLogFiles();
-    bool slotStepForward();
+    bool slotStepForward(const DataSource &source);
     void slotRewind();
     void slotPlay();
 
