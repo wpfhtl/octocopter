@@ -88,6 +88,12 @@ Simulator::~Simulator(void)
     }
     delete mLaserScanners;
 
+    delete mFlightController;
+    delete mBaseConnection;
+    delete mStatusWidget;
+    delete mJoystick;
+    delete mOgreWidget;
+
     qDeleteAll(*mCameras);
     delete mCameras;
 }

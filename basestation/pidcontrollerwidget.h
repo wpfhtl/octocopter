@@ -27,6 +27,7 @@ public:
 
     bool isPopulated() const {return mPopulated;}
 
+
 signals:
     // signals that a weight for a single controller was changed. Transmits all the weights.
     void controllerWeight(QString, QMap<QString, float>);
@@ -39,6 +40,7 @@ private slots:
     void slotWeightChanged(int row, int column);
 
 public slots:
+    void setEnabled(const bool enabled);
     void slotRebuild();
 //    void slotClear() {mPopulated = false;}
 };

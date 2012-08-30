@@ -16,10 +16,32 @@ BaseStation::BaseStation() : QMainWindow()
                 2000000 // maxExpectedSize
                 );
     mOctree->mPointColor = QColor(128,128,128, 128);
+/*
+
+
+
+    QFile f("/home/ben/Dissertation/Logdata/kopterlog-20120829-103716-1507-pid1-flightcontroller.flt");
+    f.open(QIODevice::ReadOnly);
+    QByteArray data = f.readAll();
+
+    QByteArray magic("FLTCLR");
+
+    qint32 cursor = 0;
+    while(cursor < data.size())
+    {
+        data.insert(cursor, magic);
+        cursor += 422;
+    }
+
+    QFile o("/home/ben/Dissertation/Logdata/kopterlog-20120829-103716-1507-pid1-flightcontroller-fixed.flt");
+    o.open(QIODevice::WriteOnly);
+    o.write(data);
+    o.close();*/
 
     mProgress = 0;
 
     mPlotWidget = 0;
+    mTimerJoystick = 0;
     mLogPlayer = 0;
     mPtuController = 0;
     mAudioPlayer = 0;
@@ -87,7 +109,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     // When the flightplanner changed waypoints, tell controlwidget, so changes are reflected inthe UI
     connect(mFlightPlanner, SIGNAL(wayPointDeleted(quint16)), mControlWidget, SLOT(slotWayPointDeleted(quint16)));
-    connect(mFlightPlanner, SIGNAL(wayPoints(QList<WayPoint>)), mControlWidget, SLOT(slotSetWayPoints(QList<WayPoint>)));
+    connect(mFlightPlanner, SIGNAL(wayPoints(QList<WayPoint>*const)), mControlWidget, SLOT(slotSetWayPoints(QList<WayPoint>*const)));
     connect(mFlightPlanner, SIGNAL(wayPointInserted(quint16,WayPoint)), mControlWidget, SLOT(slotWayPointInserted(quint16,WayPoint)));
 
     mMenuFile->addAction("Save Cloud", this, SLOT(slotExportCloud()));
@@ -110,6 +132,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     mActionEnableAudio = new QAction("AudioOut", this);
     mActionEnableAudio->setCheckable(true);
+    mActionEnableAudio->setChecked(true);
     menuBar()->addAction(mActionEnableAudio);
 
     mPidControllerWidget = new PidControllerWidget(this);
@@ -182,7 +205,7 @@ BaseStation::BaseStation() : QMainWindow()
         // When FlightPlanner wants us to send waypoint updates to the rover...
         connect(mFlightPlanner, SIGNAL(wayPointInsertOnRover(quint16,WayPoint)), mRoverConnection, SLOT(slotRoverWayPointInsert(quint16,WayPoint)));
         connect(mFlightPlanner, SIGNAL(wayPointDeleteOnRover(quint16)), mRoverConnection, SLOT(slotRoverWayPointDelete(quint16)));
-        connect(mFlightPlanner, SIGNAL(wayPointsSetOnRover(QList<WayPoint>)), mRoverConnection, SLOT(slotRoverWayPointsSet(QList<WayPoint>)));
+        connect(mFlightPlanner, SIGNAL(wayPointsSetOnRover(QList<WayPoint>*const)), mRoverConnection, SLOT(slotRoverWayPointsSet(const QList<WayPoint>* const)));
 
         mDiffCorrFetcher = new DiffCorrFetcher(mConnectionDialog->getRtkBaseHostName(), mConnectionDialog->getRtkBasePort(), this);
         connect(mDiffCorrFetcher, SIGNAL(differentialCorrections(QByteArray)), mRoverConnection, SLOT(slotSendDiffCorrToRover(QByteArray)));
@@ -216,6 +239,10 @@ BaseStation::BaseStation() : QMainWindow()
 
         mAudioPlayer = new AudioPlayer;
         connect(mLogPlayer, SIGNAL(gnssStatus(const GnssStatus* const)), this, SLOT(slotSpeakGnssStatus(const GnssStatus* const)));
+
+        mPidControllerWidget->setEnabled(false); // do not allow changes to PID values while playing a recorded flight.
+        mPidControllerWidget->setControllers(mLogPlayer->getFlightControllerValues()); // set this once. Table is rebuilt when signal from roverconnection comes in
+        connect(mLogPlayer, SIGNAL(flightControllerWeightsChanged()), mPidControllerWidget, SLOT(slotRebuild()));
 
 
         connect(mLogPlayer, SIGNAL(flightControllerValues(const FlightControllerValues* const)), SLOT(slotSetFlightControllerValues(const FlightControllerValues* const)));

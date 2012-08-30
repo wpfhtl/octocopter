@@ -22,7 +22,7 @@ public:
     QVector3D targetPosition;
     Pose lastKnownPose;
     float lastKnownHeightOverGround;
-    QTime lastKnownHeightOverGroundTimestamp;
+    qint32 lastKnownHeightOverGroundTimestamp;
 };
 
 // for streaming

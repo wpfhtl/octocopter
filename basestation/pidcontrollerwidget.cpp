@@ -17,6 +17,11 @@ PidControllerWidget::~PidControllerWidget()
     delete ui;
 }
 
+void PidControllerWidget::setEnabled(const bool enabled)
+{
+    ui->mTableControllerWeights->setEnabled(enabled);
+}
+
 void PidControllerWidget::setControllers(const FlightControllerValues* const fcv)
 {
     mControllers.clear();

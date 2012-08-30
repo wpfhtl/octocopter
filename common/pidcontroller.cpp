@@ -49,7 +49,7 @@ float PidController::computeOutput(const float input)
     // "amplify" smaller numbers to survive becoming integers :)
     output = output > 0.0f ? ceil(output) : floor(output);
 
-    qDebug() << toString();
+//    qDebug() << toString();
 
     mPreviousError = mLastError;
     mFirstControllerRun = false;
@@ -61,7 +61,7 @@ float PidController::computeOutput(const float input)
 
 QString PidController::toString() const
 {
-    return QString ("controller p%1 i%2 d%3, firstrun: %4, time %5, value %6, should %7, prev-error %8, error %9, deriv %10, integ %11, output %12")
+    return QString ("p%1 i%2 d%3, firstrun: %4, time %5, value %6, should %7, prev-error %8, error %9, deriv %10, integ %11, output %12")
 //            .arg(mName)
             .arg(mP, 3, 'f', 2).arg(mI, 3, 'f', 2).arg(mD, 3, 'f', 2)
             .arg(mFirstControllerRun)
@@ -86,4 +86,12 @@ void PidController::setWeights(const QMap<QString,float>* const controllerWeight
     mP = controllerWeights->value("p", 0.0f);
     mI = controllerWeights->value("i", 0.0f);
     mD = controllerWeights->value("d", 0.0f);
+}
+
+const bool PidController::hasSameWeights(const PidController* const p) const
+{
+    if(p->mP == mP && p->mI == mI && p->mD == mD)
+        return true;
+    else
+        return false;
 }

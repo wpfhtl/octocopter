@@ -166,6 +166,7 @@ KopterControl::~KopterControl()
     qDebug() << "KopterControl::~KopterControl(): shutting down, deleting objects.";
     delete mGnssDevice;
     delete mLaserScanner;
+    delete mFlightController;
     delete mSensorFuser;
     delete mKopter;
     delete snSignalPipe;

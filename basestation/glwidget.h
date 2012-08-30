@@ -74,7 +74,7 @@ class GlWidget : public QGLWidget
     void zoom(double zoomFactor);
 //    QVector3D convertMouseToWorldPosition(const QPoint&);
 
-    void renderController(QMatrix4x4 transform, const PidController* const controller);
+    void renderController(const QMatrix4x4 &transform, const PidController* const controller);
 
 public:
     GlWidget(QWidget* parent/*, FlightPlannerInterface* flightPlanner*/);

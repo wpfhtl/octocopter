@@ -396,6 +396,8 @@ void PtuController::slotDataReady()
 
 void PtuController::slotVisualize()
 {
+    if(!isVisible()) return;
+
     if(mModelPtuBase == 0 && mModelPtuPan == 0 && mModelPtuTilt == 0)
     {
         QDir modelPath = QDir::current();

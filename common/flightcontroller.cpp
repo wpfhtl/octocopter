@@ -4,14 +4,12 @@
 FlightController::FlightController(const QString& logFilePrefix) : QObject()
 {
     mLogFile = 0;
-//    mLogStream = 0;
+
     if(!logFilePrefix.isNull())
     {
         qDebug()<< "fcv size:" << sizeof(FlightControllerValues);
         mLogFile = new QFile(logFilePrefix + QString("flightcontroller.flt"));
         if(!mLogFile->open(QIODevice::WriteOnly))
-//            mLogStream = new QDataStream(mLogFile);
-//        else
             qFatal("FlightController::FlightController(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
     }
 
@@ -200,7 +198,7 @@ void FlightController::slotComputeMotionCommands()
 
             float planarDistanceToTarget = (mFlightControllerValues.lastKnownPose.getPlanarPosition() - QVector2D(mFlightControllerValues.targetPosition.x(), mFlightControllerValues.targetPosition.z())).length();
 
-            qDebug() << "FlightController::slotComputeMotionCommands(): Hover, target:" << mFlightControllerValues.targetPosition << "planarDistance:" << planarDistanceToTarget << "angleToTurnAwayFromOrigin: turn" << (angleToTurnAwayFromOrigin < 0.0f ? "right" : "left") << angleToTurnAwayFromOrigin;
+            qDebug() << "FlightController::slotComputeMotionCommands(): Hover," << mFlightControllerValues.lastKnownPose << "target:" << mFlightControllerValues.targetPosition << "planarDistance:" << planarDistanceToTarget << "angleToTurnAwayFromOrigin: turn" << (angleToTurnAwayFromOrigin < 0.0f ? "right" : "left") << angleToTurnAwayFromOrigin;
 
             // Now that we've yawed to look away from the origin, pitch/roll to move towards hover-position
             const QVector3D vectorVehicleToHoverPosition = mFlightControllerValues.lastKnownPose.getPlanarPosition() - QVector2D(mFlightControllerValues.targetPosition.x(), mFlightControllerValues.targetPosition.z());
@@ -269,8 +267,10 @@ void FlightController::logFlightControllerValues()
     {
         mFlightControllerValues.timestamp = GnssTime::currentTow();
 
+        QByteArray magic("FLTCLR");
+        Q_ASSERT(magic.size() == 6);
+        mLogFile->write(magic.constData(), magic.size());
         mLogFile->write((const char*)&mFlightControllerValues, sizeof(FlightControllerValues));
-//        (*mLogStream) << GnssTime::currentTow() << mFlightControllerValues;
     }
 }
 
@@ -423,12 +423,19 @@ void FlightController::setFlightState(FlightState newFlightState)
         return;
     }
 
+    // When switching from ApproachWaypoint or Hover to something manual, we want these members to be cleared for easier debugging.
+    mFlightControllerValues.controllerThrust = PidController();
+    mFlightControllerValues.controllerYaw = PidController();
+    mFlightControllerValues.controllerPitch = PidController();
+    mFlightControllerValues.controllerRoll = PidController();
+    mFlightControllerValues.targetPosition = QVector3D();
+    mFlightControllerValues.motionCommand = MotionCommand();
+
     switch(newFlightState.state)
     {
     case FlightState::Value::ApproachWayPoint:
     {
         qDebug() << "FlightController::setFlightState(): ApproachWayPoint - initializing controllers, setting backup motion timer to high-freq";
-
 
         mBackupTimerComputeMotion->start(backupTimerIntervalFast);
 
@@ -494,10 +501,10 @@ void FlightController::initializeControllers()
     mFlightControllerValues.controllerYaw.setWeights(1.0f, 0.0f, 0.3f);
 
     mFlightControllerValues.controllerPitch.reset();
-    mFlightControllerValues.controllerPitch.setWeights(3.0f, 0.02f, 1.5f);
+    mFlightControllerValues.controllerPitch.setWeights(4.0f, 0.02f, 1.5f);
 
     mFlightControllerValues.controllerRoll.reset();
-    mFlightControllerValues.controllerRoll.setWeights(3.0f, 0.02f, 1.5f);
+    mFlightControllerValues.controllerRoll.setWeights(4.0f, 0.02f, 1.5f);
 
     // We want to approach a target using roll only after the vehicle points at it.
     mApproachPhase = ApproachPhase::OrientTowardsTarget;
@@ -507,14 +514,14 @@ void FlightController::slotSetHeightOverGround(const float& beamLength)
 {
     // Height is given from vehicle center to ground, but we care about the bottom of the landing gear.
     qDebug() << "FlightController::slotSetHeightOverGround()" << beamLength - 0.16f << "meters";
-    mFlightControllerValues.lastKnownHeightOverGroundTimestamp = QTime::currentTime();
+    mFlightControllerValues.lastKnownHeightOverGroundTimestamp = GnssTime::currentTow();
     mFlightControllerValues.lastKnownHeightOverGround = beamLength - 0.16f;
 }
 
 bool FlightController::isHeightOverGroundValueRecent() const
 {
-    qDebug() << "FlightController::isHeightOverGroundValueRecent(): age of last heightOverGround measurement is" << mFlightControllerValues.lastKnownHeightOverGroundTimestamp.msecsTo(QTime::currentTime()) << "msecs";
-    return mFlightControllerValues.lastKnownHeightOverGroundTimestamp.msecsTo(QTime::currentTime()) < 750;
+    qDebug() << "FlightController::isHeightOverGroundValueRecent(): time of last heightOverGround measurement is" << mFlightControllerValues.lastKnownHeightOverGroundTimestamp;
+    return (GnssTime::currentTow() - mFlightControllerValues.lastKnownHeightOverGroundTimestamp) < 500;
 }
 
 // To be called after waypoints have changed to check for dangerous states:
@@ -666,7 +673,12 @@ void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch
 
 void FlightController::slotEmitFlightControllerInfo()
 {
+    // Usually called from BaseConnection::newConnection(), tell base about us...
+    qDebug() << "FlightController::slotEmitFlightControllerInfo(): emitting flightcontrollervalues, flightstate, controllerweights and waypoints.";
     emit flightControllerValues(&mFlightControllerValues);
+    emit flightControllerWeightsChanged();
+    emit flightStateChanged(&mFlightControllerValues.flightState);
+    emit currentWayPoints(&mWayPoints);
 }
 
 void FlightController::slotSetControllerWeights(const QString* const controllerName, const QMap<QString,float>* const controllerWeights)

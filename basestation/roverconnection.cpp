@@ -131,16 +131,14 @@ void RoverConnection::processPacket(QByteArray data)
     }
     else if(packetType == "gnssstatus")
     {
-        GnssStatus gs;
-
-        stream >> gs;
+        stream >> mGnssStatus;
 
         emit message(
-                    gs.error == GnssStatus::Error::NoError && gs.pvtMode == GnssStatus::PvtMode::RtkFixed && gs.integrationMode != GnssStatus::IntegrationMode::Unavailable && gs.numSatellitesUsed >= 5 ? Information : Error,
+                    mGnssStatus.error == GnssStatus::Error::NoError && mGnssStatus.pvtMode == GnssStatus::PvtMode::RtkFixed && mGnssStatus.integrationMode != GnssStatus::IntegrationMode::Unavailable && mGnssStatus.numSatellitesUsed >= 5 ? Information : Error,
                     QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                    gs.toString());
+                    mGnssStatus.toString());
 
-        emit gnssStatus(&gs);
+        emit gnssStatus(&mGnssStatus);
     }
     else if(packetType == "pose")
     {
@@ -232,20 +230,20 @@ void RoverConnection::slotSendMotionToKopter(const MotionCommand* const mc)
 }
 
 
-void RoverConnection::slotRoverWayPointsSet(const QList<WayPoint>& wayPoints)
+void RoverConnection::slotRoverWayPointsSet(const QList<WayPoint>* const wayPoints)
 {
-    qDebug() << "RoverConnection::slotRoverWayPointsSet(): sending" << wayPoints.size() << "waypoints";
+    qDebug() << "RoverConnection::slotRoverWayPointsSet(): sending" << wayPoints->size() << "waypoints";
 
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
     stream << QString("waypoints");
-    stream << wayPoints;
+    stream << *wayPoints;
 
     emit message(
                 Information,
                 QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                QString("Transmitting %1 waypoints to rover").arg(wayPoints.size()));
+                QString("Transmitting %1 waypoints to rover").arg(wayPoints->size()));
 
     slotSendData(data);
 }

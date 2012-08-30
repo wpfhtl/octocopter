@@ -54,6 +54,8 @@ public:
     const float getLastOutputI() const {return mLastOutputI;}
     const float getLastOutputD() const {return mLastOutputD;}
 
+    const bool hasSameWeights(const PidController* const p) const;
+
 //    void slotClearErrorIntegral() {mErrorIntegral = 0.0f;}
     
     // for streaming

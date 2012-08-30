@@ -181,13 +181,18 @@ qint32 LogPlayer::getLastTow(const DataSource& source)
 
     case Source_FlightController:
     {
-        const qint32 packetSize = sizeof(FlightControllerValues);
-        if(mDataFlightController.size() >= packetSize)
-        {
-            const QByteArray lastPacket = mDataFlightController.right(packetSize);
+        qint32 lastSearchIndex = -1;
 
-            FlightControllerValues* fcv = (FlightControllerValues*)lastPacket.data();
+        // Search backwards as long as we cannot find a valid SBF packe to extract TOW from
+        while(lastSearchIndex > -2 && tow < 0)
+        {
+            QByteArray lastPacket = mDataFlightController.right(mDataFlightController.size() - mDataFlightController.lastIndexOf("FLTCLR", lastSearchIndex));
+
+            FlightControllerValues* fcv = (FlightControllerValues*)(lastPacket.data() + 6); // FLTCLR
             tow = fcv->timestamp;
+
+            // Where to search next if values couldn't be extracted
+            lastSearchIndex = mDataFlightController.size() - lastPacket.size() - 6;
         }
     }
     break;
@@ -233,7 +238,7 @@ qint32 LogPlayer::getNextTow(const DataSource& source)
         // If we can extract something, fine. If not, we might just not have any laser data at all. In that case we'll return -1
         if(nextPacket.size())
         {
-            FlightControllerValues* fcv = (FlightControllerValues*)nextPacket.data();
+            FlightControllerValues* fcv = (FlightControllerValues*)(nextPacket.data() + 6); // magic bytes FLTCLR
             tow = fcv->timestamp;
         }
     }
@@ -260,17 +265,17 @@ QByteArray LogPlayer::getNextPacket(const DataSource& source)
         if(mIndexLaser >= mDataLaser.size() || !mDataLaser.size())
             return result;
 
-        const quint16 length = *((quint16*)(mDataLaser.constData() + mIndexLaser + 5));
+        const quint16 packetSize = *((quint16*)(mDataLaser.constData() + mIndexLaser + 5));
 
-        result = mDataLaser.mid(mIndexLaser, length);
+        result = mDataLaser.mid(mIndexLaser, packetSize);
 
-        Q_ASSERT(result.size() == length);
+        Q_ASSERT(result.size() == packetSize);
     }
     break;
 
     case Source_FlightController:
     {
-        const qint32 packetSize = sizeof(FlightControllerValues);
+        const qint16 packetSize = sizeof(FlightControllerValues) + 6; // MAGIC BYTES, FLTCLR
 
         // check uninitialized and out-of-bounds conditions
         if(mIndexFlightController + packetSize > mDataFlightController.size() || !mDataFlightController.size())
@@ -408,8 +413,26 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const QByteAr
 
     case Source_FlightController:
     {
-        mFlightControllerValues = *(FlightControllerValues*)packet.data();
+        FlightControllerValues* fcv = (FlightControllerValues*)(packet.data() + 6); // FLTCLR
         ui->mProgressBarTow->setValue(mFlightControllerValues.timestamp);
+
+        if(!(
+                    fcv->controllerThrust.hasSameWeights(&mFlightControllerValues.controllerThrust)
+                    &&
+                    fcv->controllerYaw.hasSameWeights(&mFlightControllerValues.controllerYaw)
+                    &&
+                    fcv->controllerPitch.hasSameWeights(&mFlightControllerValues.controllerPitch)
+                    &&
+                    fcv->controllerRoll.hasSameWeights(&mFlightControllerValues.controllerRoll)
+             ))
+        {
+            // mFlightControllerValues needs to be set before emitting!
+            mFlightControllerValues = *fcv;
+            emit flightControllerWeightsChanged();
+        }
+
+        mFlightControllerValues = *fcv;
+
         emit flightControllerValues(&mFlightControllerValues);
     }
     break;

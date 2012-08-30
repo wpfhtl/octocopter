@@ -326,50 +326,46 @@ void GlWidget::paintGL()
             mModelConeYaw->render();
 
             QMatrix4x4 trControllerYaw(transformVehicle);
-            trControllerYaw.rotate(mLastFlightControllerValues->motionCommand.yaw, QVector3D(0,1,0));
-            trControllerYaw.translate(0, 0, -0.7);
-//            renderController(trControllerYaw, &mLastFlightControllerValues->controllerYaw);
+            trControllerYaw.translate(0, 0, -0.7); // move forward on red arm, away from x axis.
+            trControllerYaw.rotate(-90.0f, QVector3D(1,0,0)); // pitch forward, so bars go forward instead of upwards.
+            renderController(trControllerYaw, &mLastFlightControllerValues->controllerYaw);
         }
 
         // Render controller pitch input
         if(fabs(mLastFlightControllerValues->motionCommand.pitch) > 0.01f)
         {
-//            QMatrix4x4 trPitch(transformVehicle);
-//            trPitch.translate(0, fabs(mLastFlightControllerValues->motionCommand.pitch) / 20.0f, 0);
-//            if(mLastFlightControllerValues->motionCommand.pitch > 0)
-//                trPitch.translate(0, 0, -0.7);
-//            else
-//                trPitch.translate(0, 0, 0.7);
-//            mModelConePitch->slotSetModelTransform(trPitch);
-//            mModelConePitch->render();
+            QMatrix4x4 trPitch(transformVehicle);
+            trPitch.translate(0, fabs(mLastFlightControllerValues->motionCommand.pitch) * 0.1f, 0);
+            if(mLastFlightControllerValues->motionCommand.pitch > 0)
+                trPitch.translate(0, 0, -0.7);
+            else
+                trPitch.translate(0, 0, 0.7);
+            mModelConePitch->slotSetModelTransform(trPitch);
+            mModelConePitch->render();
 
             QMatrix4x4 trPitchController(transformVehicle);
-            if(mLastFlightControllerValues->motionCommand.pitch < 0)
-                trPitchController.translate(0, 0, -0.7);
-            else
-                trPitchController.translate(0, 0, 0.7);
+            // turn right 90deg, so that renderController can move pos or neg depending on controller outputs?
+            trPitchController.rotate(90.0f, QVector3D(0.0f, 1.0f, 0.0f));
             renderController(trPitchController, &mLastFlightControllerValues->controllerPitch);
         }
 
         // Render controller roll input
         if(fabs(mLastFlightControllerValues->motionCommand.roll) > 0.01f)
         {
-            QMatrix4x4 trRollCone(transformVehicle);
-            trRollCone.translate(0, fabs(mLastFlightControllerValues->motionCommand.roll) / 20.0f, 0);
+            QMatrix4x4 trRoll(transformVehicle);
+            trRoll.translate(0, fabs(mLastFlightControllerValues->motionCommand.roll) * 0.1f, 0);
+            trRoll.rotate(-90.0f, QVector3D(0,1,0));
             if(mLastFlightControllerValues->motionCommand.roll > 0)
-                trRollCone.translate(0.7, 0, 0);
+                trRoll.translate(0, 0, -0.7);
             else
-                trRollCone.translate(-0.7, 0, 0);
-            mModelConeRoll->slotSetModelTransform(trRollCone);
+                trRoll.translate(0, 0, 0.7);
+            mModelConeRoll->slotSetModelTransform(trRoll);
             mModelConeRoll->render();
 
             QMatrix4x4 trRollController(transformVehicle);
-            if(mLastFlightControllerValues->motionCommand.roll > 0)
-                trRollCone.translate(0.7, 0, 0);
-            else
-                trRollCone.translate(-0.7, 0, 0);
-
-//            renderController(trRollCone, &mLastFlightControllerValues->controllerRoll);
+            // turn right 90deg, so that renderController can move pos or neg depending on controller outputs?
+            trRollController.rotate(0.0f, QVector3D(0.0f, 1.0f, 0.0f));
+            renderController(trRollController, &mLastFlightControllerValues->controllerRoll);
         }
 
         if(mLastFlightControllerValues->motionCommand.thrust != mLastFlightControllerValues->motionCommand.thrustHover)
@@ -388,6 +384,11 @@ void GlWidget::paintGL()
                 trThrust.rotate(180.0f, QVector3D(1,0,0));
             mModelThrust->slotSetModelTransform(trThrust);
             mModelThrust->render();
+
+            QMatrix4x4 trThrustController(transformVehicle);
+            // turn right 90deg, so that renderController can move pos or neg depending on controller outputs?
+            trThrustController.rotate(45.0f, QVector3D(0,1,0));
+//            renderController(trThrustController, &mLastFlightControllerValues->controllerThrust);
         }
 
         // Render target position!
@@ -404,38 +405,105 @@ void GlWidget::paintGL()
     mModelVehicle->render();
 }
 
-void GlWidget::renderController(QMatrix4x4 transform, const PidController* const controller)
+void GlWidget::renderController(const QMatrix4x4& transform, const PidController* const controller)
 {
     // Now render the controller-values
     QMatrix4x4 trControllerP(transform);
-    trControllerP.translate(0.0f, 0.0f, controller->getWeightP()/8);
+    const float sqrtWeightP = sqrt(controller->getWeightP());
+    if(controller->getLastOutputP() < 0.0f)
+    {
+        // Make the bar point upwards, not downwards!
+        trControllerP.rotate(180.0f, QVector3D(1,0,0));
+    }
+    else
+    {
+        // Make the bar appear on the other side of the kopter if pitch is positive!
+        trControllerP.rotate(180.0f, QVector3D(0,1,0));
+    }
+
+    trControllerP.translate(0.8f + sqrtWeightP * 0.5f, 0.0f, 0.0f);
+
     trControllerP.scale(
-                controller->getWeightP(),
+                sqrtWeightP,
                 controller->getLastOutputP(),
-                controller->getWeightP());
+                sqrtWeightP);
 
     mModelControllerP->slotSetModelTransform(trControllerP);
     mModelControllerP->render();
 
+
+
+
     QMatrix4x4 trControllerI(transform);
-    trControllerI.translate(0.0f, 0.0f, controller->getWeightP()/4);
+    const float sqrtWeightI = sqrt(controller->getWeightI());
+    if(controller->getLastOutputI() < 0.0f)
+    {
+        // Make the bar point upwards, not downwards!
+        trControllerI.rotate(180.0f, QVector3D(1,0,0));
+    }
+    else
+    {
+        // Make the bar appear on the other side of the kopter if pitch is positive!
+        trControllerI.rotate(180.0f, QVector3D(0,1,0));
+    }
+
+    trControllerI.translate(0.8f + sqrtWeightI * 0.5f, 0.0f, 0.0f);
+
     trControllerI.scale(
-                controller->getWeightI(),
+                sqrtWeightI,
                 controller->getLastOutputI(),
-                controller->getWeightI());
+                sqrtWeightI);
 
     mModelControllerI->slotSetModelTransform(trControllerI);
     mModelControllerI->render();
 
+
+
+
+
+
+
     QMatrix4x4 trControllerD(transform);
-    trControllerD.translate(0.0f, 0.0f, controller->getWeightP()/4 + controller->getWeightI());
+    const float sqrtWeightD = sqrt(controller->getWeightD());
+    if(controller->getLastOutputD() < 0.0f)
+    {
+        // Make the bar point upwards, not downwards!
+        trControllerD.rotate(180.0f, QVector3D(1,0,0));
+    }
+    else
+    {
+        // Make the bar appear on the other side of the kopter if pitch is positive!
+        trControllerD.rotate(180.0f, QVector3D(0,1,0));
+    }
+
+    trControllerD.translate(0.8f + sqrtWeightD * 0.5f, 0.0f, 0.0f);
+
     trControllerD.scale(
-                controller->getWeightD(),
+                sqrtWeightD,
                 controller->getLastOutputD(),
-                controller->getWeightD());
+                sqrtWeightD);
 
     mModelControllerD->slotSetModelTransform(trControllerD);
     mModelControllerD->render();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
 void GlWidget::slotNewVehiclePose(const Pose* const pose)
