@@ -334,8 +334,11 @@ LogPlayer::DataSource LogPlayer::getNextDataSource(qint32* tow)
     }
 }
 
-bool LogPlayer::slotStepForward(const DataSource& source)
+bool LogPlayer::slotStepForward(DataSource source)
 {
+    if(source == Source_Invalid)
+        source = getNextDataSource();
+
     switch(source)
     {
     case Source_Sbf:

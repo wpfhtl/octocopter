@@ -84,14 +84,14 @@ MotionCommand MotionCommand::clampedToSafeLimits() const
     MotionCommand clamped;
 
     // As documented in the header, about 127 means hovering.
-    clamped.thrust = (quint8)qBound(100.0f, (float)thrust, 140.0f);
+    clamped.thrust = (quint8)qBound(50.0f, (float)thrust, 200.0f);
 
     // A yaw of 15 rotates by about 15 degrees per second, which is slooow
     clamped.yaw = (qint8)qBound(-50.0, yaw > 0.0f ? ceil(yaw) : floor(yaw), 50.0);
 
-    // Lets limit to 10 for testing, this seems plenty
-    clamped.pitch = (qint8)qBound(-10.0f, (float)pitch, 10.0f);
-    clamped.roll = (qint8)qBound(-10.0f, (float)roll, 10.0f);
+    // Lets limit to 15 for testing, this seems plenty
+    clamped.pitch = (qint8)qBound(-15.0f, (float)pitch, 15.0f);
+    clamped.roll = (qint8)qBound(-15.0f, (float)roll, 15.0f);
 
     return clamped;
 }

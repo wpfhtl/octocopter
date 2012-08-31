@@ -4,6 +4,7 @@
 #include <QDockWidget>
 #include <QMessageBox>
 #include <QString>
+#include <QTableWidgetItem>
 #include <QMap>
 
 #include <flightcontrollervalues.h>
@@ -24,9 +25,7 @@ public:
     QMap<QString, const PidController*> mControllers;
 
     void setControllers(const FlightControllerValues *const fcv);
-
-    bool isPopulated() const {return mPopulated;}
-
+//    bool isPopulated() const {return mPopulated;}
 
 signals:
     // signals that a weight for a single controller was changed. Transmits all the weights.
@@ -36,13 +35,18 @@ private:
     Ui::PidControllerWidget *ui;
     bool mPopulated;
 
+    // We don't want to overwrite the values of a cell thats currently being edited by the user.
+    QTableWidgetItem* mActiveItem;
+
 private slots:
-    void slotWeightChanged(int row, int column);
+//    void slotWeightChanged(int row, int column);
+    void slotCellActivated(const int& row, const int& column);
+    void slotCellChanged(const int& row, const int& column);
 
 public slots:
-    void setEnabled(const bool enabled);
-    void slotRebuild();
-//    void slotClear() {mPopulated = false;}
+//    void setEnabled(const bool enabled);
+//    void slotUpdateWeights();
+    void slotUpdateValues();
 };
 
 #endif

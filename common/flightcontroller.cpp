@@ -68,7 +68,7 @@ void FlightController::slotComputeMotionCommands()
 
     // This can be set for all the cases below.
     // mLastFlightControllerValues.mFlightControllerValues.flightState is already set in slotNewVehiclePose()
-    mFlightControllerValues.lastKnownHeightOverGround = mFlightControllerValues.lastKnownHeightOverGround;
+
 
     switch(mFlightControllerValues.flightState.state)
     {
@@ -139,13 +139,13 @@ void FlightController::slotComputeMotionCommands()
                 desiredRoll = qBound(-10.0f, lateralOffsetFromLine * 10.0f, 10.0f);
                 desiredRoll *= factorPlanarDistance;
                 qDebug() << "FlightController::slotComputeMotionCommands(): lateral vehicle offset: vehicle is" << lateralOffsetFromLine << "m too far" << (lateralOffsetFromLine > 0.0f ? "right" : "left") << "- desiredRoll is" << desiredRoll;
+                desiredPitch = -pow(20.0f - qBound(0.0, fabs(RAD2DEG(angleToTurnToWayPoint)), 20.0), 2.0f) / 20.0f;
+                desiredPitch *= factorPlanarDistance;
             }
             else if(mApproachPhase == ApproachPhase::OrientTowardsTarget)
             {
                 // TODO: stay on position while turning!?
             }
-            desiredPitch = -pow(20.0f - qBound(0.0, fabs(RAD2DEG(angleToTurnToWayPoint)), 20.0), 2.0f) / 20.0f;
-            desiredPitch *= factorPlanarDistance;
 
             mFlightControllerValues.controllerThrust.setDesiredValue(nextWayPoint.y());
             const float outputThrust = MotionCommand::thrustHover + mFlightControllerValues.controllerThrust.computeOutputFromValue(mFlightControllerValues.lastKnownPose.getPosition().y());
@@ -192,7 +192,7 @@ void FlightController::slotComputeMotionCommands()
                 && mFlightControllerValues.lastKnownPose.precision & Pose::HeadingFixed
                 && mFlightControllerValues.lastKnownPose.precision & Pose::CorrectionAgeLow
                 // && mFlightControllerValues.lastKnownPose.precision & Pose::ModeIntegrated // Also use non-integrated poses. Position might be off, but angles could be helpful
-                // && mFlightControllerValues.lastKnownPose.precision & Pose::RtkFixed // Hover even in non-precise modes
+                && mFlightControllerValues.lastKnownPose.precision & Pose::RtkFixed // When switching from RtkFixed to Differential, height can jump by >30m in 1 second(!)
                 )
         {
             const QVector2D vectorVehicleToOrigin = -mFlightControllerValues.lastKnownPose.getPlanarPosition();
@@ -508,23 +508,16 @@ void FlightController::initializeControllers()
     // Is there a good reason for resettign weights? Only if hover and ApproachWayPoint need
     // different weights?!
     mFlightControllerValues.controllerThrust.reset();
-//    mFlightControllerValues.controllerThrust.setWeights(25.0f, 0.001f, 1.0f);
-
     mFlightControllerValues.controllerYaw.reset();
-//    mFlightControllerValues.controllerYaw.setWeights(1.0f, 0.0f, 0.3f);
-
     mFlightControllerValues.controllerPitch.reset();
-//    mFlightControllerValues.controllerPitch.setWeights(4.0f, 0.02f, 1.5f);
-
     mFlightControllerValues.controllerRoll.reset();
-//    mFlightControllerValues.controllerRoll.setWeights(4.0f, 0.02f, 1.5f);
+
+    // If we change weights above, tell basestation about the changes.
+//    emit flightControllerValues(&mFlightControllerValues);
+//    emit flightControllerWeightsChanged();
 
     // We want to approach a target using roll only after the vehicle points at it.
     mApproachPhase = ApproachPhase::OrientTowardsTarget;
-
-    // Tell basestation about the weight-changes.
-//    emit flightControllerValues(&mFlightControllerValues);
-//    emit flightControllerWeightsChanged();
 }
 
 void FlightController::slotSetHeightOverGround(const float& beamLength)
@@ -548,7 +541,8 @@ bool FlightController::isHeightOverGroundValueRecent() const
 //  - descend slowly if heightOverGround is unknown
 void FlightController::ensureSafeFlightAfterWaypointsChanged()
 {
-//    initializeControllers();
+    // Reset approach phase to rotate towards target!
+    mApproachPhase = ApproachPhase::OrientTowardsTarget;
 
     Q_ASSERT(mFlightControllerValues.flightState == FlightState::Value::ApproachWayPoint && "FlightController::ensureSafeFlightAfterWaypointsChanged(): flightstate is NOT ApproachWayPoint!");
 

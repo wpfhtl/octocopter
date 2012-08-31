@@ -176,7 +176,7 @@ BaseStation::BaseStation() : QMainWindow()
         }
 
         connect(mPidControllerWidget, SIGNAL(controllerWeight(QString, QMap<QString,float>)), mRoverConnection, SLOT(slotSendControllerWeights(QString, QMap<QString,float>)));
-        connect(mRoverConnection, SIGNAL(flightControllerWeightsChanged()), mPidControllerWidget, SLOT(slotRebuild()));
+//        connect(mRoverConnection, SIGNAL(flightControllerWeightsChanged()), mPidControllerWidget, SLOT(slotRebuild()));
 
         connect(mRoverConnection, SIGNAL(flightState(FlightState*const)), mControlWidget, SLOT(slotFlightStateChanged(FlightState*const)));
 
@@ -241,7 +241,7 @@ BaseStation::BaseStation() : QMainWindow()
 
         mPidControllerWidget->setEnabled(false); // do not allow changes to PID values while playing a recorded flight.
         mPidControllerWidget->setControllers(mLogPlayer->getFlightControllerValues()); // set this once. Table is rebuilt when signal from roverconnection comes in
-        connect(mLogPlayer, SIGNAL(flightControllerWeightsChanged()), mPidControllerWidget, SLOT(slotRebuild()));
+//        connect(mLogPlayer, SIGNAL(flightControllerWeightsChanged()), mPidControllerWidget, SLOT(slotRebuild()));
 
 
         connect(mLogPlayer, SIGNAL(flightControllerValues(const FlightControllerValues* const)), SLOT(slotSetFlightControllerValues(const FlightControllerValues* const)));
@@ -401,5 +401,7 @@ void BaseStation::slotSetFlightControllerValues(const FlightControllerValues* co
 
     mControlWidget->slotFlightStateChanged(&fcv->flightState);
 
-    if(!mPidControllerWidget->isPopulated()) mPidControllerWidget->slotRebuild();
+//    if(!mPidControllerWidget->isPopulated()) mPidControllerWidget->slotUpdateWeights();
+
+    mPidControllerWidget->slotUpdateValues();
 }

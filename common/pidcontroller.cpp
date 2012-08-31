@@ -12,15 +12,15 @@ PidController::PidController(/*const QString& name, */const float p, const float
 void PidController::reset()
 {
     mBeforeFirstIteration = true;
-    mErrorIntegral = 0.0f;
-    mLastTimeDiff = 0.0f;
-    mPreviousError = 0.0f;
-    mLastError = 0.0f;
-    mLastDerivative = 0.0f;
-    mLastValue = 0.0f;
-    mLastOutputP = 0.0f;
-    mLastOutputI = 0.0f;
-    mLastOutputD = 0.0f;
+    mIntegral = 0.0f;
+    mTimeDiff = 0.0f;
+    mErrorPrevious = 0.0f;
+    mError = 0.0f;
+    mDerivative = 0.0f;
+    mValue = 0.0f;
+    mOutputP = 0.0f;
+    mOutputI = 0.0f;
+    mOutputD = 0.0f;
 }
 
 void PidController::setWeights(const float p, const float i, const float d)
@@ -33,27 +33,28 @@ void PidController::setWeights(const float p, const float i, const float d)
 
 float PidController::computeOutputFromValue(const float &input)
 {
-    mLastTimeDiff = qBound(
+    mErrorPrevious = mError;
+
+    mTimeDiff = qBound(
                 0.015f,
                 mTimeOfLastUpdate.msecsTo(QTime::currentTime()) / 1000.0f,
                 0.2f);
 
-    mLastValue = input;
-    mLastError = mValueDesired - mLastValue;
-    mErrorIntegral += mLastError * mLastTimeDiff;
-    mLastDerivative = mBeforeFirstIteration ? 0.0f : (mLastError - mPreviousError) / mLastTimeDiff;
-    mLastOutputP = mP * mLastError;
-    mLastOutputI = mI * mErrorIntegral;
-    mLastOutputD = mD * mLastDerivative;
+    mValue = input;
+    mError = mValueDesired - mValue;
+    mIntegral += mError * mTimeDiff;
+    mDerivative = mBeforeFirstIteration ? 0.0f : (mError - mErrorPrevious) / mTimeDiff;
+    mOutputP = mP * mError;
+    mOutputI = mI * mIntegral;
+    mOutputD = mD * mDerivative;
 
-    float output = mLastOutputP + mLastOutputI + mLastOutputD;
+    float output = mOutputP + mOutputI + mOutputD;
 
     // "amplify" smaller numbers to survive becoming integers :)
     output = output > 0.0f ? ceil(output) : floor(output);
 
 //    qDebug() << toString();
 
-    mPreviousError = mLastError;
     mBeforeFirstIteration = false;
 
     mTimeOfLastUpdate = QTime::currentTime();
@@ -63,27 +64,28 @@ float PidController::computeOutputFromValue(const float &input)
 
 float PidController::computeOutputFromError(const float& error)
 {
-    mLastTimeDiff = qBound(
+    mErrorPrevious = mError;
+
+    mTimeDiff = qBound(
                 0.015f,
                 mTimeOfLastUpdate.msecsTo(QTime::currentTime()) / 1000.0f,
                 0.2f);
 
-    mLastValue = 0.0f; // set this to some absurd value.
-    mLastError = error;
-    mErrorIntegral += mLastError * mLastTimeDiff;
-    mLastDerivative = mBeforeFirstIteration ? 0.0f : (mLastError - mPreviousError) / mLastTimeDiff;
-    mLastOutputP = mP * mLastError;
-    mLastOutputI = mI * mErrorIntegral;
-    mLastOutputD = mD * mLastDerivative;
+    mValue = 0.0f; // set this to some absurd value.
+    mError = error;
+    mIntegral += mError * mTimeDiff;
+    mDerivative = mBeforeFirstIteration ? 0.0f : (mError - mErrorPrevious) / mTimeDiff;
+    mOutputP = mP * mError;
+    mOutputI = mI * mIntegral;
+    mOutputD = mD * mDerivative;
 
-    float output = mLastOutputP + mLastOutputI + mLastOutputD;
+    float output = mOutputP + mOutputI + mOutputD;
 
     // "amplify" smaller numbers to survive becoming integers :)
     output = output > 0.0f ? ceil(output) : floor(output);
 
 //    qDebug() << toString();
 
-    mPreviousError = mLastError;
     mBeforeFirstIteration = false;
 
     mTimeOfLastUpdate = QTime::currentTime();
@@ -97,14 +99,14 @@ QString PidController::toString() const
 //            .arg(mName)
             .arg(mP, 3, 'f', 2).arg(mI, 3, 'f', 2).arg(mD, 3, 'f', 2)
             .arg(mBeforeFirstIteration)
-            .arg(mLastTimeDiff, 3, 'f', 2)
-            .arg(mLastValue, 3, 'f', 2)
+            .arg(mTimeDiff, 3, 'f', 2)
+            .arg(mValue, 3, 'f', 2)
             .arg(mValueDesired, 3, 'f', 2)
-            .arg(mPreviousError, 3, 'f', 2)
-            .arg(mLastError, 3, 'f', 2)
-            .arg(mLastDerivative, 3, 'f', 2)
-            .arg(mErrorIntegral, 3, 'f', 2)
-            .arg(mLastOutputP + mLastOutputI + mLastOutputD, 3, 'f', 2);
+            .arg(mErrorPrevious, 3, 'f', 2)
+            .arg(mError, 3, 'f', 2)
+            .arg(mDerivative, 3, 'f', 2)
+            .arg(mIntegral, 3, 'f', 2)
+            .arg(mOutputP + mOutputI + mOutputD, 3, 'f', 2);
 }
 
 QDebug operator<<(QDebug dbg, const PidController &pc)
