@@ -3,6 +3,7 @@
 
 #include <QDockWidget>
 #include <QMessageBox>
+#include <QInputDialog>
 #include <QTimer>
 #include <QFileDialog>
 #include <QString>
@@ -77,6 +78,7 @@ private slots:
     bool slotOpenLogFiles();
     bool slotStepForward(DataSource source = Source_Invalid);
     void slotRewind();
+    void slotGoTo();
     void slotPlay();
 
 signals:

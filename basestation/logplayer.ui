@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>348</width>
-    <height>180</height>
+    <width>266</width>
+    <height>170</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -18,7 +18,7 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>215</width>
+    <width>266</width>
     <height>170</height>
    </size>
   </property>
@@ -271,6 +271,13 @@
        <widget class="QPushButton" name="mPushButtonStepForward">
         <property name="text">
          <string>Step</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="mPushButtonGoTo">
+        <property name="text">
+         <string>GoTo</string>
         </property>
        </widget>
       </item>
