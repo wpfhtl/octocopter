@@ -2,6 +2,14 @@
 
 FlightControllerValues::FlightControllerValues()
 {
+    // Initialize, so we have clean logdata.
+    timestamp = 0;
+    flightState = FlightState();
+    motionCommand = MotionCommand();
+    targetPosition = QVector3D();
+    lastKnownPose = Pose();
+    lastKnownHeightOverGround = 0.0f;
+    lastKnownHeightOverGroundTimestamp = 0;
 }
 
 // for streaming

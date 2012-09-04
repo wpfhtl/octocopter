@@ -17,25 +17,6 @@ BaseStation::BaseStation() : QMainWindow()
                 );
     mOctree->mPointColor = QColor(128,128,128, 128);
 
-    /*
-    QFile f("/home/ben/Dissertation/Logdata/kopterlog-20120830-103618-1391-pid2-flightcontroller.flt");
-    f.open(QIODevice::ReadOnly);
-    QByteArray data = f.readAll();
-
-    QByteArray magic("FLTCLR");
-
-    qint32 cursor = 0;
-    while(cursor < data.size())
-    {
-        data.insert(cursor, magic);
-        cursor += 422;
-    }
-
-    QFile o("/home/ben/Dissertation/Logdata/kopterlog-20120830-103618-1391-pid2-flightcontroller-fixed.flt");
-    o.open(QIODevice::WriteOnly);
-    o.write(data);
-    o.close();*/
-
     mProgress = 0;
 
     mPlotWidget = 0;

@@ -43,7 +43,7 @@ class GlWidget : public QGLWidget
 
     // Timer
     int mTimerIdZoom, mTimerIdRotate;
-    QDateTime mTimeOfLastExternalUpdate;
+    QDateTime/* mTimeOfLastExternalUpdate,*/ mTimeOfLastRender;
 
     // Mouse Rotations
     QPoint      mLastMousePosition;
@@ -61,6 +61,8 @@ class GlWidget : public QGLWidget
 
     GLuint mUboId;
     unsigned int mUboSize;
+
+    quint32 mFrameCounter;
 
     ShaderProgram *mShaderProgramDefault;
     ShaderProgram *mShaderProgramParticles; // for testing billboarding of the octree

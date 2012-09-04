@@ -106,7 +106,7 @@ void PidControllerWidget::setControllers(const FlightControllerValues* const fcv
         ui->mTableControllerValues->setItem(row, 1, new QTableWidgetItem(QString::number(i.value()->getWeightI(), 'f', 2)));
         ui->mTableControllerValues->setItem(row, 2, new QTableWidgetItem(QString::number(i.value()->getWeightD(), 'f', 2)));
 
-        ui->mTableControllerValues->setItem(row, 3, new QTableWidgetItem(QString::number(i.value()->getTimeDiff(), 'f', 2)));
+        ui->mTableControllerValues->setItem(row, 3, new QTableWidgetItem(QString::number(i.value()->getTimeDiff(), 'f', 3)));
         ui->mTableControllerValues->item(row, 3)->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
         ui->mTableControllerValues->setItem(row, 4, new QTableWidgetItem(QString::number(i.value()->getValueDesired(), 'f', 2)));
         ui->mTableControllerValues->item(row, 4)->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
@@ -135,7 +135,7 @@ void PidControllerWidget::setControllers(const FlightControllerValues* const fcv
 
     connect(ui->mTableControllerValues, SIGNAL(cellChanged(int,int)), this, SLOT(slotCellChanged(int,int)));
 
-//    ui->mTableControllerValues->resizeColumnsToContents();
+    ui->mTableControllerValues->resizeColumnsToContents();
 //    ui->mTableControllerValues->resizeRowsToContents();
 
     slotUpdateValues();
@@ -161,7 +161,7 @@ void PidControllerWidget::slotUpdateValues()
         item = ui->mTableControllerValues->item(row, 2);
         if(mActiveItem != item) item->setText(QString::number(i.value()->getWeightD(), 'f', 2));
 
-        ui->mTableControllerValues->item(row, 3)->setText(QString::number(i.value()->getTimeDiff(), 'f', 2));
+        ui->mTableControllerValues->item(row, 3)->setText(QString::number(i.value()->getTimeDiff(), 'f', 3));
         ui->mTableControllerValues->item(row, 4)->setText(QString::number(i.value()->getValueDesired(), 'f', 2));
         ui->mTableControllerValues->item(row, 5)->setText(QString::number(i.value()->getValue(), 'f', 2));
         ui->mTableControllerValues->item(row, 6)->setText(QString::number(i.value()->getError(), 'f', 2));
