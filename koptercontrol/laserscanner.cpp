@@ -195,15 +195,15 @@ void LaserScanner::slotCaptureScanData()
 
         QByteArray magic("LASER");
 
-        //mLogFile->write(magic.constData(), magic.size());
-        //mLogFile->write((const char*)&length, sizeof(length));
-        //mLogFile->write((const char*)&timeStampScanMiddle, sizeof(timeStampScanMiddle));
-        //mLogFile->write((const char*)&indexStart, sizeof(indexStart));
+        mLogFile->write(magic.constData(), magic.size());
+        mLogFile->write((const char*)&length, sizeof(length));
+        mLogFile->write((const char*)&timeStampScanMiddle, sizeof(timeStampScanMiddle));
+        mLogFile->write((const char*)&indexStart, sizeof(indexStart));
 
         while(indexStart<=indexStop)
         {
             const quint16 distance = ((*distances)[indexStart++]);
-            //mLogFile->write((const char*)&distance, sizeof(distance));
+            mLogFile->write((const char*)&distance, sizeof(distance));
         }
 
         // Every full moon, emit the distance from vehicle center to the ground in meters (scanner to vehicle center is 3cm)
