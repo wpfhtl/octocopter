@@ -1,0 +1,7 @@
+#!/bin/bash
+
+test -d log && mkdir -p log-persistant && echo "moving logfiles to persistant storage..." && mv log/* log-persistant
+
+test -d log || mkdir log
+
+mount | grep tmpfs | grep log 2>&1 > /dev/null || mount -t tmpfs none log/ -o size=256m
