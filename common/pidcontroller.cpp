@@ -12,6 +12,7 @@ PidController::PidController(/*const QString& name, */const float p, const float
 void PidController::reset()
 {
     mBeforeFirstIteration = true;
+    mValueDesired = 0.0f;
     mIntegral = 0.0f;
     mTimeDiff = 0.0f;
     mErrorPrevious = 0.0f;
@@ -115,11 +116,11 @@ QDebug operator<<(QDebug dbg, const PidController &pc)
     return dbg;
 }
 
-void PidController::setWeights(const QMap<QString,float>* const controllerWeights)
+void PidController::setWeights(const QMap<QChar, float> *const controllerWeights)
 {
-    mP = controllerWeights->value("p", 0.0f);
-    mI = controllerWeights->value("i", 0.0f);
-    mD = controllerWeights->value("d", 0.0f);
+    mP = controllerWeights->value('p', 0.0f);
+    mI = controllerWeights->value('i', 0.0f);
+    mD = controllerWeights->value('d', 0.0f);
 }
 
 const bool PidController::hasSameWeights(const PidController* const p) const

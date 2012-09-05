@@ -63,7 +63,7 @@ signals:
 public slots:
     void slotConnectToRover(void);
 
-    void slotSendControllerWeights(QString name, QMap<QString,float> weights);
+    void slotSendControllerWeights(QString name, QMap<QChar,float> weights);
 
     void slotRoverWayPointInsert(const quint16&, const WayPoint&);
     void slotRoverWayPointDelete(const quint16&);

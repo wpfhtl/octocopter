@@ -16,10 +16,6 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     //mSensorFuser->setMaximumFusableRayLength(20.0f);
     mSbfParser = new SbfParser(this);
 
-//    QLocale german(QLocale::German);
-//    mProgressBarTow->setLocale(german);
-
-
     mIndexLaser = -1;
     mIndexFlightController = -1;
 
@@ -175,13 +171,13 @@ qint32 LogPlayer::getLastTow(const DataSource& source)
     {
         const QByteArray magic("LASER");
         const int lastPos = mDataLaser.lastIndexOf(magic);
-        qDebug() << "LogPlayer::getLastTow(): last laser packet startpos is" << lastPos;
+//        qDebug() << "LogPlayer::getLastTow(): last laser packet startpos is" << lastPos;
 
         if(lastPos == -1) return -1;
 
         tow = *((qint32*)(mDataLaser.data() + lastPos + 5 + sizeof(quint16)));
 
-        qDebug() << "LogPlayer::getLastTow(): last laser tow is" << tow;
+//        qDebug() << "LogPlayer::getLastTow(): last laser tow is" << tow;
     }
     break;
 
@@ -277,7 +273,7 @@ QByteArray LogPlayer::getNextPacket(const DataSource& source)
 
         result = mDataLaser.mid(mIndexLaser, packetSize);
 
-        qDebug() << "laser packet size:" << result.size();
+//        qDebug() << "laser packet size:" << result.size();
 
         Q_ASSERT(result.size() == packetSize);
     }

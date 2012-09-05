@@ -156,7 +156,7 @@ BaseStation::BaseStation() : QMainWindow()
             connect(mTimerJoystick, SIGNAL(timeout()), mJoystick, SLOT(slotEmitMotionCommands()));
         }
 
-        connect(mPidControllerWidget, SIGNAL(controllerWeight(QString, QMap<QString,float>)), mRoverConnection, SLOT(slotSendControllerWeights(QString, QMap<QString,float>)));
+        connect(mPidControllerWidget, SIGNAL(controllerWeight(QString, QMap<QChar,float>)), mRoverConnection, SLOT(slotSendControllerWeights(QString, QMap<QChar,float>)));
 //        connect(mRoverConnection, SIGNAL(flightControllerWeightsChanged()), mPidControllerWidget, SLOT(slotRebuild()));
 
         connect(mRoverConnection, SIGNAL(flightState(FlightState*const)), mControlWidget, SLOT(slotFlightStateChanged(FlightState*const)));

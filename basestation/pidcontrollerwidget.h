@@ -29,7 +29,7 @@ public:
 
 signals:
     // signals that a weight for a single controller was changed. Transmits all the weights.
-    void controllerWeight(QString, QMap<QString, float>);
+    void controllerWeight(QString, QMap<QChar, float>);
     
 private:
     Ui::PidControllerWidget *ui;

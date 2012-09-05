@@ -7,7 +7,6 @@ PidControllerWidget::PidControllerWidget(QWidget *parent) :
     ui(new Ui::PidControllerWidget)
 {
     ui->setupUi(this);
-//    ui->mTableControllerWeights->setSortingEnabled(false);
     ui->mTableControllerValues->setSortingEnabled(false);
 
     connect(ui->mTableControllerValues, SIGNAL(cellActivated(int,int)), SLOT(slotCellActivated(int,int)));
@@ -23,12 +22,6 @@ PidControllerWidget::~PidControllerWidget()
     delete ui;
 }
 
-//void PidControllerWidget::setEnabled(const bool enabled)
-//{
-//    ui->mTableControllerWeights->setEnabled(enabled);
-//
-//}
-
 void PidControllerWidget::setControllers(const FlightControllerValues* const fcv)
 {
     mControllers.clear();
@@ -36,39 +29,7 @@ void PidControllerWidget::setControllers(const FlightControllerValues* const fcv
     mControllers.insert("yaw", &fcv->controllerYaw);
     mControllers.insert("pitch", &fcv->controllerPitch);
     mControllers.insert("roll", &fcv->controllerRoll);
-/*
-    // Build the weights table
-    disconnect(ui->mTableControllerWeights, SIGNAL(cellChanged(int,int)), this, SLOT(slotWeightChanged(int,int)));
 
-    ui->mTableControllerWeights->clear();
-
-    if(mControllers.size())
-    {
-        ui->mTableControllerWeights->setRowCount(mControllers.size());
-        ui->mTableControllerWeights->setColumnCount(3);
-
-        ui->mTableControllerWeights->setHorizontalHeaderItem(0, new QTableWidgetItem("p"));
-        ui->mTableControllerWeights->setHorizontalHeaderItem(1, new QTableWidgetItem("i"));
-        ui->mTableControllerWeights->setHorizontalHeaderItem(2, new QTableWidgetItem("d"));
-
-        QMapIterator<QString, const PidController*> i(mControllers);
-
-        int row = 0;
-        while(i.hasNext())
-        {
-            i.next();
-
-            ui->mTableControllerWeights->setVerticalHeaderItem(row, new QTableWidgetItem(i.key()));
-
-            ui->mTableControllerWeights->setItem(row, 0, new QTableWidgetItem(QString::number(i.value()->getWeightP(), 'f', 2)));
-            ui->mTableControllerWeights->setItem(row, 1, new QTableWidgetItem(QString::number(i.value()->getWeightI(), 'f', 2)));
-            ui->mTableControllerWeights->setItem(row, 2, new QTableWidgetItem(QString::number(i.value()->getWeightD(), 'f', 2)));
-            row++;
-        }
-    }
-
-    connect(ui->mTableControllerWeights, SIGNAL(cellChanged(int,int)), SLOT(slotWeightChanged(int,int)));
-*/
     // Build the controllervalues table
 
     disconnect(ui->mTableControllerValues, SIGNAL(cellChanged(int,int)), this, SLOT(slotCellChanged(int,int)));
@@ -102,9 +63,9 @@ void PidControllerWidget::setControllers(const FlightControllerValues* const fcv
         i.next();
         ui->mTableControllerValues->setVerticalHeaderItem(row, new QTableWidgetItem(i.key()));
 
-        ui->mTableControllerValues->setItem(row, 0, new QTableWidgetItem(QString::number(i.value()->getWeightP(), 'f', 2)));
-        ui->mTableControllerValues->setItem(row, 1, new QTableWidgetItem(QString::number(i.value()->getWeightI(), 'f', 2)));
-        ui->mTableControllerValues->setItem(row, 2, new QTableWidgetItem(QString::number(i.value()->getWeightD(), 'f', 2)));
+        ui->mTableControllerValues->setItem(row, 0, new QTableWidgetItem(QString::number(i.value()->getWeightP(), 'f', 1)));
+        ui->mTableControllerValues->setItem(row, 1, new QTableWidgetItem(QString::number(i.value()->getWeightI(), 'f', 1)));
+        ui->mTableControllerValues->setItem(row, 2, new QTableWidgetItem(QString::number(i.value()->getWeightD(), 'f', 1)));
 
         ui->mTableControllerValues->setItem(row, 3, new QTableWidgetItem(QString::number(i.value()->getTimeDiff(), 'f', 3)));
         ui->mTableControllerValues->item(row, 3)->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
@@ -136,6 +97,9 @@ void PidControllerWidget::setControllers(const FlightControllerValues* const fcv
     connect(ui->mTableControllerValues, SIGNAL(cellChanged(int,int)), this, SLOT(slotCellChanged(int,int)));
 
     ui->mTableControllerValues->resizeColumnsToContents();
+    ui->mTableControllerValues->setColumnWidth(0, 35); // sepcial width for weights
+    ui->mTableControllerValues->setColumnWidth(1, 35); // sepcial width for weights
+    ui->mTableControllerValues->setColumnWidth(2, 35); // sepcial width for weights
 //    ui->mTableControllerValues->resizeRowsToContents();
 
     slotUpdateValues();
@@ -155,11 +119,11 @@ void PidControllerWidget::slotUpdateValues()
         i.next();
         QTableWidgetItem* item;
         item = ui->mTableControllerValues->item(row, 0);
-        if(mActiveItem != item) item->setText(QString::number(i.value()->getWeightP(), 'f', 2));
+        if(mActiveItem != item) item->setText(QString::number(i.value()->getWeightP(), 'f', 1));
         item = ui->mTableControllerValues->item(row, 1);
-        if(mActiveItem != item) item->setText(QString::number(i.value()->getWeightI(), 'f', 2));
+        if(mActiveItem != item) item->setText(QString::number(i.value()->getWeightI(), 'f', 1));
         item = ui->mTableControllerValues->item(row, 2);
-        if(mActiveItem != item) item->setText(QString::number(i.value()->getWeightD(), 'f', 2));
+        if(mActiveItem != item) item->setText(QString::number(i.value()->getWeightD(), 'f', 1));
 
         ui->mTableControllerValues->item(row, 3)->setText(QString::number(i.value()->getTimeDiff(), 'f', 3));
         ui->mTableControllerValues->item(row, 4)->setText(QString::number(i.value()->getValueDesired(), 'f', 2));
@@ -178,86 +142,6 @@ void PidControllerWidget::slotUpdateValues()
 
     connect(ui->mTableControllerValues, SIGNAL(cellChanged(int,int)), this, SLOT(slotCellChanged(int,int)));
 }
-
-/*
-void PidControllerWidget::slotUpdateWeights()
-{
-    disconnect(ui->mTableControllerWeights, SIGNAL(cellChanged(int,int)), this, SLOT(slotWeightChanged(int,int)));
-
-//    ui->mTableControllerWeights->clear();
-
-    if(mControllers.size())
-    {
-//        ui->mTableControllerWeights->setRowCount(mControllers.size());
-//        ui->mTableControllerWeights->setColumnCount(3);
-
-//        ui->mTableControllerWeights->setHorizontalHeaderItem(0, new QTableWidgetItem("p"));
-//        ui->mTableControllerWeights->setHorizontalHeaderItem(1, new QTableWidgetItem("i"));
-//        ui->mTableControllerWeights->setHorizontalHeaderItem(2, new QTableWidgetItem("d"));
-
-        QMapIterator<QString, const PidController*> i(mControllers);
-
-        int row = 0;
-        while(i.hasNext())
-        {
-            i.next();
-
-//            ui->mTableControllerWeights->setVerticalHeaderItem(row, new QTableWidgetItem(i.key()));
-
-            ui->mTableControllerWeights->item(row, 0)->setText(QString::number(i.value()->getWeightP(), 'f', 2));
-            ui->mTableControllerWeights->item(row, 1)->setText(QString::number(i.value()->getWeightI(), 'f', 2));
-            ui->mTableControllerWeights->item(row, 2)->setText(QString::number(i.value()->getWeightD(), 'f', 2));
-            row++;
-        }
-    }
-
-    connect(ui->mTableControllerWeights, SIGNAL(cellChanged(int,int)), SLOT(slotWeightChanged(int,int)));
-
-    mPopulated = true;
-}
-void PidControllerWidget::slotWeightChanged(int row, int column)
-{
-    bool success = true;
-
-    const QString name = ui->mTableControllerWeights->verticalHeaderItem(row)->text();
-
-    const float p = ui->mTableControllerWeights->item(row,0)->text().toFloat(&success);
-
-    if(!success)
-    {
-        QMessageBox::warning(mParent, "Value is not a number!", "The value could not be converted to a number!");
-        return;
-    }
-
-    const float i = ui->mTableControllerWeights->item(row,1)->text().toFloat(&success);
-
-    if(!success)
-    {
-        QMessageBox::warning(mParent, "Value is not a number!", "The value could not be converted to a number!");
-        return;
-    }
-
-    const float d = ui->mTableControllerWeights->item(row,2)->text().toFloat(&success);
-
-    if(!success)
-    {
-        QMessageBox::warning(mParent, "Value is not a number!", "The value could not be converted to a number!");
-        return;
-    }
-
-    QMap<QString, float> weights;
-
-    weights.insert("p", p);
-    weights.insert("i", i);
-    weights.insert("d", d);
-
-//    qDebug() << "PidControllerWidget::slotWeightChanged(): controller" << name << "changed to" << p << i << d;
-
-    emit controllerWeight(name, weights);
-
-    // So that the table will be rebuilt/acknowledged
-//    mPopulated = false;
-}*/
 
 void PidControllerWidget::slotCellActivated(const int& row, const int& column)
 {
@@ -296,13 +180,19 @@ void PidControllerWidget::slotCellChanged(const int& row, const int& column)
         return;
     }
 
-    QMap<QString, float> weights;
+    QMap<QChar, float> weights;
 
-    weights.insert("p", p);
-    weights.insert("i", i);
-    weights.insert("d", d);
+    weights.insert('p', p);
+    weights.insert('i', i);
+    weights.insert('d', d);
 
 //    qDebug() << "PidControllerWidget::slotWeightChanged(): controller" << name << "changed to" << p << i << d;
 
+    mActiveItem = 0;
+
     emit controllerWeight(name, weights);
+
+    // pitch and roll controllers have always been the same until now. So make changing them easier by always updating both.
+//    if(name == "pitch") emit controllerWeight("roll", weights);
+//    if(name == "roll") emit controllerWeight("pitch", weights);
 }
