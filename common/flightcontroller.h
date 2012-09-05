@@ -88,6 +88,17 @@ private:
 
     ImuOffsets mImuOffsets;
 
+    // A structure mapping for each flightstate: controller => weights.
+    QMap<
+        FlightState::Value,
+        QMap<
+            PidController*,
+            QMap<
+                QChar /*weightName*/,
+                float /*weight*/>
+        >
+    > mFlightControllerWeights;
+
     void initializeControllers();
 
     bool isHeightOverGroundValueRecent() const;
@@ -136,7 +147,7 @@ public slots:
 
     void slotEmitFlightControllerInfo();
 
-    void slotSetControllerWeights(const QString *const controllerName, const QMap<QString, float> *const controllerWeights);
+    void slotSetControllerWeights(const QString *const controllerName, const QMap<QChar, float> *const weights);
 
     // The IMU is not mounted perfectly straight on the helicopter. Even if it was, the helicopter is a bent mess by now.
     // This means that reading IMU values and then setting the kopter's pitch/roll from there leads to big drifting. To

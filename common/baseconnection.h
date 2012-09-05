@@ -25,11 +25,6 @@ class BaseConnection : public QObject
 
 private:
     mutable QMutex mMutex;
-//    int mSockfd; // socket for reading RSSI
-//    QString mInterface; // used only for RSSI reading in case of WLAN connection
-    //    WirelessDevice* mWirelessDevice;
-    //    qint8 getRssi();
-
 
     QTcpSocket* mTcpSocket;
     QTcpServer* mTcpServer;
@@ -38,11 +33,10 @@ private:
     // Data is sent from base into these members, then pointers to them are emitted
     MotionCommand mMotionCommand;
     QString mControllerName;
-    QMap<QString,float> mControllerWeights;
+    QMap<QChar,float> mControllerWeights;
     QByteArray mDifferentialCorrections;
 
     void processPacket(QByteArray packet);
-
 
 private slots:
     void slotNewConnection(void);
@@ -76,7 +70,7 @@ signals:
 
     void differentialCorrections(const QByteArray* const diffcorr);
 
-    void controllerWeights(const QString* const name, const QMap<QString,float>* const weights);
+    void controllerWeights(const QString* const name, const QMap<QChar,float>* const weights);
 
     // can be used to send a newly connected basestation information that would otherwise
     // take a long time to come in, e.g. flightState

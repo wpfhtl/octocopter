@@ -271,6 +271,7 @@ void PtuController::slotSetTiltLimits(float degreeMinimum, float degreeMaximum)
 
 void PtuController::slotSetPositionCamera()
 {
+    // mLastKnown is empty?!
     mPositionCameraSensor = mLastKnownVehiclePose->getPosition();
     ui->mLabelPositionCamera->setText(QString("%1/%2/%3").arg(mPositionCameraSensor.x()).arg(mPositionCameraSensor.y()).arg(mPositionCameraSensor.z()));
     if(!mPositionInFrustumCenter.isNull())

@@ -287,7 +287,7 @@ void RoverConnection::slotRoverWayPointDelete(const quint16& index)
     slotSendData(data);
 }
 
-void RoverConnection::slotSendControllerWeights(QString name, QMap<QString,float> weights)
+void RoverConnection::slotSendControllerWeights(QString name, QMap<QChar, float> weights)
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);

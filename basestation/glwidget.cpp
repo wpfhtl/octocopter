@@ -4,9 +4,8 @@
 #include "octree.h"
 #include "glwidget.h"
 
-GlWidget::GlWidget(QWidget* parent/*, FlightPlannerInterface* flightPlanner*/) :
+GlWidget::GlWidget(QWidget* parent) :
     QGLWidget(parent),
-//    mFlightPlanner(flightPlanner),
     mLastFlightControllerValues(0),
     mLastKnownVehiclePose(0)
 {
@@ -32,11 +31,13 @@ GlWidget::GlWidget(QWidget* parent/*, FlightPlannerInterface* flightPlanner*/) :
     // Mouse Move Rotations
     rotX = rotY = rotZ = 0.0f;
 
-    // Timer Animation
-    mTimerIdZoom = 0;
-    mTimerIdRotate = 0;
+    // Timed Animation
+    mViewRotating = false;
+    mViewZooming = false;
 
-    mTimeOfLastExternalUpdate = QDateTime::currentDateTime();
+    mTimerUpdate = new QTimer(this);
+    mTimerUpdate->setInterval(1000 / 30);
+    connect(mTimerUpdate, SIGNAL(timeout()), SLOT(slotUpdateView()));
 
     setMinimumSize(320, 240);
 }
@@ -186,6 +187,13 @@ void GlWidget::moveCamera(const QVector3D &pos)
 
 void GlWidget::paintGL()
 {
+    mTimeOfLastRender = QDateTime::currentDateTime();
+
+    if(mViewRotating)
+        rotY -= 180 * 0.001;
+
+//    qDebug() << "GlWidget::paintGL(): frame counter:" << mFrameCounter++;
+
     // Clear color buffer and depth buffer
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -213,16 +221,17 @@ void GlWidget::paintGL()
     else if((mZoomFactorTarget + 0.0001f) < mZoomFactorCurrent)
         step = -(mZoomFactorCurrent - mZoomFactorTarget) / 10.0f;
 
-    if(fabs(step) > 0.00001f)
+    if(mViewZooming && fabs(step) > 0.00001f)
     {
-        if(mTimerIdZoom == 0) mTimerIdZoom = startTimer(20);
         mZoomFactorCurrent += step;
+        mViewZooming = true;
         resizeGL(width(),height()); // this sets up a new view with the new zoomFactor
     }
-    else if(mTimerIdZoom != 0)
+    else
     {
-        killTimer(mTimerIdZoom);
-        mTimerIdZoom = 0;
+        // Stop zooming, lower framerate
+        mTimerUpdate->setInterval(1000 / 30);
+        mViewZooming = false;
     }
 
     mShaderProgramDefault->bind();
@@ -368,7 +377,7 @@ void GlWidget::paintGL()
             renderController(trRollController, &mLastFlightControllerValues->controllerRoll);
         }
 
-        if(mLastFlightControllerValues->motionCommand.thrust != mLastFlightControllerValues->motionCommand.thrustHover)
+        if(mLastFlightControllerValues->motionCommand.thrust != mLastFlightControllerValues->motionCommand.thrustHover && mLastFlightControllerValues->motionCommand.thrust > 0)
         {
             // Render controller thrust input
             QMatrix4x4 trThrust(transformVehicle);
@@ -432,8 +441,6 @@ void GlWidget::renderController(const QMatrix4x4& transform, const PidController
     mModelControllerP->render();
 
 
-
-
     QMatrix4x4 trControllerI(transform);
     const float sqrtWeightI = sqrt(controller->getWeightI());
     if(controller->getLastOutputI() < 0.0f)
@@ -458,11 +465,6 @@ void GlWidget::renderController(const QMatrix4x4& transform, const PidController
     mModelControllerI->render();
 
 
-
-
-
-
-
     QMatrix4x4 trControllerD(transform);
     const float sqrtWeightD = sqrt(controller->getWeightD());
     if(controller->getLastOutputD() < 0.0f)
@@ -485,25 +487,6 @@ void GlWidget::renderController(const QMatrix4x4& transform, const PidController
 
     mModelControllerD->slotSetModelTransform(trControllerD);
     mModelControllerD->render();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 }
 
 void GlWidget::slotNewVehiclePose(const Pose* const pose)
@@ -558,24 +541,15 @@ void GlWidget::slotClearVehicleTrajectory()
 
 void GlWidget::slotEnableTimerRotation(const bool& enable)
 {
-    if(enable && mTimerIdRotate == 0)
-    {
-        qDebug() << "GlWidget::slotEnableTimerRotation(): enabling timer";
-        mTimerIdRotate = startTimer(30);
-    }
-    else if(!enable && mTimerIdRotate != 0)
-    {
-        qDebug() << "GlWidget::slotEnableTimerRotation(): disabing timer";
-        killTimer(mTimerIdRotate);
-        mTimerIdRotate = 0;
-    }
-}
+    mViewRotating = enable;
 
+    // Enable the timer if we want to rotate and its not running already
+    if(mViewRotating && !mViewZooming)
+        mTimerUpdate->start();
+}
 void GlWidget::mousePressEvent(QMouseEvent *event)
 {
     mLastMousePosition = event->pos();
-
-//    emit mouseClickedAtWorldPos(event->button(), convertMouseToWorldPosition(event->pos()));
 }
 
 void GlWidget::mouseMoveEvent(QMouseEvent *event)
@@ -617,36 +591,28 @@ void GlWidget::wheelEvent(QWheelEvent *event)
     event->delta() > 0 ? mZoomFactorTarget *= 1.5f : mZoomFactorTarget *= 0.5f;
     mZoomFactorTarget = qBound(0.002f, (float)mZoomFactorTarget, 1.0f);
     //    qDebug() << "zoomFactor" << mZoomFactor;
-    update();
+    mViewZooming = true;
+    mTimerUpdate->setInterval(1000 / 60);
+    mTimerUpdate->start();
+    slotUpdateView();
 }
 
 void GlWidget::slotUpdateView()
 {
-    mTimeOfLastExternalUpdate = QDateTime::currentDateTime();
-    update();
-}
-
-void GlWidget::timerEvent ( QTimerEvent * event )
-{
-    if(event->timerId() == mTimerIdRotate)
+    if(mTimeOfLastRender.msecsTo(QDateTime::currentDateTime()) > mTimerUpdate->interval())
     {
-        //        qDebug() << "GlWidget::timerEvent(): rotating...";
-        rotY -= 180 * 0.001;
-    }
-    else if(event->timerId() == mTimerIdZoom)
-    {
-        //        qDebug() << "GlWidget::timerEvent(): zooming...";
-    }
-
-    // We should redraw for both zooming and rotating. But if the helicopter is flying, that will mean
-    // two sources causing redraws all the time, which is slow. So, only update if there was recent update.
-    const int interval = mTimeOfLastExternalUpdate.msecsTo(QDateTime::currentDateTime());
-    if(interval > 60)
-    {
-        //        qDebug() << "GlWidget::timerEvent(): last external update was" << interval << "ms ago, updating";
-        //        slotEmitModelViewProjectionMatrix();
         update();
+
+        if(!mViewRotating && !mViewZooming)
+            mTimerUpdate->stop();
     }
+    else
+    {
+        if(!mTimerUpdate->isActive())
+            mTimerUpdate->start();
+    }
+
+//    QTimer::singleShot(desiredInterval + 1 - mTimeOfLastRender.msecsTo(QDateTime::currentDateTime()), this, SLOT(slotUpdateView()));
 }
 
 void GlWidget::slotViewFromTop()

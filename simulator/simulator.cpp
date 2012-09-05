@@ -53,7 +53,7 @@ Simulator::Simulator(void) :
     connect(mBaseConnection, SIGNAL(wayPointInsert(quint16,WayPoint)), mFlightController, SLOT(slotWayPointInsert(quint16,WayPoint)));
     connect(mBaseConnection, SIGNAL(wayPointDelete(quint16)), mFlightController, SLOT(slotWayPointDelete(quint16)));
     connect(mBaseConnection, SIGNAL(wayPoints(QList<WayPoint>)), mFlightController, SLOT(slotSetWayPoints(QList<WayPoint>)));
-    connect(mBaseConnection, SIGNAL(controllerWeights(const QString* const,const QMap<QString,float>* const)), mFlightController, SLOT(slotSetControllerWeights(const QString* const, const QMap<QString,float>* const)));
+    connect(mBaseConnection, SIGNAL(controllerWeights(const QString* const,const QMap<QChar,float>* const)), mFlightController, SLOT(slotSetControllerWeights(const QString* const, const QMap<QChar,float>* const)));
     connect(mBaseConnection, SIGNAL(newConnection()), SLOT(slotNewConnection()));
 
     connect(mFlightController, SIGNAL(wayPointReached(WayPoint)), mBaseConnection, SLOT(slotWayPointReached(WayPoint)));
