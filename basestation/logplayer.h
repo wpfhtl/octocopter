@@ -6,6 +6,8 @@
 #include <QInputDialog>
 #include <QTimer>
 #include <QFileDialog>
+#include <QProgressBar>
+#include <QMouseEvent>
 #include <QString>
 #include <QByteArray>
 
@@ -14,6 +16,32 @@
 #include <vehiclestatus.h>
 #include <flightcontrollervalues.h>
 #include <sensorfuser.h>
+
+class ProgressBar : public QProgressBar
+{
+    Q_OBJECT
+
+public:
+    ProgressBar(QWidget* parent = 0) : QProgressBar(parent)
+    {
+        setFormat("TOW %v");
+        setValue(0);
+    }
+
+protected:
+    void mouseReleaseEvent ( QMouseEvent * event )
+    {
+        const float width = size().width();// - 7.0;
+        float pos = event->posF().x() + 1.5;
+        const qint32 tow = minimum() + qBound(0.0f, pos / width, 1.0f) * (maximum() - minimum());
+//        qDebug() << "width" << width << "pos" << pos << "percent:" << (pos / width) * 100.0f << "tow" << tow;
+        emit seekToTow(tow);
+    }
+
+signals:
+    void seekToTow(qint32);
+};
+
 
 namespace Ui {
     class LogPlayer;
@@ -51,6 +79,8 @@ private:
     QTime mTimePlaybackStartReal;
     qint32 mTimePlaybackStartTow;
 
+    ProgressBar* mProgressBarTow;
+
     // Retrieves the next valid packet from the private data, or an empty packet if that
     QByteArray getNextPacket(const DataSource& source);
 
@@ -78,7 +108,7 @@ private slots:
     bool slotOpenLogFiles();
     bool slotStepForward(DataSource source = Source_Invalid);
     void slotRewind();
-    void slotGoTo();
+    void slotGoToTow(qint32 towTarget = -1);
     void slotPlay();
 
 signals:

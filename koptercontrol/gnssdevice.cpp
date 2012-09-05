@@ -383,9 +383,11 @@ void GnssDevice::slotSetPoseFrequency(bool highSpeed)
     /*
       Different intervals and the consequences:
 
-       - msec20 means 50 poses per second, like this IEEEEIEEEEIEEEEIEEEEI...
+       - msec20 means 50 poses per second, like this: IEEEEIEEEEIEEEEIEEEEI...
 
-       - msec50 means 20 poses per second, like this IEIEIEIEIEIEIEIEIEIEI...
+       - msec40 means 40 poses per second, like this:
+
+       - msec50 means 20 poses per second, like this: IEIEIEIEIEIEIEIEIEIEI...
 
       I is an integrated pose (GNSS and IMU)
       E is an extrapolated pose (GNSS from the past plus IMU readings)
@@ -400,8 +402,8 @@ void GnssDevice::slotSetPoseFrequency(bool highSpeed)
 
     if(highSpeed)
     {
-        // Maybe use msec40 instead of msec20 to avoid RxError 64 (congestion on line)
-        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec50");
+        // Maybe use msec50 instead of msec20 to avoid RxError 64 (congestion on line)
+        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec40");
     }
     else
     {

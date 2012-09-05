@@ -1,23 +1,18 @@
 #ifndef GLWIDGET_H
 #define GLWIDGET_H
 
-
 #include <QtGui>
 #include <QColor>
 #include <QGLWidget>
 #include <QVector>
 #include <QVector3D>
 
-#include "model.h"
-
 #include <cuda_gl_interop.h>
 
-//#include "flightplannerinterface.h"
+#include "model.h"
 #include "openglutilities.h"
 #include "flightcontrollervalues.h"
-//#include "motioncommand.h"
 #include "shaderprogram.h"
-//#include "pose.h"
 
 class Octree;
 
@@ -29,7 +24,6 @@ class GlWidget : public QGLWidget
     Q_OBJECT
 
     QList<Octree*> mOctrees;
-//    FlightPlannerInterface *mFlightPlanner;
 
     QVector3D mCamLookAtOffset;
 
@@ -42,8 +36,11 @@ class GlWidget : public QGLWidget
     const FlightControllerValues* mLastFlightControllerValues;
 
     // Timer
-    int mTimerIdZoom, mTimerIdRotate;
-    QDateTime mTimeOfLastExternalUpdate;
+    QDateTime mTimeOfLastRender;
+    QTimer* mTimerUpdate;
+
+    bool mViewRotating;
+    bool mViewZooming;
 
     // Mouse Rotations
     QPoint      mLastMousePosition;
@@ -62,6 +59,8 @@ class GlWidget : public QGLWidget
     GLuint mUboId;
     unsigned int mUboSize;
 
+    quint32 mFrameCounter;
+
     ShaderProgram *mShaderProgramDefault;
     ShaderProgram *mShaderProgramParticles; // for testing billboarding of the octree
 
@@ -72,7 +71,6 @@ class GlWidget : public QGLWidget
     void mouseMoveEvent(QMouseEvent *event);
     void wheelEvent(QWheelEvent *event);
     void zoom(double zoomFactor);
-//    QVector3D convertMouseToWorldPosition(const QPoint&);
 
     void renderController(const QMatrix4x4 &transform, const PidController* const controller);
 
@@ -84,12 +82,10 @@ protected:
     void initializeGL();
     void resizeGL(int w, int h);
     void paintGL();
-    void timerEvent ( QTimerEvent * event );
 
 signals:
     void initializingInGlContext();
     void visualizeNow();
-//    void mouseClickedAtWorldPos(Qt::MouseButton, QVector3D);
 
 public slots:
     // When this is called, we take note of the time of last external update. Because when zooming/rotating
@@ -103,8 +99,8 @@ public slots:
     void slotOctreeRegister(Octree* o);
     void slotOctreeUnregister(Octree* o);
 
-    // LogPlayer and RoverConnection set values used/computed by the flightcontroller. These shall be visualized
-    // here in GlWidget for debugging.
+    // LogPlayer and RoverConnection set values used/computed by the flightcontroller.
+    // These shall be visualized here in GlWidget for debugging.
     void slotSetFlightControllerValues(const FlightControllerValues *const fcv);
 
     void slotNewVehiclePose(const Pose *const);

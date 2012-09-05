@@ -51,7 +51,7 @@ public:
 
 //    void setName(const QString& name) {mName = name;}
     void setWeights(const float p, const float i, const float d);
-    void setWeights(const QMap<QString, float> *const controllerWeights);
+    void setWeights(const QMap<QChar, float> *const controllerWeights);
     void setDesiredValue(const float value) {mValueDesired = value;}
 
     float computeOutputFromValue(const float& input);

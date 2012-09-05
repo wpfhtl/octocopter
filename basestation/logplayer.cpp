@@ -4,6 +4,8 @@
 LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlayer)
 {
     ui->setupUi(this);
+    mProgressBarTow = new ProgressBar;
+    ui->verticalLayout->insertWidget(2, mProgressBarTow);
 
     setMaximumSize(minimumSize());
 
@@ -14,18 +16,17 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     //mSensorFuser->setMaximumFusableRayLength(20.0f);
     mSbfParser = new SbfParser(this);
 
-    QLocale german(QLocale::German);
-    ui->mProgressBarTow->setLocale(german);
-
     mIndexLaser = -1;
     mIndexFlightController = -1;
 
     // Connect UI...
     connect(ui->mPushButtonOpenLogs, SIGNAL(clicked()), SLOT(slotOpenLogFiles()));
     connect(ui->mPushButtonRewind, SIGNAL(clicked()), SLOT(slotRewind()));
-    connect(ui->mPushButtonGoTo, SIGNAL(clicked()), SLOT(slotGoTo()));
+    connect(ui->mPushButtonGoTo, SIGNAL(clicked()), SLOT(slotGoToTow()));
     connect(ui->mPushButtonPlay, SIGNAL(clicked()), SLOT(slotPlay()));
     connect(ui->mPushButtonStepForward, SIGNAL(clicked()), SLOT(slotStepForward()));
+
+    connect(mProgressBarTow, SIGNAL(seekToTow(qint32)), SLOT(slotGoToTow(qint32)));
 
     connect(ui->mSpinBoxLaserScannerX, SIGNAL(valueChanged(double)), SLOT(slotLaserScannerRelativePoseChanged()));
     connect(ui->mSpinBoxLaserScannerY, SIGNAL(valueChanged(double)), SLOT(slotLaserScannerRelativePoseChanged()));
@@ -140,8 +141,8 @@ void LogPlayer::slotRewind()
     const qint32 towStop = std::max(getLastTow(Source_Sbf), std::max(getLastTow(Source_Laser), getLastTow(Source_FlightController)));
 
     qDebug() << "LogPlayer::slotRewind(): this file contains data between" << towStart << "and" << towStop << "- length in seconds:" << (towStop - towStart)/1000;
-    ui->mProgressBarTow->setRange(towStart, towStop);
-    ui->mProgressBarTow->setValue(towStart);
+    mProgressBarTow->setRange(towStart, towStop);
+    mProgressBarTow->setValue(towStart);
 }
 
 qint32 LogPlayer::getLastTow(const DataSource& source)
@@ -170,13 +171,13 @@ qint32 LogPlayer::getLastTow(const DataSource& source)
     {
         const QByteArray magic("LASER");
         const int lastPos = mDataLaser.lastIndexOf(magic);
-        qDebug() << "LogPlayer::getLastTow(): last laser packet startpos is" << lastPos;
+//        qDebug() << "LogPlayer::getLastTow(): last laser packet startpos is" << lastPos;
 
         if(lastPos == -1) return -1;
 
         tow = *((qint32*)(mDataLaser.data() + lastPos + 5 + sizeof(quint16)));
 
-        qDebug() << "LogPlayer::getLastTow(): last laser tow is" << tow;
+//        qDebug() << "LogPlayer::getLastTow(): last laser tow is" << tow;
     }
     break;
 
@@ -271,6 +272,8 @@ QByteArray LogPlayer::getNextPacket(const DataSource& source)
         const quint16 packetSize = *((quint16*)(mDataLaser.constData() + mIndexLaser + 5));
 
         result = mDataLaser.mid(mIndexLaser, packetSize);
+
+//        qDebug() << "laser packet size:" << result.size();
 
         Q_ASSERT(result.size() == packetSize);
     }
@@ -416,14 +419,16 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const QByteAr
 
         mSensorFuser->slotNewScanData(tow, data);
 
-        ui->mProgressBarTow->setValue(tow);
+        mProgressBarTow->setFormat("TOW %v L");
+        mProgressBarTow->setValue(tow);
     }
     break;
 
     case Source_FlightController:
     {
         FlightControllerValues* fcv = (FlightControllerValues*)(packet.data() + 6); // FLTCLR
-        ui->mProgressBarTow->setValue(mFlightControllerValues.timestamp);
+        mProgressBarTow->setFormat("TOW %v F");
+        mProgressBarTow->setValue(mFlightControllerValues.timestamp);
 
         if(!(
                     fcv->controllerThrust.hasSameWeights(&mFlightControllerValues.controllerThrust)
@@ -442,7 +447,7 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const QByteAr
 
         mFlightControllerValues = *fcv;
 
-        qDebug() << "FLTCLR:" << fcv->timestamp;
+//        qDebug() << "FLTCLR:" << fcv->timestamp;
 
         emit flightControllerValues(&mFlightControllerValues);
     }
@@ -477,7 +482,7 @@ void LogPlayer::slotPlay()
         }
 
         qint32 minTowAfter;
-        DataSource s = getNextDataSource(&minTowAfter);
+        getNextDataSource(&minTowAfter);
 
         mTimerAnimation->stop();
 
@@ -512,141 +517,151 @@ void LogPlayer::slotPlay()
 
 void LogPlayer::slotNewSbfTime(QByteArray,qint32 tow)
 {
-    ui->mProgressBarTow->setValue(tow);
+    mProgressBarTow->setFormat("TOW %v G");
+    mProgressBarTow->setValue(tow);
 }
 
-void LogPlayer::slotGoTo()
+void LogPlayer::slotGoToTow(qint32 towTarget)
 {
-    bool ok = false;
-    const int towTarget = QInputDialog::getInt(
-                this,
-                "Go To TOW", "Where do you want to seek to?",
-                ui->mProgressBarTow->value(),
-                ui->mProgressBarTow->minimum(),
-                ui->mProgressBarTow->maximum(),
-                1000,
-                &ok,
-                /*Qt::WindowFlags flags = */0 );
+    if(towTarget < 0)
+    {
+        bool ok = false;
+        towTarget = QInputDialog::getInt(
+                    this,
+                    "Go To TOW", "Where do you want to seek to?",
+                    mProgressBarTow->value(),
+                    mProgressBarTow->minimum(),
+                    mProgressBarTow->maximum(),
+                    1000,
+                    &ok,
+                    /*Qt::WindowFlags flags = */0 );
 
-    if(!ok) return;
+        if(!ok) return;
+    }
 
     // We want to point all data-cursors to the first packet with TOW >= towTarget.
 
     // First, do SBF:
     qint32 indexSbf = mDataSbfCopy.size() / 2;
-    qint32 stepSizeSbf = indexSbf / 2;
-    qint32 towSbf0, towSbf1, towSbf2;
-    qDebug() << "LogPlayer::slotGoTo(): towTgt is" << towTarget;
-    while(mSbfParser->getNextValidPacketInfo(mDataSbfCopy.mid(indexSbf, 2000), 0, &towSbf0))
+    qint32 stepSize = indexSbf / 2;
+    qint32 tow0, tow1, tow2;
+    qDebug() << "LogPlayer::slotGoToTow(): towTgt is" << towTarget;
+    while(mSbfParser->getNextValidPacketInfo(mDataSbfCopy.mid(indexSbf, 2000), 0, &tow0))
     {
-        qDebug() << "LogPlayer::slotGoTo(): stepsize is" << stepSizeSbf << "indexSbf is" << indexSbf << "of" << mDataSbfCopy.size();
+        qDebug() << "LogPlayer::slotGoToTow(): stepsize is" << stepSize << "indexSbf is" << indexSbf << "of" << mDataSbfCopy.size();
 
         // We're done if we reached the target tow OR the tow doesn't change anymore OR we toggle between tow TOWs
-        if(towSbf0 == towTarget || (towSbf1 != towSbf0 && towSbf0 == towSbf2))
+        if(tow0 == towTarget || (tow1 != tow0 && tow0 == tow2))
         {
             break;
         }
 
-        if(towSbf0 > towTarget)
+        if(tow0 > towTarget)
         {
-            qDebug() << "LogPlayer::slotGoTo(): back, towSbf is" << towSbf0;
-            indexSbf = qBound(0, indexSbf - stepSizeSbf, mDataSbfCopy.size());
+            qDebug() << "LogPlayer::slotGoToTow(): back, towSbf is" << tow0;
+            indexSbf = qBound(0, indexSbf - stepSize, mDataSbfCopy.size());
         }
-        else if(towSbf0 < towTarget)
+        else if(tow0 < towTarget)
         {
-            qDebug() << "LogPlayer::slotGoTo(): frwd, towSbf is" << towSbf0;
-            indexSbf = qBound(0, indexSbf + stepSizeSbf, mDataSbfCopy.size());
+            qDebug() << "LogPlayer::slotGoToTow(): frwd, towSbf is" << tow0;
+            indexSbf = qBound(0, indexSbf + stepSize, mDataSbfCopy.size());
         }
 
-        towSbf2 = towSbf1;
-        towSbf1 = towSbf0;
+        tow2 = tow1;
+        tow1 = tow0;
 
         // Step at least one packet, which is at least 16 bytes
-        stepSizeSbf = std::max(16, stepSizeSbf/2);
+        stepSize = std::max(16, stepSize/2);
     }
 
     mDataSbf = mDataSbfCopy.mid(indexSbf);
-    mSbfParser->getNextValidPacketInfo(mDataSbf, 0, &towSbf0);
-    qDebug() << "LogPlayer::slotGoTo(): SBF: reached TOW" << towSbf0 << ", targeted was" << towTarget;
+    mSbfParser->getNextValidPacketInfo(mDataSbf, 0, &tow0);
+    qDebug() << "LogPlayer::slotGoToTow(): SBF: reached TOW" << tow0 << ", targeted was" << towTarget;
 
     // LASER
     mIndexLaser = mDataLaser.size() / 2;
-    qint32 stepSizeLaser = mIndexLaser / 2;
-    qint32 towLaser0, towLaser1, towLaser2 = 0;
-    while(towLaser0 >= 0)
+    stepSize = mIndexLaser / 2;
+    tow0 = 0; tow1 = 0; tow2 = 0;
+    while(tow0 >= 0)
     {
-        towLaser0 = getNextTow(Source_Laser);
-        qDebug() << "LogPlayer::slotGoTo(): stepsize is" << stepSizeLaser << "indexLaser is" << mIndexLaser << "of" << mDataLaser.size();
+        tow0 = getNextTow(Source_Laser);
 
-        // We're done if we reached the target tow OR the tow doesn't change anymore OR we toggle between tow TOWs
-        if(towLaser0 == towTarget || (towLaser1 != towLaser0 && towLaser0 == towLaser2))
+        // We're done if
+        // - we reached the target tow
+        // - we toggle between TOWs
+        // - we reached beginning or end of data
+        if(tow0 == towTarget || (tow1 != tow0 && tow0 == tow2) || mIndexLaser == 0 || mIndexLaser == mDataLaser.size())
         {
             break;
         }
 
-        if(towLaser0 > towTarget)
+        if(tow0 > towTarget)
         {
-            qDebug() << "LogPlayer::slotGoTo(): back, towLaser is" << towLaser0;
-            mIndexLaser = qBound(0, mIndexLaser - stepSizeLaser, mDataLaser.size());
+            qDebug() << "LogPlayer::slotGoToTow(): back, towLaser is" << tow0;
+
+            // We need to go back stepsize bytes, or exactly one laser packet if stepsize
+            // bytes is below the packet's size. Thus, determine the minimum size to move.
+            const qint32 bytesToMoveForPreviousPacket = mIndexLaser - mDataLaser.lastIndexOf("LASER", mIndexLaser-1);
+            const qint32 bytesToMove = std::max(stepSize, bytesToMoveForPreviousPacket);
+            qDebug() << "LogPlayer::slotGoToTow(): stepsize is" << stepSize << "bytestomove" << bytesToMove << "indexLaser is" << mIndexLaser << "of" << mDataLaser.size();
+            mIndexLaser = qBound(0, mIndexLaser - bytesToMove, mDataLaser.size());
         }
-        else if(towLaser0 < towTarget)
+        else if(tow0 < towTarget)
         {
-            qDebug() << "LogPlayer::slotGoTo(): frwd, towLaser is" << towLaser0;
-            mIndexLaser = qBound(0, mIndexLaser + stepSizeLaser, mDataLaser.size());
+            qDebug() << "LogPlayer::slotGoToTow(): frwd, towLaser is" << tow0;
+
+            // We need to go forward stepsize bytes, or exactly one laser packet if stepsize
+            // bytes is below the packet's size. Thus, determine the minimum size to move.
+            const qint32 bytesToMoveForNextPacket = mDataLaser.indexOf("LASER", mIndexLaser+1) - mIndexLaser;
+            const qint32 bytesToMove = std::max(stepSize, bytesToMoveForNextPacket);
+            qDebug() << "LogPlayer::slotGoToTow(): stepsize is" << stepSize << "bytestomove" << bytesToMove << "indexLaser is" << mIndexLaser << "of" << mDataLaser.size();
+            mIndexLaser = qBound(0, mIndexLaser + bytesToMove, mDataLaser.size());
         }
 
-        towLaser2 = towLaser1;
-        towLaser1 = towLaser0;
+        tow2 = tow1;
+        tow1 = tow0;
 
         // Step at least one packet, which is around 1500 bytes
-        stepSizeLaser = std::max(500, stepSizeLaser/2);
+        stepSize = /*std::max(500, */stepSize/2;//);
     }
 
-    qDebug() << "LogPlayer::slotGoTo(): LASER: reached TOW" << towLaser0 << ", targeted was" << towTarget;
-
-
-
-
-
+    qDebug() << "LogPlayer::slotGoToTow(): LASER: reached TOW" << tow0 << ", targeted was" << towTarget;
 
 
     // FlightController
     mIndexFlightController = mDataFlightController.size() / 2;
-    qint32 stepSizeFltClr = mIndexFlightController / 2;
-    qint32 towFltClr0, towFltClr1, towFltClr2 = 0;
-    while(mDataFlightController.size() && towFltClr0 >= 0)
+    stepSize = mIndexFlightController / 2;
+    tow0 = 0; tow1 = 0; tow2 = 0;
+    while(mDataFlightController.size() && tow0 >= 0)
     {
-        towFltClr0 = getNextTow(Source_FlightController);
-        qDebug() << "LogPlayer::slotGoTo(): stepsize is" << stepSizeFltClr << "indexFltClr is" << mIndexFlightController << "of" << mDataFlightController.size();
+        tow0 = getNextTow(Source_FlightController);
+        qDebug() << "LogPlayer::slotGoToTow(): stepsize is" << stepSize << "indexFltClr is" << mIndexFlightController << "of" << mDataFlightController.size();
 
         // We're done if we reached the target tow OR the tow doesn't change anymore OR we toggle between tow TOWs
-        if(towFltClr0 == towTarget || (towFltClr0 == towFltClr1 && towFltClr0 == towFltClr2))
+        if(tow0 == towTarget || (tow0 == tow1 && tow0 == tow2))
         {
             break;
         }
 
-        if(towFltClr0 > towTarget)
+        if(tow0 > towTarget)
         {
-            qDebug() << "LogPlayer::slotGoTo(): back, towFltClr is" << towFltClr0;
-            mIndexFlightController = qBound(0, mIndexFlightController - stepSizeFltClr, mDataFlightController.size());
+            qDebug() << "LogPlayer::slotGoToTow(): back, towFltClr is" << tow0;
+            mIndexFlightController = qBound(0, mIndexFlightController - stepSize, mDataFlightController.size());
         }
-        else if(towFltClr0 < towTarget)
+        else if(tow0 < towTarget)
         {
-            qDebug() << "LogPlayer::slotGoTo(): frwd, towFltClr is" << towFltClr0;
-            mIndexFlightController = qBound(0, mIndexFlightController + stepSizeFltClr, mDataFlightController.size());
+            qDebug() << "LogPlayer::slotGoToTow(): frwd, towFltClr is" << tow0;
+            mIndexFlightController = qBound(0, mIndexFlightController + stepSize, mDataFlightController.size());
         }
 
-        towFltClr2 = towFltClr1;
-        towFltClr1 = towFltClr0;
+        tow2 = tow1;
+        tow1 = tow0;
 
         // Don't let stepsize go far below packetSize
-        stepSizeFltClr = std::max(200, stepSizeFltClr/2);
+        stepSize = std::max(200, stepSize/2);
     }
 
-    qDebug() << "LogPlayer::slotGoTo(): FLTCLR: reached TOW" << towFltClr0 << ", targeted was" << towTarget;
+    qDebug() << "LogPlayer::slotGoToTow(): FLTCLR: reached TOW" << tow0 << ", targeted was" << towTarget;
 
-
-
-
-    ui->mProgressBarTow->setValue(towTarget);
+    mProgressBarTow->setValue(towTarget);
 }

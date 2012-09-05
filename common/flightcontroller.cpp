@@ -13,27 +13,77 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
             qFatal("FlightController::FlightController(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
     }
 
-    mFlightControllerValues.flightState = FlightState(FlightState::Value::UserControl);
-
-    mFlightControllerValues.motionCommand = MotionCommand((quint8)0, (qint8)0, (qint8)0, (qint8)0);
-
-    mFlightControllerValues.controllerThrust.reset();
-    mFlightControllerValues.controllerThrust.setWeights(150.0f, 0.0f, 1.0f);
-
-    mFlightControllerValues.controllerYaw.reset();
-    mFlightControllerValues.controllerYaw.setWeights(1.0f, 0.0f, 0.3f);
-
-    mFlightControllerValues.controllerPitch.reset();
-    mFlightControllerValues.controllerPitch.setWeights(8.0f, 0.0f, 6.0f);
-
-    mFlightControllerValues.controllerRoll.reset();
-    mFlightControllerValues.controllerRoll.setWeights(8.0f, 0.0f, 6.0f);
 
     mBackupTimerComputeMotion = new QTimer(this);
     connect(mBackupTimerComputeMotion, SIGNAL(timeout()), SLOT(slotComputeBackupMotion()));
 
     mImuOffsets.pitch = 0.0f;
     mImuOffsets.roll = 0.0f;
+
+
+
+    // Initialize default/template controllers
+    QMap<QChar, float> weights;
+    QMap<PidController*, QMap<QChar, float> > controllerWeights;
+
+    controllerWeights.clear();
+    // Hover - Thrust
+    weights.clear();
+    weights.insert('p', 100.0f);
+    weights.insert('i', 0.0f);
+    weights.insert('d', 20.0f);
+    controllerWeights.insert(&mFlightControllerValues.controllerThrust, weights);
+
+    // Hover - Yaw
+    weights.clear();
+    weights.insert('p', 1.5f);
+    weights.insert('i', 0.0f);
+    weights.insert('d', 0.5f);
+    controllerWeights.insert(&mFlightControllerValues.controllerYaw, weights);
+
+    // Hover - Pitch / Roll
+    weights.clear();
+    weights.insert('p', 3.0f);
+    weights.insert('i', 0.0f);
+    weights.insert('d', 2.0f);
+    controllerWeights.insert(&mFlightControllerValues.controllerPitch, weights);
+    controllerWeights.insert(&mFlightControllerValues.controllerRoll, weights);
+    mFlightControllerWeights.insert(FlightState::Value::Hover, controllerWeights);
+
+
+
+    controllerWeights.clear();
+    // ApproachWayPoint - Thrust
+    weights.clear();
+    weights.insert('p', 50.0f);
+    weights.insert('i', 0.0f);
+    weights.insert('d', 10.0f);
+    controllerWeights.insert(&mFlightControllerValues.controllerThrust, weights);
+
+    // ApproachWayPoint - Yaw
+    weights.clear();
+    weights.insert('p', 1.5f);
+    weights.insert('i', 0.0f);
+    weights.insert('d', 0.5f);
+    controllerWeights.insert(&mFlightControllerValues.controllerYaw, weights);
+
+    // ApproachWayPoint - Pitch
+    weights.clear();
+    weights.insert('p', 1.0f);
+    weights.insert('i', 0.0f);
+    weights.insert('d', 0.1f);
+    controllerWeights.insert(&mFlightControllerValues.controllerPitch, weights);
+
+    // ApproachWayPoint - Roll
+    weights.clear();
+    weights.insert('p', 1.0f);
+    weights.insert('i', 0.0f);
+    weights.insert('d', 0.1f);
+    controllerWeights.insert(&mFlightControllerValues.controllerRoll, weights);
+
+    mFlightControllerWeights.insert(FlightState::Value::ApproachWayPoint, controllerWeights);
+
+    setFlightState(FlightState(FlightState::Value::UserControl));
 }
 
 FlightController::~FlightController()
@@ -229,10 +279,12 @@ void FlightController::slotComputeMotionCommands()
             const float outputYaw = mFlightControllerValues.controllerYaw.computeOutputFromError(angleToTurnAwayFromOrigin);
 
             mFlightControllerValues.controllerPitch.setDesiredValue(0.0f);
-            const float outputPitch = mFlightControllerValues.controllerPitch.computeOutputFromValue(-cos(angleToTurnToHoverOrientation) * planarDistanceToTarget); // lateral offset in meters
+            const float lateralOffsetPitch = qBound(-2.0, -cos(angleToTurnToHoverOrientation) * planarDistanceToTarget, 2.0);
+            const float outputPitch = mFlightControllerValues.controllerPitch.computeOutputFromValue(lateralOffsetPitch);
 
             mFlightControllerValues.controllerRoll.setDesiredValue(0.0f);
-            const float outputRoll = mFlightControllerValues.controllerRoll.computeOutputFromValue(sin(angleToTurnToHoverOrientation) * planarDistanceToTarget); // lateral offset in meters
+            const float lateralOffsetRoll = qBound(-2.0, sin(angleToTurnToHoverOrientation) * planarDistanceToTarget, 2.0);
+            const float outputRoll = mFlightControllerValues.controllerRoll.computeOutputFromValue(lateralOffsetRoll);
 
             mFlightControllerValues.motionCommand = MotionCommand(outputThrust, outputYaw, outputPitch, outputRoll);
 
@@ -433,6 +485,27 @@ void FlightController::setFlightState(FlightState newFlightState)
         return;
     }
 
+    // Set controller weights according to new flightstate
+    if(mFlightControllerWeights.contains(newFlightState.state))
+    {
+        QMutableMapIterator<PidController*,QMap<QChar /*weightName*/,float /*weight*/> > itFlightStateWeights(mFlightControllerWeights[newFlightState.state]);
+        while(itFlightStateWeights.hasNext())
+        {
+            itFlightStateWeights.next();
+            itFlightStateWeights.key()->setWeights(&itFlightStateWeights.value());
+            qDebug() << "FlightController::setFlightState(): setting weights to" << itFlightStateWeights.value();
+        }
+    }
+    else
+    {
+        qDebug() << "FlightController::setFlightState(): no weights for state" << newFlightState.toString() << ": setting to 0.";
+        mFlightControllerValues.controllerThrust.setWeights(0.0f, 0.0f, 0.0f);
+        mFlightControllerValues.controllerYaw.setWeights(0.0f, 0.0f, 0.0f);
+        mFlightControllerValues.controllerPitch.setWeights(0.0f, 0.0f, 0.0f);
+        mFlightControllerValues.controllerRoll.setWeights(0.0f, 0.0f, 0.0f);
+    }
+
+
     // When switching from ApproachWaypoint or Hover to something manual, we want these members to be cleared for easier debugging.
     mFlightControllerValues.controllerThrust.reset();
     mFlightControllerValues.controllerYaw.reset();
@@ -499,6 +572,7 @@ void FlightController::setFlightState(FlightState newFlightState)
     }
 
     emit flightStateChanged(&mFlightControllerValues.flightState);
+    emit flightControllerWeightsChanged();
 }
 
 void FlightController::initializeControllers()
@@ -692,18 +766,43 @@ void FlightController::slotEmitFlightControllerInfo()
     emit currentWayPoints(&mWayPoints);
 }
 
-void FlightController::slotSetControllerWeights(const QString* const controllerName, const QMap<QString,float>* const controllerWeights)
+void FlightController::slotSetControllerWeights(const QString* const controllerName, const QMap<QChar,float>* const weights)
 {
-    qDebug() << "FlightController::slotSetControllerWeights(): setting new weights for controller" << *controllerName << ":" << *controllerWeights;
+    qDebug() << "FlightController::slotSetControllerWeights(): setting new weights for flightstate" << mFlightControllerValues.flightState.toString() << "and controller" << *controllerName << ":" << *weights;
+
+//    QMap<PidController*, QMap<QChar,float> > controllerWeights;
+
+    FlightState::Value assignedFlightState;
+
+    // To which flightstate do we want to assing the new weights? By default, we assign to
+    // the current flightstate - if we're in usercontrol or idle, assign to ApprochWayPoint
+    if(mFlightControllerValues.flightState.state == FlightState::Value::UserControl || mFlightControllerValues.flightState.state == FlightState::Value::Idle)
+        assignedFlightState = FlightState::Value::ApproachWayPoint;
+    else
+        assignedFlightState = mFlightControllerValues.flightState.state;
 
     if(controllerName->toLower() == "thrust")
-        mFlightControllerValues.controllerThrust.setWeights(controllerWeights);
+    {
+        mFlightControllerValues.controllerThrust.setWeights(weights);
+        mFlightControllerWeights[assignedFlightState][&mFlightControllerValues.controllerThrust] = *weights;
+    }
     else if(controllerName->toLower() == "yaw")
-        mFlightControllerValues.controllerYaw.setWeights(controllerWeights);
+    {
+        mFlightControllerValues.controllerYaw.setWeights(weights);
+        mFlightControllerWeights[assignedFlightState][&mFlightControllerValues.controllerYaw] = *weights;
+    }
     else if(controllerName->toLower() == "pitch")
-        mFlightControllerValues.controllerPitch.setWeights(controllerWeights);
+    {
+        mFlightControllerValues.controllerPitch.setWeights(weights);
+        mFlightControllerWeights[assignedFlightState][&mFlightControllerValues.controllerPitch] = *weights;
+    }
     else if(controllerName->toLower() == "roll")
-        mFlightControllerValues.controllerRoll.setWeights(controllerWeights);
+    {
+        mFlightControllerValues.controllerRoll.setWeights(weights);
+        mFlightControllerWeights[assignedFlightState][&mFlightControllerValues.controllerRoll] = *weights;
+    }
+
+
 
     qDebug() << "FlightController::slotSetControllerWeights(): weights changed, emitting new flightcontrollervalues and then the changed signal.";
     emit flightControllerValues(&mFlightControllerValues);
