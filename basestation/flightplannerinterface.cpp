@@ -10,7 +10,7 @@ FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, Octree* pointClo
     mShaderProgramDefault = mShaderProgramSpheres = 0;
     mBoundingBoxVbo = 0;
 
-    mVehiclePoses.reserve(25 * 60 * 10); // enough poses for 10 minutes
+    mVehiclePoses.reserve(25 * 60 * 20); // enough poses for 20 minutes
 
     mWaypointListMap.insert("ahead", new WayPointList(QColor(255,0,0,200)));
     mWaypointListMap.insert("passed", new WayPointList(QColor(255,255,0,200)));
