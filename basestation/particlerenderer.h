@@ -12,17 +12,23 @@ public:
     ParticleRenderer();
     ~ParticleRenderer();
 
-    void setVboPositions(unsigned int vbo, int numParticles);
-    void setVboColors(unsigned int vbo);
-
     void render();
 
 public slots:
     void slotSetParticleRadius(float r) { mParticleRadius = r; }
 
+    void slotSetVboColors(unsigned int vbo) { mVboColors = vbo; }
+
+    void slotSetVboPositions(unsigned int vbo, unsigned int numParticles)
+    {
+        mVboPositions = vbo;
+        mNumberOfParticles = numParticles;
+        qDebug() << "ParticleRenderer::slotSetVboPositions(): will render VBO" << mVboPositions << "containing" << mNumberOfParticles << "particles";
+    }
+
 private:
     ShaderProgram* mShaderProgram;
-    int mNumberOfParticles;
+    unsigned int mNumberOfParticles;
     float mParticleRadius;
     GLuint mVboPositions;
     GLuint mVboColors;

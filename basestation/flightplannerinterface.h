@@ -17,13 +17,6 @@ class FlightPlannerInterface : public QObject
     Q_OBJECT
 public:
 
-/*
-private:
-    bool containsWaypointList(const QString& name) const {return mWaypointListMap.contains(name);}
-    void addWaypointList(const QString& name, const QColor& color = QColor(128,128,128,255));
-    bool removeWaypointList(const QString& name);
-*/
-
 protected:
     Octree* mOctree; // a pointer to the basestations surface reconstruction octree with fine details
     QVector3D mScanVolumeMin, mScanVolumeMax;
@@ -37,7 +30,6 @@ protected:
 
     unsigned int mBoundingBoxVbo;
     QVector<float> mBoundingBoxVertices;
-    QVector<float> mBoundingBoxColors;
 
     ShaderProgram *mShaderProgramDefault, *mShaderProgramSpheres;
 

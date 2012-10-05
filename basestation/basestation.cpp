@@ -49,9 +49,9 @@ BaseStation::BaseStation() : QMainWindow()
 
     // GlWidget and CUDA-based FlightPlanners have a close relationship because cudaGlSetGlDevice() needs to be called in GL context and before any other CUDA calls.
 //    mFlightPlanner = new FlightPlannerCuda(this, mOctree);
-    mFlightPlanner = new FlightPlannerPhysics(this, mOctree);
-//    mFlightPlanner = new FlightPlannerParticles(this, mOctree);
-    mFlightPlanner->slotSetScanVolume(QVector3D(-50, -10, -35), QVector3D(50, 40, 35));
+//    mFlightPlanner = new FlightPlannerPhysics(this, mOctree);
+    mFlightPlanner = new FlightPlannerParticles(this, mOctree);
+    mFlightPlanner->slotSetScanVolume(QVector3D(-1, -1, -1), QVector3D(1, 1, 1));
 
     mGlWidget = new GlWidget(this/*, mFlightPlanner*/);
     mGlWidget->slotOctreeRegister(mOctree); // register for rendering

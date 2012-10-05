@@ -1,40 +1,27 @@
 #ifndef PARTICLES_KERNEL_H
 #define PARTICLES_KERNEL_H
 
-// 0 seems to be 10% faster with 256k particles
-#define USE_TEX 1
-
-#if USE_TEX
-#define FETCH(t, i) tex1Dfetch(t##Tex, i)
-#else
-#define FETCH(t, i) t[i]
-#endif
+// This file exists to share the SimParams-Struct between .cpp and .cu-code,
+// both particlesystem.h and particleskernel.cu include it.
 
 #include "vector_types.h"
-//typedef unsigned int uint;
 
 // simulation parameters
 struct SimParams {
-    float3 colliderPos;
-    float  colliderRadius;    
-
-    float3 gravity;
-    float globalDamping;
-    float particleRadius;
-
     uint3 gridSize;
-    unsigned int numCells;
+    float particleRadius;
+    float3 gravity;
     float3 worldMin, worldMax;
-    float3 cellSize;
 
-    unsigned int numBodies;
-    unsigned int maxParticlesPerCell;
+    unsigned int particleCount;
 
     float spring;
-    float damping;
     float shear;
     float attraction;
-    float boundaryDamping;
+
+    float dampingMotion;
+    float velocityFactorCollisionParticle;
+    float velocityFactorCollisionBoundary;
 };
 
 #endif

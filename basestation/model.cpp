@@ -58,7 +58,7 @@ bool Model::importFile(const QFile& modelFile)
     }
     else
     {
-        qDebug() << "Model::importFile(): successfully imported file" << modelFile.fileName();
+//        qDebug() << "Model::importFile(): successfully imported file" << modelFile.fileName();
     }
 
     // We're done. Everything will be cleaned up by the importer destructor
@@ -83,7 +83,7 @@ void Model::loadGlTextures(const aiScene* scene)
         while (textureLookupResult == AI_SUCCESS) {
             //fill map with textures, OpenGL image ids set to 0
             mTextureIdMap[path.data] = 0;
-            qDebug() << "Found texture:" << path.data;
+//            qDebug() << "Found texture:" << path.data;
             // more textures?
             texIndex++;
             textureLookupResult = scene->mMaterials[m]->GetTexture(aiTextureType_DIFFUSE, texIndex, &path);
@@ -108,7 +108,7 @@ void Model::loadGlTextures(const aiScene* scene)
         //save IL image ID
         std::string filename = (*itr).first;  // get filename
         QString fileNameAbsolute = QString(mMediaPrefix).append(QString::fromStdString(filename));
-        qDebug() << "Model::loadGlTextures(): trying to load texture:" << fileNameAbsolute;
+//        qDebug() << "Model::loadGlTextures(): trying to load texture:" << fileNameAbsolute;
         (*itr).second = textureIds[i];	  // save texture id for filename in map
 
         ilBindImage(imageIds[i]); /* Binding of DevIL image name */
@@ -118,7 +118,8 @@ void Model::loadGlTextures(const aiScene* scene)
         success = ilLoadImage((ILstring)qPrintable(fileNameAbsolute));
 
 
-        if (success) {
+        if (success)
+        {
             /* Convert image to RGBA */
             ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE);
 
@@ -130,7 +131,7 @@ void Model::loadGlTextures(const aiScene* scene)
         }
         else
         {
-            qDebug() << "Model::loadGlTextures(): couldn't load image" << filename.c_str();
+            qDebug() << "Model::loadGlTextures(): couldn't load texture" << filename.c_str();
         }
     }
 

@@ -3,7 +3,7 @@
 
 #include "particleskernel.cuh"
 #include "vector_functions.h"
-#include <QObject>
+#include <QDebug>
 #include <QVector3D>
 
 // See http://forums.nvidia.com/index.php?showtopic=173696
@@ -12,82 +12,100 @@ class ParticleSystem : public QObject
 {
     Q_OBJECT
 public:
-    ParticleSystem(unsigned int numParticles, uint3 gridSize);
+    ParticleSystem();
     ~ParticleSystem();
 
-    enum ParticleConfig
+    enum ParticlePlacement
     {
-        CONFIG_RANDOM,
-        CONFIG_GRID,
-        _NUM_CONFIGS
+        PlacementRandom,
+        PlacementGrid,
+        PlacementFillSky
     };
 
-    enum ParticleArray
+    struct GridCells
     {
-        POSITION,
-        VELOCITY
+        quint16 x,y,z;
     };
 
-    void update(float deltaTime);
-    void reset(ParticleConfig config);
+    void update(const float deltaTime);
 
-//    float* getArray(ParticleArray array);
-    void   setArray(ParticleArray array, const float* data, int start, int count);
+//    unsigned int getVboPositions() const { return mVboPositions; }
+//    unsigned int getVboColors() const { return mVboColors; }
 
-    int    getNumParticles() const { return mNumberOfParticles; }
-
-    unsigned int getCurrentReadBuffer() const { return mPositionVboHandle; }
-    unsigned int getColorBuffer()       const { return mColorVboHandle; }
-
-//    void * getCudaPosVBO()              const { return (void *)m_cudaPosVBO; }
-//    void * getCudaColorVBO()            const { return (void *)mCudaColorVbo; }
-
-//    void dumpGrid();
-//    void dumpParticles(unsigned int start, unsigned int count);
-
-    void setDamping(float x) { mSimulationParameters.globalDamping = x; }
-    void setGravity(float x) { mSimulationParameters.gravity = make_float3(0.0f, x, 0.0f); }
-
-    void setCollideSpring(float x) { mSimulationParameters.spring = x; }
-    void setCollideDamping(float x) { mSimulationParameters.damping = x; }
-    void setCollideShear(float x) { mSimulationParameters.shear = x; }
-    void setCollideAttraction(float x) { mSimulationParameters.attraction = x; }
-
-//    void setColliderPos(float3 x) { mSimulationParameters.colliderPos = x; }
-
-    void setVolume(const QVector3D& min, const QVector3D& max);
-
-    float getParticleRadius() { return mSimulationParameters.particleRadius; }
-
-//    float3 getColliderPos() { return mSimulationParameters.colliderPos; }
-//    float getColliderRadius() { return mSimulationParameters.colliderRadius; }
-//    uint3 getGridSize() { return mSimulationParameters.gridSize; }
-    //    float3 getWorldOrigin() { return mSimulationParameters.worldOrigin; }
-//    float3 getCellSize() { return mSimulationParameters.cellSize; }
-
-//    void addSphere(int index, float *pos, float *vel, int r, float spacing);
+    GridCells gridCells()
+    {
+        GridCells gc;
+        gc.x = mSimulationParameters.gridSize.x;
+        gc.y = mSimulationParameters.gridSize.y;
+        gc.z = mSimulationParameters.gridSize.z;
+        return gc;
+    }
 
 public slots:
+    void slotSetDefaultParticlePlacement(const ParticlePlacement pp) { mDefaultParticlePlacement = pp; }
+
     void slotSetParticleRadius(float);
+
+    void slotSetParticleSpring(const float spring) { mSimulationParameters.spring = spring; }
+
+    void slotSetParticleCount(const quint32 count)
+    {
+        mSimulationParameters.particleCount = count;
+        // Need to rebuild data-structures when particle count changes.
+        freeResources();
+    }
+
+    // Values between 0 and 1 make sense, something like 0.98f seems realistic
+    void slotSetDampingMotion(const float damping) { mSimulationParameters.dampingMotion = damping; }
+
+    // Needs to be negative, so that the particle reverses direction when hitting a bounding wall
+    void slotSetVelocityFactorCollisionBoundary(const float factor) { mSimulationParameters.velocityFactorCollisionBoundary = factor; }
+
+    // The more damping, the more a collision will speed up the particles. So its the inverse of what you'd expect.
+    void slotSetVelocityFactorCollisionParticle(const float factor) { mSimulationParameters.velocityFactorCollisionParticle = factor; }
+
+    void slotSetGravity(const QVector3D& gravity)
+    {
+        mSimulationParameters.gravity.x = gravity.x();
+        mSimulationParameters.gravity.y = gravity.y();
+        mSimulationParameters.gravity.z = gravity.z();
+    }
+
+    void slotSetVolume(const QVector3D& min, const QVector3D& max);
 
 signals:
     void particleRadiusChanged(float);
+    void vboPositionChanged(unsigned int vboPositions, unsigned int particleCount);
+    void vboColorChanged(unsigned int vboColor);
 
-protected: // methods
-    ParticleSystem() {}
-    unsigned int createVBO(unsigned int size);
+protected:
+
+
+    enum ParticleArray
+    {
+        ArrayPositions,
+        ArrayVelocities
+    };
+
+
+    void initialize();
+    void freeResources();
+
+    void placeParticles();
+
+    unsigned int createVbo(unsigned int size);
 
     void colorRamp(float t, float *r);
-    void initGrid(unsigned int *size, float spacing, float jitter, unsigned int numParticles);
 
-protected: // data
-    unsigned int mNumberOfParticles;
+    void setArray(ParticleArray array, const float* data, int start, int count);
+
+    bool mIsInitialized;
+    ParticlePlacement mDefaultParticlePlacement;
 
     // CPU data
     float* mHostPos;              // particle positions
     float* mHostVel;              // particle velocities
 
-//    unsigned int*  m_hParticleHash;
     unsigned int*  mHostCellStart;
     unsigned int*  mHostCellEnd;
 
@@ -103,19 +121,13 @@ protected: // data
     unsigned int*  mDeviceCellStart;        // index of start of each cell in sorted list
     unsigned int*  mDeviceCellEnd;          // index of end of cell
 
-    unsigned int   mPositionVboHandle;      // vertex buffer object for particle positions
-    unsigned int   mColorVboHandle;         // vertex buffer object for particle colors
-    
-//    float *m_cudaPosVBO;        // these are the CUDA deviceMem Pos
-//    float *mCudaColorVbo;      // these are the CUDA deviceMem Color
+    unsigned int   mVboPositions;      // vertex buffer object for particle positions
+    unsigned int   mVboColors;         // vertex buffer object for particle colors
 
     struct cudaGraphicsResource *mCudaPositionVboResource; // handles OpenGL-CUDA exchange
     struct cudaGraphicsResource *mCudaColorVboResource; // handles OpenGL-CUDA exchange
 
-    // params
     SimParams mSimulationParameters;
-    uint3 mGridSize;
-    unsigned int mNumberOfGridCells;
 };
 
 #endif

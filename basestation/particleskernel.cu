@@ -5,12 +5,20 @@
 #ifndef PARTICLES_KERNEL_H_
 #define PARTICLES_KERNEL_H_
 
-#include <stdio.h>
-#include <math.h>
-#include "cutil_math.h" // shouldn't be used, unsupported
+#include "helper_math.h"
 #include "particleskernel.cuh"
 
 #include "thrust/tuple.h"
+
+// 0 seems to be 10% faster with 256k particles
+#define USE_TEX 1
+
+#if USE_TEX
+#define FETCH(t, i) tex1Dfetch(t##Tex, i)
+#else
+#define FETCH(t, i) t[i]
+#endif
+
 
 #if USE_TEX
 // textures for particle position and velocity
@@ -33,7 +41,8 @@ struct integrate_functor
     integrate_functor(float delta_time) : deltaTime(delta_time) {}
 
     template <typename Tuple>
-    __host__ __device__
+    //__host__ otherwise we get warnings that params (global mem) cannot be read directly in a host function
+    __device__
     void operator()(Tuple t)
     {
         volatile float4 posData = thrust::get<0>(t);
@@ -42,18 +51,25 @@ struct integrate_functor
         float3 vel = make_float3(velData.x, velData.y, velData.z);
 
         vel += params.gravity * deltaTime;
-        vel *= params.globalDamping;
+        vel *= params.dampingMotion;
 
         // new position = old position + velocity * deltaTime
         pos += vel * deltaTime;
 
         // collisions with cube sides
-        if (pos.x > params.worldMax.x - params.particleRadius) { pos.x = params.worldMax.x - params.particleRadius; vel.x *= params.boundaryDamping; }
-        if (pos.x < params.worldMin.x + params.particleRadius) { pos.x = params.worldMin.x + params.particleRadius; vel.x *= params.boundaryDamping;}
-        if (pos.y > params.worldMax.y - params.particleRadius) { pos.y = params.worldMax.y - params.particleRadius; vel.y *= params.boundaryDamping; }
-        if (pos.y < params.worldMin.y + params.particleRadius) { pos.y = params.worldMin.y + params.particleRadius; vel.y *= params.boundaryDamping;}
-        if (pos.z > params.worldMax.z - params.particleRadius) { pos.z = params.worldMax.z - params.particleRadius; vel.z *= params.boundaryDamping; }
-        if (pos.z < params.worldMin.z + params.particleRadius) { pos.z = params.worldMin.z + params.particleRadius; vel.z *= params.boundaryDamping;}
+        if (pos.x > params.worldMax.x - params.particleRadius) { pos.x = params.worldMax.x - params.particleRadius; vel.x *= params.velocityFactorCollisionBoundary;}
+        if (pos.x < params.worldMin.x + params.particleRadius) { pos.x = params.worldMin.x + params.particleRadius; vel.x *= params.velocityFactorCollisionBoundary;}
+        if (pos.z > params.worldMax.z - params.particleRadius) { pos.z = params.worldMax.z - params.particleRadius; vel.z *= params.velocityFactorCollisionBoundary;}
+        if (pos.z < params.worldMin.z + params.particleRadius) { pos.z = params.worldMin.z + params.particleRadius; vel.z *= params.velocityFactorCollisionBoundary;}
+        if (pos.y > params.worldMax.y - params.particleRadius) { pos.y = params.worldMax.y - params.particleRadius; vel.y *= params.velocityFactorCollisionBoundary;}
+
+        // special case: hitting bottom plane of bounding box
+        if (pos.y < params.worldMin.y + params.particleRadius)
+        {
+            pos.y = params.worldMin.y + params.particleRadius; vel.y *= params.velocityFactorCollisionBoundary;
+
+            // delete sphere and look up its last collision
+        }
 
         // store new position and velocity
         thrust::get<0>(t) = make_float4(pos, posData.w);
@@ -61,17 +77,22 @@ struct integrate_functor
     }
 };
 
-// calculate position in uniform grid
+// Calculate's a particle's containing cell in the uniform grid
 __device__ int3 calcGridPos(float3 p)
 {
+    float3 cellSize;
+    cellSize.x = (params.worldMax.x - params.worldMin.x) / params.gridSize.x;
+    cellSize.y = (params.worldMax.y - params.worldMin.y) / params.gridSize.y;
+    cellSize.z = (params.worldMax.z - params.worldMin.z) / params.gridSize.z;
+
     int3 gridPos;
-    gridPos.x = floor((p.x - params.worldMin.x) / params.cellSize.x);
-    gridPos.y = floor((p.y - params.worldMin.y) / params.cellSize.y);
-    gridPos.z = floor((p.z - params.worldMin.z) / params.cellSize.z);
+    gridPos.x = floor((p.x - params.worldMin.x) / cellSize.x);
+    gridPos.y = floor((p.y - params.worldMin.y) / cellSize.y);
+    gridPos.z = floor((p.z - params.worldMin.z) / cellSize.z);
     return gridPos;
 }
 
-// calculate address in grid from position (clamping to edges)
+// Calculate a particle's hash value (=address in grid) from its containing cell (clamping to edges)
 __device__ uint calcGridHash(int3 gridPos)
 {
     gridPos.x = gridPos.x & (params.gridSize.x-1);  // wrap grid, assumes size is power of 2
@@ -80,23 +101,25 @@ __device__ uint calcGridHash(int3 gridPos)
     return __umul24(__umul24(gridPos.z, params.gridSize.y), params.gridSize.x) + __umul24(gridPos.y, params.gridSize.x) + gridPos.x;
 }
 
-// calculate grid hash value for each particle
+// Calculate grid hash value for each particle
 __global__
 void calcHashD(uint*   gridParticleHash,  // output
                uint*   gridParticleIndex, // output
-               float4* pos,               // input: positions
+               float4* pos,               // input: particle positions
                uint    numParticles)
 {
     uint index = __umul24(blockIdx.x, blockDim.x) + threadIdx.x;
-    if (index >= numParticles) return;
+    if(index >= numParticles) return;
 
     volatile float4 p = pos[index];
 
-    // get address in grid
+    // In which grid cell does the particle live?
     int3 gridPos = calcGridPos(make_float3(p.x, p.y, p.z));
+
+    // Calculate the particle's hash from the grid-cell. This means particles in the same cell have the same hash
     uint hash = calcGridHash(gridPos);
 
-    // store grid hash and particle index
+    // Store grid hash and particle index
     gridParticleHash[index] = hash;
     gridParticleIndex[index] = index;
 }
@@ -196,7 +219,7 @@ float3 collideSpheres(float3 posA, float3 posB,
         // spring force
         force = -params.spring*(collideDist - dist) * norm;
         // dashpot (damping) force
-        force += params.damping*relVel;
+        force += params.velocityFactorCollisionParticle*relVel;
         // tangential shear force
         force += params.shear*tanVel;
         // attraction
@@ -210,10 +233,10 @@ float3 collideSpheres(float3 posA, float3 posB,
 
 // collide a particle against all other particles in a given cell
 __device__
-float3 collideCell(int3    gridPos,
-                   uint    index,
-                   float3  pos,
-                   float3  vel,
+float3 collideCell(int3    gridPos,     // grid cell to search for particles than could collide
+                   uint    index,       // index of particle that is being collided
+                   float3  pos,         // position of particle that is being collided
+                   float3  vel,         // velocity of particle that is being collided
                    float4* oldPos,
                    float4* oldVel,
                    uint*   cellStart,
@@ -247,15 +270,15 @@ float3 collideCell(int3    gridPos,
     return force;
 }
 
-
+// Collide a single particle (given by thread-id through @index) against all spheres in own and neighboring cells
 __global__
 void collideD(float4* newVel,               // output: new velocity
               float4* oldPos,               // input: sorted positions
               float4* oldVel,               // input: sorted velocities
               uint*   gridParticleIndex,    // input: sorted particle indices
-              uint*   cellStart,
-              uint*   cellEnd,
-              uint    numParticles)
+              uint*   cellStart,            // input:
+              uint*   cellEnd,              // input:
+              uint    numParticles)         // input:
 {
     uint index = __mul24(blockIdx.x,blockDim.x) + threadIdx.x;
     if (index >= numParticles) return;
@@ -264,14 +287,17 @@ void collideD(float4* newVel,               // output: new velocity
     float3 pos = make_float3(FETCH(oldPos, index));
     float3 vel = make_float3(FETCH(oldVel, index));
 
-    // get address in grid
+    // get address of particle in grid
     int3 gridPos = calcGridPos(pos);
 
     // examine neighbouring cells
     float3 force = make_float3(0.0f);
-    for(int z=-1; z<=1; z++) {
-        for(int y=-1; y<=1; y++) {
-            for(int x=-1; x<=1; x++) {
+    for(int z=-1; z<=1; z++)
+    {
+        for(int y=-1; y<=1; y++)
+        {
+            for(int x=-1; x<=1; x++)
+            {
                 int3 neighbourPos = gridPos + make_int3(x, y, z);
                 force += collideCell(neighbourPos, index, pos, vel, oldPos, oldVel, cellStart, cellEnd);
             }
@@ -279,6 +305,7 @@ void collideD(float4* newVel,               // output: new velocity
     }
 
     // collide with cursor sphere
+    /* single sphere removed by ben
     force += collideSpheres(
                 pos,
                 params.colliderPos,
@@ -286,7 +313,7 @@ void collideD(float4* newVel,               // output: new velocity
                 make_float3(0.0f, 0.0f, 0.0f),
                 params.particleRadius,
                 params.colliderRadius,
-                0.0f);
+                0.0f);*/
 
     // write new velocity back to original unsorted location
     uint originalIndex = gridParticleIndex[index];

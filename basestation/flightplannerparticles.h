@@ -31,29 +31,20 @@ private:
 
     QList<WayPoint> mWayPointsGenerated, mWayPointsDetour;
 
-    int mode;
+//    int mode;
 
-    enum { M_VIEW = 0, M_MOVE };
+//    enum { M_VIEW = 0, M_MOVE };
 
-    uint numParticles;
-    uint3 gridSize;
-
-    // simulation parameters
-    float timestep;
-    float damping;
-    float gravity;
-    int ballr;
-
-    float collideSpring;
-    float collideDamping;
-    float collideShear;
-    float collideAttraction;
-
+//    uint numParticles;
+//    uint3 gridSize;
 
     ParticleSystem* mParticleSystem;
     ParticleRenderer* mParticleRenderer;
 
     cudaError_t mCudaError;
+
+    ShaderProgram* mShaderProgramGridLines; // for drawing the grid
+    unsigned int mVboGridLines;
 
     // To re-fill our datastructure when the boundingbox has changed.
     bool insertPointsFromNode(const Node* node);

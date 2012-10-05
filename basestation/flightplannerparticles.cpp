@@ -9,6 +9,7 @@ FlightPlannerParticles::FlightPlannerParticles(QWidget* widget, Octree* pointClo
 {
     mParticleSystem = 0;
     mParticleRenderer = 0;
+    mVboGridLines = 0;
 }
 
 void FlightPlannerParticles::slotInitialize()
@@ -45,57 +46,29 @@ void FlightPlannerParticles::slotInitialize()
              << deviceProps.memoryClockRate / 1000 << "Mhz mem clock and a"
              << deviceProps.memoryBusWidth << "bit mem bus";
 
-    uint3 gridSize;
+    mShaderProgramGridLines = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
 
-    // simulation parameters
-    damping = 1.0f;
-    gravity = 0.0003f;
-    ballr = 10;
-    mode = 0;
-
-    collideSpring = 0.5f;
-    collideDamping = 0.02f;
-    collideShear = 0.1f;
-    collideAttraction = 0.0f;
-
-    gridSize.x = gridSize.y = gridSize.z = 64;
-    printf("grid: %d x %d x %d = %d cells\n", gridSize.x, gridSize.y, gridSize.z, gridSize.x*gridSize.y*gridSize.z);
-
-    // unnecessary, just std opengl stuff                initGL(&argc, argv);
-    //cudaGLInit(argc, argv); // simply does cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );, which is done above already
-
-    mParticleSystem = new ParticleSystem(1, gridSize);
-    mParticleSystem->setVolume(mScanVolumeMin, mScanVolumeMax);
-    mParticleSystem->reset(ParticleSystem::CONFIG_RANDOM);
-
+    mParticleSystem = new ParticleSystem;
     mParticleRenderer = new ParticleRenderer;
+
     connect(mParticleSystem, SIGNAL(particleRadiusChanged(float)), mParticleRenderer, SLOT(slotSetParticleRadius(float)));
-    mParticleSystem->slotSetParticleRadius(1.5f);
-    mParticleRenderer->setVboColors(mParticleSystem->getColorBuffer());
-    mParticleRenderer->setVboPositions(mParticleSystem->getCurrentReadBuffer(), mParticleSystem->getNumParticles());
+    connect(mParticleSystem, SIGNAL(vboColorChanged(uint)), mParticleRenderer, SLOT(slotSetVboColors(uint)));
+    connect(mParticleSystem, SIGNAL(vboPositionChanged(uint,uint)), mParticleRenderer, SLOT(slotSetVboPositions(uint,uint)));
 
-    /*
-    // create a new parameter list
-    params = new ParamListGL("misc");
-    params->AddParam(new Param<float>("time step", timestep, 0.0f, 1.0f, 0.01f, &timestep));
-    params->AddParam(new Param<float>("damping"  , damping , 0.0f, 1.0f, 0.001f, &damping));
-    params->AddParam(new Param<float>("gravity"  , gravity , 0.0f, 0.001f, 0.0001f, &gravity));
-    params->AddParam(new Param<int>  ("ball radius", ballr , 1, 20, 1, &ballr));
+    mParticleSystem->slotSetParticleRadius(0.15625f);
 
-    params->AddParam(new Param<float>("collide spring" , collideSpring , 0.0f, 1.0f, 0.001f, &collideSpring));
-    params->AddParam(new Param<float>("collide damping", collideDamping, 0.0f, 0.1f, 0.001f, &collideDamping));
-    params->AddParam(new Param<float>("collide shear"  , collideShear  , 0.0f, 0.1f, 0.001f, &collideShear));
-    params->AddParam(new Param<float>("collide attract", collideAttraction, 0.0f, 0.1f, 0.001f, &collideAttraction));
-*/
+    mParticleSystem->slotSetVolume(mScanVolumeMin, mScanVolumeMax);
+    mParticleSystem->slotSetDefaultParticlePlacement(ParticleSystem::PlacementFillSky);
 
+    // set initial values
+//nonono    mParticleRenderer->slotSetVboColors(mParticleSystem->getVboColors());
+//nonono    mParticleRenderer->slotSetVboPositions(mParticleSystem->getVboPositions(), mParticleSystem->getSimulationParameters().numberOfParticles);
 }
 
 void FlightPlannerParticles::slotGenerateWaypoints()
 {
     qDebug() << "FlightPlannerParticles::slotGenerateWaypoints()";
-
 }
-
 
 void FlightPlannerParticles::slotCreateSafePathToNextWayPoint()
 {
@@ -104,42 +77,124 @@ void FlightPlannerParticles::slotCreateSafePathToNextWayPoint()
 
 FlightPlannerParticles::~FlightPlannerParticles()
 {
-
+    delete mParticleRenderer;
+    delete mParticleSystem;
     cudaDeviceReset();
 }
 
 void FlightPlannerParticles::insertPoint(LidarPoint* point)
 {
     //mVoxelManager->setVoxelValue(point->position, true);
+    delete point;
 }
 
-// NOT in a glBegin()/glEnd() pair.
 void FlightPlannerParticles::slotVisualize()
 {
     FlightPlannerInterface::slotVisualize();
 
-    // update the simulation
-    mParticleSystem->setDamping(damping);
-    mParticleSystem->setGravity(-gravity);
-    mParticleSystem->setCollideSpring(collideSpring);
-    mParticleSystem->setCollideDamping(collideDamping);
-    mParticleSystem->setCollideShear(collideShear);
-    mParticleSystem->setCollideAttraction(collideAttraction);
+    // Draw the grid!
+    if(mParticleSystem)
+    {
+        if(mVboGridLines)
+        {
+            mShaderProgramGridLines->bind();
+            mShaderProgramGridLines->setUniformValue("useFixedColor", true);
+            mShaderProgramGridLines->setUniformValue("fixedColor", QVector4D(0.2f, 0.2f, 0.2f, 0.1f));
+            glBindBuffer(GL_ARRAY_BUFFER, mVboGridLines);
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0); // positions
+            glEnable(GL_BLEND);
+            glEnable(GL_DEPTH_TEST);
+            //        glDrawArrays(GL_LINES, 0, (mParticleSystem->gridCells().x+1) * (mParticleSystem->gridCells().y+1) * (mParticleSystem->gridCells().z+1));
+            glDisable(GL_BLEND);
+            glDisableVertexAttribArray(0);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            mShaderProgramGridLines->release();
+        }
 
-    mParticleSystem->update(0.5f);
-
-
-    mParticleRenderer->render();
+        mParticleSystem->update(0.5f);
+        mParticleRenderer->render();
+    }
 }
 
 void FlightPlannerParticles::slotSetScanVolume(const QVector3D min, const QVector3D max)
 {
     FlightPlannerInterface::slotSetScanVolume(min, max);
 
-    if(mParticleSystem) mParticleSystem->setVolume(mScanVolumeMin, mScanVolumeMax);
+    if(mParticleSystem)
+    {
+        mParticleSystem->slotSetVolume(mScanVolumeMin, mScanVolumeMax);
 
-    // Re-fill VoxelManager's data from basestations octree.
-    if(mOctree) FlightPlannerInterface::insertPointsFromNode(mOctree->root());
+        // Fill or re-fill the VBO that contains the data for rendering the grid
+        QVector<QVector4D> lineData;
+
+        for(int x=0;x<=mParticleSystem->gridCells().x;x++)
+        {
+            for(int y=0;y<=mParticleSystem->gridCells().y;y++)
+            {
+                lineData.append(QVector4D(
+                                mScanVolumeMin.x() + x * ((mScanVolumeMax.x()-mScanVolumeMin.x())/mParticleSystem->gridCells().x),
+                                mScanVolumeMin.y() + y * ((mScanVolumeMax.y()-mScanVolumeMin.y())/mParticleSystem->gridCells().y),
+                                mScanVolumeMin.z(),
+                                1.0f));
+
+                lineData.append(QVector4D(
+                                mScanVolumeMin.x() + x * ((mScanVolumeMax.x()-mScanVolumeMin.x())/mParticleSystem->gridCells().x),
+                                mScanVolumeMin.y() + y * ((mScanVolumeMax.y()-mScanVolumeMin.y())/mParticleSystem->gridCells().y),
+                                mScanVolumeMax.z(),
+                                1.0f));
+            }
+        }
+
+        for(int x=0;x<=mParticleSystem->gridCells().x;x++)
+        {
+            for(int z=0;z<=mParticleSystem->gridCells().z;z++)
+            {
+                lineData.append(QVector4D(
+                                mScanVolumeMin.x() + x * ((mScanVolumeMax.x()-mScanVolumeMin.x())/mParticleSystem->gridCells().x),
+                                mScanVolumeMin.y(),
+                                mScanVolumeMin.z() + z * ((mScanVolumeMax.z()-mScanVolumeMin.z())/mParticleSystem->gridCells().z),
+                                1.0f));
+
+                lineData.append(QVector4D(
+                                mScanVolumeMin.x() + x * ((mScanVolumeMax.x()-mScanVolumeMin.x())/mParticleSystem->gridCells().x),
+                                mScanVolumeMax.y(),
+                                mScanVolumeMin.z() + z * ((mScanVolumeMax.z()-mScanVolumeMin.z())/mParticleSystem->gridCells().z),
+                                1.0f));
+            }
+        }
+
+
+        for(int y=0;y<=mParticleSystem->gridCells().y;y++)
+        {
+            for(int z=0;z<=mParticleSystem->gridCells().z;z++)
+            {
+                lineData.append(QVector4D(
+                                mScanVolumeMin.x(),
+                                mScanVolumeMin.y() + y * ((mScanVolumeMax.y()-mScanVolumeMin.y())/mParticleSystem->gridCells().y),
+                                mScanVolumeMin.z() + z * ((mScanVolumeMax.z()-mScanVolumeMin.z())/mParticleSystem->gridCells().z),
+                                1.0f));
+
+                lineData.append(QVector4D(
+                                mScanVolumeMax.x(),
+                                mScanVolumeMin.y() + y * ((mScanVolumeMax.y()-mScanVolumeMin.y())/mParticleSystem->gridCells().y),
+                                mScanVolumeMin.z() + z * ((mScanVolumeMax.z()-mScanVolumeMin.z())/mParticleSystem->gridCells().z),
+                                1.0f));
+            }
+        }
+
+        // Create a VBO for the grid lines if it doesn't exist yet
+        if(!mVboGridLines) glGenBuffers(1, &mVboGridLines);
+
+        // Bind, fill and unbind the buffer
+        glBindBuffer(GL_ARRAY_BUFFER, mVboGridLines);
+        glBufferData(GL_ARRAY_BUFFER, lineData.size() * sizeof(QVector4D), lineData.constData(), GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        // Re-fill VoxelManager's data from basestations octree?!???????
+        // still needed?
+        if(mOctree) FlightPlannerInterface::insertPointsFromNode(mOctree->root());
+    }
 }
 
 void FlightPlannerParticles::slotProcessPhysics(bool process)

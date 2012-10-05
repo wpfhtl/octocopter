@@ -29,17 +29,6 @@ ParticleRenderer::~ParticleRenderer()
     mShaderProgram->deleteLater();
 }
 
-void ParticleRenderer::setVboPositions(unsigned int vbo, int numParticles)
-{
-    mVboPositions = vbo;
-    mNumberOfParticles = numParticles;
-}
-
-void ParticleRenderer::setVboColors(unsigned int vbo)
-{
-    mVboColors = vbo;
-}
-
 void ParticleRenderer::render()
 {
     glDepthMask(GL_TRUE);
@@ -57,8 +46,8 @@ void ParticleRenderer::render()
     glUniform1f(glGetUniformLocation(mShaderProgram->programId(), "particleRadius"), mParticleRadius);
     //    qDebug() << "ParticleRenderer::render(): particle radius:" << mParticleRadius;
 
-    glBindBuffer(GL_ARRAY_BUFFER, mVboPositions);
     // Make the contents of this array available at layout position vertexShaderVertexIndex in the vertex shader
+    glBindBuffer(GL_ARRAY_BUFFER, mVboPositions);
     Q_ASSERT(glGetAttribLocation(mShaderProgram->programId(), "in_position") != -1);
     glEnableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_position"));
     glVertexAttribPointer(glGetAttribLocation(mShaderProgram->programId(), "in_position"), 4, GL_FLOAT, GL_FALSE, 0, 0);
