@@ -51,7 +51,7 @@ BaseStation::BaseStation() : QMainWindow()
 //    mFlightPlanner = new FlightPlannerCuda(this, mOctree);
 //    mFlightPlanner = new FlightPlannerPhysics(this, mOctree);
     mFlightPlanner = new FlightPlannerParticles(this, mOctree);
-    mFlightPlanner->slotSetScanVolume(QVector3D(-1, -1, -1), QVector3D(1, 1, 1));
+//    mFlightPlanner->slotSetScanVolume(QVector3D(-10, -10, -10), QVector3D(10, 10, 10));
 
     mGlWidget = new GlWidget(this/*, mFlightPlanner*/);
     mGlWidget->slotOctreeRegister(mOctree); // register for rendering

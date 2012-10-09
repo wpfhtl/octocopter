@@ -29,9 +29,6 @@ public:
 
     void update(const float deltaTime);
 
-//    unsigned int getVboPositions() const { return mVboPositions; }
-//    unsigned int getVboColors() const { return mVboColors; }
-
     GridCells gridCells()
     {
         GridCells gc;
@@ -52,7 +49,7 @@ public slots:
     {
         mSimulationParameters.particleCount = count;
         // Need to rebuild data-structures when particle count changes.
-        freeResources();
+        if(mIsInitialized) freeResources();
     }
 
     // Values between 0 and 1 make sense, something like 0.98f seems realistic
@@ -87,6 +84,28 @@ protected:
         ArrayVelocities
     };
 
+    QVector3D getWorldSize()
+    {
+            return QVector3D(
+                        mSimulationParameters.worldMax.x - mSimulationParameters.worldMin.x,
+                        mSimulationParameters.worldMax.y - mSimulationParameters.worldMin.y,
+                        mSimulationParameters.worldMax.z - mSimulationParameters.worldMin.z);
+    }
+
+    // compute the next higher power of 2 of 32-bit v
+    static quint32 nextHigherPowerOfTwo(quint32 v)
+    {
+        // decrements, then sets all bits below its most significant bit to 1, then it increments
+        v--;
+        v |= v >> 1;
+        v |= v >> 2;
+        v |= v >> 4;
+        v |= v >> 8;
+        v |= v >> 16;
+        return v + 1;
+    }
+
+    void setNullPointers();
 
     void initialize();
     void freeResources();

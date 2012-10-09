@@ -55,7 +55,8 @@ void FlightPlannerParticles::slotInitialize()
     connect(mParticleSystem, SIGNAL(vboColorChanged(uint)), mParticleRenderer, SLOT(slotSetVboColors(uint)));
     connect(mParticleSystem, SIGNAL(vboPositionChanged(uint,uint)), mParticleRenderer, SLOT(slotSetVboPositions(uint,uint)));
 
-    mParticleSystem->slotSetParticleRadius(0.15625f);
+    mParticleSystem->slotSetParticleCount(32768);
+    mParticleSystem->slotSetParticleRadius(0.2f);
 
     mParticleSystem->slotSetVolume(mScanVolumeMin, mScanVolumeMax);
     mParticleSystem->slotSetDefaultParticlePlacement(ParticleSystem::PlacementFillSky);
@@ -112,7 +113,7 @@ void FlightPlannerParticles::slotVisualize()
             mShaderProgramGridLines->release();
         }
 
-        mParticleSystem->update(0.5f);
+        mParticleSystem->update(0.2f);
         mParticleRenderer->render();
     }
 }

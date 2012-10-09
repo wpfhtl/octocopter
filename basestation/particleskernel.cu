@@ -66,7 +66,11 @@ struct integrate_functor
         // special case: hitting bottom plane of bounding box
         if (pos.y < params.worldMin.y + params.particleRadius)
         {
-            pos.y = params.worldMin.y + params.particleRadius; vel.y *= params.velocityFactorCollisionBoundary;
+            pos.y = params.worldMin.y + params.particleRadius;
+            vel.y *= params.velocityFactorCollisionBoundary;
+            vel.y = 3.0f;
+//            pos.y = params.worldMax.y - params.particleRadius;
+//            vel.y = 0.0f;
 
             // delete sphere and look up its last collision
         }
