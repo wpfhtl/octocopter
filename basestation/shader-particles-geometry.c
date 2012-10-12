@@ -28,6 +28,10 @@ void main()
     //mat4 matModelViewProjection = matrixModelToCamera * matrixCameraToClip;
     mat4 matModelViewProjection = matrixCameraToClip * matrixModelToCamera;
 
+    // make fixed collision-particles smaller
+    float particleRadiusForThisParticle = particleRadius;
+    if(gl_in[0].gl_Position.w < 0.5) particleRadiusForThisParticle /= 3.0;
+
     vec3 pos = gl_in[0].gl_Position.xyz;
 
     vec4 cameraPosition = inverse(matrixModelToCamera) * vec4(0,0,0,1);
@@ -36,9 +40,9 @@ void main()
 
     vec3 upWorld = vec3(0.0, 1.0, 0.0);
 
-    vec3 right = normalize(-cross(toCamera, upWorld)) * particleRadius;
+    vec3 right = normalize(-cross(toCamera, upWorld)) * particleRadiusForThisParticle;
 
-    vec3 up = normalize(cross(toCamera, normalize(-right))) * particleRadius;
+    vec3 up = normalize(cross(toCamera, normalize(-right))) * particleRadiusForThisParticle;
 
     // bottom left
     pos -= right;

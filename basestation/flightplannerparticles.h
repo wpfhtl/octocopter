@@ -1,5 +1,5 @@
-#ifndef FlightPlannerParticles_H
-#define FlightPlannerParticles_H
+#ifndef FLIGHTPLANNERPARTICLES_H
+#define FLIGHTPLANNERPARTICLES_H
 
 #include "flightplannerinterface.h"
 #include "particlerenderer.h"
@@ -7,16 +7,10 @@
 #include "node.h"
 #include "lidarpoint.h"
 #include "glwidget.h"
-#include "voxelmanager.h"
 #include <waypoint.h>
 #include "openglutilities.h"
 
-#define MAX_EPSILON_ERROR 5.00f
-#define THRESHOLD         0.30f
-//#define GRID_SIZE       64
-//#define NUM_PARTICLES   16384
-
-extern "C" void cudaGLInit(int argc, char **argv);
+void cudaGLInit(int argc, char **argv);
 
 class FlightPlannerParticles : public FlightPlannerInterface
 {
@@ -24,19 +18,13 @@ class FlightPlannerParticles : public FlightPlannerInterface
 public:
     FlightPlannerParticles(QWidget* glWidget, Octree* pointCloud);
     ~FlightPlannerParticles();
-
-    void insertPoint(LidarPoint* point);
+    void insertPoint(const LidarPoint* const point);
 
 private:
 
+    Octree* mOctreeCollisionObjects;
+
     QList<WayPoint> mWayPointsGenerated, mWayPointsDetour;
-
-//    int mode;
-
-//    enum { M_VIEW = 0, M_MOVE };
-
-//    uint numParticles;
-//    uint3 gridSize;
 
     ParticleSystem* mParticleSystem;
     ParticleRenderer* mParticleRenderer;
@@ -49,13 +37,16 @@ private:
     // To re-fill our datastructure when the boundingbox has changed.
     bool insertPointsFromNode(const Node* node);
 
+    void setupCollisionOctree();
+
 signals:
 
 private slots:
     void slotGenerateWaypoints();
     void slotProcessPhysics(bool);
-//    void slotSubmitGeneratedWayPoints();
-//    void slotDeleteGeneratedWayPoints();
+
+    // Our octree found @point to be alone enough to be stored. So this method inserts it into the particle system.
+    void slotPointAcceptedIntoOctree(const LidarPoint*point);
 
 public slots:
     void slotSetScanVolume(const QVector3D min, const QVector3D max);

@@ -50,6 +50,14 @@ struct integrate_functor
         float3 pos = make_float3(posData.x, posData.y, posData.z);
         float3 vel = make_float3(velData.x, velData.y, velData.z);
 
+        // Sample geometry has a w component of 1.0, fixed points from the pointcloud have a w component of 0.0.
+        // Of course, fixed points do not need integration.
+        if(posData.w < 0.5f)
+        {
+            thrust::get<1>(t) = make_float4(0.0, 0.0, 0.0, velData.w); // set velocity to zero. Needed?
+            return;
+        }
+
         vel += params.gravity * deltaTime;
         vel *= params.dampingMotion;
 
@@ -66,11 +74,11 @@ struct integrate_functor
         // special case: hitting bottom plane of bounding box
         if (pos.y < params.worldMin.y + params.particleRadius)
         {
-            pos.y = params.worldMin.y + params.particleRadius;
-            vel.y *= params.velocityFactorCollisionBoundary;
-            vel.y = 3.0f;
-//            pos.y = params.worldMax.y - params.particleRadius;
-//            vel.y = 0.0f;
+//            pos.y = params.worldMin.y + params.particleRadius;
+//            vel.y *= params.velocityFactorCollisionBoundary;
+//            vel.y = 3.0f;
+            pos.y = params.worldMax.y - params.particleRadius;
+            vel.y *= 0.1f;
 
             // delete sphere and look up its last collision
         }
@@ -107,7 +115,7 @@ __device__ uint calcGridHash(int3 gridPos)
 
 // Calculate grid hash value for each particle
 __global__
-void calcHashD(uint*   gridParticleHash,  // output
+void computeMappingFromGridCellToParticleD(uint*   gridParticleHash,  // output
                uint*   gridParticleIndex, // output
                float4* pos,               // input: particle positions
                uint    numParticles)
@@ -123,23 +131,26 @@ void calcHashD(uint*   gridParticleHash,  // output
     // Calculate the particle's hash from the grid-cell. This means particles in the same cell have the same hash
     uint hash = calcGridHash(gridPos);
 
-    // Store grid hash and particle index
+    // This array is the key-part of the map, mapping cellId (=hash) to particleIndex. The term "map" is not
+    // exactly correct, because there can be multiple keys (because one cell can store many particles)
     gridParticleHash[index] = hash;
+
+    // It seems stupid to fill an array like "array[x]=x". But this array is the value-part of a map and will get sorted according to the keys (=gridParticleHash)
     gridParticleIndex[index] = index;
 }
 
-// rearrange particle data into sorted order, and find the start of each cell
-// in the sorted hash array
+// rearrange particle data into sorted order (sorted according to containing grid cell), and find the start of each cell in the sorted hash array
 __global__
-void reorderDataAndFindCellStartD(uint*   cellStart,        // output: cell start index
-                                  uint*   cellEnd,          // output: cell end index
-                                  float4* sortedPos,        // output: sorted positions
-                                  float4* sortedVel,        // output: sorted velocities
-                                  uint *  gridParticleHash, // input: sorted grid hashes
-                                  uint *  gridParticleIndex,// input: sorted particle indices
-                                  float4* oldPos,           // input: sorted position array
-                                  float4* oldVel,           // input: sorted velocity array
-                                  uint    numParticles)
+void sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArraysD(
+        uint*   cellStart,        // output: cell start index
+        uint*   cellEnd,          // output: cell end index
+        float4* sortedPos,        // output: sorted positions, sorted according to the containing gridcell
+        float4* sortedVel,        // output: sorted velocities, sorted according to the containing gridcell
+        uint *  gridParticleHash, // input: sorted grid hashes
+        uint *  gridParticleIndex,// input: sorted particle indices
+        float4* oldPos,           // input: UNsorted position array
+        float4* oldVel,           // input: UNsorted velocity array
+        uint    numParticles)
 {
     uint threadIndex = __umul24(blockIdx.x,blockDim.x) + threadIdx.x;
 
@@ -151,14 +162,15 @@ void reorderDataAndFindCellStartD(uint*   cellStart,        // output: cell star
     extern __shared__ uint sharedHash[];
 
     uint hash;
-    // handle case when no. of particles not multiple of block size
+
+    // When particleCount is smaller than a multiple of the block size, the remaining threads do nothing.
     if(threadIndex < numParticles)
     {
         hash = gridParticleHash[threadIndex];
 
         // Load hash data into shared memory so that we can look at neighboring
         // particle's hash value without loading two hash values per thread
-        sharedHash[threadIdx.x+1] = hash;
+        sharedHash[threadIdx.x+1] = hash; // => key of the sorted map
 
         if(threadIndex > 0 && threadIdx.x == 0)
         {
@@ -187,10 +199,11 @@ void reorderDataAndFindCellStartD(uint*   cellStart,        // output: cell star
         }
 
         // Now use the sorted index to reorder the pos and vel data
-        uint sortedIndex = gridParticleIndex[threadIndex];
-        float4 pos = FETCH(oldPos, sortedIndex);       // macro does either global read or texture fetch
+        uint sortedIndex = gridParticleIndex[threadIndex]; // => value of the sorted map
+        float4 pos = FETCH(oldPos, sortedIndex);       // macro does either global read or texture fetch,
         float4 vel = FETCH(oldVel, sortedIndex);       // see particles_kernel.cuh
 
+        // ben: hier if() beenden, dann syncthreads() und dann nicht in sortedPos schreiben, sondern in oldPos? Bräuchte ich dann noch zwei pos/vel container?
         sortedPos[threadIndex] = pos;
         sortedVel[threadIndex] = vel;
     }
@@ -276,20 +289,20 @@ float3 collideCell(int3    gridPos,     // grid cell to search for particles tha
 
 // Collide a single particle (given by thread-id through @index) against all spheres in own and neighboring cells
 __global__
-void collideD(float4* newVel,               // output: new velocity
-              float4* oldPos,               // input: sorted positions
-              float4* oldVel,               // input: sorted velocities
-              uint*   gridParticleIndex,    // input: sorted particle indices
-              uint*   cellStart,            // input:
-              uint*   cellEnd,              // input:
-              uint    numParticles)         // input:
+void collideD(float4* newVel,               // output: new velocities. This is actually mDeviceVel, so its the original velocity location
+              float4* sortedPos,            // input: positions sorted according to containing grid cell
+              float4* sortedVel,            // input: velocities sorted according to containing grid cell
+              uint*   gridParticleIndex,    // input: particle indices sorted according to containing grid cell
+              uint*   cellStart,            // input: cellStart[19] contains the index of gridParticleIndex in which cell 19 starts
+              uint*   cellEnd,              // input: cellEnd[19] contains the index of gridParticleIndex in which cell 19 ends
+              uint    numParticles)         // input: number of total particles
 {
     uint index = __mul24(blockIdx.x,blockDim.x) + threadIdx.x;
     if (index >= numParticles) return;
 
     // read particle data from sorted arrays
-    float3 pos = make_float3(FETCH(oldPos, index));
-    float3 vel = make_float3(FETCH(oldVel, index));
+    float3 pos = make_float3(FETCH(sortedPos, index));
+    float3 vel = make_float3(FETCH(sortedVel, index));
 
     // get address of particle in grid
     int3 gridPos = calcGridPos(pos);
@@ -303,7 +316,7 @@ void collideD(float4* newVel,               // output: new velocity
             for(int x=-1; x<=1; x++)
             {
                 int3 neighbourPos = gridPos + make_int3(x, y, z);
-                force += collideCell(neighbourPos, index, pos, vel, oldPos, oldVel, cellStart, cellEnd);
+                force += collideCell(neighbourPos, index, pos, vel, sortedPos, sortedVel, cellStart, cellEnd);
             }
         }
     }

@@ -341,7 +341,7 @@ FlightPlannerPhysics::~FlightPlannerPhysics()
     if(mOctreeCollisionObjects) delete mOctreeCollisionObjects;
 }
 
-void FlightPlannerPhysics::insertPoint(LidarPoint* point)
+void FlightPlannerPhysics::insertPoint(const LidarPoint *const point)
 {
     if(mOctreeCollisionObjects == 0)
     {
@@ -358,7 +358,7 @@ void FlightPlannerPhysics::insertPoint(LidarPoint* point)
         connect(mOctreeCollisionObjects, SIGNAL(pointInserted(const LidarPoint*)), SLOT(slotPointInserted(const LidarPoint*)));
     }
 
-    mOctreeCollisionObjects->insertPoint(point);
+    mOctreeCollisionObjects->insertPoint(new LidarPoint(*point));
 }
 
 void FlightPlannerPhysics::slotGenerateWaypoints()

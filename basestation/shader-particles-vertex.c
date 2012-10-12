@@ -21,7 +21,11 @@ layout(std140) uniform GlobalValues
 
 void main()
 {
-    //color = max(vec4(1.0, 1.0, 1.0, 1.0), in_color);
-    color = in_color;
+    // fixed particles (part of collision pointcloud are gray. They are identified by w-component being zero.
+    if(in_position.w < 0.5)
+      color = vec4(0.75, 0.75, 0.75, 0.75);
+    else
+      color = in_color;
+
     gl_Position = in_position;
 }

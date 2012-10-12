@@ -20,12 +20,12 @@ void integrateSystem(float *pos,
                      float deltaTime,
                      unsigned int numParticles);
 
-void calcHash(unsigned int*  gridParticleHash,
+void computeMappingFromGridCellToParticle(unsigned int*  gridParticleHash,
               unsigned int*  gridParticleIndex,
               float* pos, 
               int    numParticles);
 
-void reorderDataAndFindCellStart(unsigned int*  cellStart,
+void sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(unsigned int*  cellStart,
                                                              unsigned int*  cellEnd,
 							     float* sortedPos,
 							     float* sortedVel,

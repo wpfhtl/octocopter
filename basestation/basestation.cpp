@@ -33,7 +33,7 @@ BaseStation::BaseStation() : QMainWindow()
     mConnectionDialog = new ConnectionDialog(this);
     mConnectionDialog->exec();
 
-    mOctree->setMinimumPointDistance(.01f);
+    mOctree->setMinimumPointDistance(.02f);
 
     mControlWidget = new ControlWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mControlWidget);
@@ -286,9 +286,11 @@ void BaseStation::slotNewScanData(const QVector<QVector3D>* const pointList, con
     for(int i=0;i<pointList->size();i++)
     {
         const QVector3D& p = pointList->at(i);
-        mOctree->insertPoint(new LidarPoint(p, *scannerPosition));
-        if(i%10 == 0)
-            mFlightPlanner->insertPoint(new LidarPoint(p, *scannerPosition));
+        LidarPoint* const lp = new LidarPoint(p, *scannerPosition);
+
+        if(i%5 == 0) mFlightPlanner->insertPoint(lp); // ownership stays with us
+
+        mOctree->insertPoint(lp); // ownership goes to octree
     }
 
     mGlWidget->slotUpdateView();

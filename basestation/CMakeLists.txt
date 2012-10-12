@@ -17,11 +17,11 @@ SET(SRC_FILES
     camerawidget
     waypointlist
     flightplannerinterface
-    flightplannerbasic
-    flightplannercuda
+    #flightplannerbasic
+    #flightplannercuda
     flightplannerparticles
-    flightplannerphysics
-    flightplannerphysicsdialog
+    #flightplannerphysics
+    #flightplannerphysicsdialog
     diffcorrfetcher
     model
     controlwidget
@@ -73,11 +73,11 @@ SET(INC_FILES
     camerawidget.h
     waypointlist.h
     flightplannerinterface.h
-    flightplannerbasic.h
-    flightplannercuda.h
-    flightplannerparticles.h
-    flightplannerphysics.h
-    flightplannerphysicsdialog.h
+    #flightplannerbasic.h
+    #flightplannercuda.h
+    #flightplannerparticles.h
+    #flightplannerphysics.h
+    #flightplannerphysicsdialog.h
     diffcorrfetcher.h
     model.h
     controlwidget.h
@@ -182,7 +182,8 @@ SET(LIBRARIES
     qserialdeviced
     assimp)
 CUDA_ADD_EXECUTABLE(basestation ${SRC_FILES} main.cpp ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-CUDA_ADD_EXECUTABLE(teststation ${SRC_FILES} ${TEST_SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-SET_TARGET_PROPERTIES(basestation teststation PROPERTIES AUTOMOC TRUE)
+#CUDA_ADD_EXECUTABLE(teststation ${SRC_FILES} ${TEST_SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
+SET_TARGET_PROPERTIES(basestation PROPERTIES AUTOMOC TRUE)
+#SET_TARGET_PROPERTIES(teststation PROPERTIES AUTOMOC TRUE)
 TARGET_LINK_LIBRARIES(basestation ${LIBRARIES})
-TARGET_LINK_LIBRARIES(teststation ${LIBRARIES})
+#TARGET_LINK_LIBRARIES(teststation ${LIBRARIES})

@@ -77,7 +77,7 @@ void integrateSystem(float *pos, float *vel, float deltaTime, uint numParticles)
 }
 
 // Calculates a hash for each particle. The hash value is ("based on") its cell id.
-void calcHash(uint*  gridParticleHash,
+void computeMappingFromGridCellToParticle(uint*  gridParticleHash,
               uint*  gridParticleIndex,
               float* pos,
               int    numParticles)
@@ -86,7 +86,7 @@ void calcHash(uint*  gridParticleHash,
     computeGridSize(numParticles, 256, numBlocks, numThreads);
 
     // execute the kernel
-    calcHashD<<< numBlocks, numThreads >>>(gridParticleHash,
+    computeMappingFromGridCellToParticleD<<< numBlocks, numThreads >>>(gridParticleHash,
                                            gridParticleIndex,
                                            (float4 *) pos,
                                            numParticles);
@@ -95,7 +95,7 @@ void calcHash(uint*  gridParticleHash,
     checkCudaSuccess("Kernel execution failed");
 }
 
-void reorderDataAndFindCellStart(uint*  cellStart,
+void sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(uint*  cellStart,
                                  uint*  cellEnd,
                                  float* sortedPos,
                                  float* sortedVel,
@@ -120,7 +120,7 @@ void reorderDataAndFindCellStart(uint*  cellStart,
     // Number of bytes in shared memory that is allocated for each (thread)block.
     uint smemSize = sizeof(uint)*(numThreads+1);
 
-    reorderDataAndFindCellStartD<<< numBlocks, numThreads, smemSize>>>(
+    sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArraysD<<< numBlocks, numThreads, smemSize>>>(
                                                                          cellStart,
                                                                          cellEnd,
                                                                          (float4 *) sortedPos,

@@ -34,7 +34,7 @@ void ParticleRenderer::render()
     glDepthMask(GL_TRUE);
     glEnable(GL_DEPTH_TEST);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    //glEnable(GL_BLEND);
+    glEnable(GL_BLEND);
 
     // Program needs to be in use before setting values to uniforms
     mShaderProgram->bind();
@@ -67,4 +67,6 @@ void ParticleRenderer::render()
 
     // Disable shaders
     mShaderProgram->release();
+
+    glDisable(GL_BLEND);
 }
