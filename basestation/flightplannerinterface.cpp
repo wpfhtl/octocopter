@@ -20,6 +20,7 @@ FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, Octree* pointClo
 
 FlightPlannerInterface::~FlightPlannerInterface()
 {
+    qDeleteAll(mWaypointListMap);
 }
 
 void FlightPlannerInterface::slotSetScanVolume(const QVector3D minBox, const QVector3D maxBox)

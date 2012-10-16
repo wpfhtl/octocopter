@@ -92,6 +92,7 @@ FlightPlannerParticles::~FlightPlannerParticles()
 {
     delete mParticleRenderer;
     delete mParticleSystem;
+    delete mOctreeCollisionObjects;
     cudaDeviceReset();
 }
 

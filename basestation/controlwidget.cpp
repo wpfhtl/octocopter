@@ -27,7 +27,8 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
 
     connect(mBtnSetScanVolume, SIGNAL(clicked()), SLOT(slotSetScanVolume()));
 
-    mCompass->setStyle(new QPlastiqueStyle);
+    mStyle = new QPlastiqueStyle;
+    mCompass->setStyle(mStyle);
 
     mBarWirelessRssi->setRange(0, 100);
 
@@ -36,6 +37,7 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
 
 ControlWidget::~ControlWidget()
 {
+    delete mStyle;
 }
 
 void ControlWidget::initWayPointTable()

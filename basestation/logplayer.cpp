@@ -52,6 +52,7 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
 
 LogPlayer::~LogPlayer()
 {
+    delete mSensorFuser;
     delete ui;
 }
 

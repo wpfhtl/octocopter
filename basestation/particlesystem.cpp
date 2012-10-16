@@ -362,6 +362,7 @@ void ParticleSystem::placeParticles()
             mHostPos[p++] = mSimulationParameters.worldMin.y + (mSimulationParameters.worldMax.y - mSimulationParameters.worldMin.y) * frand();
             mHostPos[p++] = mSimulationParameters.worldMin.z + (mSimulationParameters.worldMax.z - mSimulationParameters.worldMin.z) * frand();
             mHostPos[p++] = 1.0f;
+
             mHostVel[v++] = 0.0f;
             mHostVel[v++] = 0.0f;
             mHostVel[v++] = 0.0f;
@@ -415,18 +416,18 @@ void ParticleSystem::placeParticles()
 
         for(
             float y = mSimulationParameters.worldMax.y - mSimulationParameters.particleRadius;
-            y >= mSimulationParameters.worldMin.y + mSimulationParameters.particleRadius && particleNumber <= mSimulationParameters.particleCount;
+            y >= mSimulationParameters.worldMin.y + mSimulationParameters.particleRadius && particleNumber < mSimulationParameters.particleCount;
             y -= spacing)
         {
 
             for(
                 float x = mSimulationParameters.worldMin.x + mSimulationParameters.particleRadius;
-                x <= mSimulationParameters.worldMax.x - mSimulationParameters.particleRadius && particleNumber <= mSimulationParameters.particleCount;
+                x <= mSimulationParameters.worldMax.x - mSimulationParameters.particleRadius && particleNumber < mSimulationParameters.particleCount;
                 x += spacing)
             {
                 for(
                     float z = mSimulationParameters.worldMin.z + mSimulationParameters.particleRadius;
-                    z <= mSimulationParameters.worldMax.z - mSimulationParameters.particleRadius && particleNumber <= mSimulationParameters.particleCount;
+                    z <= mSimulationParameters.worldMax.z - mSimulationParameters.particleRadius && particleNumber < mSimulationParameters.particleCount;
                     z += spacing)
                 {
 //                    qDebug() << "moving particle" << particleNumber << "to" << x << y << z;

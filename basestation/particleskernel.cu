@@ -290,8 +290,8 @@ float3 collideCell(int3    gridPos,     // grid cell to search for particles tha
 // Collide a single particle (given by thread-id through @index) against all spheres in own and neighboring cells
 __global__
 void collideD(float4* newVel,               // output: new velocities. This is actually mDeviceVel, so its the original velocity location
-              float4* sortedPos,            // input: positions sorted according to containing grid cell
-              float4* sortedVel,            // input: velocities sorted according to containing grid cell
+              float4* oldPos,            // input: positions sorted according to containing grid cell
+              float4* oldVel,            // input: velocities sorted according to containing grid cell
               uint*   gridParticleIndex,    // input: particle indices sorted according to containing grid cell
               uint*   cellStart,            // input: cellStart[19] contains the index of gridParticleIndex in which cell 19 starts
               uint*   cellEnd,              // input: cellEnd[19] contains the index of gridParticleIndex in which cell 19 ends
@@ -301,8 +301,8 @@ void collideD(float4* newVel,               // output: new velocities. This is a
     if (index >= numParticles) return;
 
     // read particle data from sorted arrays
-    float3 pos = make_float3(FETCH(sortedPos, index));
-    float3 vel = make_float3(FETCH(sortedVel, index));
+    float3 pos = make_float3(FETCH(oldPos, index));
+    float3 vel = make_float3(FETCH(oldVel, index));
 
     // get address of particle in grid
     int3 gridPos = calcGridPos(pos);
@@ -316,7 +316,7 @@ void collideD(float4* newVel,               // output: new velocities. This is a
             for(int x=-1; x<=1; x++)
             {
                 int3 neighbourPos = gridPos + make_int3(x, y, z);
-                force += collideCell(neighbourPos, index, pos, vel, sortedPos, sortedVel, cellStart, cellEnd);
+                force += collideCell(neighbourPos, index, pos, vel, oldPos, oldVel, cellStart, cellEnd);
             }
         }
     }

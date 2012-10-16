@@ -195,6 +195,8 @@ void Model::generateVAOsAndUniformBuffer(const struct aiScene *scene)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * mesh->mNumFaces * 3, faceArray, GL_STATIC_DRAW);
 
+        free((void*)faceArray);
+
         // buffer for vertex positions
         if(mesh->HasPositions())
         {
@@ -236,6 +238,8 @@ void Model::generateVAOsAndUniformBuffer(const struct aiScene *scene)
             glBufferData(GL_ARRAY_BUFFER, sizeof(float)*2*mesh->mNumVertices, texCoords, GL_STATIC_DRAW);
             glEnableVertexAttribArray(mAttributeLocationTexCoord);
             glVertexAttribPointer(mAttributeLocationTexCoord, 2, GL_FLOAT, 0, 0, 0);
+
+            free((void*)texCoords);
         }
 
         // unbind buffers

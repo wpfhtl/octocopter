@@ -20,6 +20,7 @@ private:
     QString getBackgroundCss(const bool& error = true, const bool& dark = false);
 
     void initWayPointTable();
+    QStyle* mStyle; // so we can delete it later, else valgrind starts bitching.
 
 public:
     ControlWidget(QWidget *widget);
