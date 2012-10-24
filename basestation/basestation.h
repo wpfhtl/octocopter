@@ -10,7 +10,7 @@
 #include "audioplayer.h"
 #include "logplayer.h"
 #include "ptucontroller.h"
-#include "octree.h"
+#include "pointcloudoctree.h"
 #include "joystick.h"
 #include "diffcorrfetcher.h"
 #include "pidcontrollerwidget.h"
@@ -30,7 +30,7 @@
 #include <plotwidget.h>
 #include <waypoint.h>
 #include <pose.h>
-#include "pointcloud.h"
+#include "pointcloudcuda.h"
 
 class FlightPlannerInterface;
 class GlWidget;
@@ -52,14 +52,13 @@ private:
     LogWidget* mLogWidget;
     PidControllerWidget* mPidControllerWidget;
     PlotWidget* mPlotWidget;
-    PointCloud* mPointCloud;
     LogPlayer* mLogPlayer;
     PtuController* mPtuController;
     AudioPlayer* mAudioPlayer;
     QAction* mActionEnableAudio;
 
     // a container for collected rays, or rather the world coordinates of where they ended
-    Octree* mOctree;
+    PointCloud* mPointCloud;
 
     GlWidget *mGlWidget;
 

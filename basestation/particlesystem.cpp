@@ -12,9 +12,9 @@
 #include <cstdlib>
 #include <algorithm>
 
-#include "octree.h"
+#include "pointcloud.h"
 
-ParticleSystem::ParticleSystem(Octree *const octree) : mOctreeDense(octree)
+ParticleSystem::ParticleSystem(PointCloud *const pointcloud) : mPointCloudDense(pointcloud)
 {
     mNumberOfFixedParticles = 0;
     mNumberOfPointsProcessed = 0;

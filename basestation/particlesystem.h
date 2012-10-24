@@ -11,7 +11,7 @@
 
 #include "common.h"
 
-class Octree;
+class PointCloud;
 
 // See http://forums.nvidia.com/index.php?showtopic=173696
 
@@ -19,7 +19,8 @@ class ParticleSystem : public QObject
 {
     Q_OBJECT
 public:
-    ParticleSystem(Octree *const octree);
+    // Give it a pointer to the dense pointcloud, so it can draw its colliders from there
+    ParticleSystem(PointCloud *const pointcloud);
     ~ParticleSystem();
 
     enum ParticlePlacement
@@ -97,12 +98,12 @@ signals:
     void vboInfoColliders(quint32 vboPositions, quint32 colliderCount);
 
 protected:
-    // A pointer to the octree holding the dense octree for surface reconstruction. We will send the newly appended
-    // points to the graphics card once in a while, and the GPU decides whether they shall be kept by querying
-    // point neighbors in parallel. From there, we create a list of collision points for the particles.
-    Octree* mOctreeDense;
-    // A cursor indicating how many points from the dense octree we already sent to the graphics card. Since the
-    // octree keeps growing and we only want to append new points, we need to remember this.
+    // A pointer to the pointcloud holding the dense pointcloud for surface reconstruction. We will send the newly
+    // appended points to the graphics card once in a while, and the GPU decides whether they shall be kept by
+    // querying point neighbors in parallel. From there, we create a list of collision points for the particles.
+    PointCloud* mPointCloudDense;
+    // A cursor indicating how many points from the dense cloud we already sent to the graphics card. Since the
+    // cloud keeps growing and we only want to append new points, we need to remember this.
     quint32 mNumberOfPointsProcessed;
 
     // At the beginning, the particle buffers contain only sampling particles. They have a w-component of 1.0,

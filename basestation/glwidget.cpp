@@ -1,13 +1,7 @@
 #include <GL/glew.h>
-//#include <GL/gl.h>
-
-#include <GL/glew.h>
-//#include <GL/freeglut.h>
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
-
-
-#include "octree.h"
+#include "pointcloud.h"
 #include "glwidget.h"
 
 GlWidget::GlWidget(QWidget* parent) :
@@ -278,48 +272,32 @@ void GlWidget::paintGL()
 
         glEnable (GL_BLEND); glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
         {
-            for(int i=0;i<mRenderPointCloudOctrees.size();i++)
+            for(int i=0;i<mPointCloudsToRender.size();i++)
             {
-                Octree* octree = mRenderPointCloudOctrees.at(i);
-                octree->updateVbo(); // update VBO from octree point-vector.
+                const QVector<PointCloud::VboInfo>& vboInfoList = mPointCloudsToRender.at(i)->getVboInfo();
+//                octree->updateVbo(); // update VBO from octree point-vector.
                 mShaderProgramDefault->setUniformValue("useFixedColor", true);
-                mShaderProgramDefault->setUniformValue("fixedColor",
-                                                       QVector4D(
-                                                           octree->mPointColor.redF(),
-                                                           octree->mPointColor.greenF(),
-                                                           octree->mPointColor.blueF(),
-                                                           octree->mPointColor.alphaF()
-                                                           )
-                                                       );
 
-                // Render pointcloud using all initialized VBOs (there might be none when no points exist)
-                QMapIterator<quint32, quint32> j(octree->mVboIdsAndSizes);
-                while(j.hasNext())
+                for(int j=0;j<vboInfoList.size();j++)
                 {
-                    j.next();
-                    glBindBuffer(GL_ARRAY_BUFFER, j.key());
+                    const PointCloud::VboInfo& vboInfo = vboInfoList.at(j);
+
+                    mShaderProgramDefault->setUniformValue("fixedColor",
+                                                           QVector4D(
+                                                               vboInfo.color.redF(),
+                                                               vboInfo.color.greenF(),
+                                                               vboInfo.color.blueF(),
+                                                               vboInfo.color.alphaF()
+                                                               )
+                                                           );
+
+                    glBindBuffer(GL_ARRAY_BUFFER, vboInfo.vbo);
                     glEnableVertexAttribArray(0);
-                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, 0); // 24 bytes, because they're LidarPoints with (QVector3D pointPos, QVector3D laserPos)
-                    glDrawArrays(GL_POINTS, 0, j.value()); // Number of Elements, not bytes
+                    glVertexAttribPointer(0, vboInfo.elementSize, GL_FLOAT, GL_FALSE, vboInfo.stride, 0);
+                    glDrawArrays(GL_POINTS, 0, vboInfo.size); // Number of Elements, not bytes
                     glDisableVertexAttribArray(0);
+                    glBindBuffer(GL_ARRAY_BUFFER, 0);
                 }
-            }
-
-            // Render registered pointcloud VBOs - same as rendering octrees
-            mShaderProgramDefault->setUniformValue("useFixedColor", true);
-            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(0.0f, 0.0f, 1.0f, 0.5f));
-            QMapIterator<quint32, quint32> vboIterator(mRenderPointCloudVbos);
-            while(vboIterator.hasNext())
-            {
-                vboIterator.next();
-                qDebug() << "GlWidget::paintGL(): will now render" << vboIterator.value() << "points from pointcloud VBO" << vboIterator.key();
-
-                glBindBuffer(GL_ARRAY_BUFFER, vboIterator.key());
-                glEnableVertexAttribArray(0);
-                glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
-                glDrawArrays(GL_POINTS, 0, vboIterator.value()); // Number of Elements, not bytes
-                glDisableVertexAttribArray(0);
-                glBindBuffer(GL_ARRAY_BUFFER, 0);
             }
 
             // Render the vehicle's path - same shader, but variable color
@@ -700,14 +678,14 @@ void GlWidget::slotSaveImage()
     renderPixmap(0, 0, true).save(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz").prepend("snapshot-").append(".png"));
 }
 
-void GlWidget::slotPointCloudRegisterOctree(Octree* o)
+void GlWidget::slotPointCloudRegister(PointCloud* p)
 {
-    mRenderPointCloudOctrees.append(o);
+    mPointCloudsToRender.append(p);
 }
 
-void GlWidget::slotPointCloudUnregisterOctree(Octree* o)
+void GlWidget::slotPointCloudUnregister(PointCloud* p)
 {
-    mRenderPointCloudOctrees.removeOne(o);
+    mPointCloudsToRender.removeOne(p);
 }
 
 void GlWidget::slotSetFlightControllerValues(const FlightControllerValues* const fcv)

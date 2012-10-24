@@ -1,41 +1,36 @@
 #include <GL/glew.h>
-//#include <GL/freeglut.h>
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
 
 #include "flightplannerparticles.h"
+#include "pointcloudcuda.h"
 
-FlightPlannerParticles::FlightPlannerParticles(QWidget* widget) : FlightPlannerInterface(widget)
+FlightPlannerParticles::FlightPlannerParticles(QWidget* widget, PointCloud *pointcloud) : FlightPlannerInterface(widget, pointcloud)
 {
     mParticleSystem = 0;
     mParticleRenderer = 0;
     mVboGridLines = 0;
-    mOctreeCollisionObjects = 0;
-}
 
-void FlightPlannerParticles::setupCollisionOctree()
-{
-    if(mOctreeCollisionObjects)
-    {
-        disconnect(this, SLOT(slotPointAcceptedIntoOctree(const LidarPoint*)));
-        delete mOctreeCollisionObjects;
-    }
+    mPointCloudColliders = new PointCloudCuda(
+                mPointCloudDense->getBoundingBoxMin(),
+                mPointCloudDense->getBoundingBoxMax(),
+                512 * 1024);
 
-    // This octree lives in host memory and holds points that are used for collisions with the CUDA particles.
-    // The particles are copied into GPU memory, making the octree seemingly redundant - but we use it to discard
-    // incoming points that have close neighbors already.
-    mOctreeCollisionObjects = new Octree(QVector3D(-10, -10, -10), QVector3D(10, 10, 10), 100, 50*1000);
-    mOctreeCollisionObjects->setMinimumPointDistance(0.85f);
-    connect(mOctreeCollisionObjects, SIGNAL(pointInserted(const LidarPoint*)), SLOT(slotPointAcceptedIntoOctree(const LidarPoint*)));
+    mPointCloudColliders->setGridSize(64, 32, 64);
+
+    // When the dense pointcloud has new points, forward them into our sparse pointcloud
+    connect(mPointCloudDense, SIGNAL(pointsInserted()), SLOT(slotNewPointsArrivedInDensePointCloud()));
 }
 
 void FlightPlannerParticles::slotInitialize()
 {
     qDebug() << "FlightPlannerParticles::slotInitialize()";
 
+    mPointCloudColliders->slotInitialize();
+
     mShaderProgramGridLines = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
 
-    mParticleSystem = new ParticleSystem(mOctree); // ParticleSystem will draw its points as colliders from  the dense mOctree
+    mParticleSystem = new ParticleSystem(mPointCloudColliders); // ParticleSystem will draw its points as colliders from the dense pointcloud passed here
     mParticleRenderer = new ParticleRenderer;
 
     connect(mParticleSystem, SIGNAL(particleRadiusChanged(float)), mParticleRenderer, SLOT(slotSetParticleRadius(float)));
@@ -62,15 +57,15 @@ FlightPlannerParticles::~FlightPlannerParticles()
 {
     delete mParticleRenderer;
     delete mParticleSystem;
-    delete mOctreeCollisionObjects;
+//    delete mPointCloudColliders;
     cudaDeviceReset();
 }
 
-void FlightPlannerParticles::insertPoint(const LidarPoint *const point)
-{
-    if(mOctreeCollisionObjects)
-        mOctreeCollisionObjects->insertPoint(new LidarPoint(*point));
-}
+//void FlightPlannerParticles::insertPoint(const LidarPoint *const point)
+//{
+//    if(mPointCloudColliders)
+//        mPointCloudColliders->insertPoint(new LidarPoint(*point));
+//}
 
 void FlightPlannerParticles::slotVisualize()
 {
@@ -179,11 +174,11 @@ void FlightPlannerParticles::slotSetScanVolume(const QVector3D min, const QVecto
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         // Re-fill mOctreeCollisionObjects data from basestations octree!
-        if(mOctree)
-        {
-            setupCollisionOctree();
-            FlightPlannerInterface::insertPointsFromNode(mOctree->root());
-        }
+//        if(mOctree)
+//        {
+//            setupCollisionOctree();
+//            FlightPlannerInterface::insertPointsFromNode(mOctree->root());
+//        }
     }
 }
 
@@ -205,7 +200,6 @@ void FlightPlannerParticles::slotVehiclePoseChanged(const Pose* const pose)
     // check for collisions?!
 }
 
-void FlightPlannerParticles::slotPointAcceptedIntoOctree(const LidarPoint* point)
-{
-    mParticleSystem->insertPoint(point->position);
-}
+//void FlightPlannerParticles::slotNewPointsArrivedInDensePointCloud()
+//{
+//}

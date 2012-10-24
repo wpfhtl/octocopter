@@ -1,5 +1,5 @@
-#ifndef POINTCLOUD_H
-#define POINTCLOUD_H
+#ifndef POINTCLOUDCUDA_H
+#define POINTCLOUDCUDA_H
 
 #include <QVector>
 #include <QVector3D>
@@ -9,7 +9,8 @@
 #include "common.h"
 #include "cuda.h"
 #include "vector_functions.h"
-#include "pointcloud.cuh"
+#include "pointcloud.h"
+#include "pointcloudcuda.cuh"
 
 // PointCloud is a container for points, storing them in a VBO on the GPU. Furthermore, a minimum distance
 // between points can be specified. The VBO for storage is allocated once and cannot grow during the object's
@@ -25,23 +26,19 @@
 //
 // Deletion of single points is currently not implemented but could be done.
 
-class PointCloud : public QObject
+class PointCloudCuda : public PointCloud
 {
     Q_OBJECT
 
 private:
     PointCloudParameters mParameters;
 
-    // The VBO pointing to the points. To be passed to GlWidget for rendering.
-    quint32 mVbo;
+    // The VBO pointing to the points. To be passed to GlWidget for rendering. We currently use just one VBO.
+    QVector<VboInfo> mVboInfo;
 
     bool mIsInitialized;
 
-    QVector4D* mNewPoints;
-
-    QVector3D mBBoxMin, mBBoxMax;
-
-    QVector3D getWorldSize() { return mBBoxMax - mBBoxMin; }
+    float* mNewPoints;
 
     quint32 createVbo(quint32 size);
 
@@ -65,49 +62,40 @@ private:
 
 
 public:
-    PointCloud(const QVector3D &min, const QVector3D &max, const quint32 maximumElementCount = 8 * 1024 * 1024); // 8 million points capacity
-    ~PointCloud();
+    PointCloudCuda(const QVector3D &min, const QVector3D &max, const quint32 maximumElementCount = 8 * 1024 * 1024); // 8 million points capacity
+    ~PointCloudCuda();
 
-    bool insertPoints(const QVector<QVector3D>* const pointList);
 
     void updateVbo();
 
     // No two points closer than @distance will be inserted into this PointCloud
     void setMinimumPointDistance(const float &distance) { mParameters.minimumDistance = distance; }
-    float getMinimumPointDistance() { return mParameters.minimumDistance; }
+    float getMinimumPointDistance() const { return mParameters.minimumDistance; }
 
-    unsigned int getNumberOfPoints(void) const { return mParameters.elementCount + mParameters.elementQueueCount; }
+    quint32 getNumberOfPoints(void) const { return mParameters.elementCount + mParameters.elementQueueCount; }
 
-    void setGridSize(const QVector3D& gridSize)
+    void setGridSize(const quint16 x, const quint16 y, const quint16 z)
     {
-        mParameters.gridSize.x = gridSize.x();
-        mParameters.gridSize.y = gridSize.y();
-        mParameters.gridSize.z = gridSize.z();
+        mParameters.gridSize.x = x;
+        mParameters.gridSize.y = y;
+        mParameters.gridSize.z = z;
     }
 
-    /*
-    // Returns the N nearest neighbors of a given point in space. Result is not sorted by distance to @point.
-    QList<const QVector4D*> findNearestNeighbors(const QVector4D &point, const quint8 count) const;
+    const QVector<VboInfo>& getVboInfo() const { return mVboInfo; }
 
-    // Returns a list of QVector4Ds in @radius of @point.
-    QList<const QVector4D*> findNeighborsWithinRadius(const QVector4D &point, const float radius) const;
+public slots:
 
-    // Returns only the number of points in @radius of @point. More efficient than the methods above
-    // if you're not interested in the points themselves
-    quint32 numberOfNeighborsWithinRadius(const QVector4D &point, const float radius) const;
-
-    // Yet more efficient: check whether there is AT LEAST ONE point within @radius of@point
-    bool isNeighborWithinRadius(const QVector4D &point, const float radius) const;
-
-    // Sort @list of points according to distance to @point
-    void sortPointList(const QVector4D &point, QList<const QVector4D*>* list) const;
-    */
+    // Tell the cloud to insert the given points. As you can see, the cloud may not change or even own the points.
+    bool slotInsertPoints(const QVector<QVector3D>* const pointList);
+    bool slotInsertPoints(const QVector<QVector4D>* const pointList);
+    bool slotInsertPoints3(const float* const pointList, const quint32 numPoints);
+    bool slotInsertPoints4(const float* const pointList, const quint32 numPoints);
 
 public slots:
     void slotInitialize();
 
-signals:
-    void vboInfo(quint32 vbo, quint32 numElements);
+    // Clears the datastructure, but does not destruct it. Points can still be inserted afterwards.
+    void slotReset();
 };
 
 #endif

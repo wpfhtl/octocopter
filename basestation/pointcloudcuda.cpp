@@ -3,20 +3,28 @@
 #include <cuda_gl_interop.h>
 #include <cuda_runtime_api.h>
 
-#include "pointcloud.h"
+#include "pointcloudcuda.h"
 
-PointCloud::PointCloud(const QVector3D &min, const QVector3D &max, const quint32 maximumElementCount) :
-    mBBoxMin(min),
-    mBBoxMax(max),
-    QObject()
+PointCloudCuda::PointCloudCuda(const QVector3D &min, const QVector3D &max, const quint32 maximumElementCount) : PointCloud(min, max)
 {
+    mBBoxMin = min;
+    mBBoxMax = max;
+
     mIsInitialized = false;
-    mParameters.minimumDistance = 0.1;
+
+    mVboInfo.append(VboInfo());
+
+    // This will be used to convert incoming points in formats other than float4 into the
+    // right format. Here, we set the 4th component (w) to 1.0, because OpenGL needs it like that.
+    mNewPoints = (float*)malloc(sizeof(QVector4D) * 4096);
+    std::fill(mNewPoints + 0, mNewPoints + (4 * 4096), 1.0f);
+
+    mParameters.minimumDistance = 0.3;
     mParameters.elementCount = 0;
     mParameters.elementQueueCount = 0;
     mParameters.capacity = maximumElementCount;
-    mParameters.bBoxMin = make_float3(min.x(), min.y(), min.z());
-    mParameters.bBoxMax = make_float3(max.x(), max.y(), max.z());
+    mParameters.bBoxMin = make_float3(mBBoxMin.x(), mBBoxMin.y(), mBBoxMin.z());
+    mParameters.bBoxMax = make_float3(mBBoxMax.x(), mBBoxMax.y(), mBBoxMax.z());
 
     // The gridsize is a difficult topic:
     //
@@ -40,143 +48,152 @@ PointCloud::PointCloud(const QVector3D &min, const QVector3D &max, const quint32
     setNullPointers();
 }
 
-PointCloud::~PointCloud()
+PointCloudCuda::~PointCloudCuda()
 {
     if(mIsInitialized) freeResources();
+
+    free(mNewPoints);
 }
 
-void PointCloud::slotInitialize()
+void PointCloudCuda::slotInitialize()
 {
     Q_ASSERT(!mIsInitialized);
-
-    // This will be used to convert incoming QVector3D into QVector4D, then upload it to GPU. Set to zero at the beginning, so that w always remains 0.0f
-     float* data = (float*)malloc(sizeof(QVector4D) * 2048);
-     std::fill(data + 0, data + (4 * 2048), 1.0f);
-     mNewPoints = (QVector4D*)data;
-
-
 
     // ...and thats what we do here: in mDeviceCellStart[17], you'll find
     // where in mDeviceGridParticleHash cell 17 starts!
     const unsigned int numberOfCells = mParameters.gridSize.x * mParameters.gridSize.y * mParameters.gridSize.z;
 
     cudaMalloc((void**)&mDeviceCellStart, numberOfCells*sizeof(uint));
-    checkCudaSuccess("PointCloud::slotInitialize(): memory allocation failed: cellStart");
+    checkCudaSuccess("PointCloudCuda::slotInitialize(): memory allocation failed: cellStart");
 
     cudaMalloc((void**)&mDeviceCellStopp, numberOfCells*sizeof(uint));
-    checkCudaSuccess("PointCloud::slotInitialize(): memory allocation failed: cellStop");
+    checkCudaSuccess("PointCloudCuda::slotInitialize(): memory allocation failed: cellStop");
 
     // determine data-size of all points in GPU
     const unsigned int memSizePointQuadrupels = sizeof(float) * 4 * mParameters.capacity;
 
     // Allocate GPU data
     // Create VBO with point positions. This is later given to renderer for visualization
-    mVbo = createVbo(memSizePointQuadrupels);
+    mVboInfo[0].vbo = createVbo(memSizePointQuadrupels);
     // For graphics interoperability, first register a resource for use with CUDA, then it can be mapped.
     // Registering can take a long time, so we do it here just once. Unregistering takes place when deallocating stuff.
     // During runtime, we just need to map and unmap the buffer to use it in CUDA
-    cudaGraphicsGLRegisterBuffer(&mCudaVboResource, mVbo, cudaGraphicsRegisterFlagsWriteDiscard);
+    cudaGraphicsGLRegisterBuffer(&mCudaVboResource, mVboInfo[0].vbo, cudaGraphicsRegisterFlagsWriteDiscard);
 
     // Why are these sorted, and sorted according to what?
     cudaMalloc((void**)&mDevicePointSortedPos, memSizePointQuadrupels);
-    checkCudaSuccess("PointCloud::slotInitialize(): memory allocation failed: sortedPos");
+    checkCudaSuccess("PointCloudCuda::slotInitialize(): memory allocation failed: sortedPos");
 
     // These two are used to map from gridcell (=hash) to particle id (=index). If we also know in which
     // indices of these arrays grid cells start and end, we can quickly find particles in neighboring cells...
     cudaMalloc((void**)&mDeviceMapGridCell, mParameters.capacity * sizeof(uint));
-    checkCudaSuccess("PointCloud::slotInitialize(): memory allocation failed: mapGridCell");
+    checkCudaSuccess("PointCloudCuda::slotInitialize(): memory allocation failed: mapGridCell");
 
     cudaMalloc((void**)&mDeviceMapPointIndex, mParameters.capacity * sizeof(uint));
-    checkCudaSuccess("PointCloud::slotInitialize(): memory allocation failed: mapPointIndex");
+    checkCudaSuccess("PointCloudCuda::slotInitialize(): memory allocation failed: mapPointIndex");
 
-
-    qDebug() << "PointCloud::initialize(): worldsize" << getWorldSize() << "and particle radius" << mParameters.minimumDistance << ": created system with" << mParameters.capacity << "particles and" << mParameters.gridSize.x << "*" << mParameters.gridSize.y << "*" << mParameters.gridSize.z << "cells";
+    qDebug() << "PointCloudCuda::initialize(): worldsize" << getWorldSize() << "and particle radius" << mParameters.minimumDistance << ": created system with" << mParameters.capacity << "particles and" << mParameters.gridSize.x << "*" << mParameters.gridSize.y << "*" << mParameters.gridSize.z << "cells";
 
     size_t memTotal, memFree;
     cudaMemGetInfo(&memFree, &memTotal);
-    qDebug() << "PointCloud::slotInitialize(): device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free";
+    qDebug() << "PointCloudCuda::slotInitialize(): device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free";
 
     mIsInitialized = true;
 }
 
 
-void PointCloud::freeResources()
+void PointCloudCuda::freeResources()
 {
     Q_ASSERT(mIsInitialized);
 
-    qDebug() << "PointCloud::freeResources(): freeing allocated memory...";
+    qDebug() << "PointCloudCuda::freeResources(): freeing allocated memory...";
 
     // Unregister the graphics resource so it is not accessible by CUDA unless registered again.
 //    cudaGraphicsUnregisterResource(mCudaVboResource);
-    qDebug() << "PointCloud::freeResources(): done unregistering resource";
+    qDebug() << "PointCloudCuda::freeResources(): done unregistering resource";
 
-//    glDeleteBuffers(1, &mVbo);
+//    glDeleteBuffers(1, &mVboInfo[0].vbo);
 
     cudaDeviceSynchronize();
 
     cudaFree(mDevicePointSortedPos);
-    qDebug() << "PointCloud::freeResources(): done freeing pointSortedPos";
+    qDebug() << "PointCloudCuda::freeResources(): done freeing pointSortedPos";
     cudaFree(mDeviceMapGridCell);
-    qDebug() << "PointCloud::freeResources(): done freeing mapGridCell";
+    qDebug() << "PointCloudCuda::freeResources(): done freeing mapGridCell";
     cudaFree(mDeviceMapPointIndex);
-    qDebug() << "PointCloud::freeResources(): done freeing mapPointIndex";
+    qDebug() << "PointCloudCuda::freeResources(): done freeing mapPointIndex";
     cudaFree(mDeviceCellStart);
-    qDebug() << "PointCloud::freeResources(): done freeing cellStart";
+    qDebug() << "PointCloudCuda::freeResources(): done freeing cellStart";
     cudaFree(mDeviceCellStopp);
-    qDebug() << "PointCloud::freeResources(): done freeing cellStop";
+    qDebug() << "PointCloudCuda::freeResources(): done freeing cellStop";
 
-    free(mNewPoints);
-    qDebug() << "PointCloud::freeResources(): done freeing newPoints";
+    qDebug() << "PointCloudCuda::freeResources(): done freeing newPoints";
 
     // this crashes. Why oh why?
 //    cudaGraphicsUnregisterResource(mCudaVboResource);
-    glDeleteBuffers(1, (const GLuint*)&mVbo);
-    qDebug() << "PointCloud::freeResources(): done freeing VBO";
+    glDeleteBuffers(1, (const GLuint*)&mVboInfo[0].vbo);
+    qDebug() << "PointCloudCuda::freeResources(): done freeing VBO";
 
     setNullPointers();
 
     mIsInitialized = false;
 
-    qDebug() << "PointCloud::freeResources(): done.";
+    qDebug() << "PointCloudCuda::freeResources(): done.";
 }
 
-void PointCloud::setNullPointers()
+void PointCloudCuda::setNullPointers()
 {
     mDevicePointSortedPos= 0;
     mDeviceMapGridCell = 0;
     mDeviceMapPointIndex = 0;
     mDeviceCellStart = 0;
     mDeviceCellStopp = 0;
-    mVbo = 0;
-    mNewPoints = 0;
+    mVboInfo[0].vbo = 0;
 }
 
-bool PointCloud::insertPoints(const QVector<QVector3D>* const pointList)
+bool PointCloudCuda::slotInsertPoints(const QVector<QVector3D>* const pointList)
 {
-    if(mParameters.elementCount + mParameters.elementQueueCount + pointList->size() > mParameters.capacity) return false;
+    return slotInsertPoints3((float*)pointList->constData(), pointList->size());
+}
 
-    const quint32 numberOfPointsToAppend = qMin(mParameters.capacity - mParameters.elementQueueCount - mParameters.elementCount, (unsigned int)pointList->size());
+bool PointCloudCuda::slotInsertPoints(const QVector<QVector4D>* const pointList)
+{
+    return slotInsertPoints4((float*)pointList->constData(), pointList->size());
+}
 
-    float* val = (float*)mNewPoints;
+bool PointCloudCuda::slotInsertPoints3(const float* const pointList, const quint32 numPoints)
+{
+    Q_ASSERT(numPoints < 4096); // max capacity of mNewPoints
 
-    for(int i=0;i<pointList->size();i++)
+    float* val = mNewPoints;
+
+    for(int i=0;i<numPoints;i++)
     {
-        const QVector3D& point = pointList->at(i);
-        *val++ = point.x();
-        *val++ = point.y();
-        *val++ = point.z();
-        val++; // w is pre-set to 1.0 in slotInitialize(), we don't touch it here.
+        *val++ = pointList[3*i+0];
+        *val++ = pointList[3*i+1];
+        *val++ = pointList[3*i+2];
+        *val++ = 1.0f;
+//        val++; // w is pre-set to 1.0 in c'tor, we don't touch it here.
     }
 
+    return slotInsertPoints4(mNewPoints, numPoints);
+}
+
+bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint32 numPoints)
+{
+    if(mParameters.elementCount + mParameters.elementQueueCount + numPoints > mParameters.capacity) return false;
+
+    const quint32 numberOfPointsToAppend = qMin(mParameters.capacity - mParameters.elementQueueCount - mParameters.elementCount, numPoints);
+
     // upload the points into the device
-    glBindBuffer(GL_ARRAY_BUFFER, mVbo);
+    glBindBuffer(GL_ARRAY_BUFFER, mVboInfo[0].vbo);
 
     // overwrite parts of the buffer
     glBufferSubData(
                 GL_ARRAY_BUFFER,
                 (mParameters.elementCount + mParameters.elementQueueCount) * sizeof(QVector4D),  // start
                 numberOfPointsToAppend * sizeof(QVector4D),         // size
-                mNewPoints);                            // source
+                pointList);                            // source
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -185,12 +202,14 @@ bool PointCloud::insertPoints(const QVector<QVector3D>* const pointList)
     if(mParameters.elementQueueCount > 10000)
         reduce();
 
-    emit vboInfo(mVbo, mParameters.elementCount + mParameters.elementQueueCount); // remove queuecount in the future
+    mVboInfo[0].size = mParameters.elementCount + mParameters.elementQueueCount;
+
+    emit pointsInserted();
 
     return true;
 }
 
-void PointCloud::reduce()
+void PointCloudCuda::reduce()
 {
     // We want to remove all points that have been appended and have close neighbors in the pre-existing data.
     // When appended points have close neighbors in other appended points, we want to delete just one of both.
@@ -202,7 +221,7 @@ void PointCloud::reduce()
     // Reduce the queued points
     time.start();
     quint32 numberOfQueuedPointsRemaining = reducePoints(devicePointsQueued, mParameters.elementQueueCount, true);
-    qDebug() << "PointCloud::reduce(): reducing" << mParameters.elementQueueCount << "to" << numberOfQueuedPointsRemaining << "queued points took" << time.elapsed() << "ms";
+    qDebug() << "PointCloudCuda::reduce(): reducing" << mParameters.elementQueueCount << "to" << numberOfQueuedPointsRemaining << "queued points took" << time.elapsed() << "ms";
 
     // Append the remaining queued points
     mParameters.elementQueueCount = 0;
@@ -211,7 +230,7 @@ void PointCloud::reduce()
     // Reduce all points
     time.start();
     quint32 numberOfPointsRemaining = reducePoints(devicePointsBase, mParameters.elementCount, false);
-    qDebug() << "PointCloud::reduce(): reducing" << mParameters.elementCount << "to" << numberOfPointsRemaining << "points took" << time.elapsed() << "ms";
+    qDebug() << "PointCloudCuda::reduce(): reducing" << mParameters.elementCount << "to" << numberOfPointsRemaining << "points took" << time.elapsed() << "ms";
     mParameters.elementCount = numberOfPointsRemaining;
 
     // Unmap at end here to avoid unnecessary graphics/CUDA context switch.
@@ -222,11 +241,11 @@ void PointCloud::reduce()
     cudaGraphicsUnmapResources(1, &mCudaVboResource, 0);
 }
 
-quint32 PointCloud::reducePoints(float* devicePoints, const quint32 numElements, const bool createBoundingBox)
+quint32 PointCloudCuda::reducePoints(float* devicePoints, const quint32 numElements, const bool createBoundingBox)
 {
-    qDebug() << "PointCloud::reducePoints(): reducing" << numElements << "points, creating bbox:" << createBoundingBox;
+    qDebug() << "PointCloudCuda::reducePoints(): reducing" << numElements << "points, creating bbox:" << createBoundingBox;
 
-    checkCudaSuccess("PointCloud::reducePoints(): CUDA error before reduction");
+    checkCudaSuccess("PointCloudCuda::reducePoints(): CUDA error before reduction");
 
     if(createBoundingBox)
     {
@@ -234,7 +253,7 @@ quint32 PointCloud::reducePoints(float* devicePoints, const quint32 numElements,
         float3 bBoxMin, bBoxMax;
         getBoundingBox(devicePoints, numElements, bBoxMin, bBoxMax);
 
-        qDebug() << "PointCloud::reduceQueuedPoints(): there are" << numElements << "points with a bbox from"
+        qDebug() << "PointCloudCuda::reduceQueuedPoints(): there are" << numElements << "points with a bbox from"
                  << bBoxMin.x << bBoxMin.y << bBoxMin.z << "to" << bBoxMax.x << bBoxMax.y << bBoxMax.z;
 
         // Define the new bounding box for all queued points
@@ -274,11 +293,11 @@ quint32 PointCloud::reducePoints(float* devicePoints, const quint32 numElements,
     // Remove all points with values 0/0/0/0
     const quint32 remainingElements = removeRedundantPoints(devicePoints, numElements);
 
-    checkCudaSuccess("PointCloud::reducePoints(): CUDA error after reduction");
+    checkCudaSuccess("PointCloudCuda::reducePoints(): CUDA error after reduction");
 
     size_t memTotal, memFree;
     cudaMemGetInfo(&memFree, &memTotal);
-    qDebug() << "PointCloud::reducePoints(): device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free";
+    qDebug() << "PointCloudCuda::reducePoints(): device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free";
 
     if(createBoundingBox)
     {
@@ -290,13 +309,18 @@ quint32 PointCloud::reducePoints(float* devicePoints, const quint32 numElements,
     return remainingElements;
 }
 
-quint32 PointCloud::createVbo(quint32 size)
+quint32 PointCloudCuda::createVbo(quint32 size)
 {
     GLuint vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    checkCudaSuccess("PointCloud::createVBO(): VBO allocation failed");
+    checkCudaSuccess("PointCloudCuda::createVBO(): VBO allocation failed");
     return vbo;
+}
+
+void PointCloudCuda::slotReset()
+{
+
 }

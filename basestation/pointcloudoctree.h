@@ -1,21 +1,21 @@
-#ifndef OCTREE_H
-#define OCTREE_H
+#ifndef POINTCLOUDOCTREE_H
+#define POINTCLOUDOCTREE_H
 
 #include <QVector>
 #include <QVector3D>
 #include <QList>
 #include <QColor>
 
-#include "node.h"
+#include "pointcloudoctreenode.h"
 
 class LidarPoint;
-class Node;
+class PointCloudOctreeNode;
 
-class Octree : public QObject
+class PointCloudOctree : public QObject
 {
     Q_OBJECT
 
-    friend class Node;  // So that Node can access mPointHandler and mInsertionHandler
+    friend class PointCloudOctreeNode;  // So that Node can access mPointHandler and mInsertionHandler
 
 private:
     quint32 mMaxItemsPerLeaf;
@@ -26,7 +26,7 @@ private:
     // Indices/Offsets to the two last inserted LidarPoints. To be used for linear reduction.
 //    quint32 mMri1, mMri2;
 
-    Node* mRootNode;
+    PointCloudOctreeNode* mRootNode;
 
     // Leafs store indexes pointing into this central data store.
 //    LidarPoint* mData;
@@ -34,15 +34,15 @@ private:
 
     // Its very likely that a point will be inserted into the same node as its predecessor.
     // Thus, it makes sense to cache the node that received the last point.
-    Node* mLastInsertionNode;
+    PointCloudOctreeNode* mLastInsertionNode;
 
     // This method is called by nodes when they inserted a point. It will simply emit pointInserted(),
     // so that someone else can just connect to the tree instead of connecting with every node.
     void pointInsertedByNode(const LidarPoint*);
 
 public:
-    Octree(const QVector3D &min, const QVector3D &max, const quint32 maxItemsPerLeaf, const quint32 expectedMaximumElementCount = 100 * 1000);
-    ~Octree();
+    PointCloudOctree(const QVector3D &min, const QVector3D &max, const quint32 maxItemsPerLeaf, const quint32 expectedMaximumElementCount = 100 * 1000);
+    ~PointCloudOctree();
 
     void updateVbo();
 
@@ -93,9 +93,9 @@ public:
     // Sort @list oof points according to distance to @point
     void sortPointList(const QVector3D &point, QList<const LidarPoint*>* list) const;
 
-    Node* insertPoint(LidarPoint* const point);
-    Node* root();
-    const Node* root() const;
+    PointCloudOctreeNode* insertPoint(LidarPoint* const point);
+    PointCloudOctreeNode* root();
+    const PointCloudOctreeNode* root() const;
 
 public slots:
     void slotReset();

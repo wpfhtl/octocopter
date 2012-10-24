@@ -4,25 +4,23 @@
 #include "flightplannerinterface.h"
 #include "particlerenderer.h"
 #include "particlesystem.h"
-#include "node.h"
 #include "lidarpoint.h"
 #include "glwidget.h"
 #include <waypoint.h>
 #include "openglutilities.h"
 
-void cudaGLInit(int argc, char **argv);
+class PointCloudCuda;
 
 class FlightPlannerParticles : public FlightPlannerInterface
 {
     Q_OBJECT
 public:
-    FlightPlannerParticles(QWidget* glWidget);
+    FlightPlannerParticles(QWidget* glWidget, PointCloud* pointcloud);
     ~FlightPlannerParticles();
-    void insertPoint(const LidarPoint* const point);
 
 private:
-
-    Octree* mOctreeCollisionObjects;
+    PointCloudCuda* mPointCloudColliders;
+    // cursor?
 
     QList<WayPoint> mWayPointsGenerated, mWayPointsDetour;
 
@@ -37,8 +35,6 @@ private:
     // To re-fill our datastructure when the boundingbox has changed.
     bool insertPointsFromNode(const Node* node);
 
-    void setupCollisionOctree();
-
 signals:
 
 private slots:
@@ -46,7 +42,7 @@ private slots:
     void slotProcessPhysics(bool);
 
     // Our octree found @point to be alone enough to be stored. So this method inserts it into the particle system.
-    void slotPointAcceptedIntoOctree(const LidarPoint*point);
+//    void slotPointAcceptedIntoOctree(const LidarPoint*point);
 
 public slots:
     void slotSetScanVolume(const QVector3D min, const QVector3D max);

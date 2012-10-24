@@ -12,7 +12,7 @@
 
 #include "cuda.h"
 #include "helper_math.h"
-#include "pointcloud.cuh"
+#include "pointcloudcuda.cuh"
 
 // 0 seems to be 10% faster with 256k particles
 #define USE_TEX 0

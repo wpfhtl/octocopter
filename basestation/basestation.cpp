@@ -51,18 +51,17 @@ BaseStation::BaseStation() : QMainWindow()
     setCentralWidget(mGlWidget);
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(slotUpdateView()));
 
-    mPointCloud = new PointCloud(QVector3D(-50, 0, -50), QVector3D(50, 50, 50));
+    mPointCloud = new PointCloudCuda(QVector3D(-50, 0, -50), QVector3D(50, 50, 50));
     connect(mGlWidget, SIGNAL(initializingInGlContext()), mPointCloud, SLOT(slotInitialize()));
 
     // register for rendering
-//    mGlWidget->slotPointCloudRegisterOctree(mOctree);
-    connect(mPointCloud, SIGNAL(vboInfo(quint32,quint32)), mGlWidget, SLOT(slotPointCloudRegisterVbo(quint32,quint32)));
+    mGlWidget->slotPointCloudRegister(mPointCloud);
 
     // Choose your weapon!
 //    mFlightPlanner = new FlightPlannerCuda(this, mOctree);
 //    mFlightPlanner = new FlightPlannerPhysics(this, mOctree);
 //    mFlightPlanner->slotSetScanVolume(QVector3D(-10, -10, -10), QVector3D(10, 10, 10));
-    mFlightPlanner = new FlightPlannerParticles(this, mOctree);
+    mFlightPlanner = new FlightPlannerParticles(this, mPointCloud);
     mFlightPlanner->setGlWidget(mGlWidget);
 
     mPtuController = new PtuController("/dev/serial/by-id/usb-Hjelmslund_Electronics_USB485_ISO4W_HEVGI92A-if00-port0", this);
@@ -248,7 +247,7 @@ BaseStation::~BaseStation()
     delete mGlWidget;
     delete mWirelessDevice;
     delete mAudioPlayer;
-    delete mOctree;
+    delete mPointCloud;
     delete mPointCloud;
 }
 
@@ -285,29 +284,17 @@ void BaseStation::slotNewImage(const QString& cameraName, const QSize& imageSize
 
 void BaseStation::slotNewScanData(const QVector<QVector3D>* const pointList, const QVector3D* const scannerPosition)
 {
-    // TODO: its probably faster to give the whole list to Octree directly and let it sort the points
-    // into its own nodes, using neighborship relations to quickly find the correct leaf.
-//    for(int i=0;i<pointList->size();i++)
-//    {
-//        const QVector3D& p = pointList->at(i);
-//        LidarPoint* const lp = new LidarPoint(p, *scannerPosition);
-
-//        if(i%5 == 0) mFlightPlanner->insertPoint(lp); // ownership stays with us
-
-//        mOctree->insertPoint(lp); // ownership goes to octree
-//    }
-
-    mPointCloud->insertPoints(pointList);
+    mPointCloud->slotInsertPoints(pointList);
 
     mGlWidget->slotUpdateView();
 
     mLogWidget->log(
                 Information,
                 QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                QString("%1 points using %2 MB, %3 nodes, %4 points processed.")
-                .arg(mOctree->getNumberOfItems())
-                .arg((mOctree->getNumberOfItems()*sizeof(LidarPoint))/1000000.0, 2, 'g')
-                .arg(mOctree->getNumberOfNodes()).arg(pointList->size()));
+                QString("%1 points using %2 MB, %3 points processed.")
+                .arg(mPointCloud->getNumberOfPoints())
+                .arg((mPointCloud->getNumberOfPoints()*sizeof(QVector4D))/(1024.0f*1024.0f), 2, 'g')
+                .arg(pointList->size()));
 
     //qDebug() << "BaseStation::slotNewScanData(): appended" << pointList->size() << "points to octree.";
 }
@@ -318,7 +305,7 @@ void BaseStation::slotExportCloud()
 
     if(fileName.isNull()) return;
 
-    if(PlyManager::savePly(this, mOctree, fileName))
+/*    if(PlyManager::savePly(this, mPointCloud, fileName))
     {
         mLogWidget->log(Information, "BaseStation::slotExportCloud()", "Successfully wrote cloud to " + fileName);
         QMessageBox::information(this, "Cloud export", "Successfully wrote cloud to\n" + fileName, "OK");
@@ -327,7 +314,7 @@ void BaseStation::slotExportCloud()
     {
         mLogWidget->log(Error, "BaseStation::slotExportCloud()", "Failed saving cloud to file " + fileName);
         QMessageBox::information(this, "Cloud export", "Failed saving cloud to file\n\n" + fileName, "OK");
-    }
+    }*/
 }
 
 void BaseStation::slotImportCloud()
@@ -336,13 +323,13 @@ void BaseStation::slotImportCloud()
 
     if(fileName.isNull()) return;
 
-    QList<Octree*> octreesToFill;
-    octreesToFill.append(mOctree);
+    QList<PointCloud*> pointCloudsToFill;
+    pointCloudsToFill.append(mPointCloud);
 
     QList<FlightPlannerInterface*> flightPlannersToFill;
     flightPlannersToFill.append(mFlightPlanner);
 
-    if(PlyManager::loadPly(this, octreesToFill, flightPlannersToFill, fileName))
+    if(PlyManager::loadPly(this, pointCloudsToFill, flightPlannersToFill, fileName))
     {
         mLogWidget->log(Information, "BaseStation::slotImportCloud()", "Successfully loaded cloud from " + fileName);
         QMessageBox::information(this, "Cloud import", "Successfully loaded cloud from\n" + fileName, "OK");
@@ -362,7 +349,7 @@ void BaseStation::keyPressEvent(QKeyEvent* event)
 
 void BaseStation::slotClearOctree()
 {
-    mOctree->slotReset();
+    mPointCloud->slotReset();
     mGlWidget->update();
 }
 

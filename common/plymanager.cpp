@@ -159,7 +159,7 @@ bool PlyManager::savePly(const QList<QVector3D>& points, const QString &fileName
 }
 
 #ifdef BASESTATION
-
+/*
 bool PlyManager::savePly(const QVector<LidarPoint>& points, const QString &fileName)
 {
     QFile file(fileName);
@@ -240,8 +240,8 @@ bool PlyManager::savePly(const Node* node, QTextStream* stream, QProgressDialog*
 
     return true;
 }
-
-bool PlyManager::loadPly(QWidget* widget, const QList<Octree*>& trees, const QList<FlightPlannerInterface*>& flightPlanners, const QString &fileName)
+*/
+bool PlyManager::loadPly(QWidget* widget, const QList<PointCloud*>& trees, const QList<FlightPlannerInterface*>& flightPlanners, const QString &fileName)
 {
     QFile file(fileName);
     if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
@@ -293,7 +293,7 @@ bool PlyManager::loadPly(QWidget* widget, const QList<Octree*>& trees, const QLi
             {
                 for(int i=0;i<trees.size();i++)
                 {
-                    trees.at(i)->insertPoint(
+/*                    trees.at(i)->insertPoint(
                                 new LidarPoint(
                                     QVector3D(
                                         values.at(0).toDouble(),
@@ -307,11 +307,12 @@ bool PlyManager::loadPly(QWidget* widget, const QList<Octree*>& trees, const QLi
                                         )
                                     )
                                 );
+                                */
                 }
 
                 for(int i=0;i<flightPlanners.size();i++)
                 {
-                    flightPlanners.at(i)->insertPoint(
+/*                    flightPlanners.at(i)->insertPoint(
                                 new LidarPoint(
                                     QVector3D(
                                         values.at(0).toDouble(),
@@ -325,6 +326,7 @@ bool PlyManager::loadPly(QWidget* widget, const QList<Octree*>& trees, const QLi
                                         )
                                     )
                                 );
+                                */
                 }
 
                 numberOfVerticesProcessed++;

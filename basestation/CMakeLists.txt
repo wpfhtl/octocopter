@@ -56,7 +56,7 @@ SET(SRC_FILES
 
     pointcloud
     pointcloudoctree
-    pointcloudnode
+    pointcloudoctreenode
     pointcloudcuda.cpp
     pointcloudcuda.cu
 

@@ -2,7 +2,7 @@
 #include "glwidget.h"
 #include "flightplannerinterface.h"
 
-FlightPlannerInterface::FlightPlannerInterface(QWidget* widget) : QObject()
+FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, PointCloud *pointcloud) : QObject()
 {
     mGlWidget = 0;
     mParentWidget = widget;
@@ -13,6 +13,8 @@ FlightPlannerInterface::FlightPlannerInterface(QWidget* widget) : QObject()
 
     mWaypointListMap.insert("ahead", new WayPointList(QColor(255,0,0,200)));
     mWaypointListMap.insert("passed", new WayPointList(QColor(255,255,0,200)));
+
+    mPointCloudDense = pointcloud;
 
     qDebug() << "FlightPlannerInterface c'tor.";
 }
@@ -30,6 +32,7 @@ void FlightPlannerInterface::slotSetScanVolume(const QVector3D minBox, const QVe
     setVboBoundingBox();
 }
 
+/*
 bool FlightPlannerInterface::insertPointsFromNode(const Node* node)
 {
     if(node->isLeaf())
@@ -47,7 +50,7 @@ bool FlightPlannerInterface::insertPointsFromNode(const Node* node)
     }
 
     return true;
-}
+}*/
 
 void FlightPlannerInterface::slotClearVehicleTrajectory()
 {

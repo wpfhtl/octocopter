@@ -3,7 +3,7 @@
 
 #include <QGLWidget>
 #include <QMap>
-#include "octree.h"
+#include "pointcloud.h"
 #include "openglutilities.h"
 #include "shaderprogram.h"
 #include "waypointlist.h"
@@ -22,6 +22,7 @@ protected:
     QVector<Pose> mVehiclePoses;
     GlWidget* mGlWidget;
     QWidget* mParentWidget;
+    PointCloud* mPointCloudDense;
 
     //QList<WayPoint>* mWayPointsAhead, *mWayPointsPassed;
     // A map, mapping from name to waypointlist. Names are e.g. waypoints_ahead, waypoints_passed etc.
@@ -34,11 +35,11 @@ protected:
 
     static void sortToShortestPath(QList<WayPoint> &wayPointsSetOnRover, const QVector3D &currentVehiclePosition);
     void setVboBoundingBox();
-    bool insertPointsFromNode(const Node* node);
+//    bool insertPointsFromNode(const Node* node);
 
 public:
     // Here, basestation passes its own octree. Its up to the implementation to use it.
-    FlightPlannerInterface(QWidget* widget);
+    FlightPlannerInterface(QWidget* widget, PointCloud* pointcloud);
     virtual ~FlightPlannerInterface();
 
     void setGlWidget(GlWidget* glWidget) {mGlWidget = glWidget;}
@@ -50,7 +51,7 @@ public:
     // before you can insert any data. This is true for e.g. FlightPlannerCuda.
     //
     // Ownership of the point remains with the caller!
-    virtual void insertPoint(const LidarPoint* const point) = 0;
+//    virtual void insertPoint(const LidarPoint* const point) = 0;
 
     const QVector<Pose>& getVehiclePoses() { return mVehiclePoses; }
 
