@@ -17,21 +17,29 @@ public:
 public slots:
     void slotSetParticleRadius(float r) { mParticleRadius = r; }
 
-    void slotSetVboColors(unsigned int vbo) { mVboColors = vbo; }
-
-    void slotSetVboPositions(unsigned int vbo, unsigned int numParticles)
+    void slotSetVboInfoColliders(const quint32 vboPositions, const quint32 count)
     {
-        mVboPositions = vbo;
-        mNumberOfParticles = numParticles;
-        qDebug() << "ParticleRenderer::slotSetVboPositions(): will render VBO" << mVboPositions << "containing" << mNumberOfParticles << "particles";
+        mVboColliderPositions = vboPositions;
+        mNumberOfColliders = count;
+        qDebug() << "ParticleRenderer::slotSetVboInfoColliders(): will render VBO pos" << mVboColliderPositions << "containing" << mNumberOfColliders << "colliders";
+    }
+
+    void slotSetVboInfoParticles(const quint32 vboPositions, const quint32 vboColors, const quint32 count)
+    {
+        mVboParticleColors = vboColors;
+        mVboParticlePositions = vboPositions;
+        mNumberOfParticles = count;
+        qDebug() << "ParticleRenderer::slotSetVboInfoParticles(): will render VBO pos" << mVboParticlePositions << "color" << mVboParticleColors << "containing" << mNumberOfParticles << "particles";
     }
 
 private:
     ShaderProgram* mShaderProgram;
-    unsigned int mNumberOfParticles;
+    quint32 mNumberOfParticles;
+    quint32 mNumberOfColliders;
     float mParticleRadius;
-    GLuint mVboPositions;
-    GLuint mVboColors;
+    GLuint mVboColliderPositions;
+    GLuint mVboParticlePositions;
+    GLuint mVboParticleColors;
 };
 
 #endif

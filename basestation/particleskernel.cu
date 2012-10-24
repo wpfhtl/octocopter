@@ -31,7 +31,7 @@ texture<uint, 1, cudaReadModeElementType> cellEndTex;
 #endif
 
 // simulation parameters in constant memory
-__constant__ SimParams params;
+__constant__ CollisionParameters params;
 
 struct integrate_functor
 {

@@ -30,6 +30,7 @@
 #include <plotwidget.h>
 #include <waypoint.h>
 #include <pose.h>
+#include "pointcloud.h"
 
 class FlightPlannerInterface;
 class GlWidget;
@@ -51,6 +52,7 @@ private:
     LogWidget* mLogWidget;
     PidControllerWidget* mPidControllerWidget;
     PlotWidget* mPlotWidget;
+    PointCloud* mPointCloud;
     LogPlayer* mLogPlayer;
     PtuController* mPtuController;
     AudioPlayer* mAudioPlayer;

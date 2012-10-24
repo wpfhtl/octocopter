@@ -1,5 +1,11 @@
 #include <GL/glew.h>
-#include <GL/gl.h>
+//#include <GL/gl.h>
+
+#include <GL/glew.h>
+//#include <GL/freeglut.h>
+#include <cuda_runtime.h>
+#include <cuda_gl_interop.h>
+
 
 #include "octree.h"
 #include "glwidget.h"
@@ -52,8 +58,38 @@ void GlWidget::initializeGL()
     // Bind the VAO to the context
     glBindVertexArray(mVertexArrayObject);
 
-    // Give e.g. FlightPlannerCuda a chance to initialize CUDA in a GL context
-    emit initializingInGlContext();
+    // Initialize CUDA
+    int numberOfCudaDevices;
+    cudaGetDeviceCount(&numberOfCudaDevices);
+    Q_ASSERT(numberOfCudaDevices && "FlightPlannerParticles::slotInitialize(): No CUDA devices found, exiting.");
+
+    cudaError_t cudaError;
+
+    int activeCudaDevice;
+    cudaError = cudaGetDevice(&activeCudaDevice);
+    if(cudaError != cudaSuccess) qFatal("FlightPlannerParticles::slotInitialize(): couldn't get device: code %d: %s, exiting.", cudaError, cudaGetErrorString(cudaError));
+
+    // Necessary for OpenGL graphics interop: GlWidget and CUDA-based FlightPlanners have a close relationship because cudaGlSetGlDevice() needs to be called in GL context and before any other CUDA calls.
+    cudaError = cudaGLSetGLDevice(activeCudaDevice);
+    if(cudaError != cudaSuccess) qFatal("FlightPlannerParticles::slotInitialize(): couldn't set device to GL interop mode: code %d: %s, exiting.", cudaError, cudaGetErrorString(cudaError));
+
+    cudaError = cudaSetDeviceFlags(cudaDeviceMapHost);// in order for the cudaHostAllocMapped flag to have any effect
+    if(cudaError != cudaSuccess) qFatal("FlightPlannerParticles::slotInitialize(): couldn't set device flag: code %d: %s, exiting.", cudaError, cudaGetErrorString(cudaError));
+
+    cudaDeviceProp deviceProps;
+    cudaGetDeviceProperties(&deviceProps, activeCudaDevice);
+
+    size_t memTotal, memFree;
+    cudaMemGetInfo(&memFree, &memTotal);
+
+    qDebug() << "FlightPlannerParticles::FlightPlannerParticles(): device" << deviceProps.name << "has compute capability" << deviceProps.major << deviceProps.minor << "and"
+             << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free, has"
+             << deviceProps.multiProcessorCount << "multiprocessors,"
+             << (deviceProps.integrated ? "is" : "is NOT" ) << "integrated,"
+             << (deviceProps.canMapHostMemory ? "can" : "can NOT") << "map host mem, has"
+             << deviceProps.memoryClockRate / 1000 << "Mhz mem clock, a"
+             << deviceProps.memoryBusWidth << "bit mem bus and max"
+             << deviceProps.maxTexture1DLinear / 1048576 << "mb of 1d texture bound to linear memory.";
 
     // Create the uniform buffer object (UBO) for all members of the UBO-Block
     mUboSize = 64 + 64; // One Matrix4x4 has 16 floats with 4 bytes each, giving 64 bytes.
@@ -157,6 +193,8 @@ void GlWidget::initializeGL()
     mModelControllerP = new Model(QFile(modelPath.absolutePath() + "/media/controller-p.obj"), QString("../media/"), this);
     mModelControllerI = new Model(QFile(modelPath.absolutePath() + "/media/controller-i.obj"), QString("../media/"), this);
     mModelControllerD = new Model(QFile(modelPath.absolutePath() + "/media/controller-d.obj"), QString("../media/"), this);
+
+    emit initializingInGlContext();
 }
 
 void GlWidget::resizeGL(int w, int h)
@@ -240,9 +278,9 @@ void GlWidget::paintGL()
 
         glEnable (GL_BLEND); glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
         {
-            for(int i=0;i<mOctrees.size();i++)
+            for(int i=0;i<mRenderPointCloudOctrees.size();i++)
             {
-                Octree* octree = mOctrees.at(i);
+                Octree* octree = mRenderPointCloudOctrees.at(i);
                 octree->updateVbo(); // update VBO from octree point-vector.
                 mShaderProgramDefault->setUniformValue("useFixedColor", true);
                 mShaderProgramDefault->setUniformValue("fixedColor",
@@ -261,10 +299,27 @@ void GlWidget::paintGL()
                     j.next();
                     glBindBuffer(GL_ARRAY_BUFFER, j.key());
                     glEnableVertexAttribArray(0);
-                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, 0);
+                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, 0); // 24 bytes, because they're LidarPoints with (QVector3D pointPos, QVector3D laserPos)
                     glDrawArrays(GL_POINTS, 0, j.value()); // Number of Elements, not bytes
                     glDisableVertexAttribArray(0);
                 }
+            }
+
+            // Render registered pointcloud VBOs - same as rendering octrees
+            mShaderProgramDefault->setUniformValue("useFixedColor", true);
+            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(0.0f, 0.0f, 1.0f, 0.5f));
+            QMapIterator<quint32, quint32> vboIterator(mRenderPointCloudVbos);
+            while(vboIterator.hasNext())
+            {
+                vboIterator.next();
+                qDebug() << "GlWidget::paintGL(): will now render" << vboIterator.value() << "points from pointcloud VBO" << vboIterator.key();
+
+                glBindBuffer(GL_ARRAY_BUFFER, vboIterator.key());
+                glEnableVertexAttribArray(0);
+                glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
+                glDrawArrays(GL_POINTS, 0, vboIterator.value()); // Number of Elements, not bytes
+                glDisableVertexAttribArray(0);
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
             }
 
             // Render the vehicle's path - same shader, but variable color
@@ -645,14 +700,14 @@ void GlWidget::slotSaveImage()
     renderPixmap(0, 0, true).save(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz").prepend("snapshot-").append(".png"));
 }
 
-void GlWidget::slotOctreeRegister(Octree* o)
+void GlWidget::slotPointCloudRegisterOctree(Octree* o)
 {
-    mOctrees.append(o);
+    mRenderPointCloudOctrees.append(o);
 }
 
-void GlWidget::slotOctreeUnregister(Octree* o)
+void GlWidget::slotPointCloudUnregisterOctree(Octree* o)
 {
-    mOctrees.removeOne(o);
+    mRenderPointCloudOctrees.removeOne(o);
 }
 
 void GlWidget::slotSetFlightControllerValues(const FlightControllerValues* const fcv)

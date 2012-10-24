@@ -5,7 +5,7 @@
 
 #include "flightplannerparticles.h"
 
-FlightPlannerParticles::FlightPlannerParticles(QWidget* widget, Octree* pointCloud) : FlightPlannerInterface(widget, pointCloud)
+FlightPlannerParticles::FlightPlannerParticles(QWidget* widget) : FlightPlannerInterface(widget)
 {
     mParticleSystem = 0;
     mParticleRenderer = 0;
@@ -33,44 +33,14 @@ void FlightPlannerParticles::slotInitialize()
 {
     qDebug() << "FlightPlannerParticles::slotInitialize()";
 
-    // Initialize CUDA
-    int numberOfCudaDevices;
-    cudaGetDeviceCount(&numberOfCudaDevices);
-    Q_ASSERT(numberOfCudaDevices && "FlightPlannerParticles::slotInitialize(): No CUDA devices found, exiting.");
-
-    int activeCudaDevice;
-    mCudaError = cudaGetDevice(&activeCudaDevice);
-    if(mCudaError != cudaSuccess) qFatal("FlightPlannerParticles::slotInitialize(): couldn't get device: code %d: %s, exiting.", mCudaError, cudaGetErrorString(mCudaError));
-
-    // Necessary for OpenGL graphics interop
-    mCudaError = cudaGLSetGLDevice(activeCudaDevice);
-    if(mCudaError != cudaSuccess) qFatal("FlightPlannerParticles::slotInitialize(): couldn't set device to GL interop mode: code %d: %s, exiting.", mCudaError, cudaGetErrorString(mCudaError));
-
-    mCudaError = cudaSetDeviceFlags(cudaDeviceMapHost);// in order for the cudaHostAllocMapped flag to have any effect
-    if(mCudaError != cudaSuccess) qFatal("FlightPlannerParticles::slotInitialize(): couldn't set device flag: code %d: %s, exiting.", mCudaError, cudaGetErrorString(mCudaError));
-
-    cudaDeviceProp deviceProps;
-    cudaGetDeviceProperties(&deviceProps, activeCudaDevice);
-
-    size_t memTotal, memFree;
-    cudaMemGetInfo(&memFree, &memTotal);
-
-    qDebug() << "FlightPlannerParticles::FlightPlannerParticles(): device" << deviceProps.name << "has compute capability" << deviceProps.major << deviceProps.minor << "and"
-             << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free, has"
-             << deviceProps.multiProcessorCount << "multiprocessors,"
-             << (deviceProps.integrated ? "is" : "is NOT" ) << "integrated,"
-             << (deviceProps.canMapHostMemory ? "can" : "can NOT") << "map host mem, has"
-             << deviceProps.memoryClockRate / 1000 << "Mhz mem clock and a"
-             << deviceProps.memoryBusWidth << "bit mem bus";
-
     mShaderProgramGridLines = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
 
-    mParticleSystem = new ParticleSystem;
+    mParticleSystem = new ParticleSystem(mOctree); // ParticleSystem will draw its points as colliders from  the dense mOctree
     mParticleRenderer = new ParticleRenderer;
 
     connect(mParticleSystem, SIGNAL(particleRadiusChanged(float)), mParticleRenderer, SLOT(slotSetParticleRadius(float)));
-    connect(mParticleSystem, SIGNAL(vboColorChanged(uint)), mParticleRenderer, SLOT(slotSetVboColors(uint)));
-    connect(mParticleSystem, SIGNAL(vboPositionChanged(uint,uint)), mParticleRenderer, SLOT(slotSetVboPositions(uint,uint)));
+    connect(mParticleSystem, SIGNAL(vboInfoParticles(quint32,quint32,quint32)), mParticleRenderer, SLOT(slotSetVboInfoParticles(quint32,quint32,quint32)));
+    connect(mParticleSystem, SIGNAL(vboInfoColliders(quint32,quint32)), mParticleRenderer, SLOT(slotSetVboInfoColliders(quint32,quint32)));
 
     mParticleSystem->slotSetParticleCount(32768);
     mParticleSystem->slotSetParticleRadius(0.60f); // balance against mOctreeCollisionObjects.setMinimumPointDistance() above
@@ -105,6 +75,9 @@ void FlightPlannerParticles::insertPoint(const LidarPoint *const point)
 void FlightPlannerParticles::slotVisualize()
 {
     FlightPlannerInterface::slotVisualize();
+
+    if(!mParticleSystem)
+        slotInitialize();
 
     // Draw the grid!
     if(mParticleSystem)

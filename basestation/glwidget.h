@@ -23,7 +23,8 @@ class GlWidget : public QGLWidget
 {
     Q_OBJECT
 
-    QList<Octree*> mOctrees;
+    QList<Octree*> mRenderPointCloudOctrees;
+    QMap<quint32,quint32> mRenderPointCloudVbos;
 
     QVector3D mCamLookAtOffset;
 
@@ -96,8 +97,13 @@ public slots:
 
     // GlWidget renders points from all known octrees. These methods (de)register octrees for rendering.
     // Ownership remains with the caller, meaning they MUST be deregistered before deletion
-    void slotOctreeRegister(Octree* o);
-    void slotOctreeUnregister(Octree* o);
+    void slotPointCloudRegisterOctree(Octree* o);
+    void slotPointCloudUnregisterOctree(Octree* o);
+
+    // Same for plain VBOs, the methods above should be deprecated. Also, we should instead pass VBO and an info struct
+    // that also points out the element size and stride. Here, its fixed to 4 floats and a stride of 0 (=16 bytes)
+    void slotPointCloudRegisterVbo(quint32 vbo, quint32 numberOfElements) {mRenderPointCloudVbos.insert(vbo, numberOfElements);}
+    void slotPointCloudUnregisterVbo(quint32 vbo) {mRenderPointCloudVbos.remove(vbo);}
 
     // LogPlayer and RoverConnection set values used/computed by the flightcontroller.
     // These shall be visualized here in GlWidget for debugging.

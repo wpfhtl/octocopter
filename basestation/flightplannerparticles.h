@@ -16,7 +16,7 @@ class FlightPlannerParticles : public FlightPlannerInterface
 {
     Q_OBJECT
 public:
-    FlightPlannerParticles(QWidget* glWidget, Octree* pointCloud);
+    FlightPlannerParticles(QWidget* glWidget);
     ~FlightPlannerParticles();
     void insertPoint(const LidarPoint* const point);
 

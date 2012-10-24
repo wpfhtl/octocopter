@@ -18,7 +18,6 @@ class FlightPlannerInterface : public QObject
 public:
 
 protected:
-    Octree* mOctree; // a pointer to the basestations surface reconstruction octree with fine details
     QVector3D mScanVolumeMin, mScanVolumeMax;
     QVector<Pose> mVehiclePoses;
     GlWidget* mGlWidget;
@@ -39,7 +38,7 @@ protected:
 
 public:
     // Here, basestation passes its own octree. Its up to the implementation to use it.
-    FlightPlannerInterface(QWidget* widget, Octree* pointCloud);
+    FlightPlannerInterface(QWidget* widget);
     virtual ~FlightPlannerInterface();
 
     void setGlWidget(GlWidget* glWidget) {mGlWidget = glWidget;}

@@ -9,13 +9,13 @@ BaseStation::BaseStation() : QMainWindow()
 //    widgetFont.setPointSize(7);
 //    QApplication::setFont(widgetFont);
 
-    mOctree = new Octree(
-                QVector3D(-100, -100, -100), // min
-                QVector3D(100, 100, 100),  // max
-                1000, // maxItemsPerLeaf
-                2000000 // maxExpectedSize
-                );
-    mOctree->mPointColor = QColor(128,128,128, 128);
+//    mOctree = new Octree(
+//                QVector3D(-100, -100, -100), // min
+//                QVector3D(100, 100, 100),  // max
+//                1000, // maxItemsPerLeaf
+//                2000000 // maxExpectedSize
+//                );
+//    mOctree->mPointColor = QColor(128,128,128, 128);
 
     mProgress = 0;
 
@@ -33,7 +33,7 @@ BaseStation::BaseStation() : QMainWindow()
     mConnectionDialog = new ConnectionDialog(this);
     mConnectionDialog->exec();
 
-    mOctree->setMinimumPointDistance(.02f);
+//    mOctree->setMinimumPointDistance(.02f);
 
     mControlWidget = new ControlWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mControlWidget);
@@ -47,20 +47,23 @@ BaseStation::BaseStation() : QMainWindow()
     mMenuFile->addAction("Save Log", mLogWidget, SLOT(save()));
     mMenuWindowList->addAction("Log Viewer", this, SLOT(slotToggleLogWidget()));
 
-    // GlWidget and CUDA-based FlightPlanners have a close relationship because cudaGlSetGlDevice() needs to be called in GL context and before any other CUDA calls.
+    mGlWidget = new GlWidget(this);
+    setCentralWidget(mGlWidget);
+    connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(slotUpdateView()));
+
+    mPointCloud = new PointCloud(QVector3D(-50, 0, -50), QVector3D(50, 50, 50));
+    connect(mGlWidget, SIGNAL(initializingInGlContext()), mPointCloud, SLOT(slotInitialize()));
+
+    // register for rendering
+//    mGlWidget->slotPointCloudRegisterOctree(mOctree);
+    connect(mPointCloud, SIGNAL(vboInfo(quint32,quint32)), mGlWidget, SLOT(slotPointCloudRegisterVbo(quint32,quint32)));
+
+    // Choose your weapon!
 //    mFlightPlanner = new FlightPlannerCuda(this, mOctree);
 //    mFlightPlanner = new FlightPlannerPhysics(this, mOctree);
-    mFlightPlanner = new FlightPlannerParticles(this, mOctree);
 //    mFlightPlanner->slotSetScanVolume(QVector3D(-10, -10, -10), QVector3D(10, 10, 10));
-
-    mGlWidget = new GlWidget(this/*, mFlightPlanner*/);
-    mGlWidget->slotOctreeRegister(mOctree); // register for rendering
-
+    mFlightPlanner = new FlightPlannerParticles(this, mOctree);
     mFlightPlanner->setGlWidget(mGlWidget);
-    connect(mGlWidget, SIGNAL(initializingInGlContext()), mFlightPlanner, SLOT(slotInitialize())); // init CUDA when GlWidget inits
-    connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(slotUpdateView()));
-//    connect(mGlWidget, SIGNAL(mouseClickedAtWorldPos(Qt::MouseButton, QVector3D)), mControlWidget, SLOT(slotSetWayPointCoordinateFields(Qt::MouseButton, QVector3D)));
-    setCentralWidget(mGlWidget);
 
     mPtuController = new PtuController("/dev/serial/by-id/usb-Hjelmslund_Electronics_USB485_ISO4W_HEVGI92A-if00-port0", this);
     addDockWidget(Qt::BottomDockWidgetArea, mPtuController);
@@ -246,6 +249,7 @@ BaseStation::~BaseStation()
     delete mWirelessDevice;
     delete mAudioPlayer;
     delete mOctree;
+    delete mPointCloud;
 }
 
 void BaseStation::slotManageJoystick(quint8 button, bool pressed)
@@ -283,15 +287,17 @@ void BaseStation::slotNewScanData(const QVector<QVector3D>* const pointList, con
 {
     // TODO: its probably faster to give the whole list to Octree directly and let it sort the points
     // into its own nodes, using neighborship relations to quickly find the correct leaf.
-    for(int i=0;i<pointList->size();i++)
-    {
-        const QVector3D& p = pointList->at(i);
-        LidarPoint* const lp = new LidarPoint(p, *scannerPosition);
+//    for(int i=0;i<pointList->size();i++)
+//    {
+//        const QVector3D& p = pointList->at(i);
+//        LidarPoint* const lp = new LidarPoint(p, *scannerPosition);
 
-        if(i%5 == 0) mFlightPlanner->insertPoint(lp); // ownership stays with us
+//        if(i%5 == 0) mFlightPlanner->insertPoint(lp); // ownership stays with us
 
-        mOctree->insertPoint(lp); // ownership goes to octree
-    }
+//        mOctree->insertPoint(lp); // ownership goes to octree
+//    }
+
+    mPointCloud->insertPoints(pointList);
 
     mGlWidget->slotUpdateView();
 

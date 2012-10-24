@@ -2,11 +2,16 @@
 #define PARTICLESYSTEM_H
 
 #include "particleskernel.cuh"
+
 #include "vector_functions.h"
 #include <QTime>
 #include <QDebug>
 #include <QVector3D>
 #include <QVector4D>
+
+#include "common.h"
+
+class Octree;
 
 // See http://forums.nvidia.com/index.php?showtopic=173696
 
@@ -14,7 +19,7 @@ class ParticleSystem : public QObject
 {
     Q_OBJECT
 public:
-    ParticleSystem();
+    ParticleSystem(Octree *const octree);
     ~ParticleSystem();
 
     enum ParticlePlacement
@@ -88,10 +93,17 @@ public slots:
 
 signals:
     void particleRadiusChanged(float);
-    void vboPositionChanged(unsigned int vboPositions, unsigned int particleCount);
-    void vboColorChanged(unsigned int vboColor);
+    void vboInfoParticles(quint32 vboPositions, quint32 vboColor, quint32 particleCount);
+    void vboInfoColliders(quint32 vboPositions, quint32 colliderCount);
 
 protected:
+    // A pointer to the octree holding the dense octree for surface reconstruction. We will send the newly appended
+    // points to the graphics card once in a while, and the GPU decides whether they shall be kept by querying
+    // point neighbors in parallel. From there, we create a list of collision points for the particles.
+    Octree* mOctreeDense;
+    // A cursor indicating how many points from the dense octree we already sent to the graphics card. Since the
+    // octree keeps growing and we only want to append new points, we need to remember this.
+    quint32 mNumberOfPointsProcessed;
 
     // At the beginning, the particle buffers contain only sampling particles. They have a w-component of 1.0,
     // move freely and collide with all other particles in the buffer. When we receive a new point for the
@@ -113,19 +125,6 @@ protected:
                         mSimulationParameters.worldMax.z - mSimulationParameters.worldMin.z);
     }
 
-    // compute the next higher power of 2 of 32-bit v
-    static quint32 nextHigherPowerOfTwo(quint32 v)
-    {
-        // decrements, then sets all bits below its most significant bit to 1, then it increments
-        v--;
-        v |= v >> 1;
-        v |= v >> 2;
-        v |= v >> 4;
-        v |= v >> 8;
-        v |= v >> 16;
-        return v + 1;
-    }
-
     void setNullPointers();
 
     void initialize();
@@ -133,7 +132,7 @@ protected:
 
     void placeParticles();
 
-    unsigned int createVbo(unsigned int size);
+    unsigned int createVbo(quint32 size);
 
     void colorRamp(float t, float *r);
 
@@ -143,11 +142,8 @@ protected:
     ParticlePlacement mDefaultParticlePlacement;
 
     // CPU data
-    float* mHostPos;              // particle positions
-    float* mHostVel;              // particle velocities
-
-//    unsigned int*  mHostCellStart;
-//    unsigned int*  mHostCellEnd;
+    float* mHostParticlePos;              // particle positions
+    float* mHostParticleVel;              // particle velocities
 
     // Pointers to position and velocity data of particles on the GPU. Both are stored as float[4], so we have x,y,z,w.
     // During the collision phase, the device-code searches for all particles in the current and neighboring grid cells,
@@ -156,24 +152,29 @@ protected:
     //
     // After particles have been moved according to their speed (in integrateSystem()), their position and velocity
     // arrays aren't sorted according to grid-cells anymore, because some have moved to different grid cells.
-    float* mDevicePos;
-    float* mDeviceVel;
-    float* mDeviceSortedPos;
-    float* mDeviceSortedVel;
+    float* mDeviceParticlePos;
+    float* mDeviceParticleVel;
+    float* mDeviceParticleSortedPos;
+    float* mDeviceParticleSortedVel;
+
+    float* mDeviceColliderPos;
+    float* mDeviceColliderSortedPos;
 
     // grid data for sorting method
-    unsigned int*  mDeviceGridParticleHash; // grid hash value for each particle
-    unsigned int*  mDeviceGridParticleIndex;// particle index for each particle
+    unsigned int*  mDeviceMapGridCell;      // grid hash value for each particle
+    unsigned int*  mDeviceMapParticleIndex; // particle index for each particle
     unsigned int*  mDeviceCellStart;        // index of start of each cell in sorted list
     unsigned int*  mDeviceCellEnd;          // index of end of cell
 
-    unsigned int   mVboPositions;      // vertex buffer object for particle positions
-    unsigned int   mVboColors;         // vertex buffer object for particle colors
+    unsigned int   mVboParticlePositions;   // vertex buffer object for particle positions
+    unsigned int   mVboColliderPositions;   // vertex buffer object for collider positions
+    unsigned int   mVboParticleColors;      // vertex buffer object for particle colors
 
-    struct cudaGraphicsResource *mCudaPositionVboResource; // handles OpenGL-CUDA exchange
+    struct cudaGraphicsResource *mCudaVboResourceParticlePositions; // handles OpenGL-CUDA exchange
+    struct cudaGraphicsResource *mCudaVboResourceColliderPositions; // handles OpenGL-CUDA exchange
     struct cudaGraphicsResource *mCudaColorVboResource; // handles OpenGL-CUDA exchange
 
-    SimParams mSimulationParameters;
+    CollisionParameters mSimulationParameters;
 };
 
 #endif

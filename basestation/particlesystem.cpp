@@ -12,15 +12,19 @@
 #include <cstdlib>
 #include <algorithm>
 
-ParticleSystem::ParticleSystem()
+#include "octree.h"
+
+ParticleSystem::ParticleSystem(Octree *const octree) : mOctreeDense(octree)
 {
     mNumberOfFixedParticles = 0;
+    mNumberOfPointsProcessed = 0;
 
     // set simulation parameters
     mSimulationParameters.worldMin = make_float3(0.0f, 0.0f, 0.0f);
     mSimulationParameters.worldMax = make_float3(0.0f, 0.0f, 0.0f);
     mSimulationParameters.gridSize = make_uint3(0, 0, 0);
     mSimulationParameters.particleCount = 1024;
+    mSimulationParameters.colliderCountMax = 65536;
     mSimulationParameters.dampingMotion = 0.98f;
     mSimulationParameters.velocityFactorCollisionParticle = 0.02f;
     mSimulationParameters.velocityFactorCollisionBoundary = -0.7f;
@@ -36,19 +40,21 @@ ParticleSystem::ParticleSystem()
 
 void ParticleSystem::setNullPointers()
 {
-    mHostPos = 0;
-    mHostVel = 0;
-//    mHostCellStart = 0;
-//    mHostCellEnd = 0;
-    mDeviceVel = 0;
-    mDeviceSortedPos = 0;
-    mDeviceSortedVel = 0;
-    mDeviceGridParticleHash = 0;
-    mDeviceGridParticleIndex = 0;
+    mHostParticlePos = 0;
+    mHostParticleVel = 0;
+    mDeviceParticleVel = 0;
+    mDeviceParticleSortedPos = 0;
+    mDeviceParticleSortedVel = 0;
+    mDeviceMapGridCell = 0;
+    mDeviceMapParticleIndex = 0;
     mDeviceCellStart = 0;
     mDeviceCellEnd = 0;
-    mVboPositions = 0;
-    mVboColors = 0;
+    mVboParticlePositions = 0;
+    mVboParticleColors = 0;
+
+    mVboColliderPositions = 0;
+    mDeviceColliderPos = 0;
+    mDeviceColliderSortedPos = 0;
 }
 
 void ParticleSystem::slotSetVolume(const QVector3D& min, const QVector3D& max)
@@ -63,8 +69,13 @@ void ParticleSystem::initialize()
 {
     Q_ASSERT(!mIsInitialized);
 
-    // Set gridsize so that the cell-edges are never longer than the particle's diameter! This assures that no more than
-    // 4 particles can occupy a grid cell. Not sure whether this really is still necessary, tests show it also works with a quarter of the cells!
+
+    // Set gridsize so that the cell-edges are never shorter than the particle's diameter! If particles were allowed to be larger than gridcells in
+    // any dimension, we couldn't find all relevant neighbors by searching through only the (3*3*3)-1 = 8 cells immediately neighboring this one.
+    // We can also modify this compromise by allowing larger particles and then searching (5*5*5)-1=124 cells. Haven't tried.
+
+    // Using less (larger) cells is possible, it means less memory being used fro the grid, but more search being done when searching for neighbors
+    // because more particles now occupy a single grid cell. This might not hurt performance as long as we do not cross an unknown threshold (kernel swap size)?!
     mSimulationParameters.gridSize.x = nextHigherPowerOfTwo((uint)ceil(getWorldSize().x() / (mSimulationParameters.particleRadius * 2.0f))) / 8.0;
     mSimulationParameters.gridSize.y = nextHigherPowerOfTwo((uint)ceil(getWorldSize().y() / (mSimulationParameters.particleRadius * 2.0f))) / 8.0;
     mSimulationParameters.gridSize.z = nextHigherPowerOfTwo((uint)ceil(getWorldSize().z() / (mSimulationParameters.particleRadius * 2.0f))) / 8.0;
@@ -75,38 +86,36 @@ void ParticleSystem::initialize()
 //    mSimulationParameters.cellSize = make_float3(cellSize, cellSize, cellSize);
 
     // allocate host storage for particle positions and velocities, then set them to zero
-    mHostPos = new float[mSimulationParameters.particleCount * 4];
-    mHostVel = new float[mSimulationParameters.particleCount * 4];
-    memset(mHostPos, 0, mSimulationParameters.particleCount * 4 * sizeof(float));
-    memset(mHostVel, 0, mSimulationParameters.particleCount * 4 * sizeof(float));
-
-//    mHostCellStart = new uint[numberOfCells];
-//    memset(mHostCellStart, 0, numberOfCells * sizeof(uint));
-
-//    mHostCellEnd = new uint[numberOfCells];
-//    memset(mHostCellEnd, 0, numberOfCells * sizeof(uint));
+    mHostParticlePos = new float[mSimulationParameters.particleCount * 4];
+    mHostParticleVel = new float[mSimulationParameters.particleCount * 4];
+    memset(mHostParticlePos, 0, mSimulationParameters.particleCount * 4 * sizeof(float));
+    memset(mHostParticleVel, 0, mSimulationParameters.particleCount * 4 * sizeof(float));
 
     // determine GPU data-size
     const unsigned int memSizeParticleQuadrupels = sizeof(float) * 4 * mSimulationParameters.particleCount;
 
     // Allocate GPU data
     // Create VBO with particle positions. This is later given to particle renderer for visualization
-    mVboPositions = createVbo(memSizeParticleQuadrupels);
-    emit vboPositionChanged(mVboPositions, mSimulationParameters.particleCount);
+    mVboParticlePositions = createVbo(memSizeParticleQuadrupels);
+    cudaGraphicsGLRegisterBuffer(&mCudaVboResourceParticlePositions, mVboParticlePositions, cudaGraphicsMapFlagsNone);
+    mVboParticleColors = createVbo(memSizeParticleQuadrupels);
+    emit vboInfoParticles(mVboParticlePositions, mVboParticleColors, mSimulationParameters.particleCount);
 
-    cudaGraphicsGLRegisterBuffer(&mCudaPositionVboResource, mVboPositions, cudaGraphicsMapFlagsNone);
-//    registerGLBufferObject(mVboPositions, &mCudaPositionVboResource);
+    // Create VBO with collider positions. This is later given to particle renderer for visualization
+    mVboColliderPositions = createVbo(sizeof(float) * 4 * mSimulationParameters.colliderCountMax);
+    cudaGraphicsGLRegisterBuffer(&mCudaVboResourceColliderPositions, mVboColliderPositions, cudaGraphicsMapFlagsNone);
+    emit vboInfoColliders(mVboColliderPositions, mSimulationParameters.colliderCountMax);
 
-    cudaMalloc((void**)&mDeviceVel, memSizeParticleQuadrupels);
+    cudaMalloc((void**)&mDeviceParticleVel, memSizeParticleQuadrupels);
 
     // Why are these sorted, and sorted according to what?
-    cudaMalloc((void**)&mDeviceSortedPos, memSizeParticleQuadrupels);
-    cudaMalloc((void**)&mDeviceSortedVel, memSizeParticleQuadrupels);
+    cudaMalloc((void**)&mDeviceParticleSortedPos, memSizeParticleQuadrupels);
+    cudaMalloc((void**)&mDeviceParticleSortedVel, memSizeParticleQuadrupels);
 
     // These two are used to map from gridcell (=hash) to particle id (=index). If we also know in which
     // indices of these arrays grid cells start and end, we can quickly find particles in neighboring cells...
-    cudaMalloc((void**)&mDeviceGridParticleHash, mSimulationParameters.particleCount*sizeof(uint));
-    cudaMalloc((void**)&mDeviceGridParticleIndex, mSimulationParameters.particleCount*sizeof(uint));
+    cudaMalloc((void**)&mDeviceMapGridCell, mSimulationParameters.particleCount*sizeof(uint));
+    cudaMalloc((void**)&mDeviceMapParticleIndex, mSimulationParameters.particleCount*sizeof(uint));
 
     // ...and thats what we do here: in mDeviceCellStart[17], you'll find
     // where in mDeviceGridParticleHash cell 17 starts!
@@ -116,14 +125,11 @@ void ParticleSystem::initialize()
     // added by ben:
     //cudaMalloc((void**)&mDeviceCollisionPositions, memSizeParticleQuadrupels);
 
-    mVboColors = createVbo(memSizeParticleQuadrupels);
-    emit vboColorChanged(mVboColors);
 
-    cudaGraphicsGLRegisterBuffer(&mCudaColorVboResource, mVboColors, cudaGraphicsMapFlagsNone);
-//    registerGLBufferObject(mVboPositions, &mCudaPositionVboResource);
+    cudaGraphicsGLRegisterBuffer(&mCudaColorVboResource, mVboParticleColors, cudaGraphicsMapFlagsNone);
 
     // fill color buffer
-    glBindBufferARB(GL_ARRAY_BUFFER, mVboColors);
+    glBindBufferARB(GL_ARRAY_BUFFER, mVboParticleColors);
     float *data = (float *) glMapBufferARB(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
     for(unsigned int i=0; i<mSimulationParameters.particleCount; i++)
     {
@@ -150,23 +156,21 @@ void ParticleSystem::freeResources()
 
     qDebug() << "ParticleSystem::freeResources(): freeing allocated memory...";
 
-    delete [] mHostPos;
-    delete [] mHostVel;
-//    delete [] mHostCellStart;
-//    delete [] mHostCellEnd;
+    delete [] mHostParticlePos;
+    delete [] mHostParticleVel;
 
-    cudaFree(mDeviceVel);
-    cudaFree(mDeviceSortedPos);
-    cudaFree(mDeviceSortedVel);
+    cudaFree(mDeviceParticleVel);
+    cudaFree(mDeviceParticleSortedPos);
+    cudaFree(mDeviceParticleSortedVel);
 
-    cudaFree(mDeviceGridParticleHash);
-    cudaFree(mDeviceGridParticleIndex);
+    cudaFree(mDeviceMapGridCell);
+    cudaFree(mDeviceMapParticleIndex);
     cudaFree(mDeviceCellStart);
     cudaFree(mDeviceCellEnd);
 
-    cudaGraphicsUnregisterResource(mCudaPositionVboResource);
-    glDeleteBuffers(1, (const GLuint*)&mVboPositions);
-    glDeleteBuffers(1, (const GLuint*)&mVboColors);
+    cudaGraphicsUnregisterResource(mCudaVboResourceParticlePositions);
+    glDeleteBuffers(1, (const GLuint*)&mVboParticlePositions);
+    glDeleteBuffers(1, (const GLuint*)&mVboParticleColors);
 
     setNullPointers();
 
@@ -178,7 +182,7 @@ ParticleSystem::~ParticleSystem()
     if(mIsInitialized) freeResources();
 }
 
-unsigned int ParticleSystem::createVbo(unsigned int size)
+unsigned int ParticleSystem::createVbo(quint32 size)
 {
     GLuint vbo;
     glGenBuffers(1, &vbo);
@@ -225,7 +229,7 @@ void ParticleSystem::update(const float deltaTime)
     startTime.start();
 
     // Get a pointer to the particle positions in the device by mapping GPU mem into CPU mem
-    float *devicePos = (float *) mapGLBufferObject(&mCudaPositionVboResource);
+    float *devicePos = (float *) mapGLBufferObject(&mCudaVboResourceParticlePositions);
 
     qDebug() << "ParticleSystem::update(): 0: getting pointer took" << startTime.elapsed(); startTime.start();
 
@@ -237,7 +241,7 @@ void ParticleSystem::update(const float deltaTime)
     // Integrate
     integrateSystem(
                 devicePos,  // in/out:  particle positions
-                mDeviceVel, // in/out:  particle velocities
+                mDeviceParticleVel, // in/out:  particle velocities
                 deltaTime,  // in:      intergate which timestep
                 mSimulationParameters.particleCount);
 
@@ -246,15 +250,15 @@ void ParticleSystem::update(const float deltaTime)
     // Now that particles have been moved, they might be contained in different grid cells. So recompute the
     // mapping gridCell => particleIndex. This will allow fast neighbor searching in the grid during collision phase.
     computeMappingFromGridCellToParticle(
-                mDeviceGridParticleHash,    // out: gridCells, completely overwritten using only the (sorted or unsorted, doesn't matter) positions array devicePos
-                mDeviceGridParticleIndex,   // out: particleId, completely overwritten using only the (sorted or unsorted, doesn't matter) positions array devicePos
+                mDeviceMapGridCell,    // out: gridCells, completely overwritten using only the (sorted or unsorted, doesn't matter) positions array devicePos
+                mDeviceMapParticleIndex,   // out: particleId, completely overwritten using only the (sorted or unsorted, doesn't matter) positions array devicePos
                 devicePos,                  // in:  particle positions after integration, possibly colliding
                 mSimulationParameters.particleCount); // one thread per particle
 
     qDebug() << "ParticleSystem::update(): 3: calculating grid hash took" << startTime.elapsed(); startTime.start();
 
     // Sort the mapping gridCell => particleId on gridCell
-    sortParticles(mDeviceGridParticleHash, mDeviceGridParticleIndex, mSimulationParameters.particleCount);
+    sortParticles(mDeviceMapGridCell, mDeviceMapParticleIndex, mSimulationParameters.particleCount);
 
     qDebug() << "ParticleSystem::update(): 4: sorting particles took" << startTime.elapsed(); startTime.start();
 
@@ -264,12 +268,12 @@ void ParticleSystem::update(const float deltaTime)
     sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
                 mDeviceCellStart,
                 mDeviceCellEnd,
-                mDeviceSortedPos,
-                mDeviceSortedVel,
-                mDeviceGridParticleHash,
-                mDeviceGridParticleIndex,
+                mDeviceParticleSortedPos,
+                mDeviceParticleSortedVel,
+                mDeviceMapGridCell,
+                mDeviceMapParticleIndex,
                 devicePos,
-                mDeviceVel,
+                mDeviceParticleVel,
                 mSimulationParameters.particleCount,
                 mSimulationParameters.gridSize.x * mSimulationParameters.gridSize.y * mSimulationParameters.gridSize.z);
 
@@ -277,10 +281,10 @@ void ParticleSystem::update(const float deltaTime)
 
     // process collisions
     collide(
-                mDeviceVel,
-                mDeviceSortedPos,
-                mDeviceSortedVel,
-                mDeviceGridParticleIndex,
+                mDeviceParticleVel,
+                mDeviceParticleSortedPos,
+                mDeviceParticleSortedVel,
+                mDeviceMapParticleIndex,
                 mDeviceCellStart,
                 mDeviceCellEnd,
                 mSimulationParameters.particleCount,
@@ -288,8 +292,12 @@ void ParticleSystem::update(const float deltaTime)
 
     qDebug() << "ParticleSystem::update(): 6: colliding particles took" << startTime.elapsed(); startTime.start();
 
-    // note: do unmap at end here to avoid unnecessary graphics/CUDA context switch
-    cudaGraphicsUnmapResources(1, &mCudaPositionVboResource, 0);
+    // Unmap at end here to avoid unnecessary graphics/CUDA context switch.
+    // Once unmapped, the resource may not be accessed by CUDA until they
+    // are mapped again. This function provides the synchronization guarantee
+    // that any CUDA work issued  before ::cudaGraphicsUnmapResources()
+    // will complete before any subsequently issued graphics work begins.
+    cudaGraphicsUnmapResources(1, &mCudaVboResourceParticlePositions, 0);
 
     qDebug() << "ParticleSystem::update(): 7: unmapping vbo resource took" << startTime.elapsed(); startTime.start();
 }
@@ -321,18 +329,18 @@ void ParticleSystem::setArray(ParticleArray array, const float* data, int start,
 {
     if(array == ArrayPositions)
     {
-        cudaGraphicsUnregisterResource(mCudaPositionVboResource);
-        glBindBuffer(GL_ARRAY_BUFFER, mVboPositions);
+        cudaGraphicsUnregisterResource(mCudaVboResourceParticlePositions);
+
+        glBindBuffer(GL_ARRAY_BUFFER, mVboParticlePositions);
         glBufferSubData(GL_ARRAY_BUFFER, start*4*sizeof(float), count*4*sizeof(float), data);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-        cudaGraphicsGLRegisterBuffer(&mCudaPositionVboResource, mVboPositions, cudaGraphicsMapFlagsNone);
-//        registerGLBufferObject(mVboPositions, &mCudaPositionVboResource);
+        cudaGraphicsGLRegisterBuffer(&mCudaVboResourceParticlePositions, mVboParticlePositions, cudaGraphicsMapFlagsNone);
     }
     else if(array == ArrayVelocities)
     {
         cudaMemcpy(
-                    (char*) mDeviceVel + start*4*sizeof(float), // destination
+                    (char*) mDeviceParticleVel + start*4*sizeof(float), // destination
                     data,                                       // source
                     count*4*sizeof(float),                      // count
                     cudaMemcpyHostToDevice                      // copy-kind
@@ -358,15 +366,15 @@ void ParticleSystem::placeParticles()
 
         for(unsigned int i=0; i < mSimulationParameters.particleCount; i++)
         {
-            mHostPos[p++] = mSimulationParameters.worldMin.x + (mSimulationParameters.worldMax.x - mSimulationParameters.worldMin.x) * frand();
-            mHostPos[p++] = mSimulationParameters.worldMin.y + (mSimulationParameters.worldMax.y - mSimulationParameters.worldMin.y) * frand();
-            mHostPos[p++] = mSimulationParameters.worldMin.z + (mSimulationParameters.worldMax.z - mSimulationParameters.worldMin.z) * frand();
-            mHostPos[p++] = 1.0f;
+            mHostParticlePos[p++] = mSimulationParameters.worldMin.x + (mSimulationParameters.worldMax.x - mSimulationParameters.worldMin.x) * frand();
+            mHostParticlePos[p++] = mSimulationParameters.worldMin.y + (mSimulationParameters.worldMax.y - mSimulationParameters.worldMin.y) * frand();
+            mHostParticlePos[p++] = mSimulationParameters.worldMin.z + (mSimulationParameters.worldMax.z - mSimulationParameters.worldMin.z) * frand();
+            mHostParticlePos[p++] = 1.0f;
 
-            mHostVel[v++] = 0.0f;
-            mHostVel[v++] = 0.0f;
-            mHostVel[v++] = 0.0f;
-            mHostVel[v++] = 0.0f;
+            mHostParticleVel[v++] = 0.0f;
+            mHostParticleVel[v++] = 0.0f;
+            mHostParticleVel[v++] = 0.0f;
+            mHostParticleVel[v++] = 0.0f;
         }
         break;
     }
@@ -391,15 +399,15 @@ void ParticleSystem::placeParticles()
                     unsigned int i = (z*gridSize[1]*gridSize[0]) + (y*gridSize[0]) + x;
                     if (i < mSimulationParameters.particleCount)
                     {
-                        mHostPos[i*4+0] = (spacing * x) + mSimulationParameters.particleRadius - 1.0f + (frand()*2.0f-1.0f)*jitter;
-                        mHostPos[i*4+1] = (spacing * y) + mSimulationParameters.particleRadius - 1.0f + (frand()*2.0f-1.0f)*jitter;
-                        mHostPos[i*4+2] = (spacing * z) + mSimulationParameters.particleRadius - 1.0f + (frand()*2.0f-1.0f)*jitter;
-                        mHostPos[i*4+3] = 1.0f;
+                        mHostParticlePos[i*4+0] = (spacing * x) + mSimulationParameters.particleRadius - 1.0f + (frand()*2.0f-1.0f)*jitter;
+                        mHostParticlePos[i*4+1] = (spacing * y) + mSimulationParameters.particleRadius - 1.0f + (frand()*2.0f-1.0f)*jitter;
+                        mHostParticlePos[i*4+2] = (spacing * z) + mSimulationParameters.particleRadius - 1.0f + (frand()*2.0f-1.0f)*jitter;
+                        mHostParticlePos[i*4+3] = 1.0f;
 
-                        mHostVel[i*4+0] = 0.0f;
-                        mHostVel[i*4+1] = 0.0f;
-                        mHostVel[i*4+2] = 0.0f;
-                        mHostVel[i*4+3] = 0.0f;
+                        mHostParticleVel[i*4+0] = 0.0f;
+                        mHostParticleVel[i*4+1] = 0.0f;
+                        mHostParticleVel[i*4+2] = 0.0f;
+                        mHostParticleVel[i*4+3] = 0.0f;
                     }
                 }
             }
@@ -431,15 +439,15 @@ void ParticleSystem::placeParticles()
                     z += spacing)
                 {
 //                    qDebug() << "moving particle" << particleNumber << "to" << x << y << z;
-                    mHostPos[particleNumber*4+0] = x + (frand()-0.5) * jitter;
-                    mHostPos[particleNumber*4+1] = y + (frand()-0.5) * jitter;
-                    mHostPos[particleNumber*4+2] = z + (frand()-0.5) * jitter;
-                    mHostPos[particleNumber*4+3] = 1.0f;
+                    mHostParticlePos[particleNumber*4+0] = x + (frand()-0.5) * jitter;
+                    mHostParticlePos[particleNumber*4+1] = y + (frand()-0.5) * jitter;
+                    mHostParticlePos[particleNumber*4+2] = z + (frand()-0.5) * jitter;
+                    mHostParticlePos[particleNumber*4+3] = 1.0f;
 
-                    mHostVel[particleNumber*4+0] = 0.0f;
-                    mHostVel[particleNumber*4+1] = 0.0f;
-                    mHostVel[particleNumber*4+2] = 0.0f;
-                    mHostVel[particleNumber*4+3] = 0.0f;
+                    mHostParticleVel[particleNumber*4+0] = 0.0f;
+                    mHostParticleVel[particleNumber*4+1] = 0.0f;
+                    mHostParticleVel[particleNumber*4+2] = 0.0f;
+                    mHostParticleVel[particleNumber*4+3] = 0.0f;
 
                     particleNumber++;
                 }
@@ -449,6 +457,16 @@ void ParticleSystem::placeParticles()
     }
     }
 
-    setArray(ArrayPositions, mHostPos, 0, mSimulationParameters.particleCount);
-    setArray(ArrayVelocities, mHostVel, 0, mSimulationParameters.particleCount);
+    setArray(ArrayPositions, mHostParticlePos, 0, mSimulationParameters.particleCount);
+    setArray(ArrayVelocities, mHostParticleVel, 0, mSimulationParameters.particleCount);
 }
+
+/*
+void ParticleSystem::appendCollidersFromOctree()
+{
+    // mOctreeDense probably contains more points now than it contained last time. The points are already on the GPU
+    // as they're stored in a VBO for rendering. So use a CUDA kernel to check for each of these points whether it
+    // should be inserted into the colliderpos list.
+    mOctreeDense->updateVbo();
+}
+*/

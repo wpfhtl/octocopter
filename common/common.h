@@ -46,4 +46,18 @@ enum LogImportance
     Desaster
 };
 
+
+// compute the next higher power of 2 of 32-bit v
+static quint32 nextHigherPowerOfTwo(quint32 v)
+{
+    // decrements, then sets all bits below its most significant bit to 1, then it increments
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    return v + 1;
+}
+
 #endif // COMMON_H

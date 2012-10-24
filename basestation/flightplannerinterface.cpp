@@ -2,9 +2,8 @@
 #include "glwidget.h"
 #include "flightplannerinterface.h"
 
-FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, Octree* pointCloud) : QObject()
+FlightPlannerInterface::FlightPlannerInterface(QWidget* widget) : QObject()
 {
-    mOctree = pointCloud;
     mGlWidget = 0;
     mParentWidget = widget;
     mShaderProgramDefault = mShaderProgramSpheres = 0;

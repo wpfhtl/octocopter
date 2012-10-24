@@ -1,19 +1,9 @@
-void cudaInit(int argc, char **argv);
-
-//void allocateArray(void **devPtr, int size);
-//void freeArray(void *devPtr);
-
-//void threadSync();
 
 void copyArrayFromDevice(void* host, const void* device, struct cudaGraphicsResource **cuda_vbo_resource, int size);
 void copyArrayToDevice(void* device, const void* host, int offset, int size);
-//void registerGLBufferObject(unsigned int vbo, struct cudaGraphicsResource **cuda_vbo_resource);
-//void unregisterGLBufferObject(struct cudaGraphicsResource *cuda_vbo_resource);
 void *mapGLBufferObject(struct cudaGraphicsResource **cuda_vbo_resource);
-//void unmapGLBufferObject(struct cudaGraphicsResource *cuda_vbo_resource);
 
-
-void setParameters(SimParams *hostParams);
+void setParameters(CollisionParameters *hostParams);
 
 void integrateSystem(float *pos,
                      float *vel,

@@ -42,8 +42,6 @@ SET(SRC_FILES
     ../common/lidarpoint
     ../common/waypoint
     ../common/gnsstime
-    ../common/octree
-    ../common/node
     ../common/pose
     ../common/common
     ../common/plotwidget
@@ -51,10 +49,19 @@ SET(SRC_FILES
     ../common/wirelessdevice
     ../common/vehiclestatus
     particlesystem
-    particlesystem_cuda.cu
+    particlesystem.cu
     particlerenderer
     #particleskernel.cu
-    computefreecolumns.cu
+    #computefreecolumns.cu
+
+    pointcloud
+    pointcloudoctree
+    pointcloudnode
+    pointcloudcuda.cpp
+    pointcloudcuda.cu
+
+    cuda.cpp
+
 )
 
 SET(TEST_SRC_FILES
@@ -63,6 +70,19 @@ SET(TEST_SRC_FILES
 )
 
 SET(INC_FILES
+    cuda.h
+    pointcloud.h
+    pointcloudcuda.cuh
+    pointcloudcuda.h
+    pointcloudcuda.cuh
+    pointcloudoctree.h
+    pointcloudoctreenode.h
+
+    particlesystem.h
+    particlesystemcuda.cuh
+    particlerenderer.h
+    particleskernel.cuh
+
     basestation.h
     audioplayer.h
     glwidget.h
@@ -98,18 +118,12 @@ SET(INC_FILES
     ../common/lidarpoint.h
     ../common/waypoint.h
     ../common/gnsstime.h
-    ../common/octree.h
-    ../common/node.h
     ../common/pose.h
     ../common/common.h
     ../common/plotwidget.h
     ../common/gnssstatus.h
     ../common/wirelessdevice.h
     ../common/vehiclestatus.h
-    particlesystem.h
-    particlesystem_cuda.cuh
-    particlerenderer.h
-    particleskernel.cuh
 )
 
 SET(UI_FILES
