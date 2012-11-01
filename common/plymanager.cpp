@@ -1,96 +1,91 @@
 #include "plymanager.h"
 
-PlyManager::PlyManager(const QString& fileName, const PlyManager::DataDirection& direction) : QObject()
+PlyManager::PlyManager(QWidget *widget) : QObject()
 {
-    mFileWrite = 0;
-    mFileRead = 0;
-    mPointsWritten = 0;
+    mFile = 0;
+    mNumberOfPoints = 0;
+    mProgressDialog = 0;
+    mWidget = widget;
 
-    if(direction == DataRead)
+    if(mWidget)
     {
-        qDebug() << "PlyManager::PlyManager(): opening file" << fileName << "for reading data";
-        mFileRead = new QFile(fileName);
-        if(!mFileRead->open(QIODevice::ReadOnly | QIODevice::Text))
-            qFatal("PlyManager::PlyManager(): couldn't open file %s for reading, exiting.", qPrintable(mFileRead->fileName()));
+        mProgressDialog = new QProgressDialog("Processing cloud...", "Cancel", 0, 100, widget);
+        mProgressDialog->setWindowModality(Qt::WindowModal);
+    }
+}
+
+bool PlyManager::open(const QString& fileName, const PlyManager::DataDirection& direction)
+{
+    mDataDirection = direction;
+    if(mDataDirection == DataLoadFromFile)
+    {
+        qDebug() << "PlyManager::PlyManager(): opening file" << fileName << "for loading data";
+        mFile = new QFile(fileName);
+        if(!mFile->open(QIODevice::ReadOnly | QIODevice::Text))
+        {
+            qDebug() << "PlyManager::open(): couldn't open file" << mFile->fileName() << "for reading, exiting.";
+            return false;
+        }
+
+        // Find out how many vertices we have
+        QTextStream stream(mFile);
+        stream.seek(0);
+        while(!stream.atEnd())
+        {
+            const QString line = stream.readLine();
+            if(line.contains("element vertex"))
+            {
+                const QStringList lineList = line.split(' ', QString::SkipEmptyParts, Qt::CaseSensitive);
+                bool success = false;
+                mNumberOfPoints = lineList.last().toInt(&success);
+                if(!success)
+                {
+                    qDebug() << "PlyManager::open(): unable to determine number of points in file, line was:" << line;
+                    return false;
+                }
+                qDebug() << "PlyManager::PlyManager(): file" << fileName << "contains" << mNumberOfPoints << "points.";
+                break;
+            }
+        }
     }
     else
     {
         qDebug() << "PlyManager::PlyManager(): opening file" << fileName << "for writing data";
-        mFileWrite = new QFile(fileName);
-        if(!mFileWrite->open(QIODevice::ReadWrite | QIODevice::Text))
-            qFatal("PlyManager::PlyManager(): couldn't open file %s for writing, exiting.", qPrintable(mFileWrite->fileName()));
-
-        // Create a ply-header in the file
-        QTextStream out(mFileWrite);
-        out << createHeader(0, PlyManager::NormalsNotIncluded, PlyManager::DirectionNotIncluded);
+        mFile = new QFile(fileName);
+        if(!mFile->open(QIODevice::ReadWrite | QIODevice::Text))
+        {
+            qDebug() << "PlyManager::open(): couldn't open file" << mFile->fileName() << "for writing, exiting.";
+            return false;
+        }
     }
+
+    return true;
 }
 
 PlyManager::~PlyManager()
 {
-    if(mFileRead)
+    if(mFile)
     {
-        qDebug() << "PlyManager::~PlyManager(): closing file" << mFileRead->fileName();
-        mFileRead->close();
-        delete mFileRead;
+        qDebug() << "PlyManager::~PlyManager(): closing file" << mFile->fileName();
+        mFile->close();
+        delete mFile;
     }
-    if(mFileWrite)
-    {
-        qDebug() << "PlyManager::~PlyManager(): fixing vertex count in header of" << mFileWrite->fileName();
-        // fix "element vertex x" line in header
-        QTextStream stream(mFileWrite);
-        stream.seek(0);
-        while(!stream.atEnd())
-        {
-                    QString line = stream.readLine();
-                    if(line.contains("element vertex"))
-                    {
-                        stream.seek(stream.pos() - line.length() - 1);
-                        stream << QString("element vertex %1").arg(mPointsWritten, 7, 10, QChar(' ')) << endl;
-                        break;
-                    }
-        }
-        qDebug() << "PlyManager::~PlyManager(): done, closing file";
 
-        mFileWrite->flush();
-        mFileWrite->close();
-        delete mFileWrite;
-    }
+    delete mProgressDialog;
 }
 
-void PlyManager::slotNewPoints(const QVector<QVector3D>& points, const QVector3D& scanPosition)
+quint32 PlyManager::getNumberOfPoints() const
 {
-    Q_UNUSED(scanPosition);
-    Q_ASSERT(mFileWrite != 0 && mFileRead == 0 && "PlyManager::slotNewPoints(): fileWrite is 0 or fileRead is not 0");
+    Q_ASSERT(mDataDirection == DataLoadFromFile);
 
-    QTextStream stream(mFileWrite);
-    stream.setRealNumberPrecision(3);
-    stream.setRealNumberNotation(QTextStream::FixedNotation);
-    for(int i = 0; i < points.size(); ++i)
-        stream << points.at(i).x() << " " << points.at(i).y() << " " << points.at(i).z() << endl;
-
-    mPointsWritten += points.size();
+    return mNumberOfPoints;
 }
 
-void PlyManager::slotNewPoints(const QList<QVector3D>& points, const QVector3D& scanPosition)
+void PlyManager::writeHeader(const quint32& vertexCount, const IncludesNormals& includesNormals, const IncludesDirection& includesDirection)
 {
-    Q_UNUSED(scanPosition);
-    Q_ASSERT(mFileWrite != 0 && mFileRead == 0 && "PlyManager::slotNewPoints(): fileWrite is 0 or fileRead is not 0");
+    Q_ASSERT(mDataDirection == DataSaveToFile);
 
-
-    QTextStream stream(mFileWrite);
-    stream.setRealNumberPrecision(3);
-    stream.setRealNumberNotation(QTextStream::FixedNotation);
-    for(int i = 0; i < points.size(); ++i)
-        stream << points.at(i).x() << " " << points.at(i).y() << " " << points.at(i).z() << endl;
-
-    mPointsWritten += points.size();
-}
-
-const QString PlyManager::createHeader(const quint32& vertexCount, const IncludesNormals& includesNormals, const IncludesDirection& includesDirection)
-{
-    QString header;
-    QTextStream stream(&header);
+    QTextStream stream(mFile);
     stream << QString("ply") << endl;
     stream << QString("format ascii 1.0") << endl;
     stream << QString("comment written by koptertools / ben adler on ").append(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")) << endl;
@@ -115,227 +110,69 @@ const QString PlyManager::createHeader(const quint32& vertexCount, const Include
     }
 
     stream << QString("end_header") << endl;
-
-    return header;
 }
 
-bool PlyManager::savePly(const QVector<QVector3D>& points, const QString &fileName)
+void PlyManager::savePly4D(const float* const points, const quint32 numPoints)
 {
-    QFile file(fileName);
-    if(!file.open(QFile::WriteOnly | QFile::Truncate))
-        return false;
-
-    QTextStream stream(&file);
-    stream.setRealNumberPrecision(3);
+    QTextStream stream(mFile);
+    stream.setRealNumberPrecision(4);
     stream.setRealNumberNotation(QTextStream::FixedNotation);
-
-    // write header
-    stream << createHeader(points.size(), PlyManager::NormalsNotIncluded, PlyManager::DirectionNotIncluded);
-
-    foreach(const QVector3D& point, points)
+    for(int i = 0; i < numPoints; ++i)
     {
-        stream << point.x() << " " << point.y() << " " << point.z() << endl;
+        stream << points[4*i+0] << " " << points[4*i+1] << " " << points[4*i+2] << endl;
+        if(mProgressDialog && i%1000 == 0) mProgressDialog->setValue((i*100)/numPoints);
     }
+
+    mProgressDialog->close();
 }
 
-
-bool PlyManager::savePly(const QList<QVector3D>& points, const QString &fileName)
+void PlyManager::loadPly4D(float* points, const quint32 startPoint, const quint32 maxPoints)
 {
-    QFile file(fileName);
-    if(!file.open(QFile::WriteOnly | QFile::Truncate))
-        return false;
-
-    QTextStream stream(&file);
-    stream.setRealNumberPrecision(6);
-    stream.setRealNumberNotation(QTextStream::FixedNotation);
-
-    // write header
-    stream << createHeader(points.size(), PlyManager::NormalsNotIncluded, PlyManager::DirectionNotIncluded);
-
-    foreach(const QVector3D& point, points)
-    {
-        stream << point.x() << " " << point.y() << " " << point.z() << endl;
-    }
-}
-
-#ifdef BASESTATION
-/*
-bool PlyManager::savePly(const QVector<LidarPoint>& points, const QString &fileName)
-{
-    QFile file(fileName);
-    if(!file.open(QFile::WriteOnly | QFile::Truncate))
-        return false;
-
-    QTextStream stream(&file);
-    stream.setRealNumberPrecision(6);
-    stream.setRealNumberNotation(QTextStream::FixedNotation);
-
-    // write header
-    stream << createHeader(points.size(), PlyManager::NormalsIncluded, PlyManager::DirectionIncluded);
-
-    foreach(const LidarPoint& point, points)
-    {
-        stream << point.position.x() << " " << point.position.y() << " " << point.position.z() << " ";
-        stream << point.laserPos.x() << " " << point.laserPos.y() << " " << point.laserPos.z();
-        stream << endl;
-    }
-}
-
-
-bool PlyManager::savePly(QWidget* widget, const Octree* tree, const QString &fileName)
-{
-    QFile file(fileName);
-    if(!file.open(QFile::WriteOnly | QFile::Truncate))
-        return false;
-
-    QTextStream stream(&file);
-    stream.setRealNumberPrecision(6);
-    stream.setRealNumberNotation(QTextStream::FixedNotation);
-
-    QProgressDialog progress("Saving cloud...", "Cancel", 0, tree->getNumberOfItems(), widget);
-    progress.setWindowModality(Qt::WindowModal);
-
-    // write header
-    stream << createHeader(tree->getNumberOfItems(), NormalsIncluded, DirectionIncluded);
-
-    if(savePly(tree->root(), &stream, &progress))
-    {
-        file.close();
-        return true;
-    }
-    else
-    {
-        file.close();
-        file.remove();
-        return false;
-    }
-
-}
-
-bool PlyManager::savePly(const Node* node, QTextStream* stream, QProgressDialog* progress)
-{
-    if(progress->wasCanceled()) return false;
-
-    if(node->isLeaf())
-    {
-        // save the points into @stream
-        for(int i=0;i<node->pointIndices.size();i++)
-        {
-            const LidarPoint point = node->mTree->data()->at(node->pointIndices.at(i));
-            (*stream) << point.position.x() << " " << point.position.y() << " " << point.position.z() << " ";
-            (*stream) << point.laserPos.x() << " " << point.laserPos.y() << " " << point.laserPos.z();
-            (*stream) << endl;
-        }
-
-        progress->setValue(progress->value()+node->pointIndices.size());
-    }
-    else
-    {
-        // invoke recursively for childnodes/leafs
-        const QList<const Node*> childNodes = node->getAllChildLeafs();
-        foreach(const Node* childNode, childNodes)
-            if(!savePly(childNode, stream, progress))
-                return false;
-    }
-
-    return true;
-}
-*/
-bool PlyManager::loadPly(QWidget* widget, const QList<PointCloud*>& trees, const QList<FlightPlannerInterface*>& flightPlanners, const QString &fileName)
-{
-    QFile file(fileName);
-    if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
-    {
-        QMessageBox::critical(widget, "Error reading file", QString("Unable to open file %1").arg(fileName));
-        return false;
-    }
-
-    QProgressDialog progress("Loading cloud...", "Update View", 0, 0, widget);
-    progress.setWindowModality(Qt::WindowModal);
-
     bool dataStarted = false;
     quint32 lineNumber = 0;
-    quint32 numberOfVerticesTotal = 0;
+    quint32 vertexNumber = 0;
     quint32 numberOfVerticesProcessed = 0;
 
-    QTextStream in(&file);
+    if(mProgressDialog)
+    {
+        mProgressDialog->setValue(0);
+        mProgressDialog->setMaximum(maxPoints);
+        mProgressDialog->show();
+    }
+
+    QTextStream in(mFile);
+    in.seek(0);
     while (!in.atEnd())
     {
         const QString line = in.readLine();
 
         if(!dataStarted)
         {
-            if(line.startsWith("element vertex ", Qt::CaseInsensitive))
-            {
-                bool ok = false;
-                numberOfVerticesTotal = line.split(" ", QString::SkipEmptyParts).last().toInt(&ok);
-                if(!ok)
-                {
-                    QMessageBox::critical(widget, "Error reading file", QString("Unable to parse number of vertices at line %1: %2").arg(lineNumber).arg(line));
-                    return false;
-                }
-                progress.setMaximum(numberOfVerticesTotal);
-            }
-
             if(line == "end_header")
                 dataStarted = true;
         }
         else
         {
-            QStringList values = line.split(" ", QString::SkipEmptyParts);
+            const QStringList values = line.split(' ', QString::SkipEmptyParts);
 
-            if(values.size() != 7)
+            if(values.size() != 3)
             {
-                QMessageBox::critical(widget, "Error reading file", QString("Number of elements in line %1 of file %2 is %3, expected 7.").arg(lineNumber).arg(fileName).arg(values.size()));
-                return false;
+                QMessageBox::critical(mWidget, "Error reading file", QString("Number of elements in line %1 of file %2 is %3, expected 3.").arg(lineNumber).arg(mFile->fileName()).arg(values.size()));
+                return;
             }
             else
             {
-                for(int i=0;i<trees.size();i++)
+                if(vertexNumber >= startPoint && numberOfVerticesProcessed < maxPoints)
                 {
-/*                    trees.at(i)->insertPoint(
-                                new LidarPoint(
-                                    QVector3D(
-                                        values.at(0).toDouble(),
-                                        values.at(1).toDouble(),
-                                        values.at(2).toDouble()
-                                        ),
-                                    QVector3D(
-                                        values.at(3).toDouble(),
-                                        values.at(4).toDouble(),
-                                        values.at(5).toDouble()
-                                        )
-                                    )
-                                );
-                                */
+                    points[numberOfVerticesProcessed*4 + 0] = values.at(0).toDouble();
+                    points[numberOfVerticesProcessed*4 + 1] = values.at(1).toDouble();
+                    points[numberOfVerticesProcessed*4 + 2] = values.at(2).toDouble();
+                    points[numberOfVerticesProcessed*4 + 3] = 1.0;
+                    numberOfVerticesProcessed++;
+                    if(mProgressDialog) mProgressDialog->setValue(numberOfVerticesProcessed);
                 }
-
-                for(int i=0;i<flightPlanners.size();i++)
-                {
-/*                    flightPlanners.at(i)->insertPoint(
-                                new LidarPoint(
-                                    QVector3D(
-                                        values.at(0).toDouble(),
-                                        values.at(1).toDouble(),
-                                        values.at(2).toDouble()
-                                        ),
-                                    QVector3D(
-                                        values.at(3).toDouble(),
-                                        values.at(4).toDouble(),
-                                        values.at(5).toDouble()
-                                        )
-                                    )
-                                );
-                                */
-                }
-
-                numberOfVerticesProcessed++;
-
-                progress.setValue(numberOfVerticesProcessed);
             }
         }
         lineNumber++;
     }
 }
-
-#endif

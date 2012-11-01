@@ -75,8 +75,6 @@ Simulator::Simulator(void) :
 
 Simulator::~Simulator(void)
 {
-    delete mStatusWidget;
-
     // Delete all laserscanners
     while(mLaserScanners->size())
     {

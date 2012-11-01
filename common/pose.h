@@ -48,9 +48,7 @@
 
 class Pose
 {
-
 private:
-
     QMatrix4x4 mTransform;
 
 public:
@@ -94,11 +92,12 @@ public:
     static Pose interpolateLinear(const Pose &before, const Pose &after, const float &mu);
 
     // Returns a pose between @before and @after, also needs @first and @last, as its bicubic. @mu specifies the position between @before and @after.
-    static Pose interpolateCubic(const Pose * const first, const Pose * const before, const Pose * const after, const Pose * const last, const float &mu);
+//    static Pose interpolateCubic(const Pose * const p0, const Pose * const p1, const Pose * const p2, const Pose * const p3, const float &mu);
+    static QVector3D interpolateCubic(const QVector3D& p0, const QVector3D& p1, const QVector3D& p2, const QVector3D& p3, const float mu);
 
     // Returns a pose between @before and @after, also needs @first and @last, as its bicubic.
     // This method takes a time argument instead of a float. @time must be between the times of @before and @after poses
-    static Pose interpolateCubic(const Pose * const first, const Pose * const before, const Pose * const after, const Pose * const last, const qint32& time);
+    static Pose interpolateCubic(const Pose * const p0, const Pose * const p1, const Pose * const p2, const Pose * const p3, const qint32& time);
 
     // Returns the shortest turn to an angle by transforming any input to the range [-180,180].
     // For example: 359 => -1, 181 => -179, -270 => 90

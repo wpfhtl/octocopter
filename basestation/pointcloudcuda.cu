@@ -6,9 +6,12 @@
 #include "thrust/for_each.h"
 #include "thrust/iterator/zip_iterator.h"
 #include "thrust/sort.h"
+#include "thrust/unique.h"
 #include "thrust/remove.h"
 #include "thrust/reduce.h"
 #include "thrust/tuple.h"
+
+#include <QDebug>
 
 #include "cuda.h"
 #include "helper_math.h"
@@ -23,7 +26,6 @@
 #define FETCH(t, i) t[i]
 #endif
 
-
 #if USE_TEX
 // textures for particle position and velocity
 texture<float4, 1, cudaReadModeElementType> oldPointPosTex;
@@ -33,6 +35,16 @@ texture<float4, 1, cudaReadModeElementType> oldPointPosTex;
 texture<uint, 1, cudaReadModeElementType> pointCellStartTex;
 texture<uint, 1, cudaReadModeElementType> pointCellStoppTex;
 #endif
+
+inline __host__ __device__ bool operator!=(float3 &a, float3 &b)
+{
+    return !(a.x == b.x && a.y == b.y && a.z == b.z);
+}
+
+inline __host__ __device__ bool operator!=(float4 &a, float4 &b)
+{
+    return !(a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w);
+}
 
 // pointcloud parameters in constant memory
 __constant__ PointCloudParameters params;
@@ -158,10 +170,10 @@ void sortPosAccordingToGridCellAndFillCellStartAndEndArraysD(
 
 // collide a particle against all other particles in a given cell
 __device__
-bool checkCellForNeighborsD(
+uint checkCellForNeighborsD(
         int3    gridPos,     // grid cell to search for particles that could collide
         uint    index,       // index of particle that is being collided
-        float3  pos,         // position of particle that is being collided
+        float4  posCollider,         // position of particle that is being collided
         float4* oldPointPos,
         uint*   pointCellStart,
         uint*   pointCellStopp)
@@ -170,6 +182,8 @@ bool checkCellForNeighborsD(
 
     // get start of bucket for this cell
     uint startIndex = FETCH(pointCellStart, gridHash);
+
+    uint numberOfCollisions = 0;
 
     // cell is not empty
     if(startIndex != 0xffffffff)
@@ -181,18 +195,21 @@ bool checkCellForNeighborsD(
             // check not colliding with self
             if (j != index)
             {
-                float3 pos2 = make_float3(FETCH(oldPointPos, j));
+                float4 posOther = FETCH(oldPointPos, j);
 
-                float3 relPos = pos - pos2;
+                float4 posRelative = posCollider - posOther;
 
-                float dist = length(relPos);
+                float dist = length(posRelative);
 
                 if(dist < params.minimumDistance)
-                    return true;
+                {
+                    numberOfCollisions++;
+                }
             }
         }
     }
-    return false;
+
+    return numberOfCollisions;
 }
 
 // Collide a single particle (given by thread-id through @index) against all spheres in own and neighboring cells
@@ -205,17 +222,20 @@ void markCollidingPointsD(
         uint*   pointCellStopp,         // input: pointCellStopp[19] contains the index of gridParticleIndex in which cell 19 ends
         uint    numPoints)       // input: number of total particles
 {
-    uint index = __mul24(blockIdx.x,blockDim.x) + threadIdx.x;
-    if(index >= numPoints) return;
+    uint colliderIndex = __mul24(blockIdx.x,blockDim.x) + threadIdx.x;
+    if(colliderIndex >= numPoints) return;
 
     // read particle data from sorted arrays
-    float3 pos = make_float3(FETCH(oldPointPos, index));
+    float4 colliderPos = FETCH(oldPointPos, colliderIndex);
 //    float3 vel = make_float3(FETCH(oldVel, index));
 
     // get address of particle in grid
-    int3 gridPos = pcdCalcGridPos(pos);
+    int3 gridPos = pcdCalcGridPos(make_float3(colliderPos));
 
-    uint originalIndex = gridPointIndex[index];
+    uint originalIndex = gridPointIndex[colliderIndex];
+
+    uint numberOfCollisions = 0;
+
     // examine neighbouring cells
     for(int z=-1; z<=1; z++)
     {
@@ -223,21 +243,14 @@ void markCollidingPointsD(
         {
             for(int x=-1; x<=1; x++)
             {
-                int3 neighbourPos = gridPos + make_int3(x, y, z);
-                if(
-                        checkCellForNeighborsD(neighbourPos, index, pos, oldPointPos, pointCellStart, pointCellStopp)
-                        &&
-                        originalIndex % 2 == 0)
-                {
-                    // There is a neighboring point AND this point's index is even. Mark it for removal by zeroing it out!
-                    posOriginal[originalIndex] = make_float4(0.0, 0.0, 0.0, 0.0);
-                    return;
-                }
+                int3 neighbourCell = gridPos + make_int3(x, y, z);
+                numberOfCollisions += checkCellForNeighborsD(neighbourCell, colliderIndex, colliderPos, oldPointPos, pointCellStart, pointCellStopp);
             }
         }
     }
 
-    // This point does not collide with any other. Do not change its values, it will be kept.
+    if(originalIndex % (5-numberOfCollisions) == 0)
+        posOriginal[originalIndex] = make_float4(0.0, 0.0, 0.0, 0.0);
 }
 
 
@@ -245,6 +258,12 @@ void setPointCloudParameters(PointCloudParameters *hostParams)
 {
     // copy parameters to constant memory
     checkCudaSuccess("setPointCloudParameters(): CUDA error before const mem copy");
+
+    if(hostParams->remainder == 0)
+        hostParams->remainder = 1;
+    else
+        hostParams->remainder = 0;
+
     cudaMemcpyToSymbol(params, hostParams, sizeof(PointCloudParameters));
     checkCudaSuccess("setPointCloudParameters(): CUDA error after const mem copy");
 }
@@ -444,7 +463,7 @@ inline __host__ __device__ bool operator==(float4 a, float4 b)
             a.w == b.w;
 }
 
-unsigned int removeRedundantPoints(float *devicePoints, unsigned int numPoints)
+unsigned int removeZeroPoints(float *devicePoints, unsigned int numPoints)
 {
     float4* points = (float4*)devicePoints;
 
@@ -455,4 +474,124 @@ unsigned int removeRedundantPoints(float *devicePoints, unsigned int numPoints)
     checkCudaSuccess("Kernel execution failed AFTER removeRedundantPoints");
 
     return newEnd.get() - points;
+}
+
+
+// ##########################################
+// This is a test to use thrust::unqiue on the point list instead of all the magic we use above
+// ##########################################
+
+struct SnapToGridOp
+{
+    const float3 mMinDist;
+
+    // if params.minimumDistance is e.g. 0.02 = 2cm, factor should be 50.
+    // if params.minimumDistance is e.g. 0.10 = 10cm, factor should be 10.
+    SnapToGridOp(float3 minDist) : mMinDist(1.0 / minDist) { }
+
+    __host__ __device__
+    float4 operator()(float4 a)
+    {
+        return make_float4(
+                    ceilf(a.x * mMinDist.x) / mMinDist.x,
+                    ceilf(a.y * mMinDist.y) / mMinDist.y,
+                    ceilf(a.z * mMinDist.z) / mMinDist.z,
+                    1.0f);
+    }
+};
+
+struct closeToEachOther
+{
+    __host__ __device__
+    bool operator()(float4 a, float4 b)
+    {
+        return length(b-a) < 0.8f;
+    }
+};
+
+
+unsigned int snapToGridAndMakeUnique(float *devicePoints, unsigned int numPoints, float minimumDistance)
+{
+    float4* points = (float4*)devicePoints;
+    checkCudaSuccess("Kernel execution failed BEFORE makePointListUnique");
+
+    SnapToGridOp op(make_float3(minimumDistance, minimumDistance*2.0f, minimumDistance));
+    thrust::transform(thrust::device_ptr<float4>(points), thrust::device_ptr<float4>(points + numPoints), thrust::device_ptr<float4>(points), op);
+
+    const thrust::device_ptr<float4> newEnd = thrust::unique(thrust::device_ptr<float4>(points), thrust::device_ptr<float4>(points + numPoints)/*, closeToEachOther()*/);
+
+    checkCudaSuccess("Kernel execution failed AFTER makePointListUnique");
+
+    return newEnd.get() - points;
+}
+
+
+
+
+
+
+
+
+
+
+
+__global__ void replaceCellPointsByMeanValueD(
+        float4* devicePoints,
+        float4* devicePointsSorted,
+        uint* pointCellStart,
+        uint* pointCellStopp,
+        uint* gridCellIndex,
+        uint* gridPointIndex,
+        uint numPoints,
+        uint numCells)
+{
+    uint cellIndex = __mul24(blockIdx.x,blockDim.x) + threadIdx.x;
+
+    // get start of bucket for this cell
+    uint startIndex = FETCH(pointCellStart, cellIndex);
+
+    float4 pointAverage = make_float4(0.0, 0.0, 0.0, 0.0);
+
+    // cell is not empty
+    if(startIndex != 0xffffffff)
+    {
+        // iterate over particles in this cell
+        uint endIndex = FETCH(pointCellStopp, cellIndex);
+        for(uint j=startIndex; j<endIndex; j++)
+        {
+            pointAverage += FETCH(devicePointsSorted, j);
+        }
+        pointAverage /= endIndex-startIndex;
+    }
+
+    devicePoints[cellIndex] = pointAverage;
+}
+
+
+unsigned int replaceCellPointsByMeanValue(float *devicePoints, float* devicePointsSorted, unsigned int *pointCellStart, unsigned int *pointCellStopp, unsigned int *gridCellIndex, unsigned int *gridPointIndex, unsigned int numPoints, unsigned int numCells)
+{
+    // The points are already sorted according to the containing cell, cellStart and cellStopp are up to date
+    // Start a thread for every CELL, reading all its points, creating a mean-value. Write this value into devicePoints[threadid]
+
+    checkCudaSuccess("replaceCellPointsByMeanValue(): cuda error present!");
+
+    uint numThreads, numBlocks;
+    computeGridSize(numCells, 256, numBlocks, numThreads);
+
+    qDebug() << "replaceCellPointsByMeanValue(): using" << numCells << "threads to create as many averaged points";
+
+    replaceCellPointsByMeanValueD<<< numBlocks, numThreads>>>(
+                                                                (float4*)devicePoints,
+                                                                (float4*)devicePointsSorted,
+                                                                pointCellStart,
+                                                                pointCellStopp,
+                                                                gridCellIndex,
+                                                                gridPointIndex,
+                                                                numPoints,
+                                                                numCells);
+
+    checkCudaSuccess("sortPosAccordingToGridCellAndFillCellStartAndEndArrays(): kernel failed");
+
+    // Every cell created a point, empty cells create zero-points. Delete those.
+    return removeZeroPoints(devicePoints, numCells);
 }

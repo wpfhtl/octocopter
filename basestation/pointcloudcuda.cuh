@@ -15,8 +15,6 @@ struct PointCloudParameters
     // the world size of the reduced cloud
     float3 bBoxMin, bBoxMax;
 
-    // the world size of the queued cloud should probably be determined on the GPU
-
     // how many points are currently stored (not counting the points queued thereafter)
     unsigned int elementCount;
 
@@ -26,6 +24,9 @@ struct PointCloudParameters
 
     // capacity of pointcloud
     unsigned int capacity;
+
+    // should colliding points be deleted from even (0) or odd (1) indices?
+    unsigned int remainder;
 };
 
 
@@ -71,8 +72,20 @@ void sortMapAccordingToKeys(
 
 // checks all @numPoints starting at @devicePoints for a value of 0/0/0/0 and removes those points matching.
 // returns the remaining number of points.
-unsigned int removeRedundantPoints(
+unsigned int removeZeroPoints(
         float* devicePoints,
         unsigned int numPoints);
+
+// test!
+unsigned int snapToGridAndMakeUnique(float *devicePoints, unsigned int numPoints, float minimumDistance);
+
+unsigned int replaceCellPointsByMeanValue(
+        float *devicePoints,
+        float *devicePointsSorted,
+        unsigned int *pointCellStart,
+        unsigned int *pointCellStopp,
+        unsigned int *gridCellIndex,
+        unsigned int *gridPointIndex, unsigned int numPoints,
+        unsigned int numCells);
 
 #endif

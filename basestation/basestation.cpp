@@ -248,7 +248,6 @@ BaseStation::~BaseStation()
     delete mWirelessDevice;
     delete mAudioPlayer;
     delete mPointCloud;
-    delete mPointCloud;
 }
 
 void BaseStation::slotManageJoystick(quint8 button, bool pressed)
@@ -305,7 +304,7 @@ void BaseStation::slotExportCloud()
 
     if(fileName.isNull()) return;
 
-/*    if(PlyManager::savePly(this, mPointCloud, fileName))
+    if(mPointCloud->exportToPly(fileName, this))
     {
         mLogWidget->log(Information, "BaseStation::slotExportCloud()", "Successfully wrote cloud to " + fileName);
         QMessageBox::information(this, "Cloud export", "Successfully wrote cloud to\n" + fileName, "OK");
@@ -314,7 +313,7 @@ void BaseStation::slotExportCloud()
     {
         mLogWidget->log(Error, "BaseStation::slotExportCloud()", "Failed saving cloud to file " + fileName);
         QMessageBox::information(this, "Cloud export", "Failed saving cloud to file\n\n" + fileName, "OK");
-    }*/
+    }
 }
 
 void BaseStation::slotImportCloud()
@@ -323,13 +322,7 @@ void BaseStation::slotImportCloud()
 
     if(fileName.isNull()) return;
 
-    QList<PointCloud*> pointCloudsToFill;
-    pointCloudsToFill.append(mPointCloud);
-
-    QList<FlightPlannerInterface*> flightPlannersToFill;
-    flightPlannersToFill.append(mFlightPlanner);
-
-    if(PlyManager::loadPly(this, pointCloudsToFill, flightPlannersToFill, fileName))
+    if(mPointCloud->importFromPly(fileName, this))
     {
         mLogWidget->log(Information, "BaseStation::slotImportCloud()", "Successfully loaded cloud from " + fileName);
         QMessageBox::information(this, "Cloud import", "Successfully loaded cloud from\n" + fileName, "OK");

@@ -142,7 +142,7 @@ public slots:
 signals:
     void heightOverGround(const float&);
 
-    void newLidarPoints(const QVector<QVector3D>* const, const QVector3D* const);
+    void newLidarPoints(const QVector<QVector3D>&, const QVector3D&);
 
     void scanFinished(const quint32&);
 };

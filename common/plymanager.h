@@ -3,66 +3,51 @@
 
 #include <QFile>
 #include <QVector>
-#include <QList>
 #include <QVector3D>
+#include <QVector4D>
 #include <QString>
 #include <QTextStream>
 #include <QDateTime>
 #include <QDebug>
 #include <QMessageBox>
-
-//#ifdef BASESTATION
-#include <QWidget>
 #include <QProgressDialog>
-#include <pointcloud.h>
-#include <flightplannerinterface.h>
-#include <lidarpoint.h>
-class FlightPlannerInterface;
-//#endif
 
 class PlyManager : public QObject
 {
     Q_OBJECT
-
+public:
+    enum DataDirection {DataLoadFromFile, DataSaveToFile};
     enum IncludesNormals { NormalsIncluded, NormalsNotIncluded };
     enum IncludesDirection { DirectionIncluded, DirectionNotIncluded };
 
-    QFile* mFileRead;
-    QFile* mFileWrite;
-
-    quint32 mPointsWritten;
-
-private:
-#ifdef BASESTATION
-    // recursive reading from nodes and subnodes of octree, exports into textstream that is created by public version below
-//    static bool savePly(const Node* node, QTextStream* stream, QProgressDialog* progress);
-#endif
-
-    static const QString createHeader(const quint32& vertexCount, const PlyManager::IncludesNormals& includesNormals = NormalsNotIncluded, const PlyManager::IncludesDirection& includesDirection = DirectionNotIncluded);
-
-public:
-    enum DataDirection {DataRead, DataWrite};
-
-    PlyManager(const QString& fileName, const PlyManager::DataDirection&);
+    PlyManager(QWidget* widget = 0);
     ~PlyManager();
 
-    // saves cloud from @points into @fileName
-    static bool savePly(const QVector<QVector3D>& points, const QString &fileName);
-    static bool savePly(const QList<QVector3D>& points, const QString &fileName);
+    bool open(const QString& fileName, const PlyManager::DataDirection& direction);
 
-#ifdef BASESTATION
-//    static bool savePly(const QVector<LidarPoint>& points, const QString &fileName);
+    quint32 getNumberOfPoints() const;
 
-    // saves cloud from @tree into @fileName, reporting progress using a dialog
-//    static bool savePly(QWidget* widget, const PointCloudOctree* tree, const QString &fileName);
+    // This will write a header to the file. DataDirection must be DataSaveToFile
+    void writeHeader(const quint32& vertexCount, const PlyManager::IncludesNormals& includesNormals = NormalsNotIncluded, const PlyManager::IncludesDirection& includesDirection = DirectionNotIncluded);
 
-    // loads cloud from @fileName into all the given @trees and @flightplanners
-    static bool loadPly(QWidget* widget, const QList<PointCloud*>& trees, const QList<FlightPlannerInterface*>& flightPlanners, const QString &fileName);
-#endif
+    // These methods will read @points and stream them into the file. DataDirection must be DataSaveToFile
+    void savePly4D(const float *const points, const quint32 numPoints);
 
-public slots:
-    void slotNewPoints(const QVector<QVector3D>& points, const QVector3D& scanPosition);
-    void slotNewPoints(const QList<QVector3D>& points, const QVector3D& scanPosition);
+    // These methods will read the file and write to @points. DataDirection must be DataLoadFromFile
+    void loadPly4D(float *points, const quint32 startPoint = 0, const quint32 maxPoints = 0);
+
+private:
+    DataDirection mDataDirection;
+
+    QWidget* mWidget;
+    QProgressDialog* mProgressDialog;
+
+    // The file to be written to or read from
+    QFile* mFile;
+
+    // If reading, this is the number of points present in the file
+    quint32 mNumberOfPoints;
+
 };
 
 #endif

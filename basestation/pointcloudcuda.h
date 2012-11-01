@@ -30,6 +30,32 @@ class PointCloudCuda : public PointCloud
 {
     Q_OBJECT
 
+
+
+public:
+    PointCloudCuda(const QVector3D &min, const QVector3D &max, const quint32 maximumElementCount = 8 * 1024 * 1024); // 8 million points capacity
+    ~PointCloudCuda();
+
+    void updateVbo();
+
+    // No two points closer than @distance will be inserted into this PointCloud
+    void setMinimumPointDistance(const float &distance) { mParameters.minimumDistance = distance; }
+    float getMinimumPointDistance() const { return mParameters.minimumDistance; }
+
+    quint32 getNumberOfPoints(void) const { return mParameters.elementCount + mParameters.elementQueueCount; }
+
+    void setGridSize(const quint16 x, const quint16 y, const quint16 z)
+    {
+        mParameters.gridSize.x = x;
+        mParameters.gridSize.y = y;
+        mParameters.gridSize.z = z;
+    }
+
+    const QVector<VboInfo>& getVboInfo() const { return mVboInfo; }
+
+    bool importFromPly(const QString& fileName, QWidget* widget = 0);
+    bool exportToPly(const QString& fileName, QWidget* widget = 0) const;
+
 private:
     PointCloudParameters mParameters;
 
@@ -52,36 +78,16 @@ private:
     struct cudaGraphicsResource *mCudaVboResource; // handles OpenGL-CUDA exchange
 
     // reduces the queued points against themselves, then merges all points and reduces again. Thin wrapper around reducePoints()
-    void reduce();
+    quint32 reduceAllPointsUsingCollisions();
+    quint32 reduceUsingSnapToGrid();
+
+    quint32 reduceUsingCellMean();
 
     // reduces the given points against themselves
-    quint32 reducePoints(float *devicePoints, const quint32 numElements, const bool createBoundingBox);
+    quint32 reducePointRangeUsingCollisions(float *devicePoints, const quint32 numElements, const bool createBoundingBox);
 
     void freeResources();
     void setNullPointers();
-
-
-public:
-    PointCloudCuda(const QVector3D &min, const QVector3D &max, const quint32 maximumElementCount = 8 * 1024 * 1024); // 8 million points capacity
-    ~PointCloudCuda();
-
-
-    void updateVbo();
-
-    // No two points closer than @distance will be inserted into this PointCloud
-    void setMinimumPointDistance(const float &distance) { mParameters.minimumDistance = distance; }
-    float getMinimumPointDistance() const { return mParameters.minimumDistance; }
-
-    quint32 getNumberOfPoints(void) const { return mParameters.elementCount + mParameters.elementQueueCount; }
-
-    void setGridSize(const quint16 x, const quint16 y, const quint16 z)
-    {
-        mParameters.gridSize.x = x;
-        mParameters.gridSize.y = y;
-        mParameters.gridSize.z = z;
-    }
-
-    const QVector<VboInfo>& getVboInfo() const { return mVboInfo; }
 
 public slots:
 
