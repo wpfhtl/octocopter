@@ -296,26 +296,29 @@ Pose Pose::extrapolateLinear(const Pose &p1, const Pose &p2, const qint32 &timeI
     return p;
 }
 
-Pose Pose::interpolateLinear(const Pose &before, const Pose &after, const float &mu)
+Pose Pose::interpolateLinear(const Pose &p0, const Pose &p1, const qint32& time)
 {
+    // recreate mu from time argument
+    const float mu = (((float)(time - p0.timestamp)) / ((float)(p1.timestamp - p0.timestamp)));
+
     Q_ASSERT(mu <= 0.0 && mu <= 1.0);
 
     float beforeYaw, beforePitch, beforeRoll;
     float afterYaw, afterPitch, afterRoll;
 
-    before.getEulerAnglesDegrees(beforeYaw, beforePitch, beforeRoll);
-    after.getEulerAnglesDegrees(afterYaw, afterPitch, afterRoll);
+    p0.getEulerAnglesDegrees(beforeYaw, beforePitch, beforeRoll);
+    p1.getEulerAnglesDegrees(afterYaw, afterPitch, afterRoll);
 
     Pose p(
-                before.getPosition() * (1.0 - mu) + after.getPosition() * mu,
+                p0.getPosition() * (1.0 - mu) + p1.getPosition() * mu,
                 beforeYaw * (1.0 - mu) + afterYaw * mu,
                 beforePitch * (1.0 - mu) + afterPitch * mu,
                 beforeRoll * (1.0 - mu) + afterRoll * mu,
-                before.timestamp * (1.0 - mu) + after.timestamp * mu
+                time
                 );
 
-    p.covariances = before.covariances * (1.0 - mu) + after.covariances * mu;
-    p.precision = before.precision & after.precision;
+    p.covariances = p0.covariances * (1.0 - mu) + p1.covariances * mu;
+    p.precision = p0.precision & p1.precision;
 
     return p;
 }

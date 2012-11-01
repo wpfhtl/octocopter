@@ -287,7 +287,7 @@ signals:
     // The SbfParser wants to send a command to the receiver (e.g. for investigating an error)
     void receiverCommand(const QString&);
 
-    // Again, timestamp is number of milliseconds since last sunday 00:00:00 AM (midnight)
+    // This is the time of the scan's center ray!
     void scanFinished(const quint32& timestamp);
 
     void gnssTimeOfWeekEstablished(qint32 timestamp);
