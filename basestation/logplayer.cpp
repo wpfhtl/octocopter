@@ -662,6 +662,9 @@ void LogPlayer::slotGoToTow(qint32 towTarget)
         stepSize = std::max(200, stepSize/2);
     }
 
+    // Clear SensorFuser data, because otherwise the next data isn't guaranteed to come in in chronological order
+    mSensorFuser->slotClearData();
+
     qDebug() << "LogPlayer::slotGoToTow(): FLTCLR: reached TOW" << tow0 << ", targeted was" << towTarget;
 
     mProgressBarTow->setValue(towTarget);

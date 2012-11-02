@@ -300,25 +300,25 @@ Pose Pose::interpolateLinear(const Pose &p0, const Pose &p1, const qint32& time)
 {
     // recreate mu from time argument
     const float mu = (((float)(time - p0.timestamp)) / ((float)(p1.timestamp - p0.timestamp)));
-
     Q_ASSERT(mu <= 0.0 && mu <= 1.0);
 
-    float beforeYaw, beforePitch, beforeRoll;
-    float afterYaw, afterPitch, afterRoll;
+    const QVector3D position = p0.getPosition() * (1.0 - mu) + p1.getPosition() * mu;
 
-    p0.getEulerAnglesDegrees(beforeYaw, beforePitch, beforeRoll);
-    p1.getEulerAnglesDegrees(afterYaw, afterPitch, afterRoll);
+    QQuaternion q0 = p0.getOrientation();
+    QQuaternion q1 = p1.getOrientation();
 
-    Pose p(
-                p0.getPosition() * (1.0 - mu) + p1.getPosition() * mu,
-                beforeYaw * (1.0 - mu) + afterYaw * mu,
-                beforePitch * (1.0 - mu) + afterPitch * mu,
-                beforeRoll * (1.0 - mu) + afterRoll * mu,
-                time
-                );
+    QQuaternion orientation = QQuaternion::slerp(q0, q1, mu);
+
+    QMatrix4x4 m;
+    m.translate(position);
+    m.rotate(orientation);
+
+    Pose p;
+    p.setMatrix(m);
 
     p.covariances = p0.covariances * (1.0 - mu) + p1.covariances * mu;
-    p.precision = p0.precision & p1.precision;
+    p.precision = p0.precision & p1.precision; // yes, thats a logic AND
+    p.timestamp = time;
 
     return p;
 }

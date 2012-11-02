@@ -9,11 +9,9 @@ SensorFuser::SensorFuser(const quint8& stridePoint, const quint8& strideScan) : 
     mMaximumFusableRayLength = 200.0;
     mStatsScansDiscarded = 0;
     mLastScanMiddleGnssTow = 0;
+    mNumberOfScansWithMissingGnssTimestamps = 0;
 
     mBestInterpolationMethodToUse = InterpolationMethod::Cubic;
-
-    mMaximumTimeOffsetBetweenFusedPoseAndScanMsec = 81; // 2*poseInterval+1
-    mMaximumTimeOffsetBetweenScannerAndGnss = 12; // msecs maximum clock offset between scanner and gnss device. Smaller means less data, more means worse data.
 }
 
 SensorFuser::~SensorFuser()
@@ -22,29 +20,21 @@ SensorFuser::~SensorFuser()
              << "cubic:"  << mStatsScansFused[InterpolationMethod::Cubic]
              << "linear:" << mStatsScansFused[InterpolationMethod::Linear]
              << "nearestneighbor:" << mStatsScansFused[InterpolationMethod::NearestNeighbor]
-             << "- discarded:"<< mStatsScansDiscarded;
+             << "discarded:"<< mStatsScansDiscarded
+             << "missing gnss stamps:" << mNumberOfScansWithMissingGnssTimestamps;
     qDebug() << "SensorFuser::~SensorFuser(): leftover scanInfos:"  << mScanInformation.size() << "scanGnss:" << mGnssTimeStamps.size() << "poses:"<< mPoses.size();
 
-    // delete leftover scaninfos including their range-data
-    QMutableVectorIterator<ScanInformation> k(mScanInformation);
-    while(k.hasNext())
-    {
-        ScanInformation& si = k.next();
-        delete si.ranges;
-        k.remove();
-    }
+    slotClearData();
 }
 
-void SensorFuser::cleanUnusableData()
+void SensorFuser::slotClearData(const qint32 maximumDataAge)
 {
-    // Simply clean all data older than X ms!
-    const qint32 maximumDataAge = 2000;
-
     // Remove all poses older than maximumDataAge
     QMutableVectorIterator<Pose> i(mPoses);
     while(i.hasNext())
     {
-        if(i.next().timestamp + maximumDataAge < mNewestDataTime)
+        const qint32 timestamp = i.next().timestamp;
+        if(timestamp + maximumDataAge < mNewestDataTime || maximumDataAge < 0)
         {
             i.remove();
         }
@@ -54,7 +44,8 @@ void SensorFuser::cleanUnusableData()
     QMutableVectorIterator<qint32> j(mGnssTimeStamps);
     while(j.hasNext())
     {
-        if(j.next() + maximumDataAge < mNewestDataTime)
+        const qint32 timestamp = j.next();
+        if(timestamp + maximumDataAge < mNewestDataTime || maximumDataAge < 0)
         {
             j.remove();
         }
@@ -66,11 +57,18 @@ void SensorFuser::cleanUnusableData()
     {
         ScanInformation& si = k.next();
         // We check the scanner timestamp, thats precise enough
-        if(si.timeStampScanMiddleScanner + maximumDataAge < mNewestDataTime)
+        if(si.timeStampScanMiddleScanner + maximumDataAge < mNewestDataTime || maximumDataAge < 0)
         {
             delete si.ranges;
             k.remove();
         }
+    }
+
+    if(maximumDataAge < 0)
+    {
+        // Clear everything, not just old data
+        mNewestDataTime = 0;
+        mLastScanMiddleGnssTow = 0;
     }
 }
 
@@ -94,11 +92,32 @@ void SensorFuser::fuseScans()
     {
         ScanInformation& scanInfo = iteratorScanInformation.next();
 
-        // scanInfo can still contain scans with empty timeStampGnss values (value is 0) because they
-        // weren't populated with matched scans-with-laserscanner-timestamps yet. Don't try to process those.
+        // scanInfo can still contain scans with zero timeStampScanMiddleGnss values because they weren't matched/
+        // populated from the mGnssTimeStamps vector. This can have two reasons:
+        //
+        // a)   the ExtEvent-packet wasn't received yet, so slotScanFinished() wasn't called and thus mGnssTimeStamps
+        //      doesn't contain any timestamp that could be matched in matchTimestamps(). In this case, we skip this
+        //      scanInfo and try again later.
+        //
+        // b)   In some logdata, there are no ExtEvents due to misconfiguration or hardware failure (EventA is broken).
+        //      This means slotScanFinished() will never be called, so ScanInformation.timeStampScanMiddleGnss will
+        //      remain 0 and data fusion cannot work.
+        //
+        // To fix b), we DO process scans with a timeStampScanMiddleGnss of 0 IF they are so old that we can trust that
+        // their respective timeStampGnss will not come in anymore. In this case, we simply use the scanner's timestamp.
         if(scanInfo.timeStampScanMiddleGnss == 0)
         {
-            continue;
+            if(mNewestDataTime - scanInfo.timeStampScanMiddleScanner > 1000)
+            {
+                // the scanInfo is relatively old, we give up waiting for a gnssTimestamp and use the scanner's
+                scanInfo.timeStampScanMiddleGnss = scanInfo.timeStampScanMiddleScanner;
+                mNumberOfScansWithMissingGnssTimestamps++;
+            }
+            else
+            {
+                // the scan is still young, skip processing and hope the gnss timestamp still comes.
+                continue;
+            }
         }
 
         const qint32 timestampMiddleOfScan = scanInfo.timeStampScanMiddleGnss;
@@ -475,8 +494,10 @@ qint8 SensorFuser::matchTimestamps()
             }
         }
 
-        // If we found a close-enough match, use it.
-        if(smallestTimeDifference <= mMaximumTimeOffsetBetweenScannerAndGnss)
+        // Assign the gnss timestamp G to the scan S if:
+        // - S and G are at least as close as mMaximumTimeOffsetBetweenScannerAndGnss
+        // - S is not the last scan in the list. Because if it IS, the next scan might fit even better to G.
+        if(smallestTimeDifference <= mMaximumTimeOffsetBetweenScannerAndGnss && (bestFitTimestampScannerIndex < mScanInformation.size() - 1))
         {
             //qDebug() << "SensorFuser::matchTimestamps(): using data from scanner timestamp" << bestFittingScannerTime << "to populate gnss timestamp" << timestampGnss << "time difference" << smallestTimeDifference;
 
@@ -516,6 +537,9 @@ void SensorFuser::slotNewVehiclePose(const Pose* const pose)
 
 //    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a " << pose;
 
+    // Make sure we receive data in order
+    if(mPoses.size()) Q_ASSERT(mPoses.last().timestamp < pose->timestamp);
+
     // Append pose to our list
     mPoses.append((*pose) * mLaserScannerRelativePose);
 
@@ -524,13 +548,15 @@ void SensorFuser::slotNewVehiclePose(const Pose* const pose)
     mNewestDataTime = std::max(mNewestDataTime, pose->timestamp);
 
     // Fuse pose and scans if it was possible to augment at least one lasertimestamp with a gnss timestamp
-    if(matchTimestamps())
+    // Sometimes, there are no gnss timestamps due to hardware/config problems; in this case, we still try
+    // to match using scanner-timestamps only.
+    if(matchTimestamps() || (mScanInformation.size() > 2 && mPoses.size() > 2))
     {
-//        transformScanDataNearestNeighbor();
         fuseScans();
     }
 
-    cleanUnusableData();
+    // clear all data older than 2 seconds
+    slotClearData(2000);
 }
 
 void SensorFuser::slotScanFinished(const quint32 &timestampScanGnss)
@@ -561,6 +587,9 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGnss)
       the interval from the last packet we received and derive the ratio of lidar-sync to gnss-sync from that.
       We also compute the drift and cause an alarm if it becomes too high, neccessitating a shorter ratio.
       */
+
+    // Make sure we receive data in order
+    if(mGnssTimeStamps.size()) Q_ASSERT(mGnssTimeStamps.last() < timestampScanGnss);
 
     // If we subscribe to ExtEvent and Support in different streams, we'll get the same ExtEvent from both
     // subscriptions. Make sure to only process an ExtEvent once, even if it comes in N times.
@@ -606,17 +635,16 @@ void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, std::vecto
 {
 //    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
 
-    // We need this only when the Event-Pins don't work, so we create our own fake events
-    //slotScanFinished(timestampScanScanner);
-
-    // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
-    if(!mPoses.size() || mPoses.last().timestamp < (timestampScanScanner - mMaximumTimeOffsetBetweenFusedPoseAndScanMsec - 13))
+    // Do not store data that we cannot fuse anyway, because there is no pose or its very old (no gnss reception)
+    if(!mPoses.size() || mPoses.last().timestamp < (timestampScanScanner - MaximumFusionTimeOffset::Cubic))
     {
-//        qDebug() << t() << "SensorFuser::slotNewScanData(): " << mPoses.size() << "/old poses, ignoring scandata at time" << timestampScanScanner;
-        // We cannot ignore the scandata, we must at least delete() it, because it was new()ed in LaserScanner and we are now the owner.
+        // We cannot ignore the scandata, we must at least delete() it, because we are the owner.
         delete distances;
         return;
     }
+
+    // Make sure we receive data in order
+    if(mScanInformation.size()) Q_ASSERT(mScanInformation.last().timeStampScanMiddleScanner < timestampScanScanner);
 
     mScanInformation.append(ScanInformation());
     mScanInformation.last().timeStampScanMiddleScanner = timestampScanScanner;

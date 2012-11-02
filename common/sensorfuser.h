@@ -59,15 +59,11 @@ public:
 private:
     struct MaximumFusionTimeOffset
     {
-        // These values assume 50 Hz pose rate. That might be problematic for older logdata!
-//        static const quint8 NearestNeighbor = 10;
-//        static const quint8 Linear = 20;
-//        static const quint8 Cubic = 41;
-
-        // These values assume 25 Hz pose rate. Higher frequencies should work flawlessly!
-        static const quint8 NearestNeighbor = 21;
-        static const quint8 Linear = 61;
-        static const quint8 Cubic = 91;
+        // These values assume 25 Hz (40ms interval) pose rate. Higher frequencies should work flawlessly!
+#define POSE_INTERVAL 40
+        static const quint8 NearestNeighbor = POSE_INTERVAL / 2 + 1; // 21
+        static const quint8 Linear = ((POSE_INTERVAL / 2) * 3) + 1; // 61
+        static const quint8 Cubic = (POSE_INTERVAL * 2.5) + 1; // 91
     };
 
     // appends the resulting point to mRegisteredPoints
@@ -77,17 +73,17 @@ private:
 
     quint8 mStridePoint, mStrideScan;
 
-    //
+    quint32 mNumberOfScansWithMissingGnssTimestamps;
+
     Pose mLaserScannerRelativePose;
 
     QMap<InterpolationMethod,quint16> mStatsScansFused;
-    quint16 mStatsScansDiscarded;
+    quint32 mStatsScansDiscarded;
 
-    // How much time difference from a scan to a pose (or vice versa) in past or future for the data to be usable for interpolation?
-    quint8 mMaximumTimeOffsetBetweenFusedPoseAndScanMsec;
-
-    // Maximum clock offset between scanner and gnss device timestamp in miliseconds. Smaller means less data, more means worse data.
-    qint32 mMaximumTimeOffsetBetweenScannerAndGnss;
+    // Maximum clock offset between scanner and gnss device timestamp in miliseconds. We will always find the best-fitting scan,
+    // and that SHOULD always be the correct match. This is more of a safeguard to prevent matching scans with a gnss timestamp
+    // seconds away from each other.
+    const qint32 mMaximumTimeOffsetBetweenScannerAndGnss = 12;
 
     float mMaximumFusableRayLength; // rays longer than this will be ignored (because they introduce too much error due to orientation errors)
 
@@ -112,52 +108,29 @@ private:
 
     // This method uses mSavedScans and mSavedPoses to create and emit world-cooridnate scanpoints.
     void fuseScans();
-    void transformScanDataNearestNeighbor();
 
-    // Cleans old data (mSaved, scanGps and mSavedPoses
+    // Cleans old scans, poses and gnss timestamps
     void cleanUnusableData();
 
-    // Used for debugging only.
-    inline const QStringList getTimeStamps(const QMap<qint32, std::vector<long>* >& list) const
-    {
-        QStringList timeStamps;
-        QMap<qint32, std::vector<long>* >::const_iterator itr = list.constBegin();
-        while(itr != list.constEnd())
-        {
-            // append an "e" for empty after entries with a 0-pointer as the value
-            if(itr.value() == 0)
-                timeStamps << QString::number((uint)itr.key()).append('e');
-            else
-                timeStamps << QString::number((uint)itr.key());
-
-            ++itr;
-        }
-        return timeStamps;
-    }
-
-    // Used for debugging only.
-    inline const QStringList getTimeStamps(const QList<Pose>& list) const
-    {
-        QStringList timeStamps;
-
-        for(int i = 0; i < list.size(); ++i) timeStamps << QString::number((uint)list.at(i).timestamp);
-
-        return timeStamps;
-    }
-
 public slots:
-    // The pose also contains a timestamp (receiver-time) of when that pose was recorded.
+    // Used to send a new vehicle pose to SensorFuser. You must guarantee that the poses are
+    // supplied in chronological order!
     // Ownership stays with caller, as the const implies
     void slotNewVehiclePose(const Pose *const pose);
 
     // When a laserscan is finished, the lidar changes the electrical level on the
     // event-pin of the gnss-receiver-board, which then notifies the PC together with
     // the receiver-time (TOW) when this event happened. We expect the time of the MIDDLE
-    // ray!
+    // ray! You must guarantee that the timestamps are supplied in chronological order
     void slotScanFinished(const quint32& timestampScanGnss);
 
-    // Used to feed data from the laserscanner
+    // Used to feed data from the laserscanner. You must guarantee that the scans are supplied
+    // in chronological order!
     void slotNewScanData(const qint32& timestampScanner, std::vector<long> * const distances);
+
+    // Clears all poses, gnss timestamps and scans. This is used by LogPlayer when seeking backwards.
+    // If it didn't clean our data, there'd be no guarantee data comes in in chronological order.
+    void slotClearData(const qint32 maximumDataAge = -1);
 
 signals:
     // Emits a pointer to a vector of registered points. The data is always owned by SensorFuser!
