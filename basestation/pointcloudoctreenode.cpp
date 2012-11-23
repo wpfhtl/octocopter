@@ -1,9 +1,9 @@
-#include "octree.h"
+#include "pointcloudoctree.h"
 //octree.h includes node.h! #include "node.h"
 
 #define SQR(x) (x)*(x)
 
-Node::Node(Octree* tree, Node* parent, const QVector3D &min, const QVector3D &max) :
+PointCloudOctreeNode::PointCloudOctreeNode(PointCloudOctree *tree, PointCloudOctreeNode* parent, const QVector3D &min, const QVector3D &max) :
     mTree(tree),
     parent(parent),
     min(min),
@@ -15,10 +15,10 @@ Node::Node(Octree* tree, Node* parent, const QVector3D &min, const QVector3D &ma
     //    Q_ASSERT(min.x() < max.x());
     //    Q_ASSERT(min.y() < max.y());
     //    Q_ASSERT(min.z() < max.z());
-    //    qDebug() << "Node::Node(): creating Node" << mNumberOfNodes << this << "from" << min << "to" << max;
+    //    qDebug() << "PointCloudOctreeNode::PointCloudOctreeNode(): creating Node" << mNumberOfNodes << this << "from" << min << "to" << max;
 }
 
-Node::~Node()
+PointCloudOctreeNode::~PointCloudOctreeNode()
 {
     // We clear our structures, but we do NOT clear the data.
     pointIndices.clear();
@@ -31,7 +31,7 @@ Node::~Node()
 }
 
 // This method should destruct the container, but keep the data
-void Node::clearPoints()
+void PointCloudOctreeNode::clearPoints()
 {
     Q_ASSERT("This is a mess, we can only delete the whole thing!");
     if(isLeaf())
@@ -42,7 +42,7 @@ void Node::clearPoints()
     }
     else
     {
-        foreach(Node* const currentNode, children)
+        foreach(PointCloudOctreeNode* const currentNode, children)
             currentNode->clearPoints(); // first make it clear() its @data without deleteing the points...
 
         qDeleteAll(children);
@@ -50,7 +50,7 @@ void Node::clearPoints()
     }
 }
 
-Node& Node::operator=(const Node &other)
+PointCloudOctreeNode& PointCloudOctreeNode::operator=(const PointCloudOctreeNode &other)
 {
     // We create a shallow copy.
     mTree = other.mTree;
@@ -63,7 +63,7 @@ Node& Node::operator=(const Node &other)
     return *this;
 }
 
-bool Node::operator==(const Node &other)
+bool PointCloudOctreeNode::operator==(const PointCloudOctreeNode &other)
 {
     return
             mTree == other.mTree &&
@@ -75,12 +75,12 @@ bool Node::operator==(const Node &other)
 }
 
 
-inline bool Node::isLeaf(void) const
+inline bool PointCloudOctreeNode::isLeaf(void) const
 {
     return children.size() == 0;
 }
 
-inline bool Node::includesPoint(const QVector3D &point) const
+inline bool PointCloudOctreeNode::includesPoint(const QVector3D &point) const
 {
     return
             min.x() <= point.x() &&
@@ -95,7 +95,7 @@ inline bool Node::includesPoint(const QVector3D &point) const
 
 
 /*
-bool Node::includesData(const LidarPoint &lidarPoint)
+bool PointCloudOctreeNode::includesData(const LidarPoint &lidarPoint)
 {
     if(isLeaf())
     {
@@ -127,7 +127,7 @@ bool Node::includesData(const LidarPoint &lidarPoint)
     }
 }*/
 
-bool Node::insertAndReduce(LidarPoint* lidarPoint)
+bool PointCloudOctreeNode::insertAndReduce(LidarPoint* lidarPoint)
 {
     // Linear reduction:
     // If there have been two points inserted before, check whether @lidarPoint is close to where
@@ -158,7 +158,7 @@ bool Node::insertAndReduce(LidarPoint* lidarPoint)
             )
     {
         Q_ASSERT("port to use indices!");
-        qDebug() << "Node::insertAndReduce(): sweet, reducing a point." << pointIndices.size();
+        qDebug() << "PointCloudOctreeNode::insertAndReduce(): sweet, reducing a point." << pointIndices.size();
         // delete mMri1, its on the ray between mMri2 and lidarPoint
         mTree->mMri1->node->deletePoint(mTree->mMri1);
         mTree->mMri1 = lidarPoint;
@@ -170,7 +170,7 @@ bool Node::insertAndReduce(LidarPoint* lidarPoint)
     }
     else*/
     {
-        //qDebug() << "Node::insertAndReduce(): aww, reduction failed, will insert.";
+        //qDebug() << "PointCloudOctreeNode::insertAndReduce(): aww, reduction failed, will insert.";
 
         // Probably stupid, but lets start easy: Do not insert if it has N close-by neighbors
 //        if(!mTree->isNeighborWithinRadius(lidarPoint->position, mTree->mMinimumPointDistance))
@@ -201,10 +201,10 @@ bool Node::insertAndReduce(LidarPoint* lidarPoint)
 
 }
 
-Node* Node::insertPoint(LidarPoint* lidarPoint) // a const pointer to a non-const LidarPoint
+PointCloudOctreeNode* PointCloudOctreeNode::insertPoint(LidarPoint* lidarPoint) // a const pointer to a non-const LidarPoint
 {
     // Insert a lidarPoint. If we are a leaf and we contain the point, go ahead
-    //    qDebug() << "Node::insertPoint(): inserting point to node" << this << "at" << lidarPoint->position;
+    //    qDebug() << "PointCloudOctreeNode::insertPoint(): inserting point to node" << this << "at" << lidarPoint->position;
     if(isLeaf())
     {
         // Now insert the lidarPoint. If its found to be of low informational
@@ -241,20 +241,20 @@ Node* Node::insertPoint(LidarPoint* lidarPoint) // a const pointer to a non-cons
         }
 
         return this;
-        //            qDebug() << "Node::insertPoint(): I'm a leaf, but I don't include the point" << lidarPoint->position;
+        //            qDebug() << "PointCloudOctreeNode::insertPoint(): I'm a leaf, but I don't include the point" << lidarPoint->position;
         //            Q_ASSERT(false);
 
     }
     else
     {
         // This is not a leaf. Into which subNode should we insert lidarPoint?
-        //        qDebug() << "Node::insertPoint(): I'm not leaf, forwarding insertion request to correct octant";
-        Node* subNode = getLeaf(lidarPoint->position);
+        //        qDebug() << "PointCloudOctreeNode::insertPoint(): I'm not leaf, forwarding insertion request to correct octant";
+        PointCloudOctreeNode* subNode = getLeaf(lidarPoint->position);
         return subNode->insertPoint(lidarPoint);
     }
 }
 
-bool Node::overlapsSphere(const QVector3D &point, const double radius) const
+bool PointCloudOctreeNode::overlapsSphere(const QVector3D &point, const double radius) const
 {
     // http://tog.acm.org/resources/GraphicsGems/gems/BoxSphere.c
 
@@ -282,7 +282,7 @@ bool Node::overlapsSphere(const QVector3D &point, const double radius) const
         return false;
 }
 
-QList<const LidarPoint*> Node::findNeighborsWithinRadius(const QVector3D &point, const double radius) const
+QList<const LidarPoint*> PointCloudOctreeNode::findNeighborsWithinRadius(const QVector3D &point, const double radius) const
 {
     const double radiusSquared = SQR(radius);
 
@@ -302,7 +302,7 @@ QList<const LidarPoint*> Node::findNeighborsWithinRadius(const QVector3D &point,
     return result;
 }
 
-quint32 Node::numberOfNeighborsWithinRadius(const QVector3D &point, const double radius) const
+quint32 PointCloudOctreeNode::numberOfNeighborsWithinRadius(const QVector3D &point, const double radius) const
 {
     const double radiusSquared = SQR(radius);
 
@@ -317,7 +317,7 @@ quint32 Node::numberOfNeighborsWithinRadius(const QVector3D &point, const double
     return number;
 }
 
-QList<const LidarPoint*> Node::findNearestNeighbors(const QVector3D &point, const unsigned int count) const
+QList<const LidarPoint*> PointCloudOctreeNode::findNearestNeighbors(const QVector3D &point, const unsigned int count) const
 {
     // This node includes the given point.
     if(isLeaf())
@@ -346,10 +346,10 @@ QList<const LidarPoint*> Node::findNearestNeighbors(const QVector3D &point, cons
     Q_ASSERT(false);
 }
 
-bool Node::neighborsWithinRadius(const QVector3D &point, const float radius) const
+bool PointCloudOctreeNode::neighborsWithinRadius(const QVector3D &point, const float radius) const
 {
     const float radiusSquared = SQR(radius);
-    //qDebug() << "Node::neighborsWithinRadius(): checking" << pointIndices.size() << "points for neighborhood closer than" << radius << "to" << point;
+    //qDebug() << "PointCloudOctreeNode::neighborsWithinRadius(): checking" << pointIndices.size() << "points for neighborhood closer than" << radius << "to" << point;
 
     for(int i=0;i<pointIndices.size();i++)
     {
@@ -358,41 +358,41 @@ bool Node::neighborsWithinRadius(const QVector3D &point, const float radius) con
             return true;
     }
 
-//    qDebug() << "Node::neighborsWithinRadius(): checking" << pointIndices.size() << "points for neighborhood closer than" << radius << "to" << point << ": nothing found";
+//    qDebug() << "PointCloudOctreeNode::neighborsWithinRadius(): checking" << pointIndices.size() << "points for neighborhood closer than" << radius << "to" << point << ": nothing found";
     return false;
 }
 
 // Returns true if the given sphere fits completely inside this Node.
-bool Node::isSphereContained(const QVector3D point, const double radius)
+bool PointCloudOctreeNode::isSphereContained(const QVector3D point, const double radius)
 {
     if(isBoxContained(
                 QVector3D(point.x()-radius, point.y()-radius, point.z()-radius),
                 QVector3D(point.x()+radius, point.y()+radius, point.z()+radius)
                 ))
     {
-        //        qDebug() << "Node::isSphereContained() point" << point << "radius" << radius << "IS contained";
+        //        qDebug() << "PointCloudOctreeNode::isSphereContained() point" << point << "radius" << radius << "IS contained";
         return true;
     }
     else
     {
-        //        qDebug() << "Node::isSphereContained() point" << point << "radius" << radius << "IS NOT contained";
+        //        qDebug() << "PointCloudOctreeNode::isSphereContained() point" << point << "radius" << radius << "IS NOT contained";
         return false;
     }
 }
 
-inline bool Node::isBoxContained(const QVector3D &min, const QVector3D &max)
+inline bool PointCloudOctreeNode::isBoxContained(const QVector3D &min, const QVector3D &max)
 {
     return includesPoint(min) && includesPoint(max);
 }
 
 // Creates a sub-partitioning for this octree-node.
-void Node::partition()
+void PointCloudOctreeNode::partition()
 {
     const QVector3D ctr = center();
 
     // create octant 0
     children.append(
-                new Node
+                new PointCloudOctreeNode
                 (
                     mTree,
                     this,
@@ -403,7 +403,7 @@ void Node::partition()
 
     // create octant 1
     children.append(
-                new Node
+                new PointCloudOctreeNode
                 (
                     mTree,
                     this,
@@ -424,7 +424,7 @@ void Node::partition()
 
     // create octant 2
     children.append(
-                new Node
+                new PointCloudOctreeNode
                 (
                     mTree,
                     this,
@@ -445,7 +445,7 @@ void Node::partition()
 
     // create octant 3
     children.append(
-                new Node
+                new PointCloudOctreeNode
                 (
                     mTree,
                     this,
@@ -466,7 +466,7 @@ void Node::partition()
 
     // create octant 4
     children.append(
-                new Node
+                new PointCloudOctreeNode
                 (
                     mTree,
                     this,
@@ -487,7 +487,7 @@ void Node::partition()
 
     // create octant 5
     children.append(
-                new Node
+                new PointCloudOctreeNode
                 (
                     mTree,
                     this,
@@ -508,7 +508,7 @@ void Node::partition()
 
     // create octant 6
     children.append(
-                new Node
+                new PointCloudOctreeNode
                 (
                     mTree,
                     this,
@@ -519,7 +519,7 @@ void Node::partition()
 
     // create octant 7
     children.append(
-                new Node
+                new PointCloudOctreeNode
                 (
                     mTree,
                     this,
@@ -540,15 +540,15 @@ void Node::partition()
 }
 
 // Returns the correct leaf-node for a position within this Node.
-Node* Node::getLeaf(const QVector3D &point)
+PointCloudOctreeNode* PointCloudOctreeNode::getLeaf(const QVector3D &point)
 {
-    //    qDebug() << "Node::getLeaf(): Node" << this << ", from" << min << "to" << max << "point" << point;
+    //    qDebug() << "PointCloudOctreeNode::getLeaf(): Node" << this << ", from" << min << "to" << max << "point" << point;
     if(isLeaf())
     {
         // Leaves have no children
         if(includesPoint(point))
         {
-            //            qDebug() << "Node::getLeaf(): Node" << this << "contains point" << point;
+            //            qDebug() << "PointCloudOctreeNode::getLeaf(): Node" << this << "contains point" << point;
             return this;
         }
         else
@@ -563,7 +563,7 @@ Node* Node::getLeaf(const QVector3D &point)
         //        Q_ASSERT(children);
 
         // TODO: optimize by not looping, but thinking.
-        foreach(Node* const currentNode, children)
+        foreach(PointCloudOctreeNode* const currentNode, children)
         {
             if(currentNode->includesPoint(point))
                 return currentNode->getLeaf(point);
@@ -574,9 +574,9 @@ Node* Node::getLeaf(const QVector3D &point)
     }
 }
 
-QList<Node*> Node::getAllChildLeafs(void)
+QList<PointCloudOctreeNode*> PointCloudOctreeNode::getAllChildLeafs(void)
 {
-    QList<Node*> result;
+    QList<PointCloudOctreeNode*> result;
 
     if(isLeaf())
     {
@@ -584,7 +584,7 @@ QList<Node*> Node::getAllChildLeafs(void)
         return result;
     }
 
-    foreach(Node* const currentNode, children)
+    foreach(PointCloudOctreeNode* const currentNode, children)
     {
         result << currentNode->getAllChildLeafs();
     }
@@ -592,9 +592,9 @@ QList<Node*> Node::getAllChildLeafs(void)
     return result;
 }
 
-const QList<const Node*> Node::getAllChildLeafs(void) const
+const QList<const PointCloudOctreeNode*> PointCloudOctreeNode::getAllChildLeafs(void) const
 {
-    QList<const Node*> result;
+    QList<const PointCloudOctreeNode*> result;
 
     if(isLeaf())
     {
@@ -602,7 +602,7 @@ const QList<const Node*> Node::getAllChildLeafs(void) const
         return result;
     }
 
-    foreach(const Node* const currentNode, children)
+    foreach(const PointCloudOctreeNode* const currentNode, children)
     {
         result << currentNode->getAllChildLeafs();
     }
@@ -611,7 +611,7 @@ const QList<const Node*> Node::getAllChildLeafs(void) const
 }
 
 /* Returns this Node's octants' extremes, in the same order as the octants
-QList<QVector3D> Node::corners(void) const
+QList<QVector3D> PointCloudOctreeNode::corners(void) const
 {
     // TODO: precalculate this on construction
     QList<QVector3D> corners;
@@ -628,19 +628,19 @@ QList<QVector3D> Node::corners(void) const
     return corners;
 }*/
 
-QVector3D Node::size() const
+QVector3D PointCloudOctreeNode::size() const
 {
     return max - min;
 }
 
 // Returns this Node's center
-inline QVector3D Node::center(void) const
+inline QVector3D PointCloudOctreeNode::center(void) const
 {
     return (min + max) * 0.5f;
 }
 
 /*
-bool Node::deletePoint(LidarPoint* const lidarPoint)
+bool PointCloudOctreeNode::deletePoint(LidarPoint* const lidarPoint)
 {
     for(int i=0;i<pointIndices.size();i++)
     {
@@ -654,7 +654,7 @@ bool Node::deletePoint(LidarPoint* const lidarPoint)
 }*/
 
 // delete the point at this position
-bool Node::deletePoint(const LidarPoint &lidarPoint)
+bool PointCloudOctreeNode::deletePoint(const LidarPoint &lidarPoint)
 {
     for(int i=0;i<pointIndices.size();i++)
     {
@@ -669,7 +669,7 @@ bool Node::deletePoint(const LidarPoint &lidarPoint)
     return false;
 }
 
-/*LidarPoint* Node::getLidarPointFromIndex(const quint32 index)
+/*LidarPoint* PointCloudOctreeNode::getLidarPointFromIndex(const quint32 index)
 {
     return &mTree->mData[index];
 }*/

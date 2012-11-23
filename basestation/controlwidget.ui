@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>231</width>
-    <height>658</height>
+    <height>588</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -1073,7 +1073,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>-60.000000000000000</double>
+            <double>-20.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1105,7 +1105,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>-40.000000000000000</double>
+            <double>-20.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1132,7 +1132,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>20.000000000000000</double>
+            <double>40.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1148,7 +1148,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>25.000000000000000</double>
+            <double>15.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1164,7 +1164,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>20.000000000000000</double>
+            <double>40.000000000000000</double>
            </property>
           </widget>
          </item>

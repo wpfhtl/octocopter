@@ -1,33 +1,21 @@
-extern "C"
-{
-void cudaInit(int argc, char **argv);
-
-void allocateArray(void **devPtr, int size);
-void freeArray(void *devPtr);
-
-//void threadSync();
 
 void copyArrayFromDevice(void* host, const void* device, struct cudaGraphicsResource **cuda_vbo_resource, int size);
 void copyArrayToDevice(void* device, const void* host, int offset, int size);
-void registerGLBufferObject(unsigned int vbo, struct cudaGraphicsResource **cuda_vbo_resource);
-void unregisterGLBufferObject(struct cudaGraphicsResource *cuda_vbo_resource);
 void *mapGLBufferObject(struct cudaGraphicsResource **cuda_vbo_resource);
-void unmapGLBufferObject(struct cudaGraphicsResource *cuda_vbo_resource);
 
-
-void setParameters(SimParams *hostParams);
+void setParameters(CollisionParameters *hostParams);
 
 void integrateSystem(float *pos,
                      float *vel,
                      float deltaTime,
                      unsigned int numParticles);
 
-void calcHash(unsigned int*  gridParticleHash,
+void computeMappingFromGridCellToParticle(unsigned int*  gridParticleHash,
               unsigned int*  gridParticleIndex,
               float* pos, 
               int    numParticles);
 
-void reorderDataAndFindCellStart(unsigned int*  cellStart,
+void sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(unsigned int*  cellStart,
                                                              unsigned int*  cellEnd,
 							     float* sortedPos,
 							     float* sortedVel,
@@ -48,4 +36,3 @@ void collide(float* newVel,
              unsigned int   numCells);
 
 void sortParticles(unsigned int *dGridParticleHash, unsigned int *dGridParticleIndex, unsigned int numParticles);
-}

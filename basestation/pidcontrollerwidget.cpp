@@ -96,10 +96,22 @@ void PidControllerWidget::setControllers(const FlightControllerValues* const fcv
 
     connect(ui->mTableControllerValues, SIGNAL(cellChanged(int,int)), this, SLOT(slotCellChanged(int,int)));
 
-    ui->mTableControllerValues->resizeColumnsToContents();
+//    ui->mTableControllerValues->resizeColumnsToContents();
     ui->mTableControllerValues->setColumnWidth(0, 35); // sepcial width for weights
     ui->mTableControllerValues->setColumnWidth(1, 35); // sepcial width for weights
     ui->mTableControllerValues->setColumnWidth(2, 35); // sepcial width for weights
+    ui->mTableControllerValues->setColumnWidth(3, 35);
+    ui->mTableControllerValues->setColumnWidth(4, 35);
+    ui->mTableControllerValues->setColumnWidth(5, 35);
+    ui->mTableControllerValues->setColumnWidth(6, 35);
+    ui->mTableControllerValues->setColumnWidth(7, 35);
+    ui->mTableControllerValues->setColumnWidth(8, 35);
+    ui->mTableControllerValues->setColumnWidth(9, 35);
+    ui->mTableControllerValues->setColumnWidth(10, 35);
+    ui->mTableControllerValues->setColumnWidth(11, 35);
+    ui->mTableControllerValues->setColumnWidth(12, 35);
+    ui->mTableControllerValues->setColumnWidth(13, 35);
+
 //    ui->mTableControllerValues->resizeRowsToContents();
 
     slotUpdateValues();
@@ -131,11 +143,11 @@ void PidControllerWidget::slotUpdateValues()
         ui->mTableControllerValues->item(row, 6)->setText(QString::number(i.value()->getError(), 'f', 2));
         ui->mTableControllerValues->item(row, 7)->setText(QString::number(i.value()->getErrorPrevious(), 'f', 2));
         ui->mTableControllerValues->item(row, 8)->setText(QString::number(i.value()->getDerivative(), 'f', 2));
-        ui->mTableControllerValues->item(row, 9)->setText(QString::number(i.value()->getIntegral(), 'f', 2));
+        ui->mTableControllerValues->item(row, 9)->setText(QString::number(i.value()->getIntegral(), 'f', 1));
 
-        ui->mTableControllerValues->item(row, 10)->setText(QString::number(i.value()->getOutputP(), 'f', 2));
-        ui->mTableControllerValues->item(row, 11)->setText(QString::number(i.value()->getOutputI(), 'f', 2));
-        ui->mTableControllerValues->item(row, 12)->setText(QString::number(i.value()->getOutputD(), 'f', 2));
+        ui->mTableControllerValues->item(row, 10)->setText(QString::number(i.value()->getOutputP(), 'f', 1));
+        ui->mTableControllerValues->item(row, 11)->setText(QString::number(i.value()->getOutputI(), 'f', 1));
+        ui->mTableControllerValues->item(row, 12)->setText(QString::number(i.value()->getOutputD(), 'f', 1));
         ui->mTableControllerValues->item(row, 13)->setText(QString::number(i.value()->getLastOutput(), 'f', 2));
         row++;
     }

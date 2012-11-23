@@ -17,11 +17,11 @@ SET(SRC_FILES
     camerawidget
     waypointlist
     flightplannerinterface
-    flightplannerbasic
-    flightplannercuda
+    #flightplannerbasic
+    #flightplannercuda
     flightplannerparticles
-    flightplannerphysics
-    flightplannerphysicsdialog
+    #flightplannerphysics
+    #flightplannerphysicsdialog
     diffcorrfetcher
     model
     controlwidget
@@ -42,8 +42,6 @@ SET(SRC_FILES
     ../common/lidarpoint
     ../common/waypoint
     ../common/gnsstime
-    ../common/octree
-    ../common/node
     ../common/pose
     ../common/common
     ../common/plotwidget
@@ -51,10 +49,19 @@ SET(SRC_FILES
     ../common/wirelessdevice
     ../common/vehiclestatus
     particlesystem
-    particlesystem_cuda.cu
+    particlesystem.cu
     particlerenderer
     #particleskernel.cu
-    computefreecolumns.cu
+    #computefreecolumns.cu
+
+    pointcloud
+    pointcloudoctree
+    pointcloudoctreenode
+    pointcloudcuda.cpp
+    pointcloudcuda.cu
+
+    cuda.cpp
+
 )
 
 SET(TEST_SRC_FILES
@@ -63,6 +70,19 @@ SET(TEST_SRC_FILES
 )
 
 SET(INC_FILES
+    cuda.h
+    pointcloud.h
+    pointcloudcuda.cuh
+    pointcloudcuda.h
+    pointcloudcuda.cuh
+    pointcloudoctree.h
+    pointcloudoctreenode.h
+
+    particlesystem.h
+    particlesystemcuda.cuh
+    particlerenderer.h
+    particleskernel.cuh
+
     basestation.h
     audioplayer.h
     glwidget.h
@@ -73,11 +93,11 @@ SET(INC_FILES
     camerawidget.h
     waypointlist.h
     flightplannerinterface.h
-    flightplannerbasic.h
-    flightplannercuda.h
-    flightplannerparticles.h
-    flightplannerphysics.h
-    flightplannerphysicsdialog.h
+    #flightplannerbasic.h
+    #flightplannercuda.h
+    #flightplannerparticles.h
+    #flightplannerphysics.h
+    #flightplannerphysicsdialog.h
     diffcorrfetcher.h
     model.h
     controlwidget.h
@@ -98,18 +118,12 @@ SET(INC_FILES
     ../common/lidarpoint.h
     ../common/waypoint.h
     ../common/gnsstime.h
-    ../common/octree.h
-    ../common/node.h
     ../common/pose.h
     ../common/common.h
     ../common/plotwidget.h
     ../common/gnssstatus.h
     ../common/wirelessdevice.h
     ../common/vehiclestatus.h
-    particlesystem.h
-    particlesystem_cuda.cuh
-    particlerenderer.h
-    particleskernel.cuh
 )
 
 SET(UI_FILES
@@ -182,7 +196,8 @@ SET(LIBRARIES
     qserialdeviced
     assimp)
 CUDA_ADD_EXECUTABLE(basestation ${SRC_FILES} main.cpp ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-CUDA_ADD_EXECUTABLE(teststation ${SRC_FILES} ${TEST_SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-SET_TARGET_PROPERTIES(basestation teststation PROPERTIES AUTOMOC TRUE)
+#CUDA_ADD_EXECUTABLE(teststation ${SRC_FILES} ${TEST_SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
+SET_TARGET_PROPERTIES(basestation PROPERTIES AUTOMOC TRUE)
+#SET_TARGET_PROPERTIES(teststation PROPERTIES AUTOMOC TRUE)
 TARGET_LINK_LIBRARIES(basestation ${LIBRARIES})
-TARGET_LINK_LIBRARIES(teststation ${LIBRARIES})
+#TARGET_LINK_LIBRARIES(teststation ${LIBRARIES})

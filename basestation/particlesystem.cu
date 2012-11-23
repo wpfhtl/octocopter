@@ -2,97 +2,18 @@
 #undef _GLIBCXX_ATOMIC_BUILTINS
 #undef _GLIBCXX_USE_INT128
 
-// This file contains C wrappers around the some of the CUDA API and the
-// kernel functions so that they can be called from "particleSystem.cpp"
-
-#include <cutil_inline.h>    // includes cuda.h and cuda_runtime_api.h
-#include <cstdlib>
-#include <cstdio>
-#include <string.h>
-
-//#include <GL/freeglut.h>
-
-#include <cuda_gl_interop.h>
-
 #include "thrust/device_ptr.h"
 #include "thrust/for_each.h"
 #include "thrust/iterator/zip_iterator.h"
 #include "thrust/sort.h"
 
 #include "particleskernel.cu"
+#include "cuda.h"
 
-extern "C"
-{
-void allocateArray(void **devPtr, size_t size)
-{
-    cudaMalloc(devPtr, size);
-}
-
-void freeArray(void *devPtr)
-{
-    cudaFree(devPtr);
-}
-
-//void threadSync()
-//{
-//    cutilDeviceSynchronize();
-//}
-
-void copyArrayToDevice(void* device, const void* host, int offset, int size)
-{
-    cudaMemcpy((char *) device + offset, host, size, cudaMemcpyHostToDevice);
-}
-
-void registerGLBufferObject(uint vbo, struct cudaGraphicsResource **cuda_vbo_resource)
-{
-    cudaGraphicsGLRegisterBuffer(cuda_vbo_resource, vbo, cudaGraphicsMapFlagsNone);
-}
-
-void unregisterGLBufferObject(struct cudaGraphicsResource *cuda_vbo_resource)
-{
-    cudaGraphicsUnregisterResource(cuda_vbo_resource);
-}
-
-void *mapGLBufferObject(struct cudaGraphicsResource **cuda_vbo_resource)
-{
-    void *ptr;
-    cudaGraphicsMapResources(1, cuda_vbo_resource, 0);
-    size_t num_bytes;
-    cudaGraphicsResourceGetMappedPointer((void **)&ptr, &num_bytes, *cuda_vbo_resource);
-    return ptr;
-}
-
-void unmapGLBufferObject(struct cudaGraphicsResource *cuda_vbo_resource)
-{
-    cudaGraphicsUnmapResources(1, &cuda_vbo_resource, 0);
-}
-
-void copyArrayFromDevice(void* host, const void* device, struct cudaGraphicsResource **cuda_vbo_resource, int size)
-{
-    if (cuda_vbo_resource) device = mapGLBufferObject(cuda_vbo_resource);
-
-    cudaMemcpy(host, device, size, cudaMemcpyDeviceToHost);
-
-    if (cuda_vbo_resource) unmapGLBufferObject(*cuda_vbo_resource);
-}
-
-void setParameters(SimParams *hostParams)
+void setParameters(CollisionParameters *hostParams)
 {
     // copy parameters to constant memory
-    cudaMemcpyToSymbol(params, hostParams, sizeof(SimParams));
-}
-
-//Round a / b to nearest higher integer value
-uint iDivUp(uint a, uint b)
-{
-    return (a % b != 0) ? (a / b + 1) : (a / b);
-}
-
-// compute grid and thread block size for a given number of elements
-void computeGridSize(uint n, uint blockSize, uint &numBlocks, uint &numThreads)
-{
-    numThreads = min(blockSize, n);
-    numBlocks = iDivUp(n, numThreads);
+    cudaMemcpyToSymbol(params, hostParams, sizeof(CollisionParameters));
 }
 
 void integrateSystem(float *pos, float *vel, float deltaTime, uint numParticles)
@@ -106,7 +27,8 @@ void integrateSystem(float *pos, float *vel, float deltaTime, uint numParticles)
                 integrate_functor(deltaTime));
 }
 
-void calcHash(uint*  gridParticleHash,
+// Calculates a hash for each particle. The hash value is ("based on") its cell id.
+void computeMappingFromGridCellToParticle(uint*  gridParticleHash,
               uint*  gridParticleIndex,
               float* pos,
               int    numParticles)
@@ -115,16 +37,16 @@ void calcHash(uint*  gridParticleHash,
     computeGridSize(numParticles, 256, numBlocks, numThreads);
 
     // execute the kernel
-    calcHashD<<< numBlocks, numThreads >>>(gridParticleHash,
+    computeMappingFromGridCellToParticleD<<< numBlocks, numThreads >>>(gridParticleHash,
                                            gridParticleIndex,
                                            (float4 *) pos,
                                            numParticles);
 
     // check if kernel invocation generated an error
-    cutilCheckMsg("Kernel execution failed");
+    checkCudaSuccess("Kernel execution failed");
 }
 
-void reorderDataAndFindCellStart(uint*  cellStart,
+void sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(uint*  cellStart,
                                  uint*  cellEnd,
                                  float* sortedPos,
                                  float* sortedVel,
@@ -149,7 +71,7 @@ void reorderDataAndFindCellStart(uint*  cellStart,
     // Number of bytes in shared memory that is allocated for each (thread)block.
     uint smemSize = sizeof(uint)*(numThreads+1);
 
-    reorderDataAndFindCellStartD<<< numBlocks, numThreads, smemSize>>>(
+    sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArraysD<<< numBlocks, numThreads, smemSize>>>(
                                                                          cellStart,
                                                                          cellEnd,
                                                                          (float4 *) sortedPos,
@@ -159,7 +81,8 @@ void reorderDataAndFindCellStart(uint*  cellStart,
                                                                          (float4 *) oldPos,
                                                                          (float4 *) oldVel,
                                                                          numParticles);
-    cutilCheckMsg("Kernel execution failed: reorderDataAndFindCellStartD");
+
+    checkCudaSuccess("Kernel execution failed: reorderDataAndFindCellStartD");
 
 #if USE_TEX
     cudaUnbindTexture(oldPosTex);
@@ -197,7 +120,7 @@ void collide(float* newVel,
                                           numParticles);
 
     // check if kernel invocation generated an error
-    cutilCheckMsg("Kernel execution failed");
+    checkCudaSuccess("Kernel execution failed");
 
 #if USE_TEX
     cudaUnbindTexture(oldPosTex);
@@ -207,12 +130,9 @@ void collide(float* newVel,
 #endif
 }
 
-
 void sortParticles(uint *dGridParticleHash, uint *dGridParticleIndex, uint numParticles)
 {
     thrust::sort_by_key(thrust::device_ptr<uint>(dGridParticleHash),                // KeysBeginning
                         thrust::device_ptr<uint>(dGridParticleHash + numParticles), // KeysEnd
                         thrust::device_ptr<uint>(dGridParticleIndex));              // ValuesBeginning
 }
-
-}   // extern "C"

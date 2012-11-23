@@ -14,7 +14,7 @@
 #include "flightcontrollervalues.h"
 #include "shaderprogram.h"
 
-class Octree;
+class PointCloud;
 
 class FlightPlannerInterface;
 
@@ -23,7 +23,8 @@ class GlWidget : public QGLWidget
 {
     Q_OBJECT
 
-    QList<Octree*> mOctrees;
+    QList<PointCloud*> mPointCloudsToRender;
+//    QMap<quint32,quint32> mRenderPointCloudVbos;
 
     QVector3D mCamLookAtOffset;
 
@@ -62,7 +63,7 @@ class GlWidget : public QGLWidget
     quint32 mFrameCounter;
 
     ShaderProgram *mShaderProgramDefault;
-    ShaderProgram *mShaderProgramParticles; // for testing billboarding of the octree
+    ShaderProgram *mShaderProgramParticles; // for testing billboarding of the PointCloud
 
     // Wheel Zooming. For smooth zooming, mZoomFactorCurrent converges toward mZoomFactorTarget
     GLdouble    mZoomFactorTarget, mZoomFactorCurrent;
@@ -94,10 +95,10 @@ public slots:
     // external redraw in a while, we can save CPU cycles.
     void slotUpdateView();
 
-    // GlWidget renders points from all known octrees. These methods (de)register octrees for rendering.
+    // GlWidget renders points from all known PointClouds. These methods (de)register PointClouds for rendering.
     // Ownership remains with the caller, meaning they MUST be deregistered before deletion
-    void slotOctreeRegister(Octree* o);
-    void slotOctreeUnregister(Octree* o);
+    void slotPointCloudRegister(PointCloud* p);
+    void slotPointCloudUnregister(PointCloud* p);
 
     // LogPlayer and RoverConnection set values used/computed by the flightcontroller.
     // These shall be visualized here in GlWidget for debugging.

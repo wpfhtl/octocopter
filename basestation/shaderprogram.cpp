@@ -3,37 +3,36 @@
 
 ShaderProgram::ShaderProgram(QObject *parent, const QString& shaderVertex, const QString& shaderGeometry, const QString& shaderFragment) : QGLShaderProgram(parent)
 {
-    qDebug() << "ShaderProgram::ShaderProgram(): creating new shader program:";
     QDir shaderPath = QDir::current();
     shaderPath.cdUp(); // because we're in the build/ subdir
 
     if(!shaderVertex.isEmpty())
     {
-    if(addShaderFromSourceFile(QGLShader::Vertex, shaderPath.absolutePath() + "/" + shaderVertex))
-        qDebug() << "ShaderProgram::ShaderProgram(): compiling vertex shader" << shaderVertex << "succeeded, log:" << log();
-    else
+    if(!addShaderFromSourceFile(QGLShader::Vertex, shaderPath.absolutePath() + "/" + shaderVertex))
         qDebug() << "ShaderProgram::ShaderProgram(): compiling vertex shader" << shaderVertex << "failed, log:" << log();
+//    else
+//        qDebug() << "ShaderProgram::ShaderProgram(): compiling vertex shader" << shaderVertex << "succeeded, log:" << log();
     }
 
     if(!shaderGeometry.isEmpty())
     {
-        if(addShaderFromSourceFile(QGLShader::Geometry, shaderPath.absolutePath() + "/" + shaderGeometry))
-            qDebug() << "ShaderProgram::ShaderProgram(): compiling geometry shader" << shaderGeometry << "succeeded, log:" << log();
-        else
+        if(!addShaderFromSourceFile(QGLShader::Geometry, shaderPath.absolutePath() + "/" + shaderGeometry))
             qDebug() << "ShaderProgram::ShaderProgram(): compiling geometry shader" << shaderGeometry << "failed, log:" << log();
+//        else
+//            qDebug() << "ShaderProgram::ShaderProgram(): compiling geometry shader" << shaderGeometry << "succeeded, log:" << log();
     }
 
     if(!shaderFragment.isEmpty())
     {
-        if(addShaderFromSourceFile(QGLShader::Fragment, shaderPath.absolutePath() + "/" + shaderFragment))
-            qDebug() << "ShaderProgram::ShaderProgram(): compiling fragment shader" << shaderFragment << "succeeded, log:" << log();
-        else
+        if(!addShaderFromSourceFile(QGLShader::Fragment, shaderPath.absolutePath() + "/" + shaderFragment))
             qDebug() << "ShaderProgram::ShaderProgram(): compiling fragment shader" << shaderFragment << "failed, log:" << log();
+//        else
+//            qDebug() << "ShaderProgram::ShaderProgram(): compiling fragment shader" << shaderFragment << "succeeded, log:" << log();
     }
 
     if(link())
     {
-        qDebug() << "ShaderProgram::ShaderProgram(): linking shader program with id" << programId() << "succeeded, log:" << log();
+//        qDebug() << "ShaderProgram::ShaderProgram(): linking shader program with id" << programId() << "succeeded, log:" << log();
         GLint numberOfActiveAttributes, numberOfAttachedShaders, numberOfActiveUniforms, numberOfGeometryVerticesOut = 0;
         glGetProgramiv(programId(), GL_ATTACHED_SHADERS, &numberOfAttachedShaders);
         glGetProgramiv(programId(), GL_ACTIVE_ATTRIBUTES, &numberOfActiveAttributes);
@@ -42,7 +41,7 @@ ShaderProgram::ShaderProgram(QObject *parent, const QString& shaderVertex, const
         if(!shaderGeometry.isEmpty())
             glGetProgramiv(programId(), GL_GEOMETRY_VERTICES_OUT, &numberOfGeometryVerticesOut);
 
-        qDebug() << "ShaderProgram::ShaderProgram(): shader program has" << numberOfAttachedShaders<< "shaders and" << numberOfGeometryVerticesOut << "vertices geometry shader output.";
+//        qDebug() << "ShaderProgram::ShaderProgram(): shader program has" << numberOfAttachedShaders<< "shaders and" << numberOfGeometryVerticesOut << "vertices geometry shader output.";
 
         QStringList activeAttributes;
         for(int i=0; i < numberOfActiveAttributes; i++)
@@ -59,7 +58,7 @@ ShaderProgram::ShaderProgram(QObject *parent, const QString& shaderVertex, const
             activeAttributes << attributeDescription;
         }
 
-        qDebug() << "ShaderProgram::ShaderProgram(): shader program has" << numberOfActiveAttributes << "active attributes:" << activeAttributes.join(", ");
+//        qDebug() << "ShaderProgram::ShaderProgram(): shader program has" << numberOfActiveAttributes << "active attributes:" << activeAttributes.join(", ");
 
         QStringList activeUniforms;
         for(int i=0; i < numberOfActiveUniforms; i++)
@@ -76,7 +75,7 @@ ShaderProgram::ShaderProgram(QObject *parent, const QString& shaderVertex, const
             activeUniforms << uniformDescription;
         }
 
-        qDebug() << "ShaderProgram::ShaderProgram(): shader program has" << numberOfActiveUniforms << "active uniforms:" << activeUniforms.join(", ");
+//        qDebug() << "ShaderProgram::ShaderProgram(): shader program has" << numberOfActiveUniforms << "active uniforms:" << activeUniforms.join(", ");
 
         // Try to bind the program's uniform block "GlobalValues" to a constant point, defined in
         // blockBindingPoint. This is needed to conect the program's UB to a uniform-buffer-object,

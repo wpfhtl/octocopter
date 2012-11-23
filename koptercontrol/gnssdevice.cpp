@@ -381,20 +381,52 @@ void GnssDevice::slotSetPoseFrequency(bool highSpeed)
     qDebug() << "GnssDevice::slotSetPoseFrequency(): setting new interval, highSpeed is" << highSpeed;
 
     /*
-      Different intervals and the consequences:
+      Different IntPVAAGeod intervals and the consequences:
 
        - msec20 means 50 poses per second, like this: IEEEEIEEEEIEEEEIEEEEI...
+         There's an integrated pose every 100 msec, in between are 4 INS only poses.
 
-       - msec40 means 40 poses per second, like this:
+            399969.500,1693,Loosely-integrated solution (INS+GNSS)
+            399969.520,1693,Loosely-integrated solution (INS only)
+            399969.540,1693,Loosely-integrated solution (INS only)
+            399969.560,1693,Loosely-integrated solution (INS only)
+            399969.580,1693,Loosely-integrated solution (INS only)
+            399969.600,1693,Loosely-integrated solution (INS+GNSS)
+            399969.620,1693,Loosely-integrated solution (INS only)
+            399969.640,1693,Loosely-integrated solution (INS only)
+            399969.660,1693,Loosely-integrated solution (INS only)
+            399969.680,1693,Loosely-integrated solution (INS only)
+            399969.700,1693,Loosely-integrated solution (INS+GNSS)
+
+       - msec40 means 25 poses per second, like this: IEEEEIEEEEIEEEEIEEEEI...
+         There's an integrated pose every 200 msec, in between are 4 INS only poses.
+
+            306591.000,1704,Loosely-integrated solution (INS+GNSS)
+            306591.040,1704,Loosely-integrated solution (INS only)
+            306591.080,1704,Loosely-integrated solution (INS only)
+            306591.120,1704,Loosely-integrated solution (INS only)
+            306591.160,1704,Loosely-integrated solution (INS only)
+            306591.200,1704,Loosely-integrated solution (INS+GNSS)
+            306591.240,1704,Loosely-integrated solution (INS only)
+            306591.280,1704,Loosely-integrated solution (INS only)
+            306591.320,1704,Loosely-integrated solution (INS only)
+            306591.360,1704,Loosely-integrated solution (INS only)
+            306591.400,1704,Loosely-integrated solution (INS+GNSS)
 
        - msec50 means 20 poses per second, like this: IEIEIEIEIEIEIEIEIEIEI...
+         There's an integrated pose every 100 msec, in between is 1 INS only pose.
+
+            219478.000,1704,Loosely-integrated solution (INS+GNSS)
+            219478.050,1704,Loosely-integrated solution (INS only)
+            219478.100,1704,Loosely-integrated solution (INS+GNSS)
+            219478.150,1704,Loosely-integrated solution (INS only)
 
       I is an integrated pose (GNSS and IMU)
       E is an extrapolated pose (GNSS from the past plus IMU readings)
 
       According to the sequences above, msec20 gives us 10 integrated packets per
       second, which is ideal for forwarding only those to the flightcontroller, which
-      will then have 10Hz input (the kopter cannot deal with 50Hz controller-input)
+      will then have 10Hz input (the kopter cannot deal with 50Hz controller-input??!)
 
       As for the msec50 option, the result is the same: 10 integrated packets per second.
       If that is enough for sensorfuser (to be decided), then lets use msec50!

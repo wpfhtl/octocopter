@@ -23,6 +23,7 @@ signals:
 
 public:
     WirelessDevice(const QString& interfaceName);
+    ~WirelessDevice();
 
     qint8 getRssi();
 };

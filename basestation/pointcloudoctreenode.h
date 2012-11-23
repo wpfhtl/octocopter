@@ -1,5 +1,5 @@
-#ifndef NODE_H
-#define NODE_H
+#ifndef POINTCLOUDOCTREENODE_H
+#define POINTCLOUDOCTREENODE_H
 
 #include <QVector3D>
 //#include <QGLWidget>
@@ -8,13 +8,13 @@
 
 #include <stdint.h> // for uint32_t
 
-class Octree;
+class PointCloudOctree;
 
-class Node
+class PointCloudOctreeNode
 {
 public:
 
-    Octree* mTree;
+    PointCloudOctree* mTree;
 
     // For leaf-nodes, a list of its data. Must be 0 for non-leaf-nodes
     //QList<LidarPoint*> data;
@@ -24,24 +24,24 @@ public:
     QVector<quint32> pointIndices;
 
     // For non-leaf-nodes, a List of octants/children.
-    QList<Node*> children;
+    QList<PointCloudOctreeNode*> children;
 
     // A Pointer to its parent, or 0 for the root-node.
-    Node* parent;
+    PointCloudOctreeNode* parent;
 
 //    LidarPoint* getLidarPointFromIndex(const quint32 index);
 
     // This node's AABB
     QVector3D min, max;
 
-    Node(Octree* tree, Node* parent, const QVector3D &min, const QVector3D &max);
-    ~Node();
+    PointCloudOctreeNode(PointCloudOctree* tree, PointCloudOctreeNode* parent, const QVector3D &min, const QVector3D &max);
+    ~PointCloudOctreeNode();
 
-    Node& operator=(const Node &other);
-    bool operator==(const Node &other);
+    PointCloudOctreeNode& operator=(const PointCloudOctreeNode &other);
+    bool operator==(const PointCloudOctreeNode &other);
 
-    QList<Node*> getAllChildLeafs(void);
-    const QList<const Node*> getAllChildLeafs(void) const;
+    QList<PointCloudOctreeNode*> getAllChildLeafs(void);
+    const QList<const PointCloudOctreeNode*> getAllChildLeafs(void) const;
 
     bool overlapsSphere(const QVector3D &point, const double radius) const;
     bool includesPoint(const QVector3D &point) const;
@@ -50,7 +50,7 @@ public:
     // On successful insertion, returns a pointer to the node which swallowed the point.
     // If the point is discarded, 0 is returned instead.
     // Warning: You pass ownership to this Node, and the point might get deleted if its found to be of low value.
-    Node* insertPoint(LidarPoint* lidarPoint);
+    PointCloudOctreeNode* insertPoint(LidarPoint* lidarPoint);
     bool isLeaf(void) const;
 
     // If this method decides that this point is not worth its memory, it will delete the point and set @lidarPoint to 0
@@ -91,7 +91,7 @@ public:
     void partition();
 
     // Returns the correct octant for a position within this Node, 0 else.
-    Node* getLeaf(const QVector3D &point);
+    PointCloudOctreeNode* getLeaf(const QVector3D &point);
 
     // Returns this Node's center
     QVector3D center(void) const;

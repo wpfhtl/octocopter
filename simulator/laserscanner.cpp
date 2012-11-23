@@ -27,9 +27,6 @@ LaserScanner::LaserScanner(
 
     mTimerScan = 0;
 
-    // We need to register what we want to emit.
-    qRegisterMetaType<QList<CoordinateGps> >("QList<CoordinateGps>");
-
     // We'll need a unique name, so why not use our own address...
     char address[50];
     sprintf(address, "%p", (void*)this);
@@ -253,10 +250,7 @@ void LaserScanner::slotDoScan()
 
         mScannerPositionQt = QVector3D(mScannerPosition.x, mScannerPosition.y, mScannerPosition.z);
 
-        emit newLidarPoints(
-                    &mRegisteredPoints,
-                    &mScannerPositionQt
-                    );
+        emit newLidarPoints(mRegisteredPoints, mScannerPositionQt);
     }
 
     // Set mCurrentScanAngle for the next scan to mAngleStart

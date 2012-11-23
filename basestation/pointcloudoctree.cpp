@@ -1,22 +1,17 @@
 #include <GL/glew.h>
 #include <GL/gl.h>
 
-#include "octree.h"
+#include "pointcloudoctree.h"
 
-
-Octree::Octree(const QVector3D &min, const QVector3D &max, quint32 maxItemsPerLeaf, const quint32 expectedMaximumElementCount) :
+PointCloudOctree::PointCloudOctree(const QVector3D &min, const QVector3D &max, quint32 maxItemsPerLeaf, const quint32 expectedMaximumElementCount) :
     mMaxItemsPerLeaf(maxItemsPerLeaf),
     mExpectedMaximumElementCount(expectedMaximumElementCount),
     mElementsStoredInAllVbos(0),
-//    mNumberOfItems(0),
     mNumberOfNodes(0),
     mLastInsertionNode(0),
     mMinimumPointDistance(-1.0f) // disable check by default
-//    mMri1(0),
-//    mMri2(0)
 {
-    mRootNode = new Node(this, 0, min, max);
-    //mRootNode->mTree = this;
+    mRootNode = new PointCloudOctreeNode(this, 0, min, max);
 
     mPointColor = QColor(255,255,255,64);
 
@@ -28,7 +23,7 @@ Octree::Octree(const QVector3D &min, const QVector3D &max, quint32 maxItemsPerLe
     mData->reserve(mExpectedMaximumElementCount);
 }
 
-Octree::~Octree()
+PointCloudOctree::~PointCloudOctree()
 {
     delete mRootNode;
 
@@ -36,22 +31,19 @@ Octree::~Octree()
     delete mData;
 }
 
-void Octree::setMinimumPointDistance(const float &distance)
+void PointCloudOctree::setMinimumPointDistance(const float &distance)
 {
     mMinimumPointDistance = distance;
 }
 
-void Octree::slotReset()
+void PointCloudOctree::slotReset()
 {
     mRootNode->clearPoints();
-//    mNumberOfItems = 0;
     mNumberOfNodes = 0;
-//    mMri1 = 0;
-//    mMri2 = 0;
     mLastInsertionNode = 0;
 }
 
-Node* Octree::insertPoint(LidarPoint* const point)
+PointCloudOctreeNode* PointCloudOctree::insertPoint(LidarPoint* const point)
 {
     while(!mRootNode->includesPoint(point->position))
     {
@@ -212,29 +204,21 @@ Node* Octree::insertPoint(LidarPoint* const point)
         }
 
         // Now we have a new root-node. Insert it and reparent the old one.
-        qDebug() << "Octree::insertPoint(): mRootNode goes from" << mRootNode->min << "to" << mRootNode->max << "supernode swallows us at position" << positionOfOldRootInNewRoot;
-        Node* const oldRootNode = mRootNode;
-        mRootNode = new Node(this, 0, newMin, newMax);
+        qDebug() << "PointCloudOctree::insertPoint(): mRootNode goes from" << mRootNode->min << "to" << mRootNode->max << "supernode swallows us at position" << positionOfOldRootInNewRoot;
+        PointCloudOctreeNode* const oldRootNode = mRootNode;
+        mRootNode = new PointCloudOctreeNode(this, 0, newMin, newMax);
         mRootNode->partition();
         delete mRootNode->children.at(positionOfOldRootInNewRoot);
         mRootNode->children[positionOfOldRootInNewRoot] = oldRootNode;
         oldRootNode->parent = mRootNode;
     }
 
-//    if(mLastInsertionNode == 0)
-//        qDebug() << "uh, mLastInsertionNode is null!";
-//    else
-//        qDebug() << "uh, mLastInsertionNode is" << mLastInsertionNode;
-
     // Insert the LidarPoint into the right Node. First, try to insert into the mLastInsertion-Node. If
     // that doesn't work, go the old route of traversing down from the root-node.
     if(mLastInsertionNode == 0 || ! mLastInsertionNode->includesPoint(point->position))
     {
-//        qDebug() << "old cached node" << mLastInsertionNode << "is invalid, updating.";
-//        qDebug() << "inserting point" << point << "with position" << point->position << "into tree after updating.";
-
         // If the point does NOT get saved, 0 is returned. In that case, don't update the node-pointer.
-        Node* insertionNode = mRootNode->insertPoint(point);
+        PointCloudOctreeNode* insertionNode = mRootNode->insertPoint(point);
         if(insertionNode != 0) mLastInsertionNode = insertionNode;
     }
     else
@@ -248,17 +232,17 @@ Node* Octree::insertPoint(LidarPoint* const point)
     return mLastInsertionNode;
 }
 
-Node* Octree::root()
+PointCloudOctreeNode* PointCloudOctree::root()
 {
     return mRootNode;
 }
 
-const Node* Octree::root() const
+const PointCloudOctreeNode* PointCloudOctree::root() const
 {
     return mRootNode;
 }
 
-void Octree::sortPointList(const QVector3D &point, QList<const LidarPoint*>* list) const
+void PointCloudOctree::sortPointList(const QVector3D &point, QList<const LidarPoint*>* list) const
 {
     QMap<float, const LidarPoint*> distanceMap;
     for(int i=0;i<list->size();i++)
@@ -278,20 +262,20 @@ void Octree::sortPointList(const QVector3D &point, QList<const LidarPoint*>* lis
 
 // FindNeighborsWithinRadius is used very often, without actually using the nodes returned, just checking their number
 // Creating, passing and destroying QLists might not be the cheapest thing to do, so this could be more performant
-quint32 Octree::numberOfNeighborsWithinRadius(const QVector3D &point, const double radius) const
+quint32 PointCloudOctree::numberOfNeighborsWithinRadius(const QVector3D &point, const double radius) const
 {
     uint32_t numberOfPointsFound = 0;
-    Node* currentNode = mRootNode->getLeaf(point);
+    PointCloudOctreeNode* currentNode = mRootNode->getLeaf(point);
 
     // Go up the tree as long as our searchradius leaks from the node
     // If we reach the rootnode, use him.
     while(currentNode->parent && !currentNode->isSphereContained(point, radius))
         currentNode = currentNode->parent;
 
-    QList<Node*> nodeList = currentNode->getAllChildLeafs();
+    QList<PointCloudOctreeNode*> nodeList = currentNode->getAllChildLeafs();
     for(int i=0;i<nodeList.size();i++)
     {
-        Node* currentNode = nodeList.at(i);
+        PointCloudOctreeNode* currentNode = nodeList.at(i);
         if(currentNode->overlapsSphere(point, radius))
         {
             //neighbors << currentNode->findNeighborsWithinRadius(point, radius);
@@ -302,9 +286,9 @@ quint32 Octree::numberOfNeighborsWithinRadius(const QVector3D &point, const doub
     return numberOfPointsFound;
 }
 
-bool Octree::isNeighborWithinRadius(const QVector3D &point, const double radius) const
+bool PointCloudOctree::isNeighborWithinRadius(const QVector3D &point, const double radius) const
 {
-    Node* currentNode = mRootNode->getLeaf(point);
+    PointCloudOctreeNode* currentNode = mRootNode->getLeaf(point);
 
     // For performance reasons, check the same leaf first. This should work in 99% of cases.
     if(currentNode->neighborsWithinRadius(point, radius) > 0)
@@ -315,10 +299,10 @@ bool Octree::isNeighborWithinRadius(const QVector3D &point, const double radius)
     while(currentNode->parent && !currentNode->isSphereContained(point, radius))
         currentNode = currentNode->parent;
 
-    QList<Node*> nodeList = currentNode->getAllChildLeafs();
+    QList<PointCloudOctreeNode*> nodeList = currentNode->getAllChildLeafs();
     for(int i=0;i<nodeList.size();i++)
     {
-        Node* currentNode = nodeList.at(i);
+        PointCloudOctreeNode* currentNode = nodeList.at(i);
         if(currentNode->overlapsSphere(point, radius))
         {
             if(currentNode->numberOfNeighborsWithinRadius(point, radius) > 0)
@@ -330,17 +314,17 @@ bool Octree::isNeighborWithinRadius(const QVector3D &point, const double radius)
 }
 
 // Returns all neighbors of the given point within @radius
-QList<const LidarPoint*> Octree::findNeighborsWithinRadius(const QVector3D &point, const double radius) const
+QList<const LidarPoint*> PointCloudOctree::findNeighborsWithinRadius(const QVector3D &point, const double radius) const
 {
     QList<const LidarPoint*> neighbors;
-    Node* currentNode = mRootNode->getLeaf(point);
+    PointCloudOctreeNode* currentNode = mRootNode->getLeaf(point);
 
     // Go up the tree as long as our searchradius leaks from the node
     // If we reach the rootnode, use him.
     while(currentNode->parent && !currentNode->isSphereContained(point, radius))
         currentNode = currentNode->parent;
 
-    foreach(const Node* const n, currentNode->getAllChildLeafs())
+    foreach(const PointCloudOctreeNode* const n, currentNode->getAllChildLeafs())
     {
         if(n->overlapsSphere(point, radius))
             neighbors << n->findNeighborsWithinRadius(point, radius);
@@ -350,17 +334,17 @@ QList<const LidarPoint*> Octree::findNeighborsWithinRadius(const QVector3D &poin
 }
 
 // Returns AT LEAST the @count nearest neighbors of @point, sorted by ascending distance
-QList<const LidarPoint*> Octree::findNearestNeighbors(const QVector3D &point, const unsigned int count) const
+QList<const LidarPoint*> PointCloudOctree::findNearestNeighbors(const QVector3D &point, const unsigned int count) const
 {
     // Ask the leaf including this point for its neighbors
-    Node* containingNode = mRootNode->getLeaf(point);
+    PointCloudOctreeNode* containingNode = mRootNode->getLeaf(point);
     QList<const LidarPoint*> neighbors = containingNode->findNearestNeighbors(point, count);
 
     // sort the possibly empty list of neighbors
     sortPointList(point, &neighbors);
 
     // Keep a set of tested-leaf-ADDRESSES, so we don't test anyone twice.
-    QSet<Node*> leafsTested;
+    QSet<PointCloudOctreeNode*> leafsTested;
     leafsTested << containingNode;
 
     // As long as we don't have enough neighbors OR there might be better neighbors in parentnodes, ...
@@ -388,10 +372,10 @@ QList<const LidarPoint*> Octree::findNearestNeighbors(const QVector3D &point, co
 
         containingNode = containingNode->parent;
 
-        QList<Node*> childLeafs = containingNode->getAllChildLeafs();
+        QList<PointCloudOctreeNode*> childLeafs = containingNode->getAllChildLeafs();
         for(int i=0;i<childLeafs.size();i++)
         {
-            Node* ln = childLeafs.at(i);
+            PointCloudOctreeNode* ln = childLeafs.at(i);
             if(!leafsTested.contains(ln))
             {
                 // Test this leafnode if
@@ -439,23 +423,23 @@ QList<const LidarPoint*> Octree::findNearestNeighbors(const QVector3D &point, co
     return neighbors;
 }
 
-void Octree::pointInsertedByNode(const LidarPoint* lp)
+void PointCloudOctree::pointInsertedByNode(const LidarPoint* lp)
 {
     emit pointInserted(lp);
 }
 
-unsigned int Octree::getNumberOfItems(void) const
+unsigned int PointCloudOctree::getNumberOfItems(void) const
 {
     return mData->size();
     //return mNumberOfItems;
 }
 
-unsigned int Octree::getNumberOfNodes(void) const
+unsigned int PointCloudOctree::getNumberOfNodes(void) const
 {
     return mNumberOfNodes;
 }
 
-void Octree::updateVbo()
+void PointCloudOctree::updateVbo()
 {
     // Check whether this octree has more points stored than the VBO
     quint32 numberOfPointsToStoreInAllVbos = getNumberOfItems() - mElementsStoredInAllVbos;
@@ -513,12 +497,12 @@ void Octree::updateVbo()
 
             if(glGetError() == GL_NO_ERROR)
             {
-                qDebug() << "Octree::updateVbo(): Created new VBO" << vboNew << "containing" << vboNewByteSize << "bytes";
+                qDebug() << "PointCloudOctree::updateVbo(): Created new VBO" << vboNew << "containing" << vboNewByteSize << "bytes";
                 mVboIdsAndSizes.insert(vboNew, 0);
             }
             else
             {
-                qDebug() << "Octree::updateVbo(): Couldn't create VBO containing" << vboNewByteSize << "bytes!";
+                qDebug() << "PointCloudOctree::updateVbo(): Couldn't create VBO containing" << vboNewByteSize << "bytes!";
             }
 
             glBindBuffer(GL_ARRAY_BUFFER, 0);

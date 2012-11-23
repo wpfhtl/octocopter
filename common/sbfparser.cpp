@@ -82,7 +82,7 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offse
         else
         {
             mPacketErrorCount++;
-            qDebug() << "SbfParser::getNextValidPacketInfo(): packet at offset" << offsetToValidPacket << "has CRC error ("<< mPacketErrorCount <<"):" << block->Header.CRC << calculatedCrc << ", will start searching two bytes later";
+//            qDebug() << "SbfParser::getNextValidPacketInfo(): packet at offset" << offsetToValidPacket << "has CRC error ("<< mPacketErrorCount <<"):" << block->Header.CRC << calculatedCrc << ", will start searching two bytes later";
         }
     }
 
@@ -200,7 +200,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     // If there's garbage before the next valid packet, save it into sbf log and log a warning
     if(offsetToValidPacket != 0)
     {
-        qDebug() << "SbfParser::processNextValidPacket(): WARNING: offset to valid packet was" << offsetToValidPacket << "instead of 0, content:" << readable(sbfData.left(offsetToValidPacket));
+//        qDebug() << "SbfParser::processNextValidPacket(): WARNING: offset to valid packet was" << offsetToValidPacket << "instead of 0, content:" << readable(sbfData.left(offsetToValidPacket));
         // Log this data for later error analysis
         emit processedPacket(sbfData.left(offsetToValidPacket), -1);
         sbfData.remove(0, offsetToValidPacket);
@@ -577,7 +577,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         {
             // Emit the time of the scan. The Scanner sets the pulse at the END of a scan,
             // but our convention is to use times of a scans middle. Thus, decrement 12ms.
-            //qDebug() << "SbfParser::processNextValidPacket(): emitting scanFinished with a scanTimeGps of" << block->TOW - 12;
+//            qDebug() << "SbfParser::processNextValidPacket(): emitting scanFinished with a scanTimeGnss of" << block->TOW - 12;
             emit scanFinished(block->TOW - 12);
         }
         else

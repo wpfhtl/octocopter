@@ -296,113 +296,89 @@ Pose Pose::extrapolateLinear(const Pose &p1, const Pose &p2, const qint32 &timeI
     return p;
 }
 
-Pose Pose::interpolateLinear(const Pose &before, const Pose &after, const float &mu)
+Pose Pose::interpolateLinear(const Pose &p0, const Pose &p1, const qint32& time)
 {
+    // recreate mu from time argument
+    const float mu = (((float)(time - p0.timestamp)) / ((float)(p1.timestamp - p0.timestamp)));
     Q_ASSERT(mu <= 0.0 && mu <= 1.0);
 
-    float beforeYaw, beforePitch, beforeRoll;
-    float afterYaw, afterPitch, afterRoll;
+    const QVector3D position = p0.getPosition() * (1.0 - mu) + p1.getPosition() * mu;
 
-    before.getEulerAnglesDegrees(beforeYaw, beforePitch, beforeRoll);
-    after.getEulerAnglesDegrees(afterYaw, afterPitch, afterRoll);
+    QQuaternion q0 = p0.getOrientation();
+    QQuaternion q1 = p1.getOrientation();
 
-    Pose p(
-                before.getPosition() * (1.0 - mu) + after.getPosition() * mu,
-                beforeYaw * (1.0 - mu) + afterYaw * mu,
-                beforePitch * (1.0 - mu) + afterPitch * mu,
-                beforeRoll * (1.0 - mu) + afterRoll * mu,
-                before.timestamp * (1.0 - mu) + after.timestamp * mu
-                );
+    QQuaternion orientation = QQuaternion::slerp(q0, q1, mu);
 
-    p.covariances = before.covariances * (1.0 - mu) + after.covariances * mu;
-    p.precision = before.precision & after.precision;
+    QMatrix4x4 m;
+    m.translate(position);
+    m.rotate(orientation);
+
+    Pose p;
+    p.setMatrix(m);
+
+    p.covariances = p0.covariances * (1.0 - mu) + p1.covariances * mu;
+    p.precision = p0.precision & p1.precision; // yes, thats a logic AND
+    p.timestamp = time;
 
     return p;
 }
 
 // http://paulbourke.net/miscellaneous/interpolation/
-
 // TODO: This code doesn't really use the timestamps in the poses, that seems stupid
-Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before, const Pose * const after, const Pose * const last, const float &mu)
-{//                                             y0                        y1                         y2                        y3
+QVector3D Pose::interpolateCubic(const QVector3D& p0, const QVector3D& p1, const QVector3D& p2, const QVector3D& p3, const float mu)
+{
     Q_ASSERT(mu >= 0.0 && mu <= 1.0);
 
     const double mu2 = mu*mu;
 
     // position
-    const QVector3D po0 = last->getPosition() - after->getPosition() - first->getPosition() + before->getPosition();
-    const QVector3D po1 = first->getPosition() - before->getPosition() - po0;
-    const QVector3D po2 = after->getPosition() - first->getPosition();
-    const QVector3D po3 = before->getPosition();
+    const QVector3D pos0 = p3 - p2 - p0 + p1;
+    const QVector3D pos1 = p0 - p1 - pos0;
+    const QVector3D pos2 = p2 - p0;
+    const QVector3D pos3 = p1;
 
-    QVector3D resultPosition = po0*mu*mu2+po1*mu2+po2*mu+po3;
+    QVector3D resultPosition = pos0*mu*mu2+pos1*mu2+pos2*mu+pos3;
 
-    float firstYaw, firstPitch, firstRoll;
-    first->getEulerAnglesRadians(firstYaw, firstPitch, firstRoll);
-
-    float beforeYaw, beforePitch, beforeRoll;
-    before->getEulerAnglesRadians(beforeYaw, beforePitch, beforeRoll);
-
-    float afterYaw, afterPitch, afterRoll;
-    after->getEulerAnglesRadians(afterYaw, afterPitch, afterRoll);
-
-    float lastYaw, lastPitch, lastRoll;
-    last->getEulerAnglesRadians(lastYaw, lastPitch, lastRoll);
-
-    // yaw - what happens with values around +-180?!r
-    const float y0 = lastYaw - afterYaw - firstYaw + beforeYaw;
-    const float y1 = firstYaw - beforeYaw - y0;
-    const float y2 = afterYaw - firstYaw;
-    const float y3 = beforeYaw;
-
-    const float yaw = y0*mu*mu2+y1*mu2+y2*mu+y3;
-
-    // pitch
-    const float p0 = lastPitch - afterPitch - firstPitch + beforePitch;
-    const float p1 = firstPitch - beforePitch - p0;
-    const float p2 = afterPitch - firstPitch;
-    const float p3 = beforePitch;
-
-    const float pitch = p0*mu*mu2+p1*mu2+p2*mu+p3;
-
-    // roll
-    const float r0 = lastRoll - afterRoll - firstRoll + beforeRoll;
-    const float r1 = firstRoll - beforeRoll - r0;
-    const float r2 = afterRoll - firstRoll;
-    const float r3 = beforeRoll;
-
-    const float roll = r0*mu*mu2+r1*mu2+r2*mu+r3;
-
-    // time
-    const float t0 = last->timestamp - after->timestamp - first->timestamp + before->timestamp;
-    const float t1 = first->timestamp - before->timestamp - t0;
-    const float t2 = after->timestamp - first->timestamp;
-    const float t3 = before->timestamp;
-
-    const qint32 timestamp = t0*mu*mu2+t1*mu2+t2*mu+t3;
-
-    Pose p(resultPosition, yaw, pitch, roll, timestamp);
-    p.covariances = (before->covariances + after->covariances) / 2.0f;
-    p.precision = before->precision & after->precision;
-
-    return p;
+    return resultPosition;
 }
 
-Pose Pose::interpolateCubic(const Pose * const first, const Pose * const before, const Pose * const after, const Pose * const last, const qint32& time)
+Pose Pose::interpolateCubic(const Pose * const p0, const Pose * const p1, const Pose * const p2, const Pose * const p3, const qint32& time)
 {//                                             y0                        y1                         y2                        y3
 
     // Check parameters.
-    Q_ASSERT(first->timestamp < before->timestamp && "Pose::interpolateCubic(): first < before didn't pass");
+    Q_ASSERT(p0->timestamp < p1->timestamp && "Pose::interpolateCubic(): first < before didn't pass");
 
-    if(!(before->timestamp <= time)) qDebug() << "Pose::interpolateCubic(): before" << before->timestamp << "<= raytime" << time <<  "didn't pass";
-    if(!(after->timestamp >= time)) qDebug() << "Pose::interpolateCubic(): after" << after->timestamp << ">= raytime" << time <<  "didn't pass";
+    if(!(p1->timestamp <= time)) qDebug() << "Pose::interpolateCubic(): p1" << p1->timestamp << "<= raytime" << time <<  "didn't pass";
+    if(!(p2->timestamp >= time)) qDebug() << "Pose::interpolateCubic(): p2" << p2->timestamp << ">= raytime" << time <<  "didn't pass";
 
-    Q_ASSERT(last->timestamp > after->timestamp && "Pose::interpolateCubic(): last > after didn't pass");
+    Q_ASSERT(p3->timestamp > p2->timestamp && "Pose::interpolateCubic(): t3 > t2 didn't pass");
 
     // recreate mu from time argument
-    const float mu = (((float)(time - before->timestamp)) / ((float)(after->timestamp - before->timestamp)));
-    Pose p = interpolateCubic(first, before, after, last, mu);
+    const float mu = (((float)(time - p1->timestamp)) / ((float)(p2->timestamp - p1->timestamp)));
+
+    const QVector3D position = interpolateCubic(
+                p0->getPosition(),
+                p1->getPosition(),
+                p2->getPosition(),
+                p3->getPosition(),
+                mu);
+
+    QQuaternion q1 = p1->getOrientation();
+    QQuaternion q2 = p2->getOrientation();
+
+    QQuaternion orientation = QQuaternion::slerp(q1, q2, mu);
+
+    QMatrix4x4 m;
+    m.translate(position);
+    m.rotate(orientation);
+
+    Pose p;
+    p.setMatrix(m);
+
+    p.covariances = (p1->covariances + p2->covariances) / 2.0f; // average
+    p.precision = p1->precision & p2->precision; // yes, thats a logic AND
     p.timestamp = time;
+
     return p;
 }
 
@@ -424,14 +400,25 @@ QVector2D Pose::getPlanarPosition() const
     return QVector2D(position.x(), position.z());
 }
 
-// No idea whether the order of orientation is correct
+template <typename T> int sign(T val) {
+    return (T(0) < val) - (val < T(0));
+}
+
 const QQuaternion Pose::getOrientation() const
 {
-    // FIXME: This is buggy! It was used for buggy laserscanner-fusion, too.
-    return
-            QQuaternion::fromAxisAndAngle(QVector3D(0,1,0), getYawDegrees())
-            * QQuaternion::fromAxisAndAngle(QVector3D(1,0,0), getPitchDegrees())
-            * QQuaternion::fromAxisAndAngle(QVector3D(0,0,1), getRollDegrees());
+    // Adapted from: http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
+    float x,y,z,w;
+
+    w = sqrt( std::max( 0.0, 1 + mTransform(0,0) + mTransform(1,1)+ mTransform(2,2)) ) / 2;
+    x = sqrt( std::max( 0.0, 1 + mTransform(0,0)- mTransform(1,1)- mTransform(2,2)) ) / 2;
+    y = sqrt( std::max( 0.0, 1 - mTransform(0,0)+ mTransform(1,1)- mTransform(2,2)) ) / 2;
+    z = sqrt( std::max( 0.0, 1 - mTransform(0,0)- mTransform(1,1)+ mTransform(2,2)) ) / 2;
+
+    x *= sign( x * ( mTransform(2,1)- mTransform(1,2)) );
+    y *= sign( y * ( mTransform(0,2)- mTransform(2,0)) );
+    z *= sign( z * ( mTransform(1,0)- mTransform(0,1)) );
+
+    return QQuaternion(w,x,y,z);
 }
 
 QDebug operator<<(QDebug dbg, const Pose &pose)

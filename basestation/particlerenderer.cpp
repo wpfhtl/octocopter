@@ -12,9 +12,13 @@ ParticleRenderer::ParticleRenderer()
     mParticleRadius = 0.125f * 0.5f;
     mParticleRadius = 3.0f;
 
+    mNumberOfColliders = 0;
     mNumberOfParticles = 0;
-    mVboPositions = 0;
-    mVboColors = 0;
+
+    mVboParticlePositions = 0;
+    mVboParticleColors = 0;
+
+    mVboColliderPositions = 0;
 
     mShaderProgram = new ShaderProgram(this, "shader-particles-vertex.c", "shader-particles-geometry.c", "shader-particles-fragment.c");
 
@@ -29,23 +33,17 @@ ParticleRenderer::~ParticleRenderer()
     mShaderProgram->deleteLater();
 }
 
-void ParticleRenderer::setVboPositions(unsigned int vbo, int numParticles)
-{
-    mVboPositions = vbo;
-    mNumberOfParticles = numParticles;
-}
-
-void ParticleRenderer::setVboColors(unsigned int vbo)
-{
-    mVboColors = vbo;
-}
-
 void ParticleRenderer::render()
 {
+    if(mNumberOfParticles == 0 || mVboParticleColors == 0 || mVboParticlePositions == 0)
+        return;
+
     glDepthMask(GL_TRUE);
     glEnable(GL_DEPTH_TEST);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    //glEnable(GL_BLEND);
+    glEnable(GL_BLEND);
+
+    // TODO: render colliders, remove special case w < 0.5 from shaders
 
     // Program needs to be in use before setting values to uniforms
     mShaderProgram->bind();
@@ -57,14 +55,14 @@ void ParticleRenderer::render()
     glUniform1f(glGetUniformLocation(mShaderProgram->programId(), "particleRadius"), mParticleRadius);
     //    qDebug() << "ParticleRenderer::render(): particle radius:" << mParticleRadius;
 
-    glBindBuffer(GL_ARRAY_BUFFER, mVboPositions);
     // Make the contents of this array available at layout position vertexShaderVertexIndex in the vertex shader
+    glBindBuffer(GL_ARRAY_BUFFER, mVboParticlePositions);
     Q_ASSERT(glGetAttribLocation(mShaderProgram->programId(), "in_position") != -1);
     glEnableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_position"));
     glVertexAttribPointer(glGetAttribLocation(mShaderProgram->programId(), "in_position"), 4, GL_FLOAT, GL_FALSE, 0, 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    glBindBuffer(GL_ARRAY_BUFFER, mVboColors);
+    glBindBuffer(GL_ARRAY_BUFFER, mVboParticleColors);
     Q_ASSERT(glGetAttribLocation(mShaderProgram->programId(), "in_color") != -1);
     glEnableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_color"));
     glVertexAttribPointer(glGetAttribLocation(mShaderProgram->programId(), "in_color"), 4, GL_FLOAT, GL_FALSE, 0, 0);
@@ -78,4 +76,7 @@ void ParticleRenderer::render()
 
     // Disable shaders
     mShaderProgram->release();
+
+
+    glDisable(GL_BLEND);
 }

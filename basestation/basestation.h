@@ -8,18 +8,18 @@
 
 #include "glwidget.h"
 #include "audioplayer.h"
-#include "flightplannercuda.h"
 #include "logplayer.h"
 #include "ptucontroller.h"
-#include "octree.h"
+#include "pointcloudoctree.h"
 #include "joystick.h"
 #include "diffcorrfetcher.h"
 #include "pidcontrollerwidget.h"
 #include "lidarpoint.h"
-#include "flightplannerbasic.h"
-#include "flightplannerphysics.h"
-#include "flightplannerparticles.h"
 #include "flightplannerinterface.h"
+//#include "flightplannerbasic.h"
+//#include "flightplannerphysics.h"
+//#include "flightplannercuda.h"
+#include "flightplannerparticles.h"
 #include "camerawidget.h"
 #include "connectiondialog.h"
 #include "controlwidget.h"
@@ -30,6 +30,7 @@
 #include <plotwidget.h>
 #include <waypoint.h>
 #include <pose.h>
+#include "pointcloudcuda.h"
 
 class FlightPlannerInterface;
 class GlWidget;
@@ -57,7 +58,7 @@ private:
     QAction* mActionEnableAudio;
 
     // a container for collected rays, or rather the world coordinates of where they ended
-    Octree* mOctree;
+    PointCloud* mPointCloud;
 
     GlWidget *mGlWidget;
 

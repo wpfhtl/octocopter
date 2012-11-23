@@ -20,7 +20,7 @@ public:
     FlightPlannerPhysics(QWidget* widget, Octree* pointCloud);
     ~FlightPlannerPhysics();
 
-    void insertPoint(LidarPoint* point);
+    void insertPoint(const LidarPoint* const point);
 
     qint64 getNumberOfPointsInCollisionOctree();
 

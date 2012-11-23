@@ -9,6 +9,11 @@ WirelessDevice::WirelessDevice(const QString& interfaceName) : QObject()
     mUpdateTimer->start(250);
 }
 
+WirelessDevice::~WirelessDevice()
+{
+    delete mUpdateTimer;
+}
+
 qint8 WirelessDevice::getRssi()
 {
     QFile file("/proc/net/wireless");

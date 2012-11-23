@@ -3,7 +3,7 @@
 
 #include <QGLWidget>
 #include <QMap>
-#include "octree.h"
+#include "pointcloud.h"
 #include "openglutilities.h"
 #include "shaderprogram.h"
 #include "waypointlist.h"
@@ -17,19 +17,12 @@ class FlightPlannerInterface : public QObject
     Q_OBJECT
 public:
 
-/*
-private:
-    bool containsWaypointList(const QString& name) const {return mWaypointListMap.contains(name);}
-    void addWaypointList(const QString& name, const QColor& color = QColor(128,128,128,255));
-    bool removeWaypointList(const QString& name);
-*/
-
 protected:
-    Octree* mOctree; // a pointer to the basestations surface reconstruction octree with fine details
     QVector3D mScanVolumeMin, mScanVolumeMax;
     QVector<Pose> mVehiclePoses;
     GlWidget* mGlWidget;
     QWidget* mParentWidget;
+    PointCloud* mPointCloudDense;
 
     //QList<WayPoint>* mWayPointsAhead, *mWayPointsPassed;
     // A map, mapping from name to waypointlist. Names are e.g. waypoints_ahead, waypoints_passed etc.
@@ -37,17 +30,16 @@ protected:
 
     unsigned int mBoundingBoxVbo;
     QVector<float> mBoundingBoxVertices;
-    QVector<float> mBoundingBoxColors;
 
     ShaderProgram *mShaderProgramDefault, *mShaderProgramSpheres;
 
     static void sortToShortestPath(QList<WayPoint> &wayPointsSetOnRover, const QVector3D &currentVehiclePosition);
     void setVboBoundingBox();
-    bool insertPointsFromNode(const Node* node);
+//    bool insertPointsFromNode(const Node* node);
 
 public:
     // Here, basestation passes its own octree. Its up to the implementation to use it.
-    FlightPlannerInterface(QWidget* widget, Octree* pointCloud);
+    FlightPlannerInterface(QWidget* widget, PointCloud* pointcloud);
     virtual ~FlightPlannerInterface();
 
     void setGlWidget(GlWidget* glWidget) {mGlWidget = glWidget;}
@@ -57,7 +49,9 @@ public:
     // Also note that some flightplanners may have more static datastructures than
     // octrees, so they need to know the bounding box of all points (slotSetScanVolume())
     // before you can insert any data. This is true for e.g. FlightPlannerCuda.
-    virtual void insertPoint(LidarPoint* point) = 0;
+    //
+    // Ownership of the point remains with the caller!
+//    virtual void insertPoint(const LidarPoint* const point) = 0;
 
     const QVector<Pose>& getVehiclePoses() { return mVehiclePoses; }
 

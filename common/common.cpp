@@ -1,10 +1,5 @@
 #include "common.h"
 
-//bool isBitSet(quint8 number, quint8 bit)
-//{
-//    return ((number & ipow(2, bit)) != 0);
-//}
-
 bool testBit(quint16 number, quint8 bit)
 {
     return ((number & ipow(2, bit)) != 0);

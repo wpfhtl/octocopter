@@ -2,24 +2,26 @@
 #include "glwidget.h"
 #include "flightplannerinterface.h"
 
-FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, Octree* pointCloud) : QObject()
+FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, PointCloud *pointcloud) : QObject()
 {
-    mOctree = pointCloud;
     mGlWidget = 0;
     mParentWidget = widget;
     mShaderProgramDefault = mShaderProgramSpheres = 0;
     mBoundingBoxVbo = 0;
 
-    mVehiclePoses.reserve(25 * 60 * 10); // enough poses for 10 minutes
+    mVehiclePoses.reserve(25 * 60 * 20); // enough poses for 20 minutes
 
     mWaypointListMap.insert("ahead", new WayPointList(QColor(255,0,0,200)));
     mWaypointListMap.insert("passed", new WayPointList(QColor(255,255,0,200)));
+
+    mPointCloudDense = pointcloud;
 
     qDebug() << "FlightPlannerInterface c'tor.";
 }
 
 FlightPlannerInterface::~FlightPlannerInterface()
 {
+    qDeleteAll(mWaypointListMap);
 }
 
 void FlightPlannerInterface::slotSetScanVolume(const QVector3D minBox, const QVector3D maxBox)
@@ -30,6 +32,7 @@ void FlightPlannerInterface::slotSetScanVolume(const QVector3D minBox, const QVe
     setVboBoundingBox();
 }
 
+/*
 bool FlightPlannerInterface::insertPointsFromNode(const Node* node)
 {
     if(node->isLeaf())
@@ -47,7 +50,7 @@ bool FlightPlannerInterface::insertPointsFromNode(const Node* node)
     }
 
     return true;
-}
+}*/
 
 void FlightPlannerInterface::slotClearVehicleTrajectory()
 {
@@ -248,7 +251,6 @@ void FlightPlannerInterface::setVboBoundingBox()
             << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f
             << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
 
-
             // 6 top
             << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
             << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
@@ -261,31 +263,18 @@ void FlightPlannerInterface::setVboBoundingBox()
             << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f
             << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f;
 
-    // Fill the color buffer. When we have e.g. 24 vertices, we need one color (=4 floats)
-    // for every vertex. So, 24 colors also make up 96 floats, same as the floats for vertices.
-//    mBoundingBoxColors.clear();
-//    mBoundingBoxColors.fill(1.0f, mBoundingBoxVertices.size()); // half-transparent gray. Beautiful! :|
-
     glBindBuffer(GL_ARRAY_BUFFER, mBoundingBoxVbo);
 
-    qDebug() << "FlightPlannerInterface::setVboBoundingBox(): reserving" << sizeof(float) * (mBoundingBoxVertices.size() /*+ mBoundingBoxColors.size()*/) << "bytes in VBO...";
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * (mBoundingBoxVertices.size() /*+ mBoundingBoxColors.size()*/), NULL, GL_STATIC_DRAW);
+//    qDebug() << "FlightPlannerInterface::setVboBoundingBox(): reserving" << sizeof(float) * mBoundingBoxVertices.size() << "bytes in VBO...";
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * mBoundingBoxVertices.size(), NULL, GL_STATIC_DRAW);
 
-    qDebug() << "FlightPlannerInterface::setVboBoundingBox(): copying" << mBoundingBoxVertices.size() * sizeof(float) << "bytes of vertices into VBO...";
+//    qDebug() << "FlightPlannerInterface::setVboBoundingBox(): copying" << mBoundingBoxVertices.size() * sizeof(float) << "bytes of vertices into VBO...";
     glBufferSubData(
                 GL_ARRAY_BUFFER,
                 0, // offset in the VBO
                 mBoundingBoxVertices.size() * sizeof(float), // how many bytes to store?
                 (void*)(mBoundingBoxVertices.constData()) // data to store
                 );
-
-    qDebug() << "FlightPlannerInterface::setVboBoundingBox(): copying" << mBoundingBoxColors.size() * sizeof(float) << "bytes of colors into VBO...";
-//    glBufferSubData(
-//                GL_ARRAY_BUFFER,
-//                mBoundingBoxVertices.size() * sizeof(float), // offset in the VBO
-//                mBoundingBoxColors.size() * sizeof(float), // how many bytes to store?
-//                (void*)(mBoundingBoxColors.constData()) // data to store
-//                );
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
@@ -311,9 +300,7 @@ void FlightPlannerInterface::slotVisualize()
         {
             glBindBuffer(GL_ARRAY_BUFFER, mBoundingBoxVbo);
             glEnableVertexAttribArray(0);
-//            glEnableVertexAttribArray(1);
             glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0); // position
-//            glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, (void*)(mBoundingBoxVertices.size() * sizeof(float))); // color
 
             // draw the lines around the box
             mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(0.2f, 0.2f, 1.0f, 0.8f));
@@ -329,7 +316,6 @@ void FlightPlannerInterface::slotVisualize()
 //            glDrawArrays(GL_QUADS, 0, 24);
 
             glDisableVertexAttribArray(0);
-//            glDisableVertexAttribArray(1);
         }
         glDisable(GL_BLEND);
         mShaderProgramDefault->release();
@@ -375,29 +361,17 @@ void FlightPlannerInterface::slotVisualize()
                 glVertexAttribPointer(glGetAttribLocation(mShaderProgramSpheres->programId(), "in_position"), 3, GL_FLOAT, GL_FALSE, 0, 0);
                 glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-//                glBindBuffer(GL_ARRAY_BUFFER, mVboColors);
-//                Q_ASSERT(glGetAttribLocation(mShaderProgram->programId(), "in_color") != -1);
-//                glEnableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_color"));
-//                glVertexAttribPointer(glGetAttribLocation(mShaderProgram->programId(), "in_color"), 4, GL_FLOAT, GL_FALSE, 0, 0);
-//                glBindBuffer(GL_ARRAY_BUFFER, 0);
-
                 // Draw using shaders
                 glDrawArrays(GL_POINTS, 0, wpl->list()->size());
 
                 glDisableVertexAttribArray(glGetAttribLocation(mShaderProgramSpheres->programId(), "in_position"));
-//                glDisableVertexAttribArray(glGetAttribLocation(mShaderProgram->programId(), "in_color"));
             }
         }
         glDisable(GL_BLEND);
         mShaderProgramSpheres->release();
     }
 
-
-
-
-
-    /* port to opengl4 core
-    // Draw line between future waypoints
+    /* port to opengl4 core: draw line between future waypoints
     glLineWidth(1);
     glColor4f(1.0f, 1.0f, 0.0f, 0.8f);
     glBegin(GL_LINE_STRIP);

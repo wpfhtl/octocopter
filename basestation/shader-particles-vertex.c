@@ -21,7 +21,7 @@ layout(std140) uniform GlobalValues
 
 void main()
 {
-    //color = max(vec4(1.0, 1.0, 1.0, 1.0), in_color);
     color = in_color;
+
     gl_Position = in_position;
 }
