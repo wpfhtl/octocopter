@@ -138,8 +138,7 @@ void LaserScanner::slotCaptureScanData()
     mHeightOverGroundClockDivisor %= (500 / mTimerScan->interval()); // Emit heightOverGround twice per second
 
     long timestampScanner = 0;
-    std::vector<long>* distances = new std::vector<long>;
-    const int numRays = mScanner.capture(*distances, &timestampScanner);
+    const int numRays = mScanner.capture(mScannedDistances, &timestampScanner);
 
     // The scanner's timestamp randomly jumps by values of 2^^24 = 16.8M msecs. Fix it.
     if(timestampScanner != 0 && mLastScannerTimeStamp != 0)
@@ -169,21 +168,24 @@ void LaserScanner::slotCaptureScanData()
     {
         // Emit the scandata and add 12msecs of time. The scanner PROBABLY sets the time to the beginning of
         // each scan -135deg (0deg is front) and our convention is to store the time of the middle of a  scan.
-        //emit bottomBeamLength((*distances)[540]/1000.0f);
+        //emit bottomBeamLength(mScannedDistances[540]/1000.0f);
         qint32 timeStampScanMiddle = mLastScannerTimeStamp + mOffsetTimeScannerToTow + 9;
+
+        // Create a copy of the data in a quarter/half the size by using quint16 instead of long (32bit on x86_32, 64bit on x86_64)
+        std::vector<quint16>* distancesToEmit = new std::vector<quint16>(mScannedDistances);
 
         // Always write log data in binary format for later replay. Format is:
         // PackageLengthInBytes(quint16) TOW(qint32) StartIndex(quint16) N-DISTANCES(quint16)
         // StarIndex denotes the start of usable data (not 1s)
 
         // A usual dataset contains 200 1's at the beginning and 200 1's at the end.
-        // We "compress" the leading 1s and drop the trailing 1s
+        // We RLE-compress the leading 1s and drop the trailing 1s
         quint16 indexStart = 0;
-        while((*distances)[indexStart] == 1)
+        while((*distancesToEmit)[indexStart] == 1)
             indexStart++;
 
         quint16 indexStop = numRays-1;
-        while((*distances)[indexStop] == 1)
+        while((*distancesToEmit)[indexStop] == 1)
             indexStop--;
 
         // Write the total amount of bytes of this scan into the stream
@@ -191,7 +193,7 @@ void LaserScanner::slotCaptureScanData()
                 + sizeof(quint16) // length at beginning
                 + sizeof(timeStampScanMiddle)
                 + sizeof(indexStart)
-                + ((indexStop - indexStart ) + 1) * sizeof(quint16); // size of the distance-data
+                + ((indexStop - indexStart ) + 1) * sizeof(quint16); // number of bytes for the distance-data
 
         QByteArray magic("LASER");
 
@@ -200,16 +202,17 @@ void LaserScanner::slotCaptureScanData()
         mLogFile->write((const char*)&timeStampScanMiddle, sizeof(timeStampScanMiddle));
         mLogFile->write((const char*)&indexStart, sizeof(indexStart));
 
-        while(indexStart<=indexStop)
-        {
-            const quint16 distance = ((*distances)[indexStart++]);
-            mLogFile->write((const char*)&distance, sizeof(distance));
-        }
+        // Instead of looping through the indices, lets write everything at once.
+        // TODO: TEST THIS!
+        mLogFile->write(
+                    (const char*)(distancesToEmit->data() + (sizeof(quint16) * indexStart)), // where to start writing
+                    sizeof(quint16) * ((indexStop - indexStart) + 1)                         // how many bytes to write
+                    );
 
         // Every full moon, emit the distance from vehicle center to the ground in meters (scanner to vehicle center is 3cm)
-        if(mHeightOverGroundClockDivisor == 0) emit heightOverGround(distances->at(540)/1000.0f + 0.03f);
+        if(mHeightOverGroundClockDivisor == 0) emit heightOverGround(distancesToEmit->at(540)/1000.0f + 0.03f);
 
         // With this call, we GIVE UP OWNERSHIP of the data. It might get deleted immediately!
-        emit newScanData(timeStampScanMiddle, distances);
+        emit newScanData(timeStampScanMiddle, distancesToEmit);
     }
 }

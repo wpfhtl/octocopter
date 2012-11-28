@@ -103,7 +103,7 @@ private:
 
 private slots:
     void slotLaserScannerRelativePoseChanged();
-    void slotNewSbfTime(QByteArray,qint32 tow);
+    void slotNewSbfTime(const qint32 tow, const char *, quint16);
 
     bool slotOpenLogFiles();
     bool slotStepForward(DataSource source = Source_Invalid);

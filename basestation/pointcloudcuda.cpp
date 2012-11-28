@@ -200,7 +200,7 @@ bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint
 
     mParameters.elementQueueCount += numberOfPointsToAppend;
 
-    if(mParameters.elementQueueCount > 2000000)
+    if(mParameters.elementQueueCount > 100000)
     {
 //        reduceAllPointsUsingCollisions();
 //        reduceUsingCellMean();

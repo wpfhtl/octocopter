@@ -202,7 +202,8 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     {
 //        qDebug() << "SbfParser::processNextValidPacket(): WARNING: offset to valid packet was" << offsetToValidPacket << "instead of 0, content:" << readable(sbfData.left(offsetToValidPacket));
         // Log this data for later error analysis
-        emit processedPacket(sbfData.left(offsetToValidPacket), -1);
+//        emit processedPacket(sbfData.left(offsetToValidPacket), -1);
+        emit processedPacket(-1, sbfData.constData(), offsetToValidPacket);
         sbfData.remove(0, offsetToValidPacket);
     }
 
@@ -292,7 +293,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     case 4045:
     {
         // IntPVAAGeod
-        const Sbf_PVAAGeod *block = (Sbf_PVAAGeod*)sbfData.data();
+        const Sbf_IntPVAAGeod *block = (Sbf_IntPVAAGeod*)sbfData.data();
 
 //        qDebug() << "SBF: IntPVAAGeod";
 
@@ -462,8 +463,32 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         if(mGnssStatus.meanCorrAge < 40) // thats four seconds
             precisionFlags |= Pose::CorrectionAgeLow;
 
+
+        // The rotational velocity is contained in IntAttEuler, which we don't have. So calculate using last pose
+        qint32 ageOfOldPose = block->TOW - mLastPose.timestamp;
+        const QQuaternion lastOrientation = mLastPose.getOrientation();
+
         setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW, precisionFlags);
         mLastPose.covariances = mGnssStatus.covariances;
+
+        if(ageOfOldPose < 100)
+        {
+//            qDebug() << ageOfOldPose;
+            mLastPose.rotation = Pose::getAngleBetweenDegrees(lastOrientation, mLastPose.getOrientation());
+            mLastPose.rotation /= (ageOfOldPose / 1000.0f);
+        }
+        else
+            mLastPose.rotation = 0.0f;
+
+        if(block->Ax != I16_DONOTUSE && block->Ay != I16_DONOTUSE && block->Az != I16_DONOTUSE)
+            mLastPose.acceleration = QVector3D(block->Ax, block->Ay, block->Az+981).length() / 100.0f;
+        else
+            mLastPose.acceleration = 0.0f;
+
+        if(block->Vnorth != I32_DONOTUSE && block->Veast != I32_DONOTUSE && block->Vup != I32_DONOTUSE)
+            mLastPose.velocity = QVector3D(block->Vnorth, block->Veast, block->Vup).length() / 1000.0f;
+        else
+            mLastPose.velocity = 0.0f;
 
         // Here we emit the gathered pose. Depending on the pose's time and its quality, we emit it for different consumers
 
@@ -471,7 +496,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         emit newVehiclePose(&mLastPose);
 
         // Emitted slowly (2Hz), any precision
-	// Update: Need higher rate for PTU-tracking (10Hz)
+        // Update: Need higher rate for PTU-tracking (10Hz)
         if(mLastPose.timestamp % 100 == 0)
             emit newVehiclePoseStatus(&mLastPose);
 
@@ -510,7 +535,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         }
         else if(block->Error != 0)
         {
-            qDebug() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, error:" << block->Error << "" << GnssStatus::getError(block->Error) ;
+//            qDebug() << block->TOW << "SbfParser::processNextValidPacket(): invalid pose, error:" << block->Error << "" << GnssStatus::getError(block->Error) ;
             if(mGnssDeviceWorkingPrecisely)
             {
                 mGnssDeviceWorkingPrecisely = false;
@@ -699,7 +724,8 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     // Announce what packet we just processed. Might be used for logging.
     // ExtEvent is generic enough, the TOW is always at the same location
     const Sbf_ExtEvent * const block = (Sbf_ExtEvent*)sbfData.data();
-    emit processedPacket(sbfData.left(bytesToRemove), (qint32)block->TOW);
+//    emit processedPacket(sbfData.left(bytesToRemove), (qint32)block->TOW);
+    emit processedPacket((qint32)block->TOW, sbfData.constData(), bytesToRemove);
 
     sbfData.remove(0, bytesToRemove);
 }

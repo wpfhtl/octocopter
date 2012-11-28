@@ -189,7 +189,11 @@ Pose::Pose()
     mTransform.setToIdentity();
     precision = 0;
     covariances = 100.0f;
-    this->timestamp = 0;
+    timestamp = 0;
+
+    velocity = 0.0f;
+    acceleration = 0.0f;
+    rotation = 0.0f;
 }
 
 Pose::Pose(const QMatrix4x4& matrix, const qint32& timestamp)
@@ -200,6 +204,10 @@ Pose::Pose(const QMatrix4x4& matrix, const qint32& timestamp)
         this->timestamp = GnssTime::currentTow();
     else
         this->timestamp = timestamp;
+
+    velocity = 0.0f;
+    acceleration = 0.0f;
+    rotation = 0.0f;
 }
 
 Pose::Pose(const QVector3D &position, const float &yawDegrees, const float &pitchDegrees, const float &rollDegrees, const qint32& timestamp)
@@ -217,6 +225,10 @@ Pose::Pose(const QVector3D &position, const float &yawDegrees, const float &pitc
         this->timestamp = GnssTime::currentTow();
     else
         this->timestamp = timestamp;
+
+    velocity = 0.0f;
+    acceleration = 0.0f;
+    rotation = 0.0f;
 }
 
 const QVector3D Pose::getPosition() const
@@ -303,11 +315,7 @@ Pose Pose::interpolateLinear(const Pose &p0, const Pose &p1, const qint32& time)
     Q_ASSERT(mu <= 0.0 && mu <= 1.0);
 
     const QVector3D position = p0.getPosition() * (1.0 - mu) + p1.getPosition() * mu;
-
-    QQuaternion q0 = p0.getOrientation();
-    QQuaternion q1 = p1.getOrientation();
-
-    QQuaternion orientation = QQuaternion::slerp(q0, q1, mu);
+    const QQuaternion orientation = QQuaternion::nlerp(p0.getOrientation(), p1.getOrientation(), mu);
 
     QMatrix4x4 m;
     m.translate(position);
@@ -316,9 +324,13 @@ Pose Pose::interpolateLinear(const Pose &p0, const Pose &p1, const qint32& time)
     Pose p;
     p.setMatrix(m);
 
-    p.covariances = p0.covariances * (1.0 - mu) + p1.covariances * mu;
+    p.covariances = p0.covariances * (1.0f - mu) + p1.covariances * mu;
     p.precision = p0.precision & p1.precision; // yes, thats a logic AND
     p.timestamp = time;
+
+    p.rotation = p0.rotation * (1.0f - mu) + p1.rotation * mu;
+    p.velocity = p0.velocity * (1.0f - mu) + p1.velocity * mu;
+    p.acceleration = p0.acceleration * (1.0f - mu) + p1.acceleration * mu;
 
     return p;
 }
@@ -337,7 +349,7 @@ QVector3D Pose::interpolateCubic(const QVector3D& p0, const QVector3D& p1, const
     const QVector3D pos2 = p2 - p0;
     const QVector3D pos3 = p1;
 
-    QVector3D resultPosition = pos0*mu*mu2+pos1*mu2+pos2*mu+pos3;
+    const QVector3D resultPosition = pos0*mu*mu2+pos1*mu2+pos2*mu+pos3;
 
     return resultPosition;
 }
@@ -363,10 +375,14 @@ Pose Pose::interpolateCubic(const Pose * const p0, const Pose * const p1, const 
                 p3->getPosition(),
                 mu);
 
-    QQuaternion q1 = p1->getOrientation();
-    QQuaternion q2 = p2->getOrientation();
+    // cubic - order 1 (seems wrong, vehicle motion has "sawtooth steps"
+    //const QQuaternion orientation = interpolateCubic(p0->getOrientation(), p1->getOrientation(), p2->getOrientation(), p3->getOrientation(), mu);
 
-    QQuaternion orientation = QQuaternion::slerp(q1, q2, mu);
+    // cubic - order 2 (seems right)
+    const QQuaternion orientation = interpolateCubic(p1->getOrientation(), p0->getOrientation(), p3->getOrientation(), p2->getOrientation(), mu);
+
+    // linear
+    //const QQuaternion orientation = QQuaternion::slerp(p1->getOrientation(), p2->getOrientation(), mu);
 
     QMatrix4x4 m;
     m.translate(position);
@@ -378,6 +394,10 @@ Pose Pose::interpolateCubic(const Pose * const p0, const Pose * const p1, const 
     p.covariances = (p1->covariances + p2->covariances) / 2.0f; // average
     p.precision = p1->precision & p2->precision; // yes, thats a logic AND
     p.timestamp = time;
+
+    p.rotation = p1->rotation * (1.0f - mu) + p2->rotation * mu;
+    p.velocity = p1->velocity * (1.0f - mu) + p2->velocity * mu;
+    p.acceleration = p1->acceleration * (1.0f - mu) + p2->acceleration * mu;
 
     return p;
 }
@@ -410,15 +430,91 @@ const QQuaternion Pose::getOrientation() const
     float x,y,z,w;
 
     w = sqrt( std::max( 0.0, 1 + mTransform(0,0) + mTransform(1,1)+ mTransform(2,2)) ) / 2;
-    x = sqrt( std::max( 0.0, 1 + mTransform(0,0)- mTransform(1,1)- mTransform(2,2)) ) / 2;
-    y = sqrt( std::max( 0.0, 1 - mTransform(0,0)+ mTransform(1,1)- mTransform(2,2)) ) / 2;
-    z = sqrt( std::max( 0.0, 1 - mTransform(0,0)- mTransform(1,1)+ mTransform(2,2)) ) / 2;
+    x = sqrt( std::max( 0.0, 1 + mTransform(0,0) - mTransform(1,1)- mTransform(2,2)) ) / 2;
+    y = sqrt( std::max( 0.0, 1 - mTransform(0,0) + mTransform(1,1)- mTransform(2,2)) ) / 2;
+    z = sqrt( std::max( 0.0, 1 - mTransform(0,0) - mTransform(1,1)+ mTransform(2,2)) ) / 2;
 
     x *= sign( x * ( mTransform(2,1)- mTransform(1,2)) );
     y *= sign( y * ( mTransform(0,2)- mTransform(2,0)) );
     z *= sign( z * ( mTransform(1,0)- mTransform(0,1)) );
 
     return QQuaternion(w,x,y,z);
+}
+
+QQuaternion Pose::inverse(const QQuaternion& q)
+{
+    float fNorm = q.scalar()*q.scalar()+q.x()*q.x()+q.y()*q.y()+q.z()*q.z();
+    if(fNorm > 0.0f)
+    {
+        float fInvNorm = 1.0f/fNorm;
+        return QQuaternion(q.scalar()*fInvNorm,-q.x()*fInvNorm,-q.y()*fInvNorm,-q.z()*fInvNorm);
+    }
+    else
+    {
+        // return an invalid result to flag the error
+        qFatal("invalid quat!");
+    }
+}
+
+void Pose::rotationToAngleAxis(const QQuaternion& q, float& angleDegrees, QVector3D& axis)
+{
+    // The quaternion representing the rotation is
+    //   q = cos(A/2)+sin(A/2)*(x*i+y*j+z*k)
+
+    float fSqrLength = q.x()*q.x()+q.y()*q.y()+q.z()*q.z();
+
+    if(fSqrLength > 0.0f)
+    {
+        angleDegrees = RAD2DEG(2.0*acos(q.scalar()));
+        //float fInvLength = Math::InvSqrt(fSqrLength);
+        float fInvLength = 1/std::sqrt(fSqrLength);
+        axis.setX(q.x()*fInvLength);
+        axis.setY(q.y()*fInvLength);
+        axis.setZ(q.z()*fInvLength);
+    }
+    else
+    {
+        // angle is 0 (mod 2*pi), so any axis will do
+        angleDegrees = 0.0f;
+        axis.setX(1.0f);
+        axis.setY(0.0f);
+        axis.setZ(0.0f);
+    }
+}
+
+// has problems when dorProduct becomes 0.99999999 => 1
+float Pose::getAngleBetweenDegrees(const QQuaternion &q1, const QQuaternion &q2)
+{
+    QQuaternion qn1 = q1.normalized();
+    QQuaternion qn2 = q2.normalized();
+
+    float dotProduct = qn1.x() * qn2.x() + qn1.y() * qn2.y() + qn1.z() * qn2.z() + qn1.scalar() * qn2.scalar();
+
+    // http://www.gamedev.net/topic/522465-quaternion-dot-product-question/
+    // when negating q1 and recomputing, we receive -dotProduct, so lets just flip the sign of dotProduct
+    if(dotProduct < 0.0) dotProduct *= -1.0f;
+
+    return RAD2DEG(2.0 * acos(dotProduct));
+}
+
+/* old version, same problems with dotProduct becoming < 0
+float Pose::getAngleBetweenDegrees(const QQuaternion &q1, const QQuaternion &q2)
+{
+    QQuaternion diff = Pose::inverse(q1) * q2;
+
+    float angle;
+    QVector3D axis;
+    rotationToAngleAxis(diff, angle, axis);
+
+    return angle;
+}*/
+
+float Pose::getAngleBetweenDegrees(const Pose &p1, const Pose &p2)
+{
+    const QQuaternion q1 = p1.getOrientation();
+    const QQuaternion q2 = p2.getOrientation();
+
+    return getAngleBetweenDegrees(q1, q2);
 }
 
 QDebug operator<<(QDebug dbg, const Pose &pose)
@@ -525,6 +621,10 @@ Pose::Pose(const QString& poseString)
 
     if(poseString != toString())
         qDebug() << "Pose::Pose(QString): parsing failed: original:" << poseString << "reconstructed" << toString();
+
+    velocity = 0.0f;
+    acceleration = 0.0f;
+    rotation = 0.0f;
 }
 
 QDataStream& operator<<(QDataStream &out, const Pose &pose)

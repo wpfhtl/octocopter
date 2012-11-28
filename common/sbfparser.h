@@ -7,6 +7,17 @@
 
 #include <gnssstatus.h>
 
+#define  I8_DONOTUSE   (int8_t)  (0x80)
+#define UI8_DONOTUSE   (uint8_t) (0xFF)
+#define I16_DONOTUSE   (int16_t) (0x8000)
+#define U16_DONOTUSE   (uint16_t)(0xFFFF)
+#define I32_DONOTUSE   (int32_t) (0x80000000)
+#define U32_DONOTUSE   (uint32_t)(0xFFFFFFFF)
+#define I64_DONOTUSE   (int64_t) (0x8000000000000000)
+#define U64_DONOTUSE   (uint64_t)(0xFFFFFFFFFFFFFFFF)
+#define F32_DONOTUSE             (-2e10F)
+#define F64_DONOTUSE             (-2e10)
+
 /**
   This class parses binary SBF (Septentrio Binary Format) data and emits
   the interesting values as signals.
@@ -124,7 +135,7 @@ private:
         quint16       PVTAge;
     };
 
-    struct Sbf_PVAAGeod
+    struct Sbf_IntPVAAGeod
     {
         Sbf_Header  Header;
 
@@ -278,7 +289,8 @@ signals:
     // Used to tell GpsDevice to decrease the IntPVAAGeod interval to msec20 (and to enable/disable the laserscanner?)
     void gnssDeviceWorkingPrecisely(bool);
 
-    void processedPacket(const QByteArray& sbfPacket, const qint32& tow);
+    // Tells others that we just processed @length bytes of @sbfData making up a packet from @tow
+    void processedPacket(const qint32& tow, const char* sbfData, const quint16 length);
 
     // log/status messages
     void message(const LogImportance& importance, const QString&, const QString& message);

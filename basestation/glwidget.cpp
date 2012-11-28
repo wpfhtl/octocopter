@@ -346,7 +346,7 @@ void GlWidget::paintGL()
 
     QMatrix4x4 transformVehicle;
 
-    // At startup, a vehiclePose might not exist yet. If so, use the identty matrix
+    // At startup, a vehiclePose might not exist yet. If so, use the identity matrix
     if(mLastKnownVehiclePose) transformVehicle = mLastKnownVehiclePose->getMatrixConst();
 
     // Only show controller input if its present and less than 500 ms old.
@@ -528,6 +528,7 @@ void GlWidget::slotNewVehiclePose(const Pose* const pose)
     {
         const QVector3D pos = pose->getPosition();
 
+        // Precise and integrated poses are green, others are red.
         QColor color;
         if(
                 pose->precision & Pose::RtkFixed &&
@@ -632,6 +633,10 @@ void GlWidget::wheelEvent(QWheelEvent *event)
 
 void GlWidget::slotUpdateView()
 {
+    // quick hack to see ALL generated poses
+//    update();
+//    return;
+
     if(mTimeOfLastRender.msecsTo(QDateTime::currentDateTime()) > mTimerUpdate->interval())
     {
         update();

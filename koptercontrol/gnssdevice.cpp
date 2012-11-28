@@ -39,7 +39,7 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
     // We first feed SBF data to SbfParser, then we get it back from it via the signal below. A little complicated,
     // but the alternative is to watch two ports for incoming SBF, which might lead to mixing of SBF in between
     // packets.
-    connect(mSbfParser, SIGNAL(processedPacket(QByteArray, qint32)), SLOT(slotLogProcessedSbfPacket(QByteArray, qint32)));
+    connect(mSbfParser, SIGNAL(processedPacket(qint32,const char*,quint16)), SLOT(slotLogProcessedSbfPacket(qint32,const char*,quint16)));
 
     mDeviceIsReadyToReceiveDiffCorr = false;
     mWaitingForCommandReply = false;
@@ -155,12 +155,12 @@ quint8 GnssDevice::slotFlushCommandQueue()
     return mCommandQueueUsb.size();
 }
 
-void GnssDevice::slotLogProcessedSbfPacket(const QByteArray& sbfPacket, const qint32&)
+void GnssDevice::slotLogProcessedSbfPacket(const qint32 tow, const char* sbfData, quint16 length)
 {
     // Copy all new SBF bytes into our log. Don't use a datastream,
     // as that would add record-keeping-bytes in between the packets
 
-    mLogFileSbf->write(sbfPacket);
+    mLogFileSbf->write(sbfData, length);
 }
 
 void GnssDevice::slotDetermineSerialPortsOnDevice()

@@ -38,11 +38,14 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     // emit fused lidarpoints
     connect(mSensorFuser, SIGNAL(newScannedPoints(const QVector<QVector3D>* const, const QVector3D* const)), SIGNAL(scanData(const QVector<QVector3D>* const, const QVector3D* const)));
 
+    // For visualizing interpolated poses - disabled by default
+    connect(mSensorFuser, SIGNAL(vehiclePose(Pose*const)), SIGNAL(vehiclePose(Pose*const)));
+
     connect(mSbfParser, SIGNAL(status(const GnssStatus* const)), SIGNAL(gnssStatus(const GnssStatus* const)));
     connect(mSbfParser, SIGNAL(message(LogImportance,QString,QString)), SIGNAL(message(LogImportance,QString,QString)));
     connect(mSbfParser, SIGNAL(newVehiclePose(const Pose* const)), SIGNAL(vehiclePose(const Pose* const)));
     connect(mSbfParser, SIGNAL(newVehiclePoseSensorFuser(const Pose* const)), mSensorFuser, SLOT(slotNewVehiclePose(const Pose* const)));
-    connect(mSbfParser, SIGNAL(processedPacket(QByteArray,qint32)), SLOT(slotNewSbfTime(QByteArray,qint32)));
+    connect(mSbfParser, SIGNAL(processedPacket(qint32,const char*,quint16)), SLOT(slotNewSbfTime(qint32,const char*,quint16)));
     connect(mSbfParser, SIGNAL(scanFinished(const quint32&)), mSensorFuser, SLOT(slotScanFinished(const quint32&)));
 
     // Actually invoke slotLaserScannerRelativePoseChanged() AFTER our parent
@@ -397,26 +400,20 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const QByteAr
 
         const quint16 indexStart = *((quint16*)(packet.constData() + 5 + sizeof(length) + sizeof(tow)));
 
-        std::vector<long>* data = new std::vector<long>;
-
-        for(int i=0;i<indexStart;i++)
-            data->push_back(1);
-
         const quint16 rayBytes = length
-                -5                // LASER
-                - sizeof(quint16) // length at beginning
+                - 5               // LASER
+                - sizeof(quint16) // length of whole packet
                 - sizeof(qint32)  // tow
                 - sizeof(quint16);// indexStart
 
-        const quint16 numRaysSaved = rayBytes / sizeof(quint16);
+        std::vector<quint16>* data = new std::vector<quint16>(indexStart + (rayBytes / sizeof(quint16)), 1);
 
-        for(int i=0;i<numRaysSaved;i++)
-        {
-            const quint16 distance = *((quint16*)(packet.constData() + 5 + sizeof(length) + sizeof(tow) + sizeof(indexStart) + (i*sizeof(quint16))));
-            data->push_back(distance);
-        }
-
-//        qDebug() << "LASER:" << tow;
+        // Copy the distances from the packet to the vector
+        memcpy(
+                    &data->at(indexStart),
+                    packet.constData() + 5 + sizeof(length) + sizeof(tow) + sizeof(indexStart),
+                    rayBytes
+                    );
 
         mSensorFuser->slotNewScanData(tow, data);
 
@@ -497,7 +494,7 @@ void LogPlayer::slotPlay()
             QTime timeOfNextPacketReal = mTimePlaybackStartReal.addMSecs(towElapsedAtNextPacket);
             const qint32 timeToSleep = QTime::currentTime().msecsTo(timeOfNextPacketReal) * ui->mSpinBoxTimeFactor->value();
 
-            //qDebug() << "LogPlayer::slotPlay(): slotStepForward() succeeded, sleeping for" << timeToSleep;
+            if(timeToSleep > 0) qDebug() << "LogPlayer::slotPlay(): slotStepForward() succeeded, sleeping for" << timeToSleep;
 
             // Wait between 0 and 1 secs, scaled by timefactor
             mTimerAnimation->start(qBound(0, timeToSleep, 5000));
@@ -507,6 +504,9 @@ void LogPlayer::slotPlay()
             emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Playback reached end of logfile, stopping.");
             qDebug() << "LogPlayer::slotPlay(): not restarting playtimer, next tow is -1";
             ui->mPushButtonPlay->setChecked(false);
+
+            // Make sensorFuser fuse whatever is left in its queue.
+            mSensorFuser->slotFlushData();
         }
     }
     else
@@ -516,7 +516,7 @@ void LogPlayer::slotPlay()
     }
 }
 
-void LogPlayer::slotNewSbfTime(QByteArray,qint32 tow)
+void LogPlayer::slotNewSbfTime(const qint32 tow,const char*,quint16)
 {
     mProgressBarTow->setFormat("TOW %v G");
     mProgressBarTow->setValue(tow);

@@ -58,7 +58,7 @@ private slots:
     // Sends @command via USB port
     void slotQueueCommand(QString command);
 
-    void slotLogProcessedSbfPacket(const QByteArray&, const qint32&);
+    void slotLogProcessedSbfPacket(const qint32 tow, const char *sbfData, quint16 length);
 
     void slotSerialPortStatusChanged(const QString& status, const QDateTime& time);
     void slotCommunicationSetup();
