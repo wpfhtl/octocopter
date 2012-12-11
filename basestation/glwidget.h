@@ -24,7 +24,6 @@ class GlWidget : public QGLWidget
     Q_OBJECT
 
     QList<PointCloud*> mPointCloudsToRender;
-//    QMap<quint32,quint32> mRenderPointCloudVbos;
 
     QVector3D mCamLookAtOffset;
 
@@ -46,7 +45,9 @@ class GlWidget : public QGLWidget
     // Mouse Rotations
     QPoint      mLastMousePosition;
     QVector3D   mCameraPosition;
-    GLfloat     rotX, rotY, rotZ;
+
+    // The components of this vector store the rotation (in degrees) of the camera around the origin
+    QVector2D mCameraRotation;
 
     GLuint mVertexArrayObject;
 

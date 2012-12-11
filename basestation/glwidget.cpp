@@ -19,8 +19,6 @@ GlWidget::GlWidget(QWidget* parent) :
     QGLFormat::setDefaultFormat(glFormat);
     setFormat(glFormat);
 
-    mCameraPosition = QVector3D(0.0f, 500.0f, 500.0f);
-
     mVboVehiclePathElementSize = sizeof(QVector3D) + sizeof(QVector4D); // position and color with alpha
     mVboVehiclePathBytesMaximum = (3600 * 50 * mVboVehiclePathElementSize); // For a flight time of one hour
     mVboVehiclePathBytesCurrent = 0;
@@ -28,8 +26,9 @@ GlWidget::GlWidget(QWidget* parent) :
     mZoomFactorCurrent = 0.5;
     mZoomFactorTarget = 0.5;
 
-    // Mouse Move Rotations
-    rotX = rotY = rotZ = 0.0f;
+    mCameraPosition = QVector3D(0.0f, 0.0f, 500.0f);
+    // Rotate the camera to a good starting position
+    mCameraRotation.setX(-45.0f);
 
     // Timed Animation
     mViewRotating = false;
@@ -223,7 +222,7 @@ void GlWidget::paintGL()
     mTimeOfLastRender = QDateTime::currentDateTime();
 
     if(mViewRotating)
-        rotY += 180 * 0.001;
+        mCameraRotation.setY(mCameraRotation.y() + 180 * 0.001);
 
 //    qDebug() << "GlWidget::paintGL(): frame counter:" << mFrameCounter++;
 
@@ -233,9 +232,8 @@ void GlWidget::paintGL()
     const QVector3D camLookAt = mCamLookAtOffset + (mLastKnownVehiclePose ? mLastKnownVehiclePose->getPosition() : QVector3D());
 
     QQuaternion cameraRotation =
-            QQuaternion::fromAxisAndAngle(QVector3D(0.0f, 0.0f, 1.0f), rotZ)
-            * QQuaternion::fromAxisAndAngle(QVector3D(0.0f, 1.0f, 0.0f), rotY)
-            * QQuaternion::fromAxisAndAngle(QVector3D(1.0f, 0.0f, 0.0f), -rotX);
+            QQuaternion::fromAxisAndAngle(QVector3D(0.0f, 1.0f, 0.0f), mCameraRotation.y())
+            * QQuaternion::fromAxisAndAngle(QVector3D(1.0f, 0.0f, 0.0f), mCameraRotation.x());
 
     const QVector3D camPos = cameraRotation.rotatedVector(mCameraPosition);
 
@@ -535,7 +533,14 @@ void GlWidget::slotNewVehiclePose(const Pose* const pose)
         // If the poses CV sucks, fade it.
         if(pose->covariances > Pose::maximumUsableCovariance) color.setAlpha(128);
 
-        const float data[] = {pos.x(), pos.y(), pos.z(), color.redF(), color.greenF(), color.blueF(), color.alphaF()};
+        const float data[] = {
+            (float)pos.x(),
+            (float)pos.y(),
+            (float)pos.z(),
+            (float)color.redF(),
+            (float)color.greenF(),
+            (float)color.blueF(),
+            (float)color.alphaF()};
 
         glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
 
@@ -579,43 +584,32 @@ void GlWidget::mousePressEvent(QMouseEvent *event)
 
 void GlWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    float DX = float(event->x()-mLastMousePosition.x())/width();
-    float DY = float(event->y()-mLastMousePosition.y())/height();
+    const float deltaX = -float(event->x()-mLastMousePosition.x())/width();
+    const float deltaY = -float(event->y()-mLastMousePosition.y())/height();
 
     if(event->buttons() & Qt::LeftButton)
     {
-        rotX += 180 * DY;
-        rotY += 180 * DX;
-    }
-    else if(event->buttons() & Qt::RightButton)
-    {
-        rotX += 180*DY;
-        rotZ += 180*DX;
+        mCameraRotation.setX(qBound(-89.9f, float(mCameraRotation.x() + 180.0f * deltaY), 89.9f));
+        mCameraRotation.setY(fmod(mCameraRotation.y() + 180 * deltaX, 360.0f));
     }
     else if(event->buttons() & Qt::MiddleButton)
     {
-        mCamLookAtOffset.setZ(mCamLookAtOffset.z() + 180*DY);
-        mCamLookAtOffset.setX(mCamLookAtOffset.x() + 180*DX);
+        mCamLookAtOffset.setZ(mCamLookAtOffset.z() + 180.0f * deltaY);
+        mCamLookAtOffset.setX(mCamLookAtOffset.x() + 180.0f * deltaX);
     }
 
     mLastMousePosition = event->pos();
 
-    rotX = fmod(rotX, 360.0);
-    rotY = fmod(rotY, 360.0);
-    rotZ = fmod(rotZ, 360.0);
+    //qDebug() << "mCamLookAtOffset: " << mCamLookAtOffset << "rotXYZ:" << rotX << rotY << rotZ;
 
-    //    qDebug() << "mCamLookAtOffset: " << mCamLookAtOffset << "rotXYZ:" << rotX << rotY << rotZ;
-
-    //    slotEmitModelViewProjectionMatrix();
-
-    update();
+    // update();
+    slotUpdateView();
 }
 
 void GlWidget::wheelEvent(QWheelEvent *event)
 {
     event->delta() > 0 ? mZoomFactorTarget *= 1.5f : mZoomFactorTarget *= 0.5f;
     mZoomFactorTarget = qBound(0.002f, (float)mZoomFactorTarget, 1.0f);
-    //    qDebug() << "zoomFactor" << mZoomFactor;
     mViewZooming = true;
     mTimerUpdate->setInterval(1000 / 60);
     mTimerUpdate->start();
@@ -625,8 +619,7 @@ void GlWidget::wheelEvent(QWheelEvent *event)
 void GlWidget::slotUpdateView()
 {
     // quick hack to see ALL generated poses
-//    update();
-//    return;
+    // update(); return;
 
     if(mTimeOfLastRender.msecsTo(QDateTime::currentDateTime()) > mTimerUpdate->interval())
     {
@@ -646,9 +639,7 @@ void GlWidget::slotUpdateView()
 
 void GlWidget::slotViewFromTop()
 {
-    rotX = 49.58;
-    rotY = -17.71;
-    rotZ = 19.67;
+    mCameraRotation = QVector2D(50, -17.71);
     mZoomFactorCurrent = 0.6;
     mZoomFactorTarget = 0.6;
     updateGL();
@@ -656,13 +647,7 @@ void GlWidget::slotViewFromTop()
 
 void GlWidget::slotViewFromSide()
 {
-    rotX = -34.0;
-    rotY = 0.25;
-    rotZ = -15.5;
-
-    rotX = -23.0;
-    rotY = -3.54;
-    rotZ = -10.7;
+    mCameraRotation = QVector2D(-23, -3.5);
 
     mZoomFactorCurrent = 0.6;
     mZoomFactorTarget = 0.6;
