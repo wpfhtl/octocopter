@@ -63,6 +63,7 @@ class GlWidget : public QGLWidget
     quint32 mFrameCounter;
 
     ShaderProgram *mShaderProgramDefault;
+    ShaderProgram *mShaderProgramPointCloud;
     ShaderProgram *mShaderProgramParticles; // for testing billboarding of the PointCloud
 
     // Wheel Zooming. For smooth zooming, mZoomFactorCurrent converges toward mZoomFactorTarget

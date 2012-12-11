@@ -51,7 +51,7 @@ BaseStation::BaseStation() : QMainWindow()
     setCentralWidget(mGlWidget);
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(slotUpdateView()));
 
-    mPointCloud = new PointCloudCuda(QVector3D(-50, 0, -50), QVector3D(50, 50, 50));
+    mPointCloud = new PointCloudCuda(QVector3D(-50, 0, -50), QVector3D(50, 20, 50)/*, 250000*/);
     connect(mGlWidget, SIGNAL(initializingInGlContext()), mPointCloud, SLOT(slotInitialize()));
 
     // register for rendering

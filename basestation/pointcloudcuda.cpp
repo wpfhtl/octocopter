@@ -19,7 +19,7 @@ PointCloudCuda::PointCloudCuda(const QVector3D &min, const QVector3D &max, const
     mNewPoints = (float*)malloc(sizeof(QVector4D) * 4096);
     std::fill(mNewPoints + 0, mNewPoints + (4 * 4096), 1.0f);
 
-    mParameters.minimumDistance = 0.3;
+    mParameters.minimumDistance = 1.0f/16.0f;
     mParameters.elementCount = 0;
     mParameters.elementQueueCount = 0;
     mParameters.remainder = 0;
@@ -200,13 +200,18 @@ bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint
 
     mParameters.elementQueueCount += numberOfPointsToAppend;
 
-    if(mParameters.elementQueueCount > 100000)
+    if(mParameters.elementQueueCount > mParameters.capacity / 100)
     {
 //        reduceAllPointsUsingCollisions();
 //        reduceUsingCellMean();
+        reduceUsingSnapToGrid();
     }
 
     mVboInfo[0].size = mParameters.elementCount + mParameters.elementQueueCount;
+
+    // If the cloud fills above 90%, thin it more by increasing minimumDistance
+//    if(mParameters.elementCount > mParameters.capacity * 0.9)
+//        mParameters.minimumDistance *= 1.02;
 
     emit pointsInserted();
 
@@ -258,10 +263,22 @@ quint32 PointCloudCuda::reduceUsingCellMean()
 
     time.start();
 
-    mParameters.bBoxMin = make_float3(mBBoxMin.x(), mBBoxMin.y(), mBBoxMin.z());
-    mParameters.bBoxMax = make_float3(mBBoxMax.x(), mBBoxMax.y(), mBBoxMax.z());
+    // Don't divide the whole region into our grid, but only the new data
+    float3 bBoxMin, bBoxMax;
+    getBoundingBox(devicePoints + mParameters.elementCount, mParameters.elementQueueCount, bBoxMin, bBoxMax);
 
-    mParameters.gridSize = make_uint3(256,128,256);
+    qDebug() << "PointCloudCuda::reducePointRangeUsingCollisions(): there are" << mParameters.elementQueueCount << "points with a bbox from"
+             << bBoxMin.x << bBoxMin.y << bBoxMin.z << "to" << bBoxMax.x << bBoxMax.y << bBoxMax.z;
+
+    // Define the new bounding box for all queued points
+    mParameters.bBoxMin = bBoxMin;
+    mParameters.bBoxMax = bBoxMax;
+
+
+//    mParameters.bBoxMin = make_float3(mBBoxMin.x(), mBBoxMin.y(), mBBoxMin.z());
+//    mParameters.bBoxMax = make_float3(mBBoxMax.x(), mBBoxMax.y(), mBBoxMax.z());
+
+    mParameters.gridSize = make_uint3(512,32,512);
 
     setPointCloudParameters(&mParameters);
 
@@ -320,7 +337,7 @@ quint32 PointCloudCuda::reduceUsingSnapToGrid()
     // Reduce the queued points
     time.start();
     quint32 numberOfQueuedPointsRemaining = snapToGridAndMakeUnique(devicePointsBase, mParameters.elementCount + mParameters.elementQueueCount, mParameters.minimumDistance);
-    qDebug() << "PointCloudCuda::reduce2(): reducing" << mParameters.elementCount + mParameters.elementQueueCount << "to" << numberOfQueuedPointsRemaining << "queued points took" << time.elapsed() << "ms";
+    qDebug() << "PointCloudCuda::reduceUsingSnapToGrid(): reducing" << mParameters.elementCount + mParameters.elementQueueCount << "to" << numberOfQueuedPointsRemaining << "queued points (dist" << mParameters.minimumDistance << ") took" << time.elapsed() << "ms";
 
     // Append the remaining queued points
     mParameters.elementQueueCount = 0;

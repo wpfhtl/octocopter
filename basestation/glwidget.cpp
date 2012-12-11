@@ -36,7 +36,7 @@ GlWidget::GlWidget(QWidget* parent) :
     mViewZooming = false;
 
     mTimerUpdate = new QTimer(this);
-    mTimerUpdate->setInterval(1000 / 30);
+    mTimerUpdate->setInterval(1000 / 60);
     connect(mTimerUpdate, SIGNAL(timeout()), SLOT(slotUpdateView()));
 
     setMinimumSize(320, 240);
@@ -95,6 +95,7 @@ void GlWidget::initializeGL()
     glBindBufferRange(GL_UNIFORM_BUFFER, ShaderProgram::blockBindingPointGlobalMatrices, mUboId, 0, mUboSize);
 
     mShaderProgramDefault = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
+    mShaderProgramPointCloud = new ShaderProgram(this, "shader-pointcloud-vertex.c", "", "shader-pointcloud-fragment.c");
 
     // Create a VBO for the vehicle's path.
     glGenBuffers(1, &mVboVehiclePath);
@@ -168,7 +169,7 @@ void GlWidget::initializeGL()
 
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);					// Black Background
     glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// White Background
-//    glClearColor(0.3f, 0.3f, 0.3f, 0.0f);					// Gray  Background
+    glClearColor(0.3f, 0.3f, 0.3f, 0.0f);					// Gray  Background
 
     // Set Line Antialiasing
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
@@ -222,7 +223,7 @@ void GlWidget::paintGL()
     mTimeOfLastRender = QDateTime::currentDateTime();
 
     if(mViewRotating)
-        rotY -= 180 * 0.001;
+        rotY += 180 * 0.001;
 
 //    qDebug() << "GlWidget::paintGL(): frame counter:" << mFrameCounter++;
 
@@ -262,43 +263,33 @@ void GlWidget::paintGL()
     else
     {
         // Stop zooming, lower framerate
-        mTimerUpdate->setInterval(1000 / 30);
+        mTimerUpdate->setInterval(1000 / 60);
         mViewZooming = false;
     }
 
-    mShaderProgramDefault->bind();
+    glEnable (GL_BLEND); glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
     {
-        mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
-
-        glEnable (GL_BLEND); glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
+        mShaderProgramPointCloud->bind();
+        for(int i=0;i<mPointCloudsToRender.size();i++)
         {
-            for(int i=0;i<mPointCloudsToRender.size();i++)
+            const QVector<PointCloud::VboInfo>& vboInfoList = mPointCloudsToRender.at(i)->getVboInfo();
+            for(int j=0;j<vboInfoList.size();j++)
             {
-                const QVector<PointCloud::VboInfo>& vboInfoList = mPointCloudsToRender.at(i)->getVboInfo();
-//                octree->updateVbo(); // update VBO from octree point-vector.
-                mShaderProgramDefault->setUniformValue("useFixedColor", true);
+                const PointCloud::VboInfo& vboInfo = vboInfoList.at(j);
 
-                for(int j=0;j<vboInfoList.size();j++)
-                {
-                    const PointCloud::VboInfo& vboInfo = vboInfoList.at(j);
-
-                    mShaderProgramDefault->setUniformValue("fixedColor",
-                                                           QVector4D(
-                                                               vboInfo.color.redF(),
-                                                               vboInfo.color.greenF(),
-                                                               vboInfo.color.blueF(),
-                                                               vboInfo.color.alphaF()
-                                                               )
-                                                           );
-
-                    glBindBuffer(GL_ARRAY_BUFFER, vboInfo.vbo);
-                    glEnableVertexAttribArray(0);
-                    glVertexAttribPointer(0, vboInfo.elementSize, GL_FLOAT, GL_FALSE, vboInfo.stride, 0);
-                    glDrawArrays(GL_POINTS, 0, vboInfo.size); // Number of Elements, not bytes
-                    glDisableVertexAttribArray(0);
-                    glBindBuffer(GL_ARRAY_BUFFER, 0);
-                }
+                glBindBuffer(GL_ARRAY_BUFFER, vboInfo.vbo);
+                glEnableVertexAttribArray(0);
+                glVertexAttribPointer(0, vboInfo.elementSize, GL_FLOAT, GL_FALSE, vboInfo.stride, 0);
+                glDrawArrays(GL_POINTS, 0, vboInfo.size); // Number of Elements, not bytes
+                glDisableVertexAttribArray(0);
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
             }
+        }
+        mShaderProgramPointCloud->release();
+
+        mShaderProgramDefault->bind();
+        {
+            mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
 
             // Render the vehicle's path - same shader, but variable color
             mShaderProgramDefault->setUniformValue("useFixedColor", false);
