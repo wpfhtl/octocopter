@@ -15,7 +15,7 @@ void computeMappingFromGridCellToParticle(unsigned int*  gridParticleHash,
               float* pos, 
               int    numParticles);
 
-void sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(unsigned int*  cellStart,
+void sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(unsigned int*  cellStart,
                                                              unsigned int*  cellEnd,
 							     float* sortedPos,
 							     float* sortedVel,

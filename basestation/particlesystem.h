@@ -19,11 +19,11 @@ class ParticleSystem : public QObject
 {
     Q_OBJECT
 public:
-    // Give it a pointer to the dense pointcloud, so it can draw its colliders from there
+    // Give it a pointer to the pointcloud to collide against
     ParticleSystem(PointCloud *const pointcloud);
     ~ParticleSystem();
 
-    enum ParticlePlacement
+    enum class ParticlePlacement
     {
         PlacementRandom,
         PlacementGrid,
@@ -44,20 +44,6 @@ public:
         gc.y = mSimulationParameters.gridSize.y;
         gc.z = mSimulationParameters.gridSize.z;
         return gc;
-    }
-
-    void insertPoint(const QVector3D& point)
-    {
-        if(!mIsInitialized) return;
-
-        float point4[4];
-        point4[0] = point.x();
-        point4[1] = point.y();
-        point4[2] = point.z();
-        point4[3] = 0.0;
-
-        setArray(ArrayPositions, point4, mNumberOfFixedParticles, 1);
-        mNumberOfFixedParticles++;
     }
 
 public slots:
@@ -98,19 +84,8 @@ signals:
     void vboInfoColliders(quint32 vboPositions, quint32 colliderCount);
 
 protected:
-    // A pointer to the pointcloud holding the dense pointcloud for surface reconstruction. We will send the newly
-    // appended points to the graphics card once in a while, and the GPU decides whether they shall be kept by
-    // querying point neighbors in parallel. From there, we create a list of collision points for the particles.
-    PointCloud* mPointCloudDense;
-    // A cursor indicating how many points from the dense cloud we already sent to the graphics card. Since the
-    // cloud keeps growing and we only want to append new points, we need to remember this.
-    quint32 mNumberOfPointsProcessed;
-
-    // At the beginning, the particle buffers contain only sampling particles. They have a w-component of 1.0,
-    // move freely and collide with all other particles in the buffer. When we receive a new point for the
-    // collision-pointcloud, we write its position into devicePositionArray[mNumberOfFixedParticles] and set
-    // its w-component to 0.0, so that integration skips moving this particle. Collisions will occur as always
-    quint32 mNumberOfFixedParticles;
+    // A pointer to the pointcloud holding the pointcloud to collide particles against.
+    PointCloud* mPointCloudColliders;
 
     enum ParticleArray
     {
@@ -161,11 +136,16 @@ protected:
     float* mDeviceColliderPos;
     float* mDeviceColliderSortedPos;
 
-    // grid data for sorting method
-    unsigned int*  mDeviceMapGridCell;      // grid hash value for each particle
-    unsigned int*  mDeviceMapParticleIndex; // particle index for each particle
-    unsigned int*  mDeviceCellStart;        // index of start of each cell in sorted list
-    unsigned int*  mDeviceCellEnd;          // index of end of cell
+    // A map, mapping from gridcell => particle index. Length is particlecount
+    unsigned int*  mDeviceMapParticleGridCell;  // grid hash value for each particle
+    unsigned int*  mDeviceMapParticleIndex;     // particle index for each particle
+
+    // A map, mapping from gridcell => collider index. Length is collidercount
+    unsigned int*  mDeviceMapColliderGridCell;  // grid hash value for each collider
+    unsigned int*  mDeviceMapColliderIndex;     // particle index for each collider
+
+    unsigned int*  mDeviceCellStart;            // index of start of each cell in sorted list
+    unsigned int*  mDeviceCellEnd;              // index of end of cell
 
     unsigned int   mVboParticlePositions;   // vertex buffer object for particle positions
     unsigned int   mVboColliderPositions;   // vertex buffer object for collider positions

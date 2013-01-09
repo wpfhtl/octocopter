@@ -599,7 +599,7 @@ void SensorFuser::slotFlushData()
 
 
 void SensorFuser::slotScanFinished(const quint32 &timestampScanGnss)
-{return;
+{
     /*
       This method is called as part of the effort to synchronize LIDAR scanning with poses. The laserscanner
       pulls a SYNC-signal low for 1ms whenever a scan is finished. The next 24ms, the scanner does nothing to

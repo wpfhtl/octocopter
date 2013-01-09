@@ -467,6 +467,7 @@ void LogPlayer::slotPlay()
             // Take note of GNSS-TOW and real time, so we can synchronize them
             mTimePlaybackStartReal = QTime::currentTime();
             mTimePlaybackStartTow = minTowBefore;
+            qDebug() << "LogPlayer::slotPlay(): starting playback, realtime" << mTimePlaybackStartReal << "tow" << mTimePlaybackStartTow;
         }
 
         if(!slotStepForward(ds))
@@ -490,14 +491,17 @@ void LogPlayer::slotPlay()
             // ExtEvent-packets don't let this assumption hold. For this reason, we might have to deal
             // with negative intervals, which we just set to 0 here.
 
+
             qint32 towElapsedAtNextPacket = minTowAfter - mTimePlaybackStartTow;
             QTime timeOfNextPacketReal = mTimePlaybackStartReal.addMSecs(towElapsedAtNextPacket);
             const qint32 timeToSleep = QTime::currentTime().msecsTo(timeOfNextPacketReal) * ui->mSpinBoxTimeFactor->value();
 
-            if(timeToSleep > 0) qDebug() << "LogPlayer::slotPlay(): slotStepForward() succeeded, sleeping for" << timeToSleep;
+//            qDebug() << "playback started at real" << mTimePlaybackStartReal << "tow" << mTimePlaybackStartTow << "next tow" << minTowAfter << "sleeping for" << timeToSleep;
+//            qDebug() << "we are are now" << mTimePlaybackStartReal.msecsTo(QTime::currentTime()) << "real ms into playing, virtual timediff is" << towElapsedAtNextPacket;
+//            if(timeToSleep > 0) qDebug() << "LogPlayer::slotPlay(): slotStepForward() succeeded, sleeping for" << timeToSleep;
 
             // Wait between 0 and 1 secs, scaled by timefactor
-            mTimerAnimation->start(qBound(0, timeToSleep, 5000));
+            mTimerAnimation->start(qBound(0, timeToSleep, 3));
         }
         else
         {

@@ -50,13 +50,14 @@ struct integrate_functor
         float3 pos = make_float3(posData.x, posData.y, posData.z);
         float3 vel = make_float3(velData.x, velData.y, velData.z);
 
+        /* this is old:
         // Sample geometry has a w component of 1.0, fixed points from the pointcloud have a w component of 0.0.
         // Of course, fixed points do not need integration.
         if(posData.w < 0.5f)
         {
             thrust::get<1>(t) = make_float4(0.0, 0.0, 0.0, velData.w); // set velocity to zero. Needed?
             return;
-        }
+        }*/
 
         vel += params.gravity * deltaTime;
         vel *= params.dampingMotion;
@@ -74,11 +75,11 @@ struct integrate_functor
         // special case: hitting bottom plane of bounding box
         if (pos.y < params.worldMin.y + params.particleRadius)
         {
-//            pos.y = params.worldMin.y + params.particleRadius;
-//            vel.y *= params.velocityFactorCollisionBoundary;
+            pos.y = params.worldMin.y + params.particleRadius;
+            vel.y *= params.velocityFactorCollisionBoundary;
 //            vel.y = 3.0f;
-            pos.y = params.worldMax.y - params.particleRadius;
-            vel.y *= 0.1f;
+//            pos.y = params.worldMax.y - params.particleRadius;
+//            vel.y *= 0.1f;
 
             // delete sphere and look up its last collision
         }
@@ -304,7 +305,7 @@ void collideD(float4* newVel,               // output: new velocities. This is a
     float3 pos = make_float3(FETCH(oldPos, index));
     float3 vel = make_float3(FETCH(oldVel, index));
 
-    // get address of particle in grid
+    // get grid-cell of particle
     int3 gridPos = calcGridPos(pos);
 
     // examine neighbouring cells

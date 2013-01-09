@@ -19,7 +19,7 @@ PointCloudCuda::PointCloudCuda(const QVector3D &min, const QVector3D &max, const
     mNewPoints = (float*)malloc(sizeof(QVector4D) * 4096);
     std::fill(mNewPoints + 0, mNewPoints + (4 * 4096), 1.0f);
 
-    mParameters.minimumDistance = 1.0f/16.0f;
+    mParameters.minimumDistance = 1.0f/8.0f;
     mParameters.elementCount = 0;
     mParameters.elementQueueCount = 0;
     mParameters.remainder = 0;
@@ -182,7 +182,7 @@ bool PointCloudCuda::slotInsertPoints3(const float* const pointList, const quint
 
 bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint32 numPoints)
 {
-    if(mParameters.elementCount + mParameters.elementQueueCount + numPoints > mParameters.capacity) return false;
+    Q_ASSERT(mVboInfo[0].elementSize == 4);
 
     const quint32 numberOfPointsToAppend = qMin(mParameters.capacity - mParameters.elementQueueCount - mParameters.elementCount, numPoints);
 
@@ -192,16 +192,75 @@ bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint
     // overwrite parts of the buffer
     glBufferSubData(
                 GL_ARRAY_BUFFER,
-                (mParameters.elementCount + mParameters.elementQueueCount) * sizeof(QVector4D),  // start
-                numberOfPointsToAppend * sizeof(QVector4D),         // size
+                (mParameters.elementCount + mParameters.elementQueueCount) * sizeof(float) * mVboInfo[0].elementSize,  // start
+                numberOfPointsToAppend * sizeof(float) * mVboInfo[0].elementSize,         // size
                 pointList);                            // source
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     mParameters.elementQueueCount += numberOfPointsToAppend;
 
+    mVboInfo[0].size = mParameters.elementCount + mParameters.elementQueueCount;
+
+    qDebug() << "PointCloudCuda::slotInsertPoints4():" << mName << "inserted" << numberOfPointsToAppend << "points, vbo elements:" << mVboInfo[0].size << "elements:" << mParameters.elementCount << "queue:" << mParameters.elementQueueCount;
+
+    reduce();
+
+    return true;
+}
+
+bool PointCloudCuda::slotInsertPoints(const VboInfo* const vboInfo, const quint32& firstPoint, const quint32& numPoints)
+{
+    // Make sure the VBO layouts are compatible.
+    Q_ASSERT(vboInfo->layoutMatches(&mVboInfo[0]));
+
+    Q_ASSERT(vboInfo->elementSize == 4);
+    Q_ASSERT(mVboInfo[0].elementSize == 4);
+
+    Q_ASSERT(mVboInfo[0].vbo != vboInfo->vbo);
+
+    const quint32 numberOfPointsToAppend = qMin(mParameters.capacity - mParameters.elementQueueCount - mParameters.elementCount, numPoints);
+
+    // Copy numPoints from the given VBO into our own VBO
+    glBindBuffer(GL_COPY_READ_BUFFER, vboInfo->vbo);
+    glBindBuffer(GL_COPY_WRITE_BUFFER, mVboInfo[0].vbo);
+
+    Q_ASSERT(mVboInfo[0].size == mParameters.elementQueueCount + mParameters.elementCount);
+
+    glCopyBufferSubData(
+                GL_COPY_READ_BUFFER,
+                GL_COPY_WRITE_BUFFER,
+                vboInfo->elementSize * sizeof(float) * firstPoint,      // where to start reading in src
+                vboInfo->elementSize * sizeof(float) * mVboInfo[0].size,// where to start writing in dst
+                vboInfo->elementSize * sizeof(float) * numberOfPointsToAppend        // number of bytes to copy
+                );
+
+    glBindBuffer(GL_COPY_READ_BUFFER, 0);
+    glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
+
+    mParameters.elementQueueCount += numberOfPointsToAppend;
+
+    mVboInfo[0].size = mParameters.elementCount + mParameters.elementQueueCount;
+
+
+    qDebug() << "PointCloudCuda::slotInsertPoints():" << mName << "copying" << numberOfPointsToAppend << "elements /" << vboInfo->elementSize * sizeof(float) * numberOfPointsToAppend << "bytes";
+
+    const quint32 oldNumPoints = mVboInfo[0].size;
+    reduce();
+    qDebug() << "PointCloudCuda::slotInsertPoints():" << mName << "reducing" << oldNumPoints << "to" << mParameters.elementCount << "points plus" << mParameters.elementQueueCount << "in queue.";
+
+    return true;
+}
+
+bool PointCloudCuda::reduce()
+{
     if(mParameters.elementQueueCount > mParameters.capacity / 100)
     {
+        // Tell others about our new points. In the future, emit only AFTER reduction, so we reduce not all points twice.
+        // But currently, our reduction does move points in our VBO almost randomly, so there is no guarantee that the
+        // new points are in some well-defined region of the buffer after reduction.
+        emit pointsInserted(&mVboInfo[0], mParameters.elementCount, mParameters.elementQueueCount);
+
 //        reduceAllPointsUsingCollisions();
 //        reduceUsingCellMean();
         reduceUsingSnapToGrid();
@@ -210,12 +269,11 @@ bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint
     mVboInfo[0].size = mParameters.elementCount + mParameters.elementQueueCount;
 
     // If the cloud fills above 90%, thin it more by increasing minimumDistance
-//    if(mParameters.elementCount > mParameters.capacity * 0.9)
-//        mParameters.minimumDistance *= 1.02;
-
-    emit pointsInserted();
-
-    return true;
+    if(mVboInfo[0].size > mParameters.capacity * 0.9f)
+    {
+        mParameters.minimumDistance *= 1.02;
+        qDebug() << "PointCloudCuda::reduce(): after reduction, cloud is at" << ((float)mVboInfo[0].size / mParameters.capacity) * 100.0f << "% capacity, increasing min-distance to" << mParameters.minimumDistance;
+    }
 }
 
 quint32 PointCloudCuda::reduceAllPointsUsingCollisions()
@@ -335,9 +393,9 @@ quint32 PointCloudCuda::reduceUsingSnapToGrid()
     QTime time; // for profiling
 
     // Reduce the queued points
-    time.start();
+//    time.start();
     quint32 numberOfQueuedPointsRemaining = snapToGridAndMakeUnique(devicePointsBase, mParameters.elementCount + mParameters.elementQueueCount, mParameters.minimumDistance);
-    qDebug() << "PointCloudCuda::reduceUsingSnapToGrid(): reducing" << mParameters.elementCount + mParameters.elementQueueCount << "to" << numberOfQueuedPointsRemaining << "queued points (dist" << mParameters.minimumDistance << ") took" << time.elapsed() << "ms";
+//    qDebug() << "PointCloudCuda::reduceUsingSnapToGrid(): reducing" << mParameters.elementCount + mParameters.elementQueueCount << "to" << numberOfQueuedPointsRemaining << "queued points (dist" << mParameters.minimumDistance << ") took" << time.elapsed() << "ms";
 
     // Append the remaining queued points
     mParameters.elementQueueCount = 0;

@@ -5,21 +5,33 @@
 #include "flightplannerparticles.h"
 #include "pointcloudcuda.h"
 
-FlightPlannerParticles::FlightPlannerParticles(QWidget* widget, PointCloud *pointcloud) : FlightPlannerInterface(widget, pointcloud)
+FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWidget *glWidget, PointCloud *pointcloud) : FlightPlannerInterface(parentWidget, glWidget, pointcloud)
 {
     mParticleSystem = 0;
     mParticleRenderer = 0;
     mVboGridLines = 0;
 
+    // register dense pointcloud for rendering. Might be moved to base class c'tor
+    mGlWidget->slotPointCloudRegister(mPointCloudDense);
+
+    mPointCloudDense->mName = "Dense";
+
+    // For every point in this cloud, particlesystem will have to create
+    // 2 32bit ints to map grid cell index to a particle index.
     mPointCloudColliders = new PointCloudCuda(
                 mPointCloudDense->getBoundingBoxMin(),
                 mPointCloudDense->getBoundingBoxMax(),
-                512 * 1024);
+                128 * 1024);
+
+    mPointCloudColliders->mName = "Colliders";
 
     mPointCloudColliders->setGridSize(64, 32, 64);
 
-    // When the dense pointcloud has new points, forward them into our sparse pointcloud
-    connect(mPointCloudDense, SIGNAL(pointsInserted()), SLOT(slotNewPointsArrivedInDensePointCloud()));
+    mPointCloudColliders->setMinimumPointDistance(0.9f);
+
+    mPointCloudColliders->setColor(QColor(128,128,128,64));
+
+    mGlWidget->slotPointCloudRegister(mPointCloudColliders);
 }
 
 void FlightPlannerParticles::slotInitialize()
@@ -28,9 +40,11 @@ void FlightPlannerParticles::slotInitialize()
 
     mPointCloudColliders->slotInitialize();
 
+    connect(mPointCloudDense, SIGNAL(pointsInserted(VboInfo*const,quint32,quint32)), mPointCloudColliders, SLOT(slotInsertPoints(VboInfo*const,quint32,quint32)));
+
     mShaderProgramGridLines = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
 
-    mParticleSystem = new ParticleSystem(mPointCloudColliders); // ParticleSystem will draw its points as colliders from the dense pointcloud passed here
+    mParticleSystem = new ParticleSystem(mPointCloudColliders); // ParticleSystem will draw its points as colliders from the pointcloud passed here
     mParticleRenderer = new ParticleRenderer;
 
     connect(mParticleSystem, SIGNAL(particleRadiusChanged(float)), mParticleRenderer, SLOT(slotSetParticleRadius(float)));
@@ -39,7 +53,7 @@ void FlightPlannerParticles::slotInitialize()
 
     mParticleSystem->slotSetParticleCount(32768);
     mParticleSystem->slotSetParticleRadius(0.60f); // balance against mOctreeCollisionObjects.setMinimumPointDistance() above
-    mParticleSystem->slotSetDefaultParticlePlacement(ParticleSystem::PlacementFillSky);
+    mParticleSystem->slotSetDefaultParticlePlacement(ParticleSystem::ParticlePlacement::PlacementFillSky);
 //    mParticleSystem->slotSetVolume(mScanVolumeMin, mScanVolumeMax);
 }
 
@@ -60,6 +74,23 @@ FlightPlannerParticles::~FlightPlannerParticles()
 //    delete mPointCloudColliders;
     cudaDeviceReset();
 }
+
+
+void FlightPlannerParticles::slotNewScanData(const QVector<QVector3D>* const pointList, const QVector3D* const scannerPosition)
+{
+    // Insert all points into mPointCloudDense
+    mPointCloudDense->slotInsertPoints(pointList);
+
+    // Insert all points into mPointCloudColliders. Lateron, caller or callee could
+    // insert points only when the previous point is at least minimumDistance away
+    // from the current point.
+//    mPointCloudColliders->slotInsertPoints(pointList);
+
+    //qDebug() << "FlightPlannerParticles::slotNewScanData(): appended" << pointList->size() << "points to cloud";
+
+    emit suggestVisualization();
+}
+
 
 //void FlightPlannerParticles::insertPoint(const LidarPoint *const point)
 //{
@@ -199,7 +230,3 @@ void FlightPlannerParticles::slotVehiclePoseChanged(const Pose* const pose)
 
     // check for collisions?!
 }
-
-//void FlightPlannerParticles::slotNewPointsArrivedInDensePointCloud()
-//{
-//}

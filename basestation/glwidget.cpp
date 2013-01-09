@@ -28,9 +28,10 @@ GlWidget::GlWidget(QWidget* parent) :
 
     mCameraPosition = QVector3D(0.0f, 0.0f, 500.0f);
     // Rotate the camera to a good starting position
-    mCameraRotation.setX(-45.0f);
+    mCameraRotation.setX(-30.0f);
 
     // Timed Animation
+    mRotationPerFrame = 0.001f;
     mViewRotating = false;
     mViewZooming = false;
 
@@ -39,6 +40,7 @@ GlWidget::GlWidget(QWidget* parent) :
     connect(mTimerUpdate, SIGNAL(timeout()), SLOT(slotUpdateView()));
 
     setMinimumSize(320, 240);
+    setFocusPolicy(Qt::ClickFocus);
 }
 
 void GlWidget::initializeGL()
@@ -222,7 +224,7 @@ void GlWidget::paintGL()
     mTimeOfLastRender = QDateTime::currentDateTime();
 
     if(mViewRotating)
-        mCameraRotation.setY(mCameraRotation.y() + 180 * 0.001);
+        mCameraRotation.setY(mCameraRotation.y() + 180 * mRotationPerFrame);
 
 //    qDebug() << "GlWidget::paintGL(): frame counter:" << mFrameCounter++;
 
@@ -274,6 +276,17 @@ void GlWidget::paintGL()
             for(int j=0;j<vboInfoList.size();j++)
             {
                 const PointCloud::VboInfo& vboInfo = vboInfoList.at(j);
+
+                // If the pointcloud has a color set, use it. Otherwise, use the jet colormap.
+                if(vboInfo.color.isValid())
+                {
+                    mShaderProgramPointCloud->setUniformValue("useFixedColor", true);
+                    mShaderProgramPointCloud->setUniformValue("fixedColor", vboInfo.color);
+                }
+                else
+                {
+                    mShaderProgramPointCloud->setUniformValue("useFixedColor", false);
+                }
 
                 glBindBuffer(GL_ARRAY_BUFFER, vboInfo.vbo);
                 glEnableVertexAttribArray(0);
@@ -571,11 +584,15 @@ void GlWidget::slotClearVehicleTrajectory()
 
 void GlWidget::slotEnableTimerRotation(const bool& enable)
 {
+    if(mViewRotating == enable) return;
+
     mViewRotating = enable;
 
     // Enable the timer if we want to rotate and its not running already
     if(mViewRotating && !mViewZooming)
         mTimerUpdate->start();
+
+    emit rotating(enable);
 }
 void GlWidget::mousePressEvent(QMouseEvent *event)
 {
@@ -614,6 +631,22 @@ void GlWidget::wheelEvent(QWheelEvent *event)
     mTimerUpdate->setInterval(1000 / 60);
     mTimerUpdate->start();
     slotUpdateView();
+}
+
+void GlWidget::keyPressEvent(QKeyEvent *event)
+{
+    if(event->key() == Qt::Key_Q)
+    {
+        mRotationPerFrame -= 0.0005f;
+        slotEnableTimerRotation(true);
+    }
+    else if(event->key() == Qt::Key_W)
+    {
+        mRotationPerFrame += 0.0005f;
+        slotEnableTimerRotation(true);
+    }
+    else
+        QGLWidget::keyPressEvent(event);
 }
 
 void GlWidget::slotUpdateView()

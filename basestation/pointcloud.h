@@ -17,14 +17,21 @@ protected:
 
 public:
 
+    QString mName; // for debugging only
+
     // Every pointcloud needs to offer a list of VBOs to render. The list can be just a single VboInfo with a single VBO.
     struct VboInfo
     {
         quint32 vbo;
         quint8 elementSize = 4; // number of floats, usually 3 or 4
-        QColor color = QColor(64, 64, 64, 128); // color to be used for rendering
+        QColor color = QColor(); // color to be used for rendering, invalid by default
         quint32 size = 0; // the number of points
         quint8 stride = 0; // stride between consecutive elements
+
+        bool layoutMatches(const VboInfo* const otherVbo)
+        {
+            return elementSize == otherVbo->elementSize && stride == otherVbo->stride;
+        }
     };
 
     PointCloud(const QVector3D &min, const QVector3D &max);
@@ -78,9 +85,9 @@ public slots:
 
 signals:
     // A signal to make others aware that new points are present in the pointcloud. This signal is not guaranteed
-    // to be fired whenever there are new poitns (e.g. after every scan), because that would cause a lot of signals.
+    // to be fired whenever there are new points (e.g. after every scan), because that would cause a lot of signals.
     // Instead, the pointcloud is free to define larger intervals between signals.
-    void pointsInserted();
+    void pointsInserted(const VboInfo* const vboInfo, const quint32& firstPoint, const quint32& numPoints);
 };
 
 #endif

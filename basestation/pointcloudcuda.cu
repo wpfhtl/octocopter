@@ -493,9 +493,9 @@ struct SnapToGridOp
     float4 operator()(float4 a)
     {
         return make_float4(
-                    floor(a.x * mMinDist.x) / mMinDist.x,
-                    floor(a.y * mMinDist.y) / mMinDist.y,
-                    floor(a.z * mMinDist.z) / mMinDist.z,
+                    round(a.x * mMinDist.x) / mMinDist.x,
+                    round(a.y * mMinDist.y) / mMinDist.y,
+                    round(a.z * mMinDist.z) / mMinDist.z,
                     1.0f);
     }
 

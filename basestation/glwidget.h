@@ -32,6 +32,7 @@ class GlWidget : public QGLWidget
 
     const Pose* mLastKnownVehiclePose;
 
+
     // Set by slotSetFlightControllerValues(), then visualized for FligthController debugging
     const FlightControllerValues* mLastFlightControllerValues;
 
@@ -39,6 +40,7 @@ class GlWidget : public QGLWidget
     QDateTime mTimeOfLastRender;
     QTimer* mTimerUpdate;
 
+    float mRotationPerFrame;
     bool mViewRotating;
     bool mViewZooming;
 
@@ -73,6 +75,7 @@ class GlWidget : public QGLWidget
     void mousePressEvent(QMouseEvent *event);
     void mouseMoveEvent(QMouseEvent *event);
     void wheelEvent(QWheelEvent *event);
+    void keyPressEvent(QKeyEvent *event);
     void zoom(double zoomFactor);
 
     void renderController(const QMatrix4x4 &transform, const PidController* const controller);
@@ -89,6 +92,7 @@ protected:
 signals:
     void initializingInGlContext();
     void visualizeNow();
+    void rotating(bool);
 
 public slots:
     // When this is called, we take note of the time of last external update. Because when zooming/rotating

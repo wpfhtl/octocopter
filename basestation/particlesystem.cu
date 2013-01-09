@@ -46,16 +46,63 @@ void computeMappingFromGridCellToParticle(uint*  gridParticleHash,
     checkCudaSuccess("Kernel execution failed");
 }
 
-void sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(uint*  cellStart,
-                                 uint*  cellEnd,
-                                 float* sortedPos,
-                                 float* sortedVel,
-                                 uint*  gridParticleHash,
-                                 uint*  gridParticleIndex,
-                                 float* oldPos,
-                                 float* oldVel,
-                                 uint   numParticles,
-                                 uint   numCells)
+void sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
+        uint*  cellStart,
+        uint*  cellEnd,
+        float* sortedPos,
+        float* sortedVel,
+        uint*  gridParticleHash,
+        uint*  gridParticleIndex,
+        float* oldPos,
+        float* oldVel,
+        uint   numParticles,
+        uint   numCells)
+{
+    uint numThreads, numBlocks;
+    computeGridSize(numParticles, 256, numBlocks, numThreads);
+
+    // set all cells to empty
+    cudaMemset(cellStart, 0xffffffff, numCells*sizeof(uint));
+
+#if USE_TEX
+    cudaBindTexture(0, oldPosTex, oldPos, numParticles*sizeof(float4));
+    cudaBindTexture(0, oldVelTex, oldVel, numParticles*sizeof(float4));
+#endif
+
+    // Number of bytes in shared memory that is allocated for each (thread)block.
+    uint smemSize = sizeof(uint)*(numThreads+1);
+
+    sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArraysD<<< numBlocks, numThreads, smemSize>>>(
+                                                                         cellStart,
+                                                                         cellEnd,
+                                                                         (float4 *) sortedPos,
+                                                                         (float4 *) sortedVel,
+                                                                         gridParticleHash,
+                                                                         gridParticleIndex,
+                                                                         (float4 *) oldPos,
+                                                                         (float4 *) oldVel,
+                                                                         numParticles);
+
+    checkCudaSuccess("Kernel execution failed: reorderDataAndFindCellStartD");
+
+#if USE_TEX
+    cudaUnbindTexture(oldPosTex);
+    cudaUnbindTexture(oldVelTex);
+#endif
+}
+
+
+void sortColliderPosAccordingToGridCellAndFillCellStartAndEndArrays(
+        uint*  cellStart,
+        uint*  cellEnd,
+        float* sortedPos,
+        float* sortedVel,
+        uint*  gridParticleHash,
+        uint*  gridParticleIndex,
+        float* oldPos,
+        float* oldVel,
+        uint   numParticles,
+        uint   numCells)
 {
     uint numThreads, numBlocks;
     computeGridSize(numParticles, 256, numBlocks, numThreads);
