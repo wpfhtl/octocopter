@@ -33,6 +33,8 @@ void computeMappingFromGridCellToParticle(uint*  gridParticleHash,
               float* pos,
               int    numParticles)
 {
+    if(numParticles == 0) return;
+
     uint numThreads, numBlocks;
     computeGridSize(numParticles, 256, numBlocks, numThreads);
 

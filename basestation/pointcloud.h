@@ -48,6 +48,7 @@ public:
     virtual float getMinimumPointDistance() const = 0;
 
     virtual quint32 getNumberOfPoints(void) const = 0;
+    virtual quint32 getCapacity(void) const = 0;
 
     virtual bool exportToPly(const QString& fileName, QWidget* widget = 0) const = 0;
     virtual bool importFromPly(const QString& fileName, QWidget* widget = 0) = 0;

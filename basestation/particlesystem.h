@@ -87,6 +87,9 @@ protected:
     // A pointer to the pointcloud holding the pointcloud to collide particles against.
     PointCloud* mPointCloudColliders;
 
+    quint64 mNumberOfBytesAllocatedCpu;
+    quint64 mNumberOfBytesAllocatedGpu;
+
     enum ParticleArray
     {
         ArrayPositions,

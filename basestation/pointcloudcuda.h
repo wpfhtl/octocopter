@@ -53,6 +53,8 @@ public:
 
     const QVector<VboInfo>& getVboInfo() const { return mVboInfo; }
 
+    quint32 getCapacity(void) const { return mParameters.capacity; }
+
     void setColor(const QColor& c) {mVboInfo[0].color = c;}
 
     bool importFromPly(const QString& fileName, QWidget* widget = 0);
