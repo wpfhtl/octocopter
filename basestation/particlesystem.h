@@ -131,24 +131,26 @@ protected:
     //
     // After particles have been moved according to their speed (in integrateSystem()), their position and velocity
     // arrays aren't sorted according to grid-cells anymore, because some have moved to different grid cells.
-    float* mDeviceParticlePos;
+    // mDeviceParticlePos isn't needed, the data is contained in an OpenGL VBO.
     float* mDeviceParticleVel;
     float* mDeviceParticleSortedPos;
     float* mDeviceParticleSortedVel;
 
-    float* mDeviceColliderPos;
     float* mDeviceColliderSortedPos;
 
     // A map, mapping from gridcell => particle index. Length is particlecount
-    unsigned int*  mDeviceMapParticleGridCell;  // grid hash value for each particle
-    unsigned int*  mDeviceMapParticleIndex;     // particle index for each particle
+    unsigned int*  mDeviceParticleMapGridCell;  // grid hash value for each particle
+    unsigned int*  mDeviceParticleMapIndex;     // particle index for each particle
 
     // A map, mapping from gridcell => collider index. Length is collidercount
-    unsigned int*  mDeviceMapColliderGridCell;  // grid hash value for each collider
-    unsigned int*  mDeviceMapColliderIndex;     // particle index for each collider
+    unsigned int*  mDeviceColliderMapGridCell;  // grid hash value for each collider
+    unsigned int*  mDeviceColliderMapIndex;     // particle index for each collider
 
-    unsigned int*  mDeviceCellStart;            // index of start of each cell in sorted list
-    unsigned int*  mDeviceCellEnd;              // index of end of cell
+    unsigned int*  mDeviceParticleCellStart;    // index of start of each cell in sorted list
+    unsigned int*  mDeviceParticleCellEnd;      // index of end of cell
+
+    unsigned int*  mDeviceColliderCellStart;    // index of start of each cell in sorted list
+    unsigned int*  mDeviceColliderCellEnd;      // index of end of cell
 
     unsigned int   mVboParticlePositions;   // vertex buffer object for particle positions
     unsigned int   mVboColliderPositions;   // vertex buffer object for collider positions

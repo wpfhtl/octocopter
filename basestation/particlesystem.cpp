@@ -20,12 +20,12 @@ ParticleSystem::ParticleSystem(PointCloud *const pointcloud) : mPointCloudCollid
     mSimulationParameters.worldMin = make_float3(0.0f, 0.0f, 0.0f);
     mSimulationParameters.worldMax = make_float3(0.0f, 0.0f, 0.0f);
     mSimulationParameters.gridSize = make_uint3(0, 0, 0);
-    mSimulationParameters.particleCount = 1024;
-    mSimulationParameters.colliderCountMax = 65536;
-    mSimulationParameters.dampingMotion = 0.98f;
+    mSimulationParameters.particleCount = 0;
+//    mSimulationParameters.colliderCountMax = 65536;
+    mSimulationParameters.dampingMotion = 1.0f;
     mSimulationParameters.velocityFactorCollisionParticle = 0.02f;
-    mSimulationParameters.velocityFactorCollisionBoundary = -0.7f;
-    mSimulationParameters.gravity = make_float3(0.0, -0.2f, 0.0f);
+    mSimulationParameters.velocityFactorCollisionBoundary = -0.5f;
+    mSimulationParameters.gravity = make_float3(0.0, -0.003f, 0.0f);
     mSimulationParameters.spring = 0.5f;
     mSimulationParameters.shear = 0.1f;
     mSimulationParameters.attraction = 0.0f;
@@ -44,17 +44,18 @@ void ParticleSystem::setNullPointers()
     mDeviceParticleVel = 0;
     mDeviceParticleSortedPos = 0;
     mDeviceParticleSortedVel = 0;
-    mDeviceMapParticleGridCell = 0;
-    mDeviceMapParticleIndex = 0;
-    mDeviceMapColliderGridCell = 0;
-    mDeviceMapColliderIndex = 0;
-    mDeviceCellStart = 0;
-    mDeviceCellEnd = 0;
+    mDeviceParticleMapGridCell = 0;
+    mDeviceParticleMapIndex = 0;
+    mDeviceColliderMapGridCell = 0;
+    mDeviceColliderMapIndex = 0;
+    mDeviceParticleCellStart = 0;
+    mDeviceParticleCellEnd = 0;
+    mDeviceColliderCellStart = 0;
+    mDeviceColliderCellEnd = 0;
     mVboParticlePositions = 0;
     mVboParticleColors = 0;
 
     mVboColliderPositions = 0;
-    mDeviceColliderPos = 0;
     mDeviceColliderSortedPos = 0;
 }
 
@@ -70,6 +71,9 @@ void ParticleSystem::initialize()
 {
     Q_ASSERT(!mIsInitialized);
 
+    size_t memTotal, memFree;
+    cudaMemGetInfo(&memFree, &memTotal);
+    qDebug() << "ParticleSystem::initialize(): before init, device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free.";
 
     // Set gridsize so that the cell-edges are never shorter than the particle's diameter! If particles were allowed to be larger than gridcells in
     // any dimension, we couldn't find all relevant neighbors by searching through only the (3*3*3)-1 = 8 cells immediately neighboring this one.
@@ -80,6 +84,9 @@ void ParticleSystem::initialize()
     mSimulationParameters.gridSize.x = nextHigherPowerOfTwo((uint)ceil(getWorldSize().x() / (mSimulationParameters.particleRadius * 2.0f)))/* / 8.0*/;
     mSimulationParameters.gridSize.y = nextHigherPowerOfTwo((uint)ceil(getWorldSize().y() / (mSimulationParameters.particleRadius * 2.0f)))/* / 8.0*/;
     mSimulationParameters.gridSize.z = nextHigherPowerOfTwo((uint)ceil(getWorldSize().z() / (mSimulationParameters.particleRadius * 2.0f)))/* / 8.0*/;
+
+    // hack!
+    mSimulationParameters.gridSize.x = mSimulationParameters.gridSize.y = mSimulationParameters.gridSize.z = 64;
 
     const unsigned int numberOfCells = mSimulationParameters.gridSize.x * mSimulationParameters.gridSize.y * mSimulationParameters.gridSize.z;
     //    m_params.cellSize = make_float3(worldSize.x / m_gridSize.x, worldSize.y / m_gridSize.y, worldSize.z / m_gridSize.z);
@@ -114,7 +121,10 @@ void ParticleSystem::initialize()
     cudaMalloc((void**)&mDeviceParticleVel, memSizeParticleQuadrupels);
     mNumberOfBytesAllocatedGpu += memSizeParticleQuadrupels;
 
-    // Why are these sorted, and sorted according to what?
+    cudaMalloc((void**)&mDeviceColliderSortedPos, sizeof(float) * 4 * mPointCloudColliders->getCapacity());
+    mNumberOfBytesAllocatedGpu += sizeof(float) * 4 * mPointCloudColliders->getCapacity();
+
+    // Sorted according to containing grid cell.
     cudaMalloc((void**)&mDeviceParticleSortedPos, memSizeParticleQuadrupels);
     mNumberOfBytesAllocatedGpu += memSizeParticleQuadrupels;
     cudaMalloc((void**)&mDeviceParticleSortedVel, memSizeParticleQuadrupels);
@@ -122,19 +132,24 @@ void ParticleSystem::initialize()
 
     // These two are used to map from gridcell (=hash) to particle id (=index). If we also know in which
     // indices of these arrays grid cells start and end, we can quickly find particles in neighboring cells...
-    cudaMalloc((void**)&mDeviceMapParticleGridCell, mSimulationParameters.particleCount*sizeof(uint));
-    cudaMalloc((void**)&mDeviceMapParticleIndex, mSimulationParameters.particleCount*sizeof(uint));
+    cudaMalloc((void**)&mDeviceParticleMapGridCell, mSimulationParameters.particleCount*sizeof(uint));
+    cudaMalloc((void**)&mDeviceParticleMapIndex, mSimulationParameters.particleCount*sizeof(uint));
     mNumberOfBytesAllocatedGpu += mSimulationParameters.particleCount * sizeof(uint) * 2;
 
     // Same thing as above, just for colliders
-    cudaMalloc((void**)&mDeviceMapColliderGridCell, mPointCloudColliders->getCapacity()*sizeof(uint));
-    cudaMalloc((void**)&mDeviceMapColliderIndex, mPointCloudColliders->getCapacity()*sizeof(uint));
+    cudaMalloc((void**)&mDeviceColliderMapGridCell, mPointCloudColliders->getCapacity()*sizeof(uint));
+    cudaMalloc((void**)&mDeviceColliderMapIndex, mPointCloudColliders->getCapacity()*sizeof(uint));
     mNumberOfBytesAllocatedGpu += mPointCloudColliders->getCapacity() * sizeof(uint) * 2;
 
     // ...and thats what we do here: in mDeviceCellStart[17], you'll find
     // where in mDeviceGridParticleHash cell 17 starts!
-    cudaMalloc((void**)&mDeviceCellStart, numberOfCells*sizeof(uint));
-    cudaMalloc((void**)&mDeviceCellEnd, numberOfCells*sizeof(uint));
+    cudaMalloc((void**)&mDeviceParticleCellStart, numberOfCells*sizeof(uint));
+    cudaMalloc((void**)&mDeviceParticleCellEnd, numberOfCells*sizeof(uint));
+    mNumberOfBytesAllocatedGpu += numberOfCells * sizeof(uint) * 2;
+
+    // Same for colliders...
+    cudaMalloc((void**)&mDeviceColliderCellStart, numberOfCells*sizeof(uint));
+    cudaMalloc((void**)&mDeviceColliderCellEnd, numberOfCells*sizeof(uint));
     mNumberOfBytesAllocatedGpu += numberOfCells * sizeof(uint) * 2;
 
     cudaGraphicsGLRegisterBuffer(&mCudaColorVboResource, mVboParticleColors, cudaGraphicsMapFlagsNone);
@@ -160,6 +175,9 @@ void ParticleSystem::initialize()
     placeParticles();
 
     mIsInitialized = true;
+
+    cudaMemGetInfo(&memFree, &memTotal);
+    qDebug() << "ParticleSystem::initialize(): after init, device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free.";
 }
 
 void ParticleSystem::freeResources()
@@ -171,16 +189,20 @@ void ParticleSystem::freeResources()
     delete [] mHostParticlePos;
     delete [] mHostParticleVel;
 
+    cudaFree(mDeviceColliderSortedPos);
     cudaFree(mDeviceParticleVel);
     cudaFree(mDeviceParticleSortedPos);
     cudaFree(mDeviceParticleSortedVel);
 
-    cudaFree(mDeviceMapParticleGridCell);
-    cudaFree(mDeviceMapParticleIndex);
-    cudaFree(mDeviceMapColliderGridCell);
-    cudaFree(mDeviceMapColliderIndex);
-    cudaFree(mDeviceCellStart);
-    cudaFree(mDeviceCellEnd);
+    cudaFree(mDeviceParticleMapGridCell);
+    cudaFree(mDeviceParticleMapIndex);
+    cudaFree(mDeviceParticleCellStart);
+    cudaFree(mDeviceParticleCellEnd);
+
+    cudaFree(mDeviceColliderMapGridCell);
+    cudaFree(mDeviceColliderMapIndex);
+    cudaFree(mDeviceColliderCellStart);
+    cudaFree(mDeviceColliderCellEnd);
 
     cudaGraphicsUnregisterResource(mCudaVboResourceParticlePositions);
     glDeleteBuffers(1, (const GLuint*)&mVboParticlePositions);
@@ -255,95 +277,97 @@ void ParticleSystem::update(const float deltaTime)
 
     // Integrate
     integrateSystem(
-                deviceParticlePositions,  // in/out:  particle positions
-                mDeviceParticleVel, // in/out:  particle velocities
-                deltaTime,  // in:      intergate which timestep
-                mSimulationParameters.particleCount);
+                deviceParticlePositions,                    // in/out: The particle positions, unsorted
+                mDeviceParticleVel,                         // in/out: The particle velocities, unsorted
+                deltaTime,                                  // input:  Timestep to be used for integration
+                mSimulationParameters.particleCount         // input:  The number of particles
+                );
 
     qDebug() << "ParticleSystem::update(): 2: integrating system finished at" << startTime.elapsed();
 
     // Now that particles have been moved, they might be contained in different grid cells. So recompute the
     // mapping gridCell => particleIndex. This will allow fast neighbor searching in the grid during collision phase.
     computeMappingFromGridCellToParticle(
-                mDeviceMapParticleGridCell,    // out: gridCells, completely overwritten using only the (sorted or unsorted, doesn't matter) positions array devicePos
-                mDeviceMapParticleIndex,   // out: particleId, completely overwritten using only the (sorted or unsorted, doesn't matter) positions array devicePos
-                deviceParticlePositions,                  // in:  particle positions after integration, possibly colliding with other particles
-                mSimulationParameters.particleCount); // one thread per particle
+                mDeviceParticleMapGridCell,                 // output: The key - part of the particle gridcell->index map, unsorted
+                mDeviceParticleMapIndex,                    // output: The value-part of the particle gridcell->index map, unsorted
+                deviceParticlePositions,                    // input:  The particle positions after integration, unsorted and possibly colliding with other particles
+                mSimulationParameters.particleCount);       // input:  The number of particles, one thread per particle
 
-    // Do the same thing for gridcell => colliderIndex
-    computeMappingFromGridCellToParticle(
-                mDeviceMapColliderGridCell,    // out: gridCells, completely overwritten using only the (sorted or unsorted, doesn't matter) positions array devicePos
-                mDeviceMapColliderIndex,   // out: particleId, completely overwritten using only the (sorted or unsorted, doesn't matter) positions array devicePos
-                deviceColliderPositions,                  // in:  particle positions after integration, possibly colliding with colliders
-                mPointCloudColliders->getVboInfo()[0].size); // one thread per particle
-
-    qDebug() << "ParticleSystem::update(): 3: calculating grid hashes finished at" << startTime.elapsed();
+    qDebug() << "ParticleSystem::update(): 3: computing particle spatial hash table finished at" << startTime.elapsed();
 
     // Sort the mapping gridCell => particleId on gridCell
-    sortParticles(mDeviceMapParticleGridCell, mDeviceMapParticleIndex, mSimulationParameters.particleCount);
-    // Same for colliders
-    sortParticles(mDeviceMapColliderGridCell, mDeviceMapColliderIndex, mPointCloudColliders->getVboInfo()[0].size);
+    sortGridOccupancyMap(mDeviceParticleMapGridCell, mDeviceParticleMapIndex, mSimulationParameters.particleCount);
 
-    qDebug() << "ParticleSystem::update(): 4: sorting particles and colliders finished at" << startTime.elapsed();
+    qDebug() << "ParticleSystem::update(): 4: sorting particle spatial hash table finished at" << startTime.elapsed();
 
     // Reorder particle arrays into sorted order and find start and end of each cell. The ordering of the particles is useful
     // only for the particle/particle-collisions. The collision code writes the post-collision velocities back into the
     // original, unsorted particle velocity array, where is will be used again in the next iteration's integrateSystem().
     sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
-                mDeviceCellStart,
-                mDeviceCellEnd,
-                mDeviceParticleSortedPos,
-                mDeviceParticleSortedVel,
-                mDeviceMapParticleGridCell,
-                mDeviceMapParticleIndex,
-                deviceParticlePositions,
-                mDeviceParticleVel,
-                mSimulationParameters.particleCount,
-                mSimulationParameters.gridSize.x * mSimulationParameters.gridSize.y * mSimulationParameters.gridSize.z);
+                mDeviceParticleCellStart,                           // output: At which index in mDeviceMapParticleIndex does cell X start?
+                mDeviceParticleCellEnd,                             // output: At which index in mDeviceMapParticleIndex does cell X end?
+                mDeviceParticleSortedPos,                   // output: The particle positions, sorted by gridcell
+                mDeviceParticleSortedVel,                   // output: The particle velocities, sorted by gridcell
+                mDeviceParticleMapGridCell,                 // input:  The key - part of the particle gridcell->index map, unsorted
+                mDeviceParticleMapIndex,                    // input:  The value-part of the particle gridcell->index map, unsorted
+                deviceParticlePositions,                    // input:  The particle-positions, unsorted
+                mDeviceParticleVel,                         // input:  The particle-velocities, unsorted
+                mSimulationParameters.particleCount,        // input:  The number of particles
+                mSimulationParameters.gridSize.x * mSimulationParameters.gridSize.y * mSimulationParameters.gridSize.z  // input: Number of grid cells
+                );
 
-    qDebug() << "ParticleSystem::update(): 5: reordering particles finished at" << startTime.elapsed();
+    qDebug() << "ParticleSystem::update(): 5: computing particle navigation tables and sorting particles finished at" << startTime.elapsed();
+
+    // Same for colliders
+    // TODO: Only update when underlying pointcloud updates
+    computeMappingFromGridCellToParticle(
+                mDeviceColliderMapGridCell,                 // output: The key - part of the collider gridcell->index map, unsorted
+                mDeviceColliderMapIndex,                    // output: The value-part of the collider gridcell->index map, unsorted
+                deviceColliderPositions,                    // input:  The collider positions (no integration), unsorted and possibly colliding with particles
+                mPointCloudColliders->getVboInfo()[0].size  // input:  The number of colliders, one thread per particle
+                );
+
+    qDebug() << "ParticleSystem::update(): 6: computing collider spatial hash table finished at" << startTime.elapsed();
+
+    sortGridOccupancyMap(mDeviceColliderMapGridCell, mDeviceColliderMapIndex, mPointCloudColliders->getVboInfo()[0].size);
+
+    qDebug() << "ParticleSystem::update(): 7: sorting collider spatial hash table finished at" << startTime.elapsed();
+
+    sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
+                mDeviceColliderCellStart,                   // output: At which index in mDeviceMapColliderIndex does cell X start?
+                mDeviceColliderCellEnd,                     // output: At which index in mDeviceMapColliderIndex does cell X end?
+                mDeviceColliderSortedPos,                   // output: The collider positions, sorted by gridcell
+                0,                                          // output: The collider velocities, sorted by gridcell / they have no vel, so pass 0
+                mDeviceColliderMapGridCell,                 // input:  The key - part of the collider gridcell->index map, unsorted
+                mDeviceColliderMapIndex,                    // input:  The value-part of the collider gridcell->index map, unsorted
+                deviceColliderPositions,                    // input:  The particle-positions, unsorted
+                0,                                          // input:  The particle-velocities, unsorted / they have no vel, so pass 0
+                mPointCloudColliders->getVboInfo()[0].size, // input:  The number of colliders
+                mSimulationParameters.gridSize.x * mSimulationParameters.gridSize.y * mSimulationParameters.gridSize.z  // input: Number of grid cells
+                );
+
+    qDebug() << "ParticleSystem::update(): 8: computing collider navigation tables and sorting particles finished at" << startTime.elapsed();
 
     // process collisions between particles
-    collide(
-                mDeviceParticleVel,
-                mDeviceParticleSortedPos,
-                mDeviceParticleSortedVel,
-                mDeviceMapParticleIndex,
-                mDeviceCellStart,
-                mDeviceCellEnd,
-                mSimulationParameters.particleCount,
-                mSimulationParameters.gridSize.x * mSimulationParameters.gridSize.y * mSimulationParameters.gridSize.z);
+    collideParticlesWithParticlesAndColliders(
+                mDeviceParticleVel,                         // output: The particle velocities
 
-    qDebug() << "ParticleSystem::update(): 6: colliding particles finished at" << startTime.elapsed();
+                mDeviceParticleSortedPos,                   // input:  The particle positions, sorted by gridcell
+                mDeviceParticleSortedVel,                   // input:  The particle velocities, sorted by gridcell
+                mDeviceParticleMapIndex,                    // input:  The value-part of the particle gridcell->index map, sorted by gridcell
+                mDeviceParticleCellStart,                   // input:  At which index in mDeviceMapParticleIndex does cell X start?
+                mDeviceParticleCellEnd,                     // input:  At which index in mDeviceMapParticleIndex does cell X end?
 
-    // We now collide particles / colliders. We do this last, so we can reuse the mDeviceCellStart and -End tables.
-    // Those can be reused because they are of cell-length, not of particle/collider-length (which differs)
-/*    sortColliderPosAccordingToGridCellAndFillCellStartAndEndArrays(
-                mDeviceCellStart,
-                mDeviceCellEnd,
-                mDeviceParticleSortedPos,
-                mDeviceParticleSortedVel,
-                mDeviceMapParticleGridCell,
-                mDeviceMapParticleIndex,
-                deviceParticlePositions,
-                mDeviceParticleVel,
-                mPointCloudColliders->getVboInfo()[0].size,
-                mSimulationParameters.gridSize.x * mSimulationParameters.gridSize.y * mSimulationParameters.gridSize.z);
+                mDeviceColliderSortedPos,                   // input:  The collider positions, sorted by gridcell
+                mDeviceColliderMapIndex,                    // input:  The value-part of the collider gridcell->index map, sorted by gridcell
+                mDeviceColliderCellStart,                   // input:  At which index in mDeviceMapColliderIndex does cell X start?
+                mDeviceColliderCellEnd,                     // input:  At which index in mDeviceMapColliderIndex does cell X end?
 
-    qDebug() << "ParticleSystem::update(): 7: reordering colliders finished at" << startTime.elapsed();
+                mSimulationParameters.particleCount,        // input:  How many particles to collide against other particles (one thread per particle)
+                mSimulationParameters.gridSize.x * mSimulationParameters.gridSize.y * mSimulationParameters.gridSize.z  // input: Number of grid cells
+                );
 
-    // process collisions between particles
-    collide(
-                mDeviceParticleVel,
-                mDeviceParticleSortedPos,
-                mDeviceParticleSortedVel,
-                mDeviceMapParticleIndex,
-                mDeviceCellStart,
-                mDeviceCellEnd,
-                mSimulationParameters.particleCount,
-                mSimulationParameters.gridSize.x * mSimulationParameters.gridSize.y * mSimulationParameters.gridSize.z);
-*/
-    qDebug() << "ParticleSystem::update(): 6: colliding particles finished at" << startTime.elapsed();
+    qDebug() << "ParticleSystem::update(): 9: colliding particles finished at" << startTime.elapsed();
 
     // Unmap at end here to avoid unnecessary graphics/CUDA context switch.
     // Once unmapped, the resource may not be accessed by CUDA until they
@@ -353,7 +377,9 @@ void ParticleSystem::update(const float deltaTime)
     cudaGraphicsUnmapResources(1, &mCudaVboResourceColliderPositions, 0);
     cudaGraphicsUnmapResources(1, &mCudaVboResourceParticlePositions, 0);
 
-    qDebug() << "ParticleSystem::update(): 7: unmapping vbo resource finished at" << startTime.elapsed();
+    size_t memTotal, memFree;
+    cudaMemGetInfo(&memFree, &memTotal);
+    qDebug() << "ParticleSystem::update(): finished, fps:" << 1000.0f/startTime.elapsed() << "free mem:" << memFree / 1048576;
 }
 
 void ParticleSystem::slotSetParticleRadius(float radius)

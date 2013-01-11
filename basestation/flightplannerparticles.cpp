@@ -51,8 +51,8 @@ void FlightPlannerParticles::slotInitialize()
     connect(mParticleSystem, SIGNAL(vboInfoParticles(quint32,quint32,quint32)), mParticleRenderer, SLOT(slotSetVboInfoParticles(quint32,quint32,quint32)));
     connect(mParticleSystem, SIGNAL(vboInfoColliders(quint32,quint32)), mParticleRenderer, SLOT(slotSetVboInfoColliders(quint32,quint32)));
 
-    mParticleSystem->slotSetParticleCount(16384);
-    mParticleSystem->slotSetParticleRadius(0.60f); // balance against mOctreeCollisionObjects.setMinimumPointDistance() above
+    mParticleSystem->slotSetParticleCount(131074);
+    mParticleSystem->slotSetParticleRadius(0.5); // balance against mOctreeCollisionObjects.setMinimumPointDistance() above
     mParticleSystem->slotSetDefaultParticlePlacement(ParticleSystem::ParticlePlacement::PlacementFillSky);
 //    mParticleSystem->slotSetVolume(mScanVolumeMin, mScanVolumeMax);
 }
