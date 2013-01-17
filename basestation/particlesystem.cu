@@ -18,15 +18,32 @@ void setParameters(CollisionParameters *hostParams)
     cudaMemcpyToSymbolAsync(params, hostParams, sizeof(CollisionParameters));
 }
 
-void integrateSystem(float *pos, float *vel, float deltaTime, uint numParticles)
+void integrateSystem(float *particlePositions, float *particleVelocities, uint8_t* gridWaypointPressure, float* particleCollisionPositions, float deltaTime, uint numParticles)
 {
-    thrust::device_ptr<float4> d_pos4((float4 *)pos);
-    thrust::device_ptr<float4> d_vel4((float4 *)vel);
+// old thrust version. Cannot write to the non-linear waypointpressure position when using thrust tuples.
+//    thrust::device_ptr<float4> d_pos4((float4*)pos);
+//    thrust::device_ptr<float4> d_vel4((float4*)vel);
+//    thrust::device_ptr<float4> d_pcp4((float4*)particleCollisionPositions);
+//    thrust::device_ptr<uint8_t> d_gwpp((uint8_t*)gridWaypointPressure);
 
-    thrust::for_each(
-                thrust::make_zip_iterator(thrust::make_tuple(d_pos4, d_vel4)),
-                thrust::make_zip_iterator(thrust::make_tuple(d_pos4 + numParticles, d_vel4 + numParticles)),
-                integrate_functor(deltaTime));
+//    thrust::for_each(
+//                thrust::make_zip_iterator(thrust::make_tuple(d_pos4, d_vel4, d_pcp4, d_gwpp)),
+//                thrust::make_zip_iterator(thrust::make_tuple(d_pos4 + numParticles, d_vel4 + numParticles, d_pcp4 + numParticles, d_gwpp + numParticles)),
+//                integrate_functor(deltaTime));
+
+    if(numParticles == 0) return;
+
+    uint numThreads, numBlocks;
+    computeGridSize(numParticles, 256, numBlocks, numThreads);
+
+    // execute the kernel
+    integrateSystemD<<< numBlocks, numThreads >>>(
+                                                    (float4*)particlePositions,          // in/out: particle positions
+                                                    (float4*)particleVelocities,         // in/out: particle velocities
+                                                    gridWaypointPressure,       // in/out: grid containing quint8-cells with waypoint-pressure values (80-255)
+                                                    (float4*)particleCollisionPositions, // input:  particle positions
+                                                    deltaTime,
+                                                    numParticles);
 
     // check if kernel invocation generated an error
     checkCudaSuccess("Kernel execution failed: integrateSystem");
@@ -104,6 +121,7 @@ void sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
 
 void collideParticlesWithParticlesAndColliders(
         float* newVel,              // output: The particle velocities
+        float* particleCollisionPositions,          // output: Every particle's position of last collision, or 0.0/0.0/0.0 if none occurred.
 
         float* particlePosSorted,   // input:  The particle positions, sorted by gridcell
         float* particleVelSorted,   // input:  The particle velocities, sorted by gridcell
@@ -133,20 +151,21 @@ void collideParticlesWithParticlesAndColliders(
 
     // execute the kernel
     collideParticlesWithParticlesAndCollidersD<<< numBlocks, numThreads >>>(
-                                                                  (float4*)newVel,
+                                                                              (float4*)newVel,
+                                                                              (float4*)particleCollisionPositions,
 
-                                                                  (float4*)particlePosSorted,
-                                                                  (float4*)particleVelSorted,
-                                                                  particleMapIndex,
-                                                                  particleCellStart,
-                                                                  particleCellEnd,
+                                                                              (float4*)particlePosSorted,
+                                                                              (float4*)particleVelSorted,
+                                                                              particleMapIndex,
+                                                                              particleCellStart,
+                                                                              particleCellEnd,
 
-                                                                  (float4*)colliderSortedPos,
-                                                                  colliderMapIndex,
-                                                                  colliderCellStart,
-                                                                  colliderCellEnd,
+                                                                              (float4*)colliderSortedPos,
+                                                                              colliderMapIndex,
+                                                                              colliderCellStart,
+                                                                              colliderCellEnd,
 
-                                                                  numParticles);
+                                                                              numParticles);
 
     // check if kernel invocation generated an error
     checkCudaSuccess("Kernel execution failed: collideParticlesWithParticlesD");

@@ -18,6 +18,8 @@ void setParameters(CollisionParameters *hostParams);
 void integrateSystem(
         float*        pos,
         float*        vel,
+        uint8_t*      gridWaypointPressure,
+        float*        particleCollisionPositions,
         float         deltaTime,
         unsigned int  numParticles);
 
@@ -41,6 +43,7 @@ void sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
 
 void collideParticlesWithParticlesAndColliders(
         float*        newVel,
+        float*        particleCollisionPositions,
 
         float*        particlePosSorted,
         float*        particleVelSorted,
@@ -55,18 +58,6 @@ void collideParticlesWithParticlesAndColliders(
 
         unsigned int  numParticles,
         unsigned int  numCells);
-/*
-void collideParticlesWithColliders(
-        float*        newVel,
-        float*        sortedPos,
-        float*        sortedVel,
-        unsigned int* gridColliderIndex,
-        float*        colliderSortedPos,
-        unsigned int* cellStart,
-        unsigned int* cellEnd,
-        unsigned int  numParticles,
-        unsigned int  numCells);
-        */
 
 void sortGridOccupancyMap(
         unsigned int* dGridParticleHash,

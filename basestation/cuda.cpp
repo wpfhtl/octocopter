@@ -3,7 +3,7 @@
 void checkCudaSuccess(const char *errorMessage)
 {
     // For debugging, otherwise checkCudaSuccess wouldn't see the async error message
-    cudaDeviceSynchronize();
+//    cudaDeviceSynchronize();
 
     cudaError_t errorCode = cudaGetLastError();
     if( cudaSuccess != errorCode)

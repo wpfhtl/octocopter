@@ -88,6 +88,11 @@ ShaderProgram::ShaderProgram(QObject *parent, const QString& shaderVertex, const
         qDebug() << "ShaderProgram::ShaderProgram(): linking shader program failed, log:" << log();
 }
 
+ShaderProgram::~ShaderProgram()
+{
+    // TODO: clean up, remove shaders...
+}
+
 void ShaderProgram::bindUniformBlockToPoint(const QString& uniformBlockName, unsigned int bindingPoint)
 {
     // Bind uniform block @uniformBlockName to constant binding point @bindingPoint.

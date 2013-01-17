@@ -316,8 +316,8 @@ void BaseStation::slotImportCloud()
 
 void BaseStation::keyPressEvent(QKeyEvent* event)
 {
-//    if(event->key() == Qt::Key_Space)
-//        addRandomPoint();
+    mGlWidget->keyPressEvent(event);
+    mFlightPlanner->keyPressEvent(event);
 }
 
 void BaseStation::slotClearOctree()

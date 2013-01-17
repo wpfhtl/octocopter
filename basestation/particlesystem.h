@@ -30,21 +30,19 @@ public:
         PlacementFillSky
     };
 
-    struct GridCells
-    {
-        quint16 x,y,z;
-    };
-
     void update(const float deltaTime);
 
-    GridCells gridCells()
+    Vector3i gridCells()
     {
-        GridCells gc;
+        Vector3i gc;
         gc.x = mSimulationParameters.gridSize.x;
         gc.y = mSimulationParameters.gridSize.y;
         gc.z = mSimulationParameters.gridSize.z;
         return gc;
     }
+
+private slots:
+    void slotNewCollidersInserted();
 
 public slots:
     void slotSetDefaultParticlePlacement(const ParticlePlacement pp) { mDefaultParticlePlacement = pp; }
@@ -81,7 +79,7 @@ public slots:
 signals:
     void particleRadiusChanged(float);
     void vboInfoParticles(quint32 vboPositions, quint32 vboColor, quint32 particleCount);
-    void vboInfoColliders(quint32 vboPositions, quint32 colliderCount);
+    void vboInfoGridWaypointPressure(quint32 vboPressure, QVector3D gridBoundingBoxMin, QVector3D gridBoundingBoxMax, Vector3i grid);
 
 protected:
     // A pointer to the pointcloud holding the pointcloud to collide particles against.
@@ -89,6 +87,16 @@ protected:
 
     quint64 mNumberOfBytesAllocatedCpu;
     quint64 mNumberOfBytesAllocatedGpu;
+
+    void showWaypointPressure();
+    void showCollisionPositions();
+
+    Vector3i getGridCellCoordinate(const quint32 hash) const;
+    Vector3i getGridCellCoordinate(const QVector3D &worldPos) const;
+
+    QVector3D getGridCellCenter(const Vector3i &gridCellCoordinate) const;
+    QVector3D getGridCellSize() const;
+    quint32 getGridCellHash(Vector3i gridCellCoordinate) const;
 
     enum ParticleArray
     {
@@ -118,6 +126,10 @@ protected:
     void setArray(ParticleArray array, const float* data, int start, int count);
 
     bool mIsInitialized;
+
+    // When the collider pointcloud updates, we need to update supporting data structures on the GPU.
+    bool mColliderPointCloudWasUpdated;
+
     ParticlePlacement mDefaultParticlePlacement;
 
     // CPU data
@@ -138,6 +150,9 @@ protected:
 
     float* mDeviceColliderSortedPos;
 
+    float* mDeviceParticleCollisionPositions;
+
+
     // A map, mapping from gridcell => particle index. Length is particlecount
     unsigned int*  mDeviceParticleMapGridCell;  // grid hash value for each particle
     unsigned int*  mDeviceParticleMapIndex;     // particle index for each particle
@@ -152,12 +167,15 @@ protected:
     unsigned int*  mDeviceColliderCellStart;    // index of start of each cell in sorted list
     unsigned int*  mDeviceColliderCellEnd;      // index of end of cell
 
+    // A gridmap (same grid as always) containing values from 0 to 255. 0 means no waypoint candidates within, 255 means maximum waypoint pressure.
+    unsigned int   mVboGridMapOfWayPointPressure;
     unsigned int   mVboParticlePositions;   // vertex buffer object for particle positions
     unsigned int   mVboColliderPositions;   // vertex buffer object for collider positions
     unsigned int   mVboParticleColors;      // vertex buffer object for particle colors
 
     struct cudaGraphicsResource *mCudaVboResourceParticlePositions; // handles OpenGL-CUDA exchange
     struct cudaGraphicsResource *mCudaVboResourceColliderPositions; // handles OpenGL-CUDA exchange
+    struct cudaGraphicsResource *mCudaVboResourceGridMapOfWayPointPressure; // handles OpenGL-CUDA exchange
     struct cudaGraphicsResource *mCudaColorVboResource; // handles OpenGL-CUDA exchange
 
     CollisionParameters mSimulationParameters;

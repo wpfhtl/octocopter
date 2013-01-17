@@ -18,7 +18,11 @@ public:
     FlightPlannerParticles(QWidget* parentWidget, GlWidget* glWidget, PointCloud* pointcloud);
     ~FlightPlannerParticles();
 
+    void keyPressEvent(QKeyEvent *event);
+
 private:
+    bool mUpdateParticleSystem;
+
     PointCloudCuda* mPointCloudColliders;
     // cursor?
 

@@ -75,7 +75,7 @@ class GlWidget : public QGLWidget
     void mousePressEvent(QMouseEvent *event);
     void mouseMoveEvent(QMouseEvent *event);
     void wheelEvent(QWheelEvent *event);
-    void keyPressEvent(QKeyEvent *event);
+
     void zoom(double zoomFactor);
 
     void renderController(const QMatrix4x4 &transform, const PidController* const controller);
@@ -83,6 +83,7 @@ class GlWidget : public QGLWidget
 public:
     GlWidget(QWidget* parent/*, FlightPlannerInterface* flightPlanner*/);
     void moveCamera(const QVector3D &pos);
+    void keyPressEvent(QKeyEvent *event);
 
 protected:
     void initializeGL();

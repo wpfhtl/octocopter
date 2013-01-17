@@ -11,6 +11,8 @@ FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWidget *
     mParticleRenderer = 0;
     mVboGridLines = 0;
 
+    mUpdateParticleSystem = true;
+
     // register dense pointcloud for rendering. Might be moved to base class c'tor
     mGlWidget->slotPointCloudRegister(mPointCloudDense);
 
@@ -25,7 +27,7 @@ FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWidget *
 
     mPointCloudColliders->mName = "Colliders";
 
-    mPointCloudColliders->setGridSize(64, 32, 64);
+//    mPointCloudColliders->setGridSize(64, 32, 64);
 
     mPointCloudColliders->setMinimumPointDistance(0.9f);
 
@@ -49,12 +51,34 @@ void FlightPlannerParticles::slotInitialize()
 
     connect(mParticleSystem, SIGNAL(particleRadiusChanged(float)), mParticleRenderer, SLOT(slotSetParticleRadius(float)));
     connect(mParticleSystem, SIGNAL(vboInfoParticles(quint32,quint32,quint32)), mParticleRenderer, SLOT(slotSetVboInfoParticles(quint32,quint32,quint32)));
-    connect(mParticleSystem, SIGNAL(vboInfoColliders(quint32,quint32)), mParticleRenderer, SLOT(slotSetVboInfoColliders(quint32,quint32)));
 
-    mParticleSystem->slotSetParticleCount(131074);
-    mParticleSystem->slotSetParticleRadius(0.5); // balance against mOctreeCollisionObjects.setMinimumPointDistance() above
+    connect(
+                mParticleSystem,
+                SIGNAL(vboInfoGridWaypointPressure(quint32,QVector3D,QVector3D,Vector3i)),
+                mParticleRenderer,
+                SLOT(slotSetVboInfoGridWaypointPressure(quint32,QVector3D,QVector3D,Vector3i))
+                );
+
+    mParticleSystem->slotSetParticleCount(256);
+    mParticleSystem->slotSetParticleRadius(0.5f); // balance against mOctreeCollisionObjects.setMinimumPointDistance() above
     mParticleSystem->slotSetDefaultParticlePlacement(ParticleSystem::ParticlePlacement::PlacementFillSky);
 //    mParticleSystem->slotSetVolume(mScanVolumeMin, mScanVolumeMax);
+}
+
+void FlightPlannerParticles::keyPressEvent(QKeyEvent *event)
+{
+    if(event->key() == Qt::Key_1)
+    {
+        mUpdateParticleSystem = !mUpdateParticleSystem;
+    }
+    else if(event->key() == Qt::Key_2 && mParticleSystem)
+    {
+        mParticleRenderer->slotSetRenderParticles(!mParticleRenderer->getRenderParticles());
+    }
+    else if(event->key() == Qt::Key_3 && mParticleSystem)
+    {
+        mParticleRenderer->slotSetRenderWaypointPressure(!mParticleRenderer->getRenderWaypointPressure());
+    }
 }
 
 void FlightPlannerParticles::slotGenerateWaypoints()
@@ -118,14 +142,16 @@ void FlightPlannerParticles::slotVisualize()
             glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0); // positions
             glEnable(GL_BLEND);
             glEnable(GL_DEPTH_TEST);
-            //        glDrawArrays(GL_LINES, 0, (mParticleSystem->gridCells().x+1) * (mParticleSystem->gridCells().y+1) * (mParticleSystem->gridCells().z+1));
+            glDrawArrays(GL_LINES, 0, (mParticleSystem->gridCells().x+1) * (mParticleSystem->gridCells().y+1) * (mParticleSystem->gridCells().z+1));
             glDisable(GL_BLEND);
             glDisableVertexAttribArray(0);
             glBindBuffer(GL_ARRAY_BUFFER, 0);
             mShaderProgramGridLines->release();
         }
 
-        mParticleSystem->update(0.2f);
+        if(mUpdateParticleSystem)
+            mParticleSystem->update(0.5f);
+
         mParticleRenderer->render();
     }
 }
@@ -203,13 +229,6 @@ void FlightPlannerParticles::slotSetScanVolume(const QVector3D min, const QVecto
         glBindBuffer(GL_ARRAY_BUFFER, mVboGridLines);
         glBufferData(GL_ARRAY_BUFFER, lineData.size() * sizeof(QVector4D), lineData.constData(), GL_STATIC_DRAW);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-        // Re-fill mOctreeCollisionObjects data from basestations octree!
-//        if(mOctree)
-//        {
-//            setupCollisionOctree();
-//            FlightPlannerInterface::insertPointsFromNode(mOctree->root());
-//        }
     }
 }
 

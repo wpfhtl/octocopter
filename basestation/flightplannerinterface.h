@@ -52,6 +52,9 @@ public:
 
     void getScanVolume(QVector3D& min, QVector3D& max);
 
+    // For e.g. glWidget to send some user-key-strokes (e.g. for visualization)
+    virtual void keyPressEvent(QKeyEvent *event) = 0;
+
 private slots:
     void slotDeleteGeneratedWayPoints();
     void slotSubmitGeneratedWayPoints();

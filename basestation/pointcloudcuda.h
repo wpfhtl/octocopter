@@ -44,12 +44,12 @@ public:
 
     quint32 getNumberOfPoints(void) const { return mParameters.elementCount + mParameters.elementQueueCount; }
 
-    void setGridSize(const quint16 x, const quint16 y, const quint16 z)
-    {
-        mParameters.gridSize.x = x;
-        mParameters.gridSize.y = y;
-        mParameters.gridSize.z = z;
-    }
+//    void setGridSize(const quint16 x, const quint16 y, const quint16 z)
+//    {
+//        mParameters.gridSize.x = x;
+//        mParameters.gridSize.y = y;
+//        mParameters.gridSize.z = z;
+//    }
 
     const QVector<VboInfo>& getVboInfo() const { return mVboInfo; }
 
@@ -72,12 +72,12 @@ private:
 
     quint32 createVbo(quint32 size);
 
-    float* mDevicePointSortedPos;
+//    float* mDevicePointSortedPos;
 
-    unsigned int*  mDeviceMapGridCell;      // grid hash value for each particle
-    unsigned int*  mDeviceMapPointIndex;    // particle index for each particle
-    unsigned int*  mDeviceCellStart;        // index of start of each cell in sorted list
-    unsigned int*  mDeviceCellStopp;          // index of end of cell
+//    unsigned int*  mDeviceMapGridCell;      // grid hash value for each particle
+//    unsigned int*  mDeviceMapPointIndex;    // particle index for each particle
+//    unsigned int*  mDeviceCellStart;        // index of start of each cell in sorted list
+//    unsigned int*  mDeviceCellStopp;          // index of end of cell
 
     struct cudaGraphicsResource *mCudaVboResource; // handles OpenGL-CUDA exchange
 
