@@ -435,7 +435,7 @@ void GnssDevice::slotSetPoseFrequency(bool highSpeed)
     if(highSpeed)
     {
         // Maybe use msec50 instead of msec20 to avoid RxError 64 (congestion on line)
-        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec40");
+        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec20");
     }
     else
     {

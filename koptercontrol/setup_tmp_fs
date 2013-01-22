@@ -1,6 +1,6 @@
 #!/bin/bash
 
-test -d log && mkdir -p log-persistant && echo "moving logfiles to persistant storage..." && mv log/* log-persistant
+test -d log && mkdir -p log-persistent && echo "moving logfiles to persistant storage..." && mv log/* log-persistent
 
 test -d log || mkdir log
 

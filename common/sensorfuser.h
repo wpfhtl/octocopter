@@ -83,7 +83,7 @@ private:
     // Maximum clock offset between scanner and gnss device timestamp in miliseconds. We will always find the best-fitting scan,
     // and that SHOULD always be the correct match. This is more of a safeguard to prevent matching scans with a gnss timestamp
     // seconds away from each other.
-    const qint32 mMaximumTimeOffsetBetweenScannerAndGnss = 12;
+    qint32 mMaximumTimeOffsetBetweenScannerAndGnss;
 
     float mMaximumFusableRayLength; // rays longer than this will be ignored (because they introduce too much error due to orientation errors)
 

@@ -10,6 +10,7 @@ SensorFuser::SensorFuser(const quint8& stridePoint, const quint8& strideScan) : 
     mStatsScansDiscarded = 0;
     mLastScanMiddleGnssTow = 0;
     mNumberOfScansWithMissingGnssTimestamps = 0;
+    mMaximumTimeOffsetBetweenScannerAndGnss = 12;
 
     mBestInterpolationMethodToUse = InterpolationMethod::Cubic;
 }
