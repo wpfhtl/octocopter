@@ -6,6 +6,7 @@
 #include <QDebug>
 #include <QTimer>
 
+#include <unistd.h> // sleep()
 #include <sys/time.h> // for syncing time
 #include <common.h>
 #include "pose.h"

@@ -238,7 +238,7 @@ void GnssDevice::slotDetermineSerialPortsOnDevice()
             }
             else
             {
-                qDebug() << "GnssDevice::determineSerialPortOnDevice(): couldn't find port name in prompt, retrying...";
+                qDebug() << "GnssDevice::determineSerialPortOnDevice(): couldn't find usb port name in prompt, retrying...";
             }
 
         } while(mSerialPortOnDeviceUsb.isEmpty()); // (mSerialPortUsb->bytesAvailable() + dataUsb.size()) < 250
@@ -258,11 +258,20 @@ void GnssDevice::slotDetermineSerialPortsOnDevice()
             mSerialPortOnDeviceCom = QString(regexpPortNameFromPrompt.cap(1) + regexpPortNameFromPrompt.cap(2)).trimmed();
             qDebug() << "GnssDevice::determineSerialPortOnDevice(): serial com port on device changed to" << mSerialPortOnDeviceCom;
         }
+        else
+        {
+            qDebug() << "GnssDevice::determineSerialPortOnDevice(): couldn't find com port name in prompt, retrying...";
+        }
     }
+
+    // Because of using do...while(), we potentially sent many commands to the GNSS receiver. Lets wait and clear all incoming data
+    usleep(2000000);
+    mSerialPortUsb->readAll();
+    mSerialPortCom->readAll();
 
     // Now that we know what the ports are named, we can setup the board. We connect this signal not in the c'tor but here,
     // because we don't want the slot to be called for answers to requests made in this method.
-    qDebug() << "GnssDevice::determineSerialPortOnDevice(): activating GNSS device output parsing.";
+    qDebug() << "GnssDevice::determineSerialPortOnDevice(): ports are" << mSerialPortOnDeviceCom << mSerialPortOnDeviceUsb << ": activating GNSS device output parsing.";
     connect(mSerialPortUsb, SIGNAL(readyRead()), SLOT(slotDataReadyOnUsb()));
 
     if(mDeviceIsReadyToReceiveDiffCorr)
