@@ -60,4 +60,9 @@ static quint32 nextHigherPowerOfTwo(quint32 v)
     return v + 1;
 }
 
+struct Vector3i
+{
+    qint16 x,y,z;
+};
+
 #endif // COMMON_H

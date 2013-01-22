@@ -51,18 +51,14 @@ BaseStation::BaseStation() : QMainWindow()
     setCentralWidget(mGlWidget);
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(slotUpdateView()));
 
-    mPointCloud = new PointCloudCuda(QVector3D(-50, 0, -50), QVector3D(50, 50, 50));
+    mPointCloud = new PointCloudCuda(QVector3D(-50, 0, -50), QVector3D(50, 20, 50)/*, 250000*/);
     connect(mGlWidget, SIGNAL(initializingInGlContext()), mPointCloud, SLOT(slotInitialize()));
 
-    // register for rendering
-    mGlWidget->slotPointCloudRegister(mPointCloud);
-
     // Choose your weapon!
-//    mFlightPlanner = new FlightPlannerCuda(this, mOctree);
-//    mFlightPlanner = new FlightPlannerPhysics(this, mOctree);
+//    mFlightPlanner = new FlightPlannerCuda(this, mGlWidget, mPointCloud);
+//    mFlightPlanner = new FlightPlannerPhysics(this, mGlWidget, mPointCloud);
 //    mFlightPlanner->slotSetScanVolume(QVector3D(-10, -10, -10), QVector3D(10, 10, 10));
-    mFlightPlanner = new FlightPlannerParticles(this, mPointCloud);
-    mFlightPlanner->setGlWidget(mGlWidget);
+    mFlightPlanner = new FlightPlannerParticles(this, mGlWidget, mPointCloud);
 
     mPtuController = new PtuController("/dev/serial/by-id/usb-Hjelmslund_Electronics_USB485_ISO4W_HEVGI92A-if00-port0", this);
     addDockWidget(Qt::BottomDockWidgetArea, mPtuController);
@@ -110,6 +106,7 @@ BaseStation::BaseStation() : QMainWindow()
     QAction* actionRotateView = new QAction("Rotate View", this);
     actionRotateView->setCheckable(true);
     connect(actionRotateView, SIGNAL(triggered(bool)), mGlWidget, SLOT(slotEnableTimerRotation(bool)));
+    connect(mGlWidget, SIGNAL(rotating(bool)), actionRotateView, SLOT(setChecked(bool)));
     mMenuView->addAction(actionRotateView);
 
     mActionEnableAudio = new QAction("AudioOut", this);
@@ -174,7 +171,7 @@ BaseStation::BaseStation() : QMainWindow()
 
         connect(mRoverConnection, SIGNAL(connectionStatusRover(const bool)), mControlWidget, SLOT(slotUpdateConnectionRover(const bool)));
 
-        connect(mRoverConnection, SIGNAL(scanData(const QVector<QVector3D>* const,const QVector3D* const)), this, SLOT(slotNewScanData(const QVector<QVector3D>* const, const QVector3D* const)));
+        connect(mRoverConnection, SIGNAL(scanData(const QVector<QVector3D>* const,const QVector3D* const)), mFlightPlanner, SLOT(slotNewScanData(const QVector<QVector3D>* const, const QVector3D* const)));
         connect(mRoverConnection, SIGNAL(vehicleStatus(const VehicleStatus* const)), mControlWidget, SLOT(slotUpdateVehicleStatus(const VehicleStatus* const)));
         connect(mRoverConnection, SIGNAL(gnssStatus(const GnssStatus* const)), mControlWidget, SLOT(slotUpdateGnssStatus(const GnssStatus* const)));
         connect(mRoverConnection, SIGNAL(flightControllerValues(const FlightControllerValues* const)), SLOT(slotSetFlightControllerValues(const FlightControllerValues* const)));
@@ -215,7 +212,7 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mPtuController, SLOT(slotVehiclePoseChanged(const Pose* const)));
 
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mGlWidget, SLOT(slotNewVehiclePose(const Pose* const)));
-        connect(mLogPlayer, SIGNAL(scanData(const QVector<QVector3D>* const, const QVector3D* const)), this, SLOT(slotNewScanData(const QVector<QVector3D>* const, const QVector3D* const)));
+        connect(mLogPlayer, SIGNAL(scanData(const QVector<QVector3D>* const, const QVector3D* const)), mFlightPlanner, SLOT(slotNewScanData(const QVector<QVector3D>* const, const QVector3D* const)));
     //    connect(mLogPlayer, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
         connect(mLogPlayer, SIGNAL(gnssStatus(const GnssStatus* const)), mControlWidget, SLOT(slotUpdateGnssStatus(const GnssStatus* const)));
 
@@ -281,23 +278,6 @@ void BaseStation::slotNewImage(const QString& cameraName, const QSize& imageSize
     widget->slotSetPixmapData(imageData);
 }
 
-void BaseStation::slotNewScanData(const QVector<QVector3D>* const pointList, const QVector3D* const scannerPosition)
-{
-    mPointCloud->slotInsertPoints(pointList);
-
-    mGlWidget->slotUpdateView();
-
-    mLogWidget->log(
-                Information,
-                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                QString("%1 points using %2 MB, %3 points processed.")
-                .arg(mPointCloud->getNumberOfPoints())
-                .arg((mPointCloud->getNumberOfPoints()*sizeof(QVector4D))/(1024.0f*1024.0f), 2, 'g')
-                .arg(pointList->size()));
-
-    //qDebug() << "BaseStation::slotNewScanData(): appended" << pointList->size() << "points to octree.";
-}
-
 void BaseStation::slotExportCloud()
 {
     const QString fileName = QFileDialog::getSaveFileName(this, "Save cloud to", QString(), "PLY files (*.ply)");
@@ -336,8 +316,8 @@ void BaseStation::slotImportCloud()
 
 void BaseStation::keyPressEvent(QKeyEvent* event)
 {
-//    if(event->key() == Qt::Key_Space)
-//        addRandomPoint();
+    mGlWidget->keyPressEvent(event);
+    mFlightPlanner->keyPressEvent(event);
 }
 
 void BaseStation::slotClearOctree()

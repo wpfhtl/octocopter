@@ -2,9 +2,9 @@
 #include "glwidget.h"
 #include "flightplannerinterface.h"
 
-FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, PointCloud *pointcloud) : QObject()
+FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, GlWidget* glWidget, PointCloud *pointcloud) : QObject()
 {
-    mGlWidget = 0;
+    mGlWidget = glWidget;
     mParentWidget = widget;
     mShaderProgramDefault = mShaderProgramSpheres = 0;
     mBoundingBoxVbo = 0;

@@ -52,7 +52,7 @@ bool PlyManager::open(const QString& fileName, const PlyManager::DataDirection& 
     {
         qDebug() << "PlyManager::PlyManager(): opening file" << fileName << "for writing data";
         mFile = new QFile(fileName);
-        if(!mFile->open(QIODevice::ReadWrite | QIODevice::Text))
+        if(!mFile->open(QIODevice::ReadWrite | QIODevice::Text | QIODevice::Truncate))
         {
             qDebug() << "PlyManager::open(): couldn't open file" << mFile->fileName() << "for writing, exiting.";
             return false;
@@ -88,7 +88,7 @@ void PlyManager::writeHeader(const quint32& vertexCount, const IncludesNormals& 
     QTextStream stream(mFile);
     stream << QString("ply") << endl;
     stream << QString("format ascii 1.0") << endl;
-    stream << QString("comment written by koptertools / ben adler on ").append(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")) << endl;
+    stream << QString("comment written by koptertools / ben adler")/*.append(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"))*/ << endl; // no timestamp, that prevents checksum comparisons
     stream << QString("element vertex %1").arg(vertexCount, 7, 10, QChar(' ')) << endl; // extra space for overwriting with bigger numbers later-on, meshlab doesn't mind.
     stream << QString("comment the coordinates of the point") << endl;
     stream << QString("property float x") << endl;

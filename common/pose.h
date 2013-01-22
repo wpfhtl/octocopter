@@ -57,11 +57,20 @@ public:
     Pose(const QString& poseString);
     Pose();
 
+    // untested!
+    static float getAngleBetweenDegrees(const Pose& p1, const Pose& p2);
+    static float getAngleBetweenDegrees(const QQuaternion& p1, const QQuaternion& p2);
+
     // This is the GPS Time-Of-Week, specified in milliseconds since last Sunday, 00:00:00 AM (midnight)
     // Changed this from quint32 to qint32 for comparison operations.
     qint32 timestamp;
     float covariances;
     quint8 precision;
+
+    // These scalar members were added to debug/test interpolation accuracies and their applciability to pointcloud registration
+    float velocity; // m/s
+    float acceleration; // m/s^2
+    float rotation; // deg/s
 
     constexpr static float maximumUsableCovariance = 1.0f;
 
@@ -110,18 +119,35 @@ public:
     Pose operator*(const Pose &p) const
     {
         const QMatrix4x4 newTransform = mTransform * p.getMatrixConst();
-        return Pose(newTransform, std::max(timestamp, p.timestamp));
+        Pose r(newTransform, std::max(timestamp, p.timestamp));
+
+        // just for testing, remove in the future!
+        r.rotation = rotation;
+        r.acceleration = acceleration;
+        r.velocity = velocity;
+        r.covariances = covariances;
+        r.precision = precision;
+
+        return r;
     }
+
+    static void rotationToAngleAxis(const QQuaternion &q, float& angleDegrees, QVector3D& axis);
+
+    static QQuaternion inverse(const QQuaternion& q);
 
     QVector3D operator*(const QVector3D &v) const
     {
         return mTransform.map(v);
     }
 
-//    bool operator<(Pose const& lhs, Pose const& rhs)
-//    {
-//        return lhs.timestamp < rhs.timestamp;
-//    }
+    // a.k.a. squad
+    static QQuaternion interpolateCubic(const QQuaternion& rkP, const QQuaternion& rkA, const QQuaternion& rkB, const QQuaternion& rkQ, const float mu)
+    {
+        float fSlerpT = 2.0f*mu*(1.0f-mu);
+        QQuaternion kSlerpP = QQuaternion::slerp(rkP, rkQ, mu);
+        QQuaternion kSlerpQ = QQuaternion::slerp(rkA, rkB, mu);
+        return QQuaternion::slerp(kSlerpP ,kSlerpQ, fSlerpT);
+    }
 
     bool operator<(const Pose& p) const { return this->timestamp < p.timestamp; }
 

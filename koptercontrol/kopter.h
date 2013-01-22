@@ -46,7 +46,7 @@ class Kopter : public QObject
         ppmChannels[3] is Pitch: 94 is max (up on R/C), -94 is min (down on R/C). Positive pitches negative on the X axis.
         ppmChannels[4] is Yaw: 96 is max (left on R/C), -90 is min (right on R/C). Positive yaws positive on the Y axis
         ppmChannels[5] is SW3 / MotorSafety. -122 is disabled (motors can be toggled), 127 is enabled (motor switching blocked)
-        ppmChannels[6] is CTRL7. -122 is disabled (motors can be toggled), 127 is enabled (motor switching blocked)
+        ppmChannels[6] is CTRL7 / poti. Unused.
         ppmChannels[7] is SW6/7 / ExternalControl, 3-State-Switch. Set to non-linear in remote-control, so that only the first
                           state is below 127 (ExternControl disabled), while state 2 and 3 are above, enabling ExternalControl.
                           Values in KopterTool: 0 (towards user)/154(center)/254(away from user), in code we read -127, X and 127.

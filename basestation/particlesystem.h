@@ -19,46 +19,30 @@ class ParticleSystem : public QObject
 {
     Q_OBJECT
 public:
-    // Give it a pointer to the dense pointcloud, so it can draw its colliders from there
+    // Give it a pointer to the pointcloud to collide against
     ParticleSystem(PointCloud *const pointcloud);
     ~ParticleSystem();
 
-    enum ParticlePlacement
+    enum class ParticlePlacement
     {
         PlacementRandom,
         PlacementGrid,
         PlacementFillSky
     };
 
-    struct GridCells
-    {
-        quint16 x,y,z;
-    };
-
     void update(const float deltaTime);
 
-    GridCells gridCells()
+    Vector3i gridCells()
     {
-        GridCells gc;
+        Vector3i gc;
         gc.x = mSimulationParameters.gridSize.x;
         gc.y = mSimulationParameters.gridSize.y;
         gc.z = mSimulationParameters.gridSize.z;
         return gc;
     }
 
-    void insertPoint(const QVector3D& point)
-    {
-        if(!mIsInitialized) return;
-
-        float point4[4];
-        point4[0] = point.x();
-        point4[1] = point.y();
-        point4[2] = point.z();
-        point4[3] = 0.0;
-
-        setArray(ArrayPositions, point4, mNumberOfFixedParticles, 1);
-        mNumberOfFixedParticles++;
-    }
+private slots:
+    void slotNewCollidersInserted();
 
 public slots:
     void slotSetDefaultParticlePlacement(const ParticlePlacement pp) { mDefaultParticlePlacement = pp; }
@@ -95,22 +79,24 @@ public slots:
 signals:
     void particleRadiusChanged(float);
     void vboInfoParticles(quint32 vboPositions, quint32 vboColor, quint32 particleCount);
-    void vboInfoColliders(quint32 vboPositions, quint32 colliderCount);
+    void vboInfoGridWaypointPressure(quint32 vboPressure, QVector3D gridBoundingBoxMin, QVector3D gridBoundingBoxMax, Vector3i grid);
 
 protected:
-    // A pointer to the pointcloud holding the dense pointcloud for surface reconstruction. We will send the newly
-    // appended points to the graphics card once in a while, and the GPU decides whether they shall be kept by
-    // querying point neighbors in parallel. From there, we create a list of collision points for the particles.
-    PointCloud* mPointCloudDense;
-    // A cursor indicating how many points from the dense cloud we already sent to the graphics card. Since the
-    // cloud keeps growing and we only want to append new points, we need to remember this.
-    quint32 mNumberOfPointsProcessed;
+    // A pointer to the pointcloud holding the pointcloud to collide particles against.
+    PointCloud* mPointCloudColliders;
 
-    // At the beginning, the particle buffers contain only sampling particles. They have a w-component of 1.0,
-    // move freely and collide with all other particles in the buffer. When we receive a new point for the
-    // collision-pointcloud, we write its position into devicePositionArray[mNumberOfFixedParticles] and set
-    // its w-component to 0.0, so that integration skips moving this particle. Collisions will occur as always
-    quint32 mNumberOfFixedParticles;
+    quint64 mNumberOfBytesAllocatedCpu;
+    quint64 mNumberOfBytesAllocatedGpu;
+
+    void showWaypointPressure();
+    void showCollisionPositions();
+
+    Vector3i getGridCellCoordinate(const quint32 hash) const;
+    Vector3i getGridCellCoordinate(const QVector3D &worldPos) const;
+
+    QVector3D getGridCellCenter(const Vector3i &gridCellCoordinate) const;
+    QVector3D getGridCellSize() const;
+    quint32 getGridCellHash(Vector3i gridCellCoordinate) const;
 
     enum ParticleArray
     {
@@ -140,6 +126,10 @@ protected:
     void setArray(ParticleArray array, const float* data, int start, int count);
 
     bool mIsInitialized;
+
+    // When the collider pointcloud updates, we need to update supporting data structures on the GPU.
+    bool mColliderPointCloudWasUpdated;
+
     ParticlePlacement mDefaultParticlePlacement;
 
     // CPU data
@@ -153,26 +143,39 @@ protected:
     //
     // After particles have been moved according to their speed (in integrateSystem()), their position and velocity
     // arrays aren't sorted according to grid-cells anymore, because some have moved to different grid cells.
-    float* mDeviceParticlePos;
+    // mDeviceParticlePos isn't needed, the data is contained in an OpenGL VBO.
     float* mDeviceParticleVel;
     float* mDeviceParticleSortedPos;
     float* mDeviceParticleSortedVel;
 
-    float* mDeviceColliderPos;
     float* mDeviceColliderSortedPos;
 
-    // grid data for sorting method
-    unsigned int*  mDeviceMapGridCell;      // grid hash value for each particle
-    unsigned int*  mDeviceMapParticleIndex; // particle index for each particle
-    unsigned int*  mDeviceCellStart;        // index of start of each cell in sorted list
-    unsigned int*  mDeviceCellEnd;          // index of end of cell
+    float* mDeviceParticleCollisionPositions;
 
+
+    // A map, mapping from gridcell => particle index. Length is particlecount
+    unsigned int*  mDeviceParticleMapGridCell;  // grid hash value for each particle
+    unsigned int*  mDeviceParticleMapIndex;     // particle index for each particle
+
+    // A map, mapping from gridcell => collider index. Length is collidercount
+    unsigned int*  mDeviceColliderMapGridCell;  // grid hash value for each collider
+    unsigned int*  mDeviceColliderMapIndex;     // particle index for each collider
+
+    unsigned int*  mDeviceParticleCellStart;    // index of start of each cell in sorted list
+    unsigned int*  mDeviceParticleCellEnd;      // index of end of cell
+
+    unsigned int*  mDeviceColliderCellStart;    // index of start of each cell in sorted list
+    unsigned int*  mDeviceColliderCellEnd;      // index of end of cell
+
+    // A gridmap (same grid as always) containing values from 0 to 255. 0 means no waypoint candidates within, 255 means maximum waypoint pressure.
+    unsigned int   mVboGridMapOfWayPointPressure;
     unsigned int   mVboParticlePositions;   // vertex buffer object for particle positions
     unsigned int   mVboColliderPositions;   // vertex buffer object for collider positions
     unsigned int   mVboParticleColors;      // vertex buffer object for particle colors
 
     struct cudaGraphicsResource *mCudaVboResourceParticlePositions; // handles OpenGL-CUDA exchange
     struct cudaGraphicsResource *mCudaVboResourceColliderPositions; // handles OpenGL-CUDA exchange
+    struct cudaGraphicsResource *mCudaVboResourceGridMapOfWayPointPressure; // handles OpenGL-CUDA exchange
     struct cudaGraphicsResource *mCudaColorVboResource; // handles OpenGL-CUDA exchange
 
     CollisionParameters mSimulationParameters;

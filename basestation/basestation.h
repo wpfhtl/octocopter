@@ -92,7 +92,7 @@ private slots:
     void slotManageJoystick(quint8 button, bool pressed);
 
     // These are called by ConnectionRover when new data arrived
-    void slotNewScanData(const QVector<QVector3D> *const pointList, const QVector3D *const scannerPosition);
+//    void slotNewScanData(const QVector<QVector3D> *const pointList, const QVector3D *const scannerPosition);
     void slotNewImage(const QString& cameraName, const QSize& imageSize, const Pose& cameraPose, const QByteArray& imageData);
 
 public:

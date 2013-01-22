@@ -13,6 +13,7 @@ class ShaderProgram : public QGLShaderProgram
 public:
     //ShaderProgram(QObject *parent = 0);
     ShaderProgram(QObject *parent = 0, const QString& shaderVertex = QString(), const QString& shaderGeometry = QString(), const QString& shaderFragment = QString());
+    ~ShaderProgram();
 
     void bindUniformBlockToPoint(const QString& uniformBlockName, unsigned int bindingPoint);
 

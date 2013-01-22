@@ -35,23 +35,13 @@ protected:
 
     static void sortToShortestPath(QList<WayPoint> &wayPointsSetOnRover, const QVector3D &currentVehiclePosition);
     void setVboBoundingBox();
-//    bool insertPointsFromNode(const Node* node);
 
 public:
-    // Here, basestation passes its own octree. Its up to the implementation to use it.
-    FlightPlannerInterface(QWidget* widget, PointCloud* pointcloud);
+    // Here, basestation passes its own pointcloud. Its up to the implementation to use it.
+    FlightPlannerInterface(QWidget* widget, GlWidget *glWidget, PointCloud* pointcloud);
     virtual ~FlightPlannerInterface();
 
-    void setGlWidget(GlWidget* glWidget) {mGlWidget = glWidget;}
-
-    // Insert points from the laserscanners. Note that the points might also be inserted
-    // into Octree* pointCloud, this is independent from the flightplanner.
-    // Also note that some flightplanners may have more static datastructures than
-    // octrees, so they need to know the bounding box of all points (slotSetScanVolume())
-    // before you can insert any data. This is true for e.g. FlightPlannerCuda.
-    //
-    // Ownership of the point remains with the caller!
-//    virtual void insertPoint(const LidarPoint* const point) = 0;
+//    void setGlWidget(GlWidget* glWidget) {mGlWidget = glWidget;}
 
     const QVector<Pose>& getVehiclePoses() { return mVehiclePoses; }
 
@@ -61,6 +51,9 @@ public:
     const QList<WayPoint> *const getWayPoints();
 
     void getScanVolume(QVector3D& min, QVector3D& max);
+
+    // For e.g. glWidget to send some user-key-strokes (e.g. for visualization)
+    virtual void keyPressEvent(QKeyEvent *event) = 0;
 
 private slots:
     void slotDeleteGeneratedWayPoints();
@@ -72,6 +65,9 @@ public slots:
     void slotWayPointInsertedByRover(const quint16& index, const WayPoint& wpt);
     void slotWayPointSwap(const quint16& i, const quint16& j);
     void slotWayPointsClear();
+
+    // Called by LogPlayer or RoverConnection when new scanData arrives.
+    virtual void slotNewScanData(const QVector<QVector3D>* const pointList, const QVector3D* const scannerPosition) = 0;
 
     // Called by UI to clear the drawn trajectory
     void slotClearVehicleTrajectory();

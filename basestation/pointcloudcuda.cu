@@ -249,7 +249,7 @@ void markCollidingPointsD(
         }
     }
 
-    if(originalIndex % (5-numberOfCollisions) == 0)
+    if(numberOfCollisions && originalIndex % 2 == 0)
         posOriginal[originalIndex] = make_float4(0.0, 0.0, 0.0, 0.0);
 }
 
@@ -487,16 +487,22 @@ struct SnapToGridOp
 
     // if params.minimumDistance is e.g. 0.02 = 2cm, factor should be 50.
     // if params.minimumDistance is e.g. 0.10 = 10cm, factor should be 10.
-    SnapToGridOp(float3 minDist) : mMinDist(1.0 / minDist) { }
+    SnapToGridOp(float3 minDist) : mMinDist(1.0f / minDist) { }
 
     __host__ __device__
     float4 operator()(float4 a)
     {
         return make_float4(
-                    ceilf(a.x * mMinDist.x) / mMinDist.x,
-                    ceilf(a.y * mMinDist.y) / mMinDist.y,
-                    ceilf(a.z * mMinDist.z) / mMinDist.z,
+                    round(a.x * mMinDist.x) / mMinDist.x,
+                    round(a.y * mMinDist.y) / mMinDist.y,
+                    round(a.z * mMinDist.z) / mMinDist.z,
                     1.0f);
+    }
+
+    __host__ __device__
+    float round(float r)
+    {
+        return (r > 0.0f) ? floor(r + 0.5f) : ceil(r - 0.5f);
     }
 };
 
@@ -509,30 +515,19 @@ struct closeToEachOther
     }
 };
 
-
 unsigned int snapToGridAndMakeUnique(float *devicePoints, unsigned int numPoints, float minimumDistance)
 {
     float4* points = (float4*)devicePoints;
     checkCudaSuccess("Kernel execution failed BEFORE makePointListUnique");
 
-    SnapToGridOp op(make_float3(minimumDistance, minimumDistance*2.0f, minimumDistance));
+    SnapToGridOp op(make_float3(minimumDistance, minimumDistance, minimumDistance));
     thrust::transform(thrust::device_ptr<float4>(points), thrust::device_ptr<float4>(points + numPoints), thrust::device_ptr<float4>(points), op);
 
     const thrust::device_ptr<float4> newEnd = thrust::unique(thrust::device_ptr<float4>(points), thrust::device_ptr<float4>(points + numPoints)/*, closeToEachOther()*/);
-
     checkCudaSuccess("Kernel execution failed AFTER makePointListUnique");
 
     return newEnd.get() - points;
 }
-
-
-
-
-
-
-
-
-
 
 
 __global__ void replaceCellPointsByMeanValueD(

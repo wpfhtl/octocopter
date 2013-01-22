@@ -24,7 +24,6 @@ class GlWidget : public QGLWidget
     Q_OBJECT
 
     QList<PointCloud*> mPointCloudsToRender;
-//    QMap<quint32,quint32> mRenderPointCloudVbos;
 
     QVector3D mCamLookAtOffset;
 
@@ -33,6 +32,7 @@ class GlWidget : public QGLWidget
 
     const Pose* mLastKnownVehiclePose;
 
+
     // Set by slotSetFlightControllerValues(), then visualized for FligthController debugging
     const FlightControllerValues* mLastFlightControllerValues;
 
@@ -40,13 +40,16 @@ class GlWidget : public QGLWidget
     QDateTime mTimeOfLastRender;
     QTimer* mTimerUpdate;
 
+    float mRotationPerFrame;
     bool mViewRotating;
     bool mViewZooming;
 
     // Mouse Rotations
     QPoint      mLastMousePosition;
     QVector3D   mCameraPosition;
-    GLfloat     rotX, rotY, rotZ;
+
+    // The components of this vector store the rotation (in degrees) of the camera around the origin
+    QVector2D mCameraRotation;
 
     GLuint mVertexArrayObject;
 
@@ -63,6 +66,7 @@ class GlWidget : public QGLWidget
     quint32 mFrameCounter;
 
     ShaderProgram *mShaderProgramDefault;
+    ShaderProgram *mShaderProgramPointCloud;
     ShaderProgram *mShaderProgramParticles; // for testing billboarding of the PointCloud
 
     // Wheel Zooming. For smooth zooming, mZoomFactorCurrent converges toward mZoomFactorTarget
@@ -71,6 +75,7 @@ class GlWidget : public QGLWidget
     void mousePressEvent(QMouseEvent *event);
     void mouseMoveEvent(QMouseEvent *event);
     void wheelEvent(QWheelEvent *event);
+
     void zoom(double zoomFactor);
 
     void renderController(const QMatrix4x4 &transform, const PidController* const controller);
@@ -78,6 +83,7 @@ class GlWidget : public QGLWidget
 public:
     GlWidget(QWidget* parent/*, FlightPlannerInterface* flightPlanner*/);
     void moveCamera(const QVector3D &pos);
+    void keyPressEvent(QKeyEvent *event);
 
 protected:
     void initializeGL();
@@ -87,6 +93,7 @@ protected:
 signals:
     void initializingInGlContext();
     void visualizeNow();
+    void rotating(bool);
 
 public slots:
     // When this is called, we take note of the time of last external update. Because when zooming/rotating

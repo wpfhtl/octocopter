@@ -24,7 +24,7 @@ public:
     GnssDevice(const QString &serialDeviceUsb, const QString &serialDeviceCom, QString logFilePrefix, QObject *parent = 0);
     ~GnssDevice();
 
-    // Our parent (koptercontrol) needs a handle to conect SbfParser to BaseConnection and LaserScanner (to set time)
+    // Our parent (koptercontrol) needs a handle to connect SbfParser to BaseConnection and LaserScanner (to set time)
     SbfParser* const getSbfParser(void) {return mSbfParser;}
 
 private:
@@ -58,7 +58,7 @@ private slots:
     // Sends @command via USB port
     void slotQueueCommand(QString command);
 
-    void slotLogProcessedSbfPacket(const QByteArray&, const qint32&);
+    void slotLogProcessedSbfPacket(const qint32 tow, const char *sbfData, quint16 length);
 
     void slotSerialPortStatusChanged(const QString& status, const QDateTime& time);
     void slotCommunicationSetup();

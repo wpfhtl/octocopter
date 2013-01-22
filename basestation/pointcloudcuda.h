@@ -44,14 +44,18 @@ public:
 
     quint32 getNumberOfPoints(void) const { return mParameters.elementCount + mParameters.elementQueueCount; }
 
-    void setGridSize(const quint16 x, const quint16 y, const quint16 z)
-    {
-        mParameters.gridSize.x = x;
-        mParameters.gridSize.y = y;
-        mParameters.gridSize.z = z;
-    }
+//    void setGridSize(const quint16 x, const quint16 y, const quint16 z)
+//    {
+//        mParameters.gridSize.x = x;
+//        mParameters.gridSize.y = y;
+//        mParameters.gridSize.z = z;
+//    }
 
     const QVector<VboInfo>& getVboInfo() const { return mVboInfo; }
+
+    quint32 getCapacity(void) const { return mParameters.capacity; }
+
+    void setColor(const QColor& c) {mVboInfo[0].color = c;}
 
     bool importFromPly(const QString& fileName, QWidget* widget = 0);
     bool exportToPly(const QString& fileName, QWidget* widget = 0) const;
@@ -68,14 +72,17 @@ private:
 
     quint32 createVbo(quint32 size);
 
-    float* mDevicePointSortedPos;
+//    float* mDevicePointSortedPos;
 
-    unsigned int*  mDeviceMapGridCell;      // grid hash value for each particle
-    unsigned int*  mDeviceMapPointIndex;    // particle index for each particle
-    unsigned int*  mDeviceCellStart;        // index of start of each cell in sorted list
-    unsigned int*  mDeviceCellStopp;          // index of end of cell
+//    unsigned int*  mDeviceMapGridCell;      // grid hash value for each particle
+//    unsigned int*  mDeviceMapPointIndex;    // particle index for each particle
+//    unsigned int*  mDeviceCellStart;        // index of start of each cell in sorted list
+//    unsigned int*  mDeviceCellStopp;          // index of end of cell
 
     struct cudaGraphicsResource *mCudaVboResource; // handles OpenGL-CUDA exchange
+
+    // reduce the points if necessary. Use any method. A wrapper-method for all my recent attempts at reduction....
+    bool reduce();
 
     // reduces the queued points against themselves, then merges all points and reduces again. Thin wrapper around reducePoints()
     quint32 reduceAllPointsUsingCollisions();
@@ -96,6 +103,9 @@ public slots:
     bool slotInsertPoints(const QVector<QVector4D>* const pointList);
     bool slotInsertPoints3(const float* const pointList, const quint32 numPoints);
     bool slotInsertPoints4(const float* const pointList, const quint32 numPoints);
+
+    // Insert points from a range of a VBO
+    bool slotInsertPoints(const VboInfo* const vboInfo, const quint32& firstPoint, const quint32& numPoints);
 
 public slots:
     void slotInitialize();

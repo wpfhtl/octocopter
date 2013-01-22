@@ -19,14 +19,14 @@ PointCloudCuda::PointCloudCuda(const QVector3D &min, const QVector3D &max, const
     mNewPoints = (float*)malloc(sizeof(QVector4D) * 4096);
     std::fill(mNewPoints + 0, mNewPoints + (4 * 4096), 1.0f);
 
-    mParameters.minimumDistance = 0.3;
+    mParameters.minimumDistance = 1.0f/8.0f;
     mParameters.elementCount = 0;
     mParameters.elementQueueCount = 0;
     mParameters.remainder = 0;
     mParameters.capacity = maximumElementCount;
     mParameters.bBoxMin = make_float3(mBBoxMin.x(), mBBoxMin.y(), mBBoxMin.z());
     mParameters.bBoxMax = make_float3(mBBoxMax.x(), mBBoxMax.y(), mBBoxMax.z());
-
+/*
     // The gridsize is a difficult topic:
     //
     // - if pointdiameter (=minimumDistance) is allowed to be larger than a gridcell in any dimension, then we cannot find
@@ -45,7 +45,7 @@ PointCloudCuda::PointCloudCuda(const QVector3D &min, const QVector3D &max, const
     // We set the size here in the constructor, but allow it to be overwritten from the outside. For clouds with less
     // points, less cells might also be ok.
     mParameters.gridSize = make_uint3(256, 128, 256);
-
+*/
     setNullPointers();
 }
 
@@ -59,7 +59,7 @@ PointCloudCuda::~PointCloudCuda()
 void PointCloudCuda::slotInitialize()
 {
     Q_ASSERT(!mIsInitialized);
-
+/*
     // ...and thats what we do here: in mDeviceCellStart[17], you'll find
     // where in mDeviceGridParticleHash cell 17 starts!
     const unsigned int numberOfCells = mParameters.gridSize.x * mParameters.gridSize.y * mParameters.gridSize.z;
@@ -69,18 +69,20 @@ void PointCloudCuda::slotInitialize()
 
     cudaMalloc((void**)&mDeviceCellStopp, numberOfCells*sizeof(uint));
     checkCudaSuccess("PointCloudCuda::slotInitialize(): memory allocation failed: cellStop");
+*/
 
     // determine data-size of all points in GPU
     const unsigned int memSizePointQuadrupels = sizeof(float) * 4 * mParameters.capacity;
-
     // Allocate GPU data
     // Create VBO with point positions. This is later given to renderer for visualization
     mVboInfo[0].vbo = createVbo(memSizePointQuadrupels);
+
+    qDebug() << "PointCloudCuda::initialize(): allocated" << memSizePointQuadrupels / (1024*1024) << "mb on the GPU";
     // For graphics interoperability, first register a resource for use with CUDA, then it can be mapped.
     // Registering can take a long time, so we do it here just once. Unregistering takes place when deallocating stuff.
     // During runtime, we just need to map and unmap the buffer to use it in CUDA
     cudaGraphicsGLRegisterBuffer(&mCudaVboResource, mVboInfo[0].vbo, cudaGraphicsRegisterFlagsWriteDiscard);
-
+/*
     // Why are these sorted, and sorted according to what?
     cudaMalloc((void**)&mDevicePointSortedPos, memSizePointQuadrupels);
     checkCudaSuccess("PointCloudCuda::slotInitialize(): memory allocation failed: sortedPos");
@@ -98,7 +100,7 @@ void PointCloudCuda::slotInitialize()
     size_t memTotal, memFree;
     cudaMemGetInfo(&memFree, &memTotal);
     qDebug() << "PointCloudCuda::slotInitialize(): device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free";
-
+*/
     mIsInitialized = true;
 }
 
@@ -117,15 +119,15 @@ void PointCloudCuda::freeResources()
 
     cudaDeviceSynchronize();
 
-    cudaFree(mDevicePointSortedPos);
+//    cudaFree(mDevicePointSortedPos);
     qDebug() << "PointCloudCuda::freeResources(): done freeing pointSortedPos";
-    cudaFree(mDeviceMapGridCell);
+//    cudaFree(mDeviceMapGridCell);
     qDebug() << "PointCloudCuda::freeResources(): done freeing mapGridCell";
-    cudaFree(mDeviceMapPointIndex);
+//    cudaFree(mDeviceMapPointIndex);
     qDebug() << "PointCloudCuda::freeResources(): done freeing mapPointIndex";
-    cudaFree(mDeviceCellStart);
+//    cudaFree(mDeviceCellStart);
     qDebug() << "PointCloudCuda::freeResources(): done freeing cellStart";
-    cudaFree(mDeviceCellStopp);
+//    cudaFree(mDeviceCellStopp);
     qDebug() << "PointCloudCuda::freeResources(): done freeing cellStop";
 
     qDebug() << "PointCloudCuda::freeResources(): done freeing newPoints";
@@ -144,11 +146,11 @@ void PointCloudCuda::freeResources()
 
 void PointCloudCuda::setNullPointers()
 {
-    mDevicePointSortedPos= 0;
-    mDeviceMapGridCell = 0;
-    mDeviceMapPointIndex = 0;
-    mDeviceCellStart = 0;
-    mDeviceCellStopp = 0;
+//    mDevicePointSortedPos= 0;
+//    mDeviceMapGridCell = 0;
+//    mDeviceMapPointIndex = 0;
+//    mDeviceCellStart = 0;
+//    mDeviceCellStopp = 0;
     mVboInfo[0].vbo = 0;
 }
 
@@ -182,7 +184,7 @@ bool PointCloudCuda::slotInsertPoints3(const float* const pointList, const quint
 
 bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint32 numPoints)
 {
-    if(mParameters.elementCount + mParameters.elementQueueCount + numPoints > mParameters.capacity) return false;
+    Q_ASSERT(mVboInfo[0].elementSize == 4);
 
     const quint32 numberOfPointsToAppend = qMin(mParameters.capacity - mParameters.elementQueueCount - mParameters.elementCount, numPoints);
 
@@ -192,25 +194,88 @@ bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint
     // overwrite parts of the buffer
     glBufferSubData(
                 GL_ARRAY_BUFFER,
-                (mParameters.elementCount + mParameters.elementQueueCount) * sizeof(QVector4D),  // start
-                numberOfPointsToAppend * sizeof(QVector4D),         // size
+                (mParameters.elementCount + mParameters.elementQueueCount) * sizeof(float) * mVboInfo[0].elementSize,  // start
+                numberOfPointsToAppend * sizeof(float) * mVboInfo[0].elementSize,         // size
                 pointList);                            // source
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     mParameters.elementQueueCount += numberOfPointsToAppend;
 
-    if(mParameters.elementQueueCount > 2000000)
+    mVboInfo[0].size = mParameters.elementCount + mParameters.elementQueueCount;
+
+    qDebug() << "PointCloudCuda::slotInsertPoints4():" << mName << "inserted" << numberOfPointsToAppend << "points, vbo elements:" << mVboInfo[0].size << "elements:" << mParameters.elementCount << "queue:" << mParameters.elementQueueCount;
+
+    reduce();
+
+    return true;
+}
+
+bool PointCloudCuda::slotInsertPoints(const VboInfo* const vboInfo, const quint32& firstPoint, const quint32& numPoints)
+{
+    // Make sure the VBO layouts are compatible.
+    Q_ASSERT(vboInfo->layoutMatches(&mVboInfo[0]));
+
+    Q_ASSERT(vboInfo->elementSize == 4);
+    Q_ASSERT(mVboInfo[0].elementSize == 4);
+
+    Q_ASSERT(mVboInfo[0].vbo != vboInfo->vbo);
+
+    const quint32 numberOfPointsToAppend = qMin(mParameters.capacity - mParameters.elementQueueCount - mParameters.elementCount, numPoints);
+
+    // Copy numPoints from the given VBO into our own VBO
+    glBindBuffer(GL_COPY_READ_BUFFER, vboInfo->vbo);
+    glBindBuffer(GL_COPY_WRITE_BUFFER, mVboInfo[0].vbo);
+
+    Q_ASSERT(mVboInfo[0].size == mParameters.elementQueueCount + mParameters.elementCount);
+
+    glCopyBufferSubData(
+                GL_COPY_READ_BUFFER,
+                GL_COPY_WRITE_BUFFER,
+                vboInfo->elementSize * sizeof(float) * firstPoint,      // where to start reading in src
+                vboInfo->elementSize * sizeof(float) * mVboInfo[0].size,// where to start writing in dst
+                vboInfo->elementSize * sizeof(float) * numberOfPointsToAppend        // number of bytes to copy
+                );
+
+    glBindBuffer(GL_COPY_READ_BUFFER, 0);
+    glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
+
+    mParameters.elementQueueCount += numberOfPointsToAppend;
+
+    mVboInfo[0].size = mParameters.elementCount + mParameters.elementQueueCount;
+
+
+    qDebug() << "PointCloudCuda::slotInsertPoints():" << mName << "copying" << numberOfPointsToAppend << "elements /" << vboInfo->elementSize * sizeof(float) * numberOfPointsToAppend << "bytes";
+
+    const quint32 oldNumPoints = mVboInfo[0].size;
+    reduce();
+    qDebug() << "PointCloudCuda::slotInsertPoints():" << mName << "reducing" << oldNumPoints << "to" << mParameters.elementCount << "points plus" << mParameters.elementQueueCount << "in queue.";
+
+    return true;
+}
+
+bool PointCloudCuda::reduce()
+{
+    if(mParameters.elementQueueCount > mParameters.capacity / 100)
     {
+        // Tell others about our new points. In the future, emit only AFTER reduction, so we reduce not all points twice.
+        // But currently, our reduction does move points in our VBO almost randomly, so there is no guarantee that the
+        // new points are in some well-defined region of the buffer after reduction.
+        emit pointsInserted(&mVboInfo[0], mParameters.elementCount, mParameters.elementQueueCount);
+
 //        reduceAllPointsUsingCollisions();
 //        reduceUsingCellMean();
+        reduceUsingSnapToGrid();
     }
 
     mVboInfo[0].size = mParameters.elementCount + mParameters.elementQueueCount;
 
-    emit pointsInserted();
-
-    return true;
+    // If the cloud fills above 90%, thin it more by increasing minimumDistance
+    if(mVboInfo[0].size > mParameters.capacity * 0.9f)
+    {
+        mParameters.minimumDistance *= 1.02;
+        qDebug() << "PointCloudCuda::reduce(): after reduction, cloud is at" << ((float)mVboInfo[0].size / mParameters.capacity) * 100.0f << "% capacity, increasing min-distance to" << mParameters.minimumDistance;
+    }
 }
 
 quint32 PointCloudCuda::reduceAllPointsUsingCollisions()
@@ -248,7 +313,7 @@ quint32 PointCloudCuda::reduceAllPointsUsingCollisions()
 }
 
 quint32 PointCloudCuda::reduceUsingCellMean()
-{
+{/*
     // We want to replace all points in a cell by their average position
     // First, we divide the whole pointcloud into cells, creatting very sparse clouds (as gridsize is limited and thus cellsize has a lower limit)
     // Later, we might partition the cloud into sub-cubes, cretae a grid for those and create more dense "sparse" clouds
@@ -258,10 +323,22 @@ quint32 PointCloudCuda::reduceUsingCellMean()
 
     time.start();
 
-    mParameters.bBoxMin = make_float3(mBBoxMin.x(), mBBoxMin.y(), mBBoxMin.z());
-    mParameters.bBoxMax = make_float3(mBBoxMax.x(), mBBoxMax.y(), mBBoxMax.z());
+    // Don't divide the whole region into our grid, but only the new data
+    float3 bBoxMin, bBoxMax;
+    getBoundingBox(devicePoints + mParameters.elementCount, mParameters.elementQueueCount, bBoxMin, bBoxMax);
 
-    mParameters.gridSize = make_uint3(256,128,256);
+    qDebug() << "PointCloudCuda::reducePointRangeUsingCollisions(): there are" << mParameters.elementQueueCount << "points with a bbox from"
+             << bBoxMin.x << bBoxMin.y << bBoxMin.z << "to" << bBoxMax.x << bBoxMax.y << bBoxMax.z;
+
+    // Define the new bounding box for all queued points
+    mParameters.bBoxMin = bBoxMin;
+    mParameters.bBoxMax = bBoxMax;
+
+
+//    mParameters.bBoxMin = make_float3(mBBoxMin.x(), mBBoxMin.y(), mBBoxMin.z());
+//    mParameters.bBoxMax = make_float3(mBBoxMax.x(), mBBoxMax.y(), mBBoxMax.z());
+
+    mParameters.gridSize = make_uint3(512,32,512);
 
     setPointCloudParameters(&mParameters);
 
@@ -306,6 +383,7 @@ quint32 PointCloudCuda::reduceUsingCellMean()
     cudaGraphicsUnmapResources(1, &mCudaVboResource, 0);
 
     return numberOfPointsRemaining;
+    */
 }
 
 
@@ -318,9 +396,9 @@ quint32 PointCloudCuda::reduceUsingSnapToGrid()
     QTime time; // for profiling
 
     // Reduce the queued points
-    time.start();
+//    time.start();
     quint32 numberOfQueuedPointsRemaining = snapToGridAndMakeUnique(devicePointsBase, mParameters.elementCount + mParameters.elementQueueCount, mParameters.minimumDistance);
-    qDebug() << "PointCloudCuda::reduce2(): reducing" << mParameters.elementCount + mParameters.elementQueueCount << "to" << numberOfQueuedPointsRemaining << "queued points took" << time.elapsed() << "ms";
+//    qDebug() << "PointCloudCuda::reduceUsingSnapToGrid(): reducing" << mParameters.elementCount + mParameters.elementQueueCount << "to" << numberOfQueuedPointsRemaining << "queued points (dist" << mParameters.minimumDistance << ") took" << time.elapsed() << "ms";
 
     // Append the remaining queued points
     mParameters.elementQueueCount = 0;
@@ -337,7 +415,7 @@ quint32 PointCloudCuda::reduceUsingSnapToGrid()
 }
 
 quint32 PointCloudCuda::reducePointRangeUsingCollisions(float* devicePoints, const quint32 numElements, const bool createBoundingBox)
-{
+{/*
     qDebug() << "PointCloudCuda::reducePointRangeUsingCollisions(): reducing" << numElements << "points, creating bbox:" << createBoundingBox;
 
     checkCudaSuccess("PointCloudCuda::reducePointRangeUsingCollisions(): CUDA error before reduction");
@@ -401,7 +479,8 @@ quint32 PointCloudCuda::reducePointRangeUsingCollisions(float* devicePoints, con
         mParameters.bBoxMax = make_float3(mBBoxMax.x(), mBBoxMax.y(), mBBoxMax.z());
     }
 
-    return remainingElements;
+    return remainingElements;*/
+    return 0;
 }
 
 quint32 PointCloudCuda::createVbo(quint32 size)

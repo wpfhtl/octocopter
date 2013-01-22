@@ -24,6 +24,8 @@ private:
     qint32 mLastScannerTimeStamp;
     QTimer* mTimerScan; // this calls capture() when needed;
 
+    std::vector<long> mScannedDistances;
+
 private slots:
     void slotCaptureScanData();
 
@@ -58,7 +60,7 @@ signals:
     void message(const LogImportance& importance, const QString&, const QString& message);
 
     // Emits new scan data, allocated on heap. Ownership is passed to receiver(s).
-    void newScanData(qint32 timestampScanner, std::vector<long> * const distances);
+    void newScanData(qint32 timestampScanner, std::vector<quint16> * const distances);
 };
 
 #endif

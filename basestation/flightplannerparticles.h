@@ -15,10 +15,14 @@ class FlightPlannerParticles : public FlightPlannerInterface
 {
     Q_OBJECT
 public:
-    FlightPlannerParticles(QWidget* glWidget, PointCloud* pointcloud);
+    FlightPlannerParticles(QWidget* parentWidget, GlWidget* glWidget, PointCloud* pointcloud);
     ~FlightPlannerParticles();
 
+    void keyPressEvent(QKeyEvent *event);
+
 private:
+    bool mUpdateParticleSystem;
+
     PointCloudCuda* mPointCloudColliders;
     // cursor?
 
@@ -46,6 +50,8 @@ private slots:
 
 public slots:
     void slotSetScanVolume(const QVector3D min, const QVector3D max);
+
+    void slotNewScanData(const QVector<QVector3D>* const pointList, const QVector3D* const scannerPosition);
 
     // Inserts detour-waypoints between vehicle position and next waypoint if necessary.
     // Returns true if path was found, else false.

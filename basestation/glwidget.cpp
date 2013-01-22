@@ -19,8 +19,6 @@ GlWidget::GlWidget(QWidget* parent) :
     QGLFormat::setDefaultFormat(glFormat);
     setFormat(glFormat);
 
-    mCameraPosition = QVector3D(0.0f, 500.0f, 500.0f);
-
     mVboVehiclePathElementSize = sizeof(QVector3D) + sizeof(QVector4D); // position and color with alpha
     mVboVehiclePathBytesMaximum = (3600 * 50 * mVboVehiclePathElementSize); // For a flight time of one hour
     mVboVehiclePathBytesCurrent = 0;
@@ -28,18 +26,21 @@ GlWidget::GlWidget(QWidget* parent) :
     mZoomFactorCurrent = 0.5;
     mZoomFactorTarget = 0.5;
 
-    // Mouse Move Rotations
-    rotX = rotY = rotZ = 0.0f;
+    mCameraPosition = QVector3D(0.0f, 0.0f, 500.0f);
+    // Rotate the camera to a good starting position
+    mCameraRotation.setX(-30.0f);
 
     // Timed Animation
+    mRotationPerFrame = 0.001f;
     mViewRotating = false;
     mViewZooming = false;
 
     mTimerUpdate = new QTimer(this);
-    mTimerUpdate->setInterval(1000 / 30);
+    mTimerUpdate->setInterval(1000 / 60);
     connect(mTimerUpdate, SIGNAL(timeout()), SLOT(slotUpdateView()));
 
     setMinimumSize(320, 240);
+    setFocusPolicy(Qt::ClickFocus);
 }
 
 void GlWidget::initializeGL()
@@ -95,6 +96,7 @@ void GlWidget::initializeGL()
     glBindBufferRange(GL_UNIFORM_BUFFER, ShaderProgram::blockBindingPointGlobalMatrices, mUboId, 0, mUboSize);
 
     mShaderProgramDefault = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
+    mShaderProgramPointCloud = new ShaderProgram(this, "shader-pointcloud-vertex.c", "", "shader-pointcloud-fragment.c");
 
     // Create a VBO for the vehicle's path.
     glGenBuffers(1, &mVboVehiclePath);
@@ -168,7 +170,7 @@ void GlWidget::initializeGL()
 
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);					// Black Background
     glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// White Background
-//    glClearColor(0.3f, 0.3f, 0.3f, 0.0f);					// Gray  Background
+    glClearColor(0.3f, 0.3f, 0.3f, 0.0f);					// Gray  Background
 
     // Set Line Antialiasing
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
@@ -222,7 +224,7 @@ void GlWidget::paintGL()
     mTimeOfLastRender = QDateTime::currentDateTime();
 
     if(mViewRotating)
-        rotY -= 180 * 0.001;
+        mCameraRotation.setY(mCameraRotation.y() + 180 * mRotationPerFrame);
 
 //    qDebug() << "GlWidget::paintGL(): frame counter:" << mFrameCounter++;
 
@@ -232,9 +234,8 @@ void GlWidget::paintGL()
     const QVector3D camLookAt = mCamLookAtOffset + (mLastKnownVehiclePose ? mLastKnownVehiclePose->getPosition() : QVector3D());
 
     QQuaternion cameraRotation =
-            QQuaternion::fromAxisAndAngle(QVector3D(0.0f, 0.0f, 1.0f), rotZ)
-            * QQuaternion::fromAxisAndAngle(QVector3D(0.0f, 1.0f, 0.0f), rotY)
-            * QQuaternion::fromAxisAndAngle(QVector3D(1.0f, 0.0f, 0.0f), -rotX);
+            QQuaternion::fromAxisAndAngle(QVector3D(0.0f, 1.0f, 0.0f), mCameraRotation.y())
+            * QQuaternion::fromAxisAndAngle(QVector3D(1.0f, 0.0f, 0.0f), mCameraRotation.x());
 
     const QVector3D camPos = cameraRotation.rotatedVector(mCameraPosition);
 
@@ -262,43 +263,44 @@ void GlWidget::paintGL()
     else
     {
         // Stop zooming, lower framerate
-        mTimerUpdate->setInterval(1000 / 30);
+        mTimerUpdate->setInterval(1000 / 60);
         mViewZooming = false;
     }
 
-    mShaderProgramDefault->bind();
+    glEnable (GL_BLEND); glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
     {
-        mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
-
-        glEnable (GL_BLEND); glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
+        mShaderProgramPointCloud->bind();
+        for(int i=0;i<mPointCloudsToRender.size();i++)
         {
-            for(int i=0;i<mPointCloudsToRender.size();i++)
+            const QVector<PointCloud::VboInfo>& vboInfoList = mPointCloudsToRender.at(i)->getVboInfo();
+            for(int j=0;j<vboInfoList.size();j++)
             {
-                const QVector<PointCloud::VboInfo>& vboInfoList = mPointCloudsToRender.at(i)->getVboInfo();
-//                octree->updateVbo(); // update VBO from octree point-vector.
-                mShaderProgramDefault->setUniformValue("useFixedColor", true);
+                const PointCloud::VboInfo& vboInfo = vboInfoList.at(j);
 
-                for(int j=0;j<vboInfoList.size();j++)
+                // If the pointcloud has a color set, use it. Otherwise, use the jet colormap.
+                if(vboInfo.color.isValid())
                 {
-                    const PointCloud::VboInfo& vboInfo = vboInfoList.at(j);
-
-                    mShaderProgramDefault->setUniformValue("fixedColor",
-                                                           QVector4D(
-                                                               vboInfo.color.redF(),
-                                                               vboInfo.color.greenF(),
-                                                               vboInfo.color.blueF(),
-                                                               vboInfo.color.alphaF()
-                                                               )
-                                                           );
-
-                    glBindBuffer(GL_ARRAY_BUFFER, vboInfo.vbo);
-                    glEnableVertexAttribArray(0);
-                    glVertexAttribPointer(0, vboInfo.elementSize, GL_FLOAT, GL_FALSE, vboInfo.stride, 0);
-                    glDrawArrays(GL_POINTS, 0, vboInfo.size); // Number of Elements, not bytes
-                    glDisableVertexAttribArray(0);
-                    glBindBuffer(GL_ARRAY_BUFFER, 0);
+                    mShaderProgramPointCloud->setUniformValue("useFixedColor", true);
+                    mShaderProgramPointCloud->setUniformValue("fixedColor", vboInfo.color);
                 }
+                else
+                {
+                    mShaderProgramPointCloud->setUniformValue("useFixedColor", false);
+                }
+
+                glBindBuffer(GL_ARRAY_BUFFER, vboInfo.vbo);
+                glEnableVertexAttribArray(0);
+                glVertexAttribPointer(0, vboInfo.elementSize, GL_FLOAT, GL_FALSE, vboInfo.stride, 0);
+                glDrawArrays(GL_POINTS, 0, vboInfo.size); // Number of Elements, not bytes
+                glDisableVertexAttribArray(0);
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
             }
+        }
+        mShaderProgramPointCloud->release();
+
+        mShaderProgramDefault->bind();
+        {
+            mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
 
             // Render the vehicle's path - same shader, but variable color
             mShaderProgramDefault->setUniformValue("useFixedColor", false);
@@ -346,7 +348,7 @@ void GlWidget::paintGL()
 
     QMatrix4x4 transformVehicle;
 
-    // At startup, a vehiclePose might not exist yet. If so, use the identty matrix
+    // At startup, a vehiclePose might not exist yet. If so, use the identity matrix
     if(mLastKnownVehiclePose) transformVehicle = mLastKnownVehiclePose->getMatrixConst();
 
     // Only show controller input if its present and less than 500 ms old.
@@ -528,6 +530,7 @@ void GlWidget::slotNewVehiclePose(const Pose* const pose)
     {
         const QVector3D pos = pose->getPosition();
 
+        // Precise and integrated poses are green, others are red.
         QColor color;
         if(
                 pose->precision & Pose::RtkFixed &&
@@ -543,7 +546,14 @@ void GlWidget::slotNewVehiclePose(const Pose* const pose)
         // If the poses CV sucks, fade it.
         if(pose->covariances > Pose::maximumUsableCovariance) color.setAlpha(128);
 
-        const float data[] = {pos.x(), pos.y(), pos.z(), color.redF(), color.greenF(), color.blueF(), color.alphaF()};
+        const float data[] = {
+            (float)pos.x(),
+            (float)pos.y(),
+            (float)pos.z(),
+            (float)color.redF(),
+            (float)color.greenF(),
+            (float)color.blueF(),
+            (float)color.alphaF()};
 
         glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
 
@@ -574,11 +584,15 @@ void GlWidget::slotClearVehicleTrajectory()
 
 void GlWidget::slotEnableTimerRotation(const bool& enable)
 {
+    if(mViewRotating == enable) return;
+
     mViewRotating = enable;
 
     // Enable the timer if we want to rotate and its not running already
     if(mViewRotating && !mViewZooming)
         mTimerUpdate->start();
+
+    emit rotating(enable);
 }
 void GlWidget::mousePressEvent(QMouseEvent *event)
 {
@@ -587,51 +601,59 @@ void GlWidget::mousePressEvent(QMouseEvent *event)
 
 void GlWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    float DX = float(event->x()-mLastMousePosition.x())/width();
-    float DY = float(event->y()-mLastMousePosition.y())/height();
+    const float deltaX = -float(event->x()-mLastMousePosition.x())/width();
+    const float deltaY = -float(event->y()-mLastMousePosition.y())/height();
 
     if(event->buttons() & Qt::LeftButton)
     {
-        rotX += 180 * DY;
-        rotY += 180 * DX;
-    }
-    else if(event->buttons() & Qt::RightButton)
-    {
-        rotX += 180*DY;
-        rotZ += 180*DX;
+        mCameraRotation.setX(qBound(-89.9f, float(mCameraRotation.x() + 180.0f * deltaY), 89.9f));
+        mCameraRotation.setY(fmod(mCameraRotation.y() + 180 * deltaX, 360.0f));
     }
     else if(event->buttons() & Qt::MiddleButton)
     {
-        mCamLookAtOffset.setZ(mCamLookAtOffset.z() + 180*DY);
-        mCamLookAtOffset.setX(mCamLookAtOffset.x() + 180*DX);
+        mCamLookAtOffset.setZ(mCamLookAtOffset.z() + 180.0f * deltaY);
+        mCamLookAtOffset.setX(mCamLookAtOffset.x() + 180.0f * deltaX);
     }
 
     mLastMousePosition = event->pos();
 
-    rotX = fmod(rotX, 360.0);
-    rotY = fmod(rotY, 360.0);
-    rotZ = fmod(rotZ, 360.0);
+    //qDebug() << "mCamLookAtOffset: " << mCamLookAtOffset << "rotXYZ:" << rotX << rotY << rotZ;
 
-    //    qDebug() << "mCamLookAtOffset: " << mCamLookAtOffset << "rotXYZ:" << rotX << rotY << rotZ;
-
-    //    slotEmitModelViewProjectionMatrix();
-
-    update();
+    // update();
+    slotUpdateView();
 }
 
 void GlWidget::wheelEvent(QWheelEvent *event)
 {
     event->delta() > 0 ? mZoomFactorTarget *= 1.5f : mZoomFactorTarget *= 0.5f;
     mZoomFactorTarget = qBound(0.002f, (float)mZoomFactorTarget, 1.0f);
-    //    qDebug() << "zoomFactor" << mZoomFactor;
     mViewZooming = true;
     mTimerUpdate->setInterval(1000 / 60);
     mTimerUpdate->start();
     slotUpdateView();
 }
 
+void GlWidget::keyPressEvent(QKeyEvent *event)
+{
+    if(event->key() == Qt::Key_Q)
+    {
+        mRotationPerFrame -= 0.0005f;
+        slotEnableTimerRotation(true);
+    }
+    else if(event->key() == Qt::Key_W)
+    {
+        mRotationPerFrame += 0.0005f;
+        slotEnableTimerRotation(true);
+    }
+    else
+        QGLWidget::keyPressEvent(event);
+}
+
 void GlWidget::slotUpdateView()
 {
+    // quick hack to see ALL generated poses
+    // update(); return;
+
     if(mTimeOfLastRender.msecsTo(QDateTime::currentDateTime()) > mTimerUpdate->interval())
     {
         update();
@@ -650,9 +672,7 @@ void GlWidget::slotUpdateView()
 
 void GlWidget::slotViewFromTop()
 {
-    rotX = 49.58;
-    rotY = -17.71;
-    rotZ = 19.67;
+    mCameraRotation = QVector2D(50, -17.71);
     mZoomFactorCurrent = 0.6;
     mZoomFactorTarget = 0.6;
     updateGL();
@@ -660,13 +680,7 @@ void GlWidget::slotViewFromTop()
 
 void GlWidget::slotViewFromSide()
 {
-    rotX = -34.0;
-    rotY = 0.25;
-    rotZ = -15.5;
-
-    rotX = -23.0;
-    rotY = -3.54;
-    rotZ = -10.7;
+    mCameraRotation = QVector2D(-23, -3.5);
 
     mZoomFactorCurrent = 0.6;
     mZoomFactorTarget = 0.6;
