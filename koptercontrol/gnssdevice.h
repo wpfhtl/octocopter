@@ -24,7 +24,7 @@ public:
     GnssDevice(const QString &serialDeviceUsb, const QString &serialDeviceCom, QString logFilePrefix, QObject *parent = 0);
     ~GnssDevice();
 
-    // Our parent (koptercontrol) needs a handle to conect SbfParser to BaseConnection and LaserScanner (to set time)
+    // Our parent (koptercontrol) needs a handle to connect SbfParser to BaseConnection and LaserScanner (to set time)
     SbfParser* const getSbfParser(void) {return mSbfParser;}
 
 private:

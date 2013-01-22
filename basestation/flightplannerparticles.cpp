@@ -59,7 +59,7 @@ void FlightPlannerParticles::slotInitialize()
                 SLOT(slotSetVboInfoGridWaypointPressure(quint32,QVector3D,QVector3D,Vector3i))
                 );
 
-    mParticleSystem->slotSetParticleCount(256);
+    mParticleSystem->slotSetParticleCount(32768);
     mParticleSystem->slotSetParticleRadius(0.5f); // balance against mOctreeCollisionObjects.setMinimumPointDistance() above
     mParticleSystem->slotSetDefaultParticlePlacement(ParticleSystem::ParticlePlacement::PlacementFillSky);
 //    mParticleSystem->slotSetVolume(mScanVolumeMin, mScanVolumeMax);

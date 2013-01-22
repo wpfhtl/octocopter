@@ -33,8 +33,6 @@ texture<uint, 1, cudaReadModeElementType> cellEndTex;
 // simulation parameters in constant memory
 __constant__ CollisionParameters params;
 
-
-
 // Calculate's a particle's containing cell in the uniform grid
 __device__ int3 getGridCellCoordinate(float3 worldPos)
 {
@@ -58,8 +56,6 @@ __device__ uint getGridCellHash(int3 gridPos)
     gridPos.z = gridPos.z & (params.gridSize.z-1);
     return __umul24(__umul24(gridPos.z, params.gridSize.y), params.gridSize.x) + __umul24(gridPos.y, params.gridSize.x) + gridPos.x;
 }
-
-
 
 // deprecated, buggy, unfixable. see non-thrust version below.
 struct integrate_functor
@@ -137,8 +133,17 @@ void integrateSystemD(
     vel += params.gravity * deltaTime;
     vel *= params.dampingMotion;
 
+    // If particle moves further than its radius in one iteration, it may slip through cracks that would be unpassable
+    // in reality. To prevent this, do no tmove particles further than r in every timestemp
+    float3 movement = vel * deltaTime;
+    float factor = length(movement) / params.particleRadius;
+    if(factor > 1.0 && false asdasdasd)
+    {
+        movement /= factor;
+    }
+
     // new position = old position + velocity * deltaTime
-    pos += vel * deltaTime;
+    pos += movement;
 
     // collisions with cube sides
     if (pos.x > params.worldMax.x - params.particleRadius) { pos.x = params.worldMax.x - params.particleRadius; vel.x *= params.velocityFactorCollisionBoundary;}
