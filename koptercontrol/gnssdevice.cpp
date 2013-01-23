@@ -40,16 +40,15 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
     // packets.
     connect(mSbfParser, SIGNAL(processedPacket(qint32,const char*,quint16)), SLOT(slotLogProcessedSbfPacket(qint32,const char*,quint16)));
 
-    mDeviceIsReadyToReceiveDiffCorr = false;
-    mWaitingForCommandReply = false;
+    mGnssDeviceIsConfigured = false;
     mDiffCorrDataCounter = 0;
-    mSerialPortOnDeviceCom = "COM3";
+    mSerialPortOnDeviceCom = ""; // was set to COM3 previously
     mSerialPortOnDeviceUsb = "";
 
     // We use the USB port to talk to the GNSS receiver and receive poses
     mSerialPortUsb = new AbstractSerial();
-//    mSerialPortUsb->enableEmitStatus(true);
-//    connect(mSerialPortUsb, SIGNAL(signalStatus(QString,QDateTime)), SLOT(slotSerialPortStatusChanged(QString,QDateTime)));
+    //    mSerialPortUsb->enableEmitStatus(true);
+    //    connect(mSerialPortUsb, SIGNAL(signalStatus(QString,QDateTime)), SLOT(slotSerialPortStatusChanged(QString,QDateTime)));
     mSerialPortUsb->setDeviceName(serialDeviceFileUsb);
     if(!mSerialPortUsb->open(AbstractSerial::ReadWrite))
     {
@@ -64,8 +63,8 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
 
     // We use the COM port to feed the device RTK correction data
     mSerialPortCom = new AbstractSerial();
-//    mSerialPortCom->enableEmitStatus(true);
-//    connect(mSerialPortCom, SIGNAL(signalStatus(QString,QDateTime)), SLOT(slotSerialPortStatusChanged(QString,QDateTime)));
+    //    mSerialPortCom->enableEmitStatus(true);
+    //    connect(mSerialPortCom, SIGNAL(signalStatus(QString,QDateTime)), SLOT(slotSerialPortStatusChanged(QString,QDateTime)));
     mSerialPortCom->setDeviceName(serialDeviceFileCom);
     if(!mSerialPortCom->open(AbstractSerial::ReadWrite))
     {
@@ -77,7 +76,6 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
     mSerialPortCom->setParity(AbstractSerial::ParityNone);
     mSerialPortCom->setStopBits(AbstractSerial::StopBits1);
     mSerialPortCom->setFlowControl(AbstractSerial::FlowControlOff);
-    connect(mSerialPortCom, SIGNAL(readyRead()), SLOT(slotDataReadyOnCom()));
 
     mStatusTimer = new QTimer(this);
     connect(mStatusTimer, SIGNAL(timeout()), mSbfParser, SLOT(slotEmitCurrentGnssStatus()));
@@ -118,27 +116,26 @@ void GnssDevice::slotQueueCommand(QString command)
     command.replace("#COM#", mSerialPortOnDeviceCom);
     mCommandQueueUsb.append(command.append("\r\n").toAscii());
 
-    if(!mWaitingForCommandReply)
+    if(mLastCommandToGnssDevice[mSerialPortOnDeviceUsb].isEmpty())
         slotFlushCommandQueue();
 }
 
 quint8 GnssDevice::slotFlushCommandQueue()
 {
-    if(!mWaitingForCommandReply && mCommandQueueUsb.size())
+    if(mLastCommandToGnssDevice[mSerialPortOnDeviceUsb].isEmpty() && mCommandQueueUsb.size())
     {
-        mLastCommandToDeviceUsb = mCommandQueueUsb.takeFirst();
-        qDebug() << "GnssDevice::slotFlushCommandQueue(): no pending replies, sending next command:" << mLastCommandToDeviceUsb.trimmed();
+        mLastCommandToGnssDevice[mSerialPortOnDeviceUsb] = mCommandQueueUsb.takeFirst();
+        qDebug() << "GnssDevice::slotFlushCommandQueue(): no pending replies, sending next command:" << mLastCommandToGnssDevice[mSerialPortOnDeviceUsb].trimmed();
         if(mReceiveBufferUsb.size()) qDebug() << "GnssDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << SbfParser::readable(mReceiveBufferUsb);
         //usleep(100000);
-        mSerialPortUsb->write(mLastCommandToDeviceUsb);
-        mWaitingForCommandReply = true;
+        mSerialPortUsb->write(mLastCommandToGnssDevice[mSerialPortOnDeviceUsb]);
 
         QTextStream commandLog(mLogFileCmd);
         commandLog << '\n' << '\n' << "################################################################################" << '\n' << '\n';
-        commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << " HOST -> DEV: " << mLastCommandToDeviceUsb << '\n';
+        commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << "HOST ->" << mSerialPortOnDeviceUsb << ":" << mLastCommandToGnssDevice[mSerialPortOnDeviceUsb] << '\n';
         commandLog << "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" << '\n' << '\n';
     }
-    else if(mWaitingForCommandReply)
+    else if(!mLastCommandToGnssDevice[mSerialPortOnDeviceUsb].isEmpty())
     {
         qDebug() << "GnssDevice::slotFlushCommandQueue(): still waiting for a usb command-reply, not sending.";
     }
@@ -149,7 +146,7 @@ quint8 GnssDevice::slotFlushCommandQueue()
 
     // ben 2012-03-21: For some reason, when subscribing at msec20, we don't get called in slotDataReadyOnUsb() because th buffer is still (or already)
     // filled with crap. So, lets call ourselves every second.
-//    QTimer::singleShot(1000, this, SLOT(slotFlushCommandQueue()));
+    //    QTimer::singleShot(1000, this, SLOT(slotFlushCommandQueue()));
 
     return mCommandQueueUsb.size();
 }
@@ -169,21 +166,22 @@ void GnssDevice::slotDetermineSerialPortsOnDevice()
     // and connects to the devices COM2. This method will chat with the device, analyze
     // the prompt in its replies and set mSerialPortOnDevice to COM2. This can be used
     // lateron to tell the device to output useful info on COM2.
-    emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Setting up communication");
-
     // We use two connections to the board, the other one is just for feeding the RTK
     // data that we received from rtkfetcher. But we also need to know that ports name,
     // as we need to tell the receiver to accept RTK data on that port.
+    emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Setting up communication");
+
     if(!mSerialPortUsb->isOpen() || !mSerialPortCom->isOpen())
     {
         emit message(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Cannot open GNSS serial port(s)");
+        QCoreApplication::quit();
     }
 
     // Historically, we would boot the GNSS receiver in a default configuration and then
     // set it up here and in slotCommunicationSetup() to emit useful info. This procedure
     // included (re)starting the INS filters. As it turns out, this is not so smart because
     // we WANT the INS filters to run long before we start flying, so they can calibrate
-    // and yield better precision, which is sometimes noticeable in lower covariances.
+    // and converge to better precision, which is sometimes noticeable in lower covariances.
     //
     // This means that we want to start koptercontrol, initialize the GNSS and then, when
     // the filters work well, quit the program. On the next start, we do NOT want to re-
@@ -193,25 +191,36 @@ void GnssDevice::slotDetermineSerialPortsOnDevice()
     // spitting out SBF at a rate of 50Hz. We try to achieve this by issuing a text command
     // and looking for the command prompt using regexp.
 
-    Q_ASSERT(mSerialPortUsb->isOpen());
-    Q_ASSERT(mSerialPortCom->isOpen());
-
-    // We want to find strings like COM4> and USB1>
-    QRegExp regexpPortNameFromPrompt("\n(COM|USB)([1-4])>");
-    // Make sure our regexp will capture two things: name and number
-    Q_ASSERT(regexpPortNameFromPrompt.captureCount() == 2);
-
     // We send a string causing a reply from the device, so we can see on what port it is talking to us.
     if(mSerialPortOnDeviceUsb.isEmpty() || mSerialPortOnDeviceCom.isEmpty())
     {
+        // We want to find strings like COM4> and USB1>
+        QRegExp regexpPortNameFromPrompt("[\\r\\n](COM|USB)([1-4])>");
+        // Make sure our regexp will capture two things: name and number
+        Q_ASSERT(regexpPortNameFromPrompt.captureCount() == 2);
+
         QByteArray dataUsb;
+        quint8 attemptCounter = 1;
         do
         {
-            mSerialPortUsb->write("getDataInOut\r\n");
-            mSerialPortUsb->waitForReadyRead(1000);
-            dataUsb.append(mSerialPortUsb->readAll());
+            if(attemptCounter % 5 == 0)
+            {
+                qDebug() << "GnssDevice::determineSerialPortOnDevice(): sending portreset to device on USB...";
+                mSerialPortUsb->write("SSSSSSSSSS\r\n");
+            }
+            else
+            {
+                mSerialPortUsb->write("getDataInOut\r\n");
+            }
 
-            if(regexpPortNameFromPrompt.indexIn(dataUsb) != -1)
+            QTime t; t.start();
+            while(t.elapsed() < 300)
+            {
+                mSerialPortUsb->waitForReadyRead(100);
+                dataUsb.append(mSerialPortUsb->readAll());
+            }
+
+            if(regexpPortNameFromPrompt.indexIn(QString::fromLatin1(dataUsb.constData(), dataUsb.size())) != -1)
             {
                 mSerialPortOnDeviceUsb = QString(regexpPortNameFromPrompt.cap(1) + regexpPortNameFromPrompt.cap(2)).trimmed();
                 qDebug() << "GnssDevice::determineSerialPortOnDevice(): serial usb port on device changed to" << mSerialPortOnDeviceUsb;
@@ -223,58 +232,92 @@ void GnssDevice::slotDetermineSerialPortsOnDevice()
                     // of the COM-port used for SBF input. Try to fetch it!
 
                     // We want to find strings like "  DataInOut, COM2, RTCMv3, SBF, (on)" and match the COM2
-                    QRegExp regexpPortNameFromDataInOutTable("^(?:\\s*)DataInOut\\b(COM|USB)([1-4])\\bRTCMv3\\bSBF\\b\\(on\\)$");
+                    QRegExp regexpPortNameFromDataInOutTable("DataInOut,\\s(COM|USB)([1-4]),\\sRTCMv3,\\sSBF,\\s\\(on\\)");
                     // Make sure our regexp will capture two things: name and number
                     Q_ASSERT(regexpPortNameFromDataInOutTable.captureCount() == 2);
 
-                    if(regexpPortNameFromDataInOutTable.indexIn(dataUsb) != -1)
+                    if(regexpPortNameFromDataInOutTable.indexIn(QString::fromLatin1(dataUsb.constData(), dataUsb.size())) != -1)
                     {
-                        mSerialPortOnDeviceCom = QString(regexpPortNameFromDataInOutTable.cap(1) + regexpPortNameFromDataInOutTable.cap(2) + ">").trimmed();
+                        mSerialPortOnDeviceCom = QString(regexpPortNameFromDataInOutTable.cap(1) + regexpPortNameFromDataInOutTable.cap(2)).trimmed();
                         qDebug() << "GnssDevice::determineSerialPortOnDevice(): getDataInOut indicates serial com port on device is" << mSerialPortOnDeviceCom;
-                        qDebug() << "GnssDevice::determineSerialPortOnDevice(): device is pre-configured, thats fine." << mSerialPortOnDeviceCom;
-                        mDeviceIsReadyToReceiveDiffCorr = true;
+                        qDebug() << "GnssDevice::determineSerialPortOnDevice(): device is pre-configured, thats fine.";
+                        mGnssDeviceIsConfigured = true;
+                    }
+                    else
+                    {
+                        qDebug() << "GnssDevice::determineSerialPortOnDevice(): couldn't find com port name from getDataInOut, device isn't configured yet. String was:" << SbfParser::readable(dataUsb);
                     }
                 }
             }
             else
             {
-                qDebug() << "GnssDevice::determineSerialPortOnDevice(): couldn't find usb port name in prompt, retrying...";
+                qDebug() << "GnssDevice::determineSerialPortOnDevice(): couldn't find usb port name in prompt (retrying), data was" << dataUsb.size() << "bytes:" << SbfParser::readable(dataUsb);
+                attemptCounter++;
             }
 
-        } while(mSerialPortOnDeviceUsb.isEmpty()); // (mSerialPortUsb->bytesAvailable() + dataUsb.size()) < 250
+        } while(mSerialPortOnDeviceUsb.isEmpty());
     }
 
     // If the device was NOT preconfigured, we couldn't possibly have found mSerialPortOnDeviceCom above.
-    // So, lets try to detect it using the same procedure as for USB1
+    // So, lets try to detect it using the same procedure as for the USB port.
     QByteArray dataCom;
+    // We want to find strings like COM4> and USB1>
+    QRegExp regexpPortNameFromPrompt("[\\r\\n](COM|USB)([1-4])>");
+    // Make sure our regexp will capture two things: name and number
+    Q_ASSERT(regexpPortNameFromPrompt.captureCount() == 2);
+
+    quint8 attemptCounter = 1;
     while(mSerialPortOnDeviceCom.isEmpty())
     {
-        mSerialPortCom->write("getDataInOut\r\n");
-        mSerialPortCom->waitForReadyRead(1000);
-        dataCom.append(mSerialPortCom->readAll());
+        if(attemptCounter % 20 == 0)
+        {
+            qDebug() << "GnssDevice::determineSerialPortOnDevice(): sending portreset to device on COM...";
+            mSerialPortCom->write("SSSSSSSSSS\r\n");
+        }
+        else
+        {
+            mSerialPortCom->write("getReceiverCapabilities\r\n");
+        }
 
-        if(regexpPortNameFromPrompt.indexIn(dataCom) != -1)
+        QTime t; t.start();
+        while(t.elapsed() < 300)
+        {
+            mSerialPortCom->waitForReadyRead(100);
+            dataCom.append(mSerialPortCom->readAll());
+        }
+
+        if(regexpPortNameFromPrompt.indexIn(QString::fromLatin1(dataCom.constData(), dataCom.size())) != -1)
         {
             mSerialPortOnDeviceCom = QString(regexpPortNameFromPrompt.cap(1) + regexpPortNameFromPrompt.cap(2)).trimmed();
             qDebug() << "GnssDevice::determineSerialPortOnDevice(): serial com port on device changed to" << mSerialPortOnDeviceCom;
         }
         else
         {
-            qDebug() << "GnssDevice::determineSerialPortOnDevice(): couldn't find com port name in prompt, retrying...";
+            qDebug() << "GnssDevice::determineSerialPortOnDevice(): couldn't find com port name in prompt (retrying), dataCom is" << dataCom.size() << "bytes :" << SbfParser::readable(dataCom);
+            attemptCounter++;
         }
     }
 
     // Because of using do...while(), we potentially sent many commands to the GNSS receiver. Lets wait and clear all incoming data
-    usleep(2000000);
-    mSerialPortUsb->readAll();
-    mSerialPortCom->readAll();
+    QTime t; t.start();
+    while(t.elapsed() < 500)
+    {
+        mSerialPortCom->waitForReadyRead(100);
+        mSerialPortCom->readAll();
+        mSerialPortUsb->waitForReadyRead(100);
+        mSerialPortUsb->readAll();
+    }
+
+    mLastCommandToGnssDevice[mSerialPortOnDeviceCom] = QByteArray();
+    mLastCommandToGnssDevice[mSerialPortOnDeviceUsb] = QByteArray();
 
     // Now that we know what the ports are named, we can setup the board. We connect this signal not in the c'tor but here,
     // because we don't want the slot to be called for answers to requests made in this method.
     qDebug() << "GnssDevice::determineSerialPortOnDevice(): ports are" << mSerialPortOnDeviceCom << mSerialPortOnDeviceUsb << ": activating GNSS device output parsing.";
     connect(mSerialPortUsb, SIGNAL(readyRead()), SLOT(slotDataReadyOnUsb()));
+    connect(mSerialPortCom, SIGNAL(readyRead()), SLOT(slotDataReadyOnCom()));
 
-    if(mDeviceIsReadyToReceiveDiffCorr)
+    if(mGnssDeviceIsConfigured)
     {
         qDebug() << "GnssDevice::determineSerialPortOnDevice(): GNSS device is already configured, skipping configuration procedure.";
         // slotSetPoseFrequency(true) is not needed, SBFParser will cause this method to be called when the data is precise.
@@ -305,12 +348,12 @@ void GnssDevice::slotCommunicationSetup()
 
     slotQueueCommand("lstInternalFile,Permissions");
 
-//    slotQueueCommand("lstInternalFile,Debug");
+    //    slotQueueCommand("lstInternalFile,Debug");
 
     // reset communications
     slotQueueCommand("setDataInOut,all,CMD,none");
 
-    // increase com-port speed to 460800 for shorter latency
+    // increase com-port speed to 460800 for shorter latency? No.
     slotQueueCommand("setComSettings,"+mSerialPortOnDeviceCom+",baud115200,bits8,No,bit1,none");
 
     // make the receiver output SBF blocks on both COM and USB connections
@@ -318,7 +361,7 @@ void GnssDevice::slotCommunicationSetup()
     slotQueueCommand("setDataInOut,"+mSerialPortOnDeviceUsb+",CMD,SBF");
 
     // make the receiver listen to RTK data on specified port
-//    sendAsciiCommand("setDataInOut,"+mSerialPortOnDeviceCom+",RTCMv3");
+    //    sendAsciiCommand("setDataInOut,"+mSerialPortOnDeviceCom+",RTCMv3");
 
     // we want to know the TOW, because we don't want it to roll over! Answer is parsed below and used to sync time.
     slotQueueCommand("exeSBFOnce,"+mSerialPortOnDeviceCom+",ReceiverTime");
@@ -503,12 +546,12 @@ void GnssDevice::slotShutDown()
 
     slotSetPoseFrequency(false);
 
-//    slotQueueCommand("setComSettings,all,baud115200,bits8,No,bit1,none");
-//    slotQueueCommand("setSBFOutput,all,"+mSerialPortOnDeviceUsb+",none");
-//    slotQueueCommand("setSBFOutput,all,"+mSerialPortOnDeviceCom+",none");
-//    slotQueueCommand("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime");
-//    slotQueueCommand("setDataInOut,all,CMD,none");
-//    slotQueueCommand("setPVTMode,Rover,StandAlone");
+    //    slotQueueCommand("setComSettings,all,baud115200,bits8,No,bit1,none");
+    //    slotQueueCommand("setSBFOutput,all,"+mSerialPortOnDeviceUsb+",none");
+    //    slotQueueCommand("setSBFOutput,all,"+mSerialPortOnDeviceCom+",none");
+    //    slotQueueCommand("exeSBFOnce,"+mSerialPortOnDeviceUsb+",ReceiverTime");
+    //    slotQueueCommand("setDataInOut,all,CMD,none");
+    //    slotQueueCommand("setPVTMode,Rover,StandAlone");
 
     // This is still needed to acknowledge the shutdown.
     slotQueueCommand("shutdown");
@@ -516,16 +559,73 @@ void GnssDevice::slotShutDown()
     qDebug() << "GnssDevice::slotShutDown(): shutdown sequence processed, waiting for asynchronous shutdown confirmation...";
 }
 
+bool GnssDevice::parseCommandReply(const QString& portNameOnDevice, QByteArray* const receiveBuffer)
+{
+    if(!mLastCommandToGnssDevice[portNameOnDevice].isEmpty())
+    {
+        // Check for command replies before every packet
+        const qint32 positionReplyStart = receiveBuffer->indexOf("$R");
+        qint32 positionReplyStop  = receiveBuffer->indexOf(portNameOnDevice + QChar('>'));
+        if(positionReplyStart != -1 && positionReplyStop != -1)
+        {
+            positionReplyStop += portNameOnDevice.length() + 1; // make sure we also include the "USB1>" at the end!
+            const QByteArray commandReply = receiveBuffer->mid(positionReplyStart, positionReplyStop - positionReplyStart);
+
+            qDebug() << "GnssDevice::parseCommandReply(): port" << portNameOnDevice << "received reply to:" << mLastCommandToGnssDevice[portNameOnDevice].trimmed() << "-" << commandReply.size() << "bytes:" << commandReply.trimmed();
+
+            QTextStream commandLog(mLogFileCmd);
+            commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << portNameOnDevice << "-> HOST: " << commandReply.trimmed() << '\n';
+            commandLog << '\n' << "################################################################################" << '\n' << '\n' << '\n' << '\n';
+
+            if(commandReply.contains("$R? ASCII commands between prompts were discarded!"))
+                qDebug() << "GnssDevice::parseCommandReply(): WARNING, we were talking too fast on port" << portNameOnDevice;
+
+            if(commandReply.contains(QString("setDataInOut,"+mSerialPortOnDeviceCom+",RTCMv3,SBF").toAscii()))
+            {
+                qDebug() << "GnssDevice::parseCommandReply(): gnss device now configured to accept diffcorr";
+                mGnssDeviceIsConfigured = true;
+            }
+
+            if(commandReply.contains("shutdown"))
+            {
+                emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Orderly shutdown confirmed by gnss device");
+                qDebug() << "GnssDevice::parseCommandReply(): shutdown confirmed by device, quitting.";
+                QCoreApplication::quit();
+            }
+
+            const int bytesToCut = positionReplyStop - positionReplyStart;
+            receiveBuffer->remove(positionReplyStart, bytesToCut);
+            mLastCommandToGnssDevice[portNameOnDevice] = QByteArray();
+
+            slotFlushCommandQueue();
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void GnssDevice::slotDataReadyOnCom()
 {
-    // Move all new bytes into our SBF buffer
-    mReceiveBufferCom.append(mSerialPortCom->readAll());
+    while(true)
+    {
+        // Move all new bytes into our SBF buffer
+        mReceiveBufferCom.append(mSerialPortCom->readAll());
 
-    //qDebug() << "GnssDevice::slotDataReadyOnCom(): size of SBF data is now" << mReceiveBufferCom.size() << "bytes, processing:" << mReceiveBufferCom;
+        while(parseCommandReply(mSerialPortOnDeviceCom, &mReceiveBufferCom));
 
-    // Process as much SBF as possible.
-    while(mSbfParser->getNextValidPacketInfo(mReceiveBufferCom))
-          mSbfParser->processNextValidPacket(mReceiveBufferCom);
+        // Process as much SBF as possible.
+        if(mSbfParser->getNextValidPacketInfo(mReceiveBufferCom))
+        {
+            mSbfParser->processNextValidPacket(mReceiveBufferCom);
+        }
+        else
+        {
+//            qDebug() << "GnssDevice::slotDataReadyOnCom():" << mReceiveBufferCom.size() << "bytes left after parsing, but this is no valid packet yet:" << SbfParser::readable(mReceiveBufferCom);
+            return;
+        }
+    }
 }
 
 void GnssDevice::slotDataReadyOnUsb()
@@ -533,51 +633,12 @@ void GnssDevice::slotDataReadyOnUsb()
     while(true)
     {
         // Move all new bytes into our SBF buffer
-        if(mSerialPortUsb->bytesAvailable())
-            mReceiveBufferUsb.append(mSerialPortUsb->readAll());
+        mReceiveBufferUsb.append(mSerialPortUsb->readAll());
 
         // $@<header/><body>...$@...</body>...padding...$R;listCurrentConfig\n\n...........\nUS
         // $@<header/><body>...$@...</body>...padding...$R;listCurrentConfig\n\n...........\nUSB1>$@<header/><body>...
 
-        if(mWaitingForCommandReply)
-        {
-            // Check for command replies before every packet
-            const qint32 positionReplyStart = mReceiveBufferUsb.indexOf("$R");
-            qint32 positionReplyStop  = mReceiveBufferUsb.indexOf(mSerialPortOnDeviceUsb + QChar('>'));
-            if(positionReplyStart != -1 && positionReplyStop != -1)
-            {
-                positionReplyStop += mSerialPortOnDeviceUsb.length() + 1; // make sure we also include the "USB1>" at the end!
-                const QByteArray commandReply = mReceiveBufferUsb.mid(positionReplyStart, positionReplyStop - positionReplyStart);
-
-                qDebug() << "GnssDevice::slotDataReadyOnUsb(): received reply to:" << mLastCommandToDeviceUsb.trimmed() << "-" << commandReply.size() << "bytes:" << commandReply.trimmed();
-
-                QTextStream commandLog(mLogFileCmd);
-                commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << " DEV -> HOST: " << commandReply.trimmed() << '\n';
-                commandLog << '\n' << "################################################################################" << '\n' << '\n' << '\n' << '\n';
-
-                if(commandReply.contains("$R? ASCII commands between prompts were discarded!"))
-                    qDebug() << "GnssDevice::slotDataReadyOnUsb(): WARNING, we were talking too fast!!";
-
-                if(commandReply.contains(QString("setDataInOut,"+mSerialPortOnDeviceCom+",RTCMv3,SBF").toAscii()))
-                {
-                    qDebug() << "GnssDevice::slotDataReadyOnUsb(): gnss device now configured to accept diffcorr";
-                    mDeviceIsReadyToReceiveDiffCorr = true;
-                }
-
-                if(commandReply.contains("shutdown"))
-                {
-                    emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Orderly shutdown confirmed by gnss device");
-                    qDebug() << "GnssDevice::slotDataReadyOnUsb(): shutdown confirmed by device, quitting.";
-                    QCoreApplication::quit();
-                }
-
-                const int bytesToCut = positionReplyStop - positionReplyStart;
-                mReceiveBufferUsb.remove(positionReplyStart, bytesToCut);
-                mWaitingForCommandReply = false;
-
-                slotFlushCommandQueue();
-            }
-        }
+        while(parseCommandReply(mSerialPortOnDeviceUsb, &mReceiveBufferUsb));
 
         if(mSbfParser->getNextValidPacketInfo(mReceiveBufferUsb))
         {
@@ -595,17 +656,17 @@ void GnssDevice::slotDataReadyOnUsb()
 
 void GnssDevice::slotSetDifferentialCorrections(const QByteArray* const differentialCorrections)
 {
-    if(mDeviceIsReadyToReceiveDiffCorr)
+    if(mGnssDeviceIsConfigured)
     {
         // simply write the RTK data into the com-port
         mDiffCorrDataCounter += differentialCorrections->size();
-//        qDebug() << "GnssDevice::slotSetDifferentialCorrections(): forwarding" << data.size() << "bytes of diffcorr to GNSS device, total is" << mRtkDataCounter;
+        //        qDebug() << "GnssDevice::slotSetDifferentialCorrections(): forwarding" << data.size() << "bytes of diffcorr to GNSS device, total is" << mRtkDataCounter;
         mSerialPortCom->write(*differentialCorrections);
-//        emit message(
-//                Information,
-//                "GnssDevice::slotSetDifferentialCorrections()",
-//                QString("Fed %1 bytes of RTK data into rover GNSS device.").arg(data.size())
-//                );
+        //        emit message(
+        //                Information,
+        //                "GnssDevice::slotSetDifferentialCorrections()",
+        //                QString("Fed %1 bytes of RTK data into rover GNSS device.").arg(data.size())
+        //                );
     }
     else
     {
