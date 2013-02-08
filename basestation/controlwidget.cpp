@@ -23,7 +23,7 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
 
     connect(mWayPointTable, SIGNAL(cellChanged(int,int)), SLOT(slotWayPointChange(int,int)));
 
-    connect(mBtnGenerateWaypoints, SIGNAL(clicked()), SIGNAL(generateWaypoints()));
+    connect(mBtnGenerateWaypoints, SIGNAL(clicked()), SIGNAL(showUserInterface()));
 
     connect(mBtnSetScanVolume, SIGNAL(clicked()), SLOT(slotSetScanVolume()));
 

@@ -37,6 +37,31 @@ WayPoint WayPointList::takeAt(const int index)
     return wpt;
 }
 
+void WayPointList::mergeCloseWaypoints(const float minimumDistance)
+{
+    for(int i=0;i<mWaypoints.size();i++)
+    {
+        const WayPoint& w1 = mWaypoints.at(i);
+
+        // Do not check the current waypoint (i) against previous waypoints (j <= i),
+        // because those previous waypoints (j) have already been checked against the current (i).
+        // That is, only check following WPs, not preceding ones.
+        for(int j=i+1;j<mWaypoints.size();j++)
+        {
+            // On the last i-element, there is no following WP
+            if(mWaypoints.size() > j)
+            {
+                const WayPoint& w2 = mWaypoints.at(j);
+                if(w1.distanceToLine(w2, QVector3D()) < minimumDistance)
+                {
+                    mWaypoints.removeAt(j);
+                    j--;
+                }
+            }
+        }
+    }
+}
+
 void WayPointList::sortToShortestPath(const QVector3D &vehiclePosition)
 {
     //    qDebug() << "FlightPlannerInterface::sortToShortestPath(): vehicle is at" << currentVehiclePosition;

@@ -276,7 +276,7 @@ void computeMappingFromGridCellToPoint(
         int     numPoints)
 {
     uint numThreads, numBlocks;
-    computeGridSize(numPoints, 256, numBlocks, numThreads);
+    computeExecutionKernelGrid(numPoints, 256, numBlocks, numThreads);
 
     checkCudaSuccess("Kernel execution failed BEFORE computeMappingFromGridCellToPoint");
 
@@ -304,7 +304,7 @@ void sortPosAccordingToGridCellAndFillCellStartAndEndArrays(
     checkCudaSuccess("sortPosAccordingToGridCellAndFillCellStartAndEndArrays(): cuda error present!");
 
     uint numThreads, numBlocks;
-    computeGridSize(numPoints, 256, numBlocks, numThreads);
+    computeExecutionKernelGrid(numPoints, 256, numBlocks, numThreads);
 
     // set all cells to empty
     cudaMemset(pointCellStart, 0xffffffff, numCells*sizeof(uint));
@@ -358,7 +358,7 @@ void markCollidingPoints(
 
     // thread per particle
     uint numThreads, numBlocks;
-    computeGridSize(numPoints, 64, numBlocks, numThreads);
+    computeExecutionKernelGrid(numPoints, 64, numBlocks, numThreads);
 
     // execute the kernel
     markCollidingPointsD<<< numBlocks, numThreads >>>(
@@ -571,7 +571,7 @@ unsigned int replaceCellPointsByMeanValue(float *devicePoints, float* devicePoin
     checkCudaSuccess("replaceCellPointsByMeanValue(): cuda error present!");
 
     uint numThreads, numBlocks;
-    computeGridSize(numCells, 256, numBlocks, numThreads);
+    computeExecutionKernelGrid(numCells, 256, numBlocks, numThreads);
 
     qDebug() << "replaceCellPointsByMeanValue(): using" << numCells << "threads to create as many averaged points";
 

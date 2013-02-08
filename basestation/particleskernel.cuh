@@ -7,7 +7,7 @@
 #include "vector_types.h"
 
 // simulation parameters
-struct CollisionParameters {
+struct SimulationParameters {
     // gridSize is used for TWO grids: (we might split this up into two members later)
     // - one grid contains the particles, its used to find neighbors for collisions
     // - one grid contains the colliders, its used to find neighbors for keeping it sparse

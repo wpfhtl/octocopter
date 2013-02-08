@@ -10,12 +10,12 @@
 #include "particleskernel.cu"
 #include "cuda.h"
 
-void setParameters(CollisionParameters *hostParams)
+void setParameters(SimulationParameters *hostParams)
 {
     // Copy parameters to constant memory. This was synchronous once, I changed
     // it to be asynchronous. Shouldn't cause any harm, even if parameters were
     // applied one frame too late.
-    cudaMemcpyToSymbolAsync(params, hostParams, sizeof(CollisionParameters));
+    cudaMemcpyToSymbolAsync(params, hostParams, sizeof(SimulationParameters));
 }
 
 void integrateSystem(float *particlePositions, float *particleVelocities, uint8_t* gridWaypointPressure, float* particleCollisionPositions, float deltaTime, uint numParticles)
@@ -34,7 +34,7 @@ void integrateSystem(float *particlePositions, float *particleVelocities, uint8_
     if(numParticles == 0) return;
 
     uint numThreads, numBlocks;
-    computeGridSize(numParticles, 256, numBlocks, numThreads);
+    computeExecutionKernelGrid(numParticles, 256, numBlocks, numThreads);
 
     // execute the kernel
     integrateSystemD<<< numBlocks, numThreads >>>(
@@ -59,7 +59,7 @@ void computeMappingFromGridCellToParticle(
     if(numParticles == 0) return;
 
     uint numThreads, numBlocks;
-    computeGridSize(numParticles, 256, numBlocks, numThreads);
+    computeExecutionKernelGrid(numParticles, 256, numBlocks, numThreads);
 
     // execute the kernel
     computeMappingFromGridCellToParticleD<<< numBlocks, numThreads >>>(gridParticleHash,
@@ -89,7 +89,7 @@ void sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
     if(numParticles == 0) return;
 
     uint numThreads, numBlocks;
-    computeGridSize(numParticles, 256, numBlocks, numThreads);
+    computeExecutionKernelGrid(numParticles, 256, numBlocks, numThreads);
 
 
 #if USE_TEX
@@ -147,7 +147,7 @@ void collideParticlesWithParticlesAndColliders(
 
     // thread per particle
     uint numThreads, numBlocks;
-    computeGridSize(numParticles, 64, numBlocks, numThreads);
+    computeExecutionKernelGrid(numParticles, 64, numBlocks, numThreads);
 
     // execute the kernel
     collideParticlesWithParticlesAndCollidersD<<< numBlocks, numThreads >>>(
@@ -187,4 +187,41 @@ void sortGridOccupancyMap(uint *dGridParticleHash, uint *dGridParticleIndex, uin
 
     // check if kernel invocation generated an error
     checkCudaSuccess("Kernel execution failed: sortGridOccupancyMap");
+}
+
+
+// Fill mDeviceGridMapCellWorldPositions - this might be done only once and then copied lateron (just like the waypoint pressure above)
+void fillGridMapCellWorldPositions(float* gridMapCellWorldPositions, uint numCells)
+{
+    // thread per particle
+    uint numThreads, numBlocks;
+    computeExecutionKernelGrid(numCells, 64, numBlocks, numThreads);
+
+    fillGridMapCellWorldPositionsD<<< numBlocks, numThreads >>>(
+                                                                  (float4*)gridMapCellWorldPositions,
+                                                                  numCells);
+}
+
+// Sort mDeviceGridMapWayPointPressureSorted => mDeviceGridMapCellWorldPositions according to the keys DESC
+void sortGridMapWayPointPressure(uint8_t* gridMapWayPointPressureSorted, float* gridMapCellWorldPositions, uint numCells, uint numWaypointsRequested)
+{
+    if(numCells > 0)
+    {
+        thrust::sort_by_key(thrust::device_ptr<uint8_t>(gridMapWayPointPressureSorted),             // KeysBeginning
+                            thrust::device_ptr<uint8_t>(gridMapWayPointPressureSorted + numCells),  // KeysEnd
+                            thrust::device_ptr<float4>((float4*)gridMapCellWorldPositions),         // ValuesBeginning
+                            thrust::greater<int>());                                                // In descending order
+
+        // Now we want to copy the waypointpressure-value for all requested waypoints from gridMapWayPointPressureSorted(quint8) to gridMapCellWorldPositions.w(float)
+        thrust::device_ptr<float4>  d_cwp((float4*)gridMapCellWorldPositions);
+        thrust::device_ptr<uint8_t> d_wpp((uint8_t*)gridMapWayPointPressureSorted);
+
+        thrust::for_each(
+                    thrust::make_zip_iterator(thrust::make_tuple(d_wpp, d_cwp)),
+                    thrust::make_zip_iterator(thrust::make_tuple(d_wpp + numWaypointsRequested, d_cwp + numWaypointsRequested)),
+                    copy_functor());
+    }
+
+    // check if kernel invocation generated an error
+    checkCudaSuccess("Kernel execution failed: sortGridMapWayPointPressure");
 }

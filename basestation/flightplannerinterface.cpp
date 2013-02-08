@@ -9,7 +9,7 @@ FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, GlWidget* glWidg
     mShaderProgramDefault = mShaderProgramSpheres = 0;
     mBoundingBoxVbo = 0;
 
-    mVehiclePoses.reserve(25 * 60 * 20); // enough poses for 20 minutes
+    mVehiclePoses.reserve(25 * 60 * 20); // enough poses for 20 minutes with 25Hz
 
     mWaypointListMap.insert("ahead", new WayPointList(QColor(255,0,0,200)));
     mWaypointListMap.insert("passed", new WayPointList(QColor(255,255,0,200)));
@@ -32,25 +32,6 @@ void FlightPlannerInterface::slotSetScanVolume(const QVector3D minBox, const QVe
     setVboBoundingBox();
 }
 
-/*
-bool FlightPlannerInterface::insertPointsFromNode(const Node* node)
-{
-    if(node->isLeaf())
-    {
-        for(int i=0;i<node->pointIndices.size();i++)
-            insertPoint(new LidarPoint(node->mTree->data()->at(node->pointIndices.at(i))));
-    }
-    else
-    {
-        // invoke recursively for childnodes/leafs
-        const QList<const Node*> childNodes = node->getAllChildLeafs();
-        foreach(const Node* childNode, childNodes)
-            if(!insertPointsFromNode(childNode))
-                return false;
-    }
-
-    return true;
-}*/
 
 void FlightPlannerInterface::slotClearVehicleTrajectory()
 {
@@ -206,7 +187,6 @@ void FlightPlannerInterface::slotWayPointReached(const WayPoint& wpt)
 const QList<WayPoint>* const FlightPlannerInterface::getWayPoints()
 {
     return mWaypointListMap.value("ahead")->list();
-    //return *mWayPointsAhead;
 }
 
 void FlightPlannerInterface::getScanVolume(QVector3D& min, QVector3D& max)
@@ -388,20 +368,3 @@ void FlightPlannerInterface::slotVisualize()
     */
 }
 
-
-void FlightPlannerInterface::slotDeleteGeneratedWayPoints()
-{
-    mWaypointListMap["generated"]->clear();
-    emit suggestVisualization();
-}
-
-void FlightPlannerInterface::slotSubmitGeneratedWayPoints()
-{
-    mWaypointListMap["ahead"]->append(mWaypointListMap.value("generated"));
-    mWaypointListMap["generated"]->clear();
-    mWaypointListMap["ahead"]->sortToShortestPath(mVehiclePoses.last().getPosition());
-    emit wayPointsSetOnRover(mWaypointListMap.value("ahead")->list());
-    emit wayPoints(mWaypointListMap.value("ahead")->list());
-
-    emit suggestVisualization();
-}

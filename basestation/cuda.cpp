@@ -43,7 +43,7 @@ uint iDivUp(uint a, uint b)
 }
 
 // Compute grid and thread block size for a given number of elements
-void computeGridSize(uint n, uint blockSize, uint &numBlocks, uint &numThreads)
+void computeExecutionKernelGrid(uint n, uint blockSize, uint &numBlocks, uint &numThreads)
 {
     numThreads = std::min(blockSize, n);
     numBlocks = iDivUp(n, numThreads);

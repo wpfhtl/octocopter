@@ -56,8 +56,6 @@ public:
     virtual void keyPressEvent(QKeyEvent *event) = 0;
 
 private slots:
-    void slotDeleteGeneratedWayPoints();
-    void slotSubmitGeneratedWayPoints();
 
 public slots:
     void slotWayPointDelete(const quint16& index);
@@ -82,6 +80,7 @@ public slots:
 
     virtual void slotSetScanVolume(const QVector3D min, const QVector3D max);
     virtual void slotGenerateWaypoints() = 0;
+    virtual void slotShowUserInterface() {}
     virtual void slotVisualize();
 
     void slotVehiclePoseChanged(const Pose *const pose);

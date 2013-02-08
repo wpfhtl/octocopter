@@ -9,6 +9,8 @@
 #include <waypoint.h>
 #include "openglutilities.h"
 
+class FlightPlannerParticlesDialog;
+
 class PointCloudCuda;
 
 class FlightPlannerParticles : public FlightPlannerInterface
@@ -21,7 +23,7 @@ public:
     void keyPressEvent(QKeyEvent *event);
 
 private:
-    bool mUpdateParticleSystem;
+    FlightPlannerParticlesDialog* mDialog;
 
     PointCloudCuda* mPointCloudColliders;
     // cursor?
@@ -39,11 +41,15 @@ private:
     // To re-fill our datastructure when the boundingbox has changed.
     bool insertPointsFromNode(const Node* node);
 
+    bool mProcessPhysics;
+
 signals:
 
 private slots:
+    void slotShowUserInterface();
     void slotGenerateWaypoints();
-    void slotProcessPhysics(bool);
+    void slotProcessPhysics(bool value) { mProcessPhysics = value; }
+
 
     // Our octree found @point to be alone enough to be stored. So this method inserts it into the particle system.
 //    void slotPointAcceptedIntoOctree(const LidarPoint*point);

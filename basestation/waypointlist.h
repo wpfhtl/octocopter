@@ -22,6 +22,8 @@ public:
     WayPointList(const QColor& color);
     ~WayPointList();
 
+    void mergeCloseWaypoints(const float minimumDistance);
+
     float sphereSize;
 
     const QList<WayPoint>* list() const {return &mWaypoints;}

@@ -26,6 +26,6 @@ void copyArrayFromDevice(void* host, const void* device, struct cudaGraphicsReso
 uint iDivUp(uint a, uint b);
 
 // compute grid and thread block size for a given number of elements
-void computeGridSize(uint n, uint blockSize, uint &numBlocks, uint &numThreads);
+void computeExecutionKernelGrid(uint n, uint blockSize, uint &numBlocks, uint &numThreads);
 
 #endif

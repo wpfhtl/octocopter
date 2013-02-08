@@ -34,9 +34,13 @@ void main()
       gl_Position = matrixCameraToClip * matrixModelToCamera * in_position;
 
     float vmin = 0.0;
-    float vmax = 10.0; // colormap repeats every 10 height-meters
+    float vmax = 45.0; // colormap repeats every 10 height-meters
+    vmax = 15.0;
     float dv = vmax - vmin;
-    float colorValue = mod(abs(in_position.y), 10.0); // colormap repeats every 10 height-meters
+    //float colorValue = abs(in_position.y); // colormap repeats every 10 height-meters
+    // ben: max 10m, repeat cycle (use mod())
+    //float colorValue = mod(abs(in_position.y), vmax); // colormap repeats every 10 height-meters
+    float colorValue = abs(in_position.y); // colormap, non-repeating
 
     if(colorValue < vmin)
       colorValue = vmin;

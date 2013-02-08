@@ -1145,7 +1145,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>-32.000000000000000</double>
+            <double>-52.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1177,7 +1177,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>-62.000000000000000</double>
+            <double>-50.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1210,7 +1210,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>32.000000000000000</double>
+            <double>12.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1242,7 +1242,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>2.000000000000000</double>
+            <double>14.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1263,7 +1263,7 @@
          <item>
           <widget class="QPushButton" name="mBtnGenerateWaypoints">
            <property name="text">
-            <string>Generate</string>
+            <string>Show Interface</string>
            </property>
           </widget>
          </item>

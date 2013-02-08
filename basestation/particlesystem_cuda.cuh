@@ -13,7 +13,7 @@ void copyArrayToDevice(
 
 void *mapGLBufferObject(struct cudaGraphicsResource **cuda_vbo_resource);
 
-void setParameters(CollisionParameters *hostParams);
+void setParameters(SimulationParameters *hostParams);
 
 void integrateSystem(
         float*        pos,
@@ -63,3 +63,13 @@ void sortGridOccupancyMap(
         unsigned int* dGridParticleHash,
         unsigned int* dGridParticleIndex,
         unsigned int  numParticles);
+
+void fillGridMapCellWorldPositions(
+        float* gridMapCellWorldPositions,
+        unsigned int numCells);
+
+void sortGridMapWayPointPressure(
+        uint8_t* gridMapWayPointPressureSorted,
+        float* gridMapCellWorldPositions,
+        unsigned int numCells,
+        unsigned int numWaypointsRequested);

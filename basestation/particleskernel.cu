@@ -31,7 +31,7 @@ texture<uint, 1, cudaReadModeElementType> cellEndTex;
 #endif
 */
 // simulation parameters in constant memory
-__constant__ CollisionParameters params;
+__constant__ SimulationParameters params;
 
 // Calculate's a particle's containing cell in the uniform grid
 __device__ int3 getGridCellCoordinate(float3 worldPos)
@@ -57,62 +57,24 @@ __device__ uint getGridCellHash(int3 gridPos)
     return __umul24(__umul24(gridPos.z, params.gridSize.y), params.gridSize.x) + __umul24(gridPos.y, params.gridSize.x) + gridPos.x;
 }
 
-// deprecated, buggy, unfixable. see non-thrust version below.
-struct integrate_functor
+// Used to copy the waypoint pressure from a uint8_t vector to the w-components of the cell-position-vector.
+struct copy_functor
 {
-    float deltaTime;
-
     __host__ __device__
-    integrate_functor(float delta_time) : deltaTime(delta_time) {}
+    copy_functor() {}
 
     template <typename Tuple>
     //__host__ otherwise we get warnings that params (global mem) cannot be read directly in a host function
     __device__
     void operator()(Tuple t)
     {
-        volatile float4 posData = thrust::get<0>(t);
-        volatile float4 velData = thrust::get<1>(t);
-        volatile float4 pcpData = thrust::get<2>(t);
-        volatile uint8_t gwpData = thrust::get<3>(t);
-
-        float3 pos = make_float3(posData.x, posData.y, posData.z);
-        float3 vel = make_float3(velData.x, velData.y, velData.z);
-
-        vel += params.gravity * deltaTime;
-        vel *= params.dampingMotion;
-
-        // new position = old position + velocity * deltaTime
-        pos += vel * deltaTime;
-
-        // collisions with cube sides
-        if (pos.x > params.worldMax.x - params.particleRadius) { pos.x = params.worldMax.x - params.particleRadius; vel.x *= params.velocityFactorCollisionBoundary;}
-        if (pos.x < params.worldMin.x + params.particleRadius) { pos.x = params.worldMin.x + params.particleRadius; vel.x *= params.velocityFactorCollisionBoundary;}
-        if (pos.z > params.worldMax.z - params.particleRadius) { pos.z = params.worldMax.z - params.particleRadius; vel.z *= params.velocityFactorCollisionBoundary;}
-        if (pos.z < params.worldMin.z + params.particleRadius) { pos.z = params.worldMin.z + params.particleRadius; vel.z *= params.velocityFactorCollisionBoundary;}
-        if (pos.y > params.worldMax.y - params.particleRadius) { pos.y = params.worldMax.y - params.particleRadius; vel.y *= params.velocityFactorCollisionBoundary;}
-
-        // special case: hitting bottom plane of bounding box
-        if (pos.y < params.worldMin.y + params.particleRadius)
-        {
-            // put the particle back to the top, re-set velocity back to zero
-            pos.y = params.worldMax.y - params.particleRadius;
-            vel.y = 0.0f;
-
-            // pcpData is the ParticleCollisionPosition, so a non-zero value means this particle has hit a collider and now reached the bottom.
-            // Record this in gwpData and re-set the pcpData to zero.
-            if(pcpData.x != 0.0f || pcpData.y != 0.0f || pcpData.z != 0.0f || pcpData.w != 0.0f)
-            {
-                thrust::get<2>(t) = make_float4(0.0f); // clear the particle's last position of collision
-                thrust::get<3>(t) = min(gwpData + 1, 255);
-            }
-        }
+        volatile uint8_t pressure = thrust::get<0>(t);
+        volatile float4 cellWorldPosition = thrust::get<1>(t);
 
         // store new position and velocity
-        thrust::get<0>(t) = make_float4(pos, posData.w);
-        thrust::get<1>(t) = make_float4(vel, velData.w);
+        thrust::get<1>(t) = make_float4(cellWorldPosition.x, cellWorldPosition.y, cellWorldPosition.z, pressure);
     }
 };
-
 
 // Integrate particles, same as above. But for setting the waypointPressureMap, we need out-of-order access that thrust::Tuple cannot provide
 __global__
@@ -134,12 +96,14 @@ void integrateSystemD(
     vel *= params.dampingMotion;
 
     // If particle moves further than its radius in one iteration, it may slip through cracks that would be unpassable
-    // in reality. To prevent this, do no tmove particles further than r in every timestemp
+    // in reality. To prevent this, do not move particles further than r in every timestemp
     float3 movement = vel * deltaTime;
-    float factor = length(movement) / params.particleRadius;
-    if(factor > 1.0 && false asdasdasd)
+    float safeParticleRadius = params.particleRadius * 0.9f;
+    float distance = length(movement);
+    if(distance >= safeParticleRadius)
     {
-        movement /= factor;
+        vel /= distance / safeParticleRadius;
+        movement = vel * deltaTime;
     }
 
     // new position = old position + velocity * deltaTime
@@ -157,7 +121,11 @@ void integrateSystemD(
     {
         // put the particle back to the top, re-set velocity back to zero
         pos.y = params.worldMax.y - params.particleRadius;
+
+        vel.x = (fmod((double)(index * vel.y) + pos.x, 65535.0) / 32768.0) - 1.0;
+        vel.z = (fmod((double)(index * vel.x) + pos.z, 65535.0) / 32768.0) - 1.0;
         vel.y = 0.0f;
+
 
         // pcpData is the ParticleCollisionPosition, so a non-zero value means this particle has hit a collider and now reached the bottom.
         // Record this in gwpData and re-set the pcpData to zero.
@@ -285,37 +253,40 @@ void sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArraysD(
 // collide two spheres using DEM method
 __device__
 float3 collideSpheres(
-        float3 posA,
-        float3 velA,
-        float radiusA,
-        float3 posB,
-        float3 velB,
-        float radiusB,
+        float3 posParticle,
+        float3 velParticle,
+        float radiusParticle,
+        float3 posCollider,
+        float3 velCollider,
+        float radiusCollider,
         float attraction)
 {
     // calculate relative position
-    float3 relPos = posB - posA;
+    float3 relPos = posCollider - posParticle;
 
-    float dist = length(relPos);
-    float collideDist = radiusA + radiusB;
+    float distance = length(relPos);
+    float collisionDistance = radiusParticle + radiusCollider;
 
     float3 force = make_float3(0.0f);
-    if (dist < collideDist)
+    if (distance < collisionDistance)
     {
-        float3 norm = relPos / dist;
+        float3 normal = relPos / distance;
 
         // relative velocity
-        float3 relVel = velB - velA;
+        float3 relVel = velCollider - velParticle;
 
         // relative tangential velocity
-        float3 tanVel = relVel - (dot(relVel, norm) * norm);
+        float3 tanVel = relVel - (dot(relVel, normal) * normal);
 
         // spring force
-        force = -params.spring*(collideDist - dist) * norm;
+        force = params.spring * (collisionDistance - distance) * normal;
+
         // dashpot (damping) force
         force += params.velocityFactorCollisionParticle*relVel;
+
         // tangential shear force
         force += params.shear*tanVel;
+
         // attraction
         force += attraction*relPos;
     }
@@ -324,7 +295,7 @@ float3 collideSpheres(
 }
 
 
-// collide a particle against all other particles in a given cell
+// collide a particle against all other particles and colliders in a given cell
 __device__
 float3 collideCell(
         float4* particleCollisionPositions, // output: storage for the particle's current position if it collides with a collider
@@ -397,7 +368,7 @@ float3 collideCell(
                         params.particleRadius,
                         posToCollideAgainst,
                         make_float3(0.0f),
-                        0.1f,
+                        0.1f, // radius of collider
                         params.attraction);
         }
     }
@@ -408,6 +379,7 @@ float3 collideCell(
         // Store the particle's last collision-position. When the particle reaches the bottom-plane,
         // integrateSystem() increments the value of the cell that last collision appeared in.
         particleCollisionPositions[particleToCollideIndex] = make_float4(particleToCollidePos, 0.0);
+        //return make_float3(0.0f, 0.0f, 0.0f);
     }
 
     return forceCollisionsAgainstParticles + forceCollisionsAgainstColliders;
@@ -477,6 +449,33 @@ void collideParticlesWithParticlesAndCollidersD(
     // write new velocity back to original unsorted location
     uint originalIndex = particleMapIndex[particleToCollideIndex];
     newVel[originalIndex] = make_float4(particleToCollideVel + forceOnParticle, 0.0f);
+}
+
+__global__
+void fillGridMapCellWorldPositionsD(
+        float4* gridMapCellWorldPositions,
+        uint numCells)
+{
+    uint cellIndex = __mul24(blockIdx.x,blockDim.x) + threadIdx.x;
+    if(cellIndex >= numCells) return;
+
+    float3 gridCellCoordinate = make_float3(
+                floor(fmod((double)cellIndex, (double)(params.gridSize.x))),
+                floor(fmod((double)cellIndex, (double)(params.gridSize.x * params.gridSize.y)) / params.gridSize.x),
+                floor(fmod((double)cellIndex, (double)(params.gridSize.x * params.gridSize.y * params.gridSize.z)) / (params.gridSize.x * params.gridSize.y))
+                );
+
+    float3 cellSize;
+    cellSize.x = (params.worldMax.x - params.worldMin.x) / params.gridSize.x;
+    cellSize.y = (params.worldMax.y - params.worldMin.y) / params.gridSize.y;
+    cellSize.z = (params.worldMax.z - params.worldMin.z) / params.gridSize.z;
+
+    gridMapCellWorldPositions[cellIndex] = make_float4(
+                params.worldMin.x + (cellSize.x * gridCellCoordinate.x) + (cellSize.x / 2.0),
+                params.worldMin.y + (cellSize.y * gridCellCoordinate.y) + (cellSize.y / 2.0),
+                params.worldMin.z + (cellSize.z * gridCellCoordinate.z) + (cellSize.z / 2.0),
+                0.0f
+                );
 }
 
 #endif

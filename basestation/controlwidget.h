@@ -63,7 +63,7 @@ signals:
 
     void setScanVolume(QVector3D, QVector3D);
 
-    void generateWaypoints();
+    void showUserInterface();
 
     // These signals are emitted when the controlwidget wants waypoints to be changed on the kopter
     void wayPointInsert(const quint16& index, const WayPoint&);

@@ -47,9 +47,25 @@ private slots:
 public slots:
     void slotSetDefaultParticlePlacement(const ParticlePlacement pp) { mDefaultParticlePlacement = pp; }
 
+    // The user changed some value sin the UI. Accept all fields from SimulationParameters that make sense
+    // (e.g. changing particleCount doesn't make sense, as we'd have to re-initialize). Maybe later.
+    void slotSetSimulationParametersFromUi(const SimulationParameters* sp)
+    {
+        mSimulationParameters.attraction = sp->attraction;
+        mSimulationParameters.dampingMotion = sp->dampingMotion;
+        mSimulationParameters.gravity = sp->gravity;
+        mSimulationParameters.particleRadius = sp->particleRadius;
+        mSimulationParameters.shear = sp->shear;
+        mSimulationParameters.spring = sp->spring;
+        mSimulationParameters.velocityFactorCollisionBoundary = sp->velocityFactorCollisionBoundary;
+        mSimulationParameters.velocityFactorCollisionParticle = sp->velocityFactorCollisionParticle;
+    }
+
     void slotSetParticleRadius(float);
 
     void slotSetParticleSpring(const float spring) { mSimulationParameters.spring = spring; }
+
+    void slotClearGridWayPointPressure();
 
     void slotSetParticleCount(const quint32 count)
     {
@@ -75,6 +91,10 @@ public slots:
     }
 
     void slotSetVolume(const QVector3D& min, const QVector3D& max);
+
+    void slotResetParticles();
+
+    bool getRankedWaypoints(QVector4D* const waypoints, const quint16 numberOfWaypointsRequested);
 
 signals:
     void particleRadiusChanged(float);
@@ -117,8 +137,6 @@ protected:
     void initialize();
     void freeResources();
 
-    void placeParticles();
-
     unsigned int createVbo(quint32 size);
 
     void colorRamp(float t, float *r);
@@ -152,6 +170,20 @@ protected:
 
     float* mDeviceParticleCollisionPositions;
 
+    // There is a gridmap of waypoint pressure on the GPU. To be useful for processing on the host, we first create a
+    // list of QVector4D that corresponds to the cell's positions. Then, we sort the latter list using thrust::sort_by_key
+    // (the key being the waypoint pressure) and receive a ranking of QVector4Ds. Hah!
+    float*  mDeviceGridMapCellWorldPositions;
+
+    // We copy the waypoint pressure of the grid cells from the mVboGridMapOfWayPointPressure VBO to this pointer, then use
+    //
+    // thrust::sort_by_key(
+    //                      mDeviceGridMapWayPointPressureSorted.begin(),
+    //                      mDeviceGridMapWayPointPressureSorted.end(),
+    //                      mDeviceGridMapCellWorldPositions.begin(),
+    //                      operator>()
+    // );
+    quint8* mDeviceGridMapWayPointPressureSorted;
 
     // A map, mapping from gridcell => particle index. Length is particlecount
     unsigned int*  mDeviceParticleMapGridCell;  // grid hash value for each particle
@@ -175,10 +207,12 @@ protected:
 
     struct cudaGraphicsResource *mCudaVboResourceParticlePositions; // handles OpenGL-CUDA exchange
     struct cudaGraphicsResource *mCudaVboResourceColliderPositions; // handles OpenGL-CUDA exchange
+
+    // Waypoint-pressure-values are stored in a VBO as 8bit-unsigned-ints
     struct cudaGraphicsResource *mCudaVboResourceGridMapOfWayPointPressure; // handles OpenGL-CUDA exchange
     struct cudaGraphicsResource *mCudaColorVboResource; // handles OpenGL-CUDA exchange
 
-    CollisionParameters mSimulationParameters;
+    SimulationParameters mSimulationParameters;
 };
 
 #endif

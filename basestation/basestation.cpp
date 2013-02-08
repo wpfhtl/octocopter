@@ -78,7 +78,7 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mFlightPlanner, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
 
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
-    connect(mControlWidget, SIGNAL(generateWaypoints()), mFlightPlanner, SLOT(slotGenerateWaypoints()));
+    connect(mControlWidget, SIGNAL(showUserInterface()), mFlightPlanner, SLOT(slotShowUserInterface()));
 
     // When the controlwidget wants waypoints to be changed on the rover, tell flightplanner, which will take care of it.
     connect(mControlWidget, SIGNAL(wayPointInsert(const quint16&, const WayPoint&)), mFlightPlanner, SLOT(slotWayPointInsert(const quint16&, const WayPoint&)));

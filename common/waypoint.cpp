@@ -2,7 +2,7 @@
 
 WayPoint::WayPoint() : QVector3D()
 {
-    purpose = SCAN;
+    purpose = Purpose::SCAN;
 }
 
 WayPoint::WayPoint(const QString& string) : QVector3D()
@@ -31,7 +31,7 @@ WayPoint::WayPoint(const WayPoint& other) : QVector3D()
     setZ(other.z());
 }
 
-WayPoint::WayPoint(const QVector3D& vector, Purpose purpose) : QVector3D()
+WayPoint::WayPoint(const QVector3D& vector, const quint8 informationGain, Purpose purpose) : QVector3D()
 {
     this->purpose = purpose;
     setX(vector.x());

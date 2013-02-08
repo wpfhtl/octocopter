@@ -13,13 +13,14 @@ class WayPoint : public QVector3D
 {
 //    Q_OBJECT
 public:
-    enum Purpose {SCAN, DETOUR};
+    enum class Purpose {SCAN, DETOUR};
 
     Purpose purpose;
+    quint8 informationGain;
 
     WayPoint();
     WayPoint(const WayPoint& other);
-    WayPoint(const QVector3D& vector, Purpose = SCAN);
+    WayPoint(const QVector3D& vector, const quint8 informationGain = 0, Purpose = Purpose::SCAN);
     WayPoint(const QString& string);
 
     QString toString() const;

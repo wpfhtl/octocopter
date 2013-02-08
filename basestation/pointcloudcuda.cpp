@@ -19,7 +19,7 @@ PointCloudCuda::PointCloudCuda(const QVector3D &min, const QVector3D &max, const
     mNewPoints = (float*)malloc(sizeof(QVector4D) * 4096);
     std::fill(mNewPoints + 0, mNewPoints + (4 * 4096), 1.0f);
 
-    mParameters.minimumDistance = 1.0f/8.0f;
+    mParameters.minimumDistance = 0.02f;//1.0f/8.0f;
     mParameters.elementCount = 0;
     mParameters.elementQueueCount = 0;
     mParameters.remainder = 0;
@@ -204,7 +204,7 @@ bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint
 
     mVboInfo[0].size = mParameters.elementCount + mParameters.elementQueueCount;
 
-    qDebug() << "PointCloudCuda::slotInsertPoints4():" << mName << "inserted" << numberOfPointsToAppend << "points, vbo elements:" << mVboInfo[0].size << "elements:" << mParameters.elementCount << "queue:" << mParameters.elementQueueCount;
+//    qDebug() << "PointCloudCuda::slotInsertPoints4():" << mName << "inserted" << numberOfPointsToAppend << "points, vbo elements:" << mVboInfo[0].size << "elements:" << mParameters.elementCount << "queue:" << mParameters.elementQueueCount;
 
     reduce();
 

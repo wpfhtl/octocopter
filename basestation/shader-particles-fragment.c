@@ -64,6 +64,6 @@ void main()
     else
     {
       fragColor = colorGS_to_FS * diffuse_value;
-      fragColor.w = 0.1;
+      fragColor.w = 1.0;
     }
 }

@@ -22,6 +22,7 @@ SET(SRC_FILES
     flightplannerparticles
     #flightplannerphysics
     #flightplannerphysicsdialog
+    flightplannerparticlesdialog
     diffcorrfetcher
     model
     controlwidget
@@ -98,6 +99,7 @@ SET(INC_FILES
     #flightplannerparticles.h
     #flightplannerphysics.h
     #flightplannerphysicsdialog.h
+    flightplannerparticlesdialog.h
     diffcorrfetcher.h
     model.h
     controlwidget.h
@@ -133,7 +135,8 @@ SET(UI_FILES
     logwidget.ui
     connectiondialog.ui
     pidcontrollerwidget.ui
-    flightplannerphysicsdialog.ui
+    #flightplannerphysicsdialog.ui
+    flightplannerparticlesdialog.ui
 )
 
 SET(RESOURCE_FILES

@@ -3,6 +3,7 @@
 #include <cuda_gl_interop.h>
 
 #include "flightplannerparticles.h"
+#include "flightplannerparticlesdialog.h"
 #include "pointcloudcuda.h"
 
 FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWidget *glWidget, PointCloud *pointcloud) : FlightPlannerInterface(parentWidget, glWidget, pointcloud)
@@ -11,7 +12,7 @@ FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWidget *
     mParticleRenderer = 0;
     mVboGridLines = 0;
 
-    mUpdateParticleSystem = true;
+    mProcessPhysics = true;
 
     // register dense pointcloud for rendering. Might be moved to base class c'tor
     mGlWidget->slotPointCloudRegister(mPointCloudDense);
@@ -23,17 +24,19 @@ FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWidget *
     mPointCloudColliders = new PointCloudCuda(
                 mPointCloudDense->getBoundingBoxMin(),
                 mPointCloudDense->getBoundingBoxMax(),
-                128 * 1024);
+                256 * 1024);
 
     mPointCloudColliders->mName = "Colliders";
 
 //    mPointCloudColliders->setGridSize(64, 32, 64);
 
-    mPointCloudColliders->setMinimumPointDistance(0.9f);
+    mPointCloudColliders->setMinimumPointDistance(0.5f);
 
     mPointCloudColliders->setColor(QColor(128,128,128,64));
 
     mGlWidget->slotPointCloudRegister(mPointCloudColliders);
+
+    mDialog = new FlightPlannerParticlesDialog(parentWidget);
 }
 
 void FlightPlannerParticles::slotInitialize()
@@ -59,17 +62,27 @@ void FlightPlannerParticles::slotInitialize()
                 SLOT(slotSetVboInfoGridWaypointPressure(quint32,QVector3D,QVector3D,Vector3i))
                 );
 
-    mParticleSystem->slotSetParticleCount(32768);
+    mParticleSystem->slotSetParticleCount(16384);
     mParticleSystem->slotSetParticleRadius(0.5f); // balance against mOctreeCollisionObjects.setMinimumPointDistance() above
     mParticleSystem->slotSetDefaultParticlePlacement(ParticleSystem::ParticlePlacement::PlacementFillSky);
 //    mParticleSystem->slotSetVolume(mScanVolumeMin, mScanVolumeMax);
+
+    connect(mDialog, SIGNAL(deleteWayPoints()), SLOT(slotWayPointsClear()));
+    connect(mDialog, SIGNAL(generateWayPoints()), SLOT(slotGenerateWaypoints()));
+    connect(mDialog, SIGNAL(resetParticles()), mParticleSystem, SLOT(slotResetParticles()));
+    connect(mDialog, SIGNAL(resetWaypointPressure()), mParticleSystem, SLOT(slotClearGridWayPointPressure()));
+    connect(mDialog, SIGNAL(simulationParameters(const SimulationParameters*)), mParticleSystem, SLOT(slotSetSimulationParametersFromUi(const SimulationParameters*)));
+
+    connect(mDialog, SIGNAL(processPhysicsChanged(bool)), SLOT(slotProcessPhysics(bool)));
+    connect(mDialog, SIGNAL(showParticlesChanged(bool)), mParticleRenderer, SLOT(slotSetRenderParticles(bool)));
+    connect(mDialog, SIGNAL(showWaypointPressureChanged(bool)), mParticleRenderer, SLOT(slotSetRenderWaypointPressure(bool)));
 }
 
 void FlightPlannerParticles::keyPressEvent(QKeyEvent *event)
 {
     if(event->key() == Qt::Key_1)
     {
-        mUpdateParticleSystem = !mUpdateParticleSystem;
+        mProcessPhysics = !mProcessPhysics;
     }
     else if(event->key() == Qt::Key_2 && mParticleSystem)
     {
@@ -81,9 +94,43 @@ void FlightPlannerParticles::keyPressEvent(QKeyEvent *event)
     }
 }
 
+void FlightPlannerParticles::slotShowUserInterface()
+{
+    // Just show the dialog for generating-options
+    mDialog->show();
+}
+
 void FlightPlannerParticles::slotGenerateWaypoints()
 {
-    qDebug() << "FlightPlannerParticles::slotGenerateWaypoints()";
+
+    QVector<QVector4D> waypoints(200);
+    if(mParticleSystem->getRankedWaypoints(waypoints.data(), waypoints.size()))
+    {
+        WayPointList* const wpl = mWaypointListMap.value("ahead");
+        wpl->clear();
+
+        for(int i=0;i<waypoints.size();i++)
+        {
+            QVector4D wp = waypoints[i];
+
+            // If we ask for more waypoints than cells with wp-pressure > 0.0, we'll get useless candidates!
+            if(wp.w() > 0.1f)
+                wpl->append(WayPoint(wp.toVector3D() + QVector3D(0.0f, 5.0f, 0.0f), wp.w(), WayPoint::Purpose::SCAN));
+        }
+
+        qDebug() << "FlightPlannerParticles::slotGenerateWaypoints(): generated" << wpl->size() << "waypoints";
+
+        // Merge waypoints if they're closer than 2.0 meters
+        wpl->mergeCloseWaypoints(5.0f);
+
+        // Sort them to the shortest path, honoring the vehicle's current location.
+        wpl->sortToShortestPath(getLastKnownVehiclePose().getPosition());
+
+        qDebug() << "FlightPlannerParticles::slotGenerateWaypoints(): after merging, there are" << wpl->size() << "waypoints left";
+
+        emit wayPoints(wpl->list());
+        emit wayPointsSetOnRover(wpl->list());
+    }
 }
 
 void FlightPlannerParticles::slotCreateSafePathToNextWayPoint()
@@ -149,11 +196,12 @@ void FlightPlannerParticles::slotVisualize()
             mShaderProgramGridLines->release();
         }
 
-        if(mUpdateParticleSystem)
-            mParticleSystem->update(0.5f);
+        if(mProcessPhysics)
+            mParticleSystem->update(0.1f);
 
         mParticleRenderer->render();
     }
+
 }
 
 void FlightPlannerParticles::slotSetScanVolume(const QVector3D min, const QVector3D max)
@@ -232,13 +280,15 @@ void FlightPlannerParticles::slotSetScanVolume(const QVector3D min, const QVecto
     }
 }
 
-void FlightPlannerParticles::slotProcessPhysics(bool process)
-{
-}
 
 void FlightPlannerParticles::slotWayPointReached(const WayPoint wpt)
 {
     FlightPlannerInterface::slotWayPointReached(wpt);
+
+    // When only two waypoints are left, we want to clear the ParticleSystem's grid of wayppint pressure.
+    // This way, the particlesystem has the duration of the two remaining waypoints to create new waypoints
+    if(mWaypointListMap.value("ahead")->size() == 2)
+        mParticleSystem->slotClearGridWayPointPressure();
 
     //    slotCreateSafePathToNextWayPoint();
 }

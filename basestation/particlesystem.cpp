@@ -21,14 +21,13 @@ ParticleSystem::ParticleSystem(PointCloud *const pointcloud) : mPointCloudCollid
     mSimulationParameters.worldMax = make_float3(0.0f, 0.0f, 0.0f);
     mSimulationParameters.gridSize = make_uint3(0, 0, 0);
     mSimulationParameters.particleCount = 0;
-//    mSimulationParameters.colliderCountMax = 65536;
-    mSimulationParameters.dampingMotion = 1.0f;
+    mSimulationParameters.dampingMotion = 0.80f;                        // used only for integration
     mSimulationParameters.velocityFactorCollisionParticle = 0.02f;
     mSimulationParameters.velocityFactorCollisionBoundary = -0.5f;
-    mSimulationParameters.gravity = make_float3(0.0, -0.001f, 0.0f);
-    mSimulationParameters.spring = 0.5f;
-    mSimulationParameters.shear = 0.1f;
-    mSimulationParameters.attraction = 0.0f;
+    mSimulationParameters.gravity = make_float3(0.0, -9.810f, 0.0f);
+    mSimulationParameters.spring = -1.1f;
+    mSimulationParameters.shear = 0.0f;
+    mSimulationParameters.attraction = -0.2f;
 
     setNullPointers();
 
@@ -66,6 +65,7 @@ void ParticleSystem::setNullPointers()
 
     mDeviceParticleCollisionPositions = 0;
     mVboGridMapOfWayPointPressure = 0;
+    mDeviceGridMapCellWorldPositions = 0;
     mVboColliderPositions = 0;
     mDeviceColliderSortedPos = 0;
 }
@@ -122,6 +122,46 @@ void ParticleSystem::showWaypointPressure()
     }
 
     delete waypointPressureMapHost;
+}
+
+bool ParticleSystem::getRankedWaypoints(QVector4D* const waypoints, const quint16 numberOfWaypointsRequested)
+{
+    if(!mIsInitialized)
+    {
+        qDebug() << "ParticleSystem::getRankedWaypoints(): not initialized yet, returning.";
+        return false;
+    }
+
+    qDebug() << "ParticleSystem::getRankedWaypoints():";
+
+    Q_ASSERT(numberOfWaypointsRequested <= mSimulationParameters.gridSize.x * mSimulationParameters.gridSize.y * mSimulationParameters.gridSize.z);
+
+    const quint32 numberOfCells = mSimulationParameters.gridSize.x * mSimulationParameters.gridSize.y * mSimulationParameters.gridSize.z;
+
+    // Copy waypoint pressure from VBO into mDeviceGridMapWayPointPressureSorted
+    quint8* gridMapOfWayPointPressure = (quint8*)mapGLBufferObject(&mCudaVboResourceGridMapOfWayPointPressure);
+    cudaMemcpy(mDeviceGridMapWayPointPressureSorted, gridMapOfWayPointPressure, sizeof(quint8) * numberOfCells, cudaMemcpyDeviceToDevice);
+    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfWayPointPressure, 0);
+
+    // Fill mDeviceGridMapCellWorldPositions - this might be done only once and then copied lateron (just like the waypoint pressure above)
+    fillGridMapCellWorldPositions(mDeviceGridMapCellWorldPositions, numberOfCells);
+
+    // Sort mDeviceGridMapWayPointPressureSorted => mDeviceGridMapCellWorldPositions according to the keys DESC
+    sortGridMapWayPointPressure(mDeviceGridMapWayPointPressureSorted, mDeviceGridMapCellWorldPositions, numberOfCells, numberOfWaypointsRequested);
+
+    // Copy the @count cells with the highest waypoint pressure into @waypoints
+    cudaMemcpy(waypoints, mDeviceGridMapCellWorldPositions, sizeof(QVector4D) * numberOfWaypointsRequested, cudaMemcpyDeviceToHost);
+
+    return true;
+}
+
+void ParticleSystem::slotClearGridWayPointPressure()
+{
+    const quint32 numberOfCells = mSimulationParameters.gridSize.x * mSimulationParameters.gridSize.y * mSimulationParameters.gridSize.z;
+
+    quint8* gridMapOfWayPointPressure = (quint8*)mapGLBufferObject(&mCudaVboResourceGridMapOfWayPointPressure);
+    cudaMemset(gridMapOfWayPointPressure, 0, sizeof(quint8) * numberOfCells);
+    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfWayPointPressure, 0);
 }
 
 // Calculate a particle's hash value (=address in grid) from its containing cell (clamping to edges)
@@ -242,16 +282,28 @@ void ParticleSystem::initialize()
     cudaMemset(mDeviceParticleCollisionPositions, 0, sizeof(float) * 4 * mSimulationParameters.particleCount); // set to (float)-zero
     mNumberOfBytesAllocatedGpu += sizeof(float) * 4 * mSimulationParameters.particleCount;
 
-    // Store the gridcell-waypoint-pressure-values in regular cuda address space...
-    //cudaMalloc((void**)&mVboGridMapOfWayPointPressure, sizeof(quint8) * numberOfCells);
-    //cudaMemset(mVboGridMapOfWayPointPressure, 0, sizeof(quint8) * numberOfCells); // set to (quint8)-zero
-    // ... or in a VBO
-    mVboGridMapOfWayPointPressure = createVbo(sizeof(quint8) * numberOfCells);
-    cudaGraphicsGLRegisterBuffer(&mCudaVboResourceGridMapOfWayPointPressure, mVboGridMapOfWayPointPressure, cudaGraphicsMapFlagsNone);
-    // Set vbo values to zero
-    cudaMemset(mapGLBufferObject(&mCudaVboResourceGridMapOfWayPointPressure), 0, sizeof(quint8) * numberOfCells);
-    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfWayPointPressure, 0);
-    mNumberOfBytesAllocatedGpu += sizeof(quint8) * numberOfCells;
+    { // init gridmap of waypoint pressure
+        // Store the gridcell-waypoint-pressure-values in a VBO as 8bit-unsigned-ints
+        mVboGridMapOfWayPointPressure = createVbo(sizeof(quint8) * numberOfCells);
+        cudaGraphicsGLRegisterBuffer(&mCudaVboResourceGridMapOfWayPointPressure, mVboGridMapOfWayPointPressure, cudaGraphicsMapFlagsNone);
+        // Set vbo values to zero
+        cudaMemset(mapGLBufferObject(&mCudaVboResourceGridMapOfWayPointPressure), 0, sizeof(quint8) * numberOfCells);
+        cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfWayPointPressure, 0);
+
+        // Allocate the same size again for the same values. Here, they can be sorted in-place. Unfortunately, there is no thrust::sort_by_key()
+        // which would leave the keys (=mVboGridMapOfWayPointPressure) alone and just rearrange the values (=mDeviceGridMapCellWorldPositions).
+        cudaMalloc((void**)&mDeviceGridMapWayPointPressureSorted, sizeof(quint8) * numberOfCells);
+
+        mNumberOfBytesAllocatedGpu += 2 * sizeof(quint8) * numberOfCells;
+
+        // Allocate a vector of float4 for the world-positions of the gridcell positions. These will be the values when sorting
+        cudaMalloc((void**)&mDeviceGridMapCellWorldPositions, sizeof(float4) * numberOfCells);
+        mNumberOfBytesAllocatedGpu += sizeof(float4) * numberOfCells;
+    }
+
+    // Will contain QVector4Ds of worldpos of every gridcell, sorted by waypoint pressure
+    cudaMalloc((void**)&mDeviceGridMapCellWorldPositions, sizeof(float) * 4 * numberOfCells);
+    mNumberOfBytesAllocatedGpu += sizeof(float) * 4 * numberOfCells;
 
     emit vboInfoGridWaypointPressure(
                 mVboGridMapOfWayPointPressure,
@@ -308,7 +360,7 @@ void ParticleSystem::initialize()
 
     setParameters(&mSimulationParameters);
 
-    placeParticles();
+    slotResetParticles();
 
     mIsInitialized = true;
 
@@ -341,6 +393,9 @@ void ParticleSystem::freeResources()
     cudaFree(mDeviceColliderCellEnd);
 
     cudaFree(mDeviceParticleCollisionPositions);
+
+    cudaFree(mDeviceGridMapCellWorldPositions);
+    cudaFree(mDeviceGridMapWayPointPressureSorted);
 
     cudaGraphicsUnregisterResource(mCudaVboResourceParticlePositions);
     glDeleteBuffers(1, (const GLuint*)&mVboParticlePositions);
@@ -591,7 +646,7 @@ inline float frand()
     return rand() / (float)RAND_MAX;
 }
 
-void ParticleSystem::placeParticles()
+void ParticleSystem::slotResetParticles()
 {
     switch(mDefaultParticlePlacement)
     {
@@ -655,7 +710,7 @@ void ParticleSystem::placeParticles()
 
     case ParticlePlacement::PlacementFillSky:
     {
-        float jitter = mSimulationParameters.particleRadius * 0.01f;
+        float jitter = mSimulationParameters.particleRadius * 0.1f;
         const float spacing = mSimulationParameters.particleRadius * 2.02f;
 
         unsigned int particleNumber = 0;
