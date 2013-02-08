@@ -172,7 +172,8 @@ void LaserScanner::slotCaptureScanData()
         qint32 timeStampScanMiddle = mLastScannerTimeStamp + mOffsetTimeScannerToTow + 9;
 
         // Create a copy of the data in a quarter/half the size by using quint16 instead of long (32bit on x86_32, 64bit on x86_64)
-        std::vector<quint16>* distancesToEmit = new std::vector<quint16>(mScannedDistances);
+	// This next line is untested.
+        std::vector<quint16>* distancesToEmit = new std::vector<quint16>(mScannedDistances.begin(), mScannedDistances.end());
 
         // Always write log data in binary format for later replay. Format is:
         // PackageLengthInBytes(quint16) TOW(qint32) StartIndex(quint16) N-DISTANCES(quint16)

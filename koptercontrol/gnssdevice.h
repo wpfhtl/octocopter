@@ -37,11 +37,14 @@ private:
 
     SbfParser* mSbfParser;
 
-    bool mWaitingForCommandReply; // true when we're waiting for a reply from septentrio board (on usb port).
+    // Here, we remember if we're waiting for a reply to a command on a port (e.g. USB1 => getReceiverCapabilities)
+    QMap<QString, QByteArray> mLastCommandToGnssDevice;
+    //bool mWaitingForCommandReply; // true when we're waiting for a reply from septentrio board (on usb port).
+
     unsigned int mDiffCorrDataCounter;
-    QByteArray mLastCommandToDeviceUsb;
+//    QByteArray mLastCommandToDeviceUsb;
     AbstractSerial *mSerialPortUsb, *mSerialPortCom;
-    bool mDeviceIsReadyToReceiveDiffCorr; // so we only feed it rtk data when the device is ready for it.
+    bool mGnssDeviceIsConfigured; // so we only feed it rtk data when the device is ready for it.
 
     // The ports we use to talk to the receiver have a name on the receiver-side, e.g. COM1 or USB2
     // We need to use these names to tell the receiver what communication comes in/out of what ports.
@@ -53,6 +56,10 @@ private:
     // This method finds out how many seconds are left before the TOW (time-of-week)
     // value in the receiver rolls over, potentially screwing up our calculcations.
     quint32 getTimeToTowRollOver();
+
+    // If the given port is waiting for a command reply, this function checks
+    // if the reply has arrived, takes it from the buffer and parses it.
+    bool parseCommandReply(const QString& portNameOnDevice, QByteArray *const receiveBuffer);
 
 
 private slots:

@@ -38,11 +38,17 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offse
 
         // If the sync field "$@" was not found at all, no valid packet can be present. Quit.
         if(offsetToValidPacket < 0)
+        {
+//            qDebug() << "SbfParser::getNextValidPacketInfo(): offsetToValidPacket" << offsetToValidPacket << "no $@ found, returning false";
             return false;
+        }
 
         // Make sure that we have at least 8 bytes (the header size) to read (including the sync field)
         if(sbfData.size() < offsetToValidPacket + sizeof(Sbf_Header))
+        {
+//            qDebug() << "SbfParser::getNextValidPacketInfo(): offsetToValidPacket" << offsetToValidPacket << ", $@ found, but not enough data (" << sbfData.size() << "bytes), returning false";
             return false;
+        }
 
 //        sbfHeader = (Sbf_Header*)(sbfData.data() + offsetToValidPacket);
         block = (Sbf_PVTCartesian*)(sbfData.data() + offsetToValidPacket);
@@ -53,15 +59,24 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offse
         // If it was a), we could return false, but we cannot be sure its not b), as we haven't checksummed yet. Thus,
         // instead of returning false, we need to look for further packets to guarantee working even in condition b)
         if(block->Header.Length > sbfData.size() - offsetToValidPacket)
+        {
+//            qDebug() << "SbfParser::getNextValidPacketInfo(): offsetToValidPacket" << offsetToValidPacket << "$@ found, header present, packetLength" << block->Header.Length << "," << sbfData.size() << "bytes present, returning false";
             continue;
+        }
 
         // If the length is not a multiple of 4, its not a valid packet. Continue searching for another packet
         if(block->Header.Length % 4 != 0)
+        {
+//            qDebug() << "SbfParser::getNextValidPacketInfo(): offsetToValidPacket" << offsetToValidPacket << "$@ found, header present, packetLength" << block->Header.Length << "is not a multiple of 4, returning false";
             continue;
+        }
 
         // If the packet has a TOW DO-NOT-USE, skip it. TODO: Really?
-        if(block->TOW == 4294967295)
-            continue;
+//        if(block->TOW == 4294967295)
+//        {
+//            qDebug() << "SbfParser::getNextValidPacketInfo(): offsetToValidPacket" << offsetToValidPacket << "$@ found, header present, TOW is DONOTUSE.";
+//            continue;
+//        }
 
         // Calculate the packet's checksum. For corrupt packets, the Length field might be random, so we bound
         // the bytes-to-be-checksummed to be between 0 and the buffer's remaining bytes after Sync and Crc fields.
@@ -577,7 +592,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
             if(mTimeStampStartup.secsTo(QDateTime::currentDateTime()) < 15)
             {
                 qWarning() << "SbfParser::processNextValidPacket(): GPS Receiver TOW is at its do-not-use-value during startup - quitting.";
-                QCoreApplication::quit();
+                //QCoreApplication::quit();
             }
         }
         else
