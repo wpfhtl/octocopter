@@ -1,25 +1,11 @@
 #include "cuda.h"
 
-void checkCudaSuccess(const char *errorMessage)
-{
-    // For debugging, otherwise checkCudaSuccess wouldn't see the async error message
-//    cudaDeviceSynchronize();
-
-    cudaError_t errorCode = cudaGetLastError();
-    if( cudaSuccess != errorCode)
-    {
-        const char* errorMessageCuda = cudaGetErrorString(errorCode);
-        printf("CUDA error %s: %s.\n", errorMessage, errorMessageCuda);
-        exit(-1);
-    }
-}
-
 void *mapGLBufferObject(struct cudaGraphicsResource **cuda_vbo_resource)
 {
     void *ptr;
-    cudaGraphicsMapResources(1, cuda_vbo_resource, 0);
+    cudaSafeCall(cudaGraphicsMapResources(1, cuda_vbo_resource, 0));
     size_t num_bytes;
-    cudaGraphicsResourceGetMappedPointer((void **)&ptr, &num_bytes, *cuda_vbo_resource);
+    cudaSafeCall(cudaGraphicsResourceGetMappedPointer((void **)&ptr, &num_bytes, *cuda_vbo_resource));
     return ptr;
 }
 
@@ -27,13 +13,9 @@ void copyArrayFromDevice(void* host, const void* device, struct cudaGraphicsReso
 {
     if(cuda_vbo_resource) device = mapGLBufferObject(cuda_vbo_resource);
 
-    cudaMemcpy(host, device, size, cudaMemcpyDeviceToHost);
+    cudaSafeCall(cudaMemcpy(host, device, size, cudaMemcpyDeviceToHost));
 
-    if(cuda_vbo_resource)
-    {
-        //unmapGLBufferObject(*cuda_vbo_resource);
-        cudaGraphicsUnmapResources(1, cuda_vbo_resource, 0);
-    }
+    if(cuda_vbo_resource) cudaSafeCall(cudaGraphicsUnmapResources(1, cuda_vbo_resource, 0));
 }
 
 // Round a / b to nearest higher integer value

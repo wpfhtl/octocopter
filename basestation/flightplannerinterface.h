@@ -52,6 +52,23 @@ public:
 
     void getScanVolume(QVector3D& min, QVector3D& max);
 
+    QVector3D getScanVolumeSize() const
+    {
+        return QVector3D(
+                    mScanVolumeMax.x() - mScanVolumeMin.x(),
+                    mScanVolumeMax.y() - mScanVolumeMin.y(),
+                    mScanVolumeMax.z() - mScanVolumeMin.z());
+    }
+
+    QVector3D getScanVolumeCenter() const
+    {
+        return QVector3D(
+                    mScanVolumeMin.x(),
+                    mScanVolumeMin.y(),
+                    mScanVolumeMin.z()
+                    ) + getScanVolumeSize() / 2.0f;
+    }
+
     // For e.g. glWidget to send some user-key-strokes (e.g. for visualization)
     virtual void keyPressEvent(QKeyEvent *event) = 0;
 

@@ -1,62 +1,6 @@
+#include <GL/glew.h>
 #include "openglutilities.h"
 
-/*
-void OpenGlUtilities::drawSphere(const QVector3D &pos, const float radius, const int subdivisions, const QColor color)
-{
-    GLUquadricObj *quadric = gluNewQuadric();
-    gluQuadricNormals(quadric, GLU_SMOOTH);
-
-    glPushMatrix();
-    glTranslatef(pos.x(), pos.y(), pos.z());
-    glColor4f(color.redF(), color.greenF(), color.blueF(), color.alphaF());
-    gluSphere(quadric, radius, subdivisions, subdivisions);
-    glPopMatrix();
-
-    gluDeleteQuadric(quadric);
-}
-
-void OpenGlUtilities::drawSphere(const QVector3D &pos)
-{
-    OpenGlUtilities::drawSphere(pos, 2, 5, QColor(255,255,0));
-}
-
-void OpenGlUtilities::drawPoint(const QVector3D &pos)
-{
-//    glColor4f(1.0, 1.0, 0.0, 1.0);
-//    glBegin(GL_POINTS);
-    glVertex3f(pos.x(), pos.y(), pos.z());
-//    glEnd();
-}
-
-void OpenGlUtilities::drawAabb(const QVector3D &min, const QVector3D &max, const QColor &color, const quint8& lineWidth)
-{
-    glLineWidth(lineWidth);
-    glColor4f(color.redF(), color.greenF(), color.blueF(), color.alphaF());
-
-    glBegin(GL_LINE_STRIP);
-    glVertex3f(min.x(), min.y(), min.z());
-    glVertex3f(max.x(), min.y(), min.z());
-    glVertex3f(max.x(), max.y(), min.z());
-    glVertex3f(min.x(), max.y(), min.z());
-    glVertex3f(min.x(), min.y(), min.z());
-    glVertex3f(min.x(), min.y(), max.z());
-    glVertex3f(max.x(), min.y(), max.z());
-    glVertex3f(max.x(), max.y(), max.z());
-    glVertex3f(min.x(), max.y(), max.z());
-    glVertex3f(min.x(), min.y(), max.z());
-    glEnd();
-
-    glBegin(GL_LINES);
-    glVertex3f(min.x(), max.y(), min.z());
-    glVertex3f(min.x(), max.y(), max.z());
-    glVertex3f(max.x(), min.y(), min.z());
-    glVertex3f(max.x(), min.y(), max.z());
-    glVertex3f(max.x(), max.y(), min.z());
-    glVertex3f(max.x(), max.y(), max.z());
-    glEnd();
-}
-
-*/
 QVector<float> OpenGlUtilities::matrixToOpenGl(const QMatrix4x4 &matrix)
 {
     QVector<float> data;
@@ -65,4 +9,73 @@ QVector<float> OpenGlUtilities::matrixToOpenGl(const QMatrix4x4 &matrix)
         data.append((float)matrixValues[i]);
 
     return data;
+}
+
+
+quint32 OpenGlUtilities::createVbo(quint32 size)
+{
+    glGetError(); // clear previous GL errors!
+    GLuint vbo;
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    // TODO: replace this by using a debug context and debug callback
+    if(glGetError() != GL_NO_ERROR) qFatal("ParticleSystem::createVbo(): error creating VBO!");
+    return vbo;
+}
+
+
+void OpenGlUtilities::setVboToBoundingBox(const quint32 vbo, const QVector3D& min, const QVector3D& max)
+{
+    QVector<float> vertices;
+
+    // Fill the vertices buffer with vertices for quads and lines
+    vertices
+            // 1 back
+            << min.x() << min.y() << min.z() << 1.0f
+            << max.x() << min.y() << min.z() << 1.0f
+            << max.x() << max.y() << min.z() << 1.0f
+            << min.x() << max.y() << min.z() << 1.0f
+
+            // 2 front
+            << max.x() << min.y() << max.z() << 1.0f
+            << min.x() << min.y() << max.z() << 1.0f
+            << min.x() << max.y() << max.z() << 1.0f
+            << max.x() << max.y() << max.z() << 1.0f
+
+            // 3 left
+            << min.x() << min.y() << max.z() << 1.0f
+            << min.x() << min.y() << min.z() << 1.0f
+            << min.x() << max.y() << min.z() << 1.0f
+            << min.x() << max.y() << max.z() << 1.0f
+
+            // 4 right
+            << max.x() << min.y() << min.z() << 1.0f
+            << max.x() << min.y() << max.z() << 1.0f
+            << max.x() << max.y() << max.z() << 1.0f
+            << max.x() << max.y() << min.z() << 1.0f
+
+            // 6 top
+            << min.x() << max.y() << min.z() << 1.0f
+            << max.x() << max.y() << min.z() << 1.0f
+            << max.x() << max.y() << max.z() << 1.0f
+            << min.x() << max.y() << max.z() << 1.0f
+
+            // 5 bottom
+            << min.x() << min.y() << max.z() << 1.0f
+            << max.x() << min.y() << max.z() << 1.0f
+            << max.x() << min.y() << min.z() << 1.0f
+            << min.x() << min.y() << min.z() << 1.0f;
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), NULL, GL_STATIC_DRAW);
+    glBufferSubData(
+                GL_ARRAY_BUFFER,
+                0, // offset in the VBO
+                vertices.size() * sizeof(float), // how many bytes to store?
+                (void*)(vertices.constData()) // data to store
+                );
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }

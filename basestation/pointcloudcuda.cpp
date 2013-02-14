@@ -22,7 +22,7 @@ PointCloudCuda::PointCloudCuda(const QVector3D &min, const QVector3D &max, const
     mParameters.minimumDistance = 0.02f;//1.0f/8.0f;
     mParameters.elementCount = 0;
     mParameters.elementQueueCount = 0;
-    mParameters.remainder = 0;
+//    mParameters.remainder = 0;
     mParameters.capacity = maximumElementCount;
     mParameters.bBoxMin = make_float3(mBBoxMin.x(), mBBoxMin.y(), mBBoxMin.z());
     mParameters.bBoxMax = make_float3(mBBoxMax.x(), mBBoxMax.y(), mBBoxMax.z());
@@ -490,7 +490,6 @@ quint32 PointCloudCuda::createVbo(quint32 size)
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    checkCudaSuccess("PointCloudCuda::createVBO(): VBO allocation failed");
     return vbo;
 }
 

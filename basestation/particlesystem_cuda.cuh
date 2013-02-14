@@ -13,7 +13,7 @@ void copyArrayToDevice(
 
 void *mapGLBufferObject(struct cudaGraphicsResource **cuda_vbo_resource);
 
-void setParameters(SimulationParameters *hostParams);
+void copyParametersToGpu(SimulationParameters *hostParams);
 
 void integrateSystem(
         float*        pos,
@@ -73,3 +73,8 @@ void sortGridMapWayPointPressure(
         float* gridMapCellWorldPositions,
         unsigned int numCells,
         unsigned int numWaypointsRequested);
+
+void moveGridMapWayPointPressureValuesByWorldPositionOffset(
+        quint8* gridMapOfWayPointPressure,
+        float* offset,
+        unsigned int numberOfCells);

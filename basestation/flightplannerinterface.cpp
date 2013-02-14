@@ -29,7 +29,7 @@ void FlightPlannerInterface::slotSetScanVolume(const QVector3D minBox, const QVe
     mScanVolumeMin = minBox;
     mScanVolumeMax = maxBox;
 
-    setVboBoundingBox();
+    OpenGlUtilities::setVboToBoundingBox(mBoundingBoxVbo, mScanVolumeMin, mScanVolumeMax);
 }
 
 
@@ -195,70 +195,6 @@ void FlightPlannerInterface::getScanVolume(QVector3D& min, QVector3D& max)
     max = mScanVolumeMax;
 }
 
-void FlightPlannerInterface::setVboBoundingBox()
-{
-    if(mBoundingBoxVbo == 0)
-    {
-        qDebug() << "FlightPlannerInterface::setVbo(): VBO for bounding box still undefined, returning.";
-        return;
-    }
-
-    mBoundingBoxVertices.clear();
-
-    // Fill the vertices buffer with vertices for quads and lines
-    mBoundingBoxVertices
-            // 1 back
-            << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f
-            << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f
-            << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
-            << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
-
-            // 2 front
-            << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMax.z() << 1.0f
-            << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMax.z() << 1.0f
-            << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f
-            << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f
-
-            // 3 left
-            << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMax.z() << 1.0f
-            << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f
-            << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
-            << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f
-
-            // 4 right
-            << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f
-            << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMax.z() << 1.0f
-            << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f
-            << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
-
-            // 6 top
-            << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
-            << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMin.z() << 1.0f
-            << mScanVolumeMax.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f
-            << mScanVolumeMin.x() << mScanVolumeMax.y() << mScanVolumeMax.z() << 1.0f
-
-            // 5 bottom
-            << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMax.z() << 1.0f
-            << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMax.z() << 1.0f
-            << mScanVolumeMax.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f
-            << mScanVolumeMin.x() << mScanVolumeMin.y() << mScanVolumeMin.z() << 1.0f;
-
-    glBindBuffer(GL_ARRAY_BUFFER, mBoundingBoxVbo);
-
-//    qDebug() << "FlightPlannerInterface::setVboBoundingBox(): reserving" << sizeof(float) * mBoundingBoxVertices.size() << "bytes in VBO...";
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * mBoundingBoxVertices.size(), NULL, GL_STATIC_DRAW);
-
-//    qDebug() << "FlightPlannerInterface::setVboBoundingBox(): copying" << mBoundingBoxVertices.size() * sizeof(float) << "bytes of vertices into VBO...";
-    glBufferSubData(
-                GL_ARRAY_BUFFER,
-                0, // offset in the VBO
-                mBoundingBoxVertices.size() * sizeof(float), // how many bytes to store?
-                (void*)(mBoundingBoxVertices.constData()) // data to store
-                );
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
 void FlightPlannerInterface::slotVisualize()
 {
     // Bounding Box
@@ -267,7 +203,7 @@ void FlightPlannerInterface::slotVisualize()
     {
         mShaderProgramDefault = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
         glGenBuffers(1, &mBoundingBoxVbo);
-        setVboBoundingBox();
+        OpenGlUtilities::setVboToBoundingBox(mBoundingBoxVbo, mScanVolumeMin, mScanVolumeMax);
     }
 
     if(mShaderProgramDefault != 0)

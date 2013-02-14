@@ -10,54 +10,71 @@
 
 #include "thrust/tuple.h"
 
-// 0 seems to be 10% faster with 256k particles
-/*#define USE_TEX 0
-
-#if USE_TEX
-#define FETCH(t, i) tex1Dfetch(t##Tex, i)
-#else
-#define FETCH(t, i) t[i]
-#endif
-
-
-#if USE_TEX
-// textures for particle position and velocity
-texture<float4, 1, cudaReadModeElementType> oldPosTex;
-texture<float4, 1, cudaReadModeElementType> oldVelTex;
-
-texture<uint, 1, cudaReadModeElementType> gridParticleHashTex;
-texture<uint, 1, cudaReadModeElementType> cellStartTex;
-texture<uint, 1, cudaReadModeElementType> cellEndTex;
-#endif
-*/
 // simulation parameters in constant memory
 __constant__ SimulationParameters params;
+
+__device__ unsigned int getThreadIndex(void)
+{
+  return blockIdx.x * blockDim.x + threadIdx.x;
+}
+
+
+__device__ float3 getGridCellSize()
+{
+    return make_float3(
+        (params.particleSystemWorldMax.x - params.particleSystemWorldMin.x) / params.particleSystemGridSize.x,
+        (params.particleSystemWorldMax.y - params.particleSystemWorldMin.y) / params.particleSystemGridSize.y,
+        (params.particleSystemWorldMax.z - params.particleSystemWorldMin.z) / params.particleSystemGridSize.z);
+}
 
 // Calculate's a particle's containing cell in the uniform grid
 __device__ int3 getGridCellCoordinate(float3 worldPos)
 {
-    float3 cellSize;
-    cellSize.x = (params.worldMax.x - params.worldMin.x) / params.gridSize.x;
-    cellSize.y = (params.worldMax.y - params.worldMin.y) / params.gridSize.y;
-    cellSize.z = (params.worldMax.z - params.worldMin.z) / params.gridSize.z;
+    float3 cellSize = getGridCellSize();
 
     int3 gridPos;
-    gridPos.x = floor((worldPos.x - params.worldMin.x) / cellSize.x);
-    gridPos.y = floor((worldPos.y - params.worldMin.y) / cellSize.y);
-    gridPos.z = floor((worldPos.z - params.worldMin.z) / cellSize.z);
+    gridPos.x = floor((worldPos.x - params.particleSystemWorldMin.x) / cellSize.x);
+    gridPos.y = floor((worldPos.y - params.particleSystemWorldMin.y) / cellSize.y);
+    gridPos.z = floor((worldPos.z - params.particleSystemWorldMin.z) / cellSize.z);
     return gridPos;
 }
 
 // Calculate a particle's hash value (=address in grid) from its containing cell (clamping to edges)
 __device__ uint getGridCellHash(int3 gridPos)
 {
-    gridPos.x = gridPos.x & (params.gridSize.x-1);  // wrap grid, assumes size is power of 2
-    gridPos.y = gridPos.y & (params.gridSize.y-1);
-    gridPos.z = gridPos.z & (params.gridSize.z-1);
-    return __umul24(__umul24(gridPos.z, params.gridSize.y), params.gridSize.x) + __umul24(gridPos.y, params.gridSize.x) + gridPos.x;
+    gridPos.x = gridPos.x & (params.particleSystemGridSize.x-1);  // wrap grid, assumes size is power of 2
+    gridPos.y = gridPos.y & (params.particleSystemGridSize.y-1);
+    gridPos.z = gridPos.z & (params.particleSystemGridSize.z-1);
+    return ((gridPos.z * params.particleSystemGridSize.y) * params.particleSystemGridSize.x) + (gridPos.y * params.particleSystemGridSize.x) + gridPos.x;
 }
 
-// Used to copy the waypoint pressure from a uint8_t vector to the w-components of the cell-position-vector.
+// Given the cell hash, whats the 3d-grid-coordinate of the cell's center?
+// This is the reverse of calcGridHash(int3 gridCell).
+__device__ uint3 getGridCellCoordinate(unsigned int hash)
+{
+    uint3 cell;
+    cell.x = floor(fmod((double)hash, params.particleSystemGridSize.x));
+    cell.y = floor(fmod((double)hash, params.particleSystemGridSize.x * params.particleSystemGridSize.y) / params.particleSystemGridSize.x);
+    cell.z = floor(fmod((double)hash, params.particleSystemGridSize.x * params.particleSystemGridSize.y * params.particleSystemGridSize.z) / (params.particleSystemGridSize.x * params.particleSystemGridSize.y));
+    return cell;
+}
+
+
+__device__ float3 getGridCellCenter(uint3 gridCellCoordinate)
+{
+    float3 cellSize = getGridCellSize();
+
+    return make_float3(
+                params.particleSystemWorldMin.x + (cellSize.x * gridCellCoordinate.x) + (cellSize.x / 2.0),
+                params.particleSystemWorldMin.y + (cellSize.y * gridCellCoordinate.y) + (cellSize.y / 2.0),
+                params.particleSystemWorldMin.z + (cellSize.z * gridCellCoordinate.z) + (cellSize.z / 2.0)
+                );
+}
+
+
+// Used to copy the waypoint pressure from a uint8_t vector to the w-components of the cell-position-float4-vector.
+// When extracting waypoints form device vectors, this is done, then the cell-positions are sorted DESC according
+// to the w component, then the N first waypoints are extracted.
 struct copy_functor
 {
     __host__ __device__
@@ -86,7 +103,7 @@ void integrateSystemD(
         float           deltaTime,
         uint            numParticles)
 {
-    uint index = __umul24(blockIdx.x, blockDim.x) + threadIdx.x;
+    const unsigned int index = getThreadIndex();
     if(index >= numParticles) return;
 
     float3 pos = make_float3(particlePositions[index].x, particlePositions[index].y, particlePositions[index].z);
@@ -110,17 +127,17 @@ void integrateSystemD(
     pos += movement;
 
     // collisions with cube sides
-    if (pos.x > params.worldMax.x - params.particleRadius) { pos.x = params.worldMax.x - params.particleRadius; vel.x *= params.velocityFactorCollisionBoundary;}
-    if (pos.x < params.worldMin.x + params.particleRadius) { pos.x = params.worldMin.x + params.particleRadius; vel.x *= params.velocityFactorCollisionBoundary;}
-    if (pos.z > params.worldMax.z - params.particleRadius) { pos.z = params.worldMax.z - params.particleRadius; vel.z *= params.velocityFactorCollisionBoundary;}
-    if (pos.z < params.worldMin.z + params.particleRadius) { pos.z = params.worldMin.z + params.particleRadius; vel.z *= params.velocityFactorCollisionBoundary;}
-    if (pos.y > params.worldMax.y - params.particleRadius) { pos.y = params.worldMax.y - params.particleRadius; vel.y *= params.velocityFactorCollisionBoundary;}
+    if (pos.x > params.particleSystemWorldMax.x - params.particleRadius) { pos.x = params.particleSystemWorldMax.x - params.particleRadius; vel.x *= params.velocityFactorCollisionBoundary;}
+    if (pos.x < params.particleSystemWorldMin.x + params.particleRadius) { pos.x = params.particleSystemWorldMin.x + params.particleRadius; vel.x *= params.velocityFactorCollisionBoundary;}
+    if (pos.z > params.particleSystemWorldMax.z - params.particleRadius) { pos.z = params.particleSystemWorldMax.z - params.particleRadius; vel.z *= params.velocityFactorCollisionBoundary;}
+    if (pos.z < params.particleSystemWorldMin.z + params.particleRadius) { pos.z = params.particleSystemWorldMin.z + params.particleRadius; vel.z *= params.velocityFactorCollisionBoundary;}
+    if (pos.y > params.particleSystemWorldMax.y - params.particleRadius) { pos.y = params.particleSystemWorldMax.y - params.particleRadius; vel.y *= params.velocityFactorCollisionBoundary;}
 
     // special case: hitting bottom plane of bounding box
-    if (pos.y < params.worldMin.y + params.particleRadius)
+    if (pos.y < params.particleSystemWorldMin.y + params.particleRadius)
     {
         // put the particle back to the top, re-set velocity back to zero
-        pos.y = params.worldMax.y - params.particleRadius;
+        pos.y = params.particleSystemWorldMax.y - params.particleRadius;
 
         vel.x = (fmod((double)(index * vel.y) + pos.x, 65535.0) / 32768.0) - 1.0;
         vel.z = (fmod((double)(index * vel.x) + pos.z, 65535.0) / 32768.0) - 1.0;
@@ -156,7 +173,7 @@ void computeMappingFromGridCellToParticleD(
         float4* pos,               // input: particle positions
         uint    numParticles)
 {
-    uint index = __umul24(blockIdx.x, blockDim.x) + threadIdx.x;
+    const unsigned int index = getThreadIndex();
     if(index >= numParticles) return;
 
     volatile float4 p = pos[index];
@@ -189,7 +206,7 @@ void sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArraysD(
         uint    numParticles       // input:  number of particles/colliders
         )
 {
-    uint threadIndex = __umul24(blockIdx.x,blockDim.x) + threadIdx.x;
+    const unsigned int threadIndex = getThreadIndex();
 
     // This resides in shared memory space of the threadBlock, lives as
     // long as the block and is accessible from all threads in the block.
@@ -405,7 +422,7 @@ void collideParticlesWithParticlesAndCollidersD(
 
         uint    numParticles)       // input: number of total particles
 {
-    uint particleToCollideIndex = __mul24(blockIdx.x,blockDim.x) + threadIdx.x;
+    uint particleToCollideIndex = getThreadIndex();
     if (particleToCollideIndex >= numParticles) return;
 
     // read particle data from sorted arrays
@@ -454,28 +471,52 @@ void collideParticlesWithParticlesAndCollidersD(
 __global__
 void fillGridMapCellWorldPositionsD(
         float4* gridMapCellWorldPositions,
-        uint numCells)
+        uint numberOfCells)
 {
-    uint cellIndex = __mul24(blockIdx.x,blockDim.x) + threadIdx.x;
-    if(cellIndex >= numCells) return;
+    uint cellIndex = getThreadIndex();
+    if(cellIndex >= numberOfCells) return;
 
     float3 gridCellCoordinate = make_float3(
-                floor(fmod((double)cellIndex, (double)(params.gridSize.x))),
-                floor(fmod((double)cellIndex, (double)(params.gridSize.x * params.gridSize.y)) / params.gridSize.x),
-                floor(fmod((double)cellIndex, (double)(params.gridSize.x * params.gridSize.y * params.gridSize.z)) / (params.gridSize.x * params.gridSize.y))
+                floor(fmod((double)cellIndex, (double)(params.particleSystemGridSize.x))),
+                floor(fmod((double)cellIndex, (double)(params.particleSystemGridSize.x * params.particleSystemGridSize.y)) / params.particleSystemGridSize.x),
+                floor(fmod((double)cellIndex, (double)(params.particleSystemGridSize.x * params.particleSystemGridSize.y * params.particleSystemGridSize.z)) / (params.particleSystemGridSize.x * params.particleSystemGridSize.y))
                 );
 
     float3 cellSize;
-    cellSize.x = (params.worldMax.x - params.worldMin.x) / params.gridSize.x;
-    cellSize.y = (params.worldMax.y - params.worldMin.y) / params.gridSize.y;
-    cellSize.z = (params.worldMax.z - params.worldMin.z) / params.gridSize.z;
+    cellSize.x = (params.particleSystemWorldMax.x - params.particleSystemWorldMin.x) / params.particleSystemGridSize.x;
+    cellSize.y = (params.particleSystemWorldMax.y - params.particleSystemWorldMin.y) / params.particleSystemGridSize.y;
+    cellSize.z = (params.particleSystemWorldMax.z - params.particleSystemWorldMin.z) / params.particleSystemGridSize.z;
 
     gridMapCellWorldPositions[cellIndex] = make_float4(
-                params.worldMin.x + (cellSize.x * gridCellCoordinate.x) + (cellSize.x / 2.0),
-                params.worldMin.y + (cellSize.y * gridCellCoordinate.y) + (cellSize.y / 2.0),
-                params.worldMin.z + (cellSize.z * gridCellCoordinate.z) + (cellSize.z / 2.0),
+                params.particleSystemWorldMin.x + (cellSize.x * gridCellCoordinate.x) + (cellSize.x / 2.0),
+                params.particleSystemWorldMin.y + (cellSize.y * gridCellCoordinate.y) + (cellSize.y / 2.0),
+                params.particleSystemWorldMin.z + (cellSize.z * gridCellCoordinate.z) + (cellSize.z / 2.0),
                 0.0f
                 );
+}
+
+// For the life of me, I cannot figure out why this kernel gives an "unspecified launch failure".
+// Reverting to serial host-only code for now :(
+__global__
+void moveGridMapWayPointPressureValuesByWorldPositionOffsetD(
+        uint8_t* gridMapOfWayPointPressure,
+        float3* offset,
+        uint numberOfCells)
+{
+    uint cellIndex = getThreadIndex();
+    if(cellIndex >= numberOfCells) return;
+
+    uint8_t pressure = gridMapOfWayPointPressure[cellIndex];
+
+    __syncthreads();
+
+    uint3 gridCellCoordinate = getGridCellCoordinate(cellIndex);
+
+    float3 gridCellWorldPosition = getGridCellCenter(gridCellCoordinate);
+
+    uint newIndex = getGridCellHash(getGridCellCoordinate(gridCellWorldPosition + *offset));
+
+    if(newIndex < numberOfCells) gridMapOfWayPointPressure[newIndex] = pressure;
 }
 
 #endif

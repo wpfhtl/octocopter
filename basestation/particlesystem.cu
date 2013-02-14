@@ -3,6 +3,7 @@
 #undef _GLIBCXX_USE_INT128
 
 #include "thrust/device_ptr.h"
+#include "thrust/device_vector.h"
 #include "thrust/for_each.h"
 #include "thrust/iterator/zip_iterator.h"
 #include "thrust/sort.h"
@@ -10,12 +11,14 @@
 #include "particleskernel.cu"
 #include "cuda.h"
 
-void setParameters(SimulationParameters *hostParams)
+#include <QDebug>
+
+void copyParametersToGpu(SimulationParameters *hostParams)
 {
     // Copy parameters to constant memory. This was synchronous once, I changed
     // it to be asynchronous. Shouldn't cause any harm, even if parameters were
     // applied one frame too late.
-    cudaMemcpyToSymbolAsync(params, hostParams, sizeof(SimulationParameters));
+    cudaMemcpyToSymbol/*Async*/(params, hostParams, sizeof(SimulationParameters));
 }
 
 void integrateSystem(float *particlePositions, float *particleVelocities, uint8_t* gridWaypointPressure, float* particleCollisionPositions, float deltaTime, uint numParticles)
@@ -46,7 +49,7 @@ void integrateSystem(float *particlePositions, float *particleVelocities, uint8_
                                                     numParticles);
 
     // check if kernel invocation generated an error
-    checkCudaSuccess("Kernel execution failed: integrateSystem");
+    cudaCheckSuccess("integrateSystem");
 }
 
 // Calculates a hash for each particle. The hash value is ("based on") its cell id.
@@ -68,7 +71,7 @@ void computeMappingFromGridCellToParticle(
                                            numParticles);
 
     // check if kernel invocation generated an error
-    checkCudaSuccess("Kernel execution failed: computeMappingFromGridCellToParticleD");
+    cudaCheckSuccess("computeMappingFromGridCellToParticleD");
 }
 
 void sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
@@ -111,7 +114,7 @@ void sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
                                                                          (float4 *) oldVel,
                                                                          numParticles);
 
-    checkCudaSuccess("Kernel execution failed: sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArraysD");
+    cudaCheckSuccess("sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArraysD");
 
 #if USE_TEX
     cudaUnbindTexture(oldPosTex);
@@ -168,7 +171,7 @@ void collideParticlesWithParticlesAndColliders(
                                                                               numParticles);
 
     // check if kernel invocation generated an error
-    checkCudaSuccess("Kernel execution failed: collideParticlesWithParticlesD");
+    cudaCheckSuccess("collideParticlesWithParticlesD");
 
 #if USE_TEX
     cudaUnbindTexture(oldPosTex);
@@ -186,20 +189,37 @@ void sortGridOccupancyMap(uint *dGridParticleHash, uint *dGridParticleIndex, uin
                             thrust::device_ptr<uint>(dGridParticleIndex));              // ValuesBeginning
 
     // check if kernel invocation generated an error
-    checkCudaSuccess("Kernel execution failed: sortGridOccupancyMap");
+    cudaCheckSuccess("sortGridOccupancyMap");
 }
 
 
 // Fill mDeviceGridMapCellWorldPositions - this might be done only once and then copied lateron (just like the waypoint pressure above)
 void fillGridMapCellWorldPositions(float* gridMapCellWorldPositions, uint numCells)
 {
-    // thread per particle
+    // thread per cell
     uint numThreads, numBlocks;
     computeExecutionKernelGrid(numCells, 64, numBlocks, numThreads);
 
     fillGridMapCellWorldPositionsD<<< numBlocks, numThreads >>>(
                                                                   (float4*)gridMapCellWorldPositions,
                                                                   numCells);
+}
+
+void moveGridMapWayPointPressureValuesByWorldPositionOffset(quint8 *gridMapOfWayPointPressure, float* offset, unsigned int numberOfCells)
+{
+    // thread per cell
+    uint numThreads, numBlocks;
+    computeExecutionKernelGrid(1/*numberOfCells*/, 64, numBlocks, numThreads);
+
+    qDebug() << "kernel exec:" << numberOfCells << numBlocks << numThreads << offset[0] << offset[1] << offset[2];
+
+    moveGridMapWayPointPressureValuesByWorldPositionOffsetD<<< numBlocks, numThreads >>>(
+                                                                                           (uint8_t*)gridMapOfWayPointPressure,
+                                                                                           (float3*)offset,
+                                                                                           numberOfCells);
+    qDebug() << "kernel exec done, checking...";
+
+    cudaCheckSuccess("moveGridMapWayPointPressureValuesByWorldPositionOffset");
 }
 
 // Sort mDeviceGridMapWayPointPressureSorted => mDeviceGridMapCellWorldPositions according to the keys DESC
@@ -223,5 +243,5 @@ void sortGridMapWayPointPressure(uint8_t* gridMapWayPointPressureSorted, float* 
     }
 
     // check if kernel invocation generated an error
-    checkCudaSuccess("Kernel execution failed: sortGridMapWayPointPressure");
+    cudaCheckSuccess("sortGridMapWayPointPressure");
 }

@@ -26,7 +26,6 @@ private:
     FlightPlannerParticlesDialog* mDialog;
 
     PointCloudCuda* mPointCloudColliders;
-    // cursor?
 
     QList<WayPoint> mWayPointsGenerated, mWayPointsDetour;
 
@@ -36,23 +35,46 @@ private:
     cudaError_t mCudaError;
 
     ShaderProgram* mShaderProgramGridLines; // for drawing the grid
-    unsigned int mVboGridLines;
 
     // To re-fill our datastructure when the boundingbox has changed.
     bool insertPointsFromNode(const Node* node);
 
+    void slotInitializeWaypointPressureGrid();
+    void showWaypointPressure();
+
+    bool getRankedWaypoints(QVector4D* const waypoints, const quint16 numberOfWaypointsRequested);
+
     bool mProcessPhysics;
 
+    SimulationParameters mSimulationParameters;
+
+
+    // There is a gridmap of waypoint pressure on the GPU. To be useful for processing on the host, we first create a
+    // list of QVector4D that corresponds to the cell's positions. Then, we sort the latter list using thrust::sort_by_key
+    // (the key being the waypoint pressure) and receive a ranking of QVector4Ds. Hah!
+    float*  mDeviceGridMapCellWorldPositions;
+
+    // We copy the waypoint pressure of the grid cells from the mVboGridMapOfWayPointPressure VBO to this pointer, then use
+    //
+    // thrust::sort_by_key(
+    //                      mDeviceGridMapWayPointPressureSorted.begin(),
+    //                      mDeviceGridMapWayPointPressureSorted.end(),
+    //                      mDeviceGridMapCellWorldPositions.begin(),
+    //                      operator>()
+    // );
+    quint8* mDeviceGridMapWayPointPressureSorted;
+    // A gridmap (same grid as always) containing values from 0 to 255. 0 means no waypoint candidates within, 255 means maximum waypoint pressure.
+    unsigned int   mVboGridMapOfWayPointPressure;
+    // Waypoint-pressure-values are stored in a VBO as 8bit-unsigned-ints
+    struct cudaGraphicsResource *mCudaVboResourceGridMapOfWayPointPressure; // handles OpenGL-CUDA exchange
+
 signals:
+    void vboInfoGridWaypointPressure(quint32 vboPressure, QVector3D gridBoundingBoxMin, QVector3D gridBoundingBoxMax, Vector3i grid);
 
 private slots:
     void slotShowUserInterface();
     void slotGenerateWaypoints();
     void slotProcessPhysics(bool value) { mProcessPhysics = value; }
-
-
-    // Our octree found @point to be alone enough to be stored. So this method inserts it into the particle system.
-//    void slotPointAcceptedIntoOctree(const LidarPoint*point);
 
 public slots:
     void slotSetScanVolume(const QVector3D min, const QVector3D max);
@@ -62,6 +84,8 @@ public slots:
     // Inserts detour-waypoints between vehicle position and next waypoint if necessary.
     // Returns true if path was found, else false.
     void slotCreateSafePathToNextWayPoint();
+
+    void slotClearGridWayPointPressure();
 
     void slotInitialize();
 
@@ -75,4 +99,4 @@ public slots:
 
 };
 
-#endif // FlightPlannerParticles_H
+#endif // FLIGHTPLANNERPARTICLES_H

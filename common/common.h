@@ -15,6 +15,88 @@
 // So I can do qDebug() << "string is" << Q(myStringObject) << "."; without having quotes around the string-value inthe output
 #define Q(string) (string).toStdString().c_str()
 
+class Box3D
+{
+    QVector3D min,max;
+
+    Box3D() {}
+    Box3D(const QVector3D& minBox, const QVector3D& maxBox) {min = minBox; max = maxBox;}
+    QVector3D size() {return max - min;}
+    QVector3D center() {return min + (max - min)/2.0f;}
+
+    Box3D tryToKeepWithin(Box3D& other)
+    {
+        const QVector3D otherCenter = other.center();
+        const QVector3D otherSize = other.size();
+        Box3D result;
+
+        if(size().x() <= otherSize.x())
+        {
+            // fitting is possible - move within bounds if necessary!
+            if(min.x() < other.min.x())
+            {
+                result.min.setX(other.min.x());
+                result.max.setX(result.min.x() + size().x());
+            }
+            else if(max.x() > other.max.x())
+            {
+                result.min.setX(other.max.x() - size().x());
+                result.max.setX(other.max.x());
+            }
+        }
+        else
+        {
+            // box is too large in this dimension, so place it in center of other
+            result.min.setX(otherCenter.x() - otherSize.x()/2.0f);
+            result.min.setX(otherCenter.x() + otherSize.x()/2.0f);
+        }
+
+        if(size().y() <= otherSize.y())
+        {
+            // fitting is possible - move within bounds if necessary!
+            if(min.y() < other.min.y())
+            {
+                result.min.setY(other.min.y());
+                result.max.setY(result.min.y() + size().y());
+            }
+            else if(max.y() > other.max.y())
+            {
+                result.min.setY(other.max.y() - size().y());
+                result.max.setY(other.max.y());
+            }
+        }
+        else
+        {
+            // box is too large in this dimension, so place it in center of other
+            result.min.setY(otherCenter.y() - otherSize.y()/2.0f);
+            result.min.setY(otherCenter.y() + otherSize.y()/2.0f);
+        }
+
+
+        if(size().z() <= otherSize.z())
+        {
+            // fitting is possible - move within bounds if necessary!
+            if(min.z() < other.min.z())
+            {
+                result.min.setZ(other.min.z());
+                result.max.setZ(result.min.z() + size().z());
+            }
+            else if(max.z() > other.max.z())
+            {
+                result.min.setZ(other.max.z() - size().z());
+                result.max.setZ(other.max.z());
+            }
+        }
+        else
+        {
+            // box is too large in this dimension, so place it in center of other
+            result.min.setZ(otherCenter.z() - otherSize.z()/2.0f);
+            result.min.setZ(otherCenter.z() + otherSize.z()/2.0f);
+        }
+
+        return result;
+    }
+};
 
 
 //bool isBitSet(quint8 number, quint8 bit);
@@ -63,6 +145,14 @@ static quint32 nextHigherPowerOfTwo(quint32 v)
 struct Vector3i
 {
     qint16 x,y,z;
+
+    Vector3i() {x = y = z = 0;}
+    Vector3i(qint16 x, qint16 y, qint16 z)
+    {
+        this->x = x;
+        this->y = y;
+        this->z = z;
+    }
 };
 
 #endif // COMMON_H

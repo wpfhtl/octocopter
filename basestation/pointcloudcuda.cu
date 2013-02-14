@@ -257,15 +257,8 @@ void markCollidingPointsD(
 void setPointCloudParameters(PointCloudParameters *hostParams)
 {
     // copy parameters to constant memory
-    checkCudaSuccess("setPointCloudParameters(): CUDA error before const mem copy");
-
-    if(hostParams->remainder == 0)
-        hostParams->remainder = 1;
-    else
-        hostParams->remainder = 0;
-
     cudaMemcpyToSymbol(params, hostParams, sizeof(PointCloudParameters));
-    checkCudaSuccess("setPointCloudParameters(): CUDA error after const mem copy");
+    cudaCheckSuccess("setPointCloudParameters(): CUDA error after const mem copy");
 }
 
 // Calculates a hash for each particle. The hash value is ("based on") its cell id.
@@ -278,8 +271,6 @@ void computeMappingFromGridCellToPoint(
     uint numThreads, numBlocks;
     computeExecutionKernelGrid(numPoints, 256, numBlocks, numThreads);
 
-    checkCudaSuccess("Kernel execution failed BEFORE computeMappingFromGridCellToPoint");
-
     // execute the kernel
     computeMappingFromGridCellToPointD<<< numBlocks, numThreads >>>(
                                                                       gridCellIndex,
@@ -288,7 +279,7 @@ void computeMappingFromGridCellToPoint(
                                                                       numPoints);
 
     // check if kernel invocation generated an error
-    checkCudaSuccess("Kernel execution failed: computeMappingFromGridCellToPoint");
+    cudaCheckSuccess("computeMappingFromGridCellToPoint");
 }
 
 void sortPosAccordingToGridCellAndFillCellStartAndEndArrays(
@@ -301,22 +292,11 @@ void sortPosAccordingToGridCellAndFillCellStartAndEndArrays(
         uint   numPoints,
         uint   numCells)
 {
-    checkCudaSuccess("sortPosAccordingToGridCellAndFillCellStartAndEndArrays(): cuda error present!");
-
     uint numThreads, numBlocks;
     computeExecutionKernelGrid(numPoints, 256, numBlocks, numThreads);
 
     // set all cells to empty
-    cudaMemset(pointCellStart, 0xffffffff, numCells*sizeof(uint));
-
-    checkCudaSuccess("sortPosAccordingToGridCellAndFillCellStartAndEndArrays(): failed to set memory");
-
-#if USE_TEX
-    cudaBindTexture(0, oldPointPosTex, oldPointPos, numPoints*sizeof(float4));
-//    cudaBindTexture(0, oldVelTex, oldVel, numPoints*sizeof(float4));
-#endif
-
-    checkCudaSuccess("sortPosAccordingToGridCellAndFillCellStartAndEndArrays(): failed to bind texture");
+    cudaSafeCall(cudaMemset(pointCellStart, 0xffffffff, numCells*sizeof(uint)));
 
     // Number of bytes in shared memory that is allocated for each (thread)block.
     uint smemSize = sizeof(uint)*(numThreads+1);
@@ -330,15 +310,8 @@ void sortPosAccordingToGridCellAndFillCellStartAndEndArrays(
                                                                                                        (float4*) oldPointPos,
                                                                                                        numPoints);
 
-    checkCudaSuccess("sortPosAccordingToGridCellAndFillCellStartAndEndArrays(): kernel failed");
-
-#if USE_TEX
-    cudaUnbindTexture(oldPointPosTex);
-//    cudaUnbindTexture(oldVelTex);
-#endif
+    cudaCheckSuccess("sortPosAccordingToGridCellAndFillCellStartAndEndArrays()");
 }
-
-
 
 void markCollidingPoints(
         float* posOriginal,
@@ -349,13 +322,6 @@ void markCollidingPoints(
         unsigned int   numPoints,
         unsigned int   numCells)
 {
-#if USE_TEX
-    cudaBindTexture(0, oldPointPosTex, posSorted, numPoints*sizeof(float4));
-//    cudaBindTexture(0, oldVelTex, sortedVel, numPoints*sizeof(float4));
-    cudaBindTexture(0, pointCellStartTex, pointCellStart, numCells*sizeof(uint));
-    cudaBindTexture(0, pointCellStoppTex, pointCellStopp, numCells*sizeof(uint));
-#endif
-
     // thread per particle
     uint numThreads, numBlocks;
     computeExecutionKernelGrid(numPoints, 64, numBlocks, numThreads);
@@ -371,14 +337,7 @@ void markCollidingPoints(
                                                );
 
     // check if kernel invocation generated an error
-    checkCudaSuccess("Kernel execution failed: markCollidingPoints");
-
-#if USE_TEX
-    cudaUnbindTexture(oldPointPosTex);
-//    cudaUnbindTexture(oldVelTex);
-    cudaUnbindTexture(pointCellStartTex);
-    cudaUnbindTexture(pointCellStoppTex);
-#endif
+    cudaCheckSuccess("markCollidingPoints");
 }
 
 
@@ -445,13 +404,11 @@ void getBoundingBox(float *dPoints, uint numPoints, float3& min, float3& max)
 
 void sortMapAccordingToKeys(uint *dGridCellIndex, uint *dGridPointIndex, uint numPoints)
 {
-    checkCudaSuccess("Kernel execution failed BEFORE sortMapAccordingToKeys");
-
     thrust::sort_by_key(thrust::device_ptr<uint>(dGridCellIndex),                // KeysBeginning
                         thrust::device_ptr<uint>(dGridCellIndex + numPoints),    // KeysEnd
                         thrust::device_ptr<uint>(dGridPointIndex));              // ValuesBeginning
 
-    checkCudaSuccess("Kernel execution failed: sortMapAccordingToKeys");
+    cudaCheckSuccess("sortMapAccordingToKeys");
 }
 
 inline __host__ __device__ bool operator==(float4 a, float4 b)
@@ -467,11 +424,9 @@ unsigned int removeZeroPoints(float *devicePoints, unsigned int numPoints)
 {
     float4* points = (float4*)devicePoints;
 
-    checkCudaSuccess("Kernel execution failed BEFORE removeRedundantPoints");
-
     const thrust::device_ptr<float4> newEnd = thrust::remove(thrust::device_ptr<float4>(points), thrust::device_ptr<float4>(points + numPoints), make_float4(0.0, 0.0, 0.0, 0.0));
 
-    checkCudaSuccess("Kernel execution failed AFTER removeRedundantPoints");
+    cudaCheckSuccess("removeZeroPoints");
 
     return newEnd.get() - points;
 }
@@ -518,13 +473,12 @@ struct closeToEachOther
 unsigned int snapToGridAndMakeUnique(float *devicePoints, unsigned int numPoints, float minimumDistance)
 {
     float4* points = (float4*)devicePoints;
-    checkCudaSuccess("Kernel execution failed BEFORE makePointListUnique");
 
     SnapToGridOp op(make_float3(minimumDistance, minimumDistance, minimumDistance));
     thrust::transform(thrust::device_ptr<float4>(points), thrust::device_ptr<float4>(points + numPoints), thrust::device_ptr<float4>(points), op);
 
     const thrust::device_ptr<float4> newEnd = thrust::unique(thrust::device_ptr<float4>(points), thrust::device_ptr<float4>(points + numPoints)/*, closeToEachOther()*/);
-    checkCudaSuccess("Kernel execution failed AFTER makePointListUnique");
+    cudaCheckSuccess("snapToGridAndMakeUnique");
 
     return newEnd.get() - points;
 }
@@ -568,8 +522,6 @@ unsigned int replaceCellPointsByMeanValue(float *devicePoints, float* devicePoin
     // The points are already sorted according to the containing cell, cellStart and cellStopp are up to date
     // Start a thread for every CELL, reading all its points, creating a mean-value. Write this value into devicePoints[threadid]
 
-    checkCudaSuccess("replaceCellPointsByMeanValue(): cuda error present!");
-
     uint numThreads, numBlocks;
     computeExecutionKernelGrid(numCells, 256, numBlocks, numThreads);
 
@@ -585,7 +537,7 @@ unsigned int replaceCellPointsByMeanValue(float *devicePoints, float* devicePoin
                                                                 numPoints,
                                                                 numCells);
 
-    checkCudaSuccess("sortPosAccordingToGridCellAndFillCellStartAndEndArrays(): kernel failed");
+    cudaCheckSuccess("replaceCellPointsByMeanValue");
 
     // Every cell created a point, empty cells create zero-points. Delete those.
     return removeZeroPoints(devicePoints, numCells);

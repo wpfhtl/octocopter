@@ -103,7 +103,7 @@ bool Joystick::updateValues()
                 // button pressed is 1, released 0
                 mButtons[event.number] = event.value;
                 emit buttonStateChanged(event.number, event.value == 1);
-                qDebug() << "button" << event.number << "is now" << (event.value == 1);
+//                qDebug() << "button" << event.number << "is now" << (event.value == 1);
             break;
             }
         }
@@ -155,7 +155,7 @@ bool Joystick::updateValues()
                 // button pressed is 1, released 0
                 mButtons[event.number] = event.value;
                 emit buttonStateChanged(event.number, event.value == 1);
-                qDebug() << "button" << event.number << "is now" << (event.value == 1);
+//                qDebug() << "button" << event.number << "is now" << (event.value == 1);
             break;
             }
         }

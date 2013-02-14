@@ -26,7 +26,7 @@ struct PointCloudParameters
     unsigned int capacity;
 
     // should colliding points be deleted from even (0) or odd (1) indices?
-    unsigned int remainder;
+//    unsigned int remainder;
 };
 
 

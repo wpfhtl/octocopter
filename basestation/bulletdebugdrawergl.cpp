@@ -1,3 +1,4 @@
+#include <GL/glew.h>
 #include "bulletdebugdrawergl.h"
 
 BulletDebugDrawerGl::BulletDebugDrawerGl(/*Ogre::SceneNode *node, btDynamicsWorld *world*/) : mDebugOn(true)

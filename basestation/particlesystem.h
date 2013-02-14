@@ -20,7 +20,7 @@ class ParticleSystem : public QObject
     Q_OBJECT
 public:
     // Give it a pointer to the pointcloud to collide against
-    ParticleSystem(PointCloud *const pointcloud);
+    ParticleSystem(PointCloud *const pointcloud, SimulationParameters* const simulationParameters);
     ~ParticleSystem();
 
     enum class ParticlePlacement
@@ -30,15 +30,33 @@ public:
         PlacementFillSky
     };
 
-    void update(const float deltaTime);
+    void update(const float deltaTime, quint8 *deviceGridMapOfWayPointPressure);
 
     Vector3i gridCells()
     {
-        Vector3i gc;
-        gc.x = mSimulationParameters.gridSize.x;
-        gc.y = mSimulationParameters.gridSize.y;
-        gc.z = mSimulationParameters.gridSize.z;
-        return gc;
+        return Vector3i(mSimulationParameters->particleSystemGridSize.x, mSimulationParameters->particleSystemGridSize.y, mSimulationParameters->particleSystemGridSize.z);
+    }
+
+    QVector3D getWorldSize() const
+    {
+        return QVector3D(
+                    mSimulationParameters->particleSystemWorldMax.x - mSimulationParameters->particleSystemWorldMin.x,
+                    mSimulationParameters->particleSystemWorldMax.y - mSimulationParameters->particleSystemWorldMin.y,
+                    mSimulationParameters->particleSystemWorldMax.z - mSimulationParameters->particleSystemWorldMin.z);
+    }
+
+    QVector3D getWorldCenter() const
+    {
+        return QVector3D(
+                    mSimulationParameters->particleSystemWorldMin.x,
+                    mSimulationParameters->particleSystemWorldMin.y,
+                    mSimulationParameters->particleSystemWorldMin.z
+                    ) + getWorldSize()/2.0f;
+    }
+
+    QVector3D getVector(const float3& p) const
+    {
+        return QVector3D(p.x, p.y, p.z);
     }
 
 private slots:
@@ -51,64 +69,59 @@ public slots:
     // (e.g. changing particleCount doesn't make sense, as we'd have to re-initialize). Maybe later.
     void slotSetSimulationParametersFromUi(const SimulationParameters* sp)
     {
-        mSimulationParameters.attraction = sp->attraction;
-        mSimulationParameters.dampingMotion = sp->dampingMotion;
-        mSimulationParameters.gravity = sp->gravity;
-        mSimulationParameters.particleRadius = sp->particleRadius;
-        mSimulationParameters.shear = sp->shear;
-        mSimulationParameters.spring = sp->spring;
-        mSimulationParameters.velocityFactorCollisionBoundary = sp->velocityFactorCollisionBoundary;
-        mSimulationParameters.velocityFactorCollisionParticle = sp->velocityFactorCollisionParticle;
+        mSimulationParameters->attraction = sp->attraction;
+        mSimulationParameters->dampingMotion = sp->dampingMotion;
+        mSimulationParameters->gravity = sp->gravity;
+        mSimulationParameters->particleRadius = sp->particleRadius;
+        mSimulationParameters->shear = sp->shear;
+        mSimulationParameters->spring = sp->spring;
+        mSimulationParameters->velocityFactorCollisionBoundary = sp->velocityFactorCollisionBoundary;
+        mSimulationParameters->velocityFactorCollisionParticle = sp->velocityFactorCollisionParticle;
     }
 
     void slotSetParticleRadius(float);
 
-    void slotSetParticleSpring(const float spring) { mSimulationParameters.spring = spring; }
-
-    void slotClearGridWayPointPressure();
+    void slotSetParticleSpring(const float spring) { mSimulationParameters->spring = spring; }
 
     void slotSetParticleCount(const quint32 count)
     {
-        mSimulationParameters.particleCount = count;
+        mSimulationParameters->particleCount = count;
         // Need to rebuild data-structures when particle count changes.
         if(mIsInitialized) freeResources();
     }
 
     // Values between 0 and 1 make sense, something like 0.98f seems realistic
-    void slotSetDampingMotion(const float damping) { mSimulationParameters.dampingMotion = damping; }
+    void slotSetDampingMotion(const float damping) { mSimulationParameters->dampingMotion = damping; }
 
     // Needs to be negative, so that the particle reverses direction when hitting a bounding wall
-    void slotSetVelocityFactorCollisionBoundary(const float factor) { mSimulationParameters.velocityFactorCollisionBoundary = factor; }
+    void slotSetVelocityFactorCollisionBoundary(const float factor) { mSimulationParameters->velocityFactorCollisionBoundary = factor; }
 
     // The more damping, the more a collision will speed up the particles. So its the inverse of what you'd expect.
-    void slotSetVelocityFactorCollisionParticle(const float factor) { mSimulationParameters.velocityFactorCollisionParticle = factor; }
+    void slotSetVelocityFactorCollisionParticle(const float factor) { mSimulationParameters->velocityFactorCollisionParticle = factor; }
 
     void slotSetGravity(const QVector3D& gravity)
     {
-        mSimulationParameters.gravity.x = gravity.x();
-        mSimulationParameters.gravity.y = gravity.y();
-        mSimulationParameters.gravity.z = gravity.z();
+        mSimulationParameters->gravity.x = gravity.x();
+        mSimulationParameters->gravity.y = gravity.y();
+        mSimulationParameters->gravity.z = gravity.z();
     }
 
     void slotSetVolume(const QVector3D& min, const QVector3D& max);
 
     void slotResetParticles();
 
-    bool getRankedWaypoints(QVector4D* const waypoints, const quint16 numberOfWaypointsRequested);
-
 signals:
     void particleRadiusChanged(float);
-    void vboInfoParticles(quint32 vboPositions, quint32 vboColor, quint32 particleCount);
-    void vboInfoGridWaypointPressure(quint32 vboPressure, QVector3D gridBoundingBoxMin, QVector3D gridBoundingBoxMax, Vector3i grid);
+    void vboInfoParticles(quint32 vboPositions, quint32 vboColor, quint32 particleCount, QVector3D particleSystemWorldMin, QVector3D particleSystemWorldMax);
 
 protected:
+    SimulationParameters* mSimulationParameters;
     // A pointer to the pointcloud holding the pointcloud to collide particles against.
     PointCloud* mPointCloudColliders;
 
     quint64 mNumberOfBytesAllocatedCpu;
     quint64 mNumberOfBytesAllocatedGpu;
 
-    void showWaypointPressure();
     void showCollisionPositions();
 
     Vector3i getGridCellCoordinate(const quint32 hash) const;
@@ -124,13 +137,6 @@ protected:
         ArrayVelocities
     };
 
-    QVector3D getWorldSize()
-    {
-            return QVector3D(
-                        mSimulationParameters.worldMax.x - mSimulationParameters.worldMin.x,
-                        mSimulationParameters.worldMax.y - mSimulationParameters.worldMin.y,
-                        mSimulationParameters.worldMax.z - mSimulationParameters.worldMin.z);
-    }
 
     void setNullPointers();
 
@@ -146,7 +152,7 @@ protected:
     bool mIsInitialized;
 
     // When the collider pointcloud updates, we need to update supporting data structures on the GPU.
-    bool mColliderPointCloudWasUpdated;
+    bool mUpdateMappingFromColliderToGridCell;
 
     ParticlePlacement mDefaultParticlePlacement;
 
@@ -170,21 +176,6 @@ protected:
 
     float* mDeviceParticleCollisionPositions;
 
-    // There is a gridmap of waypoint pressure on the GPU. To be useful for processing on the host, we first create a
-    // list of QVector4D that corresponds to the cell's positions. Then, we sort the latter list using thrust::sort_by_key
-    // (the key being the waypoint pressure) and receive a ranking of QVector4Ds. Hah!
-    float*  mDeviceGridMapCellWorldPositions;
-
-    // We copy the waypoint pressure of the grid cells from the mVboGridMapOfWayPointPressure VBO to this pointer, then use
-    //
-    // thrust::sort_by_key(
-    //                      mDeviceGridMapWayPointPressureSorted.begin(),
-    //                      mDeviceGridMapWayPointPressureSorted.end(),
-    //                      mDeviceGridMapCellWorldPositions.begin(),
-    //                      operator>()
-    // );
-    quint8* mDeviceGridMapWayPointPressureSorted;
-
     // A map, mapping from gridcell => particle index. Length is particlecount
     unsigned int*  mDeviceParticleMapGridCell;  // grid hash value for each particle
     unsigned int*  mDeviceParticleMapIndex;     // particle index for each particle
@@ -199,8 +190,6 @@ protected:
     unsigned int*  mDeviceColliderCellStart;    // index of start of each cell in sorted list
     unsigned int*  mDeviceColliderCellEnd;      // index of end of cell
 
-    // A gridmap (same grid as always) containing values from 0 to 255. 0 means no waypoint candidates within, 255 means maximum waypoint pressure.
-    unsigned int   mVboGridMapOfWayPointPressure;
     unsigned int   mVboParticlePositions;   // vertex buffer object for particle positions
     unsigned int   mVboColliderPositions;   // vertex buffer object for collider positions
     unsigned int   mVboParticleColors;      // vertex buffer object for particle colors
@@ -208,11 +197,7 @@ protected:
     struct cudaGraphicsResource *mCudaVboResourceParticlePositions; // handles OpenGL-CUDA exchange
     struct cudaGraphicsResource *mCudaVboResourceColliderPositions; // handles OpenGL-CUDA exchange
 
-    // Waypoint-pressure-values are stored in a VBO as 8bit-unsigned-ints
-    struct cudaGraphicsResource *mCudaVboResourceGridMapOfWayPointPressure; // handles OpenGL-CUDA exchange
     struct cudaGraphicsResource *mCudaColorVboResource; // handles OpenGL-CUDA exchange
-
-    SimulationParameters mSimulationParameters;
 };
 
 #endif

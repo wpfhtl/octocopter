@@ -7,24 +7,35 @@
 #include "vector_types.h"
 
 // simulation parameters
-struct SimulationParameters {
+
+struct Grid
+{
+    uint3 cells;
+    float3 worldMin, worldMax;
+};
+
+struct SimulationParameters
+{
     // gridSize is used for TWO grids: (we might split this up into two members later)
     // - one grid contains the particles, its used to find neighbors for collisions
     // - one grid contains the colliders, its used to find neighbors for keeping it sparse
-    uint3 gridSize;
+    Grid particleSystem;
+    Grid waypointPressure;
 
-    // radius of the particles. The radius of colliders is 0 right now
-    float particleRadius;
-    float3 gravity;
-    float3 worldMin, worldMax;
+    uint3 particleSystemGridSize;
+    float3 particleSystemWorldMin, particleSystemWorldMax;
+
+    uint3 scanVolumeGridSize;
+    float3 scanVolumeWorldMin, scanVolumeWorldMax;
 
     unsigned int particleCount;
     unsigned int colliderCountMax;
 
+    float3 gravity;
+    float particleRadius;
     float spring;
     float shear;
     float attraction;
-
     float dampingMotion;
     float velocityFactorCollisionParticle;
     float velocityFactorCollisionBoundary;
