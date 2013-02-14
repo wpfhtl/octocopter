@@ -1,13 +1,13 @@
 #ifndef CUDA_COMMON_H
 #define CUDA_COMMON_H
 
-// Fix for gcc 4.7
+// Fix for CUDA and gcc 4.7
 #undef _GLIBCXX_ATOMIC_BUILTINS
 #undef _GLIBCXX_USE_INT128
 
-#include <cstdlib>
-#include <cstdio>
-#include <string.h>
+//#include <cstdlib>
+//#include <cstdio>
+//#include <string.h>
 
 #include <cuda.h>
 #include <cuda_runtime.h>

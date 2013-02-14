@@ -3,7 +3,6 @@
 
 #include "particleskernel.cuh"
 
-#include "vector_functions.h"
 #include <QTime>
 #include <QDebug>
 #include <QVector3D>
@@ -32,26 +31,9 @@ public:
 
     void update(const float deltaTime, quint8 *deviceGridMapOfWayPointPressure);
 
-    Vector3i gridCells()
+    Vector3i gridCells(const Grid& g)
     {
-        return Vector3i(mSimulationParameters->particleSystemGridSize.x, mSimulationParameters->particleSystemGridSize.y, mSimulationParameters->particleSystemGridSize.z);
-    }
-
-    QVector3D getWorldSize() const
-    {
-        return QVector3D(
-                    mSimulationParameters->particleSystemWorldMax.x - mSimulationParameters->particleSystemWorldMin.x,
-                    mSimulationParameters->particleSystemWorldMax.y - mSimulationParameters->particleSystemWorldMin.y,
-                    mSimulationParameters->particleSystemWorldMax.z - mSimulationParameters->particleSystemWorldMin.z);
-    }
-
-    QVector3D getWorldCenter() const
-    {
-        return QVector3D(
-                    mSimulationParameters->particleSystemWorldMin.x,
-                    mSimulationParameters->particleSystemWorldMin.y,
-                    mSimulationParameters->particleSystemWorldMin.z
-                    ) + getWorldSize()/2.0f;
+        return Vector3i(g.cells.x, g.cells.y, g.cells.z);
     }
 
     QVector3D getVector(const float3& p) const
@@ -123,14 +105,14 @@ protected:
     quint64 mNumberOfBytesAllocatedGpu;
 
     void showCollisionPositions();
+/*
+    Vector3i getGridCellCoordinate(const Grid& g, const quint32 hash) const;
+    Vector3i getGridCellCoordinate(const Grid& g, const QVector3D &worldPos) const;
 
-    Vector3i getGridCellCoordinate(const quint32 hash) const;
-    Vector3i getGridCellCoordinate(const QVector3D &worldPos) const;
-
-    QVector3D getGridCellCenter(const Vector3i &gridCellCoordinate) const;
-    QVector3D getGridCellSize() const;
-    quint32 getGridCellHash(Vector3i gridCellCoordinate) const;
-
+    QVector3D getGridCellCenter(const Grid &g, const Vector3i &gridCellCoordinate) const;
+    QVector3D getGridCellSize(const Grid &g) const;
+    quint32 getGridCellHash(const Grid &g, Vector3i gridCellCoordinate) const;
+*/
     enum ParticleArray
     {
         ArrayPositions,

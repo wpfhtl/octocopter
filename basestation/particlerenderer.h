@@ -27,7 +27,7 @@ public slots:
 
     void slotSetVboInfoGridWaypointPressure(const quint32 vboPressure, const QVector3D& gridBoundingBoxMin, const QVector3D& gridBoundingBoxMax, const Vector3i& grid);
 
-    void slotSetVboInfoParticles(const quint32 vboPositions, const quint32 vboColors, const quint32 count, const QVector3D &particleSystemWorldMin, const QVector3D &particleSystemWorldMax);
+    void slotSetVboInfoParticles(const quint32 vboPositions, const quint32 vboColors, const quint32 count, const QVector3D particleSystemWorldMin, const QVector3D particleSystemWorldMax);
 
 private:
     bool mRenderParticles, mRenderWaypointPressure;
@@ -35,7 +35,7 @@ private:
     ShaderProgram *mShaderProgramDefault, *mShaderProgramParticles, *mShaderProgramGrid;
     quint32 mNumberOfParticles;
 
-    QVector3D mBoundingBoxGridMin, mBoundingBoxGridMax;
+    QVector3D mWaypointGridMin, mWaypointGridMax;
     Vector3i mGridCellCount;
 
     float mParticleRadius;

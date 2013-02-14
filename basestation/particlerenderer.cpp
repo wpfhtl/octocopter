@@ -22,7 +22,7 @@ ParticleRenderer::ParticleRenderer()
 
     mVboGridMapOfWayPointPressure = 0;
 
-    mShaderProgramDefault = new ShaderProgram(this, "shader-default-vertex.c", "shader-default-geometry.c", "shader-default-fragment.c");
+    mShaderProgramDefault = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
     mShaderProgramParticles = new ShaderProgram(this, "shader-particles-vertex.c", "shader-particles-geometry.c", "shader-particles-fragment.c");
     mShaderProgramGrid = new ShaderProgram(this, "shader-grid-vertex.c", "shader-grid-geometry.c", "shader-grid-fragment.c");
 }
@@ -35,7 +35,7 @@ ParticleRenderer::~ParticleRenderer()
     mShaderProgramGrid->deleteLater();
 }
 
-void ParticleRenderer::slotSetVboInfoParticles(const quint32 vboPositions, const quint32 vboColors, const quint32 count, const QVector3D& particleSystemWorldMin, const QVector3D& particleSystemWorldMax)
+void ParticleRenderer::slotSetVboInfoParticles(const quint32 vboPositions, const quint32 vboColors, const quint32 count, const QVector3D particleSystemWorldMin, const QVector3D particleSystemWorldMax)
 {
     mVboParticleColors = vboColors;
     mVboParticlePositions = vboPositions;
@@ -49,8 +49,8 @@ void ParticleRenderer::slotSetVboInfoParticles(const quint32 vboPositions, const
 void ParticleRenderer::slotSetVboInfoGridWaypointPressure(const quint32 vboPressure, const QVector3D &gridBoundingBoxMin, const QVector3D &gridBoundingBoxMax, const Vector3i &grid)
 {
     mVboGridMapOfWayPointPressure = vboPressure;
-    mBoundingBoxGridMin = gridBoundingBoxMin;
-    mBoundingBoxGridMax = gridBoundingBoxMax;
+    mWaypointGridMin = gridBoundingBoxMin;
+    mWaypointGridMax = gridBoundingBoxMax;
     mGridCellCount = grid;
 //    qDebug() << "ParticleRenderer::slotSetVboInfoGridWaypointPressure(): will render VBO pos" << mVboGridMapOfWayPointPressure << "with" << grid.x << grid.y << grid.z << "cells from" << mGridBoundingBoxMin << "to" << mGridBoundingBoxMax;
 }
@@ -61,6 +61,37 @@ void ParticleRenderer::render()
     glEnable(GL_DEPTH_TEST);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
+
+    if(mShaderProgramDefault != 0)
+    {
+        mShaderProgramDefault->bind();
+        mShaderProgramDefault->setUniformValue("useFixedColor", true);
+
+//        glEnable(GL_BLEND);
+//        glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
+        {
+            glBindBuffer(GL_ARRAY_BUFFER, mVboParticleSystemBoundingBox);
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0); // position
+
+            // draw the lines around the box
+            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(0.2f, 0.2f, 1.0f, 0.8f));
+            glDrawArrays(GL_LINE_LOOP, 0, 4);
+            glDrawArrays(GL_LINE_LOOP, 4, 4);
+            glDrawArrays(GL_LINE_LOOP, 8, 4);
+            glDrawArrays(GL_LINE_LOOP, 12, 4);
+            glDrawArrays(GL_LINE_LOOP, 16, 4);
+            glDrawArrays(GL_LINE_LOOP, 20, 4);
+
+            // draw a half-transparent box
+            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(1.0f, 1.0f, 1.0f, 0.015f));
+            glDrawArrays(GL_QUADS, 0, 24);
+
+            glDisableVertexAttribArray(0);
+        }
+//        glDisable(GL_BLEND);
+        mShaderProgramDefault->release();
+    }
 
     if(mNumberOfParticles != 0 && mVboParticleColors != 0 && mVboParticlePositions != 0 && mRenderParticles)
     {
@@ -105,10 +136,10 @@ void ParticleRenderer::render()
 
         // Set uniform values in the shader program
         Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMin") != -1);
-        mShaderProgramGrid->setUniformValue("boundingBoxMin", mBoundingBoxGridMin);
+        mShaderProgramGrid->setUniformValue("boundingBoxMin", mWaypointGridMin);
 
         Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMax") != -1);
-        mShaderProgramGrid->setUniformValue("boundingBoxMax", mBoundingBoxGridMax);
+        mShaderProgramGrid->setUniformValue("boundingBoxMax", mWaypointGridMax);
 
 //        qDebug() << "bbox from" << mGridBoundingBoxMin << "to" << mGridBoundingBoxMax;
 
@@ -134,36 +165,6 @@ void ParticleRenderer::render()
     }
 
 
-    if(mShaderProgramDefault != 0)
-    {
-        mShaderProgramDefault->bind();
-        mShaderProgramDefault->setUniformValue("useFixedColor", true);
-
-        glEnable(GL_BLEND);
-        glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
-        {
-            glBindBuffer(GL_ARRAY_BUFFER, mVboParticleSystemBoundingBox);
-            glEnableVertexAttribArray(0);
-            glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0); // position
-
-            // draw the lines around the box
-            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(0.2f, 0.2f, 1.0f, 0.8f));
-            glDrawArrays(GL_LINE_LOOP, 0, 4);
-            glDrawArrays(GL_LINE_LOOP, 4, 4);
-            glDrawArrays(GL_LINE_LOOP, 8, 4);
-            glDrawArrays(GL_LINE_LOOP, 12, 4);
-            glDrawArrays(GL_LINE_LOOP, 16, 4);
-            glDrawArrays(GL_LINE_LOOP, 20, 4);
-
-            // draw a half-transparent box
-            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(1.0f, 1.0f, 1.0f, 0.015f));
-            glDrawArrays(GL_QUADS, 0, 24);
-
-            glDisableVertexAttribArray(0);
-        }
-        glDisable(GL_BLEND);
-        mShaderProgramDefault->release();
-    }
 
     glDisable(GL_BLEND);
 }

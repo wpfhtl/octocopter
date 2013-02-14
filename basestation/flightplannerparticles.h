@@ -27,6 +27,8 @@ private:
 
     PointCloudCuda* mPointCloudColliders;
 
+    QVector3D mLastParticleSystemPositionToFollowVehicle;
+
     QList<WayPoint> mWayPointsGenerated, mWayPointsDetour;
 
     ParticleSystem* mParticleSystem;
@@ -52,7 +54,7 @@ private:
     // There is a gridmap of waypoint pressure on the GPU. To be useful for processing on the host, we first create a
     // list of QVector4D that corresponds to the cell's positions. Then, we sort the latter list using thrust::sort_by_key
     // (the key being the waypoint pressure) and receive a ranking of QVector4Ds. Hah!
-    float*  mDeviceGridMapCellWorldPositions;
+    float*  mDeviceGridMapWaypointPressureCellWorldPositions;
 
     // We copy the waypoint pressure of the grid cells from the mVboGridMapOfWayPointPressure VBO to this pointer, then use
     //

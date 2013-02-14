@@ -15,16 +15,16 @@
 // So I can do qDebug() << "string is" << Q(myStringObject) << "."; without having quotes around the string-value inthe output
 #define Q(string) (string).toStdString().c_str()
 
-class Box3D
+struct Box3D
 {
     QVector3D min,max;
 
     Box3D() {}
     Box3D(const QVector3D& minBox, const QVector3D& maxBox) {min = minBox; max = maxBox;}
-    QVector3D size() {return max - min;}
-    QVector3D center() {return min + (max - min)/2.0f;}
+    QVector3D size() const {return max - min;}
+    QVector3D center() const {return min + (max - min)/2.0f;}
 
-    Box3D tryToKeepWithin(Box3D& other)
+    Box3D tryToKeepWithin(const Box3D& other) const
     {
         const QVector3D otherCenter = other.center();
         const QVector3D otherSize = other.size();
@@ -43,12 +43,17 @@ class Box3D
                 result.min.setX(other.max.x() - size().x());
                 result.max.setX(other.max.x());
             }
+            else
+            {
+                result.min.setX(min.x());
+                result.max.setX(max.x());
+            }
         }
         else
         {
             // box is too large in this dimension, so place it in center of other
-            result.min.setX(otherCenter.x() - otherSize.x()/2.0f);
-            result.min.setX(otherCenter.x() + otherSize.x()/2.0f);
+            result.min.setX(otherCenter.x() - size().x()/2.0f);
+            result.max.setX(otherCenter.x() + size().x()/2.0f);
         }
 
         if(size().y() <= otherSize.y())
@@ -64,12 +69,17 @@ class Box3D
                 result.min.setY(other.max.y() - size().y());
                 result.max.setY(other.max.y());
             }
+            else
+            {
+                result.min.setY(min.y());
+                result.max.setY(max.y());
+            }
         }
         else
         {
             // box is too large in this dimension, so place it in center of other
-            result.min.setY(otherCenter.y() - otherSize.y()/2.0f);
-            result.min.setY(otherCenter.y() + otherSize.y()/2.0f);
+            result.min.setY(otherCenter.y() - size().y()/2.0f);
+            result.max.setY(otherCenter.y() + size().y()/2.0f);
         }
 
 
@@ -86,12 +96,17 @@ class Box3D
                 result.min.setZ(other.max.z() - size().z());
                 result.max.setZ(other.max.z());
             }
+            else
+            {
+                result.min.setZ(min.z());
+                result.max.setZ(max.z());
+            }
         }
         else
         {
             // box is too large in this dimension, so place it in center of other
-            result.min.setZ(otherCenter.z() - otherSize.z()/2.0f);
-            result.min.setZ(otherCenter.z() + otherSize.z()/2.0f);
+            result.min.setZ(otherCenter.z() - size().z()/2.0f);
+            result.max.setZ(otherCenter.z() + size().z()/2.0f);
         }
 
         return result;

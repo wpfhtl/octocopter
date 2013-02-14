@@ -10,6 +10,168 @@
 
 #include "thrust/tuple.h"
 
+
+__device__ float3 Grid::getWorldSize() const
+{
+    return make_float3(
+                worldMax.x - worldMin.x,
+                worldMax.y - worldMin.y,
+                worldMax.z - worldMin.z);
+}
+
+QVector3D Grid::getWorldSizeQt() const
+{
+    return QVector3D(
+                worldMax.x - worldMin.x,
+                worldMax.y - worldMin.y,
+                worldMax.z - worldMin.z);
+}
+
+__device__ float3 Grid::getWorldCenter() const
+{
+    return make_float3(worldMin.x, worldMin.y, worldMin.z) + getWorldSize()/2.0f;
+}
+
+QVector3D Grid::getWorldCenterQt() const
+{
+    return QVector3D(worldMin.x, worldMin.y, worldMin.z) + getWorldSizeQt() / 2.0f;
+}
+
+// Calculate a particle's hash value (=address in grid) from its containing cell (clamping to edges)
+__device__ unsigned int Grid::getCellHash(int3 gridCellCoordinate) const
+{
+    gridCellCoordinate.x = gridCellCoordinate.x & (cells.x-1);  // wrap grid, assumes size is power of 2
+    gridCellCoordinate.y = gridCellCoordinate.y & (cells.y-1);
+    gridCellCoordinate.z = gridCellCoordinate.z & (cells.z-1);
+
+    return (gridCellCoordinate.z * cells.y) * cells.x
+            + (gridCellCoordinate.y * cells.x)
+            + gridCellCoordinate.x;
+}
+
+// Given the cell hash (=gl_PrimitiveIDIn), whats the 3d-grid-coordinate of the cell's center?
+// This is the reverse of particleskernel.cu -> calcGridHash(int3 gridCell).
+__host__ __device__ int3 Grid::getCellCoordinate(const unsigned int hash) const
+{
+    int3 cell;
+    cell.x = floor(fmod((double)hash, cells.x));
+    cell.y = floor(fmod((double)hash, cells.x * cells.y) / cells.x);
+    cell.z = floor(fmod((double)hash, cells.x * cells.y * cells.z) / (cells.x * cells.y));
+    return cell;
+}
+
+__device__ int3 Grid::getCellCoordinate(const float3 &worldPos) const
+{
+    const float3 posRelativeToGridMin = worldPos - worldMin;
+    const float3 cellSize = getCellSize();
+
+    int3 cell;
+
+    cell.x = floor(posRelativeToGridMin.x / cellSize.x);
+    cell.y = floor(posRelativeToGridMin.y / cellSize.y);
+    cell.z = floor(posRelativeToGridMin.z / cellSize.z);
+
+    return cell;
+}
+
+int3 Grid::getCellCoordinate(const QVector3D& worldPos) const
+{
+    const QVector3D posRelativeToGridMin = worldPos - QVector3D(worldMin.x, worldMin.y, worldMin.z);
+    const QVector3D cellSize = getCellSizeQt();
+
+    int3 cell;
+
+    cell.x = floor(posRelativeToGridMin.x() / cellSize.x());
+    cell.y = floor(posRelativeToGridMin.y() / cellSize.y());
+    cell.z = floor(posRelativeToGridMin.z() / cellSize.z());
+
+    return cell;
+}
+
+__device__ float3 Grid::getCellSize() const
+{
+    return make_float3(
+                (worldMax.x - worldMin.x) / cells.x,
+                (worldMax.y - worldMin.y) / cells.y,
+                (worldMax.z - worldMin.z) / cells.z
+                );
+}
+
+QVector3D Grid::getCellSizeQt() const
+{
+    return QVector3D(
+                (worldMax.x - worldMin.x) / cells.x,
+                (worldMax.y - worldMin.y) / cells.y,
+                (worldMax.z - worldMin.z) / cells.z
+                );
+}
+
+__device__ float3 Grid::getCellCenter(const int3& gridCellCoordinate) const
+{
+    const float3 cellSize = getCellSize();
+
+    return make_float3(
+                worldMin.x + (cellSize.x * gridCellCoordinate.x) + (cellSize.x / 2.0f),
+                worldMin.y + (cellSize.y * gridCellCoordinate.y) + (cellSize.y / 2.0f),
+                worldMin.z + (cellSize.z * gridCellCoordinate.z) + (cellSize.z / 2.0f)
+                );
+}
+
+QVector3D Grid::getCellCenterQt(const int3& gridCellCoordinate) const
+{
+    const QVector3D cellSize = getCellSizeQt();
+
+    return QVector3D(
+                worldMin.x + (cellSize.x() * gridCellCoordinate.x) + (cellSize.x() / 2.0f),
+                worldMin.y + (cellSize.y() * gridCellCoordinate.y) + (cellSize.y() / 2.0f),
+                worldMin.z + (cellSize.z() * gridCellCoordinate.z) + (cellSize.z() / 2.0f)
+                );
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // simulation parameters in constant memory
 __constant__ SimulationParameters params;
 
@@ -17,60 +179,6 @@ __device__ unsigned int getThreadIndex(void)
 {
   return blockIdx.x * blockDim.x + threadIdx.x;
 }
-
-
-__device__ float3 getGridCellSize()
-{
-    return make_float3(
-        (params.particleSystemWorldMax.x - params.particleSystemWorldMin.x) / params.particleSystemGridSize.x,
-        (params.particleSystemWorldMax.y - params.particleSystemWorldMin.y) / params.particleSystemGridSize.y,
-        (params.particleSystemWorldMax.z - params.particleSystemWorldMin.z) / params.particleSystemGridSize.z);
-}
-
-// Calculate's a particle's containing cell in the uniform grid
-__device__ int3 getGridCellCoordinate(float3 worldPos)
-{
-    float3 cellSize = getGridCellSize();
-
-    int3 gridPos;
-    gridPos.x = floor((worldPos.x - params.particleSystemWorldMin.x) / cellSize.x);
-    gridPos.y = floor((worldPos.y - params.particleSystemWorldMin.y) / cellSize.y);
-    gridPos.z = floor((worldPos.z - params.particleSystemWorldMin.z) / cellSize.z);
-    return gridPos;
-}
-
-// Calculate a particle's hash value (=address in grid) from its containing cell (clamping to edges)
-__device__ uint getGridCellHash(int3 gridPos)
-{
-    gridPos.x = gridPos.x & (params.particleSystemGridSize.x-1);  // wrap grid, assumes size is power of 2
-    gridPos.y = gridPos.y & (params.particleSystemGridSize.y-1);
-    gridPos.z = gridPos.z & (params.particleSystemGridSize.z-1);
-    return ((gridPos.z * params.particleSystemGridSize.y) * params.particleSystemGridSize.x) + (gridPos.y * params.particleSystemGridSize.x) + gridPos.x;
-}
-
-// Given the cell hash, whats the 3d-grid-coordinate of the cell's center?
-// This is the reverse of calcGridHash(int3 gridCell).
-__device__ uint3 getGridCellCoordinate(unsigned int hash)
-{
-    uint3 cell;
-    cell.x = floor(fmod((double)hash, params.particleSystemGridSize.x));
-    cell.y = floor(fmod((double)hash, params.particleSystemGridSize.x * params.particleSystemGridSize.y) / params.particleSystemGridSize.x);
-    cell.z = floor(fmod((double)hash, params.particleSystemGridSize.x * params.particleSystemGridSize.y * params.particleSystemGridSize.z) / (params.particleSystemGridSize.x * params.particleSystemGridSize.y));
-    return cell;
-}
-
-
-__device__ float3 getGridCellCenter(uint3 gridCellCoordinate)
-{
-    float3 cellSize = getGridCellSize();
-
-    return make_float3(
-                params.particleSystemWorldMin.x + (cellSize.x * gridCellCoordinate.x) + (cellSize.x / 2.0),
-                params.particleSystemWorldMin.y + (cellSize.y * gridCellCoordinate.y) + (cellSize.y / 2.0),
-                params.particleSystemWorldMin.z + (cellSize.z * gridCellCoordinate.z) + (cellSize.z / 2.0)
-                );
-}
-
 
 // Used to copy the waypoint pressure from a uint8_t vector to the w-components of the cell-position-float4-vector.
 // When extracting waypoints form device vectors, this is done, then the cell-positions are sorted DESC according
@@ -127,21 +235,21 @@ void integrateSystemD(
     pos += movement;
 
     // collisions with cube sides
-    if (pos.x > params.particleSystemWorldMax.x - params.particleRadius) { pos.x = params.particleSystemWorldMax.x - params.particleRadius; vel.x *= params.velocityFactorCollisionBoundary;}
-    if (pos.x < params.particleSystemWorldMin.x + params.particleRadius) { pos.x = params.particleSystemWorldMin.x + params.particleRadius; vel.x *= params.velocityFactorCollisionBoundary;}
-    if (pos.z > params.particleSystemWorldMax.z - params.particleRadius) { pos.z = params.particleSystemWorldMax.z - params.particleRadius; vel.z *= params.velocityFactorCollisionBoundary;}
-    if (pos.z < params.particleSystemWorldMin.z + params.particleRadius) { pos.z = params.particleSystemWorldMin.z + params.particleRadius; vel.z *= params.velocityFactorCollisionBoundary;}
-    if (pos.y > params.particleSystemWorldMax.y - params.particleRadius) { pos.y = params.particleSystemWorldMax.y - params.particleRadius; vel.y *= params.velocityFactorCollisionBoundary;}
+    if (pos.x > params.gridParticleSystem.worldMax.x - params.particleRadius) { pos.x = params.gridParticleSystem.worldMax.x - params.particleRadius; vel.x *= params.velocityFactorCollisionBoundary;}
+    if (pos.x < params.gridParticleSystem.worldMin.x + params.particleRadius) { pos.x = params.gridParticleSystem.worldMin.x + params.particleRadius; vel.x *= params.velocityFactorCollisionBoundary;}
+    if (pos.z > params.gridParticleSystem.worldMax.z - params.particleRadius) { pos.z = params.gridParticleSystem.worldMax.z - params.particleRadius; vel.z *= params.velocityFactorCollisionBoundary;}
+    if (pos.z < params.gridParticleSystem.worldMin.z + params.particleRadius) { pos.z = params.gridParticleSystem.worldMin.z + params.particleRadius; vel.z *= params.velocityFactorCollisionBoundary;}
+    if (pos.y > params.gridParticleSystem.worldMax.y - params.particleRadius) { pos.y = params.gridParticleSystem.worldMax.y - params.particleRadius; vel.y *= params.velocityFactorCollisionBoundary;}
 
     // special case: hitting bottom plane of bounding box
-    if (pos.y < params.particleSystemWorldMin.y + params.particleRadius)
+    if (pos.y < params.gridParticleSystem.worldMin.y + params.particleRadius)
     {
         // put the particle back to the top, re-set velocity back to zero
-        pos.y = params.particleSystemWorldMax.y - params.particleRadius;
+        pos.y = params.gridParticleSystem.worldMax.y - params.particleRadius;
 
-        vel.x = (fmod((double)(index * vel.y) + pos.x, 65535.0) / 32768.0) - 1.0;
-        vel.z = (fmod((double)(index * vel.x) + pos.z, 65535.0) / 32768.0) - 1.0;
-        vel.y = 0.0f;
+        //vel.x = (fmod((double)(index * vel.y) + pos.x, 65535.0) / 32768.0) - 1.0;
+        //vel.z = (fmod((double)(index * vel.x) + pos.z, 65535.0) / 32768.0) - 1.0;
+        //vel.y = 0.0f;
 
 
         // pcpData is the ParticleCollisionPosition, so a non-zero value means this particle has hit a collider and now reached the bottom.
@@ -151,7 +259,9 @@ void integrateSystemD(
         if(lastCollisionPosition.x != 0.0f || lastCollisionPosition.y != 0.0f || lastCollisionPosition.z != 0.0f)
         {
             // Find out in what cell the collision occured
-            uint hash = getGridCellHash(getGridCellCoordinate(lastCollisionPosition));
+            //uint hash = getGridCellHash(getGridCellCoordinate(lastCollisionPosition));
+            //uint hash = params.gridParticleSystem.getCellHash(params.gridParticleSystem.getCellCoordinate(lastCollisionPosition));
+            uint hash = params.gridWaypointPressure.getCellHash(params.gridWaypointPressure.getCellCoordinate(lastCollisionPosition));
 
             gridWaypointPressure[hash] = min(gridWaypointPressure[hash] + 1, 255);
 
@@ -179,10 +289,10 @@ void computeMappingFromGridCellToParticleD(
     volatile float4 p = pos[index];
 
     // In which grid cell does the particle live?
-    int3 gridPos = getGridCellCoordinate(make_float3(p.x, p.y, p.z));
+    int3 gridPos = params.gridParticleSystem.getCellCoordinate(make_float3(p.x, p.y, p.z));
 
     // Calculate the particle's hash from the grid-cell. This means particles in the same cell have the same hash
-    uint hash = getGridCellHash(gridPos);
+    uint hash = params.gridParticleSystem.getCellHash(gridPos);
 
     // This array is the key-part of the map, mapping cellId (=hash) to particleIndex. The term "map" is not
     // exactly correct, because there can be multiple keys (because one cell can store many particles)
@@ -331,7 +441,7 @@ float3 collideCell(
         uint*   colliderCellEnd         // input: cellEnd  [x] gives us the index of colliderPosSorted in which the colliders in cell x end
         )
 {
-    uint gridHash = getGridCellHash(gridCellToSearch);
+    uint gridHash = params.gridParticleSystem.getCellHash(gridCellToSearch);
 
     float3 forceCollisionsAgainstParticles = make_float3(0.0f);
 
@@ -430,7 +540,7 @@ void collideParticlesWithParticlesAndCollidersD(
     float3 particleToCollideVel = make_float3(particleVelSorted[particleToCollideIndex]);
 
     // get grid-cell of particle
-    int3 particleToCollideGridCell = getGridCellCoordinate(particleToCollidePos);
+    int3 particleToCollideGridCell = params.gridParticleSystem.getCellCoordinate(particleToCollidePos);
 
     // examine neighbouring cells
     float3 forceOnParticle = make_float3(0.0f);
@@ -475,24 +585,31 @@ void fillGridMapCellWorldPositionsD(
 {
     uint cellIndex = getThreadIndex();
     if(cellIndex >= numberOfCells) return;
-
+/*
     float3 gridCellCoordinate = make_float3(
-                floor(fmod((double)cellIndex, (double)(params.particleSystemGridSize.x))),
-                floor(fmod((double)cellIndex, (double)(params.particleSystemGridSize.x * params.particleSystemGridSize.y)) / params.particleSystemGridSize.x),
-                floor(fmod((double)cellIndex, (double)(params.particleSystemGridSize.x * params.particleSystemGridSize.y * params.particleSystemGridSize.z)) / (params.particleSystemGridSize.x * params.particleSystemGridSize.y))
+                floor(fmod((double)cellIndex, (double)(params.gridWaypointPressure.cells.x))),
+                floor(fmod((double)cellIndex, (double)(params.gridParticleSystem.cells.x * params.gridParticleSystem.cells.y)) / params.gridParticleSystem.cells.x),
+                floor(fmod((double)cellIndex, (double)(params.gridParticleSystem.cells.x * params.gridParticleSystem.cells.y * params.gridParticleSystem.cells.z)) / (params.gridParticleSystem.cells.x * params.gridParticleSystem.cells.y))
                 );
 
     float3 cellSize;
-    cellSize.x = (params.particleSystemWorldMax.x - params.particleSystemWorldMin.x) / params.particleSystemGridSize.x;
-    cellSize.y = (params.particleSystemWorldMax.y - params.particleSystemWorldMin.y) / params.particleSystemGridSize.y;
-    cellSize.z = (params.particleSystemWorldMax.z - params.particleSystemWorldMin.z) / params.particleSystemGridSize.z;
+    cellSize.x = (params.gridParticleSystem.worldMax.x - params.gridParticleSystem.worldMin.x) / params.gridParticleSystem.cells.x;
+    cellSize.y = (params.gridParticleSystem.worldMax.y - params.gridParticleSystem.worldMin.y) / params.gridParticleSystem.cells.y;
+    cellSize.z = (params.gridParticleSystem.worldMax.z - params.gridParticleSystem.worldMin.z) / params.gridParticleSystem.cells.z;
+
 
     gridMapCellWorldPositions[cellIndex] = make_float4(
-                params.particleSystemWorldMin.x + (cellSize.x * gridCellCoordinate.x) + (cellSize.x / 2.0),
-                params.particleSystemWorldMin.y + (cellSize.y * gridCellCoordinate.y) + (cellSize.y / 2.0),
-                params.particleSystemWorldMin.z + (cellSize.z * gridCellCoordinate.z) + (cellSize.z / 2.0),
+                params.gridParticleSystem.worldMin.x + (cellSize.x * gridCellCoordinate.x) + (cellSize.x / 2.0),
+                params.gridParticleSystem.worldMin.y + (cellSize.y * gridCellCoordinate.y) + (cellSize.y / 2.0),
+                params.gridParticleSystem.worldMin.z + (cellSize.z * gridCellCoordinate.z) + (cellSize.z / 2.0),
                 0.0f
                 );
+*/
+    int3 cellCoordinate = params.gridWaypointPressure.getCellCoordinate(cellIndex);
+    float3 cellCenter = params.gridWaypointPressure.getCellCenter(cellCoordinate);
+
+
+    gridMapCellWorldPositions[cellIndex] = make_float4(cellCenter, 0.0f);
 }
 
 // For the life of me, I cannot figure out why this kernel gives an "unspecified launch failure".
@@ -510,11 +627,11 @@ void moveGridMapWayPointPressureValuesByWorldPositionOffsetD(
 
     __syncthreads();
 
-    uint3 gridCellCoordinate = getGridCellCoordinate(cellIndex);
+    int3 gridCellCoordinate = params.gridWaypointPressure.getCellCoordinate(cellIndex);
 
-    float3 gridCellWorldPosition = getGridCellCenter(gridCellCoordinate);
+    float3 gridCellWorldPosition = params.gridWaypointPressure.getCellCenter(gridCellCoordinate);
 
-    uint newIndex = getGridCellHash(getGridCellCoordinate(gridCellWorldPosition + *offset));
+    uint newIndex = params.gridWaypointPressure.getCellHash(params.gridWaypointPressure.getCellCoordinate(gridCellWorldPosition + *offset));
 
     if(newIndex < numberOfCells) gridMapOfWayPointPressure[newIndex] = pressure;
 }
