@@ -47,7 +47,7 @@
          <string>Process Physics</string>
         </property>
         <property name="checked">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
        </widget>
       </item>
@@ -154,7 +154,7 @@
          <double>10.000000000000000</double>
         </property>
         <property name="value">
-         <double>-1.000000000000000</double>
+         <double>-0.800000000000000</double>
         </property>
        </widget>
       </item>

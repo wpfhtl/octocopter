@@ -44,10 +44,6 @@ private:
     void slotInitializeWaypointPressureGrid();
     void showWaypointPressure();
 
-    bool getRankedWaypoints(QVector4D* const waypoints, const quint16 numberOfWaypointsRequested);
-
-    bool mProcessPhysics;
-
     SimulationParameters mSimulationParameters;
 
 
@@ -62,8 +58,8 @@ private:
     //                      mDeviceGridMapWayPointPressureSorted.begin(),
     //                      mDeviceGridMapWayPointPressureSorted.end(),
     //                      mDeviceGridMapCellWorldPositions.begin(),
-    //                      operator>()
-    // );
+    //                      operator>());
+
     quint8* mDeviceGridMapWayPointPressureSorted;
     // A gridmap (same grid as always) containing values from 0 to 255. 0 means no waypoint candidates within, 255 means maximum waypoint pressure.
     unsigned int   mVboGridMapOfWayPointPressure;
@@ -76,12 +72,12 @@ signals:
 private slots:
     void slotShowUserInterface();
     void slotGenerateWaypoints();
-    void slotProcessPhysics(bool value) { mProcessPhysics = value; }
+    void slotDenseCloudInsertedPoints(PointCloud*const pointCloudSource, const quint32& firstPointToReadFromSrc, quint32 numberOfPointsToCopy);
 
 public slots:
     void slotSetScanVolume(const QVector3D min, const QVector3D max);
 
-    void slotNewScanData(const QVector<QVector3D>* const pointList, const QVector3D* const scannerPosition);
+    void slotNewScanData(const float* const points, const quint32& count, const QVector3D* const scannerPosition);
 
     // Inserts detour-waypoints between vehicle position and next waypoint if necessary.
     // Returns true if path was found, else false.

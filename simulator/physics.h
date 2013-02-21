@@ -96,6 +96,8 @@ public slots:
     void slotSetTotalVehicleWeight(const float&);
     void slotUpdatePhysics(void);
 
+    void slotRescueVehicle();
+
 private slots:
     void slotUpdateWind();
     void slotUpdateEngineRotations();

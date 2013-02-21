@@ -10,7 +10,7 @@
 
 #include "common.h"
 
-class PointCloud;
+class PointCloudCuda;
 
 // See http://forums.nvidia.com/index.php?showtopic=173696
 
@@ -19,7 +19,7 @@ class ParticleSystem : public QObject
     Q_OBJECT
 public:
     // Give it a pointer to the pointcloud to collide against
-    ParticleSystem(PointCloud *const pointcloud, SimulationParameters* const simulationParameters);
+    ParticleSystem(PointCloudCuda *const pointCloudDense, PointCloudCuda *const pointCloudColliders, SimulationParameters* const simulationParameters);
     ~ParticleSystem();
 
     enum class ParticlePlacement
@@ -98,8 +98,8 @@ signals:
 
 protected:
     SimulationParameters* mSimulationParameters;
-    // A pointer to the pointcloud holding the pointcloud to collide particles against.
-    PointCloud* mPointCloudColliders;
+    // A pointer to the pointclouds holding the dense points and the colliders.
+    PointCloudCuda *mPointCloudDense, *mPointCloudColliders;
 
     quint64 mNumberOfBytesAllocatedCpu;
     quint64 mNumberOfBytesAllocatedGpu;

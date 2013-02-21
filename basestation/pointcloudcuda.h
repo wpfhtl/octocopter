@@ -30,8 +30,6 @@ class PointCloudCuda : public PointCloud
 {
     Q_OBJECT
 
-
-
 public:
     PointCloudCuda(const QVector3D &min, const QVector3D &max, const quint32 maximumElementCount = 8 * 1024 * 1024); // 8 million points capacity
     ~PointCloudCuda();
@@ -42,7 +40,22 @@ public:
     void setMinimumPointDistance(const float &distance) { mParameters.minimumDistance = distance; }
     float getMinimumPointDistance() const { return mParameters.minimumDistance; }
 
-    quint32 getNumberOfPoints(void) const { return mParameters.elementCount + mParameters.elementQueueCount; }
+    void setBoundingBox(const QVector3D& min, const QVector3D& max)
+    {
+        mBBoxMin = min;
+        mBBoxMax = max;
+        mParameters.bBoxMin = make_float3(min.x(), min.y(), min.z());
+        mParameters.bBoxMax = make_float3(max.x(), max.y(), max.z());
+    }
+
+    cudaGraphicsResource** getCudaGraphicsResource() { return &mCudaVboResource;}
+
+    quint32 getNumberOfPoints(void) const
+    {
+        Q_ASSERT(mParameters.elementCount + mParameters.elementQueueCount == mVboInfo[0].size);
+
+        return mParameters.elementCount + mParameters.elementQueueCount;
+    }
 
 //    void setGridSize(const quint16 x, const quint16 y, const quint16 z)
 //    {
@@ -54,6 +67,8 @@ public:
     const QVector<VboInfo>& getVboInfo() const { return mVboInfo; }
 
     quint32 getCapacity(void) const { return mParameters.capacity; }
+
+
 
     void setColor(const QColor& c) {mVboInfo[0].color = c;}
 
@@ -86,9 +101,11 @@ private:
 
     // reduces the queued points against themselves, then merges all points and reduces again. Thin wrapper around reducePoints()
     quint32 reduceAllPointsUsingCollisions();
-    quint32 reduceUsingSnapToGrid();
+    quint32 reduceUsingSnapToGrid(float *devicePoints = 0, quint32 numberOfPoints = 0); // will use given pointer instead of mapping (if != 0).
 
     quint32 reduceUsingCellMean();
+
+    quint32 trimToBoundingBox();
 
     // reduces the given points against themselves
     quint32 reducePointRangeUsingCollisions(float *devicePoints, const quint32 numElements, const bool createBoundingBox);
@@ -104,7 +121,10 @@ public slots:
     bool slotInsertPoints3(const float* const pointList, const quint32 numPoints);
     bool slotInsertPoints4(const float* const pointList, const quint32 numPoints);
 
-    // Insert points from a range of a VBO
+    // Insert points from another PointCloudCuda
+    void slotInsertPoints(PointCloud *const pointCloudSource, const quint32& firstPointToReadFromSrc = 0, quint32 numberOfPointsToCopy = 0);
+
+    // deprecated! Uses OpenGl BufferCopy. Might be faster than CUDA-copy, but doesn't support filtering points in bbox
     bool slotInsertPoints(const VboInfo* const vboInfo, const quint32& firstPoint, const quint32& numPoints);
 
 public slots:

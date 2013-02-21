@@ -221,7 +221,7 @@ void integrateSystemD(
     vel *= params.dampingMotion;
 
     // If particle moves further than its radius in one iteration, it may slip through cracks that would be unpassable
-    // in reality. To prevent this, do not move particles further than r in every timestemp
+    // in reality. To prevent this, do not move particles further than 0.9r in every timestemp
     float3 movement = vel * deltaTime;
     float safeParticleRadius = params.particleRadius * 0.9f;
     float distance = length(movement);
@@ -234,12 +234,24 @@ void integrateSystemD(
     // new position = old position + velocity * deltaTime
     pos += movement;
 
-    // collisions with cube sides
-    if (pos.x > params.gridParticleSystem.worldMax.x - params.particleRadius) { pos.x = params.gridParticleSystem.worldMax.x - params.particleRadius; vel.x *= params.velocityFactorCollisionBoundary;}
-    if (pos.x < params.gridParticleSystem.worldMin.x + params.particleRadius) { pos.x = params.gridParticleSystem.worldMin.x + params.particleRadius; vel.x *= params.velocityFactorCollisionBoundary;}
-    if (pos.z > params.gridParticleSystem.worldMax.z - params.particleRadius) { pos.z = params.gridParticleSystem.worldMax.z - params.particleRadius; vel.z *= params.velocityFactorCollisionBoundary;}
-    if (pos.z < params.gridParticleSystem.worldMin.z + params.particleRadius) { pos.z = params.gridParticleSystem.worldMin.z + params.particleRadius; vel.z *= params.velocityFactorCollisionBoundary;}
-    if (pos.y > params.gridParticleSystem.worldMax.y - params.particleRadius) { pos.y = params.gridParticleSystem.worldMax.y - params.particleRadius; vel.y *= params.velocityFactorCollisionBoundary;}
+#ifdef TRUE
+    // particles bounce off the cube's inner sides
+    if(pos.x > params.gridParticleSystem.worldMax.x - params.particleRadius) { pos.x = params.gridParticleSystem.worldMax.x - params.particleRadius; vel.x *= params.velocityFactorCollisionBoundary;}
+    if(pos.x < params.gridParticleSystem.worldMin.x + params.particleRadius) { pos.x = params.gridParticleSystem.worldMin.x + params.particleRadius; vel.x *= params.velocityFactorCollisionBoundary;}
+    if(pos.z > params.gridParticleSystem.worldMax.z - params.particleRadius) { pos.z = params.gridParticleSystem.worldMax.z - params.particleRadius; vel.z *= params.velocityFactorCollisionBoundary;}
+    if(pos.z < params.gridParticleSystem.worldMin.z + params.particleRadius) { pos.z = params.gridParticleSystem.worldMin.z + params.particleRadius; vel.z *= params.velocityFactorCollisionBoundary;}
+    if(pos.y > params.gridParticleSystem.worldMax.y - params.particleRadius) { pos.y = params.gridParticleSystem.worldMax.y - params.particleRadius; vel.y *= params.velocityFactorCollisionBoundary;}
+#else
+    // particles re-appear on the other end of the axis (pacman-like :)
+    if(pos.x > params.gridParticleSystem.worldMax.x - params.particleRadius) { pos.x = params.gridParticleSystem.worldMin.x + params.particleRadius; vel.x *= -params.velocityFactorCollisionBoundary;}
+    if(pos.x < params.gridParticleSystem.worldMin.x + params.particleRadius) { pos.x = params.gridParticleSystem.worldMax.x - params.particleRadius; vel.x *= -params.velocityFactorCollisionBoundary;}
+    if(pos.z > params.gridParticleSystem.worldMax.z - params.particleRadius) { pos.z = params.gridParticleSystem.worldMin.z + params.particleRadius; vel.z *= -params.velocityFactorCollisionBoundary;}
+    if(pos.z < params.gridParticleSystem.worldMin.z + params.particleRadius) { pos.z = params.gridParticleSystem.worldMax.z - params.particleRadius; vel.z *= -params.velocityFactorCollisionBoundary;}
+    if(pos.y > params.gridParticleSystem.worldMax.y - params.particleRadius) { pos.y = params.gridParticleSystem.worldMax.y - params.particleRadius; vel.y *= -params.velocityFactorCollisionBoundary;}
+#endif
+
+    // The w-component of a particle is always 1.0. If it has hit a collider, it is set to 1.1 instead. When the particle is re-set, w is set to 1.0 again.
+    float pos_w = particlePositions[index].w;
 
     // special case: hitting bottom plane of bounding box
     if (pos.y < params.gridParticleSystem.worldMin.y + params.particleRadius)
@@ -267,11 +279,12 @@ void integrateSystemD(
 
             // Clear the particle's last position of collision
             particleCollisionPositions[index] = make_float4(0.0f);
+            pos_w = 1.0;
         }
     }
 
     // store new position and velocity
-    particlePositions[index] = make_float4(pos, /*posData.w*/1.0);
+    particlePositions[index] = make_float4(pos, /*posData.w*/pos_w);
     particleVelocities[index] = make_float4(vel, /*velData.w*/1.0);
 }
 

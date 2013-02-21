@@ -378,8 +378,8 @@ void Physics::slotSetMotion(const MotionCommand* const motionCommand)
     mSimulator->mBattery->slotSetDischargeCurrent(thrustCurrent * 8.0f);
 
     // Yaw!
-    // Let us wildly assume that the motors go 2000rpm faster/slower on maximum yaw
-    const float torqueScalarYaw = mEngine.calculateTorque(2000.0f * (((float)motionCommand->yaw) / 128.0f));
+    // Let us wildly assume that the motors go 1000rpm faster/slower on maximum yaw
+    const float torqueScalarYaw = mEngine.calculateTorque(1000.0f * (((float)motionCommand->yaw) / 128.0f));
     //qDebug() << "Physics::slotSetMotion(): torqueScalarYaw is" << torqueScalarYaw;
     Ogre::Vector3 torqueVectorYaw = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0.0f, torqueScalarYaw, 0.0f);
     mVehicleBody->applyTorque(btVector3(torqueVectorYaw.x, torqueVectorYaw.y, torqueVectorYaw.z));
@@ -553,4 +553,17 @@ QVector3D Physics::getVehicleAngularVelocity() const
 void Physics::slotSetTotalVehicleWeight(const float& weight)
 {
     mTotalVehicleWeight = weight;
+}
+
+void Physics::slotRescueVehicle()
+{
+    btTransform t;
+    mVehicleState->getWorldTransform(t);
+
+    t.setOrigin(t.getOrigin() + btVector3(0, 10, 0));
+    t.setRotation(btQuaternion());
+
+//    mVehicleState->setWorldTransform(t);
+
+    mVehicleBody->setWorldTransform(t);
 }

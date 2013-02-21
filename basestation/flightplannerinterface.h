@@ -34,7 +34,6 @@ protected:
     ShaderProgram *mShaderProgramDefault, *mShaderProgramSpheres;
 
     static void sortToShortestPath(QList<WayPoint> &wayPointsSetOnRover, const QVector3D &currentVehiclePosition);
-    void setVboBoundingBox();
 
 public:
     // Here, basestation passes its own pointcloud. Its up to the implementation to use it.
@@ -43,14 +42,14 @@ public:
 
 //    void setGlWidget(GlWidget* glWidget) {mGlWidget = glWidget;}
 
-    const QVector<Pose>& getVehiclePoses() { return mVehiclePoses; }
+//    const QVector<Pose>& getVehiclePoses() { return mVehiclePoses; }
 
     const Pose getLastKnownVehiclePose(void) const;
-    const QVector3D getCurrentVehicleVelocity() const;
+//    const QVector3D getCurrentVehicleVelocity() const;
 
     const QList<WayPoint> *const getWayPoints();
 
-    void getScanVolume(QVector3D& min, QVector3D& max);
+//    void getScanVolume(QVector3D& min, QVector3D& max);
 
     QVector3D getScanVolumeSize() const
     {
@@ -82,7 +81,7 @@ public slots:
     void slotWayPointsClear();
 
     // Called by LogPlayer or RoverConnection when new scanData arrives.
-    virtual void slotNewScanData(const QVector<QVector3D>* const pointList, const QVector3D* const scannerPosition) = 0;
+    virtual void slotNewScanData(const float* const points, const quint32& count, const QVector3D* const scannerPosition) = 0;
 
     // Called by UI to clear the drawn trajectory
     void slotClearVehicleTrajectory();

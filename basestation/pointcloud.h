@@ -14,8 +14,12 @@ class PointCloud : public QObject
     Q_OBJECT
 protected:
     QVector3D mBBoxMin, mBBoxMax;
+    bool mAcceptPointsOutsideBoundingBox;
 
 public:
+
+    void setAcceptPointsOutsideBoundingBox(bool accept) { mAcceptPointsOutsideBoundingBox = accept; }
+    bool acceptPointsOutsideBoundingBox() const { return mAcceptPointsOutsideBoundingBox; }
 
     QString mName; // for debugging only
 
@@ -39,6 +43,8 @@ public:
 
     const QVector3D& getBoundingBoxMin() const { return mBBoxMin; }
     const QVector3D& getBoundingBoxMax() const { return mBBoxMax; }
+
+    virtual void setBoundingBox(const QVector3D& min, const QVector3D& max) = 0;
 
     QVector3D getWorldSize() const { return mBBoxMax - mBBoxMin; }
 
@@ -88,7 +94,7 @@ signals:
     // A signal to make others aware that new points are present in the pointcloud. This signal is not guaranteed
     // to be fired whenever there are new points (e.g. after every scan), because that would cause a lot of signals.
     // Instead, the pointcloud is free to define larger intervals between signals.
-    void pointsInserted(const VboInfo* const vboInfo, const quint32& firstPoint, const quint32& numPoints);
+    void pointsInserted(PointCloud* const pointcloud, const quint32& firstPoint, const quint32& numPoints);
 };
 
 #endif

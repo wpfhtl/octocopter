@@ -5,8 +5,11 @@ RoverConnection::RoverConnection(const QString& hostName, const quint16& port, Q
     mHostName = hostName;
     mPort = port;
 
+    mTimeOfLastConnectionStatusUpdate = QTime::currentTime();
     mTimerConnectionWatchdog.start(5000);
     connect(&mTimerConnectionWatchdog, SIGNAL(timeout()), SLOT(slotEmitConnectionTimedOut()));
+
+    mRegisteredPointsFloat = new float[1080 * 4];
 
     mIncomingDataBuffer.clear();
 
@@ -15,6 +18,11 @@ RoverConnection::RoverConnection(const QString& hostName, const quint16& port, Q
     connect(mTcpSocket, SIGNAL(error(QAbstractSocket::SocketError)), SLOT(slotSocketError(QAbstractSocket::SocketError)));
     connect(mTcpSocket, SIGNAL(connected()), SLOT(slotSocketConnected()));
     connect(mTcpSocket, SIGNAL(disconnected()), SLOT(slotSocketDisconnected()));
+}
+
+RoverConnection::~RoverConnection()
+{
+    delete mRegisteredPointsFloat;
 }
 
 void RoverConnection::slotEmitConnectionTimedOut()
@@ -60,8 +68,6 @@ void RoverConnection::slotReadSocket()
 
     if(mIncomingDataBuffer.size() < 8) return;
 
-//    mIncomingDataBuffer.remove(mIncomingDataBuffer.indexOf(QString("$KPROT").toAscii()), 6);
-
     QDataStream stream(mIncomingDataBuffer); // byteArray is const!
     quint32 packetLength;
     stream >> packetLength;
@@ -89,9 +95,16 @@ void RoverConnection::processPacket(QByteArray data)
 {
 //    qDebug() << "RoverConnection::processPacket(): processing bytes:" << data.size();
 
-    // Restart the timer, so we don't get a timeout.
-    mTimerConnectionWatchdog.start();
-    emit connectionStatusRover(true);
+    if(mTimeOfLastConnectionStatusUpdate.msecsTo(QTime::currentTime()) > mTimerConnectionWatchdog.interval() / 2.0f)
+    {
+        // Restart the timer, so we don't get a timeout.
+        mTimerConnectionWatchdog.start();
+
+        // Tell everyone the connection is still alive
+        emit connectionStatusRover(true);
+
+        mTimeOfLastConnectionStatusUpdate = QTime::currentTime();
+    }
 
     QDataStream stream(data);
 
@@ -100,10 +113,14 @@ void RoverConnection::processPacket(QByteArray data)
 
     if(packetType == "lidarpoints")
     {
-        stream >> mRegisteredPoints;
+        quint32 numPoints;
         stream >> mScannerPosition;
+        stream >> numPoints;
 
-        emit scanData(&mRegisteredPoints, &mScannerPosition);
+        // We reserved up to 1080 points above!
+        stream.readRawData((char*)mRegisteredPointsFloat, numPoints * sizeof(float) * 3);
+
+        emit scanData(mRegisteredPointsFloat, numPoints, &mScannerPosition);
     }
     else if(packetType == "image")
     {
@@ -214,6 +231,8 @@ void RoverConnection::processPacket(QByteArray data)
 
 void RoverConnection::slotSendMotionToKopter(const MotionCommand* const mc)
 {
+    return;
+
     qDebug() << "RoverConnection::processPacket(): slotSendMotionToKopter:" << mc->toString();
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);

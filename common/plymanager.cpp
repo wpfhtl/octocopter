@@ -166,7 +166,7 @@ void PlyManager::loadPly4D(float* points, const quint32 startPoint, const quint3
                 {
                     points[numberOfVerticesProcessed*4 + 0] = values.at(0).toDouble();
 
-#ifdef false // junhao: use z as height and mirror y axis
+#ifdef FALSE // junhao: use z as height and mirror y axis
                     points[numberOfVerticesProcessed*4 + 1] = values.at(2).toDouble();
                     points[numberOfVerticesProcessed*4 + 2] = -values.at(1).toDouble();
 #else

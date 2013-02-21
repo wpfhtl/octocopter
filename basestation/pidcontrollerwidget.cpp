@@ -121,6 +121,8 @@ void PidControllerWidget::setControllers(const FlightControllerValues* const fcv
 
 void PidControllerWidget::slotUpdateValues()
 {
+    if(!isVisible()) return;
+
     QMapIterator<QString, const PidController*> i(mControllers);
 
     disconnect(ui->mTableControllerValues, SIGNAL(cellChanged(int,int)), this, SLOT(slotCellChanged(int,int)));

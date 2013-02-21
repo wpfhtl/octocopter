@@ -23,6 +23,8 @@ GlWidget::GlWidget(QWidget* parent) :
     mVboVehiclePathBytesMaximum = (3600 * 50 * mVboVehiclePathElementSize); // For a flight time of one hour
     mVboVehiclePathBytesCurrent = 0;
 
+    mFramesRenderedThisSecond = 0;
+
     mZoomFactorCurrent = 0.5;
     mZoomFactorTarget = 0.5;
 
@@ -170,7 +172,7 @@ void GlWidget::initializeGL()
 
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);					// Black Background
     glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// White Background
-    glClearColor(0.3f, 0.3f, 0.3f, 0.0f);					// Gray  Background
+    glClearColor(0.2f, 0.2f, 0.2f, 0.0f);					// Gray  Background
 
     // Set Line Antialiasing
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
@@ -221,12 +223,21 @@ void GlWidget::moveCamera(const QVector3D &pos)
 
 void GlWidget::paintGL()
 {
-    mTimeOfLastRender = QDateTime::currentDateTime();
+    mFramesRenderedThisSecond++;
+
+    const QTime currentTime = QTime::currentTime();
+
+    if(mTimeOfLastRender.second() != currentTime.second())
+    {
+        // A second has passed!
+        qDebug() << "GlWidget::paintGL(): currently rendering at" << mFramesRenderedThisSecond << "fps.";
+        mFramesRenderedThisSecond = 0;
+    }
+
+    mTimeOfLastRender = currentTime;
 
     if(mViewRotating)
         mCameraRotation.setY(mCameraRotation.y() + 180 * mRotationPerFrame);
-
-//    qDebug() << "GlWidget::paintGL(): frame counter:" << mFrameCounter++;
 
     // Clear color buffer and depth buffer
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -291,7 +302,7 @@ void GlWidget::paintGL()
                 glBindBuffer(GL_ARRAY_BUFFER, vboInfo.vbo);
                 glEnableVertexAttribArray(0);
                 glVertexAttribPointer(0, vboInfo.elementSize, GL_FLOAT, GL_FALSE, vboInfo.stride, 0);
-                glDrawArrays(GL_POINTS, 0, vboInfo.size); // Number of Elements, not bytes
+                glDrawArrays(GL_POINTS, 0, vboInfo.size); // Number of elements, not bytes
                 glDisableVertexAttribArray(0);
                 glBindBuffer(GL_ARRAY_BUFFER, 0);
             }
@@ -654,7 +665,7 @@ void GlWidget::slotUpdateView()
     // quick hack to see ALL generated poses
     // update(); return;
 
-    if(mTimeOfLastRender.msecsTo(QDateTime::currentDateTime()) > mTimerUpdate->interval())
+    if(mTimeOfLastRender.msecsTo(QTime::currentTime()) > mTimerUpdate->interval())
     {
         update();
 
@@ -667,7 +678,7 @@ void GlWidget::slotUpdateView()
             mTimerUpdate->start();
     }
 
-//    QTimer::singleShot(desiredInterval + 1 - mTimeOfLastRender.msecsTo(QDateTime::currentDateTime()), this, SLOT(slotUpdateView()));
+//    QTimer::singleShot(desiredInterval + 1 - mTimeOfLastRender.msecsTo(QTime::currentTime()), this, SLOT(slotUpdateView()));
 }
 
 void GlWidget::slotViewFromTop()

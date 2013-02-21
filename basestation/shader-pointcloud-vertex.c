@@ -26,21 +26,20 @@ void main()
 {
     //color = in_color;
 
-    vec4 colorTemp = vec4(1.0, 1.0, 1.0, 0.5); // a is alpha, 1.0 is visible
+    vec4 colorTemp = vec4(1.0, 1.0, 1.0, 0.3); // a is alpha, 1.0 is visible
 
     if(useMatrixExtra)
       gl_Position = matrixCameraToClip * matrixModelToCamera * matrixExtra * in_position;
     else
       gl_Position = matrixCameraToClip * matrixModelToCamera * in_position;
 
-    float vmin = 0.0;
-    float vmax = 45.0; // colormap repeats every 10 height-meters
-    vmax = 15.0;
+    float vmin = -2;
+    float vmax = 18.0; // colormap repeats every 10 height-meters
     float dv = vmax - vmin;
     //float colorValue = abs(in_position.y); // colormap repeats every 10 height-meters
     // ben: max 10m, repeat cycle (use mod())
     //float colorValue = mod(abs(in_position.y), vmax); // colormap repeats every 10 height-meters
-    float colorValue = abs(in_position.y); // colormap, non-repeating
+    float colorValue = in_position.y; // colormap, non-repeating
 
     if(colorValue < vmin)
       colorValue = vmin;

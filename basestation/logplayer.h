@@ -115,7 +115,7 @@ signals:
     void message(const LogImportance& importance, const QString& source, const QString& message);
 
     void vehiclePose(const Pose* const);
-    void scanData(const QVector<QVector3D>* const, const QVector3D* const);
+    void scanData(const float* const points, const quint32& count, const QVector3D* const scannerPosition);
     void vehicleStatus(const VehicleStatus* const);
     void gnssStatus(const GnssStatus* const);
     void flightControllerValues(const FlightControllerValues* const);

@@ -96,6 +96,15 @@ Simulator::~Simulator(void)
     delete mCameras;
 }
 
+void Simulator::keyPressEvent(QKeyEvent * event)
+{
+    if(mPhysics != 0 && event->key() == Qt::Key_R)
+    {
+        mPhysics->slotRescueVehicle();
+        mOgreWidget->update();
+    }
+}
+
 void Simulator::slotShowMessage(const QString message)
 {
     statusBar()->showMessage(message);
@@ -303,6 +312,13 @@ void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enab
 
     switch(button)
     {
+
+    case 1:
+    {
+        // thats actually button 2 on the joystick
+        mPhysics->slotRescueVehicle();
+        break;
+    }
 
     case 6:
     {

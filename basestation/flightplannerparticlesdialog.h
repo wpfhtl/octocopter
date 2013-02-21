@@ -22,7 +22,10 @@ public:
     ~FlightPlannerParticlesDialog();
 
     SimulationParameters getSimulationParameters() const {return mSimulationParameters;}
+
     bool processPhysics() const {return ui->mChkBoxProcessPhysics->isChecked();}
+    void setProcessPhysics(bool state) {ui->mChkBoxProcessPhysics->setChecked(state);}
+
     bool followVehicle() const {return ui->mChkBoxFollowVehicle->isChecked();}
     bool showParticles() const {return ui->mChkBoxShowParticles->isChecked();}
     bool showWaypointPressure() const {return ui->mChkBoxShowWaypointPressure->isChecked();}

@@ -14,6 +14,9 @@ SensorFuser::SensorFuser(const quint8& stridePoint, const quint8& strideScan) : 
     mNumberOfScansWithMissingGnssTimestamps = 0;
     mMaximumTimeOffsetBetweenScannerAndGnss = 12;
 
+    mRegisteredPoints = new float[1080 * 4];
+    mNumberOfPointsFusedInThisScan = 0;
+
     mBestInterpolationMethodToUse = InterpolationMethod::Linear;
 
     mPoseDynamicsLogFile = new QFile("/tmp/posedynamics.dat");
@@ -38,6 +41,7 @@ SensorFuser::~SensorFuser()
 
     slotClearData();
 
+    delete mRegisteredPoints;
     mPoseDynamicsStream->flush();
     delete mPoseDynamicsStream;
     mPoseDynamicsLogFile->close();
@@ -93,15 +97,22 @@ void SensorFuser::slotClearData(const qint32 maximumDataAge)
 // TODO: make this method fuse N successive rays
 void SensorFuser::fuseRayWithLastInterpolatedPose(const qint16 index, const float& distance)
 {
-    static quint32 pointNum = 0;
     // Version using QMatrix4x4
     const QVector3D vectorScannerToPoint(
                 sin(-0.0043633231299858238686f * (index - 540)) * distance, // X in meters
                 0.0f,                                                       // Y always 0
                 -cos(0.0043633231299858238686f * (index - 540)) * distance);// Z in meters
 
-    mRegisteredPoints.append(mLastInterpolatedPose * vectorScannerToPoint);
-    *(mPoseDynamicsStream) << pointNum++ << "\t" << mLastInterpolatedPose.velocity * 100.0f << "\t" << mLastInterpolatedPose.acceleration * 100.0f << "\t" << mLastInterpolatedPose.rotation << "\n";
+    const QVector3D p = mLastInterpolatedPose * vectorScannerToPoint;
+
+    mRegisteredPoints[mNumberOfPointsFusedInThisScan + 0] = p.x();
+    mRegisteredPoints[mNumberOfPointsFusedInThisScan + 1] = p.y();
+    mRegisteredPoints[mNumberOfPointsFusedInThisScan + 2] = p.z();
+//    mRegisteredPoints[mNumberOfPointsFusedInThisScan + 3] = 1.0f;
+    mNumberOfPointsFusedInThisScan++;
+
+//    static quint32 pointNum = 0;
+//    *(mPoseDynamicsStream) << pointNum++ << "\t" << mLastInterpolatedPose.velocity * 100.0f << "\t" << mLastInterpolatedPose.acceleration * 100.0f << "\t" << mLastInterpolatedPose.rotation << "\n";
 }
 
 // According to mInterpolationmethod, we set each ScanInfo' object 's poses-list to be the 1(nn) / 2(linear) / 3(linear) / 4(cubic) / 5(cubic) best poses to interpolate
@@ -175,9 +186,8 @@ void SensorFuser::fuseScans()
         // in the future) might be better. So, skip fusion in that case and try again next time.
         if(bestFitPoseIndex >= mPoses.size() - 1 && ! mFlushRemainingData) continue;
 
-        // Prepare for fusion :) Do not reserve full length, will be less poins due to reflections on the vehicle being filtered
-        mRegisteredPoints.clear();
-//        mRegisteredPoints.reserve(800);
+        // Prepare for fusion :)
+        mNumberOfPointsFusedInThisScan = 0;
 
         // Scans are stored with the times their ray was in front, so for linear/cubic interpolation, we need
         // one/two poses before and after each *ray*. Hence, we need one/two poses before scanStartRay (t-9.375ms)
@@ -320,7 +330,7 @@ void SensorFuser::fuseScans()
                 mStatsScansFused[InterpolationMethod::Cubic]++;
 
                 mLastScannerPosition = mPoses[poseIndicesToUse[2]].getPosition();
-                emit newScannedPoints(&mRegisteredPoints, &mLastScannerPosition);
+                emit scanData(mRegisteredPoints, mNumberOfPointsFusedInThisScan, &mLastScannerPosition);
             }
         }
 
@@ -443,7 +453,7 @@ void SensorFuser::fuseScans()
                 mStatsScansFused[InterpolationMethod::Linear]++;
 
                 mLastScannerPosition = mPoses[poseIndicesToUse[1]].getPosition();
-                emit newScannedPoints(&mRegisteredPoints, &mLastScannerPosition);
+                emit scanData(mRegisteredPoints, mNumberOfPointsFusedInThisScan, &mLastScannerPosition);
             }
         }
 
@@ -479,7 +489,7 @@ void SensorFuser::fuseScans()
             mStatsScansFused[InterpolationMethod::NearestNeighbor]++;
 
             mLastScannerPosition = mPoses[bestFitPoseIndex].getPosition();
-            emit newScannedPoints(&mRegisteredPoints, &mLastScannerPosition);
+            emit scanData(mRegisteredPoints, mNumberOfPointsFusedInThisScan, &mLastScannerPosition);
         }
     }
 }

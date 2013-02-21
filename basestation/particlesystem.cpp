@@ -14,22 +14,27 @@
 #include <algorithm>
 
 #include <openglutilities.h>
-#include "pointcloud.h"
+#include "pointcloudcuda.h"
 
-ParticleSystem::ParticleSystem(PointCloud *const pointcloud, SimulationParameters *const simulationParameters) : mPointCloudColliders(pointcloud)
+ParticleSystem::ParticleSystem(PointCloudCuda *const pointCloudDense, PointCloudCuda *const pointCloudColliders, SimulationParameters *const simulationParameters) :
+    mPointCloudDense(pointCloudDense),
+    mPointCloudColliders(pointCloudColliders)
 {
+    // Our collision cloud shouldn't contain points outside the bbox - that'd be a waste of resources
+    mPointCloudColliders->setAcceptPointsOutsideBoundingBox(false);
+
     // set simulation parameters
     mSimulationParameters = simulationParameters;
 
-    mSimulationParameters->gridParticleSystem.worldMin = make_float3(-32.0f, -2.0f, -32.0f);
-    mSimulationParameters->gridParticleSystem.worldMax = make_float3(32.0f, 62.0f, 32.0f);
+    mSimulationParameters->gridParticleSystem.worldMin = make_float3(-32.0f, -4.0f, -32.0f);
+    mSimulationParameters->gridParticleSystem.worldMax = make_float3(32.0f, 60.0f, 32.0f);
     mSimulationParameters->gridParticleSystem.cells = make_uint3(64, 64, 64);
     mSimulationParameters->particleCount = 16384;
     mSimulationParameters->dampingMotion = 0.80f;                        // used only for integration
     mSimulationParameters->velocityFactorCollisionParticle = 0.10f;
     mSimulationParameters->velocityFactorCollisionBoundary = -0.5f;
     mSimulationParameters->gravity = make_float3(0.0, -9.810f, 0.0f);
-    mSimulationParameters->spring = -0.5f;
+    mSimulationParameters->spring = -0.8f;
     mSimulationParameters->shear = 0.0f;
     mSimulationParameters->attraction = -0.2f;
 
@@ -43,7 +48,7 @@ ParticleSystem::ParticleSystem(PointCloud *const pointcloud, SimulationParameter
     // vector will be initialized with 0x777777 once on startup
     mUpdateMappingFromColliderToGridCell = true;
 
-    connect(mPointCloudColliders, SIGNAL(pointsInserted(VboInfo*const,quint32,quint32)), SLOT(slotNewCollidersInserted()));
+    connect(mPointCloudColliders, SIGNAL(pointsInserted(PointCloud*const,quint32,quint32)), SLOT(slotNewCollidersInserted()));
 }
 
 void ParticleSystem::slotNewCollidersInserted()
@@ -81,7 +86,16 @@ void ParticleSystem::slotSetVolume(const QVector3D& min, const QVector3D& max)
     mSimulationParameters->gridParticleSystem.worldMin = make_float3(min.x(), min.y(), min.z());
     mSimulationParameters->gridParticleSystem.worldMax = make_float3(max.x(), max.y(), max.z());
 
+    mPointCloudColliders->setBoundingBox(min, max);
+
     // TODO: re-initialize when size changes!
+
+    // We moved the particle system. This means that A) the system's sparse collider-pointcloud now
+    // contains points outside of the particle system and B) the dense pointcloud contains points
+    // that are NOT in the collider-pointcloud - but should be. So, we re-populate the sparse point-
+    // cloud with points from the dense pointcloud.
+    mPointCloudColliders->slotReset();
+    mPointCloudColliders->slotInsertPoints(mPointCloudDense);
 
     // Usually, the mapping from collider to grid-cells only changes when the collider pointcloud changes.
     // But when we move the grid (relative to the colliders), the mapping also needs an update!
@@ -501,6 +515,9 @@ inline float frand()
 
 void ParticleSystem::slotResetParticles()
 {
+    // When re-setting particles, also reset their position of last collision!
+    cudaSafeCall(cudaMemset(mDeviceParticleCollisionPositions, 0, mSimulationParameters->particleCount * 4 * sizeof(float)));
+
     switch(mDefaultParticlePlacement)
     {
     case ParticlePlacement::PlacementRandom:

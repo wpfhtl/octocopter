@@ -67,6 +67,8 @@ private:
     StatusWidget* mStatusWidget;
     Joystick* mJoystick;
 
+    void keyPressEvent(QKeyEvent * event);
+
 private slots:
 //    void slotSetWindSetting(bool, float);
     void slotOgreInitialized(void);

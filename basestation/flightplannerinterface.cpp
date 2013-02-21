@@ -68,7 +68,7 @@ void FlightPlannerInterface::slotVehiclePoseChanged(const Pose* const pose)
     mVehiclePoses.append(*pose);
     //    if(mVehiclePoses.size() > 2) mVehiclePoses.takeFirst();
 }
-
+/*
 const QVector3D FlightPlannerInterface::getCurrentVehicleVelocity() const
 {
     if(mVehiclePoses.size() < 2) return QVector3D();
@@ -82,7 +82,7 @@ const QVector3D FlightPlannerInterface::getCurrentVehicleVelocity() const
         return QVector3D();
     else
         return (last.getPosition() - secondLast.getPosition()) * (1000 / timeDiffMs);
-}
+}*/
 
 void FlightPlannerInterface::slotWayPointDelete(const quint16& index)
 {
@@ -189,11 +189,11 @@ const QList<WayPoint>* const FlightPlannerInterface::getWayPoints()
     return mWaypointListMap.value("ahead")->list();
 }
 
-void FlightPlannerInterface::getScanVolume(QVector3D& min, QVector3D& max)
-{
-    min = mScanVolumeMin;
-    max = mScanVolumeMax;
-}
+//void FlightPlannerInterface::getScanVolume(QVector3D& min, QVector3D& max)
+//{
+//    min = mScanVolumeMin;
+//    max = mScanVolumeMax;
+//}
 
 void FlightPlannerInterface::slotVisualize()
 {

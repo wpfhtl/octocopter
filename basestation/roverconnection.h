@@ -24,6 +24,7 @@ private:
     // When we get a packet indicating that the connection is alive, we re-start this timer,
     // which will switch to failure after no packet arrived for some seconds
     QTimer mTimerConnectionWatchdog;
+    QTime mTimeOfLastConnectionStatusUpdate;
 
     // This class keeps instances of objects that are updated from the rover. After they are,
     // we simply emit pointers to this data.
@@ -32,6 +33,7 @@ private:
     FlightState mFlightState;
     Pose mPose;
     QVector<QVector3D> mRegisteredPoints;
+    float* mRegisteredPointsFloat;
     QVector3D mScannerPosition;
     VehicleStatus mVehicleStatus;
 
@@ -39,6 +41,7 @@ private:
 
 public:
     RoverConnection(const QString& hostName, const quint16& port, QObject* parent = 0);
+    ~RoverConnection();
 
     const FlightControllerValues* const getFlightControllerValues() {return &mFlightControllerValues;}
 
@@ -48,7 +51,10 @@ signals:
 
     void message(const LogImportance& importance, const QString& source, const QString& message);
 
+    // deprecated!
     void scanData(const QVector<QVector3D>* const pointList, const QVector3D* const scannerPosition);
+
+    void scanData(const float* const points, const quint32& count, const QVector3D* const scannerPosition);
     void image(const QString& cameraName, const QSize& imageSize, const Pose& cameraPose, const QByteArray& imageData);
     void vehicleStatus(const VehicleStatus* const);
     void gnssStatus(const GnssStatus* const);

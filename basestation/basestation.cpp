@@ -171,7 +171,7 @@ BaseStation::BaseStation() : QMainWindow()
 
         connect(mRoverConnection, SIGNAL(connectionStatusRover(const bool)), mControlWidget, SLOT(slotUpdateConnectionRover(const bool)));
 
-        connect(mRoverConnection, SIGNAL(scanData(const QVector<QVector3D>* const,const QVector3D* const)), mFlightPlanner, SLOT(slotNewScanData(const QVector<QVector3D>* const, const QVector3D* const)));
+        connect(mRoverConnection, SIGNAL(scanData(float*const, quint32, QVector3D*const)), mFlightPlanner, SLOT(slotNewScanData(float*const,quint32,QVector3D*const)));
         connect(mRoverConnection, SIGNAL(vehicleStatus(const VehicleStatus* const)), mControlWidget, SLOT(slotUpdateVehicleStatus(const VehicleStatus* const)));
         connect(mRoverConnection, SIGNAL(gnssStatus(const GnssStatus* const)), mControlWidget, SLOT(slotUpdateGnssStatus(const GnssStatus* const)));
         connect(mRoverConnection, SIGNAL(flightControllerValues(const FlightControllerValues* const)), SLOT(slotSetFlightControllerValues(const FlightControllerValues* const)));
@@ -212,7 +212,7 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mPtuController, SLOT(slotVehiclePoseChanged(const Pose* const)));
 
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mGlWidget, SLOT(slotNewVehiclePose(const Pose* const)));
-        connect(mLogPlayer, SIGNAL(scanData(const QVector<QVector3D>* const, const QVector3D* const)), mFlightPlanner, SLOT(slotNewScanData(const QVector<QVector3D>* const, const QVector3D* const)));
+        connect(mLogPlayer, SIGNAL(scanData(float*const, quint32, QVector3D*const)), mFlightPlanner, SLOT(slotNewScanData(float*const,quint32,QVector3D*const)));
     //    connect(mLogPlayer, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
         connect(mLogPlayer, SIGNAL(gnssStatus(const GnssStatus* const)), mControlWidget, SLOT(slotUpdateGnssStatus(const GnssStatus* const)));
 

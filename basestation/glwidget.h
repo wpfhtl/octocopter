@@ -37,7 +37,7 @@ class GlWidget : public QGLWidget
     const FlightControllerValues* mLastFlightControllerValues;
 
     // Timer
-    QDateTime mTimeOfLastRender;
+    QTime mTimeOfLastRender;
     QTimer* mTimerUpdate;
 
     float mRotationPerFrame;
@@ -63,7 +63,7 @@ class GlWidget : public QGLWidget
     GLuint mUboId;
     unsigned int mUboSize;
 
-    quint32 mFrameCounter;
+    quint32 mFramesRenderedThisSecond;
 
     ShaderProgram *mShaderProgramDefault;
     ShaderProgram *mShaderProgramPointCloud;

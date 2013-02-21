@@ -109,7 +109,8 @@ private:
     QVector<ScanInformation> mScanInformation;
 
     // These two save the last registration results, which are emitted and processed by others
-    QVector<QVector3D> mRegisteredPoints;
+    float* mRegisteredPoints;
+    quint32 mNumberOfPointsFusedInThisScan;
     QVector3D mLastScannerPosition;
 
     // This method moves gnss timestamps to their place in mScanInformation
@@ -149,7 +150,8 @@ public slots:
 
 signals:
     // Emits a pointer to a vector of registered points. The data is always owned by SensorFuser!
-    void newScannedPoints(const QVector<QVector3D>* const, const QVector3D* const scanPosition);
+//    void newScannedPoints(const QVector<QVector3D>* const, const QVector3D* const scanPosition);
+    void scanData(const float* const points, const quint32& count, const QVector3D* const scannerPosition);
 
     // For debugging/visualizing the interpolated poses
     void vehiclePose(const Pose* const);

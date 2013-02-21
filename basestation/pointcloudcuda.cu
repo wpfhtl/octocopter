@@ -17,25 +17,6 @@
 #include "helper_math.h"
 #include "pointcloudcuda.cuh"
 
-// 0 seems to be 10% faster with 256k particles
-#define USE_TEX 0
-
-#if USE_TEX
-#define FETCH(t, i) tex1Dfetch(t##Tex, i)
-#else
-#define FETCH(t, i) t[i]
-#endif
-
-#if USE_TEX
-// textures for particle position and velocity
-texture<float4, 1, cudaReadModeElementType> oldPointPosTex;
-//texture<float4, 1, cudaReadModeElementType> oldVelTex;
-
-//texture<uint, 1, cudaReadModeElementType> gridParticleHashTex;
-texture<uint, 1, cudaReadModeElementType> pointCellStartTex;
-texture<uint, 1, cudaReadModeElementType> pointCellStoppTex;
-#endif
-
 inline __host__ __device__ bool operator!=(float3 &a, float3 &b)
 {
     return !(a.x == b.x && a.y == b.y && a.z == b.z);
@@ -159,8 +140,8 @@ void sortPosAccordingToGridCellAndFillCellStartAndEndArraysD(
 
         // Now use the sorted index to reorder the pos and vel data
         uint sortedIndex = gridParticleIndex[threadIndex]; // => value of the sorted map
-        float4 pos = FETCH(oldPointPos, sortedIndex);       // macro does either global read or texture fetch,
-//        float4 vel = FETCH(oldVel, sortedIndex);       // see particles_kernel.cuh
+        float4 pos = oldPointPos[sortedIndex];
+//        float4 vel = oldVel[sortedIndex];       // see particles_kernel.cuh
 
         // ben: hier if() beenden, dann syncthreads() und dann nicht in sortedPos schreiben, sondern in oldPointPos? Bräuchte ich dann noch zwei pos/vel container?
         sortedPos[threadIndex] = pos;
@@ -181,7 +162,7 @@ uint checkCellForNeighborsD(
     uint gridHash = pcdCalcGridHash(gridPos);
 
     // get start of bucket for this cell
-    uint startIndex = FETCH(pointCellStart, gridHash);
+    uint startIndex = pointCellStart[gridHash];
 
     uint numberOfCollisions = 0;
 
@@ -189,13 +170,13 @@ uint checkCellForNeighborsD(
     if(startIndex != 0xffffffff)
     {
         // iterate over particles in this cell
-        uint endIndex = FETCH(pointCellStopp, gridHash);
+        uint endIndex = pointCellStopp[gridHash];
         for(uint j=startIndex; j<endIndex; j++)
         {
             // check not colliding with self
             if (j != index)
             {
-                float4 posOther = FETCH(oldPointPos, j);
+                float4 posOther = oldPointPos[j];
 
                 float4 posRelative = posCollider - posOther;
 
@@ -226,8 +207,8 @@ void markCollidingPointsD(
     if(colliderIndex >= numPoints) return;
 
     // read particle data from sorted arrays
-    float4 colliderPos = FETCH(oldPointPos, colliderIndex);
-//    float3 vel = make_float3(FETCH(oldVel, index));
+    float4 colliderPos = oldPointPos[colliderIndex];
+//    float3 vel = make_float3(oldVel[index]);
 
     // get address of particle in grid
     int3 gridPos = pcdCalcGridPos(make_float3(colliderPos));
@@ -497,7 +478,7 @@ __global__ void replaceCellPointsByMeanValueD(
     uint cellIndex = __mul24(blockIdx.x,blockDim.x) + threadIdx.x;
 
     // get start of bucket for this cell
-    uint startIndex = FETCH(pointCellStart, cellIndex);
+    uint startIndex = pointCellStart[cellIndex];
 
     float4 pointAverage = make_float4(0.0, 0.0, 0.0, 0.0);
 
@@ -505,10 +486,10 @@ __global__ void replaceCellPointsByMeanValueD(
     if(startIndex != 0xffffffff)
     {
         // iterate over particles in this cell
-        uint endIndex = FETCH(pointCellStopp, cellIndex);
+        uint endIndex = pointCellStopp[cellIndex];
         for(uint j=startIndex; j<endIndex; j++)
         {
-            pointAverage += FETCH(devicePointsSorted, j);
+            pointAverage += devicePointsSorted[j];
         }
         pointAverage /= endIndex-startIndex;
     }
@@ -541,4 +522,68 @@ unsigned int replaceCellPointsByMeanValue(float *devicePoints, float* devicePoin
 
     // Every cell created a point, empty cells create zero-points. Delete those.
     return removeZeroPoints(devicePoints, numCells);
+}
+/*
+unsigned int removePointsOutsideBoundingBox(float* devicePointsBase,unsigned int numberOfPoints,float* bBoxMin,float* bBoxMax)
+{
+
+}*/
+
+
+
+struct CheckBoundingBoxOp
+{
+    const float3 mBBoxMin, mBBoxMax;
+
+    CheckBoundingBoxOp(const float3& boxMin, const float3& boxMax) :
+        mBBoxMin(boxMin),
+        mBBoxMax(boxMax)
+    { }
+
+    __host__ __device__
+    bool operator()(const float4 point)
+    {
+        return
+                mBBoxMin.x <= point.x &&
+                mBBoxMin.y <= point.y &&
+                mBBoxMin.z <= point.z &&
+                mBBoxMax.x >= point.x &&
+                mBBoxMax.y >= point.y &&
+                mBBoxMax.z >= point.z;
+    }
+};
+
+unsigned int copyPoints(float* devicePointsBaseDst, float* devicePointsBaseSrc, unsigned int numberOfPointsToCopy)
+{
+    float4* pointsSrc = (float4*)devicePointsBaseSrc;
+    float4* pointsDst = (float4*)devicePointsBaseDst;
+
+    const thrust::device_ptr<float4> newEnd = thrust::copy(
+                thrust::device_ptr<float4>(pointsSrc),
+                thrust::device_ptr<float4>(pointsSrc + numberOfPointsToCopy),
+                thrust::device_ptr<float4>(pointsDst));
+
+    cudaCheckSuccess("copyPoints");
+
+    const unsigned int numberOfPointsCopied = newEnd.get() - pointsDst;
+    return numberOfPointsCopied;
+}
+
+unsigned int copyPointsInBoundingBox(float* devicePointsBaseDst, float* devicePointsBaseSrc, float3 &bBoxMin, float3 &bBoxMax, unsigned int numberOfPointsToCopy)
+{
+    float4* pointsSrc = (float4*)devicePointsBaseSrc;
+    float4* pointsDst = (float4*)devicePointsBaseDst;
+
+    CheckBoundingBoxOp op(bBoxMin, bBoxMax);
+
+    const thrust::device_ptr<float4> newEnd = thrust::copy_if(
+                thrust::device_ptr<float4>(pointsSrc),
+                thrust::device_ptr<float4>(pointsSrc + numberOfPointsToCopy),
+                thrust::device_ptr<float4>(pointsDst),
+                op);
+
+    cudaCheckSuccess("copyPointsInBoundingBox");
+
+    const unsigned int numberOfPointsCopied = newEnd.get() - pointsDst;
+    return numberOfPointsCopied;
 }

@@ -88,4 +88,22 @@ unsigned int replaceCellPointsByMeanValue(
         unsigned int *gridPointIndex, unsigned int numPoints,
         unsigned int numCells);
 
+/*unsigned int removePointsOutsideBoundingBox(
+        float* devicePointsBase,
+        unsigned int numberOfPoints,
+        float* bBoxMin,
+        float* bBoxMax);*/
+
+unsigned int copyPoints(
+        float* devicePointsBaseDst,
+        float* devicePointsBaseSrc,
+        unsigned int numberOfPointsToCopy);
+
+unsigned int copyPointsInBoundingBox(
+        float* devicePointsBaseDst,
+        float* devicePointsBaseSrc,
+        float3& bBoxMin,
+        float3& bBoxMax,
+        unsigned int numberOfPointsToCopy);
+
 #endif
