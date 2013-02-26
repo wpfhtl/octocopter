@@ -41,7 +41,7 @@ GlWidget::GlWidget(QWidget* parent) :
     mTimerUpdate->setInterval(1000 / 60);
     connect(mTimerUpdate, SIGNAL(timeout()), SLOT(slotUpdateView()));
 
-    setMinimumSize(320, 240);
+    setMinimumSize(640, 480);
     setFocusPolicy(Qt::ClickFocus);
 }
 
@@ -58,20 +58,20 @@ void GlWidget::initializeGL()
     // Initialize CUDA
     int numberOfCudaDevices;
     cudaGetDeviceCount(&numberOfCudaDevices);
-    Q_ASSERT(numberOfCudaDevices && "FlightPlannerParticles::slotInitialize(): No CUDA devices found, exiting.");
+    Q_ASSERT(numberOfCudaDevices && "GlWidget::initializeGL(): No CUDA devices found, exiting.");
 
     cudaError_t cudaError;
 
     int activeCudaDevice;
     cudaError = cudaGetDevice(&activeCudaDevice);
-    if(cudaError != cudaSuccess) qFatal("FlightPlannerParticles::slotInitialize(): couldn't get device: code %d: %s, exiting.", cudaError, cudaGetErrorString(cudaError));
+    if(cudaError != cudaSuccess) qFatal("GlWidget::initializeGL(): couldn't get device: code %d: %s, exiting.", cudaError, cudaGetErrorString(cudaError));
 
     // Necessary for OpenGL graphics interop: GlWidget and CUDA-based FlightPlanners have a close relationship because cudaGlSetGlDevice() needs to be called in GL context and before any other CUDA calls.
     cudaError = cudaGLSetGLDevice(activeCudaDevice);
-    if(cudaError != cudaSuccess) qFatal("FlightPlannerParticles::slotInitialize(): couldn't set device to GL interop mode: code %d: %s, exiting.", cudaError, cudaGetErrorString(cudaError));
+    if(cudaError != cudaSuccess) qFatal("GlWidget::initializeGL(): couldn't set device to GL interop mode: code %d: %s, exiting.", cudaError, cudaGetErrorString(cudaError));
 
     cudaError = cudaSetDeviceFlags(cudaDeviceMapHost);// in order for the cudaHostAllocMapped flag to have any effect
-    if(cudaError != cudaSuccess) qFatal("FlightPlannerParticles::slotInitialize(): couldn't set device flag: code %d: %s, exiting.", cudaError, cudaGetErrorString(cudaError));
+    if(cudaError != cudaSuccess) qFatal("GlWidget::initializeGL(): couldn't set device flag: code %d: %s, exiting.", cudaError, cudaGetErrorString(cudaError));
 
     cudaDeviceProp deviceProps;
     cudaGetDeviceProperties(&deviceProps, activeCudaDevice);
@@ -79,7 +79,7 @@ void GlWidget::initializeGL()
     size_t memTotal, memFree;
     cudaMemGetInfo(&memFree, &memTotal);
 
-    qDebug() << "FlightPlannerParticles::FlightPlannerParticles(): device" << deviceProps.name << "has compute capability" << deviceProps.major << deviceProps.minor << "and"
+    qDebug() << "GlWidget::initializeGL(): device" << deviceProps.name << "has compute capability" << deviceProps.major << deviceProps.minor << "and"
              << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free, has"
              << deviceProps.multiProcessorCount << "multiprocessors,"
              << (deviceProps.integrated ? "is" : "is NOT" ) << "integrated,"
@@ -230,7 +230,7 @@ void GlWidget::paintGL()
     if(mTimeOfLastRender.second() != currentTime.second())
     {
         // A second has passed!
-        qDebug() << "GlWidget::paintGL(): currently rendering at" << mFramesRenderedThisSecond << "fps.";
+//        qDebug() << "GlWidget::paintGL(): currently rendering at" << mFramesRenderedThisSecond << "fps.";
         mFramesRenderedThisSecond = 0;
     }
 

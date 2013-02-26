@@ -29,7 +29,7 @@ public:
         PlacementFillSky
     };
 
-    void update(const float deltaTime, quint8 *deviceGridMapOfWayPointPressure);
+    void update(quint8 *deviceGridMapOfWayPointPressure);
 
     Vector3i gridCells(const Grid& g)
     {
@@ -51,6 +51,7 @@ public slots:
     // (e.g. changing particleCount doesn't make sense, as we'd have to re-initialize). Maybe later.
     void slotSetSimulationParametersFromUi(const SimulationParameters* sp)
     {
+        mSimulationParameters->timeStepInner = sp->timeStepInner;
         mSimulationParameters->attraction = sp->attraction;
         mSimulationParameters->dampingMotion = sp->dampingMotion;
         mSimulationParameters->gravity = sp->gravity;
@@ -59,6 +60,7 @@ public slots:
         mSimulationParameters->spring = sp->spring;
         mSimulationParameters->velocityFactorCollisionBoundary = sp->velocityFactorCollisionBoundary;
         mSimulationParameters->velocityFactorCollisionParticle = sp->velocityFactorCollisionParticle;
+        mSimulationParameters->velocityFactorCollisionCollider = sp->velocityFactorCollisionCollider;
     }
 
     void slotSetParticleRadius(float);

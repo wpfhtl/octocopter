@@ -13,6 +13,9 @@
 
 #include <QDebug>
 
+// was 64
+#define KERNEL_LAUNCH_BLOCKSIZE 256
+
 void copyParametersToGpu(SimulationParameters *hostParams)
 {
     // Copy parameters to constant memory. This was synchronous once, I changed
@@ -21,7 +24,7 @@ void copyParametersToGpu(SimulationParameters *hostParams)
     cudaMemcpyToSymbol/*Async*/(params, hostParams, sizeof(SimulationParameters));
 }
 
-void integrateSystem(float *particlePositions, float *particleVelocities, uint8_t* gridWaypointPressure, float* particleCollisionPositions, float deltaTime, uint numParticles)
+void integrateSystem(float *particlePositions, float *particleVelocities, uint8_t* gridWaypointPressure, float* particleCollisionPositions, uint numParticles)
 {
 // old thrust version. Cannot write to the non-linear waypointpressure position when using thrust tuples.
 //    thrust::device_ptr<float4> d_pos4((float4*)pos);
@@ -37,7 +40,7 @@ void integrateSystem(float *particlePositions, float *particleVelocities, uint8_
     if(numParticles == 0) return;
 
     uint numThreads, numBlocks;
-    computeExecutionKernelGrid(numParticles, 256, numBlocks, numThreads);
+    computeExecutionKernelGrid(numParticles, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
 
     // execute the kernel
     integrateSystemD<<< numBlocks, numThreads >>>(
@@ -45,7 +48,6 @@ void integrateSystem(float *particlePositions, float *particleVelocities, uint8_
                                                     (float4*)particleVelocities,         // in/out: particle velocities
                                                     gridWaypointPressure,       // in/out: grid containing quint8-cells with waypoint-pressure values (80-255)
                                                     (float4*)particleCollisionPositions, // input:  particle positions
-                                                    deltaTime,
                                                     numParticles);
 
     // check if kernel invocation generated an error
@@ -62,7 +64,7 @@ void computeMappingFromGridCellToParticle(
     if(numParticles == 0) return;
 
     uint numThreads, numBlocks;
-    computeExecutionKernelGrid(numParticles, 256, numBlocks, numThreads);
+    computeExecutionKernelGrid(numParticles, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
 
     // execute the kernel
     computeMappingFromGridCellToParticleD<<< numBlocks, numThreads >>>(gridParticleHash,
@@ -92,7 +94,7 @@ void sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
     if(numParticles == 0) return;
 
     uint numThreads, numBlocks;
-    computeExecutionKernelGrid(numParticles, 256, numBlocks, numThreads);
+    computeExecutionKernelGrid(numParticles, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
 
 
 #if USE_TEX
@@ -124,6 +126,7 @@ void sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
 
 void collideParticlesWithParticlesAndColliders(
         float* newVel,              // output: The particle velocities
+        float *particlePosVbo,      // output: The w-component is changed whenever a particle has hit a collider. Used just for visualization.
         float* particleCollisionPositions,          // output: Every particle's position of last collision, or 0.0/0.0/0.0 if none occurred.
 
         float* particlePosSorted,   // input:  The particle positions, sorted by gridcell
@@ -141,20 +144,15 @@ void collideParticlesWithParticlesAndColliders(
         uint   numCells             // input:  Number of grid cells
         )
 {
-#if USE_TEX
-    cudaBindTexture(0, oldPosTex, sortedPos, numParticles*sizeof(float4));
-    cudaBindTexture(0, oldVelTex, sortedVel, numParticles*sizeof(float4));
-    cudaBindTexture(0, cellStartTex, cellStart, numCells*sizeof(uint));
-    cudaBindTexture(0, cellEndTex, cellEnd, numCells*sizeof(uint));
-#endif
 
     // thread per particle
     uint numThreads, numBlocks;
-    computeExecutionKernelGrid(numParticles, 64, numBlocks, numThreads);
+    computeExecutionKernelGrid(numParticles, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
 
     // execute the kernel
     collideParticlesWithParticlesAndCollidersD<<< numBlocks, numThreads >>>(
                                                                               (float4*)newVel,
+                                                                              (float4*)particlePosVbo,
                                                                               (float4*)particleCollisionPositions,
 
                                                                               (float4*)particlePosSorted,
@@ -172,13 +170,6 @@ void collideParticlesWithParticlesAndColliders(
 
     // check if kernel invocation generated an error
     cudaCheckSuccess("collideParticlesWithParticlesD");
-
-#if USE_TEX
-    cudaUnbindTexture(oldPosTex);
-    cudaUnbindTexture(oldVelTex);
-    cudaUnbindTexture(cellStartTex);
-    cudaUnbindTexture(cellEndTex);
-#endif
 }
 
 void sortGridOccupancyMap(uint *dGridParticleHash, uint *dGridParticleIndex, uint numParticles)
@@ -198,43 +189,26 @@ void fillGridMapCellWorldPositions(float* gridMapCellWorldPositions, uint numCel
 {
     // thread per cell
     uint numThreads, numBlocks;
-    computeExecutionKernelGrid(numCells, 64, numBlocks, numThreads);
+    computeExecutionKernelGrid(numCells, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
 
     fillGridMapCellWorldPositionsD<<< numBlocks, numThreads >>>(
                                                                   (float4*)gridMapCellWorldPositions,
                                                                   numCells);
 }
 
-void moveGridMapWayPointPressureValuesByWorldPositionOffset(quint8 *gridMapOfWayPointPressure, float* offset, unsigned int numberOfCells)
-{
-    // thread per cell
-    uint numThreads, numBlocks;
-    computeExecutionKernelGrid(1/*numberOfCells*/, 64, numBlocks, numThreads);
-
-    qDebug() << "kernel exec:" << numberOfCells << numBlocks << numThreads << offset[0] << offset[1] << offset[2];
-
-    moveGridMapWayPointPressureValuesByWorldPositionOffsetD<<< numBlocks, numThreads >>>(
-                                                                                           (uint8_t*)gridMapOfWayPointPressure,
-                                                                                           (float3*)offset,
-                                                                                           numberOfCells);
-    qDebug() << "kernel exec done, checking...";
-
-    cudaCheckSuccess("moveGridMapWayPointPressureValuesByWorldPositionOffset");
-}
-
 // Sort mDeviceGridMapWayPointPressureSorted => mDeviceGridMapCellWorldPositions according to the keys DESC
-void sortGridMapWayPointPressure(uint8_t* gridMapWayPointPressureSorted, float* gridMapCellWorldPositions, uint numCells, uint numWaypointsRequested)
+void sortGridMapWayPointPressure(float* gridMapWayPointPressureSorted, float* gridMapCellWorldPositions, uint numberOfCells, uint numWaypointsRequested)
 {
-    if(numCells > 0)
+    if(numberOfCells > 0)
     {
-        thrust::sort_by_key(thrust::device_ptr<uint8_t>(gridMapWayPointPressureSorted),             // KeysBeginning
-                            thrust::device_ptr<uint8_t>(gridMapWayPointPressureSorted + numCells),  // KeysEnd
+        thrust::sort_by_key(thrust::device_ptr<float>(gridMapWayPointPressureSorted),             // KeysBeginning
+                            thrust::device_ptr<float>(gridMapWayPointPressureSorted + numberOfCells),  // KeysEnd
                             thrust::device_ptr<float4>((float4*)gridMapCellWorldPositions),         // ValuesBeginning
-                            thrust::greater<int>());                                                // In descending order
+                            thrust::greater<float>());                                                // In descending order
 
         // Now we want to copy the waypointpressure-value for all requested waypoints from gridMapWayPointPressureSorted(quint8) to gridMapCellWorldPositions.w(float)
         thrust::device_ptr<float4>  d_cwp((float4*)gridMapCellWorldPositions);
-        thrust::device_ptr<uint8_t> d_wpp((uint8_t*)gridMapWayPointPressureSorted);
+        thrust::device_ptr<float> d_wpp((float*)gridMapWayPointPressureSorted);
 
         thrust::for_each(
                     thrust::make_zip_iterator(thrust::make_tuple(d_wpp, d_cwp)),
@@ -244,4 +218,71 @@ void sortGridMapWayPointPressure(uint8_t* gridMapWayPointPressureSorted, float* 
 
     // check if kernel invocation generated an error
     cudaCheckSuccess("sortGridMapWayPointPressure");
+}
+
+uint8_t getMaximumWaypointPressure(uint8_t* gridMapOfWayPointPressure, unsigned int numberOfCells)
+{
+    if(numberOfCells > 0)
+    {
+        thrust::device_ptr<uint8_t> result = thrust::max_element(
+                    thrust::device_ptr<uint8_t>(gridMapOfWayPointPressure),
+                    thrust::device_ptr<uint8_t>(gridMapOfWayPointPressure + numberOfCells));
+
+        // check if kernel invocation generated an error
+        cudaCheckSuccess("getMaximumWaypointPressure");
+
+        return *result;
+    }
+
+    return 0;
+}
+
+void decreaseWaypointPressure(uint8_t* gridMapOfWayPointPressure, unsigned int numberOfCells)
+{
+    if(numberOfCells > 0)
+    {
+
+        // in-place transformation
+        thrust::transform(thrust::device_ptr<uint8_t>(gridMapOfWayPointPressure),
+                          thrust::device_ptr<uint8_t>(gridMapOfWayPointPressure + numberOfCells),
+                          thrust::device_ptr<uint8_t>(gridMapOfWayPointPressure),
+                          functorDecreaseWaypointPressure());
+
+    }
+
+    // check if kernel invocation generated an error
+    cudaCheckSuccess("decreaseWaypointPressure");
+}
+
+void computeWaypointBenefit(float* gridMapOfWayPointPressureDst, uint8_t* gridMapOfWayPointPressureSrc, float* vehiclePosition, unsigned int numberOfCells)
+{
+    if(numberOfCells > 0)
+    {
+        //    thrust::device_ptr<float4> d_pos4((float4*)pos);
+        //    thrust::device_ptr<float4> d_vel4((float4*)vel);
+        //    thrust::device_ptr<float4> d_pcp4((float4*)particleCollisionPositions);
+        //    thrust::device_ptr<uint8_t> d_gwpp((uint8_t*)gridWaypointPressure);
+
+
+        thrust::counting_iterator<unsigned int> cellHash(0);
+        thrust::device_ptr<uint8_t> d_wpp_src(gridMapOfWayPointPressureSrc);
+        thrust::device_ptr<float> d_wpp_dst(gridMapOfWayPointPressureDst);
+
+        thrust::for_each(
+            thrust::make_zip_iterator(thrust::make_tuple(d_wpp_src, d_wpp_dst, cellHash)),
+            thrust::make_zip_iterator(thrust::make_tuple(d_wpp_src + numberOfCells, d_wpp_dst + numberOfCells, cellHash + numberOfCells)),
+            functorComputeWaypointBenefit(*((float3*)vehiclePosition)));
+
+        /*
+        // in-place transformation
+        thrust::transform(thrust::device_ptr<uint8_t>(gridMapOfWayPointPressureSrc),
+                          thrust::device_ptr<uint8_t>(gridMapOfWayPointPressureSrc + numberOfCells),
+                          thrust::device_ptr<uint8_t>(gridMapOfWayPointPressureDst),
+                          functorComputeWaypointBenefit((float3*)vehiclePosition));
+        */
+
+    }
+
+    // check if kernel invocation generated an error
+    cudaCheckSuccess("computeWaypointBenefit");
 }

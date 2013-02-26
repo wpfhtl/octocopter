@@ -62,19 +62,22 @@ void main()
 
     vec3 up = normalize(cross(toCamera, normalize(-right))) * waypointIndicatorRadius;
 
+    float alpha = min(1.0, waypointpressure[0] * 10);
+    //if(waypointpressure[0] > 0) alpha = 1.0;
+
     // bottom left
     posCenterOfCell -= right;
     posCenterOfCell -= up;
     gl_Position = matModelViewProjection * vec4(posCenterOfCell, 1.0);
     //texureCoordinate = vec2(-1.0, -1.0);
-    colorGS_to_FS = vec4(1.0, 0.0, 0.0, waypointpressure[0]);
+    colorGS_to_FS = vec4(1.0, 0.0, 0.0, alpha);
     EmitVertex();
 
     // top left
     posCenterOfCell += up*2;
     gl_Position = matModelViewProjection * vec4(posCenterOfCell, 1.0);
     //texureCoordinate = vec2(-1.0, 1.0);
-    colorGS_to_FS = vec4(1.0, 0.0, 0.0, waypointpressure[0]);
+    colorGS_to_FS = vec4(1.0, 0.0, 0.0, alpha);
     EmitVertex();
 
     // bottom right
@@ -82,14 +85,14 @@ void main()
     posCenterOfCell += right * 2;
     gl_Position = matModelViewProjection * vec4(posCenterOfCell, 1.0);
     //texureCoordinate = vec2(1.0, -1.0);
-    colorGS_to_FS = vec4(1.0, 0.0, 0.0, waypointpressure[0]);
+    colorGS_to_FS = vec4(1.0, 0.0, 0.0, alpha);
     EmitVertex();
 
     // top right
     posCenterOfCell += up*2;
     gl_Position = matModelViewProjection * vec4(posCenterOfCell, 1.0);
     //texureCoordinate = vec2(1.0, 1.0);
-    colorGS_to_FS = vec4(1.0, 0.0, 0.0, waypointpressure[0]);
+    colorGS_to_FS = vec4(1.0, 0.0, 0.0, alpha);
     EmitVertex();
 
     EndPrimitive();

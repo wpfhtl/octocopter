@@ -29,6 +29,8 @@ private:
 
     QVector3D mLastParticleSystemPositionToFollowVehicle;
 
+    QTimer mTimerProcessWaypointPressure;
+
     QList<WayPoint> mWayPointsGenerated, mWayPointsDetour;
 
     ParticleSystem* mParticleSystem;
@@ -50,17 +52,9 @@ private:
     // There is a gridmap of waypoint pressure on the GPU. To be useful for processing on the host, we first create a
     // list of QVector4D that corresponds to the cell's positions. Then, we sort the latter list using thrust::sort_by_key
     // (the key being the waypoint pressure) and receive a ranking of QVector4Ds. Hah!
-    float*  mDeviceGridMapWaypointPressureCellWorldPositions;
+    float* mDeviceGridMapWaypointPressureCellWorldPositions;
 
-    // We copy the waypoint pressure of the grid cells from the mVboGridMapOfWayPointPressure VBO to this pointer, then use
-    //
-    // thrust::sort_by_key(
-    //                      mDeviceGridMapWayPointPressureSorted.begin(),
-    //                      mDeviceGridMapWayPointPressureSorted.end(),
-    //                      mDeviceGridMapCellWorldPositions.begin(),
-    //                      operator>());
-
-    quint8* mDeviceGridMapWayPointPressureSorted;
+    float* mDeviceGridMapWayPointPressureToBeSorted;
     // A gridmap (same grid as always) containing values from 0 to 255. 0 means no waypoint candidates within, 255 means maximum waypoint pressure.
     unsigned int   mVboGridMapOfWayPointPressure;
     // Waypoint-pressure-values are stored in a VBO as 8bit-unsigned-ints
@@ -71,8 +65,11 @@ signals:
 
 private slots:
     void slotShowUserInterface();
-    void slotGenerateWaypoints();
+    void slotGenerateWaypoints(quint32 numberOfWaypointsToGenerate = 1);
     void slotDenseCloudInsertedPoints(PointCloud*const pointCloudSource, const quint32& firstPointToReadFromSrc, quint32 numberOfPointsToCopy);
+
+    // decreases waypoint pressure if highest pressure is higher than threshold
+    void slotProcessWaypointPressure(const quint8 threshold = 0);
 
 public slots:
     void slotSetScanVolume(const QVector3D min, const QVector3D max);

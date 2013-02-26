@@ -268,7 +268,7 @@ void FlightPlannerInterface::slotVisualize()
 
                 // Set particleRadius variable in the shader program
                 Q_ASSERT(glGetUniformLocation(mShaderProgramSpheres->programId(), "particleRadius") != -1);
-                glUniform1f(glGetUniformLocation(mShaderProgramSpheres->programId(), "particleRadius"), wpl->sphereSize);
+                glUniform1f(glGetUniformLocation(mShaderProgramSpheres->programId(), "particleRadius"), wpl->getSphereSize());
 
                 glBindBuffer(GL_ARRAY_BUFFER, wpl->vbo());
                 // Make the contents of this array available at layout position vertexShaderVertexIndex in the vertex shader

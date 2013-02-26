@@ -21,7 +21,12 @@ layout(std140) uniform GlobalValues
 
 void main()
 {
-    color = in_color;
+    //color = in_color;
 
-    gl_Position = in_position;
+    if(in_position.w > 1.05)
+      color = vec4(1.0, 0.0, 0.0, 1.0);
+    else
+      color = vec4(1.0, 1.0, 1.0, 0.3);
+
+    gl_Position = vec4(in_position.x, in_position.y, in_position.z, 1.0);
 }

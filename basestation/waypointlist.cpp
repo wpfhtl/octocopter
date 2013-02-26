@@ -6,7 +6,7 @@
 WayPointList::WayPointList()
 {
     mVbo = 0;
-    sphereSize = 1.0f;
+    mSphereSize = 1.0f;
 }
 
 WayPointList::WayPointList(const QColor& color)
@@ -14,8 +14,7 @@ WayPointList::WayPointList(const QColor& color)
     mVbo = 0;
     mColor = color;
     mWaypoints.clear();
-
-    sphereSize = 1.0f;
+    mSphereSize = 1.0f;
 }
 
 WayPointList::~WayPointList()
@@ -99,6 +98,8 @@ void WayPointList::sortToShortestPath(const QVector3D &vehiclePosition)
     }
 
     mWaypoints.takeFirst();
+
+    setVbo();
 
 //    float distanceAfter = 0;
 //    for(int i=1;i<mWaypoints.size();i++) distanceAfter += mWaypoints.at(i-1).distanceToLine(mWaypoints.at(i), QVector3D());

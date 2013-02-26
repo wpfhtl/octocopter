@@ -12,20 +12,23 @@ FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWidget *
     mDeviceGridMapWaypointPressureCellWorldPositions = 0;
 
     // register dense pointcloud for rendering. Might be moved to base class c'tor
-    mGlWidget->slotPointCloudRegister(mPointCloudDense);
+//    mGlWidget->slotPointCloudRegister(mPointCloudDense);
 
     mPointCloudColliders = new PointCloudCuda(
                 QVector3D(-32.0f, -4.0f, -32.0f),
                 QVector3D(32.0f, 60.0f, 32.0f),
-                256 * 1024);
+                512 * 1024);
 
-    mPointCloudColliders->setMinimumPointDistance(0.5f);
+    mPointCloudColliders->setMinimumPointDistance(0.6f);
 
     mPointCloudColliders->setColor(QColor(255,255,255,64));
 
     mGlWidget->slotPointCloudRegister(mPointCloudColliders);
 
-    mDialog = new FlightPlannerParticlesDialog(parentWidget);
+    mSimulationParameters.initialize();
+    mDialog = new FlightPlannerParticlesDialog(&mSimulationParameters, parentWidget);
+
+    connect(&mTimerProcessWaypointPressure, SIGNAL(timeout()), SLOT(slotProcessWaypointPressure()));
 }
 
 void FlightPlannerParticles::slotInitializeWaypointPressureGrid()
@@ -39,9 +42,8 @@ void FlightPlannerParticles::slotInitializeWaypointPressureGrid()
     cudaSafeCall(cudaMemset(mapGLBufferObject(&mCudaVboResourceGridMapOfWayPointPressure), 0, sizeof(quint8) * numberOfCellsInScanVolume));
     cudaSafeCall(cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfWayPointPressure, 0));
 
-    // Allocate the same size again for the same values. Here, they can be sorted in-place. Unfortunately, there is no thrust::sort_by_key()
-    // which would leave the keys (=mVboGridMapOfWayPointPressure) alone and just rearrange the values (=mDeviceGridMapCellWorldPositions).
-    cudaSafeCall(cudaMalloc((void**)&mDeviceGridMapWayPointPressureSorted, sizeof(quint8) * numberOfCellsInScanVolume));
+    // Allocate the same vector again for the same values, just sorted and ranked.
+    cudaSafeCall(cudaMalloc((void**)&mDeviceGridMapWayPointPressureToBeSorted, sizeof(float) * numberOfCellsInScanVolume));
 
     // Allocate a vector of float4 for the world-positions of the gridcell positions. These will be the values when sorting
     cudaSafeCall(cudaMalloc((void**)&mDeviceGridMapWaypointPressureCellWorldPositions, sizeof(float4) * numberOfCellsInScanVolume));
@@ -54,6 +56,7 @@ void FlightPlannerParticles::slotInitialize()
 {
     qDebug() << "FlightPlannerParticles::slotInitialize()";
 
+    mSimulationParameters.initialize();
     mSimulationParameters.gridWaypointPressure.cells = make_uint3(256, 32, 256);
     slotSetScanVolume(QVector3D(-64, -5, -64), QVector3D(64, 27, 64));
     slotInitializeWaypointPressureGrid();
@@ -85,7 +88,7 @@ void FlightPlannerParticles::slotInitialize()
                 Vector3i(mSimulationParameters.gridWaypointPressure.cells.x, mSimulationParameters.gridWaypointPressure.cells.y, mSimulationParameters.gridWaypointPressure.cells.z)
                 );
 
-    mParticleSystem->slotSetParticleCount(16384);
+    mParticleSystem->slotSetParticleCount(4096);
     mParticleSystem->slotSetParticleRadius(0.5f); // balance against mOctreeCollisionObjects.setMinimumPointDistance() above
     mParticleSystem->slotSetDefaultParticlePlacement(ParticleSystem::ParticlePlacement::PlacementFillSky);
 
@@ -110,7 +113,7 @@ void FlightPlannerParticles::slotShowUserInterface()
     mDialog->show();
 }
 
-void FlightPlannerParticles::slotGenerateWaypoints()
+void FlightPlannerParticles::slotGenerateWaypoints(quint32 numberOfWaypointsToGenerate)
 {
     if(mVboGridMapOfWayPointPressure == 0)
     {
@@ -123,22 +126,26 @@ void FlightPlannerParticles::slotGenerateWaypoints()
 
     // Copy waypoint pressure from VBO into mDeviceGridMapWayPointPressureSorted
     quint8* gridMapOfWayPointPressure = (quint8*)mapGLBufferObject(&mCudaVboResourceGridMapOfWayPointPressure);
-    cudaMemcpy(mDeviceGridMapWayPointPressureSorted, gridMapOfWayPointPressure, sizeof(quint8) * numberOfCells, cudaMemcpyDeviceToDevice);
+    // We should divide a cell's waypointpressure by its distance to the vehicle - this way, we get either close or valuable waypoints!
+    QVector3D vehiclePosition;
+    if(mVehiclePoses.size()) vehiclePosition = mVehiclePoses.last().getPosition();
+    computeWaypointBenefit(mDeviceGridMapWayPointPressureToBeSorted, gridMapOfWayPointPressure, (float*)&vehiclePosition, numberOfCells);
     cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfWayPointPressure, 0);
 
     // Fill mDeviceGridMapCellWorldPositions - this might be done only once and then copied lateron (just like the waypoint pressure above)
     fillGridMapCellWorldPositions(mDeviceGridMapWaypointPressureCellWorldPositions, numberOfCells);
 
     // Sort mDeviceGridMapWayPointPressureSorted => mDeviceGridMapCellWorldPositions according to the keys DESC
-    sortGridMapWayPointPressure(mDeviceGridMapWayPointPressureSorted, mDeviceGridMapWaypointPressureCellWorldPositions, numberOfCells, waypoints.size());
+    sortGridMapWayPointPressure(mDeviceGridMapWayPointPressureToBeSorted, mDeviceGridMapWaypointPressureCellWorldPositions, numberOfCells, waypoints.size());
 
     // Copy the @count cells with the highest waypoint pressure into @waypoints
     cudaMemcpy(waypoints.data(), mDeviceGridMapWaypointPressureCellWorldPositions, sizeof(QVector4D) * waypoints.size(), cudaMemcpyDeviceToHost);
 
-    WayPointList* const wpl = mWaypointListMap.value("ahead");
+    WayPointList* const wayPointStructure = mWaypointListMap.value("ahead");
+    QList<WayPoint>* waypointList = wayPointStructure->list();
 
     // Do we want to clear the old (but still pending) waypoints?
-    wpl->clear();
+    waypointList->clear();
 
     for(int i=0;i<waypoints.size();i++)
     {
@@ -146,24 +153,56 @@ void FlightPlannerParticles::slotGenerateWaypoints()
 
         // If we ask for more waypoints than cells with wp-pressure > 0.0, we'll get useless candidates!
         if(wp.w() > 0.1f)
-            wpl->append(WayPoint(wp.toVector3D() + QVector3D(0.0f, 5.0f, 0.0f), wp.w(), WayPoint::Purpose::SCAN));
+            waypointList->append(WayPoint(wp.toVector3D() + QVector3D(0.0f, 2.0f, 0.0f), wp.w(), WayPoint::Purpose::SCAN));
     }
 
-    qDebug() << "FlightPlannerParticles::slotGenerateWaypoints(): generated" << wpl->size() << "waypoints";
+    qDebug() << "FlightPlannerParticles::slotGenerateWaypoints(): generated" << waypointList->size() << "waypoints";
 
     // Merge waypoints if they're closer than X meters
-    wpl->mergeCloseWaypoints(10.0f);
+    wayPointStructure->mergeCloseWaypoints(10.0f);
+
+    // Reduce them to the desired number
+
+    while(waypointList->size() > numberOfWaypointsToGenerate)
+        waypointList->removeLast();
 
     // Sort them to the shortest path, honoring the vehicle's current location.
-    wpl->sortToShortestPath(getLastKnownVehiclePose().getPosition());
+    wayPointStructure->sortToShortestPath(getLastKnownVehiclePose().getPosition());
 
-    qDebug() << "FlightPlannerParticles::slotGenerateWaypoints(): after merging, there are" << wpl->size() << "waypoints left";
+    qDebug() << "FlightPlannerParticles::slotGenerateWaypoints(): after merging, there are" << wayPointStructure->size() << "waypoints left. Now stopping physics processing.";
 
     // Now that we've generated waypoints, we can deactivate the physics processing (and restart when only few waypoints are left)
     mDialog->setProcessPhysics(false);
 
-    emit wayPoints(wpl->list());
-    emit wayPointsSetOnRover(wpl->list());
+    emit wayPoints(wayPointStructure->list());
+    emit wayPointsSetOnRover(wayPointStructure->list());
+}
+
+// If the maximum waypointpressure is higher than threshold, it will generate new waypoints and decrease the pressure.
+void FlightPlannerParticles::slotProcessWaypointPressure(const quint8 threshold)
+{
+    if(mVboGridMapOfWayPointPressure == 0)
+    {
+        qDebug() << "FlightPlannerParticles::slotProcessWaypointPressure(): not initialized yet, returning.";
+        return;
+    }
+
+    const quint32 numberOfCells = mSimulationParameters.gridWaypointPressure.cellCount();
+
+    // Copy waypoint pressure from VBO into mDeviceGridMapWayPointPressureSorted
+    quint8* gridMapOfWayPointPressure = (quint8*)mapGLBufferObject(&mCudaVboResourceGridMapOfWayPointPressure);
+
+    const quint8 maxPressure = getMaximumWaypointPressure(gridMapOfWayPointPressure, numberOfCells);
+
+    if(maxPressure > threshold)
+    {
+        qDebug() << "FlightPlannerParticles::slotProcessWaypointPressure(): threshold is" << threshold << "- max pressure is" << maxPressure << ": generating waypoints.";
+        mTimerProcessWaypointPressure.stop();
+        slotGenerateWaypoints();
+        //decreaseWaypointPressure(gridMapOfWayPointPressure, numberOfCells);
+    }
+
+    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfWayPointPressure, 0);
 }
 
 void FlightPlannerParticles::slotCreateSafePathToNextWayPoint()
@@ -177,7 +216,7 @@ FlightPlannerParticles::~FlightPlannerParticles()
     delete mParticleSystem;
 
     cudaSafeCall(cudaFree(mDeviceGridMapWaypointPressureCellWorldPositions));
-    cudaSafeCall(cudaFree(mDeviceGridMapWayPointPressureSorted));
+    cudaSafeCall(cudaFree(mDeviceGridMapWayPointPressureToBeSorted));
     cudaSafeCall(cudaGraphicsUnregisterResource(mCudaVboResourceGridMapOfWayPointPressure));
     glDeleteBuffers(1, (const GLuint*)&mVboGridMapOfWayPointPressure);
 }
@@ -205,7 +244,10 @@ void FlightPlannerParticles::slotVisualize()
             // Provide the particle system a pointer to our waypoint-pressure-gridmap (in device address space)
             quint8 *deviceGridMapOfWayPointPressure = (quint8*)mapGLBufferObject(&mCudaVboResourceGridMapOfWayPointPressure);
 
-            mParticleSystem->update(0.1f, deviceGridMapOfWayPointPressure);
+            for(float timeStepped = 0.0f; timeStepped < mSimulationParameters.timeStepOuter; timeStepped += mSimulationParameters.timeStepInner)
+            {
+                mParticleSystem->update(deviceGridMapOfWayPointPressure);
+            }
 
             cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfWayPointPressure, 0);
         }
@@ -243,18 +285,24 @@ void FlightPlannerParticles::slotWayPointReached(const WayPoint wpt)
 {
     FlightPlannerInterface::slotWayPointReached(wpt);
 
-    // When only two waypoints are left, we want to clear the ParticleSystem's grid of wayppint pressure.
-    // This way, the particlesystem has the duration of the two remaining waypoints to create new waypoints
-    if(mWaypointListMap.value("ahead")->size() == 3)
+    // When no waypoints are left, start testing for water-leaks!
+    if(mWaypointListMap.value("ahead")->size() == 0)
     {
+        qDebug() << "FlightPlannerParticles::slotWayPointReached(): no waypoints left, restarting generation!";
+
+        // This will first copy points to collider (which will reduce), then reduce the dense cloud.
+        ((PointCloudCuda*)mPointCloudDense)->slotReduce();
+
         slotClearGridWayPointPressure();
+
         mDialog->setProcessPhysics(true);
+
         const Pose p = mVehiclePoses.last();
         slotVehiclePoseChanged(&p);
-    }
-    else if(mWaypointListMap.value("ahead")->size() == 1)
-    {
-        slotGenerateWaypoints();
+
+        mParticleSystem->slotResetParticles();
+
+        mTimerProcessWaypointPressure.start(10000);
     }
 }
 
@@ -264,7 +312,7 @@ void FlightPlannerParticles::slotVehiclePoseChanged(const Pose* const pose)
 
     if(!mDialog->processPhysics()) return;
 
-    // Move the particlesystem with the vehicle if so desired and the vehicle moved 5m
+    // Move the particlesystem with the vehicle if so desired and the vehicle moved X meters
     const QVector3D pos = pose->getPosition();
 
     if(mDialog->processPhysics() && mParticleSystem && mDialog->followVehicle() && pos.distanceToLine(mLastParticleSystemPositionToFollowVehicle, QVector3D()) > 20.0)
@@ -286,7 +334,7 @@ void FlightPlannerParticles::slotVehiclePoseChanged(const Pose* const pose)
 
         mParticleSystem->slotSetVolume(particleSystemInScanVolume.min, particleSystemInScanVolume.max);
 
-        mParticleSystem->slotResetParticles();
+//        mParticleSystem->slotResetParticles();
     }
 
     // check for collisions?!
@@ -340,8 +388,11 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloud*const point
     {
         // This is the first time that points were inserted - start the physics processing!
         mDialog->setProcessPhysics(true);
-
-        // After ten seconds, we want to extract waypoints from the pressure that builds up now!
-        QTimer::singleShot(10000, this, SLOT(slotGenerateWaypoints()));
+        mParticleSystem->slotResetParticles();
+        mTimerProcessWaypointPressure.start(10000);
+        //QTimer::singleShot(10000, this, SLOT(slotProcessWaypointPressure()));
     }
+
+    // In the future, we will update the collidercloud manually when generating new waypoints
+//    disconnect(mPointCloudDense, SIGNAL(pointsInserted(PointCloud*const,quint32,quint32)), this, SLOT(slotDenseCloudInsertedPoints(PointCloud*const,quint32,quint32)));
 }

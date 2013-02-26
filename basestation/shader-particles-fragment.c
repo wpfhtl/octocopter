@@ -55,7 +55,6 @@ void main()
 //float ndcDepth = clipPos.z / clipPos.w;
 //gl_FragDepth = ((gl_DepthRange.diff * ndcDepth) + gl_DepthRange.near + gl_DepthRange.far) / 2.0;
 
-
     if(useFixedColor)
     {
       fragColor = fixedColor * diffuse_value;
@@ -64,6 +63,6 @@ void main()
     else
     {
       fragColor = colorGS_to_FS * diffuse_value;
-      fragColor.w = 1.0;
+      //fragColor.w = 1.0;
     }
 }

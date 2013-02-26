@@ -95,7 +95,7 @@ public slots:
     virtual void slotWayPointReached(const WayPoint&);
 
     virtual void slotSetScanVolume(const QVector3D min, const QVector3D max);
-    virtual void slotGenerateWaypoints() = 0;
+    virtual void slotGenerateWaypoints(quint32 numberOfWaypointsToGenerate = 1) = 0;
     virtual void slotShowUserInterface() {}
     virtual void slotVisualize();
 

@@ -428,10 +428,22 @@ struct SnapToGridOp
     __host__ __device__
     float4 operator()(float4 a)
     {
-        return make_float4(
+        float3 newPosF = make_float3(
                     round(a.x * mMinDist.x) / mMinDist.x,
                     round(a.y * mMinDist.y) / mMinDist.y,
-                    round(a.z * mMinDist.z) / mMinDist.z,
+                    round(a.z * mMinDist.z) / mMinDist.z
+                    );
+
+        int3 newPosI;
+
+        newPosI.x = newPosF.x * 100.0f;
+        newPosI.y = newPosF.y * 100.0f;
+        newPosI.z = newPosF.z * 100.0f;
+
+        return make_float4(
+                    newPosI.x / 100.0f,
+                    newPosI.y / 100.0f,
+                    newPosI.z / 100.0f,
                     1.0f);
     }
 
@@ -447,7 +459,7 @@ struct closeToEachOther
     __host__ __device__
     bool operator()(float4 a, float4 b)
     {
-        return length(b-a) < 0.8f;
+        return (fabs(b.x - a.x) + fabs(b.y - a.y) + fabs(b.z - a.z)) < 0.2;asd
     }
 };
 
@@ -458,7 +470,7 @@ unsigned int snapToGridAndMakeUnique(float *devicePoints, unsigned int numPoints
     SnapToGridOp op(make_float3(minimumDistance, minimumDistance, minimumDistance));
     thrust::transform(thrust::device_ptr<float4>(points), thrust::device_ptr<float4>(points + numPoints), thrust::device_ptr<float4>(points), op);
 
-    const thrust::device_ptr<float4> newEnd = thrust::unique(thrust::device_ptr<float4>(points), thrust::device_ptr<float4>(points + numPoints)/*, closeToEachOther()*/);
+    const thrust::device_ptr<float4> newEnd = thrust::unique(thrust::device_ptr<float4>(points), thrust::device_ptr<float4>(points + numPoints), closeToEachOther());
     cudaCheckSuccess("snapToGridAndMakeUnique");
 
     return newEnd.get() - points;

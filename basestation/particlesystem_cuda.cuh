@@ -20,7 +20,6 @@ void integrateSystem(
         float*        vel,
         uint8_t*      gridWaypointPressure,
         float*        particleCollisionPositions,
-        float         deltaTime,
         unsigned int  numParticles);
 
 void computeMappingFromGridCellToParticle(
@@ -43,6 +42,7 @@ void sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
 
 void collideParticlesWithParticlesAndColliders(
         float*        newVel,
+        float*        particlePosVbo, // this is the VBO!
         float*        particleCollisionPositions,
 
         float*        particlePosSorted,
@@ -69,12 +69,22 @@ void fillGridMapCellWorldPositions(
         unsigned int numCells);
 
 void sortGridMapWayPointPressure(
-        uint8_t* gridMapWayPointPressureSorted,
+        float* gridMapWayPointPressureSorted,
         float* gridMapCellWorldPositions,
         unsigned int numCells,
         unsigned int numWaypointsRequested);
 
-void moveGridMapWayPointPressureValuesByWorldPositionOffset(
-        quint8* gridMapOfWayPointPressure,
-        float* offset,
+
+uint8_t getMaximumWaypointPressure(
+        uint8_t* gridMapOfWayPointPressure,
+        unsigned int numberOfCells);
+
+void decreaseWaypointPressure(
+        uint8_t* gridMapOfWayPointPressure,
+        unsigned int numberOfCells);
+
+void computeWaypointBenefit(
+        float* gridMapOfWayPointPressureDst,
+        uint8_t* gridMapOfWayPointPressureSrc,
+        float* vehiclePosition,
         unsigned int numberOfCells);

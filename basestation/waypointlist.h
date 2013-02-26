@@ -14,6 +14,7 @@ private:
     QList<WayPoint> mWaypoints;
     quint32 mVbo;
     QColor mColor;
+    float mSphereSize;
 
     void setVbo();
 
@@ -24,9 +25,9 @@ public:
 
     void mergeCloseWaypoints(const float minimumDistance);
 
-    float sphereSize;
+    float getSphereSize() const { return mSphereSize; }
 
-    const QList<WayPoint>* list() const {return &mWaypoints;}
+    QList<WayPoint>* list() {return &mWaypoints;}
     const quint32 vbo() const {return mVbo;}
     const QColor color() const {return mColor;}
 

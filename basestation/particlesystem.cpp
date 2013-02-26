@@ -1,5 +1,6 @@
 #include "particlesystem.h"
 #include "particlesystem_cuda.cuh"
+#include <thrust/version.h>
 
 #include <GL/glew.h>
 #include <cuda_gl_interop.h>
@@ -20,23 +21,13 @@ ParticleSystem::ParticleSystem(PointCloudCuda *const pointCloudDense, PointCloud
     mPointCloudDense(pointCloudDense),
     mPointCloudColliders(pointCloudColliders)
 {
+    qDebug() << "ParticleSystem::ParticleSystem(): using thrust version" << THRUST_MAJOR_VERSION << "." << THRUST_MINOR_VERSION;
+
     // Our collision cloud shouldn't contain points outside the bbox - that'd be a waste of resources
     mPointCloudColliders->setAcceptPointsOutsideBoundingBox(false);
 
     // set simulation parameters
     mSimulationParameters = simulationParameters;
-
-    mSimulationParameters->gridParticleSystem.worldMin = make_float3(-32.0f, -4.0f, -32.0f);
-    mSimulationParameters->gridParticleSystem.worldMax = make_float3(32.0f, 60.0f, 32.0f);
-    mSimulationParameters->gridParticleSystem.cells = make_uint3(64, 64, 64);
-    mSimulationParameters->particleCount = 16384;
-    mSimulationParameters->dampingMotion = 0.80f;                        // used only for integration
-    mSimulationParameters->velocityFactorCollisionParticle = 0.10f;
-    mSimulationParameters->velocityFactorCollisionBoundary = -0.5f;
-    mSimulationParameters->gravity = make_float3(0.0, -9.810f, 0.0f);
-    mSimulationParameters->spring = -0.8f;
-    mSimulationParameters->shear = 0.0f;
-    mSimulationParameters->attraction = -0.2f;
 
     setNullPointers();
 
@@ -58,6 +49,7 @@ void ParticleSystem::slotNewCollidersInserted()
 
 void ParticleSystem::setNullPointers()
 {
+    //return;
     mHostParticlePos = 0;
     mHostParticleVel = 0;
     mDeviceParticleVel = 0;
@@ -248,9 +240,9 @@ void ParticleSystem::initialize()
 
     copyParametersToGpu(mSimulationParameters);
 
-    slotResetParticles();
-
     mIsInitialized = true;
+
+    slotResetParticles();
 
     cudaSafeCall(cudaMemGetInfo(&memFree, &memTotal));
     qDebug() << "ParticleSystem::initialize(): after init, device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free.";
@@ -324,7 +316,7 @@ void ParticleSystem::colorRamp(float t, float *r)
 }
 
 // step the simulation
-void ParticleSystem::update(const float deltaTime, quint8 *deviceGridMapOfWayPointPressure)
+void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
 {
     if(mSimulationParameters->gridParticleSystem.worldMax.x == 0.0f) return;
 
@@ -349,7 +341,6 @@ void ParticleSystem::update(const float deltaTime, quint8 *deviceGridMapOfWayPoi
                 mDeviceParticleVel,                         // in/out: The particle velocities, unsorted
                 deviceGridMapOfWayPointPressure,            // output: A grid mapping the 3d-space to waypoint pressure. Cells with high values (255) should be visited for information gain.
                 mDeviceParticleCollisionPositions,          // input:  The particle's last collision position (or 0 if it didn't collide yet)
-                deltaTime,                                  // input:  Timestep to be used for integration
                 mSimulationParameters->particleCount         // input:  The number of particles
                 );
 
@@ -431,6 +422,7 @@ void ParticleSystem::update(const float deltaTime, quint8 *deviceGridMapOfWayPoi
     // process collisions between particles
     collideParticlesWithParticlesAndColliders(
                 mDeviceParticleVel,                         // output: The particle velocities
+                deviceParticlePositions,                    // output: The w-component is changed whenever a particle has hit a collider. Used just for visualization.
                 mDeviceParticleCollisionPositions,          // output: Every particle's position of last collision, or 0.0/0.0/0.0 if none occurred.
 
                 mDeviceParticleSortedPos,                   // input:  The particle positions, sorted by gridcell
@@ -515,6 +507,8 @@ inline float frand()
 
 void ParticleSystem::slotResetParticles()
 {
+    if(!mIsInitialized) return;
+
     // When re-setting particles, also reset their position of last collision!
     cudaSafeCall(cudaMemset(mDeviceParticleCollisionPositions, 0, mSimulationParameters->particleCount * 4 * sizeof(float)));
 

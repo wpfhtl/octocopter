@@ -206,7 +206,7 @@ bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint
 
 //    qDebug() << "PointCloudCuda::slotInsertPoints4():" << mName << "inserted" << numberOfPointsToAppend << "points, vbo elements:" << mVboInfo[0].size << "elements:" << mParameters.elementCount << "queue:" << mParameters.elementQueueCount;
 
-    reduce();
+    if(mParameters.elementQueueCount > mParameters.capacity / 100) slotReduce();
 
     return true;
 }
@@ -248,7 +248,8 @@ bool PointCloudCuda::slotInsertPoints(const VboInfo* const vboInfo, const quint3
     qDebug() << "PointCloudCuda::slotInsertPoints():" << mName << "copying" << numberOfPointsToAppend << "elements /" << vboInfo->elementSize * sizeof(float) * numberOfPointsToAppend << "bytes";
 
     const quint32 oldNumPoints = mVboInfo[0].size;
-    reduce();
+    if(mParameters.elementQueueCount > mParameters.capacity / 100) slotReduce();
+
     qDebug() << "PointCloudCuda::slotInsertPoints():" << mName << "reducing" << oldNumPoints << "to" << mParameters.elementCount << "points plus" << mParameters.elementQueueCount << "in queue.";
 
     return true;
@@ -270,6 +271,9 @@ void PointCloudCuda::slotInsertPoints(PointCloud *const pointCloudSource, const 
 
     quint32 numberOfPointsProcessedInSrc = 0;
     // We only fill our cloud up to 95% capacity. Otherwise, we'd have maaaany iterations filling it completely, then reducing to 99.99%, refilling, 99.991%, ...
+
+    qDebug() << "PointCloudCuda::slotInsertPoints(): current occupancy:" <<getNumberOfPoints() << "/" << mParameters.capacity << ": there are" << numberOfPointsToCopy << "to insert";
+
     while(mParameters.elementCount < mParameters.capacity * 0.95f && numberOfPointsProcessedInSrc < pointCloudSource->getNumberOfPoints() - firstPointToReadFromSrc && numberOfPointsProcessedInSrc < numberOfPointsToCopy)
     {
         const quint32 freeSpaceInDst = mParameters.capacity - mParameters.elementCount - mParameters.elementQueueCount;
@@ -280,7 +284,6 @@ void PointCloudCuda::slotInsertPoints(PointCloud *const pointCloudSource, const 
                         pointCloudSource->getNumberOfPoints() - numberOfPointsProcessedInSrc - firstPointToReadFromSrc), // points left in src
                     numberOfPointsToCopy - numberOfPointsProcessedInSrc // number of points left to copy
                     );
-
 
         qDebug() << "PointCloudCuda::slotInsertPoints():" << numberOfPointsProcessedInSrc << "points inserted from source, space left in dst:" << freeSpaceInDst << "- inserting" << numberOfPointsToCopyInThisIteration << "points from src.";
 
@@ -323,34 +326,31 @@ void PointCloudCuda::slotInsertPoints(PointCloud *const pointCloudSource, const 
     emit pointsInserted(this, numberOfPointsBeforeCopy, getNumberOfPoints() - numberOfPointsBeforeCopy);
 }
 
-bool PointCloudCuda::reduce()
+bool PointCloudCuda::slotReduce()
 {
-    if(mParameters.elementQueueCount > mParameters.capacity / 100)
-    {
-        // Tell others about our new points. In the future, emit only AFTER reduction, so we reduce not all points twice.
-        // But currently, our reduction does move points in our VBO almost randomly, so there is no guarantee that the
-        // new points are in some well-defined region of the buffer after reduction.
-        emit pointsInserted(this, mParameters.elementCount, mParameters.elementQueueCount);
+    // Tell others about our new points. In the future, emit only AFTER reduction, so we reduce not all points twice.
+    // But currently, our reduction does move points in our VBO almost randomly, so there is no guarantee that the
+    // new points are in some well-defined region of the buffer after reduction.
+    emit pointsInserted(this, mParameters.elementCount, mParameters.elementQueueCount);
 
-        float* devicePointsBase = (float*)mapGLBufferObject(&mCudaVboResource);
+    float* devicePointsBase = (float*)mapGLBufferObject(&mCudaVboResource);
 
-        quint32 numberOfQueuedPointsRemaining = snapToGridAndMakeUnique(devicePointsBase, mParameters.elementCount + mParameters.elementQueueCount, mParameters.minimumDistance);
+    quint32 numberOfQueuedPointsRemaining = snapToGridAndMakeUnique(devicePointsBase, mParameters.elementCount + mParameters.elementQueueCount, mParameters.minimumDistance);
 
-        // Append the remaining queued points
-        mParameters.elementQueueCount = 0;
-        mParameters.elementCount = numberOfQueuedPointsRemaining;
+    // Append the remaining queued points
+    mParameters.elementQueueCount = 0;
+    mParameters.elementCount = numberOfQueuedPointsRemaining;
 
-        cudaGraphicsUnmapResources(1, &mCudaVboResource, 0);
-    }
+    cudaGraphicsUnmapResources(1, &mCudaVboResource, 0);
 
     mVboInfo[0].size = mParameters.elementCount + mParameters.elementQueueCount;
 
     // If the cloud fills above 90%, thin it more by increasing minimumDistance
-    if(mVboInfo[0].size > mParameters.capacity * 0.9f)
+    /*if(mVboInfo[0].size > mParameters.capacity * 0.9f)
     {
         mParameters.minimumDistance *= 1.02;
-        qDebug() << "PointCloudCuda::reduce(): after reduction, cloud is at" << ((float)mVboInfo[0].size / mParameters.capacity) * 100.0f << "% capacity, increasing min-distance to" << mParameters.minimumDistance;
-    }
+        qDebug() << "PointCloudCuda::slotReduce(): after reduction, cloud is at" << ((float)mVboInfo[0].size / mParameters.capacity) * 100.0f << "% capacity, increasing min-distance to" << mParameters.minimumDistance;
+    }*/
 }
 
 quint32 PointCloudCuda::reduceAllPointsUsingCollisions()

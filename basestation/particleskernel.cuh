@@ -6,6 +6,7 @@
 
 #include <QVector3D>
 #include "vector_types.h"
+#include "vector_functions.h"
 
 // simulation parameters
 
@@ -60,13 +61,37 @@ struct SimulationParameters
     unsigned int colliderCountMax;
 
     float3 gravity;
+    float timeStepInner;
+    float timeStepOuter;
+    float colliderRadius;
     float particleRadius;
     float spring;
     float shear;
     float attraction;
     float dampingMotion;
     float velocityFactorCollisionParticle;
+    float velocityFactorCollisionCollider;
     float velocityFactorCollisionBoundary;
+
+    void initialize()
+    {
+        timeStepInner = 0.01f;
+        timeStepOuter = 0.20f;
+        gridParticleSystem.worldMin = make_float3(-32.0f, -4.0f, -32.0f);
+        gridParticleSystem.worldMax = make_float3(32.0f, 60.0f, 32.0f);
+        gridParticleSystem.cells = make_uint3(64, 64, 64);
+        particleRadius = 0.5f;
+        colliderRadius = 0.1f;
+        particleCount = 16384;
+        dampingMotion = 0.99f;      // used only for integration
+        velocityFactorCollisionCollider = 0.03f;
+        velocityFactorCollisionParticle = 0.03f;
+        velocityFactorCollisionBoundary = -0.5f;
+        gravity = make_float3(0.0, -9.810f, 0.0f);
+        spring = 0.5f;
+        shear = 0.0f;
+        attraction = 0.0f;
+    }
 };
 
 #endif

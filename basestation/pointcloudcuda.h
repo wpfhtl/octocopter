@@ -75,6 +75,9 @@ public:
     bool importFromPly(const QString& fileName, QWidget* widget = 0);
     bool exportToPly(const QString& fileName, QWidget* widget = 0) const;
 
+    // reduce the points if necessary. Use any method. A wrapper-method for all my recent attempts at reduction....
+    bool slotReduce();
+
 private:
     PointCloudParameters mParameters;
 
@@ -96,8 +99,7 @@ private:
 
     struct cudaGraphicsResource *mCudaVboResource; // handles OpenGL-CUDA exchange
 
-    // reduce the points if necessary. Use any method. A wrapper-method for all my recent attempts at reduction....
-    bool reduce();
+
 
     // reduces the queued points against themselves, then merges all points and reduces again. Thin wrapper around reducePoints()
     quint32 reduceAllPointsUsingCollisions();

@@ -18,7 +18,7 @@ private:
     SimulationParameters mSimulationParameters;
 
 public:
-    explicit FlightPlannerParticlesDialog(QWidget *parent = 0);
+    explicit FlightPlannerParticlesDialog(const SimulationParameters* const sp, QWidget *parent = 0);
     ~FlightPlannerParticlesDialog();
 
     SimulationParameters getSimulationParameters() const {return mSimulationParameters;}
@@ -32,6 +32,9 @@ public:
 
 private slots:
     void slotSimulationParametersChanged();
+
+public slots:
+    void slotSetInitialValues(const SimulationParameters* const sp);
 
 signals:
     void simulationParameters(const SimulationParameters*);
