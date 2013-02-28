@@ -27,12 +27,20 @@ public:
     struct VboInfo
     {
         quint32 vbo;
-        quint8 elementSize = 4; // number of floats, usually 3 or 4
-        QColor color = QColor(); // color to be used for rendering, invalid by default
-        quint32 size = 0; // the number of points
-        quint8 stride = 0; // stride between consecutive elements
+        quint8 elementSize; // number of floats, usually 3 or 4
+        QColor color; // color to be used for rendering, invalid by default
+        quint32 size; // the number of points
+        quint8 stride; // stride between consecutive elements
 
-        bool layoutMatches(const VboInfo* const otherVbo)
+        VboInfo()
+        {
+            elementSize = 4;
+            color = QColor();
+            size = 0;
+            stride = 0;
+        }
+
+        bool layoutMatches(const VboInfo* const otherVbo) const
         {
             return elementSize == otherVbo->elementSize && stride == otherVbo->stride;
         }

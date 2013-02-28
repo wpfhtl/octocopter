@@ -1,3 +1,5 @@
+#ifndef PARTICLESYSTEM_CUH
+#define PARTICLESYSTEM_CUH
 
 void copyArrayFromDevice(
         void*         host,
@@ -13,7 +15,7 @@ void copyArrayToDevice(
 
 void *mapGLBufferObject(struct cudaGraphicsResource **cuda_vbo_resource);
 
-void copyParametersToGpu(SimulationParameters *hostParams);
+void copyParametersToGpu(ParametersParticleSystem *hostParams);
 
 void integrateSystem(
         float*        pos,
@@ -21,24 +23,6 @@ void integrateSystem(
         uint8_t*      gridWaypointPressure,
         float*        particleCollisionPositions,
         unsigned int  numParticles);
-
-void computeMappingFromGridCellToParticle(
-        unsigned int* gridParticleHash,
-        unsigned int* gridParticleIndex,
-        float*        pos,
-        int           numParticles);
-
-void sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
-        unsigned int* cellStart,
-        unsigned int* cellEnd,
-        float*        sortedPos,
-        float*        sortedVel,
-        unsigned int* gridParticleHash,
-        unsigned int* gridParticleIndex,
-        float*        oldPos,
-        float*        oldVel,
-        unsigned int  numParticles,
-        unsigned int  numCells);
 
 void collideParticlesWithParticlesAndColliders(
         float*        newVel,
@@ -88,3 +72,5 @@ void computeWaypointBenefit(
         uint8_t* gridMapOfWayPointPressureSrc,
         float* vehiclePosition,
         unsigned int numberOfCells);
+
+#endif

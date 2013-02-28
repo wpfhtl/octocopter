@@ -1,6 +1,6 @@
 #include "flightplannerparticlesdialog.h"
 
-FlightPlannerParticlesDialog::FlightPlannerParticlesDialog(const SimulationParameters* const sp, QWidget *parent) :
+FlightPlannerParticlesDialog::FlightPlannerParticlesDialog(const ParametersParticleSystem* const sp, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::FlightPlannerParticlesDialog)
 {
@@ -34,7 +34,7 @@ FlightPlannerParticlesDialog::FlightPlannerParticlesDialog(const SimulationParam
     slotSetInitialValues(sp);
 }
 
-void FlightPlannerParticlesDialog::slotSetInitialValues(const SimulationParameters* const sp)
+void FlightPlannerParticlesDialog::slotSetInitialValues(const ParametersParticleSystem* const sp)
 {
     ui->mSpinBoxTimeStepInner->setValue(sp->timeStepInner);
     ui->mSpinBoxTimeStepOuter->setValue(sp->timeStepOuter);

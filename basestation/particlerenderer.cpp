@@ -112,11 +112,12 @@ void ParticleRenderer::render()
         glVertexAttribPointer(glGetAttribLocation(mShaderProgramParticles->programId(), "in_position"), 4, GL_FLOAT, GL_FALSE, 0, 0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+        /* colors abnd their VBO are currently unused
         glBindBuffer(GL_ARRAY_BUFFER, mVboParticleColors);
         Q_ASSERT(glGetAttribLocation(mShaderProgramParticles->programId(), "in_color") != -1);
         glEnableVertexAttribArray(glGetAttribLocation(mShaderProgramParticles->programId(), "in_color"));
         glVertexAttribPointer(glGetAttribLocation(mShaderProgramParticles->programId(), "in_color"), 4, GL_FLOAT, GL_FALSE, 0, 0);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);*/
 
         // Draw using shaders
         glDrawArrays(GL_POINTS, 0, mNumberOfParticles);

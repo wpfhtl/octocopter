@@ -9,7 +9,7 @@
 #include <QStringList>
 #include <QDebug>
 
-#ifdef BASESTATION
+#ifdef COMPILED_WITH_BULLET
   #include <bullet/btBulletDynamicsCommon.h>
 #endif
 

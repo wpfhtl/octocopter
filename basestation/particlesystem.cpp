@@ -1,11 +1,11 @@
+#include <GL/glew.h>
 #include "particlesystem.h"
-#include "particlesystem_cuda.cuh"
+#include "particlesystem.cuh"
 #include <thrust/version.h>
 
-#include <GL/glew.h>
 #include <cuda_gl_interop.h>
 #include <cuda_runtime_api.h>
-#include "cuda.h"
+#include "cudahelper.h"
 
 #include <assert.h>
 #include <math.h>
@@ -17,7 +17,7 @@
 #include <openglutilities.h>
 #include "pointcloudcuda.h"
 
-ParticleSystem::ParticleSystem(PointCloudCuda *const pointCloudDense, PointCloudCuda *const pointCloudColliders, SimulationParameters *const simulationParameters) :
+ParticleSystem::ParticleSystem(PointCloudCuda *const pointCloudDense, PointCloudCuda *const pointCloudColliders, ParametersParticleSystem *const simulationParameters) :
     mPointCloudDense(pointCloudDense),
     mPointCloudColliders(pointCloudColliders)
 {
@@ -116,7 +116,7 @@ void ParticleSystem::showCollisionPositions()
         {
             qDebug() << "last collision of particle" << i << "was in cell" <<
                         //getGridCellHash(mSimulationParameters->gridParticleSystem, getGridCellCoordinate(mSimulationParameters->gridParticleSystem, collisionPositionsHost[i].toVector3D())) << "at" << collisionPositionsHost[i];
-                        mSimulationParameters->gridParticleSystem.getCellHash(mSimulationParameters->gridParticleSystem.getCellCoordinate(collisionPositionsHost[i].toVector3D())) << "at" << collisionPositionsHost[i];
+                        mSimulationParameters->gridParticleSystem.getCellHash(mSimulationParameters->gridParticleSystem.getCellCoordinate(cudaConvert(collisionPositionsHost[i].toVector3D()))) << "at" << collisionPositionsHost[i];
         }
     }
 
@@ -137,7 +137,7 @@ void ParticleSystem::initialize()
 
     // Using less (larger) cells is possible, it means less memory being used fro the grid, but more search being done when searching for neighbors
     // because more particles now occupy a single grid cell. This might not hurt performance as long as we do not cross an unknown threshold (kernel swap size)?!
-    const QVector3D particleSystemWorldSize = mSimulationParameters->gridParticleSystem.getWorldSizeQt();
+    const QVector3D particleSystemWorldSize = cudaConvert(mSimulationParameters->gridParticleSystem.getWorldSize());
     mSimulationParameters->gridParticleSystem.cells.x = nextHigherPowerOfTwo((uint)ceil(particleSystemWorldSize.x() / (mSimulationParameters->particleRadius * 2.0f)))/* / 8.0*/;
     mSimulationParameters->gridParticleSystem.cells.y = nextHigherPowerOfTwo((uint)ceil(particleSystemWorldSize.y() / (mSimulationParameters->particleRadius * 2.0f)))/* / 8.0*/;
     mSimulationParameters->gridParticleSystem.cells.z = nextHigherPowerOfTwo((uint)ceil(particleSystemWorldSize.z() / (mSimulationParameters->particleRadius * 2.0f)))/* / 8.0*/;
@@ -235,7 +235,7 @@ void ParticleSystem::initialize()
     }
     glUnmapBufferARB(GL_ARRAY_BUFFER);
 
-    qDebug() << "ParticleSystem::initialize(): worldsize" << mSimulationParameters->gridParticleSystem.getWorldSizeQt() << "and particle radius" << mSimulationParameters->particleRadius << ": created system with" << mSimulationParameters->particleCount << "particles and" << mSimulationParameters->gridParticleSystem.cells.x << "*" << mSimulationParameters->gridParticleSystem.cells.y << "*" << mSimulationParameters->gridParticleSystem.cells.z << "cells";
+    qDebug() << "ParticleSystem::initialize(): worldsize" << cudaConvert(mSimulationParameters->gridParticleSystem.getWorldSize()) << "and particle radius" << mSimulationParameters->particleRadius << ": created system with" << mSimulationParameters->particleCount << "particles and" << mSimulationParameters->gridParticleSystem.cells.x << "*" << mSimulationParameters->gridParticleSystem.cells.y << "*" << mSimulationParameters->gridParticleSystem.cells.z << "cells";
     qDebug() << "ParticleSystem::initialize(): allocated" << mNumberOfBytesAllocatedCpu << "bytes on CPU," << mNumberOfBytesAllocatedGpu << "bytes on GPU.";
 
     copyParametersToGpu(mSimulationParameters);
@@ -288,11 +288,11 @@ ParticleSystem::~ParticleSystem()
 {
     if(mIsInitialized) freeResources();
 }
-
+/*
 inline float lerp(float a, float b, float t)
 {
     return a + t*(b-a);
-}
+}*/
 
 // create a color ramp
 void ParticleSystem::colorRamp(float t, float *r)
@@ -354,6 +354,7 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
                 mDeviceParticleMapGridCell,                 // output: The key - part of the particle gridcell->index map, unsorted
                 mDeviceParticleMapIndex,                    // output: The value-part of the particle gridcell->index map, unsorted
                 deviceParticlePositions,                    // input:  The particle positions after integration, unsorted and possibly colliding with other particles
+                &mSimulationParameters->gridParticleSystem,
                 mSimulationParameters->particleCount);       // input:  The number of particles, one thread per particle
 
 //    qDebug() << "ParticleSystem::update(): 3: computing particle spatial hash table finished at" << startTime.elapsed();
@@ -390,6 +391,7 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
                     mDeviceColliderMapGridCell,                 // output: The key - part of the collider gridcell->index map, unsorted
                     mDeviceColliderMapIndex,                    // output: The value-part of the collider gridcell->index map, unsorted
                     deviceColliderPositions,                    // input:  The collider positions (no integration), unsorted and possibly colliding with particles
+                    &mSimulationParameters->gridParticleSystem,
                     mPointCloudColliders->getVboInfo()[0].size  // input:  The number of colliders, one thread per particle
                     );
 
@@ -465,7 +467,7 @@ void ParticleSystem::slotSetParticleRadius(float radius)
     // which might break collisions. I'm not sure this really is a problem, though, need to investigate further.
     // If the particles are now so small that more than 4 can fit into a cell, re-create the grid with more cells
 
-    QVector3D cellSize = mSimulationParameters->gridParticleSystem.getCellSizeQt();
+    QVector3D cellSize = cudaConvert(mSimulationParameters->gridParticleSystem.getCellSize());
     const float shortestCellSide = std::min(std::min(cellSize.x(), cellSize.y()), cellSize.z());
     if(shortestCellSide > radius * 2.0f)
     {

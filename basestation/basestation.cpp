@@ -54,6 +54,9 @@ BaseStation::BaseStation() : QMainWindow()
     mPointCloud = new PointCloudCuda(QVector3D(-50, 0, -50), QVector3D(50, 20, 50)/*, 250000*/);
     connect(mGlWidget, SIGNAL(initializingInGlContext()), mPointCloud, SLOT(slotInitialize()));
 
+    // register dense pointcloud for rendering.
+    mGlWidget->slotPointCloudRegister(mPointCloud);
+
     // Choose your weapon!
 //    mFlightPlanner = new FlightPlannerCuda(this, mGlWidget, mPointCloud);
 //    mFlightPlanner = new FlightPlannerPhysics(this, mGlWidget, mPointCloud);
@@ -99,6 +102,7 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWidget, SLOT(slotUpdateView()));
 
     mMenuFile->addAction("Screenshot", mGlWidget, SLOT(slotSaveImage()));
+    mMenuView->addAction("Dense PointCloud", this, SLOT(slotToggleViewPointCloudDense()));
     mMenuView->addAction("ViewFromSide", mGlWidget, SLOT(slotViewFromSide()));
     mMenuView->addAction("ViewFromTop", mGlWidget, SLOT(slotViewFromTop()));
     mMenuView->addAction("Clear Trajectory", mFlightPlanner, SLOT(slotClearVehicleTrajectory()));
@@ -316,6 +320,9 @@ void BaseStation::slotImportCloud()
 
 void BaseStation::keyPressEvent(QKeyEvent* event)
 {
+    if(event->key() == Qt::Key_P)
+        slotToggleViewPointCloudDense();
+
     mGlWidget->keyPressEvent(event);
     mFlightPlanner->keyPressEvent(event);
 }

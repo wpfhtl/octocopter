@@ -7,7 +7,7 @@
 #include <QTime>
 
 #include "common.h"
-#include "cuda.h"
+#include "cudahelper.h"
 #include "vector_functions.h"
 #include "pointcloud.h"
 #include "pointcloudcuda.cuh"
@@ -26,6 +26,7 @@
 //
 // Deletion of single points is currently not implemented but could be done.
 
+
 class PointCloudCuda : public PointCloud
 {
     Q_OBJECT
@@ -42,27 +43,24 @@ public:
 
     void setBoundingBox(const QVector3D& min, const QVector3D& max)
     {
-        mBBoxMin = min;
-        mBBoxMax = max;
-        mParameters.bBoxMin = make_float3(min.x(), min.y(), min.z());
-        mParameters.bBoxMax = make_float3(max.x(), max.y(), max.z());
+        // We do not use the Base-Classes' mBBoxMin and mBBoxMax!
+        mParameters.grid.worldMin = make_float3(min.x(), min.y(), min.z());
+        mParameters.grid.worldMax = make_float3(max.x(), max.y(), max.z());
     }
 
     cudaGraphicsResource** getCudaGraphicsResource() { return &mCudaVboResource;}
 
     quint32 getNumberOfPoints(void) const
     {
-        Q_ASSERT(mParameters.elementCount + mParameters.elementQueueCount == mVboInfo[0].size);
-
         return mParameters.elementCount + mParameters.elementQueueCount;
     }
 
-//    void setGridSize(const quint16 x, const quint16 y, const quint16 z)
-//    {
-//        mParameters.gridSize.x = x;
-//        mParameters.gridSize.y = y;
-//        mParameters.gridSize.z = z;
-//    }
+    void setGridSize(const quint16 x, const quint16 y, const quint16 z)
+    {
+        mParameters.grid.cells.x = x;
+        mParameters.grid.cells.y = y;
+        mParameters.grid.cells.z = z;
+    }
 
     const QVector<VboInfo>& getVboInfo() const { return mVboInfo; }
 
@@ -79,14 +77,15 @@ public:
     bool slotReduce();
 
 private:
-    PointCloudParameters mParameters;
+    ParametersPointCloud mParameters;
 
     // The VBO pointing to the points. To be passed to GlWidget for rendering. We currently use just one VBO.
     QVector<VboInfo> mVboInfo;
 
     bool mIsInitialized;
 
-    float* mNewPoints;
+    float* mNewPointsBuffer;
+    quint32 mNewPointsBufferCursor;
 
     quint32 createVbo(quint32 size);
 
@@ -105,7 +104,8 @@ private:
     quint32 reduceAllPointsUsingCollisions();
     quint32 reduceUsingSnapToGrid(float *devicePoints = 0, quint32 numberOfPoints = 0); // will use given pointer instead of mapping (if != 0).
 
-    quint32 reduceUsingCellMean();
+    quint32 reduceToCellMean();
+    quint32 reduceToCellCenter();
 
     quint32 trimToBoundingBox();
 
@@ -113,7 +113,6 @@ private:
     quint32 reducePointRangeUsingCollisions(float *devicePoints, const quint32 numElements, const bool createBoundingBox);
 
     void freeResources();
-    void setNullPointers();
 
 public slots:
 
@@ -129,7 +128,6 @@ public slots:
     // deprecated! Uses OpenGl BufferCopy. Might be faster than CUDA-copy, but doesn't support filtering points in bbox
     bool slotInsertPoints(const VboInfo* const vboInfo, const quint32& firstPoint, const quint32& numPoints);
 
-public slots:
     void slotInitialize();
 
     // Clears the datastructure, but does not destruct it. Points can still be inserted afterwards.

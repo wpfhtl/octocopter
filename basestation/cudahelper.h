@@ -1,21 +1,18 @@
-#ifndef CUDA_COMMON_H
-#define CUDA_COMMON_H
+#ifndef CUDA_H
+#define CUDA_H
 
 // Fix for CUDA and gcc 4.7
 #undef _GLIBCXX_ATOMIC_BUILTINS
 #undef _GLIBCXX_USE_INT128
-
-//#include <cstdlib>
-//#include <cstdio>
-//#include <string.h>
 
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
 
 #include <QDebug>
+#include <QVector3D>
 
-//#define CUDA_ERROR_CHECK
+#define CUDA_ERROR_CHECK
 #define cudaSafeCall(err) __cudaSafeCall( err, __FILE__, __LINE__ )
 #define cudaCheckSuccess(src)  __cudaCheckSuccess( src, __FILE__, __LINE__ )
 
@@ -59,5 +56,8 @@ uint iDivUp(uint a, uint b);
 
 // compute grid and thread block size for a given number of elements
 void computeExecutionKernelGrid(uint n, uint blockSize, uint &numBlocks, uint &numThreads);
+
+QVector3D cudaConvert(const float3& p);
+float3 cudaConvert(const QVector3D& p);
 
 #endif

@@ -713,6 +713,11 @@ void GlWidget::slotPointCloudUnregister(PointCloud* p)
     mPointCloudsToRender.removeOne(p);
 }
 
+bool GlWidget::isPointCloudRegistered(PointCloud* p)
+{
+    return mPointCloudsToRender.contains(p);
+}
+
 void GlWidget::slotSetFlightControllerValues(const FlightControllerValues* const fcv)
 {
     mLastFlightControllerValues = fcv;

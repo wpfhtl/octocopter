@@ -24,6 +24,8 @@ uniform float particleRadius;
 
 void main()
 {
+    if(color[0].a == 0.0) return;
+
     //mat4 matModelViewProjection = matModelView * matProjection;
     //mat4 matModelViewProjection = matrixModelToCamera * matrixCameraToClip;
     mat4 matModelViewProjection = matrixCameraToClip * matrixModelToCamera;

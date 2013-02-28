@@ -6,7 +6,19 @@ PROJECT(basestation)
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} /usr/share/cmake/Modules/)
 
+FILE(GLOB_RECURSE CUDA_SRCS "*.cu")
+
 SET(SRC_FILES
+    #${CUDA_SRCS}
+
+    particlesystem.cu
+    pointcloudcuda.cu
+    grid.cu
+    cudahelper.cu
+    cudahelper.cpp
+
+    particlesystem
+    pointcloudcuda
     basestation
     audioplayer
     glwidget
@@ -28,8 +40,8 @@ SET(SRC_FILES
     controlwidget
     connectiondialog
     roverconnection
-    bulletdebugdrawergl
-    voxelmanager
+    #bulletdebugdrawergl
+    #voxelmanager
     shaderprogram
     ../common/motioncommand
     ../common/joystick
@@ -49,20 +61,11 @@ SET(SRC_FILES
     ../common/gnssstatus
     ../common/wirelessdevice
     ../common/vehiclestatus
-    particlesystem
-    particlesystem.cu
-    particlerenderer
-    #particleskernel.cu
-    #computefreecolumns.cu
 
+    particlerenderer
     pointcloud
     pointcloudoctree
     pointcloudoctreenode
-    pointcloudcuda.cpp
-    pointcloudcuda.cu
-
-    cuda.cpp
-
 )
 
 SET(TEST_SRC_FILES
@@ -71,19 +74,19 @@ SET(TEST_SRC_FILES
 )
 
 SET(INC_FILES
-    cuda.h
+    cudahelper.h
     pointcloud.h
-    pointcloudcuda.cuh
+    #pointcloudcuda.cuh
     pointcloudcuda.h
-    pointcloudcuda.cuh
+
+
     pointcloudoctree.h
     pointcloudoctreenode.h
 
+    #grid.cuh
     particlesystem.h
-    particlesystemcuda.cuh
-    particlerenderer.h
-    particleskernel.cuh
 
+    particlerenderer.h
     basestation.h
     audioplayer.h
     glwidget.h
@@ -105,8 +108,8 @@ SET(INC_FILES
     controlwidget.h
     connectiondialog.h
     roverconnection.h
-    bulletdebugdrawergl.h
-    voxelmanager.h
+    #bulletdebugdrawergl.h
+    #voxelmanager.h
     shaderprogram.h
     ../common/motioncommand.h
     ../common/joystick.h
@@ -142,14 +145,13 @@ SET(UI_FILES
 SET(RESOURCE_FILES
 )
 
-SET(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath BulletSoftBody)
-SET(BULLET_INCLUDES /usr/local/include/bullet/ /usr/include/bullet /usr/include/BulletCollision/BroadphaseCollision/ /usr/include/BulletCollision/CollisionDispatch)
+#SET(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath BulletSoftBody)
+#SET(BULLET_INCLUDES /usr/local/include/bullet/ /usr/include/bullet /usr/include/BulletCollision/BroadphaseCollision/ /usr/include/BulletCollision/CollisionDispatch)
 
 #"Sources" and "Headers" are the group names in Visual Studio.
 SOURCE_GROUP("Sources" FILES ${SRC_FILES})
 SOURCE_GROUP("Headers" FILES ${INC_FILES})
 
-# does not (yet) exist FIND_PACKAGE(BULLET)
 FIND_PACKAGE(Qt4)
 SET(QT_USE_QTGUI 1)
 SET(QT_USE_QTXML 1)
@@ -158,10 +160,58 @@ SET(QT_USE_QTNETWORK 1)
 SET(QT_USE_QTTEST 1)
 INCLUDE(${QT_USE_FILE})
 
-FIND_PACKAGE(CUDA)
+#FIND_PACKAGE(Bullet)
+IF(BULLET_FOUND)
+ ADD_DEFINITIONS(-DBASESTATION)
+ENDIF(BULLET_FOUND)
+
 FIND_PACKAGE(DevIL)
 Find_PACKAGE(SDL)
 Find_PACKAGE(SDL_mixer)
+FIND_PACKAGE(CUDA)
+
+
+#SET(CUDA_ATTACH_VS_BUILD_RULE_TO_CUDA_FILE ON)
+#SET(BUILD_SHARED_LIBS OFF)
+#SET(CUDA_SEPARABLE_COMPILATION ON)
+LIST(APPEND CUDA_NVCC_FLAGS -arch=sm_20)
+LIST(APPEND CUDA_NVCC_FLAGS --relocatable-device-code=true )
+#SET(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -arch=sm_20")
+
+
+
+
+
+# Compile the CUDA code to PTX. <my_target> is just a string used to set either the shared library flag <my_target>_EXPORTS and the generated file names' prefixes.
+#CUDA_WRAP_SRCS(CUDA_PTX PTX generated_ptx_files ${CUDA_SRCS})
+
+# FindCUDA doesn't look for ptxas, but you can do it yourself:
+#find_program(CUDA_PTXAS NAMES ptxas PATHS "${CUDA_TOOLKIT_ROOT_DIR}/bin")
+
+# Now set up the build rules to compile the PTX to CUBINs.
+#SET(generated_cubin_files)
+#FOREACH(ptx_file ${generated_ptx_files})
+    # You can get creative and use things like get_filename_component() to strip off the ptx from the filename.
+#    get_filename_component(PTX_NAME ${ptx_file} NAME_WE)
+#    set(generated_file "${PTX_NAME}.cubin")
+#    add_custom_command(
+#        OUTPUT ${generated_file}
+        # These output files depend on the source_file and the contents of cmake_dependency_file
+#        MAIN_DEPENDENCY "${ptx_file}"
+        # Here's the ptxas command
+#        COMMAND ${CUDA_PTXAS} --gpu-name compute_20 "${ptx_file}" -o "${generated_file}"
+#        COMMENT "Generating ${generated_file}"
+#    )
+
+#    LIST(APPEND generated_cubin_files "${generated_file}")
+#ENDFOREACH()
+
+#CUDA_ADD_LIBRARY(cudalib
+#    ${generated_cubin_files}
+#    OPTIONS -DSTUFF="blah blah"
+#    RELEASE -DNDEBUG
+#    DEBUG -g -DDEBUG
+#)
 
 ADD_DEFINITIONS(-std=c++0x -fpermissive)
 
@@ -173,14 +223,14 @@ SET(CMAKE_BUILD_TYPE "Debug")
 
 # Enable the Node LidarPoint::node member, in which a lidarpoint remembers in which node it is stored. Increases octree efficiency,
 # but also creates a dependency on "Node", which is otherwise unused in koptercontrol project
-ADD_DEFINITIONS(-DLIDARPOINT_KEEPS_PARENTNODE -DBASESTATION)
+ADD_DEFINITIONS(-DLIDARPOINT_KEEPS_PARENTNODE)
 ADD_SUBDIRECTORY(qserialdevice)
 INCLUDE_DIRECTORIES(/usr/include
                     /usr/local/include/
                     /usr/local/cuda/computing_sdk/CUDALibraries/common/inc/
                     /opt/cuda-sdk/CUDALibraries/common/inc/
                     ${CMAKE_CURRENT_SOURCE_DIR}/qserialdevice/src/qserialdevice
-                    ${BULLET_INCLUDES}
+                    ${BULLET_INCLUDE_DIRS}
                     ${IL_INCLUDE_DIR}
                     ${CMAKE_CURRENT_BINARY_DIR}
                     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -198,9 +248,9 @@ SET(LIBRARIES
     GLEW
     qserialdeviced
     assimp)
+
+#CUDA_ADD_EXECUTABLE(basestation ${SRC_FILES} main.cpp ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
 CUDA_ADD_EXECUTABLE(basestation ${SRC_FILES} main.cpp ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-#CUDA_ADD_EXECUTABLE(teststation ${SRC_FILES} ${TEST_SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
 SET_TARGET_PROPERTIES(basestation PROPERTIES AUTOMOC TRUE)
-#SET_TARGET_PROPERTIES(teststation PROPERTIES AUTOMOC TRUE)
+#ADD_DEPENDENCIES(basestation cudalib)
 TARGET_LINK_LIBRARIES(basestation ${LIBRARIES})
-#TARGET_LINK_LIBRARIES(teststation ${LIBRARIES})

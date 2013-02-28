@@ -2,7 +2,7 @@
 #define FLIGHTPLANNERPARTICLESDIALOG_H
 
 #include <QDialog>
-#include "particleskernel.cuh"
+#include "parametersparticlesystem.cuh"
 #include "ui_flightplannerparticlesdialog.h"
 
 namespace Ui {
@@ -15,13 +15,13 @@ class FlightPlannerParticlesDialog : public QDialog
 
 private:
     Ui::FlightPlannerParticlesDialog *ui;
-    SimulationParameters mSimulationParameters;
+    ParametersParticleSystem mSimulationParameters;
 
 public:
-    explicit FlightPlannerParticlesDialog(const SimulationParameters* const sp, QWidget *parent = 0);
+    explicit FlightPlannerParticlesDialog(const ParametersParticleSystem* const sp, QWidget *parent = 0);
     ~FlightPlannerParticlesDialog();
 
-    SimulationParameters getSimulationParameters() const {return mSimulationParameters;}
+    ParametersParticleSystem getSimulationParameters() const {return mSimulationParameters;}
 
     bool processPhysics() const {return ui->mChkBoxProcessPhysics->isChecked();}
     void setProcessPhysics(bool state) {ui->mChkBoxProcessPhysics->setChecked(state);}
@@ -34,10 +34,10 @@ private slots:
     void slotSimulationParametersChanged();
 
 public slots:
-    void slotSetInitialValues(const SimulationParameters* const sp);
+    void slotSetInitialValues(const ParametersParticleSystem* const sp);
 
 signals:
-    void simulationParameters(const SimulationParameters*);
+    void simulationParameters(const ParametersParticleSystem*);
 
     void processPhysicsChanged(bool);
     void followVehicleChanged(bool);

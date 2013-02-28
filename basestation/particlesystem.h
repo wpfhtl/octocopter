@@ -1,7 +1,7 @@
 #ifndef PARTICLESYSTEM_H
 #define PARTICLESYSTEM_H
 
-#include "particleskernel.cuh"
+#include "parametersparticlesystem.cuh"
 
 #include <QTime>
 #include <QDebug>
@@ -9,6 +9,7 @@
 #include <QVector4D>
 
 #include "common.h"
+#include "grid.cu"
 
 class PointCloudCuda;
 
@@ -19,7 +20,7 @@ class ParticleSystem : public QObject
     Q_OBJECT
 public:
     // Give it a pointer to the pointcloud to collide against
-    ParticleSystem(PointCloudCuda *const pointCloudDense, PointCloudCuda *const pointCloudColliders, SimulationParameters* const simulationParameters);
+    ParticleSystem(PointCloudCuda *const pointCloudDense, PointCloudCuda *const pointCloudColliders, ParametersParticleSystem* const simulationParameters);
     ~ParticleSystem();
 
     enum class ParticlePlacement
@@ -49,7 +50,7 @@ public slots:
 
     // The user changed some value sin the UI. Accept all fields from SimulationParameters that make sense
     // (e.g. changing particleCount doesn't make sense, as we'd have to re-initialize). Maybe later.
-    void slotSetSimulationParametersFromUi(const SimulationParameters* sp)
+    void slotSetSimulationParametersFromUi(const ParametersParticleSystem* sp)
     {
         mSimulationParameters->timeStepInner = sp->timeStepInner;
         mSimulationParameters->attraction = sp->attraction;
@@ -99,7 +100,7 @@ signals:
     void vboInfoParticles(quint32 vboPositions, quint32 vboColor, quint32 particleCount, QVector3D particleSystemWorldMin, QVector3D particleSystemWorldMax);
 
 protected:
-    SimulationParameters* mSimulationParameters;
+    ParametersParticleSystem* mSimulationParameters;
     // A pointer to the pointclouds holding the dense points and the colliders.
     PointCloudCuda *mPointCloudDense, *mPointCloudColliders;
 

@@ -84,6 +84,7 @@ public:
     GlWidget(QWidget* parent/*, FlightPlannerInterface* flightPlanner*/);
     void moveCamera(const QVector3D &pos);
     void keyPressEvent(QKeyEvent *event);
+    bool isPointCloudRegistered(PointCloud* p);
 
 protected:
     void initializeGL();

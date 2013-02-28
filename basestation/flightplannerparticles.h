@@ -46,7 +46,7 @@ private:
     void slotInitializeWaypointPressureGrid();
     void showWaypointPressure();
 
-    SimulationParameters mSimulationParameters;
+    ParametersParticleSystem mSimulationParameters;
 
 
     // There is a gridmap of waypoint pressure on the GPU. To be useful for processing on the host, we first create a
@@ -65,11 +65,11 @@ signals:
 
 private slots:
     void slotShowUserInterface();
-    void slotGenerateWaypoints(quint32 numberOfWaypointsToGenerate = 1);
+    void slotGenerateWaypoints(quint32 numberOfWaypointsToGenerate = 2);
     void slotDenseCloudInsertedPoints(PointCloud*const pointCloudSource, const quint32& firstPointToReadFromSrc, quint32 numberOfPointsToCopy);
 
-    // decreases waypoint pressure if highest pressure is higher than threshold
-    void slotProcessWaypointPressure(const quint8 threshold = 0);
+    // checks waypoint pressure and if higher than threshold, cals slotGenerateWaypoints();
+    void slotProcessWaypointPressure(const quint8 threshold = 10);
 
 public slots:
     void slotSetScanVolume(const QVector3D min, const QVector3D max);
@@ -91,7 +91,6 @@ public slots:
     void slotVehiclePoseChanged(const Pose *const pose);
 
     void slotVisualize();
-
 };
 
 #endif // FLIGHTPLANNERPARTICLES_H

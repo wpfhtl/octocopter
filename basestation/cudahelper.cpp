@@ -1,4 +1,4 @@
-#include "cuda.h"
+#include "cudahelper.h"
 
 void *mapGLBufferObject(struct cudaGraphicsResource **cuda_vbo_resource)
 {
@@ -30,3 +30,6 @@ void computeExecutionKernelGrid(uint n, uint blockSize, uint &numBlocks, uint &n
     numThreads = std::min(blockSize, n);
     numBlocks = iDivUp(n, numThreads);
 }
+
+QVector3D cudaConvert(const float3& p) { return QVector3D(p.x, p.y, p.z); }
+float3 cudaConvert(const QVector3D& p) { return make_float3(p.x(), p.y(), p.z()); }

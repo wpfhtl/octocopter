@@ -7,53 +7,29 @@
 
 PointCloudCuda::PointCloudCuda(const QVector3D &min, const QVector3D &max, const quint32 maximumElementCount) : PointCloud(min, max)
 {
-    mBBoxMin = min;
-    mBBoxMax = max;
-
     mIsInitialized = false;
 
     mVboInfo.append(VboInfo());
 
+    mParameters.initialize();
+    mParameters.grid.cells = make_uint3(1024, 64, 1024);
+    mParameters.minimumDistance = 0.02f;
+    mParameters.capacity = maximumElementCount;
+
     // This will be used to convert incoming points in formats other than float4 into the
     // right format. Here, we set the 4th component (w) to 1.0, because OpenGL needs it like that.
-    mNewPoints = (float*)malloc(sizeof(QVector4D) * 4096);
-    std::fill(mNewPoints + 0, mNewPoints + (4 * 4096), 1.0f);
+    mNewPointsBufferCursor = 0;
+    mNewPointsBuffer = (float*)malloc(sizeof(QVector4D) * 4096);
+    std::fill(mNewPointsBuffer + 0, mNewPointsBuffer + (4 * 4096), 1.0f);
 
-    mParameters.minimumDistance = 0.02f;//1.0f/8.0f;
-    mParameters.elementCount = 0;
-    mParameters.elementQueueCount = 0;
-//    mParameters.remainder = 0;
-    mParameters.capacity = maximumElementCount;
-    mParameters.bBoxMin = make_float3(mBBoxMin.x(), mBBoxMin.y(), mBBoxMin.z());
-    mParameters.bBoxMax = make_float3(mBBoxMax.x(), mBBoxMax.y(), mBBoxMax.z());
-/*
-    // The gridsize is a difficult topic:
-    //
-    // - if pointdiameter (=minimumDistance) is allowed to be larger than a gridcell in any dimension, then we cannot find
-    //   all neighbors by looking at the (3*3*3)-1 = 26 cells immediately neighboring this one.
-    //
-    // - as pointsize becomes smaller than a gridcell, we will have to search through more points for each cell,
-    //   possible slowing "sparsing" during insertion
-    //
-    // The memory requirement on the GPU is numberOfGridCells*8 bytes, so a 256*128*256 grid takes 64MB, while a
-    // 512*256*512 grid takes 512MB. Given we also want to store points and do a particle simulation, 64MB is plenty :|
-    //
-    // Assuming a worldsize of 100*50*100 meters and a minimumDistance between points of 0.02m, we'd have to have a
-    // gridCellEdgeLength of maximum 0.04m, giving 2500*1250*2500 = ~8 billion cells, which we might need to round up
-    // to powers-of-two, giving 4096*2048*4096 cells. Thats too much.
-    //
-    // We set the size here in the constructor, but allow it to be overwritten from the outside. For clouds with less
-    // points, less cells might also be ok.
-    mParameters.gridSize = make_uint3(256, 128, 256);
-*/
-    setNullPointers();
+    setBoundingBox(min, max);
 }
 
 PointCloudCuda::~PointCloudCuda()
 {
     if(mIsInitialized) freeResources();
 
-    free(mNewPoints);
+    free(mNewPointsBuffer);
 }
 
 void PointCloudCuda::slotInitialize()
@@ -62,7 +38,7 @@ void PointCloudCuda::slotInitialize()
 /*
     // ...and thats what we do here: in mDeviceCellStart[17], you'll find
     // where in mDeviceGridParticleHash cell 17 starts!
-    const unsigned int numberOfCells = mParameters.gridSize.x * mParameters.gridSize.y * mParameters.gridSize.z;
+    const quint32 numberOfCells = mParameters.grid.cellCount();
 
     cudaMalloc((void**)&mDeviceCellStart, numberOfCells*sizeof(uint));
     checkCudaSuccess("PointCloudCuda::slotInitialize(): memory allocation failed: cellStart");
@@ -137,21 +113,9 @@ void PointCloudCuda::freeResources()
     glDeleteBuffers(1, (const GLuint*)&mVboInfo[0].vbo);
     qDebug() << "PointCloudCuda::freeResources(): done freeing VBO";
 
-    setNullPointers();
-
     mIsInitialized = false;
 
     qDebug() << "PointCloudCuda::freeResources(): done.";
-}
-
-void PointCloudCuda::setNullPointers()
-{
-//    mDevicePointSortedPos= 0;
-//    mDeviceMapGridCell = 0;
-//    mDeviceMapPointIndex = 0;
-//    mDeviceCellStart = 0;
-//    mDeviceCellStopp = 0;
-    mVboInfo[0].vbo = 0;
 }
 
 bool PointCloudCuda::slotInsertPoints(const QVector<QVector3D>* const pointList)
@@ -168,7 +132,7 @@ bool PointCloudCuda::slotInsertPoints3(const float* const pointList, const quint
 {
     Q_ASSERT(numPoints < 4096); // max capacity of mNewPoints
 
-    float* val = mNewPoints;
+    float* val = mNewPointsBuffer + (mNewPointsBufferCursor * 4);
 
     for(int i=0;i<numPoints;i++)
     {
@@ -179,7 +143,18 @@ bool PointCloudCuda::slotInsertPoints3(const float* const pointList, const quint
         val++; // w is pre-set to 1.0 in c'tor, we don't touch it here.
     }
 
-    return slotInsertPoints4(mNewPoints, numPoints);
+    mNewPointsBufferCursor += numPoints;
+
+    if(mNewPointsBufferCursor > 3000)
+    {
+        slotInsertPoints4(mNewPointsBuffer, mNewPointsBufferCursor);
+        mNewPointsBufferCursor = 0;
+    }
+    else
+    {
+        // TODO: set up a qtimer to flush the buffer, just in case no new data comes in.
+    }
+
 }
 
 bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint32 numPoints)
@@ -301,8 +276,8 @@ void PointCloudCuda::slotInsertPoints(PointCloud *const pointCloudSource, const 
             mParameters.elementCount += copyPointsInBoundingBox(
                         devicePointsBaseDst + (getNumberOfPoints() * mVboInfo[0].elementSize),
                         devicePointsBaseSrc + ((firstPointToReadFromSrc + numberOfPointsProcessedInSrc) * mVboInfo[0].elementSize),
-                        mParameters.bBoxMin,
-                        mParameters.bBoxMax,
+                        mParameters.grid.worldMin,
+                        mParameters.grid.worldMax,
                         numberOfPointsToCopyInThisIteration);
         }
 
@@ -387,7 +362,54 @@ quint32 PointCloudCuda::reduceAllPointsUsingCollisions()
     return numberOfPointsRemaining;
 }
 
-quint32 PointCloudCuda::reduceUsingCellMean()
+
+
+
+
+
+
+
+
+
+quint32 PointCloudCuda::reduceToCellCenter()
+{
+    QTime time; time.start();
+
+    // We want to replace all points in a cell by the cell's center
+    float *devicePoints = (float*) mapGLBufferObject(&mCudaVboResource);
+
+    setPointCloudParameters(&mParameters);
+
+
+    // Unmap at end here to avoid unnecessary graphics/CUDA context switch.
+    // Once unmapped, the resource may not be accessed by CUDA until they
+    // are mapped again. This function provides the synchronization guarantee
+    // that any CUDA work issued  before ::cudaGraphicsUnmapResources()
+    // will complete before any subsequently issued graphics work begins.
+    cudaGraphicsUnmapResources(1, &mCudaVboResource, 0);
+
+    const quint32 numberOfPointsRemaining = 0;
+
+    // Append the remaining queued points
+    mParameters.elementCount = numberOfPointsRemaining;
+    mParameters.elementQueueCount = 0;
+
+    qDebug() << "PointCloudCuda::reduceToCellCenter(): reducing" << getNumberOfPoints() << "to" << numberOfPointsRemaining << "queued points took" << time.elapsed() << "ms";
+
+    return numberOfPointsRemaining;
+}
+
+
+
+
+
+
+
+
+
+
+
+quint32 PointCloudCuda::reduceToCellMean()
 {/*
     // We want to replace all points in a cell by their average position
     // First, we divide the whole pointcloud into cells, creatting very sparse clouds (as gridsize is limited and thus cellsize has a lower limit)
@@ -406,12 +428,12 @@ quint32 PointCloudCuda::reduceUsingCellMean()
              << bBoxMin.x << bBoxMin.y << bBoxMin.z << "to" << bBoxMax.x << bBoxMax.y << bBoxMax.z;
 
     // Define the new bounding box for all queued points
-    mParameters.bBoxMin = bBoxMin;
-    mParameters.bBoxMax = bBoxMax;
+    mParameters.grid.worldMin = bBoxMin;
+    mParameters.grid.worldMax = bBoxMax;
 
 
-//    mParameters.bBoxMin = make_float3(mBBoxMin.x(), mBBoxMin.y(), mBBoxMin.z());
-//    mParameters.bBoxMax = make_float3(mBBoxMax.x(), mBBoxMax.y(), mBBoxMax.z());
+//    mParameters.grid.worldMin = make_float3(mBBoxMin.x(), mBBoxMin.y(), mBBoxMin.z());
+//    mParameters.grid.worldMax = make_float3(mBBoxMax.x(), mBBoxMax.y(), mBBoxMax.z());
 
     mParameters.gridSize = make_uint3(512,32,512);
 
@@ -471,7 +493,7 @@ quint32 PointCloudCuda::trimToBoundingBox()
 
     // Reduce the queued points
 //    time.start();
-    quint32 numberOfPointsRemaining = removePointsOutsideBoundingBox(devicePointsBase, mParameters.elementCount + mParameters.elementQueueCount, mParameters.bBoxMin, mParameters.bBoxMax);
+    quint32 numberOfPointsRemaining = removePointsOutsideBoundingBox(devicePointsBase, mParameters.elementCount + mParameters.elementQueueCount, mParameters.grid.worldMin, mParameters.grid.worldMax);
 //    qDebug() << "PointCloudCuda::reduceUsingSnapToGrid(): reducing" << mParameters.elementCount + mParameters.elementQueueCount << "to" << numberOfQueuedPointsRemaining << "queued points (dist" << mParameters.minimumDistance << ") took" << time.elapsed() << "ms";
 
     // Append the remaining queued points
@@ -529,8 +551,8 @@ quint32 PointCloudCuda::reducePointRangeUsingCollisions(float* devicePoints, con
                  << bBoxMin.x << bBoxMin.y << bBoxMin.z << "to" << bBoxMax.x << bBoxMax.y << bBoxMax.z;
 
         // Define the new bounding box for all queued points
-        mParameters.bBoxMin = bBoxMin;
-        mParameters.bBoxMax = bBoxMax;
+        mParameters.grid.worldMin = bBoxMin;
+        mParameters.grid.worldMax = bBoxMax;
     }
 
     setPointCloudParameters(&mParameters);
@@ -574,8 +596,8 @@ quint32 PointCloudCuda::reducePointRangeUsingCollisions(float* devicePoints, con
     if(createBoundingBox)
     {
         // Re-set the bounding box back to the whole pointcloud, not just the queued points
-        mParameters.bBoxMin = make_float3(mBBoxMin.x(), mBBoxMin.y(), mBBoxMin.z());
-        mParameters.bBoxMax = make_float3(mBBoxMax.x(), mBBoxMax.y(), mBBoxMax.z());
+        mParameters.grid.worldMin = make_float3(mBBoxMin.x(), mBBoxMin.y(), mBBoxMin.z());
+        mParameters.grid.worldMax = make_float3(mBBoxMax.x(), mBBoxMax.y(), mBBoxMax.z());
     }
 
     return remainingElements;*/
