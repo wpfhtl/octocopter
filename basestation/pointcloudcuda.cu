@@ -10,7 +10,7 @@
 #include "cudahelper.cuh"
 #include "cudahelper.h"
 #include "pointcloudcuda.cuh"
-#include "pointcloudcuda.h"
+//#include "pointcloudcuda.h"
 #include "helper_math.h"
 
 #include "grid.cuh"

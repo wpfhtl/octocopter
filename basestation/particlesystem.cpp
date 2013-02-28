@@ -288,11 +288,11 @@ ParticleSystem::~ParticleSystem()
 {
     if(mIsInitialized) freeResources();
 }
-/*
+
 inline float lerp(float a, float b, float t)
 {
     return a + t*(b-a);
-}*/
+}
 
 // create a color ramp
 void ParticleSystem::colorRamp(float t, float *r)
@@ -335,14 +335,18 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
 
 //    qDebug() << "ParticleSystem::update(): 1: setting parameters finished at" << startTime.elapsed();
 
+    // Get a pointer to the "__constant__ ParametersParticleSystem parametersParticleSystem" on the device
+    ParametersParticleSystem* paramsParticleSystem;
+    getDeviceAddressOfParametersParticleSystem(&paramsParticleSystem);
+
     // Integrate
     integrateSystem(
                 deviceParticlePositions,                    // in/out: The particle positions, unsorted
                 mDeviceParticleVel,                         // in/out: The particle velocities, unsorted
                 deviceGridMapOfWayPointPressure,            // output: A grid mapping the 3d-space to waypoint pressure. Cells with high values (255) should be visited for information gain.
                 mDeviceParticleCollisionPositions,          // input:  The particle's last collision position (or 0 if it didn't collide yet)
-                mSimulationParameters->particleCount         // input:  The number of particles
-                );
+                paramsParticleSystem,                       // input:  The particle system's parameters
+                mSimulationParameters->particleCount);
 
 //    showWaypointPressure();
 
@@ -354,7 +358,7 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
                 mDeviceParticleMapGridCell,                 // output: The key - part of the particle gridcell->index map, unsorted
                 mDeviceParticleMapIndex,                    // output: The value-part of the particle gridcell->index map, unsorted
                 deviceParticlePositions,                    // input:  The particle positions after integration, unsorted and possibly colliding with other particles
-                &mSimulationParameters->gridParticleSystem,
+                &paramsParticleSystem->gridParticleSystem,
                 mSimulationParameters->particleCount);       // input:  The number of particles, one thread per particle
 
 //    qDebug() << "ParticleSystem::update(): 3: computing particle spatial hash table finished at" << startTime.elapsed();
@@ -377,7 +381,7 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
                 deviceParticlePositions,                    // input:  The particle-positions, unsorted
                 mDeviceParticleVel,                         // input:  The particle-velocities, unsorted
                 mSimulationParameters->particleCount,        // input:  The number of particles
-                mSimulationParameters->gridParticleSystem.cells.x * mSimulationParameters->gridParticleSystem.cells.y * mSimulationParameters->gridParticleSystem.cells.z  // input: Number of grid cells
+                mSimulationParameters->gridParticleSystem.cellCount()  // input: Number of grid cells
                 );
 
 //    qDebug() << "ParticleSystem::update(): 5: computing particle navigation tables and sorting particles finished at" << startTime.elapsed();
@@ -391,7 +395,7 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
                     mDeviceColliderMapGridCell,                 // output: The key - part of the collider gridcell->index map, unsorted
                     mDeviceColliderMapIndex,                    // output: The value-part of the collider gridcell->index map, unsorted
                     deviceColliderPositions,                    // input:  The collider positions (no integration), unsorted and possibly colliding with particles
-                    &mSimulationParameters->gridParticleSystem,
+                    &paramsParticleSystem->gridParticleSystem,
                     mPointCloudColliders->getVboInfo()[0].size  // input:  The number of colliders, one thread per particle
                     );
 

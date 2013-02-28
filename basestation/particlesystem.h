@@ -9,7 +9,7 @@
 #include <QVector4D>
 
 #include "common.h"
-#include "grid.cu"
+#include "grid.cuh"
 
 class PointCloudCuda;
 

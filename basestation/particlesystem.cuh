@@ -1,6 +1,8 @@
 #ifndef PARTICLESYSTEM_CUH
 #define PARTICLESYSTEM_CUH
 
+#include "parametersparticlesystem.cuh"
+
 void copyArrayFromDevice(
         void*         host,
         const void*   device,
@@ -17,11 +19,14 @@ void *mapGLBufferObject(struct cudaGraphicsResource **cuda_vbo_resource);
 
 void copyParametersToGpu(ParametersParticleSystem *hostParams);
 
+void getDeviceAddressOfParametersParticleSystem(ParametersParticleSystem** ptr);
+
 void integrateSystem(
         float*        pos,
         float*        vel,
         uint8_t*      gridWaypointPressure,
         float*        particleCollisionPositions,
+        const ParametersParticleSystem* const paramsParticleSystem,
         unsigned int  numParticles);
 
 void collideParticlesWithParticlesAndColliders(

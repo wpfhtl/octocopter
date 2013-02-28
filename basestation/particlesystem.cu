@@ -1,6 +1,6 @@
 // Fix for gcc 4.7
-#undef _GLIBCXX_ATOMIC_BUILTINS
-#undef _GLIBCXX_USE_INT128
+//#undef _GLIBCXX_ATOMIC_BUILTINS
+//#undef _GLIBCXX_USE_INT128
 
 #include "thrust/device_ptr.h"
 //#include "thrust/device_vector.h"
@@ -18,16 +18,20 @@
 
 #include <QDebug>
 
-
 // simulation parameters in constant memory
-__constant__ ParametersParticleSystem paramsSimulation;
+__constant__ ParametersParticleSystem parametersParticleSystem;
 
 void copyParametersToGpu(ParametersParticleSystem *hostParams)
 {
     // Copy parameters to constant memory. This was synchronous once, I changed
     // it to be asynchronous. Shouldn't cause any harm, even if parameters were
     // applied one frame too late.
-    cudaMemcpyToSymbol/*Async*/(paramsSimulation, hostParams, sizeof(ParametersParticleSystem));
+    cudaSafeCall(cudaMemcpyToSymbolAsync(parametersParticleSystem, hostParams, sizeof(ParametersParticleSystem)));
+}
+
+void getDeviceAddressOfParametersParticleSystem(ParametersParticleSystem** ptr)
+{
+    cudaSafeCall(cudaGetSymbolAddress((void**)ptr, parametersParticleSystem));
 }
 
 // Used to copy the waypoint pressure from a uint8_t vector to the w-components of the cell-position-float4-vector.
@@ -76,7 +80,7 @@ struct functorComputeWaypointBenefit
         //volatile uint8_t pressureDst = thrust::get<1>(t);
         volatile unsigned int cellHash = thrust::get<2>(t);
 
-        float3 cellPosition = paramsSimulation.gridWaypointPressure.getCellCenter(paramsSimulation.gridWaypointPressure.getCellCoordinate(cellHash));
+        float3 cellPosition = parametersParticleSystem.gridWaypointPressure.getCellCenter(parametersParticleSystem.gridWaypointPressure.getCellCoordinate(cellHash));
 
         float distance = length(cellPosition - vehiclePosition);
         distance = max(1.0f, distance);
@@ -94,26 +98,26 @@ void integrateSystemD(
         float4*         particleVelocities,         // in/out: particle velocities
         unsigned char*  gridWaypointPressure,       // in/out: grid containing quint8-cells with waypoint-pressure values (80-255)
         float4*         particleCollisionPositions, // input:  particle positions
-        uint            numParticles)
+        const ParametersParticleSystem* const params)                     // input:  the particle system's grid
 {
     const unsigned int index = getThreadIndex1D();
-    if(index >= numParticles) return;
+    if(index >= params->particleCount) return;
 
     float3 pos = make_float3(particlePositions[index].x, particlePositions[index].y, particlePositions[index].z);
     float3 vel = make_float3(particleVelocities[index].x, particleVelocities[index].y, particleVelocities[index].z);
 
-    vel += paramsSimulation.gravity * paramsSimulation.timeStepInner;
-    vel *= paramsSimulation.dampingMotion;
+    vel += params->gravity * params->timeStepInner;
+    vel *= params->dampingMotion;
 
     // If particle moves further than its radius in one iteration, it may slip through cracks that would be unpassable
     // in reality. To prevent this, do not move particles further than 0.9r in every timestemp
-    float3 movement = vel * paramsSimulation.timeStepInner;
-    float safeParticleRadius = paramsSimulation.particleRadius * 0.9f;
+    float3 movement = vel * params->timeStepInner;
+    float safeParticleRadius = params->particleRadius * 0.9f;
     float distance = length(movement);
     if(distance >= safeParticleRadius)
     {
         vel /= (distance / safeParticleRadius);
-        movement = vel * paramsSimulation.timeStepInner;
+        movement = vel * params->timeStepInner;
     }
 
     // new position = old position + velocity * params.timeStep
@@ -121,11 +125,11 @@ void integrateSystemD(
 
 #ifdef TRUE
     // particles bounce off the cube's inner sides
-    if(pos.x > paramsSimulation.gridParticleSystem.worldMax.x - paramsSimulation.particleRadius) { pos.x = paramsSimulation.gridParticleSystem.worldMax.x - paramsSimulation.particleRadius; vel.x *= paramsSimulation.velocityFactorCollisionBoundary;}
-    if(pos.x < paramsSimulation.gridParticleSystem.worldMin.x + paramsSimulation.particleRadius) { pos.x = paramsSimulation.gridParticleSystem.worldMin.x + paramsSimulation.particleRadius; vel.x *= paramsSimulation.velocityFactorCollisionBoundary;}
-    if(pos.z > paramsSimulation.gridParticleSystem.worldMax.z - paramsSimulation.particleRadius) { pos.z = paramsSimulation.gridParticleSystem.worldMax.z - paramsSimulation.particleRadius; vel.z *= paramsSimulation.velocityFactorCollisionBoundary;}
-    if(pos.z < paramsSimulation.gridParticleSystem.worldMin.z + paramsSimulation.particleRadius) { pos.z = paramsSimulation.gridParticleSystem.worldMin.z + paramsSimulation.particleRadius; vel.z *= paramsSimulation.velocityFactorCollisionBoundary;}
-    if(pos.y > paramsSimulation.gridParticleSystem.worldMax.y - paramsSimulation.particleRadius) { pos.y = paramsSimulation.gridParticleSystem.worldMax.y - paramsSimulation.particleRadius; vel.y *= paramsSimulation.velocityFactorCollisionBoundary;}
+    if(pos.x > params->gridParticleSystem.worldMax.x - params->particleRadius) { pos.x = params->gridParticleSystem.worldMax.x - params->particleRadius; vel.x *= params->velocityFactorCollisionBoundary;}
+    if(pos.x < params->gridParticleSystem.worldMin.x + params->particleRadius) { pos.x = params->gridParticleSystem.worldMin.x + params->particleRadius; vel.x *= params->velocityFactorCollisionBoundary;}
+    if(pos.z > params->gridParticleSystem.worldMax.z - params->particleRadius) { pos.z = params->gridParticleSystem.worldMax.z - params->particleRadius; vel.z *= params->velocityFactorCollisionBoundary;}
+    if(pos.z < params->gridParticleSystem.worldMin.z + params->particleRadius) { pos.z = params->gridParticleSystem.worldMin.z + params->particleRadius; vel.z *= params->velocityFactorCollisionBoundary;}
+    if(pos.y > params->gridParticleSystem.worldMax.y - params->particleRadius) { pos.y = params->gridParticleSystem.worldMax.y - params->particleRadius; vel.y *= params->velocityFactorCollisionBoundary;}
 
 //    if(pos.y < params.gridParticleSystem.worldMin.y + params.particleRadius) { pos.y = params.gridParticleSystem.worldMin.y + params.particleRadius; vel.y *= params.velocityFactorCollisionBoundary;}
 #else
@@ -141,10 +145,10 @@ void integrateSystemD(
     float pos_w = particlePositions[index].w;
 
     // special case: hitting bottom plane of bounding box
-    if(pos.y < paramsSimulation.gridParticleSystem.worldMin.y + paramsSimulation.particleRadius)
+    if(pos.y < params->gridParticleSystem.worldMin.y + params->particleRadius)
     {
         // put the particle back to the top, re-set velocity back to zero
-        pos.y = paramsSimulation.gridParticleSystem.worldMax.y - paramsSimulation.particleRadius;
+        pos.y = params->gridParticleSystem.worldMax.y - params->particleRadius;
         pos_w = 1.0f;
 
         // pcpData is the ParticleCollisionPosition, so a non-zero value means this particle has hit a collider and now reached the bottom.
@@ -155,8 +159,8 @@ void integrateSystemD(
         if(particleCollisionPositions[index].w > 0.5f)
         {
             // Find out in what cell the collision occured
-            uint hash = paramsSimulation.gridWaypointPressure.getCellHash(
-                        paramsSimulation.gridWaypointPressure.getCellCoordinate(
+            uint hash = params->gridWaypointPressure.getCellHash(
+                        params->gridWaypointPressure.getCellCoordinate(
                             lastCollisionPosition
                             )
                         );
@@ -206,7 +210,7 @@ float3 collideSpheres(
         // (distance - collisionDistance) will be negative by the amount of penetration.
         // The normal is pointing from the particle to the collider and has a length of 1.
         // Thus, params.spring should be > 0 to cause the particle to bounce away.
-        force = paramsSimulation.spring * (distance - collisionDistance) * normal;
+        force = parametersParticleSystem.spring * (distance - collisionDistance) * normal;
 
         // The dashpot/damping force. relVel is the velocity of the impact, so when
         // velocityFactorCollisionDashpot is positive, it would actually increase the
@@ -216,7 +220,7 @@ float3 collideSpheres(
         // The relative tangential velocity
         float3 tanVel = relVel - (dot(relVel, normal) * normal);
         // The tangential shear force
-        force += paramsSimulation.shear * tanVel;
+        force += parametersParticleSystem.shear * tanVel;
 
         // The attraction. When a particle hits eithe rparticle or collider, it can
         // either be attracted or repulsed. A positive value means attraction.
@@ -247,7 +251,7 @@ float3 collideCell(
         bool*   particleCollidedWithCollider = 0
         )
 {
-    uint gridHash = paramsSimulation.gridParticleSystem.getCellHash(gridCellToSearch);
+    uint gridHash = parametersParticleSystem.gridParticleSystem.getCellHash(gridCellToSearch);
 
     float3 forceCollisionsAgainstParticles = make_float3(0.0f);
 
@@ -271,12 +275,12 @@ float3 collideCell(
                 forceCollisionsAgainstParticles += collideSpheres(
                             particleToCollidePos,
                             particleToCollideVel,
-                            paramsSimulation.particleRadius,
+                            parametersParticleSystem.particleRadius,
                             posToCollideAgainst,
                             velToCollideAgainst,
-                            paramsSimulation.particleRadius,
-                            paramsSimulation.attraction,
-                            paramsSimulation.velocityFactorCollisionParticle,
+                            parametersParticleSystem.particleRadius,
+                            parametersParticleSystem.attraction,
+                            parametersParticleSystem.velocityFactorCollisionParticle,
                             0);
             }
         }
@@ -300,12 +304,12 @@ float3 collideCell(
             forceCollisionsAgainstColliders += collideSpheres(
                         particleToCollidePos,
                         particleToCollideVel,
-                        paramsSimulation.particleRadius,
+                        parametersParticleSystem.particleRadius,
                         posToCollideAgainst,
                         make_float3(0.0f),
-                        paramsSimulation.colliderRadius,
-                        paramsSimulation.attraction,
-                        paramsSimulation.velocityFactorCollisionCollider,
+                        parametersParticleSystem.colliderRadius,
+                        parametersParticleSystem.attraction,
+                        parametersParticleSystem.velocityFactorCollisionCollider,
                         particleCollidedWithCollider);
         }
     }
@@ -342,7 +346,7 @@ void collideParticlesWithParticlesAndCollidersD(
     float3 particleToCollideVel = make_float3(particleVelSorted[particleToCollideIndex]);
 
     // get grid-cell of particle
-    int3 particleToCollideGridCell = paramsSimulation.gridParticleSystem.getCellCoordinate(particleToCollidePos);
+    int3 particleToCollideGridCell = parametersParticleSystem.gridParticleSystem.getCellCoordinate(particleToCollidePos);
 
     // examine neighbouring cells
     float3 forceOnParticle = make_float3(0.0f);
@@ -422,14 +426,14 @@ void fillGridMapCellWorldPositionsD(
                 0.0f
                 );
 */
-    int3 cellCoordinate = paramsSimulation.gridWaypointPressure.getCellCoordinate(cellIndex);
-    float3 cellCenter = paramsSimulation.gridWaypointPressure.getCellCenter(cellCoordinate);
+    int3 cellCoordinate = parametersParticleSystem.gridWaypointPressure.getCellCoordinate(cellIndex);
+    float3 cellCenter = parametersParticleSystem.gridWaypointPressure.getCellCenter(cellCoordinate);
 
 
     gridMapCellWorldPositions[cellIndex] = make_float4(cellCenter, 0.0f);
 }
 
-void integrateSystem(float *particlePositions, float *particleVelocities, uint8_t* gridWaypointPressure, float* particleCollisionPositions, uint numParticles)
+void integrateSystem(float *particlePositions, float *particleVelocities, uint8_t* gridWaypointPressure, float* particleCollisionPositions, const ParametersParticleSystem* const params, uint numParticles)
 {
 // old thrust version. Cannot write to the non-linear waypointpressure position when using thrust tuples.
 //    thrust::device_ptr<float4> d_pos4((float4*)pos);
@@ -453,7 +457,7 @@ void integrateSystem(float *particlePositions, float *particleVelocities, uint8_
                                                     (float4*)particleVelocities,         // in/out: particle velocities
                                                     gridWaypointPressure,       // in/out: grid containing quint8-cells with waypoint-pressure values (80-255)
                                                     (float4*)particleCollisionPositions, // input:  particle positions
-                                                    numParticles);
+                                                    params);
 
     // check if kernel invocation generated an error
     cudaCheckSuccess("integrateSystem");

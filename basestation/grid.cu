@@ -8,9 +8,7 @@
 #include "cudahelper.cuh"
 #include "helper_math.h"
 
-#ifdef __CUDACC__
-
-__device__ float3 Grid::getWorldSize() const
+__host__ __device__ float3 Grid::getWorldSize() const
 {
     return make_float3(
                 worldMax.x - worldMin.x,
@@ -18,13 +16,13 @@ __device__ float3 Grid::getWorldSize() const
                 worldMax.z - worldMin.z);
 }
 
-__device__ float3 Grid::getWorldCenter() const
+__host__ __device__ float3 Grid::getWorldCenter() const
 {
     return make_float3(worldMin.x, worldMin.y, worldMin.z) + getWorldSize()/2.0f;
 }
 
 // Calculate a particle's hash value (=address in grid) from its containing cell (clamping to edges)
-__device__ unsigned int Grid::getCellHash(int3 gridCellCoordinate) const
+__host__ __device__ unsigned int Grid::getCellHash(int3 gridCellCoordinate) const
 {
     gridCellCoordinate.x = gridCellCoordinate.x & (cells.x-1);  // wrap grid, assumes size is power of 2
     gridCellCoordinate.y = gridCellCoordinate.y & (cells.y-1);
@@ -46,7 +44,7 @@ __host__ __device__ int3 Grid::getCellCoordinate(const unsigned int hash) const
     return cell;
 }
 
-__device__ int3 Grid::getCellCoordinate(const float3 &worldPos) const
+__host__ __device__ int3 Grid::getCellCoordinate(const float3 &worldPos) const
 {
     const float3 posRelativeToGridMin = worldPos - worldMin;
     const float3 cellSize = getCellSize();
@@ -60,7 +58,7 @@ __device__ int3 Grid::getCellCoordinate(const float3 &worldPos) const
     return cell;
 }
 
-__device__ float3 Grid::getCellCenter(const int3& gridCellCoordinate) const
+__host__ __device__ float3 Grid::getCellCenter(const int3& gridCellCoordinate) const
 {
     const float3 cellSize = getCellSize();
 
@@ -70,7 +68,7 @@ __device__ float3 Grid::getCellCenter(const int3& gridCellCoordinate) const
                 worldMin.z + (cellSize.z * gridCellCoordinate.z) + (cellSize.z / 2.0f)
                 );
 }
-__device__ float3 Grid::getCellSize() const
+__host__ __device__ float3 Grid::getCellSize() const
 {
     return make_float3(
                 (worldMax.x - worldMin.x) / cells.x,
@@ -85,7 +83,7 @@ void computeMappingFromGridCellToParticleD(
         uint*   gridParticleHash,  // output
         uint*   gridParticleIndex, // output
         float4* pos,               // input: particle positions
-        Grid*   grid,              // input: pointer to the grid being used
+        const Grid* const   grid,              // input: pointer to the grid being used
         uint    numParticles)
 {
     const unsigned int index = getThreadIndex1D();
@@ -190,7 +188,7 @@ void computeMappingFromGridCellToParticle(
         uint*  gridParticleHash,
         uint*  gridParticleIndex,
         float* pos,
-        Grid*  grid,
+        const Grid* const grid,
         int    numParticles)
 {
     if(numParticles == 0) return;
@@ -199,11 +197,13 @@ void computeMappingFromGridCellToParticle(
     computeExecutionKernelGrid(numParticles, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
 
     // execute the kernel
-    computeMappingFromGridCellToParticleD<<< numBlocks, numThreads >>>(gridParticleHash,
-                                           gridParticleIndex,
-                                           (float4 *) pos,
-                                           grid,
-                                           numParticles);
+    computeMappingFromGridCellToParticleD<<< numBlocks, numThreads >>>(
+                                                                         gridParticleHash,
+                                                                         gridParticleIndex,
+                                                                         (float4 *) pos,
+                                                                         grid,
+                                                                         numParticles
+                                                                         );
 
     // check if kernel invocation generated an error
     cudaCheckSuccess("computeMappingFromGridCellToParticleD");
@@ -245,7 +245,6 @@ void sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
 
     cudaCheckSuccess("sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArraysD");
 }
-#endif // __CUDACC__
 
 #if false
 QVector3D Grid::getWorldSizeQt() const
@@ -295,5 +294,4 @@ QVector3D Grid::getCellCenterQt(const int3& gridCellCoordinate) const
                 worldMin.z + (cellSize.z() * gridCellCoordinate.z) + (cellSize.z() / 2.0f)
                 );
 }
-
 #endif

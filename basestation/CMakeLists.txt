@@ -1,7 +1,5 @@
-# The name of our project is "SIMULATOR". CMakeLists files in this project can
-# refer to the root source directory of the project as ${SIMULATOR_SOURCE_DIR} and
-# to the root binary directory of the project as ${SIMULATOR_BINARY_DIR}.
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.6)
+# We need 2.8.10 and a FindCUDA from svn, so that separate compilation works.
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.10)
 PROJECT(basestation)
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} /usr/share/cmake/Modules/)
@@ -9,14 +7,10 @@ SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} /usr/share/cmake/Modules/)
 FILE(GLOB_RECURSE CUDA_SRCS "*.cu")
 
 SET(SRC_FILES
-    #${CUDA_SRCS}
+    ${CUDA_SRCS}
 
-    particlesystem.cu
-    pointcloudcuda.cu
-    grid.cu
-    cudahelper.cu
     cudahelper.cpp
-
+    main
     particlesystem
     pointcloudcuda
     basestation
@@ -41,7 +35,6 @@ SET(SRC_FILES
     connectiondialog
     roverconnection
     #bulletdebugdrawergl
-    #voxelmanager
     shaderprogram
     ../common/motioncommand
     ../common/joystick
@@ -61,7 +54,6 @@ SET(SRC_FILES
     ../common/gnssstatus
     ../common/wirelessdevice
     ../common/vehiclestatus
-
     particlerenderer
     pointcloud
     pointcloudoctree
@@ -76,16 +68,10 @@ SET(TEST_SRC_FILES
 SET(INC_FILES
     cudahelper.h
     pointcloud.h
-    #pointcloudcuda.cuh
     pointcloudcuda.h
-
-
     pointcloudoctree.h
     pointcloudoctreenode.h
-
-    #grid.cuh
     particlesystem.h
-
     particlerenderer.h
     basestation.h
     audioplayer.h
@@ -109,7 +95,6 @@ SET(INC_FILES
     connectiondialog.h
     roverconnection.h
     #bulletdebugdrawergl.h
-    #voxelmanager.h
     shaderprogram.h
     ../common/motioncommand.h
     ../common/joystick.h
@@ -145,9 +130,6 @@ SET(UI_FILES
 SET(RESOURCE_FILES
 )
 
-#SET(BULLET_LIBRARIES BulletDynamics BulletCollision LinearMath BulletSoftBody)
-#SET(BULLET_INCLUDES /usr/local/include/bullet/ /usr/include/bullet /usr/include/BulletCollision/BroadphaseCollision/ /usr/include/BulletCollision/CollisionDispatch)
-
 #"Sources" and "Headers" are the group names in Visual Studio.
 SOURCE_GROUP("Sources" FILES ${SRC_FILES})
 SOURCE_GROUP("Headers" FILES ${INC_FILES})
@@ -170,48 +152,7 @@ Find_PACKAGE(SDL)
 Find_PACKAGE(SDL_mixer)
 FIND_PACKAGE(CUDA)
 
-
-#SET(CUDA_ATTACH_VS_BUILD_RULE_TO_CUDA_FILE ON)
-#SET(BUILD_SHARED_LIBS OFF)
-#SET(CUDA_SEPARABLE_COMPILATION ON)
-LIST(APPEND CUDA_NVCC_FLAGS -arch=sm_20)
-LIST(APPEND CUDA_NVCC_FLAGS --relocatable-device-code=true )
-#SET(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -arch=sm_20")
-
-
-
-
-
-# Compile the CUDA code to PTX. <my_target> is just a string used to set either the shared library flag <my_target>_EXPORTS and the generated file names' prefixes.
-#CUDA_WRAP_SRCS(CUDA_PTX PTX generated_ptx_files ${CUDA_SRCS})
-
-# FindCUDA doesn't look for ptxas, but you can do it yourself:
-#find_program(CUDA_PTXAS NAMES ptxas PATHS "${CUDA_TOOLKIT_ROOT_DIR}/bin")
-
-# Now set up the build rules to compile the PTX to CUBINs.
-#SET(generated_cubin_files)
-#FOREACH(ptx_file ${generated_ptx_files})
-    # You can get creative and use things like get_filename_component() to strip off the ptx from the filename.
-#    get_filename_component(PTX_NAME ${ptx_file} NAME_WE)
-#    set(generated_file "${PTX_NAME}.cubin")
-#    add_custom_command(
-#        OUTPUT ${generated_file}
-        # These output files depend on the source_file and the contents of cmake_dependency_file
-#        MAIN_DEPENDENCY "${ptx_file}"
-        # Here's the ptxas command
-#        COMMAND ${CUDA_PTXAS} --gpu-name compute_20 "${ptx_file}" -o "${generated_file}"
-#        COMMENT "Generating ${generated_file}"
-#    )
-
-#    LIST(APPEND generated_cubin_files "${generated_file}")
-#ENDFOREACH()
-
-#CUDA_ADD_LIBRARY(cudalib
-#    ${generated_cubin_files}
-#    OPTIONS -DSTUFF="blah blah"
-#    RELEASE -DNDEBUG
-#    DEBUG -g -DDEBUG
-#)
+LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_20,code=sm_21)
 
 ADD_DEFINITIONS(-std=c++0x -fpermissive)
 
@@ -249,8 +190,11 @@ SET(LIBRARIES
     qserialdeviced
     assimp)
 
-#CUDA_ADD_EXECUTABLE(basestation ${SRC_FILES} main.cpp ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-CUDA_ADD_EXECUTABLE(basestation ${SRC_FILES} main.cpp ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
+SET(CUDA_SEPARABLE_COMPILATION ON)
+
+CUDA_ADD_EXECUTABLE(basestation
+    ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS}
+    OPTIONS -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_30,code=sm_30
+  )
 SET_TARGET_PROPERTIES(basestation PROPERTIES AUTOMOC TRUE)
-#ADD_DEPENDENCIES(basestation cudalib)
 TARGET_LINK_LIBRARIES(basestation ${LIBRARIES})
