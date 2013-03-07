@@ -14,7 +14,7 @@ SensorFuser::SensorFuser(const quint8& stridePoint, const quint8& strideScan) : 
     mNumberOfScansWithMissingGnssTimestamps = 0;
     mMaximumTimeOffsetBetweenScannerAndGnss = 12;
 
-    mRegisteredPoints = new float[1080 * 4];
+    mRegisteredPoints = new float[1080 * 3];
     mNumberOfPointsFusedInThisScan = 0;
 
     mBestInterpolationMethodToUse = InterpolationMethod::Linear;
@@ -105,9 +105,9 @@ void SensorFuser::fuseRayWithLastInterpolatedPose(const qint16 index, const floa
 
     const QVector3D p = mLastInterpolatedPose * vectorScannerToPoint;
 
-    mRegisteredPoints[mNumberOfPointsFusedInThisScan + 0] = p.x();
-    mRegisteredPoints[mNumberOfPointsFusedInThisScan + 1] = p.y();
-    mRegisteredPoints[mNumberOfPointsFusedInThisScan + 2] = p.z();
+    mRegisteredPoints[mNumberOfPointsFusedInThisScan * 3 + 0] = p.x();
+    mRegisteredPoints[mNumberOfPointsFusedInThisScan * 3 + 1] = p.y();
+    mRegisteredPoints[mNumberOfPointsFusedInThisScan * 3 + 2] = p.z();
 //    mRegisteredPoints[mNumberOfPointsFusedInThisScan + 3] = 1.0f;
     mNumberOfPointsFusedInThisScan++;
 
