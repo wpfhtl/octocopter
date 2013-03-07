@@ -319,7 +319,9 @@ void GnssDevice::slotDetermineSerialPortsOnDevice()
 
     if(mGnssDeviceIsConfigured)
     {
-        qDebug() << "GnssDevice::determineSerialPortOnDevice(): GNSS device is already configured, skipping configuration procedure.";
+        // We still need to ask for the time to set system and laserscanner clock
+        qDebug() << "GnssDevice::determineSerialPortOnDevice(): GNSS device is already configured, skipping configuration, asking for time.";
+        slotQueueCommand("exeSBFOnce,"+mSerialPortOnDeviceCom+",ReceiverTime");
         // slotSetPoseFrequency(true) is not needed, SBFParser will cause this method to be called when the data is precise.
     }
     else
@@ -509,7 +511,7 @@ void GnssDevice::slotSetPoseFrequency(bool highSpeed)
     if(highSpeed)
     {
         // Maybe use msec50 instead of msec20 to avoid RxError 64 (congestion on line)
-        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec20");
+        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec40");
     }
     else
     {
