@@ -1,0 +1,27 @@
+CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
+PROJECT(filewriter)
+
+SET(SRC_FILES
+filewriter
+filetowrite
+)
+
+SET(INC_FILES
+filewriter.h
+filetowrite.h
+)
+
+#"Sources" and "Headers" are the group names in Visual Studio.
+SOURCE_GROUP("Sources" FILES ${SRC_FILES})
+SOURCE_GROUP("Headers" FILES ${INC_FILES})
+
+FIND_PACKAGE(Qt4 COMPONENTS QtCore REQUIRED)
+
+INCLUDE(${QT_USE_FILE})
+QT4_WRAP_CPP(MOC_SRCS ${INC_FILES})
+
+SET(CMAKE_DEBUG_POSTFIX "_d")
+SET(CMAKE_BUILD_TYPE "Debug")
+
+ADD_EXECUTABLE(filewriter ${SRC_FILES} ${MOC_SRCS})
+TARGET_LINK_LIBRARIES(filewriter ${QT_LIBRARIES})
