@@ -9,6 +9,8 @@ FileWriter::FileWriter(int argc, char **argv) : QCoreApplication(argc, argv)
 
     // To write multiple files, specify how many bytes per interval shall be written
     // ./filewriter bytes1 interval1 [bytes2 interval2]
+    
+    if(commandLine.size() < 2) printUsage();
 
     qDebug() << "FileWriter::FileWriter(): startup, creating file writers...";
 
@@ -43,7 +45,8 @@ FileWriter::~FileWriter()
 
 void FileWriter::printUsage()
 {
-    qFatal("usage: ./filewriter bytes1 interval1 [bytes2 interval2]");
+    qDebug() << "usage: ./filewriter bytes1 interval1 [bytes2 interval2]";
+    QCoreApplication::quit();
 }
 
 int main(int argc, char **argv)
