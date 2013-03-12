@@ -1,4 +1,5 @@
 #include "filetowrite.h"
+#include <sys/time.h>
 
 FileToWrite::FileToWrite(const quint32 interval, const quint64 numBytes) : QObject()
 {
@@ -19,18 +20,25 @@ FileToWrite::FileToWrite(const quint32 interval, const quint64 numBytes) : QObje
 
 FileToWrite::~FileToWrite()
 {
-    qDebug() << "FileToWrite::~FileToWrite(): max write time for file" << mLogFile->fileName() << "was" << mMaxWriteTime << "ms.";
+    qDebug() << "FileToWrite::~FileToWrite(): wrote" << mLogFile->bytesWritten() << "bytes to" << mLogFile->fileName() << "max write time was" << mMaxWriteTime << "ms.";
     mTimer.stop();
     delete mLogFile;
 }
 
 void FileToWrite::slotWrite()
 {
-    QTime now;
-    now.start();
+    struct timeval time;
+
+    gettimeofday(&time, NULL);
+    const double tStart = time.tv_sec+(time.tv_usec/1000000.0);
+
     mLogFile->write(data, mNumBytes);
-    const quint32 elapsed = now.elapsed();
+
+    gettimeofday(&time, NULL);
+    const double tStop = time.tv_sec+(time.tv_usec/1000000.0);
+
+    const quint32 elapsed = (tStop-tStart)*1000000.0;
+
     mMaxWriteTime = std::max(elapsed, mMaxWriteTime);
-    if(elapsed > 0)
-        qDebug() << mLogFile->fileName() << "took:" << elapsed << "ms.";
+    if(elapsed > 0) qDebug() << mLogFile->fileName() << "took:" << elapsed << "ms.";
 }

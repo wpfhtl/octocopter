@@ -39,6 +39,7 @@ public:
     ~LogFile();
 
     QString fileName() const { return mLogFile->fileName();}
+    quint64 bytesWritten() const {return mBytesWritten; }
 
     void write(const char* data, const quint32 length);
     void write(const QByteArray* const data);
