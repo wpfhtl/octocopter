@@ -61,6 +61,8 @@ void MessageHandler::handleMessage(QtMsgType type, const char *msg)
 
     // Don't use endl, as that would flush the line/file to sd-card, which is sloooooow
     (*mMasterLogStream) << tow << ' ' << msg << '\n';
+    mMasterLogStream->flush();
+    mMasterLogStream->seek(0);
     mMasterLogFile->write(mLogMessage);
     mLogMessage->clear();
 

@@ -24,7 +24,6 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
     qDebug() << "GnssDevice::GnssDevice(): Using usb port" << serialDeviceFileUsb << "and com port" << serialDeviceFileCom;
 
     mLogFileSbf = new LogFile(logFilePrefix + QString("gnssdata.sbf"), LogFile::Encoding::Binary);
-
     mLogFileCmd = new LogFile(logFilePrefix + QString("gnsscommands.txt"), LogFile::Encoding::Text);
 
     mSbfParser = new SbfParser;
@@ -130,6 +129,7 @@ quint8 GnssDevice::slotFlushCommandQueue()
         commandLog << '\n' << '\n' << "################################################################################" << '\n' << '\n';
         commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << "HOST ->" << mSerialPortOnDeviceUsb << ":" << mLastCommandToGnssDevice[mSerialPortOnDeviceUsb] << '\n';
         commandLog << "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" << '\n' << '\n';
+        commandLog.flush();
         mLogFileCmd->write(text);
     }
     else if(!mLastCommandToGnssDevice[mSerialPortOnDeviceUsb].isEmpty())
@@ -576,6 +576,7 @@ bool GnssDevice::parseCommandReply(const QString& portNameOnDevice, QByteArray* 
             QTextStream commandLog(&text);
             commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << portNameOnDevice << "-> HOST: " << commandReply.trimmed() << '\n';
             commandLog << '\n' << "################################################################################" << '\n' << '\n' << '\n' << '\n';
+            commandLog.flush();
             mLogFileCmd->write(text);
 
             if(commandReply.contains("$R? ASCII commands between prompts were discarded!"))

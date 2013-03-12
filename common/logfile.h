@@ -29,7 +29,7 @@ class LogFile : public QObject
 
     QFuture<void> mFuture;
     QFile* mLogFile;
-    QByteArray *mBuffer, *mBufferCopy;
+    QByteArray *mBuffer, *mBufferBeingFlushed;
     QTime mTimeOfLastWrite;
     QTimer mTimer;
     quint64 mBytesWritten;
