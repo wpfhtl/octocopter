@@ -40,5 +40,5 @@ void FileToWrite::slotWrite()
     const quint32 elapsed = (tStop-tStart)*1000000.0;
 
     mMaxWriteTime = std::max(elapsed, mMaxWriteTime);
-    if(elapsed > 0) qDebug() << mLogFile->fileName() << "took:" << elapsed << "ms.";
+    //if(elapsed > 0) qDebug() << mLogFile->fileName() << "took:" << elapsed << "ms.";
 }
