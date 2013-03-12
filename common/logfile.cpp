@@ -83,7 +83,8 @@ void LogFile::slotCheckFlush()
         else
         {
             // As QDebug() is re-routed to a LogFile, this can cause and endless loop!
-            qDebug() << "LogFile::slotCheckFlush(): couldn't flush" << mBuffer->size() << "bytes into" << mLogFile->fileName() << "because flush() is still running!";
+            //qDebug() << "LogFile::slotCheckFlush(): couldn't flush" << mBuffer->size() << "bytes into" << mLogFile->fileName() << "because flush() is still running!";
+            printf(".");
         }
     }
     else
