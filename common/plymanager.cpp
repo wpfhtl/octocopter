@@ -175,7 +175,7 @@ void PlyManager::loadPly4D(float* points, const quint32 startPoint, const quint3
 #endif
                     points[numberOfVerticesProcessed*4 + 3] = 1.0;
                     numberOfVerticesProcessed++;
-                    if(mProgressDialog) mProgressDialog->setValue(numberOfVerticesProcessed);
+                    if(mProgressDialog && numberOfVerticesProcessed % 20000 == 0) mProgressDialog->setValue(numberOfVerticesProcessed);
                 }
             }
         }
