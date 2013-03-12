@@ -10,7 +10,7 @@ FileToWrite::FileToWrite(const quint32 interval, const quint64 numBytes) : QObje
     data = new char[numBytes];
     memset(data, 0, numBytes);
 
-    mLogFile = new LogFile(QString("%1 bytes every %2 ms").arg(mNumBytes).arg(interval), LogFile::Encoding::Text);
+    mLogFile = new LogFile(QString("%1 bytes every %2 ms.tst").arg(mNumBytes).arg(interval), LogFile::Encoding::Text);
 
     connect(&mTimer, SIGNAL(timeout()), SLOT(slotWrite()));
     mTimer.start(interval);
@@ -20,7 +20,7 @@ FileToWrite::FileToWrite(const quint32 interval, const quint64 numBytes) : QObje
 
 FileToWrite::~FileToWrite()
 {
-    qDebug() << "FileToWrite::~FileToWrite(): wrote" << mLogFile->bytesWritten() << "bytes to" << mLogFile->fileName() << "max write time was" << mMaxWriteTime << "ms.";
+    qDebug() << "FileToWrite::~FileToWrite(): wrote" << mLogFile->bytesWritten() << "bytes to" << mLogFile->fileName() << "max write time was" << mMaxWriteTime << "usec.";
     mTimer.stop();
     delete mLogFile;
 }
