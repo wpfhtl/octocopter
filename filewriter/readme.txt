@@ -7,3 +7,5 @@ flightc:  13kb/s alle  50ms   650 byte
 gnsscmd:   1kb/s alle 100ms   100 byte
 gnsssbf:  10kb/s alle  20ms   200 byte
 scanner:  45kb/s alle  25ms 10000 byte
+
+./filewriter 80 20 650 50 100 100 200 20 10000 25

@@ -9,30 +9,28 @@ FileToWrite::FileToWrite(const quint32 interval, const quint64 numBytes) : QObje
     data = new char[numBytes];
     memset(data, 0, numBytes);
 
-    mFile = new QFile(QString("%1 bytes every %2 ms").arg(mNumBytes).arg(interval));
-    if(!mFile->open(QIODevice::WriteOnly))
-        qFatal("Couldn't open file for writing");
+    mLogFile = new LogFile(QString("%1 bytes every %2 ms").arg(mNumBytes).arg(interval), LogFile::Encoding::Text);
 
     connect(&mTimer, SIGNAL(timeout()), SLOT(slotWrite()));
     mTimer.start(interval);
 
-    qDebug() << "FileToWrite::FileToWrite(): file" << mFile->fileName() << "set up.";
+    qDebug() << "FileToWrite::FileToWrite(): file" << mLogFile->fileName() << "set up.";
 }
 
 FileToWrite::~FileToWrite()
 {
-    qDebug() << "FileToWrite::~FileToWrite(): max write time for file" << mFile->fileName() << "was" << mMaxWriteTime << "ms.";
+    qDebug() << "FileToWrite::~FileToWrite(): max write time for file" << mLogFile->fileName() << "was" << mMaxWriteTime << "ms.";
     mTimer.stop();
-    mFile->close();
-    mFile->deleteLater();
+    delete mLogFile;
 }
 
 void FileToWrite::slotWrite()
 {
     QTime now;
     now.start();
-    mFile->write(data, mNumBytes);
+    mLogFile->write(data, mNumBytes);
     const quint32 elapsed = now.elapsed();
     mMaxWriteTime = std::max(elapsed, mMaxWriteTime);
-    qDebug() << mFile->fileName() << "took:" << elapsed << "ms.";
+    if(elapsed > 0)
+        qDebug() << mLogFile->fileName() << "took:" << elapsed << "ms.";
 }

@@ -23,11 +23,9 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
 {
     qDebug() << "GnssDevice::GnssDevice(): Using usb port" << serialDeviceFileUsb << "and com port" << serialDeviceFileCom;
 
-    mLogFileSbf = new QFile(logFilePrefix + QString("gnssdata.sbf"));
-    if(!mLogFileSbf->open(QIODevice::WriteOnly)) qFatal("GnssDevice::GnssDevice(): couldn't open sbf log file for writing, exiting");
+    mLogFileSbf = new LogFile(logFilePrefix + QString("gnssdata.sbf"), LogFile::Encoding::Binary);
 
-    mLogFileCmd = new QFile(logFilePrefix + QString("gnsscommands.txt"));
-    if(!mLogFileCmd->open(QIODevice::WriteOnly)) qFatal("GnssDevice::GnssDevice(): couldn't open cmd log file for writing, exiting");
+    mLogFileCmd = new LogFile(logFilePrefix + QString("gnsscommands.txt"), LogFile::Encoding::Text);
 
     mSbfParser = new SbfParser;
     // If our SBF parser has a question to the device, forward it.
@@ -95,11 +93,8 @@ GnssDevice::~GnssDevice()
     mSerialPortCom->close();
     mSerialPortCom->deleteLater();
 
-    mLogFileCmd->close();
-    mLogFileCmd->deleteLater();
-
-    mLogFileSbf->close();
-    mLogFileSbf->deleteLater();
+    delete mLogFileCmd;
+    delete mLogFileSbf;
 
     mStatusTimer->stop();
     mStatusTimer->deleteLater();
@@ -130,10 +125,12 @@ quint8 GnssDevice::slotFlushCommandQueue()
         //usleep(100000);
         mSerialPortUsb->write(mLastCommandToGnssDevice[mSerialPortOnDeviceUsb]);
 
-        QTextStream commandLog(mLogFileCmd);
+        QByteArray text;
+        QTextStream commandLog(&text);
         commandLog << '\n' << '\n' << "################################################################################" << '\n' << '\n';
         commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << "HOST ->" << mSerialPortOnDeviceUsb << ":" << mLastCommandToGnssDevice[mSerialPortOnDeviceUsb] << '\n';
         commandLog << "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" << '\n' << '\n';
+        mLogFileCmd->write(text);
     }
     else if(!mLastCommandToGnssDevice[mSerialPortOnDeviceUsb].isEmpty())
     {
@@ -575,9 +572,11 @@ bool GnssDevice::parseCommandReply(const QString& portNameOnDevice, QByteArray* 
 
             qDebug() << "GnssDevice::parseCommandReply(): port" << portNameOnDevice << "received reply to:" << mLastCommandToGnssDevice[portNameOnDevice].trimmed() << "-" << commandReply.size() << "bytes:" << commandReply.trimmed();
 
-            QTextStream commandLog(mLogFileCmd);
+            QByteArray text;
+            QTextStream commandLog(&text);
             commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << portNameOnDevice << "-> HOST: " << commandReply.trimmed() << '\n';
             commandLog << '\n' << "################################################################################" << '\n' << '\n' << '\n' << '\n';
+            mLogFileCmd->write(text);
 
             if(commandReply.contains("$R? ASCII commands between prompts were discarded!"))
                 qDebug() << "GnssDevice::parseCommandReply(): WARNING, we were talking too fast on port" << portNameOnDevice;

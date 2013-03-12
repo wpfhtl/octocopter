@@ -4,6 +4,7 @@
 #include <QtCore>
 #include <urg/UrgCtrl.h>
 #include <pose.h>
+#include "logfile.h"
 
 // We don't use lidarpoints on the rover, because storing the ray back to laserscanner from
 // each scanned point is a large overhead with little gain. Instead, we store a list of
@@ -14,7 +15,7 @@ class LaserScanner : public QObject
     Q_OBJECT
 
 private:
-    QFile* mLogFile;
+    LogFile* mLogFile;
     QString mDeviceFileName;
     qrk::UrgCtrl mScanner;
     const Pose mRelativeScannerPose; // The scanner's pose relative to the vehicle frame

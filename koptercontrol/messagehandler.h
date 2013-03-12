@@ -7,6 +7,7 @@
 #include <iostream>
 #include <iomanip>
 
+#include "logfile.h"
 #include <gnsstime.h>
 
 class MessageHandler
@@ -30,24 +31,12 @@ private:
     comma_numpunct* mNumPunct;
     std::locale* mLocale;
 
-//    QFile* mMasterLogFile = 0;
-//    QTextStream* mMasterLogStream = 0;
-
 public:
     MessageHandler(const QString& logFilePrefix);
 
     ~MessageHandler();
 
-
-
-
-
     static void handleMessage(QtMsgType type, const char *msg);
-
-
-
-
-
 };
 
 #endif // MESSAGEHANDLER_H

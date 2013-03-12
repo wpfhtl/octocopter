@@ -53,6 +53,7 @@ kopter
 camera
 messagehandler
 ../common/gnsstime
+../common/logfile
 ../common/sensorfuser
 ../common/flightcontroller
 ../common/flightcontrollervalues
@@ -78,6 +79,7 @@ koptermessage.h
 kopter.h
 camera.h
 messagehandler.h
+../common/logfile.h
 ../common/gnsstime.h
 ../common/sensorfuser.h
 ../common/flightcontroller.h
