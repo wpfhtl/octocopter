@@ -342,6 +342,7 @@ void BaseConnection::slotFlightStateChanged(const FlightState* const fs)
     slotSendData(data, false);
 }*/
 
+// float4!
 void BaseConnection::slotNewScannedPoints(const float* const points, const quint32 numPoints, const QVector3D* const scannerPosition)
 {
 //    qDebug() << "sending" << points.size() << "new lidarpoints to base";
