@@ -43,6 +43,7 @@ class GlWidget : public QGLWidget
     float mRotationPerFrame;
     bool mViewRotating;
     bool mViewZooming;
+    bool mRenderAxisBase, mRenderAxisVehicle, mRenderTrajectory;
 
     // Mouse Rotations
     QPoint      mLastMousePosition;

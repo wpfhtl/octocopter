@@ -143,6 +143,10 @@ bool PointCloudCuda::slotInsertPoints3(const float* const pointList, const quint
         val++; // w is pre-set to 1.0 in c'tor, we don't touch it here.
     }
 
+    float* x = mNewPointsBuffer + (mNewPointsBufferCursor * 4);
+    for(int i=0;i<10;i++)
+        qDebug() << "point" << i << ":" << *x++ << *x++ << *x++ << *x++;
+
     mNewPointsBufferCursor += numPoints;
 
     if(mNewPointsBufferCursor > 3000)
@@ -177,7 +181,7 @@ bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint
 
     mParameters.elementQueueCount += numberOfPointsToAppend;
 
-    mVboInfo[0].size = mParameters.elementCount + mParameters.elementQueueCount;
+    mVboInfo[0].size = getNumberOfPoints();
 
 //    qDebug() << "PointCloudCuda::slotInsertPoints4():" << mName << "inserted" << numberOfPointsToAppend << "points, vbo elements:" << mVboInfo[0].size << "elements:" << mParameters.elementCount << "queue:" << mParameters.elementQueueCount;
 

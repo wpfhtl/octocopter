@@ -148,7 +148,7 @@ void sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArraysD(
 
     __syncthreads();
 
-    if (threadIndex < numParticles)
+    if(threadIndex < numParticles)
     {
         // If this particle has a different cell index to the previous particle then it must be the
         // first particle in the cell, so store the index of this particle in the cell. As it isn't
@@ -156,7 +156,7 @@ void sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArraysD(
         if(threadIndex == 0 || hash != sharedHash[threadIdx.x])
         {
             cellStart[hash] = threadIndex;
-            if (threadIndex > 0)
+            if(threadIndex > 0)
                 cellEnd[sharedHash[threadIdx.x]] = threadIndex;
         }
 

@@ -19,7 +19,6 @@ private:
     QString mDeviceFileName;
     qrk::UrgCtrl mScanner;
     const Pose mRelativeScannerPose; // The scanner's pose relative to the vehicle frame
-    bool mIsEnabled;
     quint8 mHeightOverGroundClockDivisor;
     qint64 mOffsetTimeScannerToTow;
     qint32 mLastScannerTimeStamp;

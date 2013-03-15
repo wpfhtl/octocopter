@@ -2,11 +2,13 @@
 
 QString GnssStatus::getIntegrationMode(const GnssStatus::IntegrationMode& integrationMode)
 {
+    // In my mind, INS+GNSS doesn't make sense (should be IMU+GNSS), but the SBF reference Guide 1.14.0 says so on pg. 73.
     switch(integrationMode)
     {
-    case IntegrationMode::Unavailable: return "Integrated PV Unavailable"; break;
-    case IntegrationMode::IMU: return "IMU only"; break;
-    case IntegrationMode::IMU_GNSS: return "IMU + GNSS"; break;
+    case IntegrationMode::NoSolution: return "NoSolution"; break;
+    case IntegrationMode::Loosely_INS: return "INS Loosely"; break;
+    case IntegrationMode::Loosely_INS_and_GNSS: return "GNSS + INS Loosely"; break;
+    case IntegrationMode::GNSS_only: return "GNSS Only"; break;
     default: return QString("Unknown IntMode %1").arg(static_cast<quint8>(integrationMode)); break;
     }
 }
@@ -17,7 +19,7 @@ QString GnssStatus::getPvtMode(const GnssStatus::PvtMode& pvtMode)
 
     switch(pvtMode)
     {
-    case PvtMode::Error: pvtModeString = "Error"; break;
+    case PvtMode::NoPVT: pvtModeString = "NoPVT"; break;
 
     case PvtMode::StandAlone: pvtModeString = "StandAlone"; break;
 
@@ -63,11 +65,15 @@ QString GnssStatus::getError(const GnssStatus::Error& error)
     case Error::PositionOutputProhibitedDueToExportLaws: return "Position output prohibited due to export laws"; break;
     case Error::NotEnoughDifferentialCorrectionsAvailable: return "Not enough differential corrections available"; break;
     case Error::BasestationCoordinatesNotAvailable: return "Basestation coordinates not available"; break;
+    case Error::AmbiquitiesNotFixedButOnlyRtkFixedAllowed: return "Floating ambiguities, but only RtkFixed allowed"; break;
     case Error::IntegratedPvNotRequestedByUser: return "Integrated PV not requested by user"; break;
     case Error::NotEnoughValidExtSensorValues: return "Not enough valid ext sensor values"; break;
     case Error::CalibrationNotReady: return "Calibration not ready"; break;
-    case Error::AlignmentNotReady: return "Alignment not ready"; break;
+    case Error::StaticAlignmentOngoing: return "Static alignment ongoing"; break;
     case Error::WaitingForGnssPvt: return "Waiting for GNSS PVT"; break;
+    case Error::WaitingForFineTime: return "Waiting for fine time"; break;
+    case Error::InMotionAlignmentOngoing: return "InMotion alignment ongoing"; break;
+
     default: return QString("Unknown Error %1").arg(static_cast<quint8>(error)); break;
     }
 }

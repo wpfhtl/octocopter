@@ -14,8 +14,6 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
 
     mLastScannerTimeStamp = 0;
 
-    mIsEnabled = false;
-
     mOffsetTimeScannerToTow = 0;
 
     mHeightOverGroundClockDivisor = 0;
@@ -53,7 +51,7 @@ LaserScanner::~LaserScanner()
 
 const bool LaserScanner::isScanning() const
 {
-    return mIsEnabled;
+    return mTimerScan->isActive();
 }
 
 const Pose& LaserScanner::getRelativePose() const
@@ -115,12 +113,11 @@ void LaserScanner::slotEnableScanning(const bool value)
         // disable for logreplay: return;
     }
 
-    if(mIsEnabled != value)
+    if(mTimerScan->isActive() != value)
     {
-        mIsEnabled = value;
         qDebug() << "LaserScanner::slotEnableScanning(): setting enabled state to" << value;
 
-        if(mIsEnabled)
+        if(value)
             mTimerScan->start(mScanner.scanMsec());
         else
             mTimerScan->stop();
@@ -129,8 +126,8 @@ void LaserScanner::slotEnableScanning(const bool value)
 
 void LaserScanner::slotCaptureScanData()
 {
-    if(!mIsEnabled) qDebug() << "LaserScanner::slotCaptureScanData(): scanning not enabled, but slotCaptureScanData() still called. Expect trouble.";
-
+    if(!mTimerScan->isActive()) qDebug() << "LaserScanner::slotCaptureScanData(): scanning not enabled, but slotCaptureScanData() still called. Expect trouble.";
+    qDebug() << "cap!";
     mHeightOverGroundClockDivisor++;
     mHeightOverGroundClockDivisor %= (500 / mTimerScan->interval()); // Emit heightOverGround twice per second
 
@@ -189,8 +186,8 @@ void LaserScanner::slotCaptureScanData()
         // Write the total amount of bytes of this scan into the stream
         quint16 length = 5 // LASER
                 + sizeof(quint16) // length at beginning
-                + sizeof(timeStampScanMiddle)
-                + sizeof(indexStart)
+                + sizeof(qint32) // timeStampScanMiddle
+                + sizeof(quint16) // indexStart
                 + ((indexStop - indexStart ) + 1) * sizeof(quint16); // number of bytes for the distance-data
 
         QByteArray magic("LASER");

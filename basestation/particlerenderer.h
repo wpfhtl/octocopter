@@ -16,10 +16,12 @@ public:
     void render();
 
     bool getRenderParticles() const {return mRenderParticles;}
+    bool getRenderBoundingBox() const {return mRenderBoundingBox;}
     bool getRenderWaypointPressure() const {return mRenderWaypointPressure;}
 
 public slots:
 
+    void slotSetRenderBoundingBox(const bool render) {mRenderBoundingBox = render;}
     void slotSetRenderParticles(const bool render) {mRenderParticles = render;}
     void slotSetRenderWaypointPressure(const bool render) {mRenderWaypointPressure = render;}
 
@@ -30,7 +32,7 @@ public slots:
     void slotSetVboInfoParticles(const quint32 vboPositions, const quint32 vboColors, const quint32 count, const QVector3D particleSystemWorldMin, const QVector3D particleSystemWorldMax);
 
 private:
-    bool mRenderParticles, mRenderWaypointPressure;
+    bool mRenderParticles, mRenderWaypointPressure, mRenderBoundingBox;
 
     ShaderProgram *mShaderProgramDefault, *mShaderProgramParticles, *mShaderProgramGrid;
     quint32 mNumberOfParticles;

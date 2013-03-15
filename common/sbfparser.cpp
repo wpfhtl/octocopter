@@ -645,7 +645,8 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
 //    qDebug() << "SbfParser::processNextValidPacket(): processed packet id:" << msgIdBlock;
 
     // emit new status if it changed significantly.
-    if(mGnssStatus.interestingOrDifferentComparedTo(previousGpsStatus)) emit status(&mGnssStatus);
+    if(mGnssStatus.interestingOrDifferentComparedTo(previousGpsStatus))
+        emit status(&mGnssStatus);
 
     /*
      Remove the processed SBF block from our incoming buffer, so that it contains either nothing, the next (possibly

@@ -37,6 +37,10 @@ GlWidget::GlWidget(QWidget* parent) :
     mViewRotating = false;
     mViewZooming = false;
 
+    mRenderAxisBase = true;
+    mRenderAxisVehicle = true;
+    mRenderTrajectory = true;
+
     mTimerUpdate = new QTimer(this);
     mTimerUpdate->setInterval(1000 / 60);
     connect(mTimerUpdate, SIGNAL(timeout()), SLOT(slotUpdateView()));
@@ -172,7 +176,7 @@ void GlWidget::initializeGL()
 
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);					// Black Background
     glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// White Background
-    glClearColor(0.2f, 0.2f, 0.2f, 0.0f);					// Gray  Background
+//    glClearColor(0.2f, 0.2f, 0.2f, 0.0f);					// Gray  Background
 
     // Set Line Antialiasing
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
@@ -202,8 +206,8 @@ void GlWidget::resizeGL(int w, int h)
 
     // OpenGL 4 core profile: We set the second matrix (perspective = cameraToClip) in the UBO
     QMatrix4x4 matrixCameraToClip;
-    matrixCameraToClip.perspective(50.0f * mZoomFactorCurrent, (float)w/(float)h, 10.0f, +1000.0f);
-    //matrixCameraToClip.ortho(-w/2.0f * mZoomFactorCurrent, w/2.0f * mZoomFactorCurrent, -h/2.0f * mZoomFactorCurrent, h/2.0f * mZoomFactorCurrent, 1.0, 10000.0);
+    //matrixCameraToClip.perspective(50.0f * mZoomFactorCurrent, (float)w/(float)h, 10.0f, +1000.0f);
+    matrixCameraToClip.ortho(-w/2.0f * mZoomFactorCurrent, w/2.0f * mZoomFactorCurrent, -h/2.0f * mZoomFactorCurrent, h/2.0f * mZoomFactorCurrent, 1.0, 10000.0);
 
     //    qDebug() << "GlWidget::resizeGL(): resizing gl viewport to" << w << h << "setting perspective/cameraclip matrix" << matrixCameraToClip;
 
@@ -311,44 +315,55 @@ void GlWidget::paintGL()
 
         mShaderProgramDefault->bind();
         {
-            mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
-
-            // Render the vehicle's path - same shader, but variable color
-            mShaderProgramDefault->setUniformValue("useFixedColor", false);
-            glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
-            glEnableVertexAttribArray(0);
-            glEnableVertexAttribArray(1);
-            // Stride is NOT the number of useless bytes between two packets, its the
-            // "distance" between two beginnings of two consecutive useful packets
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 28, 0); // position.
-            glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 28, (void*)12); // color
-            glDrawArrays(GL_POINTS, 0, (mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize));
-            glDisableVertexAttribArray(0);
-            glDisableVertexAttribArray(1);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-            // Render axes once at origin, once at vehicle
+            if(mRenderTrajectory)
             {
-                // At the origin
+                // Render the vehicle's path - same shader, but variable color
+                mShaderProgramDefault->setUniformValue("useFixedColor", false);
+                glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
+                glEnableVertexAttribArray(0);
+                glEnableVertexAttribArray(1);
+                // Stride is NOT the number of useless bytes between two packets, its the
+                // "distance" between two beginnings of two consecutive useful packets
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 28, 0); // position.
+                glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 28, (void*)12); // color
+                glDrawArrays(GL_POINTS, 0, (mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize));
+                glDisableVertexAttribArray(0);
+                glDisableVertexAttribArray(1);
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
+            }
+
+            // Prepare axis rendering if desired
+            if(mRenderAxisBase || mRenderAxisVehicle)
+            {
                 mShaderProgramDefault->setUniformValue("useFixedColor", false);
                 glBindBuffer(GL_ARRAY_BUFFER, mVboAxes);
                 glEnableVertexAttribArray(0);
                 glEnableVertexAttribArray(1);
                 glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0); // positions
                 glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, (void*)(12 * sizeof(float) * 4)); // colors
-                glDrawArrays(GL_LINES, 0, 12);
+            }
 
-                // At the vehicle
-                if(mLastKnownVehiclePose)
-                {
-                    mShaderProgramDefault->setUniformValue("useMatrixExtra", true);
-                    mShaderProgramDefault->setUniformValue("matrixExtra", mLastKnownVehiclePose->getMatrixConst());
-                    glDrawArrays(GL_LINES, 0, 12);
-                    glDisableVertexAttribArray(0);
-                    glDisableVertexAttribArray(1);
-                    glBindBuffer(GL_ARRAY_BUFFER, 0);
-                    mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
-                }
+            // At the origin
+            if(mRenderAxisBase)
+            {
+                glDrawArrays(GL_LINES, 0, 12);
+            }
+
+            // At the vehicle
+            if(mRenderAxisVehicle && mLastKnownVehiclePose)
+            {
+                mShaderProgramDefault->setUniformValue("useMatrixExtra", true);
+                mShaderProgramDefault->setUniformValue("matrixExtra", mLastKnownVehiclePose->getMatrixConst());
+                glDrawArrays(GL_LINES, 0, 12);
+                mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
+            }
+
+            // Clean up axis rendering
+            if(mRenderAxisBase || mRenderAxisVehicle)
+            {
+                glDisableVertexAttribArray(0);
+                glDisableVertexAttribArray(1);
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
             }
         }
         glDisable(GL_BLEND);
@@ -655,6 +670,21 @@ void GlWidget::keyPressEvent(QKeyEvent *event)
     {
         mRotationPerFrame += 0.0005f;
         slotEnableTimerRotation(true);
+    }
+    else if(event->key() == Qt::Key_T)
+    {
+        mRenderTrajectory = !mRenderTrajectory;
+        slotUpdateView();
+    }
+    else if(event->key() == Qt::Key_A && (event->modifiers() & Qt::ShiftModifier))
+    {
+        mRenderAxisBase = !mRenderAxisBase;
+        slotUpdateView();
+    }
+    else if(event->key() == Qt::Key_A && !(event->modifiers() & Qt::ShiftModifier))
+    {
+        mRenderAxisVehicle = !mRenderAxisVehicle;
+        slotUpdateView();
     }
     else
         QGLWidget::keyPressEvent(event);

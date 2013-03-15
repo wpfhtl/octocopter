@@ -8,6 +8,7 @@ FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, GlWidget* glWidg
     mParentWidget = widget;
     mShaderProgramDefault = mShaderProgramSpheres = 0;
     mBoundingBoxVbo = 0;
+    mShowBoundingBox = true;
 
     mVehiclePoses.reserve(25 * 60 * 20); // enough poses for 20 minutes with 25Hz
 
@@ -61,6 +62,15 @@ const Pose FlightPlannerInterface::getLastKnownVehiclePose(void) const
         return mVehiclePoses.last();
     else
         return Pose();
+}
+
+void FlightPlannerInterface::keyPressEvent(QKeyEvent *event)
+{
+    if(event->key() == Qt::Key_B && !(event->modifiers() & Qt::ShiftModifier))
+    {
+        qDebug() << "FlightPlannerInterface::keyPressEvent(): b, toggling bounding box visualization";
+        mShowBoundingBox = !mShowBoundingBox;
+    }
 }
 
 void FlightPlannerInterface::slotVehiclePoseChanged(const Pose* const pose)
@@ -199,14 +209,14 @@ void FlightPlannerInterface::slotVisualize()
 {
     // Bounding Box
     // Initialize shaders and VBO if necessary
-    if(mShaderProgramDefault == 0 && mGlWidget != 0)
+    if(mShowBoundingBox && mShaderProgramDefault == 0 && mGlWidget != 0)
     {
         mShaderProgramDefault = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
         glGenBuffers(1, &mBoundingBoxVbo);
         OpenGlUtilities::setVboToBoundingBox(mBoundingBoxVbo, mScanVolumeMin, mScanVolumeMax);
     }
 
-    if(mShaderProgramDefault != 0)
+    if(mShowBoundingBox && mShaderProgramDefault != 0)
     {
         mShaderProgramDefault->bind();
         mShaderProgramDefault->setUniformValue("useFixedColor", true);

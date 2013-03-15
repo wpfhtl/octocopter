@@ -10,6 +10,7 @@
 
 ParticleRenderer::ParticleRenderer()
 {
+    mRenderBoundingBox = true;
     mRenderParticles = true;
     mRenderWaypointPressure = true;
 
@@ -62,7 +63,7 @@ void ParticleRenderer::render()
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
 
-    if(mShaderProgramDefault != 0)
+    if(mRenderBoundingBox && mShaderProgramDefault != 0)
     {
         mShaderProgramDefault->bind();
         mShaderProgramDefault->setUniformValue("useFixedColor", true);

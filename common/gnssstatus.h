@@ -12,7 +12,7 @@ class GnssStatus
 public:
     enum struct PvtMode
     {
-        Error = 0,
+        NoPVT = 0,
         StandAlone,
         Differential,
         FixedLocation,
@@ -27,28 +27,32 @@ public:
 
     enum struct IntegrationMode
     {
-        Unavailable = 0,
-        IMU,
-        IMU_GNSS
+        NoSolution = 0,
+        Loosely_INS = 1,
+        Loosely_INS_and_GNSS = 2,
+        GNSS_only = 4,
     };
 
     enum struct Error
     {
         NoError = 0,
-        NotEnoughMeasurements = 1,
-        NotEnoughEphemeridesAvailable = 2,
-        DopTooLarge = 3,
+            NotEnoughMeasurements = 1,
+            NotEnoughEphemeridesAvailable = 2,
+            DopTooLarge = 3,
         SumOfSquaredResidualsTooLarge = 4,
         NoConvergence = 5,
         NotEnoughMeasurementsAfterOutlierRejection = 6,
         PositionOutputProhibitedDueToExportLaws = 7,
-        NotEnoughDifferentialCorrectionsAvailable = 8,
-        BasestationCoordinatesNotAvailable = 9,
+            NotEnoughDifferentialCorrectionsAvailable = 8,
+            BasestationCoordinatesNotAvailable = 9,
+            AmbiquitiesNotFixedButOnlyRtkFixedAllowed = 10,
         IntegratedPvNotRequestedByUser = 20,
         NotEnoughValidExtSensorValues = 21,
         CalibrationNotReady = 22,
-        AlignmentNotReady = 23,
-        WaitingForGnssPvt = 24
+        StaticAlignmentOngoing = 23,
+        WaitingForGnssPvt = 24,
+        WaitingForFineTime = 27,
+        InMotionAlignmentOngoing = 28
     };
 
     PvtMode pvtMode;
@@ -64,8 +68,8 @@ public:
 
     GnssStatus()
     {
-        pvtMode = PvtMode::Error;
-        integrationMode = IntegrationMode::Unavailable;
+        pvtMode = PvtMode::NoPVT;
+        integrationMode = IntegrationMode::NoSolution;
         error = Error::WaitingForGnssPvt;
         cpuLoad = 0;
         info = 0;

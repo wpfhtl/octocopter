@@ -14,11 +14,11 @@ FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWidget *
     mPointCloudColliders = new PointCloudCuda(
                 QVector3D(-32.0f, -4.0f, -32.0f),
                 QVector3D(32.0f, 60.0f, 32.0f),
-                64 * 1024);
+                15 * 1024);
 
     mPointCloudColliders->setMinimumPointDistance(0.4f);
 
-    mPointCloudColliders->setColor(QColor(255,255,255,64));
+    mPointCloudColliders->setColor(QColor(0,0,255,120));
 
     mGlWidget->slotPointCloudRegister(mPointCloudColliders);
 
@@ -85,7 +85,7 @@ void FlightPlannerParticles::slotInitialize()
                 Vector3i(mSimulationParameters.gridWaypointPressure.cells.x, mSimulationParameters.gridWaypointPressure.cells.y, mSimulationParameters.gridWaypointPressure.cells.z)
                 );
 
-    mParticleSystem->slotSetParticleCount(16387);
+    mParticleSystem->slotSetParticleCount(8192);
     mParticleSystem->slotSetParticleRadius(0.5f); // balance against mOctreeCollisionObjects.setMinimumPointDistance() above
     mParticleSystem->slotSetDefaultParticlePlacement(ParticleSystem::ParticlePlacement::PlacementFillSky);
 
@@ -102,13 +102,24 @@ void FlightPlannerParticles::slotInitialize()
 
 void FlightPlannerParticles::keyPressEvent(QKeyEvent *event)
 {
+    FlightPlannerInterface::keyPressEvent(event);
+
     if(event->key() == Qt::Key_F)
     {
+        qDebug() << "FlightPlannerParticles::keyPressEvent(): f, toggling pointcloud visualization";
         if(mGlWidget->isPointCloudRegistered(mPointCloudColliders))
             mGlWidget->slotPointCloudUnregister(mPointCloudColliders);
         else
             mGlWidget->slotPointCloudRegister(mPointCloudColliders);
     }
+    if(event->key() == Qt::Key_B && event->modifiers() & Qt::ShiftModifier)
+    {
+        qDebug() << "FlightPlannerParticles::keyPressEvent(): B, toggling particlesystem bounding box visualization";
+        if(mParticleRenderer)
+            mParticleRenderer->slotSetRenderBoundingBox(!mParticleRenderer->getRenderBoundingBox());
+    }
+
+    emit suggestVisualization();
 }
 
 void FlightPlannerParticles::slotShowUserInterface()
@@ -228,7 +239,7 @@ FlightPlannerParticles::~FlightPlannerParticles()
 void FlightPlannerParticles::slotNewScanData(const float* const points, const quint32& count, const QVector3D* const scannerPosition)
 {
     // Insert all points into mPointCloudDense
-    mPointCloudDense->slotInsertPoints3(points, count);
+    mPointCloudDense->slotInsertPoints4(points, count);
 
     emit suggestVisualization();
 }

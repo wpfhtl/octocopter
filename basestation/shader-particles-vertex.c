@@ -23,10 +23,11 @@ void main()
 {
     //color = in_color;
 
+    // when a particle has collided, change its color!
     if(in_position.w > 1.05)
       color = vec4(1.0, 0.0, 0.0, 1.0);
     else
-      color = vec4(1.0, 1.0, 1.0, 0.0);
+      color = vec4(0.5, 0.5, 0.5, 0.5);
 
     gl_Position = vec4(in_position.x, in_position.y, in_position.z, 1.0);
 }

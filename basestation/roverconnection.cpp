@@ -9,7 +9,7 @@ RoverConnection::RoverConnection(const QString& hostName, const quint16& port, Q
     mTimerConnectionWatchdog.start(5000);
     connect(&mTimerConnectionWatchdog, SIGNAL(timeout()), SLOT(slotEmitConnectionTimedOut()));
 
-    mRegisteredPointsFloat = new float[1080 * 4];
+    mRegisteredPointsFloat = new float[8192 * 4];
 
     mIncomingDataBuffer.clear();
 
@@ -117,8 +117,8 @@ void RoverConnection::processPacket(QByteArray data)
         stream >> mScannerPosition;
         stream >> numPoints;
 
-        // We reserved up to 1080 points above!
-        stream.readRawData((char*)mRegisteredPointsFloat, numPoints * sizeof(float) * 3);
+        // read the points!
+        stream.readRawData((char*)mRegisteredPointsFloat, numPoints * sizeof(float) * 4);
 
         emit scanData(mRegisteredPointsFloat, numPoints, &mScannerPosition);
     }
@@ -151,7 +151,7 @@ void RoverConnection::processPacket(QByteArray data)
         stream >> mGnssStatus;
 
         emit message(
-                    mGnssStatus.error == GnssStatus::Error::NoError && mGnssStatus.pvtMode == GnssStatus::PvtMode::RtkFixed && mGnssStatus.integrationMode != GnssStatus::IntegrationMode::Unavailable && mGnssStatus.numSatellitesUsed >= 5 ? Information : Error,
+                    mGnssStatus.error == GnssStatus::Error::NoError && mGnssStatus.pvtMode == GnssStatus::PvtMode::RtkFixed && mGnssStatus.integrationMode != GnssStatus::IntegrationMode::NoSolution && mGnssStatus.integrationMode != GnssStatus::IntegrationMode::GNSS_only && mGnssStatus.numSatellitesUsed >= 5 ? Information : Error,
                     QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                     mGnssStatus.toString());
 

@@ -491,7 +491,6 @@ void LogPlayer::slotPlay()
             // ExtEvent-packets don't let this assumption hold. For this reason, we might have to deal
             // with negative intervals, which we just set to 0 here.
 
-
             qint32 towElapsedAtNextPacket = minTowAfter - mTimePlaybackStartTow;
             QTime timeOfNextPacketReal = mTimePlaybackStartReal.addMSecs(towElapsedAtNextPacket);
             const qint32 timeToSleep = QTime::currentTime().msecsTo(timeOfNextPacketReal) * ui->mSpinBoxTimeFactor->value();
@@ -501,7 +500,7 @@ void LogPlayer::slotPlay()
 //            if(timeToSleep > 0) qDebug() << "LogPlayer::slotPlay(): slotStepForward() succeeded, sleeping for" << timeToSleep;
 
             // Wait between 0 and 1 secs, scaled by timefactor
-            mTimerAnimation->start(qBound(0, timeToSleep, 3));
+            mTimerAnimation->start(qBound(0, timeToSleep, 3000));
         }
         else
         {

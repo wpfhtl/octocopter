@@ -39,6 +39,9 @@ ParticleSystem::ParticleSystem(PointCloudCuda *const pointCloudDense, PointCloud
     // vector will be initialized with 0x777777 once on startup
     mUpdateMappingFromColliderToGridCell = true;
 
+    mSimulationParameters->gridParticleSystem.worldMin = make_float3(-32.0f, -4.0f, -32.0f);
+    mSimulationParameters->gridParticleSystem.worldMax = make_float3(32.0f, 28.0f, 32.0f);
+
     connect(mPointCloudColliders, SIGNAL(pointsInserted(PointCloud*const,quint32,quint32)), SLOT(slotNewCollidersInserted()));
 }
 
@@ -322,6 +325,8 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
 
     if(!mIsInitialized) initialize();
 
+//    cudaDeviceSynchronize();
+
     QTime startTime = QTime::currentTime();
     startTime.start();
 
@@ -457,9 +462,11 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
     // will complete before any subsequently issued graphics work begins.
     cudaGraphicsUnmapResources(1, &mCudaVboResourceParticlePositions, 0);
 
+//    cudaDeviceSynchronize();
+
     size_t memTotal, memFree;
     cudaMemGetInfo(&memFree, &memTotal);
-//    qDebug() << "ParticleSystem::update(): finished, fps:" << 1000.0f/startTime.elapsed() << "free mem:" << memFree / 1048576;
+    qDebug() << "ParticleSystem::update(): finished," << startTime.elapsed() << "ms, fps:" << 1000.0f/startTime.elapsed() << "free mem:" << memFree / 1048576;
 }
 
 void ParticleSystem::slotSetParticleRadius(float radius)
