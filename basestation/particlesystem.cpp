@@ -466,7 +466,7 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
 
     size_t memTotal, memFree;
     cudaMemGetInfo(&memFree, &memTotal);
-    qDebug() << "ParticleSystem::update(): finished," << startTime.elapsed() << "ms, fps:" << 1000.0f/startTime.elapsed() << "free mem:" << memFree / 1048576;
+//    qDebug() << "ParticleSystem::update(): finished," << startTime.elapsed() << "ms, fps:" << 1000.0f/startTime.elapsed() << "free mem:" << memFree / 1048576;
 }
 
 void ParticleSystem::slotSetParticleRadius(float radius)

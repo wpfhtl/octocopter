@@ -420,7 +420,7 @@ void GnssDevice::slotCommunicationSetup()
 
     // We want to know the pose - often. But on startup, we ask for slower data and then raise to msec20 when
     // the poses are of higher quality. See slotSetPoseFrequency()
-    slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec500");
+    slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec200");
 
     // We want to know PVTCartesion for MeanCorrAge (average correction data age), ReceiverStatus for CPU Load and IntAttCovEuler for Covariances (sigma-values)
     slotQueueCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus+IntAttCovEuler,msec500");
@@ -436,11 +436,13 @@ void GnssDevice::slotCommunicationSetup()
     // For now, record support messages for septentrio
     slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,msec500"); // septentrio wants msec100, but that kills the cpu
 
-    // Why doesn't BBSamples work? It seems the device has never seen it?!
-    slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",BBSamples,sec1"); // septentrio wants msec100, but that kills the cpu
+    // BBSamples contains data for the spectrum view, but Vim (not the editor, the RF-guy of Septentrio fame) said this is a VERY heavy packet.
+    // So we skip this for now to keep the CPU load low (it was over 80%!)
+    //slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",BBSamples,sec1"); // septentrio wants msec100, but that kills the cpu
 
     //slotQueueCommand("setSBFOutput,Stream7,"+mSerialPortOnDeviceUsb+",ExtSensorMeas,msec20");
 
+    // No idea what this is for - Septentrio debugging?
     slotQueueCommand("setSBFOutput,Stream8,"+mSerialPortOnDeviceUsb+",MeasEpoch,msec200");
 
     // show current config
@@ -508,11 +510,11 @@ void GnssDevice::slotSetPoseFrequency(bool highSpeed)
     if(highSpeed)
     {
         // Maybe use msec50 instead of msec20 to avoid RxError 64 (congestion on line)
-        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec40");
+        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec20");
     }
     else
     {
-        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec200");
+        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec100");
     }
 }
 

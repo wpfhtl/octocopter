@@ -198,10 +198,9 @@ void LaserScanner::slotCaptureScanData()
         mLogFile->write((const char*)&indexStart, sizeof(indexStart));
 
         // Instead of looping through the indices, lets write everything at once.
-        // TODO: TEST THIS!
         mLogFile->write(
-                    (const char*)(distancesToEmit->data() + (sizeof(quint16) * indexStart)), // where to start writing
-                    sizeof(quint16) * ((indexStop - indexStart) + 1)                         // how many bytes to write
+                    (const char*)(distancesToEmit->data() + indexStart), // where to start writing.
+                    sizeof(quint16) * ((indexStop - indexStart) + 1)     // how many bytes to write
                     );
 
         // Every full moon, emit the distance from vehicle center to the ground in meters (scanner to vehicle center is 3cm)

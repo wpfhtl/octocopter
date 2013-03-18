@@ -151,7 +151,7 @@ public slots:
 signals:
     // Emits a pointer to a vector of registered points. The data is always owned by SensorFuser!
 //    void newScannedPoints(const QVector<QVector3D>* const, const QVector3D* const scanPosition);
-    void scanData(const float* const points, const quint32& count, const QVector3D* const scannerPosition);
+    void scanData(const float* const points, const quint32& numberOfPoints, const QVector3D* const scannerPosition);
 
     // For debugging/visualizing the interpolated poses
     void vehiclePose(const Pose* const);

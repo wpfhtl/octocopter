@@ -234,7 +234,7 @@ void GlWidget::paintGL()
     if(mTimeOfLastRender.second() != currentTime.second())
     {
         // A second has passed!
-        qDebug() << "GlWidget::paintGL(): currently rendering at" << mFramesRenderedThisSecond << "fps.";
+//        qDebug() << "GlWidget::paintGL(): currently rendering at" << mFramesRenderedThisSecond << "fps.";
         mFramesRenderedThisSecond = 0;
     }
 
