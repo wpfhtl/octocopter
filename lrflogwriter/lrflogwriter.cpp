@@ -1,23 +1,5 @@
 #include <lrflogwriter.h>
 
-void LrfLogWriter::slotNewScanData(qint32 timestampScanner, std::vector<quint16> * const distances)
-{
-    quint16 startIndex = 0;
-    while(distances->at(startIndex) == 1)
-        startIndex++;
-
-    quint16 stopIndex = distances->size() - 1;
-    while(distances->at(stopIndex) == 1)
-        stopIndex--;
-
-    qDebug() << distances->size() << "distances, start is" << startIndex << "stop is" << stopIndex;
-
-    printf("%d: ", timestampScanner);
-    for(int i=startIndex;i<=stopIndex;i++)
-        printf("%d ", distances->at(i));
-    printf(".\n");
-}
-
 LrfLogWriter::LrfLogWriter(int argc, char **argv) : QCoreApplication(argc, argv)
 {
     mScanner = new LaserScanner(
@@ -39,6 +21,23 @@ LrfLogWriter::~LrfLogWriter()
     delete mScanner;
 }
 
+void LrfLogWriter::slotNewScanData(qint32 timestampScanner, std::vector<quint16> * const distances)
+{
+    quint16 startIndex = 0;
+    while(distances->at(startIndex) == 1)
+        startIndex++;
+
+    quint16 stopIndex = distances->size() - 1;
+    while(distances->at(stopIndex) == 1)
+        stopIndex--;
+
+    qDebug() << distances->size() << "distances, start is" << startIndex << "stop is" << stopIndex;
+
+    printf("%d: ", timestampScanner);
+    for(int i=startIndex;i<=stopIndex;i++)
+        printf("%d ", distances->at(i));
+    printf(".\n");
+}
 
 int main(int argc, char **argv)
 {

@@ -11,8 +11,8 @@
 ParticleRenderer::ParticleRenderer()
 {
     mRenderBoundingBox = true;
-    mRenderParticles = true;
-    mRenderWaypointPressure = true;
+    mRenderParticles = false;
+    mRenderWaypointPressure = false;
 
     mParticleRadius = 0.0f;
     mNumberOfParticles = 0;

@@ -87,7 +87,7 @@ private slots:
     void slotSetFlightControllerValues(const FlightControllerValues *const fcv);
     void slotSpeakGnssStatus(const GnssStatus *const status);
 
-    void slotClearOctree();
+    void slotClearCloud();
 
     // Send motion commands to rover WHILE button 1 is pressed
     void slotManageJoystick(quint8 button, bool pressed);

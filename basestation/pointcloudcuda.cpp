@@ -622,6 +622,7 @@ void PointCloudCuda::slotReset()
 {
     mParameters.elementQueueCount = 0;
     mParameters.elementCount = 0;
+    mVboInfo[0].size = 0;
 }
 
 bool PointCloudCuda::importFromPly(const QString& fileName, QWidget* widget)

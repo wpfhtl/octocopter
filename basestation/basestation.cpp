@@ -95,7 +95,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     mMenuFile->addAction("Save Cloud", this, SLOT(slotExportCloud()));
     mMenuFile->addAction("Load Cloud", this, SLOT(slotImportCloud()));
-    mMenuFile->addAction("Clear Cloud", this, SLOT(slotClearOctree()));
+    mMenuFile->addAction("Clear Cloud", this, SLOT(slotClearCloud()));
 
     connect(mGlWidget, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
     connect(mGlWidget, SIGNAL(visualizeNow()), mPtuController, SLOT(slotVisualize()));
@@ -321,12 +321,14 @@ void BaseStation::keyPressEvent(QKeyEvent* event)
 {
     if(event->key() == Qt::Key_P)
         slotToggleViewPointCloudDense();
+    else if(event->key() == Qt::Key_C)
+        slotClearCloud();
 
     mGlWidget->keyPressEvent(event);
     mFlightPlanner->keyPressEvent(event);
 }
 
-void BaseStation::slotClearOctree()
+void BaseStation::slotClearCloud()
 {
     mPointCloud->slotReset();
     mGlWidget->update();
