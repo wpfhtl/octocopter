@@ -127,7 +127,6 @@ void LaserScanner::slotEnableScanning(const bool value)
 void LaserScanner::slotCaptureScanData()
 {
     if(!mTimerScan->isActive()) qDebug() << "LaserScanner::slotCaptureScanData(): scanning not enabled, but slotCaptureScanData() still called. Expect trouble.";
-    qDebug() << "cap!";
     mHeightOverGroundClockDivisor++;
     mHeightOverGroundClockDivisor %= (500 / mTimerScan->interval()); // Emit heightOverGround twice per second
 
