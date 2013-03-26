@@ -26,6 +26,7 @@ public:
 
     void setControllers(const FlightControllerValues *const fcv);
 //    bool isPopulated() const {return mPopulated;}
+    void setEnabled(bool enabled);
 
 signals:
     // signals that a weight for a single controller was changed. Transmits all the weights.

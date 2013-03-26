@@ -51,7 +51,9 @@ BaseStation::BaseStation() : QMainWindow()
     setCentralWidget(mGlWidget);
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(slotUpdateView()));
 
-    mPointCloud = new PointCloudCuda(QVector3D(-50, 0, -50), QVector3D(50, 20, 50)/*, 250000*/);
+//    mPointCloud = new PointCloudCuda(QVector3D(-64, -2, -64), QVector3D(64, 30, 64)/*, 250000*/);
+    mPointCloud = new PointCloudCuda(QVector3D(-50, 0, -50), QVector3D(50, 30, 50)/*, 250000*/);
+    connect(mGlWidget, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
     connect(mGlWidget, SIGNAL(initializingInGlContext()), mPointCloud, SLOT(slotInitialize()));
 
     // register dense pointcloud for rendering.
@@ -206,7 +208,7 @@ BaseStation::BaseStation() : QMainWindow()
     {
         mLogPlayer = new LogPlayer(this);
         mLogPlayer->setAllowedAreas(Qt::AllDockWidgetAreas);
-        addDockWidget(Qt::BottomDockWidgetArea, mLogPlayer);
+        addDockWidget(Qt::RightDockWidgetArea, mLogPlayer);
         connect(mLogPlayer, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mControlWidget, SLOT(slotUpdatePose(const Pose* const)));
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mFlightPlanner, SLOT(slotVehiclePoseChanged(const Pose* const)));
@@ -326,6 +328,7 @@ void BaseStation::keyPressEvent(QKeyEvent* event)
 
     mGlWidget->keyPressEvent(event);
     mFlightPlanner->keyPressEvent(event);
+    if(mLogPlayer) mLogPlayer->keyPressEvent(event);
 }
 
 void BaseStation::slotClearCloud()

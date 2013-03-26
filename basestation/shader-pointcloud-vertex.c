@@ -21,6 +21,7 @@ layout(std140) uniform GlobalValues
 
 uniform mat4 matrixExtra;
 uniform bool useMatrixExtra;
+uniform float maxPointVisualizationDistance;
 
 void main()
 {
@@ -30,6 +31,9 @@ void main()
 
     // the w-component stores the squared distance. For rendering, lets set it to 1.0.
     vec4 pos = in_position;
+    if(maxPointVisualizationDistance < pos.w)
+        colorTemp.a = 0.03;
+
     pos.w = 1.0;
 
     if(useMatrixExtra)

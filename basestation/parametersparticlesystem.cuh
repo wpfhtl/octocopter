@@ -34,7 +34,7 @@ struct ParametersParticleSystem
     void initialize()
     {
         timeStepInner = 0.01f;
-        timeStepOuter = 0.10f;
+        timeStepOuter = 0.06f;
         gridParticleSystem.worldMin = make_float3(-32.0f, -4.0f, -32.0f);
         gridParticleSystem.worldMax = make_float3(32.0f, 60.0f, 32.0f);
         gridParticleSystem.cells = make_uint3(64, 64, 64);
@@ -50,7 +50,7 @@ struct ParametersParticleSystem
         velocityFactorCollisionCollider = 0.1f;
         velocityFactorCollisionParticle = 0.03f;
         velocityFactorCollisionBoundary = -0.5f;
-        gravity = make_float3(0.0f, -9.810f, 0.0f);
+        gravity = make_float3(0.0f, -9.810f, 0.0f);  // paper
         spring = 0.5f;
         shear = 0.0f;
         attraction = 0.0f;

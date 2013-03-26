@@ -5,37 +5,51 @@
 
 // Declare all functions that wrap cuda kernel invocations
 
-void setPointCloudParameters(ParametersPointCloud *hostParams);
+void getDeviceAddressOfParametersPointCloud(ParametersPointCloud** ptr);
+
+void copyParametersToGpu(ParametersPointCloud *hostParams);
 
 void getBoundingBox(
         float *dPoints,
         uint numPoints,
         float3& min,
         float3& max);
-
-void computeMappingFromGridCellToPoint(
-        unsigned int*  gridCellIndex,
-        unsigned int*  gridPointIndex,
-        float* pos,
-        int numPoints);
-
-void sortPosAccordingToGridCellAndFillCellStartAndEndArrays(
+ /*
+void sortPosAccordingToGridCellAndFillCellStartAndStoppArrays(
+        float* posOld,
+        float* posSorted,
         unsigned int*  cellStart,
         unsigned int*  cellEnd,
-        float* sortedPos,
         unsigned int*  gridCellIndex,
         unsigned int*  gridPointIndex,
-        float* oldPos,
         unsigned int   numParticles,
         unsigned int   numCells);
+void fillCellStartAndStoppArrays(
+        float*          positions,
+        unsigned int*   pointCellStart,
+        unsigned int*   pointCellStopp,
+        unsigned int*   gridCellIndex,
+        unsigned int*   gridPointIndex,
+        unsigned int    numPoints,
+        unsigned int    numCells);
+ */
+
+/*void clearClosePointsPreferringSmallerWComponent(
+        float*          points,
+        unsigned int*   cellStart,
+        unsigned int*   cellStopp,
+        unsigned int*   gridCellIndex,
+        unsigned int*   gridPointIndex, unsigned int offsetOfPointsToBeReduced,
+        unsigned int    numberOfPointsToBeReduced,
+        unsigned int    numberOfCells);*/
+
 
 void markCollidingPoints(float* posOriginal,
         float* posSorted,
         unsigned int*  gridPointIndex,
-        unsigned int*  cellStart,
-        unsigned int*  cellEnd, Grid *grid,
-        unsigned int   numPoints,
-        unsigned int   numCells);
+        unsigned int*  pointCellStart,
+        unsigned int*  pointCellStopp,
+        unsigned int   numPoints);
 
 void sortMapAccordingToKeys(
         unsigned int *gridCellIndex,
@@ -44,13 +58,13 @@ void sortMapAccordingToKeys(
 
 // checks all @numPoints starting at @devicePoints for a value of 0/0/0/0 and removes those points matching.
 // returns the remaining number of points.
-unsigned int removeZeroPoints(
+unsigned int removeClearedPoints(
         float* devicePoints,
-        unsigned int numPoints);
+        unsigned int numberOfPoints);
 
 // test!
 unsigned int snapToGridAndMakeUnique(float *devicePoints, unsigned int numPoints, float minimumDistance);
-
+/*
 unsigned int replaceCellPointsByMeanValue(
         float *devicePoints,
         float *devicePointsSorted,
@@ -59,12 +73,11 @@ unsigned int replaceCellPointsByMeanValue(
         unsigned int *gridCellIndex,
         unsigned int *gridPointIndex, unsigned int numPoints,
         unsigned int numCells);
-
-/*unsigned int removePointsOutsideBoundingBox(
-        float* devicePointsBase,
+*/
+unsigned int clearPointsOutsideBoundingBox(
+        float* points,
         unsigned int numberOfPoints,
-        float* bBoxMin,
-        float* bBoxMax);*/
+        ParametersPointCloud *params);
 
 unsigned int copyPoints(
         float* devicePointsBaseDst,
@@ -78,11 +91,19 @@ unsigned int copyPointsInBoundingBox(
         float3& bBoxMax,
         unsigned int numberOfPointsToCopy);
 
-void sortPointsToGridCellOrder(float* devicePoints, unsigned int* mDeviceMapGridCell, Grid *grid, unsigned int numberOfPoints);
+//void sortPointsToGridCellOrder(float* devicePoints, const Grid &grid, unsigned int numberOfPoints);
 
-void buildGridOccupancyMap(float* devicePoints, unsigned int* mDeviceMapGridCell, unsigned int numberOfPoints);
+//void buildGridOccupancyMap(float* devicePoints, unsigned int* mDeviceMapGridCell, unsigned int numberOfPoints);
 
-unsigned int convertOccupiedCellsToPoints(float* devicePoints, unsigned int* mDeviceMapGridCell, unsigned int numberOfPoints);
+//unsigned int convertOccupiedCellsToPoints(float* devicePoints, unsigned int* mDeviceMapGridCell, unsigned int numberOfPoints);
+
+/*
+void computeMappingFromPointToGridCellPcd(
+        uint*  gridParticleHash,
+        uint*  gridParticleIndex,
+        float* pos,
+        int    numParticles);
+*/
 
 
 #endif

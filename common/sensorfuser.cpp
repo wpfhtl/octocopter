@@ -8,7 +8,7 @@ SensorFuser::SensorFuser(const quint8& stridePoint, const quint8& strideScan) : 
 
     mFlushRemainingData = false;
     mNewestDataTime = 0;
-    mMaximumFusableRayLength = 200.0;
+    mMaximumFusableRayLength = 60.0f;
     mStatsScansDiscarded = 0;
     mLastScanMiddleGnssTow = 0;
     mNumberOfScansWithMissingGnssTimestamps = 0;
@@ -538,7 +538,7 @@ qint8 SensorFuser::matchTimestamps()
         // - S is not the last scan in the list. Because if it IS, the next scan might fit even better to G.
         if(smallestTimeDifference <= mMaximumTimeOffsetBetweenScannerAndGnss && (bestFitTimestampScannerIndex < mScanInformation.size() - 1))
         {
-            qDebug() << "SensorFuser::matchTimestamps(): assigning gnss timestamp" << timestampGnss << "to scanner time" << mScanInformation[bestFitTimestampScannerIndex].timeStampScanMiddleScanner << "- time difference:" << smallestTimeDifference;
+//            qDebug() << "SensorFuser::matchTimestamps(): assigning gnss timestamp" << timestampGnss << "to scanner time" << mScanInformation[bestFitTimestampScannerIndex].timeStampScanMiddleScanner << "- time difference:" << smallestTimeDifference;
 
             // fill ScanInfo with more precise gnss timestamp
             mScanInformation[bestFitTimestampScannerIndex].timeStampScanMiddleGnss = timestampGnss;

@@ -12,9 +12,9 @@ FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWidget *
     mDeviceGridMapWaypointPressureCellWorldPositions = 0;
 
     mPointCloudColliders = new PointCloudCuda(
-                QVector3D(-32.0f, -4.0f, -32.0f),
-                QVector3D(32.0f, 60.0f, 32.0f),
-                15 * 1024);
+                QVector3D(-16.0f, -4.0f, -16.0f),
+                QVector3D(16.0f, 12.0f, 16.0f),
+                64 * 1024);
 
     mPointCloudColliders->setMinimumPointDistance(0.4f);
 
@@ -55,7 +55,7 @@ void FlightPlannerParticles::slotInitialize()
 
     mSimulationParameters.initialize();
     mSimulationParameters.gridWaypointPressure.cells = make_uint3(256, 32, 256);
-    slotSetScanVolume(QVector3D(-64, -5, -64), QVector3D(64, 27, 64));
+    slotSetScanVolume(QVector3D(-32, -4, -32), QVector3D(32, 28, 32));
     slotInitializeWaypointPressureGrid();
 
     mPointCloudColliders->slotInitialize();
@@ -85,8 +85,8 @@ void FlightPlannerParticles::slotInitialize()
                 Vector3i(mSimulationParameters.gridWaypointPressure.cells.x, mSimulationParameters.gridWaypointPressure.cells.y, mSimulationParameters.gridWaypointPressure.cells.z)
                 );
 
-    mParticleSystem->slotSetParticleCount(8192);
-    mParticleSystem->slotSetParticleRadius(0.5f); // balance against mOctreeCollisionObjects.setMinimumPointDistance() above
+    mParticleSystem->slotSetParticleCount(32768);
+    mParticleSystem->slotSetParticleRadius(1.0f/2.0f); // balance against mOctreeCollisionObjects.setMinimumPointDistance() above
     mParticleSystem->slotSetDefaultParticlePlacement(ParticleSystem::ParticlePlacement::PlacementFillSky);
 
     connect(mDialog, SIGNAL(deleteWayPoints()), SLOT(slotWayPointsClear()));
@@ -106,7 +106,7 @@ void FlightPlannerParticles::keyPressEvent(QKeyEvent *event)
 
     if(event->key() == Qt::Key_F)
     {
-        qDebug() << "FlightPlannerParticles::keyPressEvent(): f, toggling pointcloud visualization";
+        qDebug() << "FlightPlannerParticles::keyPressEvent(): f, toggling collider cloud visualization";
         if(mGlWidget->isPointCloudRegistered(mPointCloudColliders))
             mGlWidget->slotPointCloudUnregister(mPointCloudColliders);
         else
@@ -114,7 +114,7 @@ void FlightPlannerParticles::keyPressEvent(QKeyEvent *event)
     }
     if(event->key() == Qt::Key_B && event->modifiers() & Qt::ShiftModifier)
     {
-        qDebug() << "FlightPlannerParticles::keyPressEvent(): B, toggling particlesystem bounding box visualization";
+        qDebug() << "FlightPlannerParticles::keyPressEvent(): B, toggling particle system bounding box visualization";
         if(mParticleRenderer)
             mParticleRenderer->slotSetRenderBoundingBox(!mParticleRenderer->getRenderBoundingBox());
     }
@@ -168,7 +168,7 @@ void FlightPlannerParticles::slotGenerateWaypoints(quint32 numberOfWaypointsToGe
 
         // If we ask for more waypoints than cells with wp-pressure > 0.0, we'll get useless candidates!
         if(wp.w() > 0.1f)
-            waypointList->append(WayPoint(wp.toVector3D() + QVector3D(0.0f, 2.0f, 0.0f), wp.w(), WayPoint::Purpose::SCAN));
+            waypointList->append(WayPoint(wp.toVector3D() + QVector3D(0.0f, 4.0f, 0.0f), wp.w(), WayPoint::Purpose::SCAN));
     }
 
     qDebug() << "FlightPlannerParticles::slotGenerateWaypoints(): generated" << waypointList->size() << "waypoints";
@@ -177,7 +177,6 @@ void FlightPlannerParticles::slotGenerateWaypoints(quint32 numberOfWaypointsToGe
     wayPointStructure->mergeCloseWaypoints(10.0f);
 
     // Reduce them to the desired number
-
     while(waypointList->size() > numberOfWaypointsToGenerate)
         waypointList->removeLast();
 
@@ -394,6 +393,9 @@ void FlightPlannerParticles::showWaypointPressure()
     delete waypointPressureMapHost;
 }
 
+
+
+
 void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloud*const pointCloudSource, const quint32& firstPointToReadFromSrc, quint32 numberOfPointsToCopy)
 {
     mPointCloudColliders->slotInsertPoints(pointCloudSource, firstPointToReadFromSrc, numberOfPointsToCopy);
@@ -403,7 +405,7 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloud*const point
         // This is the first time that points were inserted - start the physics processing!
         mDialog->setProcessPhysics(true);
         mParticleSystem->slotResetParticles();
-        mTimerProcessWaypointPressure.start(10000);
+        mTimerProcessWaypointPressure.start(5000);
         //QTimer::singleShot(10000, this, SLOT(slotProcessWaypointPressure()));
     }
 
