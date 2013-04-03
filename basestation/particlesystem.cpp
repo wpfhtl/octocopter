@@ -39,8 +39,8 @@ ParticleSystem::ParticleSystem(PointCloudCuda *const pointCloudDense, PointCloud
     // vector will be initialized with 0x777777 once on startup
     mUpdateMappingFromColliderToGridCell = true;
 
-    mSimulationParameters->gridParticleSystem.worldMin = make_float3(-32.0f, -4.0f, -32.0f);
-    mSimulationParameters->gridParticleSystem.worldMax = make_float3(32.0f, 28.0f, 32.0f);
+    mSimulationParameters->gridParticleSystem.worldMin = make_float3(-32.0f, -2.0f, -32.0f);
+    mSimulationParameters->gridParticleSystem.worldMax = make_float3(32.0f, 30.0f, 32.0f);
 
     connect(mPointCloudColliders, SIGNAL(pointsInserted(PointCloud*const,quint32,quint32)), SLOT(slotNewCollidersInserted()));
 }
@@ -359,7 +359,7 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
 
     // Now that particles have been moved, they might be contained in different grid cells. So recompute the
     // mapping gridCell => particleIndex. This will allow fast neighbor searching in the grid during collision phase.
-    computeMappingFromGridCellToParticle(
+    computeMappingFromPointToGridCell(
                 mDeviceParticleMapGridCell,                 // output: The key - part of the particle gridcell->index map, unsorted
                 mDeviceParticleMapIndex,                    // output: The value-part of the particle gridcell->index map, unsorted
                 deviceParticlePositions,                    // input:  The particle positions after integration, unsorted and possibly colliding with other particles
@@ -396,7 +396,7 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
     {
         float *deviceColliderPositions = (float*)mapGLBufferObject(&mCudaVboResourceColliderPositions);
 
-        computeMappingFromGridCellToParticle(
+        computeMappingFromPointToGridCell(
                     mDeviceColliderMapGridCell,                 // output: The key - part of the collider gridcell->index map, unsorted
                     mDeviceColliderMapIndex,                    // output: The value-part of the collider gridcell->index map, unsorted
                     deviceColliderPositions,                    // input:  The collider positions (no integration), unsorted and possibly colliding with particles
@@ -466,7 +466,7 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
 
     size_t memTotal, memFree;
     cudaMemGetInfo(&memFree, &memTotal);
-//    qDebug() << "ParticleSystem::update(): finished," << startTime.elapsed() << "ms, fps:" << 1000.0f/startTime.elapsed() << "free mem:" << memFree / 1048576;
+    qDebug() << "ParticleSystem::update(): finished," << startTime.elapsed() << "ms, fps:" << 1000.0f/startTime.elapsed() << "free mem:" << memFree / 1048576;
 }
 
 void ParticleSystem::slotSetParticleRadius(float radius)

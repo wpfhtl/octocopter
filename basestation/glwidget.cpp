@@ -23,6 +23,9 @@ GlWidget::GlWidget(QWidget* parent) :
     mVboVehiclePathBytesMaximum = (3600 * 50 * mVboVehiclePathElementSize); // For a flight time of one hour
     mVboVehiclePathBytesCurrent = 0;
 
+    mMaxPointVisualizationDistance = 1000.0f;
+    mBackgroundDarkOrBright = true;
+
     mFramesRenderedThisSecond = 0;
 
     mZoomFactorCurrent = 0.5;
@@ -40,6 +43,7 @@ GlWidget::GlWidget(QWidget* parent) :
     mRenderAxisBase = true;
     mRenderAxisVehicle = true;
     mRenderTrajectory = true;
+    mRenderVehicle = true;
 
     mTimerUpdate = new QTimer(this);
     mTimerUpdate->setInterval(1000 / 60);
@@ -244,6 +248,11 @@ void GlWidget::paintGL()
         mCameraRotation.setY(mCameraRotation.y() + 180 * mRotationPerFrame);
 
     // Clear color buffer and depth buffer
+    if(mBackgroundDarkOrBright)
+        glClearColor(0.2f, 0.2f, 0.2f, 0.0f);					// Dark Background
+    else
+        glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// White Background
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     const QVector3D camLookAt = mCamLookAtOffset + (mLastKnownVehiclePose ? mLastKnownVehiclePose->getPosition() : QVector3D());
@@ -285,6 +294,7 @@ void GlWidget::paintGL()
     glEnable (GL_BLEND); glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
     {
         mShaderProgramPointCloud->bind();
+        mShaderProgramPointCloud->setUniformValue("maxPointVisualizationDistance", (GLfloat)pow(mMaxPointVisualizationDistance, 2.0)); // distances are squared in the point cloud, too!
         for(int i=0;i<mPointCloudsToRender.size();i++)
         {
             const QVector<PointCloud::VboInfo>& vboInfoList = mPointCloudsToRender.at(i)->getVboInfo();
@@ -471,8 +481,11 @@ void GlWidget::paintGL()
         }
     }
 
-    mModelVehicle->slotSetModelTransform(transformVehicle);
-    mModelVehicle->render();
+    if(mRenderVehicle)
+    {
+        mModelVehicle->slotSetModelTransform(transformVehicle);
+        mModelVehicle->render();
+    }
 }
 
 void GlWidget::renderController(const QMatrix4x4& transform, const PidController* const controller)
@@ -671,19 +684,46 @@ void GlWidget::keyPressEvent(QKeyEvent *event)
         mRotationPerFrame += 0.0005f;
         slotEnableTimerRotation(true);
     }
+    else if(event->key() == Qt::Key_L)
+    {
+        mBackgroundDarkOrBright = !mBackgroundDarkOrBright;
+        emit message(LogImportance::Information, "GlWidget::keyPressEvent()", "toggling background brightness");
+        slotUpdateView();
+    }
+    else if(event->key() == Qt::Key_V)
+    {
+        mRenderVehicle = !mRenderVehicle;
+        emit message(LogImportance::Information, "GlWidget::keyPressEvent()", "toggling background brightness");
+        slotUpdateView();
+    }
     else if(event->key() == Qt::Key_T)
     {
         mRenderTrajectory = !mRenderTrajectory;
+        emit message(LogImportance::Information, "GlWidget::keyPressEvent()", "toggling visualization of vehicle trajectory");
         slotUpdateView();
     }
     else if(event->key() == Qt::Key_A && (event->modifiers() & Qt::ShiftModifier))
     {
         mRenderAxisBase = !mRenderAxisBase;
+        emit message(LogImportance::Information, "GlWidget::keyPressEvent()", "toggling visualization of coordinate system at base");
         slotUpdateView();
     }
     else if(event->key() == Qt::Key_A && !(event->modifiers() & Qt::ShiftModifier))
     {
         mRenderAxisVehicle = !mRenderAxisVehicle;
+        emit message(LogImportance::Information, "GlWidget::keyPressEvent()", "toggling visualization of coordinate system at vehicle");
+        slotUpdateView();
+    }
+    else if(event->key() == Qt::Key_Minus)
+    {
+        mMaxPointVisualizationDistance = qBound(0.0f, mMaxPointVisualizationDistance - 0.5f, 60.0f);
+        emit message(LogImportance::Information, "GlWidget::keyPressEvent()", QString("setting max point visualization distance to %1").arg(mMaxPointVisualizationDistance));
+        slotUpdateView();
+    }
+    else if(event->key() == Qt::Key_Plus)
+    {
+        mMaxPointVisualizationDistance = qBound(0.0f, mMaxPointVisualizationDistance + 0.5f, 60.0f);
+        emit message(LogImportance::Information, "GlWidget::keyPressEvent()", QString("setting max point visualization distance to %1").arg(mMaxPointVisualizationDistance));
         slotUpdateView();
     }
     else

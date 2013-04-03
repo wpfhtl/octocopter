@@ -56,6 +56,7 @@ public:
     ~LogPlayer();
 
     const FlightControllerValues* const getFlightControllerValues() const {return &mFlightControllerValues;}
+    void keyPressEvent(QKeyEvent* event);
 
 private:
 

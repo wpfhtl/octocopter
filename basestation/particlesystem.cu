@@ -510,7 +510,7 @@ void collideParticlesWithParticlesAndColliders(
                                                                               numParticles);
 
     // check if kernel invocation generated an error
-    cudaCheckSuccess("collideParticlesWithParticlesD");
+    cudaCheckSuccess("collideParticlesWithParticlesAndCollidersD");
 }
 
 void sortGridOccupancyMap(uint *dGridParticleHash, uint *dGridParticleIndex, uint numParticles)

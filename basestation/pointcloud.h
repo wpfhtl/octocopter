@@ -34,6 +34,7 @@ public:
 
         VboInfo()
         {
+            vbo = 0;
             elementSize = 4;
             color = QColor();
             size = 0;
@@ -90,6 +91,7 @@ public:
 public slots:
     // Clears the datastructure, but does not destruct it. Points can still be inserted afterwards.
     virtual void slotReset() = 0;
+    virtual void slotReduce() = 0;
 
     // Tell the cloud to insert the given points. As you can see, the cloud may not change or even own the points.
     // Returns true if successful, false if not (e.g. full)

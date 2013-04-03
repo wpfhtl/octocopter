@@ -59,7 +59,6 @@ void main()
     vec3 upWorld = vec3(0.0, 1.0, 0.0);
 
     vec3 right = normalize(-cross(toCamera, upWorld)) * waypointIndicatorRadius;
-
     vec3 up = normalize(cross(toCamera, normalize(-right))) * waypointIndicatorRadius;
 
     float alpha = min(1.0, waypointpressure[0] * 10);

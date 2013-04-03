@@ -95,6 +95,7 @@ public slots:
 
     void slotResetParticles();
 
+
 signals:
     void particleRadiusChanged(float);
     void vboInfoParticles(quint32 vboPositions, quint32 vboColor, quint32 particleCount, QVector3D particleSystemWorldMin, QVector3D particleSystemWorldMax);

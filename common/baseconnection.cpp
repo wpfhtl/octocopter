@@ -324,10 +324,10 @@ void BaseConnection::slotFlightStateChanged(const FlightState* const fs)
 }
 
 // called by rover to send lidarpoints to the basestation
-/*void BaseConnection::slotNewScannedPoints(const QVector<QVector3D>& points, const QVector3D& scannerPosition)
+void BaseConnection::slotNewScannedPoints(const QVector<QVector4D>& points, const QVector3D& scannerPosition)
 {
     slotNewScannedPoints((float*)points.constData(), points.size(), &scannerPosition);
-}*/
+}
 
 // called by rover to send lidarpoints to the basestation - old and slow
 /*void BaseConnection::slotNewScannedPoints(const QVector<QVector3D>* const points, const QVector3D* const scannerPosition)

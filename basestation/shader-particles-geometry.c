@@ -38,8 +38,7 @@ void main()
 
     vec3 upWorld = vec3(0.0, 1.0, 0.0);
 
-    vec3 right = normalize(-cross(toCamera, upWorld)) * particleRadius;
-
+    vec3 right = normalize(cross(toCamera, upWorld)) * particleRadius;
     vec3 up = normalize(cross(toCamera, normalize(-right))) * particleRadius;
 
     // bottom left

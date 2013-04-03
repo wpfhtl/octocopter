@@ -96,10 +96,10 @@ public slots:
     void slotFlightControllerWeightsChanged();
 
     // called by rover to send lidarpoints (float4!) to the basestation
+    // in the simulator, send the data instead, because the laserscanner lives in another thread
+    void slotNewScannedPoints(const QVector<QVector4D>& points, const QVector3D& scannerPosition);
     // for the rover, its fine to send a pointer, because sender and receiver live in the same thread
     void slotNewScannedPoints(const float* const points, const quint32 numPoints, const QVector3D* const scannerPosition);
-    // in the simulator, send the data instead, because the laserscanner lives in another thread
-//    void slotNewScannedPoints(const QVector<QVector3D>& points, const QVector3D& scannerPosition);
 
     // called by rover to send new vehicle status to basestation
     void slotNewVehicleStatus(const VehicleStatus* const vs);

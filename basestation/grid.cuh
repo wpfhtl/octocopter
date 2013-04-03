@@ -11,33 +11,40 @@ struct Grid
     float3 worldMin;
     float3 worldMax;
 
+    __host__ __device__ Grid& operator=(const Grid& other)
+    {
+        cells = other.cells;
+        worldMin = other.worldMin;
+        worldMax = other.worldMax;
+        return *this;
+    }
+
     // Calculate a particle's hash value (=address in grid) from its containing cell (clamping to edges)
     __host__ __device__ unsigned int getCellHash(int3 gridCellCoordinate) const;
 
     quint32 cellCount() const {return cells.x * cells.y * cells.z;}
 
+    // If the Grid bounds are defined by worldMin and worldMax, then what is the best cells-configuration
+    // given a fixed @minDist? result would be e.g. 256x32x256 cells.
+    __host__ __device__ uint3 getOptimalResolution(const float minDist);
+
     // Given the cell hash (=gl_PrimitiveIDIn), whats the 3d-grid-coordinate of the cell's center?
     // This is the reverse of particleskernel.cu -> calcGridHash(int3 gridCell).
     __host__ __device__ int3 getCellCoordinate(const unsigned int hash) const;
     __host__ __device__ int3 getCellCoordinate(const float3& worldPos) const;
-    int3 getCellCoordinate(const QVector3D& worldPos) const;
 
     __host__ __device__ float3 getCellSize() const;
-//    QVector3D getCellSizeQt() const;
 
     __host__ __device__ float3 getCellCenter(const int3& gridCellCoordinate) const;
-//    QVector3D getCellCenterQt(const int3& gridCellCoordinate) const;
 
     __host__ __device__ float3 getWorldSize() const;
-//    QVector3D getWorldSizeQt() const;
 
     __host__ __device__ float3 getWorldCenter() const;
-//    QVector3D getWorldCenterQt() const;
 
 };
 
 
-void computeMappingFromGridCellToParticle(
+void computeMappingFromPointToGridCell(
         unsigned int* gridParticleHash,
         unsigned int* gridParticleIndex,
         float*        pos,

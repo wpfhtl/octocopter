@@ -16,7 +16,7 @@ SbfParser::SbfParser(QObject *parent) : QObject(parent)
     mGnssDeviceWorkingPrecisely = false;
 
     // Offset from ARP to vehicle center in meters, local vehicle coordinate system
-    mTransformArpToVehicle.translate(0.1f, -0.39f, -0.04f);
+    mTransformArpToVehicle.translate(0.09f, -0.53f, -0.04f);
 }
 
 SbfParser::~SbfParser()
@@ -152,11 +152,8 @@ void SbfParser::setPose(
                 (qint32)tow // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
                 );
 
-//    qDebug() << "arp:" << mLastPose;
-
+    // Move the pose from the ARP/Marker that IntPVAAGeod outputs to the vehicle's center
     mLastPose.getMatrixRef() *= mTransformArpToVehicle;
-
-//    qDebug() << "vec:" << mLastPose;
 
     mLastPose.precision = precision;
 }
@@ -175,6 +172,8 @@ QVector3D SbfParser::convertGeodeticToCartesian(const double &lon, const double 
         {
             mOriginLongitude = lon;
             mOriginLatitude = lat;
+
+            // Whats the transform for?
             mOriginElevation = elevation + mTransformArpToVehicle(1, 3);
         }
         else

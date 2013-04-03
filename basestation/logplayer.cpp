@@ -672,3 +672,12 @@ void LogPlayer::slotGoToTow(qint32 towTarget)
 
     mProgressBarTow->setValue(towTarget);
 }
+
+void LogPlayer::keyPressEvent(QKeyEvent* event)
+{
+    if(event->key() == Qt::Key_Space)
+    {
+        ui->mPushButtonPlay->setChecked(!ui->mPushButtonPlay->isChecked());
+        slotPlay();
+    }
+}
