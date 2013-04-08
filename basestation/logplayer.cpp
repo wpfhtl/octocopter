@@ -501,17 +501,16 @@ void LogPlayer::slotPlay()
             // Packets in the SBF stream are not guaranteed to be in chronological order, especially
             // ExtEvent-packets don't let this assumption hold. For this reason, we might have to deal
             // with negative intervals, which we just set to 0 here.
-            float playbackFactor = ui->mSpinBoxTimeFactor->value();
 
             // How many milliseconds have elapsed between the first packet to be played and the upcoming one?
             qint32 towElapsedAtNextPacket = minTowAfter - mTimePlaybackStartTow;
 
             // When should this upcoming packet be played in real time?
-            QTime timeOfNextPacketReal = mTimePlaybackStartReal.addMSecs(towElapsedAtNextPacket * playbackFactor);
+            QTime timeOfNextPacketReal = mTimePlaybackStartReal.addMSecs(towElapsedAtNextPacket * ui->mSpinBoxTimeFactor->value());
             qint32 timeToSleep = QTime::currentTime().msecsTo(timeOfNextPacketReal);
 
 //            qDebug() << "LogPlayer::slotPlay(): we are are" << mTimePlaybackStartReal.msecsTo(QTime::currentTime()) << "real ms into playing, next packet comes at" << towElapsedAtNextPacket;
-//            qDebug() << "LogPlayer::slotPlay(): playback started at real" << mTimePlaybackStartReal << "tow" << mTimePlaybackStartTow << ": tow of upcoming packet is" << minTowAfter << " factor is" << playbackFactor << "- sleeping for" << timeToSleep << "ms";
+//            qDebug() << "LogPlayer::slotPlay(): playback started at real" << mTimePlaybackStartReal << "tow" << mTimePlaybackStartTow << ": tow of upcoming packet is" << minTowAfter << " factor is" << ui->mSpinBoxTimeFactor->value() << "- sleeping for" << timeToSleep << "ms";
 
             // Bound time to wait for corner and error-cases
             mTimerAnimation->start(qBound(0, timeToSleep, 5000));
