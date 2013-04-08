@@ -7,6 +7,7 @@
 
 #include <common.h>
 #include "gnsstime.h"
+#include "logfile.h"
 #include "flightstate.h"
 #include "flightstateswitch.h"
 #include "flightcontrollervalues.h"
@@ -44,7 +45,7 @@ public:
     const FlightState& getFlightState(void) const { return mFlightControllerValues.flightState; }
 
 private:
-    QFile* mLogFile;
+    LogFile* mLogFile;
 
     FlightControllerValues mFlightControllerValues;
 
@@ -78,12 +79,45 @@ private:
     // This is an attempt to smooth out GNSS reception problems in single GNSS-packets that would
     // otherwise lead to a bouncing vehicle while flip-flopping between safe control values and
     // hover/approachwaypoint.
-    MotionCommand mLastMotionCommand;
+    MotionCommand mLastMotionCommandUsedForSmoothing;
     void smoothenControllerOutput(MotionCommand& mc);
 
     struct ImuOffsets {
-        float pitch;
-        float roll;
+        static const quint8 numberOfMeasurementsToAverage = 3;
+        quint8 mNumberOfMeasurementsAveraged;
+        float pitch, roll;
+        float mPitchMeasurementSum, mRollMeasurementSum;
+        bool mDoCalibration;
+
+        ImuOffsets() : mNumberOfMeasurementsAveraged(0), pitch(0.0f), roll(0.0f), mPitchMeasurementSum(0.0f), mRollMeasurementSum(0.0f), mDoCalibration(false) {}
+
+        void doCalibration() {mDoCalibration = true;}
+
+        void calibrate(const Pose* const p)
+        {
+            Q_ASSERT(needsMoreMeasurements());
+
+            mPitchMeasurementSum += p->getPitchDegrees();
+            mRollMeasurementSum += p->getRollDegrees();
+
+            qDebug() << "ImuOffsets::calibrate(): added IMU offsets pitch" << pitch << "and roll" << roll << "from pose of TOW" << p->timestamp << "to IMU offset computation.";
+
+            mNumberOfMeasurementsAveraged++;
+
+            if(mNumberOfMeasurementsAveraged == numberOfMeasurementsToAverage)
+            {
+                pitch = mPitchMeasurementSum / numberOfMeasurementsToAverage;
+                roll = mRollMeasurementSum / numberOfMeasurementsToAverage;
+                qDebug() << "ImuOffsets::calibrate(): calibrated IMU offsets to pitch" << pitch << "and roll" << roll << "from" << mNumberOfMeasurementsAveraged << "poses";
+
+                // reset, so that we could calibrate again.
+                mPitchMeasurementSum = mRollMeasurementSum = 0.0f;
+                mNumberOfMeasurementsAveraged = 0;
+                mDoCalibration = false;
+            }
+        }
+
+        bool needsMoreMeasurements() const {return mDoCalibration && mNumberOfMeasurementsAveraged < numberOfMeasurementsToAverage;}
     };
 
     ImuOffsets mImuOffsets;
@@ -101,7 +135,7 @@ private:
 
     void initializeControllers();
 
-    bool isHeightOverGroundValueRecent() const;
+    //bool isHeightOverGroundValueRecent() const;
 
     void nextWayPointReached();
     void setFlightState(FlightState);

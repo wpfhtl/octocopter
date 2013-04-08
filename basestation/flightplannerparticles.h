@@ -43,7 +43,6 @@ private:
     // To re-fill our datastructure when the boundingbox has changed.
     bool insertPointsFromNode(const Node* node);
 
-    void slotInitializeWaypointPressureGrid();
     void showWaypointPressure();
 
     ParametersParticleSystem mSimulationParameters;

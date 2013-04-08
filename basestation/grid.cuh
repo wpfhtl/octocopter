@@ -19,6 +19,12 @@ struct Grid
         return *this;
     }
 
+
+    __host__ void initialize()
+    {
+        cells.x = cells.y = cells.z = 0;
+    }
+
     // Calculate a particle's hash value (=address in grid) from its containing cell (clamping to edges)
     __host__ __device__ unsigned int getCellHash(int3 gridCellCoordinate) const;
 

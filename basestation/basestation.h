@@ -27,7 +27,7 @@
 #include "plymanager.h"
 #include "roverconnection.h"
 #include "wirelessdevice.h"
-#include <plotwidget.h>
+//#include <plotwidget.h>
 #include <waypoint.h>
 #include <pose.h>
 #include "pointcloudcuda.h"
@@ -51,7 +51,7 @@ private:
     ControlWidget* mControlWidget;
     LogWidget* mLogWidget;
     PidControllerWidget* mPidControllerWidget;
-    PlotWidget* mPlotWidget;
+//    PlotWidget* mPlotWidget;
     LogPlayer* mLogPlayer;
     PtuController* mPtuController;
     AudioPlayer* mAudioPlayer;
@@ -78,7 +78,7 @@ private slots:
     void slotExportCloud(void);
     void slotImportCloud(void);
     void slotToggleLogWidget(void) {if(mLogWidget) mLogWidget->setVisible(!mLogWidget->isVisible());}
-    void slotTogglePlotWidget(void) {if(mPlotWidget) mPlotWidget->setVisible(!mPlotWidget->isVisible());}
+//    void slotTogglePlotWidget(void) {if(mPlotWidget) mPlotWidget->setVisible(!mPlotWidget->isVisible());}
     void slotToggleControlWidget(void) {if(mControlWidget) mControlWidget->setVisible(!mControlWidget->isVisible());}
     void slotTogglePidControllerWidget() {if(mPidControllerWidget) mPidControllerWidget->setVisible(! mPidControllerWidget->isVisible());}
     void slotTogglePtuControllerWidget() {if(mPtuController) mPtuController->setVisible(! mPtuController->isVisible());}

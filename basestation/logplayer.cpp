@@ -194,6 +194,8 @@ qint32 LogPlayer::getLastTow(const DataSource& source)
         {
             QByteArray lastPacket = mDataFlightController.right(mDataFlightController.size() - mDataFlightController.lastIndexOf("FLTCLR", lastSearchIndex));
 
+            if(lastPacket.isEmpty()) return -1;
+
             FlightControllerValues* fcv = (FlightControllerValues*)(lastPacket.data() + 6); // FLTCLR
             tow = fcv->timestamp;
 
@@ -325,7 +327,15 @@ LogPlayer::DataSource LogPlayer::getNextDataSource(qint32* tow)
 
     if(tow) *tow = towMin == big ? -1 : towMin;
 
-    if(towMin == towSbf)
+    qDebug() << "LogPlayer::getNextDataSource(): sbf" << towSbf << "lidar" << towLaser << "fc" << towFlightController;
+
+    // If twoSbf and towFlightController are equal, process sbf first, because fc is based on sbf data.
+    // That just makes more sense when stepping through the data.
+    if(towMin == big)
+    {
+        return Source_Invalid;
+    }
+    else if(towMin == towSbf)
     {
         return Source_Sbf;
     }
@@ -337,22 +347,21 @@ LogPlayer::DataSource LogPlayer::getNextDataSource(qint32* tow)
     {
         return Source_FlightController;
     }
-    else
-    {
-        return Source_Invalid;
-    }
+
+    Q_ASSERT(false && "LogPlayer::getNextDataSource(): illegal state!");
+    return Source_Invalid;
 }
 
 bool LogPlayer::slotStepForward(DataSource source)
 {
-    if(source == Source_Invalid)
-        source = getNextDataSource();
+    if(source == Source_Invalid) source = getNextDataSource();
 
     switch(source)
     {
     case Source_Sbf:
     {
         // process SBF
+        //qDebug() << "LogPlayer::slotStepForward(): processing" << tow << "sbf";
         mSbfParser->processNextValidPacket(mDataSbf);
     }
     break;
@@ -362,6 +371,7 @@ bool LogPlayer::slotStepForward(DataSource source)
         // process laser data
         QByteArray packet = getNextPacket(Source_Laser);
         mIndexLaser += packet.size();
+        //qDebug() << "LogPlayer::slotStepForward(): processing" << tow << "lidar";
         processPacket(source, packet);
     }
     break;
@@ -371,13 +381,14 @@ bool LogPlayer::slotStepForward(DataSource source)
         // process FlightController data
         QByteArray packet = getNextPacket(Source_FlightController);
         mIndexFlightController += packet.size();
+        //qDebug() << "LogPlayer::slotStepForward(): processing" << tow << "fc";
         processPacket(source, packet);
     }
     break;
 
     default:
     {
-        qDebug() << "LogPlayer::slotStepForward(): seems I'm at the end, cannot fetch further Sbf, FlightControlle or Laser packets from logs";
+        qDebug() << "LogPlayer::slotStepForward(): seems I'm at the end, cannot fetch further Sbf, FlightController or Laser packets from logs";
         emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Reached end of log data.");
         return false;
     }
@@ -490,17 +501,20 @@ void LogPlayer::slotPlay()
             // Packets in the SBF stream are not guaranteed to be in chronological order, especially
             // ExtEvent-packets don't let this assumption hold. For this reason, we might have to deal
             // with negative intervals, which we just set to 0 here.
+            float playbackFactor = ui->mSpinBoxTimeFactor->value();
 
+            // How many milliseconds have elapsed between the first packet to be played and the upcoming one?
             qint32 towElapsedAtNextPacket = minTowAfter - mTimePlaybackStartTow;
-            QTime timeOfNextPacketReal = mTimePlaybackStartReal.addMSecs(towElapsedAtNextPacket);
-            const qint32 timeToSleep = QTime::currentTime().msecsTo(timeOfNextPacketReal) * ui->mSpinBoxTimeFactor->value();
 
-//            qDebug() << "playback started at real" << mTimePlaybackStartReal << "tow" << mTimePlaybackStartTow << "next tow" << minTowAfter << "sleeping for" << timeToSleep;
-//            qDebug() << "we are are now" << mTimePlaybackStartReal.msecsTo(QTime::currentTime()) << "real ms into playing, virtual timediff is" << towElapsedAtNextPacket;
-//            if(timeToSleep > 0) qDebug() << "LogPlayer::slotPlay(): slotStepForward() succeeded, sleeping for" << timeToSleep;
+            // When should this upcoming packet be played in real time?
+            QTime timeOfNextPacketReal = mTimePlaybackStartReal.addMSecs(towElapsedAtNextPacket * playbackFactor);
+            qint32 timeToSleep = QTime::currentTime().msecsTo(timeOfNextPacketReal);
 
-            // Wait between 0 and 1 secs, scaled by timefactor
-            mTimerAnimation->start(qBound(0, timeToSleep, 3000));
+//            qDebug() << "LogPlayer::slotPlay(): we are are" << mTimePlaybackStartReal.msecsTo(QTime::currentTime()) << "real ms into playing, next packet comes at" << towElapsedAtNextPacket;
+//            qDebug() << "LogPlayer::slotPlay(): playback started at real" << mTimePlaybackStartReal << "tow" << mTimePlaybackStartTow << ": tow of upcoming packet is" << minTowAfter << " factor is" << playbackFactor << "- sleeping for" << timeToSleep << "ms";
+
+            // Bound time to wait for corner and error-cases
+            mTimerAnimation->start(qBound(0, timeToSleep, 5000));
         }
         else
         {

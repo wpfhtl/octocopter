@@ -63,7 +63,7 @@ void AudioPlayer::playSound()
 {
     QFileInfo fi(mCurrentlyPlaying);
     mSound = Mix_LoadMUS(qPrintable(fi.absoluteFilePath()));
-    printf("playin sound %s\n", qPrintable(fi.absoluteFilePath()));
+//    qDebug() << "AudioPlayer::playSound(): playing sound", fi.absoluteFilePath();
     Mix_PlayMusic(mSound, -1);
 //    Mix_HookMusicFinished(playingFinished);
 }

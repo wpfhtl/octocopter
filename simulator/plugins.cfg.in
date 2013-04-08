@@ -4,7 +4,7 @@
 #PluginFolder=${OGRE_PLUGIN_DIR_REL} ${OGRE_PLUGIN_DIR_DBG}
 #PluginFolder=/usr/lib64/OGRE/
 PluginFolder=/usr/local/lib/OGRE/
-#PluginFolder=/usr/lib/x86_64-linux-gnu/OGRE-1.7.4/
+#PluginFolder=/usr/lib/x86_64-linux-gnu/OGRE-1.8.0/
 
 # Define plugins
 Plugin=RenderSystem_GL

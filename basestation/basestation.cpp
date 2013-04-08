@@ -19,7 +19,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     mProgress = 0;
 
-    mPlotWidget = 0;
+//    mPlotWidget = 0;
     mTimerJoystick = 0;
     mLogPlayer = 0;
     mPtuController = 0;
@@ -240,7 +240,7 @@ BaseStation::BaseStation() : QMainWindow()
 BaseStation::~BaseStation()
 {
     delete mPtuController;
-    delete mPlotWidget;
+//    delete mPlotWidget;
     delete mPidControllerWidget;
     delete mLogPlayer;
     delete mFlightPlanner;

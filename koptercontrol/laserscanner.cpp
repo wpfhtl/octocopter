@@ -118,9 +118,14 @@ void LaserScanner::slotEnableScanning(const bool value)
         qDebug() << "LaserScanner::slotEnableScanning(): setting enabled state to" << value;
 
         if(value)
-            mTimerScan->start(mScanner.scanMsec());
+        {
+            // 2013-04-08: disabled for now, we want to see if not-capturing decreases pose-latency in flightcontroller!
+            //mTimerScan->start(mScanner.scanMsec());
+        }
         else
+        {
             mTimerScan->stop();
+        }
     }
 }
 

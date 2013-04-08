@@ -85,7 +85,7 @@ private:
     // When someone re-sets minDist, we need to re-allocate the grid structures!
     bool mGridHasChanged;
 
-
+    float* mDevicePointPos; // if its not null, then its pointing to the mapped VBO!
     // Needed, because we cannot sort particle positions according to their grid cell hash value in-place.
     // See sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArraysD() for the reason.
     float* mDevicePointSortedPos;
@@ -96,17 +96,6 @@ private:
     unsigned int*  mDeviceCellStopp;        // index of end of cell
 
     struct cudaGraphicsResource *mCudaVboResource; // handles OpenGL-CUDA exchange
-
-    // reduces the queued points against themselves, then merges all points and reduces again. Thin wrapper around reducePoints()
-    quint32 reduceAllPointsUsingCollisions();
-    quint32 reduceUsingSnapToGrid(float *devicePoints = 0, quint32 numberOfPoints = 0); // will use given pointer instead of mapping (if != 0).
-
-    quint32 reduceToCellMean();
-
-    quint32 trimToBoundingBox();
-
-    // reduces the given points against themselves
-    quint32 reducePointRangeUsingCollisions(float *devicePoints, const quint32 numElements, const bool createBoundingBox);
 
     quint32 reducePoints(float* devicePoints, const quint32 numElements, const bool createBoundingBox);
 
@@ -126,7 +115,7 @@ public slots:
     void slotInsertPoints(PointCloud *const pointCloudSource, const quint32& firstPointToReadFromSrc = 0, quint32 numberOfPointsToCopy = 0);
 
     // deprecated! Uses OpenGl BufferCopy. Might be faster than CUDA-copy, but doesn't support filtering points in bbox
-    bool slotInsertPoints(const VboInfo* const vboInfo, const quint32& firstPoint, const quint32& numPoints);
+//    bool slotInsertPoints(const VboInfo* const vboInfo, const quint32& firstPoint, const quint32& numPoints);
 
     void slotInitialize();
 

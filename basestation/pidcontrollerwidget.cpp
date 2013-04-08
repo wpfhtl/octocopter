@@ -24,7 +24,7 @@ PidControllerWidget::~PidControllerWidget()
 
 void PidControllerWidget::setEnabled(bool enabled)
 {
-    ui->mTableControllerValues->setEnabled(enabled);
+    //ui->mTableControllerValues->setEnabled(enabled);
 }
 
 void PidControllerWidget::setControllers(const FlightControllerValues* const fcv)

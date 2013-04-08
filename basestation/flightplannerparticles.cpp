@@ -12,8 +12,8 @@ FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWidget *
     mDeviceGridMapWaypointPressureCellWorldPositions = 0;
 
     mPointCloudColliders = new PointCloudCuda(
-                QVector3D(-16.0f, -4.0f, -16.0f),
-                QVector3D(16.0f, 12.0f, 16.0f),
+                QVector3D(-32.0f, -4.0f, -32.0f),
+                QVector3D(32.0f, 28.0f, 32.0f),
                 64 * 1024);
 
     mPointCloudColliders->setMinimumPointDistance(0.4f);
@@ -28,8 +28,14 @@ FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWidget *
     connect(&mTimerProcessWaypointPressure, SIGNAL(timeout()), SLOT(slotProcessWaypointPressure()));
 }
 
-void FlightPlannerParticles::slotInitializeWaypointPressureGrid()
+void FlightPlannerParticles::slotInitialize()
 {
+    qDebug() << "FlightPlannerParticles::slotInitialize()";
+
+    mSimulationParameters.initialize();
+    mSimulationParameters.gridWaypointPressure.cells = make_uint3(256, 32, 256);
+    slotSetScanVolume(QVector3D(-32, -4, -32), QVector3D(32, 28, 32));
+
     const quint32 numberOfCellsInScanVolume = mSimulationParameters.gridWaypointPressure.cellCount();
 
     // Store the gridcell-waypoint-pressure-values in a VBO as 8bit-unsigned-ints
@@ -47,16 +53,6 @@ void FlightPlannerParticles::slotInitializeWaypointPressureGrid()
 
     // Will contain QVector4Ds of worldpos of every gridcell, sorted by waypoint pressure
 //    cudaSafeCall(cudaMalloc((void**)&mDeviceGridMapCellWorldPositions, sizeof(float4) * numberOfCellsInScanVolume));
-}
-
-void FlightPlannerParticles::slotInitialize()
-{
-    qDebug() << "FlightPlannerParticles::slotInitialize()";
-
-    mSimulationParameters.initialize();
-    mSimulationParameters.gridWaypointPressure.cells = make_uint3(256, 32, 256);
-    slotSetScanVolume(QVector3D(-32, -4, -32), QVector3D(32, 28, 32));
-    slotInitializeWaypointPressureGrid();
 
     mPointCloudColliders->slotInitialize();
 
@@ -124,7 +120,6 @@ void FlightPlannerParticles::keyPressEvent(QKeyEvent *event)
 
 void FlightPlannerParticles::slotShowUserInterface()
 {
-    // Just show the dialog for generating-options
     mDialog->show();
 }
 
@@ -174,7 +169,7 @@ void FlightPlannerParticles::slotGenerateWaypoints(quint32 numberOfWaypointsToGe
     qDebug() << "FlightPlannerParticles::slotGenerateWaypoints(): generated" << waypointList->size() << "waypoints";
 
     // Merge waypoints if they're closer than X meters
-    wayPointStructure->mergeCloseWaypoints(10.0f);
+    wayPointStructure->mergeCloseWaypoints(5.0f);
 
     // Reduce them to the desired number
     while(waypointList->size() > numberOfWaypointsToGenerate)
@@ -213,9 +208,7 @@ void FlightPlannerParticles::slotProcessWaypointPressure(const quint8 threshold)
         qDebug() << "FlightPlannerParticles::slotProcessWaypointPressure(): threshold is" << threshold << "- max pressure is" << maxPressure << ": generating waypoints.";
         mTimerProcessWaypointPressure.stop();
         slotGenerateWaypoints();
-        //decreaseWaypointPressure(gridMapOfWayPointPressure, numberOfCells);
     }
-
 }
 
 void FlightPlannerParticles::slotCreateSafePathToNextWayPoint()
@@ -277,12 +270,8 @@ void FlightPlannerParticles::slotSetScanVolume(const QVector3D min, const QVecto
 
     FlightPlannerInterface::slotSetScanVolume(min, max);
 
-    mSimulationParameters.gridWaypointPressure.worldMin.x = mScanVolumeMin.x();
-    mSimulationParameters.gridWaypointPressure.worldMin.y = mScanVolumeMin.y();
-    mSimulationParameters.gridWaypointPressure.worldMin.z = mScanVolumeMin.z();
-    mSimulationParameters.gridWaypointPressure.worldMax.x = mScanVolumeMax.x();
-    mSimulationParameters.gridWaypointPressure.worldMax.y = mScanVolumeMax.y();
-    mSimulationParameters.gridWaypointPressure.worldMax.z = mScanVolumeMax.z();
+    mSimulationParameters.gridWaypointPressure.worldMin = cudaConvert(mScanVolumeMin);
+    mSimulationParameters.gridWaypointPressure.worldMax = cudaConvert(mScanVolumeMax);
 
     copyParametersToGpu(&mSimulationParameters);
 
@@ -336,11 +325,11 @@ void FlightPlannerParticles::slotVehiclePoseChanged(const Pose* const pose)
         const Box3D scanVolume(mScanVolumeMin, mScanVolumeMax);
         const Box3D desiredParticleSystemExtents(QVector3D(
                                                pos.x()-32.0f,
-                                               pos.y()-32.0f,
+                                               pos.y()-10.0f,
                                                pos.z()-32.0f),
                                            QVector3D(
                                                pos.x()+32.0f,
-                                               pos.y()+32.0f,
+                                               pos.y()+22.0f,
                                                pos.z()+32.0f));
 
         const Box3D particleSystemInScanVolume = desiredParticleSystemExtents.tryToKeepWithin(scanVolume);
@@ -406,7 +395,6 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloud*const point
         mDialog->setProcessPhysics(true);
         mParticleSystem->slotResetParticles();
         mTimerProcessWaypointPressure.start(5000);
-        //QTimer::singleShot(10000, this, SLOT(slotProcessWaypointPressure()));
     }
 
     // In the future, we will update the collidercloud manually when generating new waypoints

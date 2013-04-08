@@ -52,7 +52,6 @@ void LogFile::write(const char* data, const quint32 length)
 {
     QMutexLocker locker(&mMutex);
     mBuffer->append(data, length);
-//    slotCheckFlush();
     mBytesWritten += length;
 }
 
@@ -60,7 +59,6 @@ void LogFile::write(const QByteArray* const data)
 {
     QMutexLocker locker(&mMutex);
     mBuffer->append(data->constData(), data->size());
-//    slotCheckFlush();
     mBytesWritten += data->size();
 }
 
@@ -68,7 +66,6 @@ void LogFile::write(const QByteArray& data)
 {
     QMutexLocker locker(&mMutex);
     mBuffer->append(data.constData(), data.size());
-//    slotCheckFlush();
     mBytesWritten += data.size();
 }
 
@@ -86,9 +83,7 @@ void LogFile::slotCheckFlush()
         {
             // We would like to flush, but the last flush is still ongoing!
             // As QDebug() is re-routed to a LogFile, this can cause and endless loop!
-            //qDebug() << "LogFile::slotCheckFlush(): couldn't flush" << mBuffer->size() << "bytes into" << mLogFile->fileName() << "because flush() is still running!";
-            printf(".");
-            fflush(stdout);
+            qDebug() << "LogFile::slotCheckFlush(): couldn't flush" << mBuffer->size() << "bytes into" << mLogFile->fileName() << "because flush() is still running!";
         }
     }
 }
@@ -96,6 +91,8 @@ void LogFile::slotCheckFlush()
 void LogFile::flush()
 {
     QByteArray* temp;
+
+    qDebug() << "LogFile::flush(): flushing" << mLogFile->fileName() << "...";
 
     // Lock mutex and swap buffers before for flushing...
     mMutex.lock();
@@ -112,4 +109,6 @@ void LogFile::flush()
     mLogFile->write(mBufferBeingFlushed->constData(), mBufferBeingFlushed->size());
     mLogFile->flush();
     mBufferBeingFlushed->clear();
+
+    qDebug() << "LogFile::flush(): done flushing" << mLogFile->fileName();
 }

@@ -435,17 +435,6 @@ void fillGridMapCellWorldPositionsD(
 
 void integrateSystem(float *particlePositions, float *particleVelocities, uint8_t* gridWaypointPressure, float* particleCollisionPositions, const ParametersParticleSystem* const params, uint numParticles)
 {
-// old thrust version. Cannot write to the non-linear waypointpressure position when using thrust tuples.
-//    thrust::device_ptr<float4> d_pos4((float4*)pos);
-//    thrust::device_ptr<float4> d_vel4((float4*)vel);
-//    thrust::device_ptr<float4> d_pcp4((float4*)particleCollisionPositions);
-//    thrust::device_ptr<uint8_t> d_gwpp((uint8_t*)gridWaypointPressure);
-
-//    thrust::for_each(
-//                thrust::make_zip_iterator(thrust::make_tuple(d_pos4, d_vel4, d_pcp4, d_gwpp)),
-//                thrust::make_zip_iterator(thrust::make_tuple(d_pos4 + numParticles, d_vel4 + numParticles, d_pcp4 + numParticles, d_gwpp + numParticles)),
-//                integrate_functor(deltaTime));
-
     if(numParticles == 0) return;
 
     uint numThreads, numBlocks;
