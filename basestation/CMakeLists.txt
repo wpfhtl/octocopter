@@ -9,7 +9,7 @@ FILE(GLOB_RECURSE CUDA_SRCS "*.cu")
 SET(SRC_FILES
     ${CUDA_SRCS}
 
-    cudahelper.cpp
+    cudahelper
     main
     particlesystem
     pointcloudcuda

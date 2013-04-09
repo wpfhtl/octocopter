@@ -119,7 +119,7 @@ void ParticleSystem::showCollisionPositions()
         {
             qDebug() << "last collision of particle" << i << "was in cell" <<
                         //getGridCellHash(mSimulationParameters->gridParticleSystem, getGridCellCoordinate(mSimulationParameters->gridParticleSystem, collisionPositionsHost[i].toVector3D())) << "at" << collisionPositionsHost[i];
-                        mSimulationParameters->gridParticleSystem.getCellHash(mSimulationParameters->gridParticleSystem.getCellCoordinate(cudaConvert(collisionPositionsHost[i].toVector3D()))) << "at" << collisionPositionsHost[i];
+                        mSimulationParameters->gridParticleSystem.getCellHash(mSimulationParameters->gridParticleSystem.getCellCoordinate(CudaHelper::cudaConvert(collisionPositionsHost[i].toVector3D()))) << "at" << collisionPositionsHost[i];
         }
     }
 
@@ -140,7 +140,7 @@ void ParticleSystem::initialize()
 
     // Using less (larger) cells is possible, it means less memory being used fro the grid, but more search being done when searching for neighbors
     // because more particles now occupy a single grid cell. This might not hurt performance as long as we do not cross an unknown threshold (kernel swap size)?!
-    const QVector3D particleSystemWorldSize = cudaConvert(mSimulationParameters->gridParticleSystem.getWorldSize());
+    const QVector3D particleSystemWorldSize = CudaHelper::cudaConvert(mSimulationParameters->gridParticleSystem.getWorldSize());
     mSimulationParameters->gridParticleSystem.cells.x = nextHigherPowerOfTwo((uint)ceil(particleSystemWorldSize.x() / (mSimulationParameters->particleRadius * 2.0f)))/* / 8.0*/;
     mSimulationParameters->gridParticleSystem.cells.y = nextHigherPowerOfTwo((uint)ceil(particleSystemWorldSize.y() / (mSimulationParameters->particleRadius * 2.0f)))/* / 8.0*/;
     mSimulationParameters->gridParticleSystem.cells.z = nextHigherPowerOfTwo((uint)ceil(particleSystemWorldSize.z() / (mSimulationParameters->particleRadius * 2.0f)))/* / 8.0*/;
@@ -238,7 +238,7 @@ void ParticleSystem::initialize()
     }
     glUnmapBufferARB(GL_ARRAY_BUFFER);
 
-    qDebug() << "ParticleSystem::initialize(): worldsize" << cudaConvert(mSimulationParameters->gridParticleSystem.getWorldSize()) << "and particle radius" << mSimulationParameters->particleRadius << ": created system with" << mSimulationParameters->particleCount << "particles and" << mSimulationParameters->gridParticleSystem.cells.x << "*" << mSimulationParameters->gridParticleSystem.cells.y << "*" << mSimulationParameters->gridParticleSystem.cells.z << "cells";
+    qDebug() << "ParticleSystem::initialize(): worldsize" << CudaHelper::cudaConvert(mSimulationParameters->gridParticleSystem.getWorldSize()) << "and particle radius" << mSimulationParameters->particleRadius << ": created system with" << mSimulationParameters->particleCount << "particles and" << mSimulationParameters->gridParticleSystem.cells.x << "*" << mSimulationParameters->gridParticleSystem.cells.y << "*" << mSimulationParameters->gridParticleSystem.cells.z << "cells";
     qDebug() << "ParticleSystem::initialize(): allocated" << mNumberOfBytesAllocatedCpu << "bytes on CPU," << mNumberOfBytesAllocatedGpu << "bytes on GPU.";
 
     copyParametersToGpu(mSimulationParameters);
@@ -331,7 +331,7 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
     startTime.start();
 
     // Get a pointer to the particle positions in the device by mapping GPU mem into CPU mem
-    float *deviceParticlePositions = (float*)mapGLBufferObject(&mCudaVboResourceParticlePositions);
+    float *deviceParticlePositions = (float*)CudaHelper::mapGLBufferObject(&mCudaVboResourceParticlePositions);
 
 //    qDebug() << "ParticleSystem::update(): 0: getting pointer finished at" << startTime.elapsed();
 
@@ -394,7 +394,7 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
     // Same for colliders
     if(mUpdateMappingFromColliderToGridCell)
     {
-        float *deviceColliderPositions = (float*)mapGLBufferObject(&mCudaVboResourceColliderPositions);
+        float *deviceColliderPositions = (float*)CudaHelper::mapGLBufferObject(&mCudaVboResourceColliderPositions);
 
         computeMappingFromPointToGridCell(
                     mDeviceColliderMapGridCell,                 // output: The key - part of the collider gridcell->index map, unsorted
@@ -478,7 +478,7 @@ void ParticleSystem::slotSetParticleRadius(float radius)
     // which might break collisions. I'm not sure this really is a problem, though, need to investigate further.
     // If the particles are now so small that more than 4 can fit into a cell, re-create the grid with more cells
 
-    QVector3D cellSize = cudaConvert(mSimulationParameters->gridParticleSystem.getCellSize());
+    QVector3D cellSize = CudaHelper::cudaConvert(mSimulationParameters->gridParticleSystem.getCellSize());
     const float shortestCellSide = std::min(std::min(cellSize.x(), cellSize.y()), cellSize.z());
     if(shortestCellSide > radius * 2.0f)
     {

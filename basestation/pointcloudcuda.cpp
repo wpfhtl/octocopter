@@ -193,8 +193,8 @@ void PointCloudCuda::slotInsertPoints(PointCloud *const pointCloudSource, const 
     Q_ASSERT(pointCloudSource->getVboInfo()[0].layoutMatches(&mVboInfo[0]));
 
     QTime time; time.start();
-    float *devicePointsBaseSrc = (float*) mapGLBufferObject(((PointCloudCuda*)pointCloudSource)->getCudaGraphicsResource());
-    mDevicePointPos = (float*) mapGLBufferObject(getCudaGraphicsResource());
+    float *devicePointsBaseSrc = (float*) CudaHelper::mapGLBufferObject(((PointCloudCuda*)pointCloudSource)->getCudaGraphicsResource());
+    mDevicePointPos = (float*) CudaHelper::mapGLBufferObject(getCudaGraphicsResource());
 
     // By default, copy all points from pointCloudSource
     if(numberOfPointsToCopy == 0) numberOfPointsToCopy = pointCloudSource->getNumberOfPoints();
@@ -266,7 +266,7 @@ void PointCloudCuda::slotReduce()
     // When appended points have close neighbors in other appended points, we want to delete just one of both.
 
     const bool hadToMapVbo = (mDevicePointPos == 0);
-    if(hadToMapVbo) mDevicePointPos = (float*) mapGLBufferObject(getCudaGraphicsResource());
+    if(hadToMapVbo) mDevicePointPos = (float*) CudaHelper::mapGLBufferObject(getCudaGraphicsResource());
 
     float *devicePointsQueued = mDevicePointPos + (mParameters.elementCount * 4);
 

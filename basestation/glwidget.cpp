@@ -3,6 +3,7 @@
 #include <cuda_gl_interop.h>
 #include "pointcloud.h"
 #include "glwidget.h"
+#include "cudahelper.h"
 
 GlWidget::GlWidget(QWidget* parent) :
     QGLWidget(parent),
@@ -63,38 +64,7 @@ void GlWidget::initializeGL()
     // Bind the VAO to the context
     glBindVertexArray(mVertexArrayObject);
 
-    // Initialize CUDA
-    int numberOfCudaDevices;
-    cudaGetDeviceCount(&numberOfCudaDevices);
-    Q_ASSERT(numberOfCudaDevices && "GlWidget::initializeGL(): No CUDA devices found, exiting.");
-
-    cudaError_t cudaError;
-
-    int activeCudaDevice;
-    cudaError = cudaGetDevice(&activeCudaDevice);
-    if(cudaError != cudaSuccess) qFatal("GlWidget::initializeGL(): couldn't get device: code %d: %s, exiting.", cudaError, cudaGetErrorString(cudaError));
-
-    // Necessary for OpenGL graphics interop: GlWidget and CUDA-based FlightPlanners have a close relationship because cudaGlSetGlDevice() needs to be called in GL context and before any other CUDA calls.
-    cudaError = cudaGLSetGLDevice(activeCudaDevice);
-    if(cudaError != cudaSuccess) qFatal("GlWidget::initializeGL(): couldn't set device to GL interop mode: code %d: %s, exiting.", cudaError, cudaGetErrorString(cudaError));
-
-    cudaError = cudaSetDeviceFlags(cudaDeviceMapHost);// in order for the cudaHostAllocMapped flag to have any effect
-    if(cudaError != cudaSuccess) qFatal("GlWidget::initializeGL(): couldn't set device flag: code %d: %s, exiting.", cudaError, cudaGetErrorString(cudaError));
-
-    cudaDeviceProp deviceProps;
-    cudaGetDeviceProperties(&deviceProps, activeCudaDevice);
-
-    size_t memTotal, memFree;
-    cudaMemGetInfo(&memFree, &memTotal);
-
-    qDebug() << "GlWidget::initializeGL(): device" << deviceProps.name << "has compute capability" << deviceProps.major << deviceProps.minor << "and"
-             << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free, has"
-             << deviceProps.multiProcessorCount << "multiprocessors,"
-             << (deviceProps.integrated ? "is" : "is NOT" ) << "integrated,"
-             << (deviceProps.canMapHostMemory ? "can" : "can NOT") << "map host mem, has"
-             << deviceProps.memoryClockRate / 1000 << "Mhz mem clock, a"
-             << deviceProps.memoryBusWidth << "bit mem bus and max"
-             << deviceProps.maxTexture1DLinear / 1048576 << "mb of 1d texture bound to linear memory.";
+    CudaHelper::initializeCuda();
 
     // Create the uniform buffer object (UBO) for all members of the UBO-Block
     mUboSize = 64 + 64; // One Matrix4x4 has 16 floats with 4 bytes each, giving 64 bytes.

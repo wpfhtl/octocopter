@@ -143,7 +143,7 @@ void markCollidingPoints(
 
     // thread per particle
     uint numThreads, numBlocks;
-    computeExecutionKernelGrid(numPoints, 64, numBlocks, numThreads);
+    CudaHelper::computeExecutionKernelGrid(numPoints, 64, numBlocks, numThreads);
 
     // execute the kernel
     markCollidingPointsD<<< numBlocks, numThreads >>>(
