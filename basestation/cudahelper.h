@@ -51,12 +51,10 @@ class CudaHelper
 {
 private:
     CudaHelper() {} // We don't want to have this instantiated
-    static bool mDeviceSupported;
 
 public:
+    static bool isDeviceSupported;
     static bool initializeCuda();
-
-    static bool isDeviceSupported();
 
     static void *mapGLBufferObject(struct cudaGraphicsResource **cuda_vbo_resource);
 

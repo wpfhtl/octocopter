@@ -327,7 +327,7 @@ LogPlayer::DataSource LogPlayer::getNextDataSource(qint32* tow)
 
     if(tow) *tow = towMin == big ? -1 : towMin;
 
-    qDebug() << "LogPlayer::getNextDataSource(): sbf" << towSbf << "lidar" << towLaser << "fc" << towFlightController;
+    //qDebug() << "LogPlayer::getNextDataSource(): sbf" << towSbf << "lidar" << towLaser << "fc" << towFlightController;
 
     // If twoSbf and towFlightController are equal, process sbf first, because fc is based on sbf data.
     // That just makes more sense when stepping through the data.

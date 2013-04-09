@@ -1,6 +1,6 @@
 #include "cudahelper.h"
 
-bool CudaHelper::mDeviceSupported = false;
+bool CudaHelper::isDeviceSupported = false;
 
 bool CudaHelper::initializeCuda()
 {
@@ -40,21 +40,16 @@ bool CudaHelper::initializeCuda()
     // We need compute capability 3.0 and some free memory
     if(deviceProps.major >= 3 && memFree/1048576 > 512)
     {
-        CudaHelper::mDeviceSupported = true;
+        CudaHelper::isDeviceSupported = true;
         qDebug() << "CudaHelper::initializeCuda(): device is supported!";
         return true;
     }
     else
     {
-        CudaHelper::mDeviceSupported = false;
+        CudaHelper::isDeviceSupported = false;
         qDebug() << "CudaHelper::initializeCuda(): device is NOT supported!";
         return false;
     }
-}
-
-bool CudaHelper::isDeviceSupported()
-{
-    return CudaHelper::mDeviceSupported;
 }
 
 void* CudaHelper::mapGLBufferObject(struct cudaGraphicsResource **cuda_vbo_resource)

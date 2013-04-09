@@ -39,20 +39,23 @@ PointCloudCuda::~PointCloudCuda()
 {
     free(mNewPointsBuffer);
 
-    // If it was ever used, unregister the graphics resource so it is not accessible by CUDA unless registered again.
-    if(mCudaVboResource)
+    if(CudaHelper::isDeviceSupported)
     {
-        qDebug() << "PointCloudCuda::freeResources(): unregistering resource...";
-        cudaSafeCall(cudaGraphicsUnregisterResource(mCudaVboResource));
+        // If it was ever used, unregister the graphics resource so it is not accessible by CUDA unless registered again.
+        if(mCudaVboResource)
+        {
+            qDebug() << "PointCloudCuda::freeResources(): unregistering resource...";
+            cudaSafeCall(cudaGraphicsUnregisterResource(mCudaVboResource));
+        }
+
+        glDeleteBuffers(1, &mVboInfo[0].vbo);
+        cudaSafeCall(cudaFree(mDeviceMapGridCell));
+        cudaSafeCall(cudaFree(mDeviceMapPointIndex));
+        cudaSafeCall(cudaFree(mDeviceCellStart));
+        cudaSafeCall(cudaFree(mDeviceCellStopp));
+
+        qDebug() << "PointCloudCuda::freeResources(): done.";
     }
-
-    glDeleteBuffers(1, &mVboInfo[0].vbo);
-    cudaSafeCall(cudaFree(mDeviceMapGridCell));
-    cudaSafeCall(cudaFree(mDeviceMapPointIndex));
-    cudaSafeCall(cudaFree(mDeviceCellStart));
-    cudaSafeCall(cudaFree(mDeviceCellStopp));
-
-    qDebug() << "PointCloudCuda::freeResources(): done.";
 }
 
 void PointCloudCuda::slotInitialize()
@@ -63,19 +66,28 @@ void PointCloudCuda::slotInitialize()
     // Create VBO with point positions. This is later given to renderer for visualization
     mVboInfo[0].vbo = createVbo(memSizePointQuadrupels);
 
-    // Allocate storage for sorted points
-    cudaSafeCall(cudaMalloc((void**)&mDevicePointSortedPos, memSizePointQuadrupels));
-    qDebug() << "PointCloudCuda::initialize(): allocated" << (2 * memSizePointQuadrupels) / (1024*1024) << "mb on the GPU for cloud with max" << mParameters.capacity / (1024*1024) << "million points.";
+    if(CudaHelper::isDeviceSupported)
+    {
+        // Allocate storage for sorted points
+        cudaSafeCall(cudaMalloc((void**)&mDevicePointSortedPos, memSizePointQuadrupels));
+        qDebug() << "PointCloudCuda::initialize(): allocated" << (2 * memSizePointQuadrupels) / (1024*1024) << "mb on the GPU for cloud with max" << mParameters.capacity / (1024*1024) << "million points.";
 
-    // For graphics interoperability, first register a resource for use with CUDA, then it can be mapped.
-    // Registering can take a long time, so we do it here just once. Unregistering takes place when deallocating stuff.
-    // During runtime, we just need to map and unmap the buffer to use it in CUDA
-    cudaGraphicsGLRegisterBuffer(&mCudaVboResource, mVboInfo[0].vbo, cudaGraphicsRegisterFlagsNone);
+        // For graphics interoperability, first register a resource for use with CUDA, then it can be mapped.
+        // Registering can take a long time, so we do it here just once. Unregistering takes place when deallocating stuff.
+        // During runtime, we just need to map and unmap the buffer to use it in CUDA
+        cudaGraphicsGLRegisterBuffer(&mCudaVboResource, mVboInfo[0].vbo, cudaGraphicsRegisterFlagsNone);
+    }
 }
 
 void PointCloudCuda::initializeGrid()
 {
     Q_ASSERT(mGridHasChanged);
+
+    if(!CudaHelper::isDeviceSupported)
+    {
+        qDebug() << "PointCloudCuda::initializeGrid(): device not supported, returning.";
+        return;
+    }
 
     mParameters.grid.cells = mParameters.grid.getOptimalResolution(mParameters.minimumDistance);
     copyParametersToGpu(&mParameters);
@@ -192,6 +204,12 @@ void PointCloudCuda::slotInsertPoints(PointCloud *const pointCloudSource, const 
     // Make sure the VBO layouts are compatible.
     Q_ASSERT(pointCloudSource->getVboInfo()[0].layoutMatches(&mVboInfo[0]));
 
+    if(!CudaHelper::isDeviceSupported)
+    {
+        qDebug() << "PointCloudCuda::slotInsertPoints(): device not supported, not transforming points to sparse cloud.";
+        return;
+    }
+
     QTime time; time.start();
     float *devicePointsBaseSrc = (float*) CudaHelper::mapGLBufferObject(((PointCloudCuda*)pointCloudSource)->getCudaGraphicsResource());
     mDevicePointPos = (float*) CudaHelper::mapGLBufferObject(getCudaGraphicsResource());
@@ -260,6 +278,12 @@ void PointCloudCuda::slotInsertPoints(PointCloud *const pointCloudSource, const 
 
 void PointCloudCuda::slotReduce()
 {
+    if(!CudaHelper::isDeviceSupported)
+    {
+        qDebug() << "PointCloudCuda::slotReduce(): device not supported, not reducing points.";
+        return;
+    }
+
     if(mGridHasChanged) initializeGrid();
 
     // We want to remove all points that have been appended and have close neighbors in the pre-existing data.

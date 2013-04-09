@@ -221,9 +221,13 @@ FlightPlannerParticles::~FlightPlannerParticles()
     delete mParticleRenderer;
     delete mParticleSystem;
 
-    cudaSafeCall(cudaFree(mDeviceGridMapWaypointPressureCellWorldPositions));
-    cudaSafeCall(cudaFree(mDeviceGridMapWayPointPressureToBeSorted));
-    cudaSafeCall(cudaGraphicsUnregisterResource(mCudaVboResourceGridMapOfWayPointPressure));
+    if(CudaHelper::isDeviceSupported)
+    {
+        cudaSafeCall(cudaFree(mDeviceGridMapWaypointPressureCellWorldPositions));
+        cudaSafeCall(cudaFree(mDeviceGridMapWayPointPressureToBeSorted));
+        cudaSafeCall(cudaGraphicsUnregisterResource(mCudaVboResourceGridMapOfWayPointPressure));
+    }
+
     glDeleteBuffers(1, (const GLuint*)&mVboGridMapOfWayPointPressure);
 }
 
@@ -240,7 +244,7 @@ void FlightPlannerParticles::slotVisualize()
 {
     FlightPlannerInterface::slotVisualize();
 
-    if(!mParticleSystem)
+    if(!mParticleSystem && CudaHelper::isDeviceSupported)
         slotInitialize();
 
     if(mParticleSystem)
@@ -273,14 +277,17 @@ void FlightPlannerParticles::slotSetScanVolume(const QVector3D min, const QVecto
     mSimulationParameters.gridWaypointPressure.worldMin = CudaHelper::cudaConvert(mScanVolumeMin);
     mSimulationParameters.gridWaypointPressure.worldMax = CudaHelper::cudaConvert(mScanVolumeMax);
 
-    copyParametersToGpu(&mSimulationParameters);
+    if(CudaHelper::isDeviceSupported)
+    {
+        copyParametersToGpu(&mSimulationParameters);
 
-    emit vboInfoGridWaypointPressure(
-                mVboGridMapOfWayPointPressure,
-                QVector3D(mSimulationParameters.gridWaypointPressure.cells.x, mSimulationParameters.gridWaypointPressure.cells.y, mSimulationParameters.gridWaypointPressure.cells.z),
-                QVector3D(mSimulationParameters.gridWaypointPressure.cells.x, mSimulationParameters.gridWaypointPressure.cells.y, mSimulationParameters.gridWaypointPressure.cells.z),
-                Vector3i(mSimulationParameters.gridWaypointPressure.cells.x, mSimulationParameters.gridWaypointPressure.cells.y, mSimulationParameters.gridWaypointPressure.cells.z)
-                );
+        emit vboInfoGridWaypointPressure(
+                    mVboGridMapOfWayPointPressure,
+                    QVector3D(mSimulationParameters.gridWaypointPressure.cells.x, mSimulationParameters.gridWaypointPressure.cells.y, mSimulationParameters.gridWaypointPressure.cells.z),
+                    QVector3D(mSimulationParameters.gridWaypointPressure.cells.x, mSimulationParameters.gridWaypointPressure.cells.y, mSimulationParameters.gridWaypointPressure.cells.z),
+                    Vector3i(mSimulationParameters.gridWaypointPressure.cells.x, mSimulationParameters.gridWaypointPressure.cells.y, mSimulationParameters.gridWaypointPressure.cells.z)
+                    );
+    }
 }
 
 void FlightPlannerParticles::slotWayPointReached(const WayPoint wpt)
