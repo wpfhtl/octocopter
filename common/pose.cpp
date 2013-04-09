@@ -567,6 +567,23 @@ const QString Pose::toStringVerbose() const
             .append(" co ").append(QString::number(covariances, 'f', 2));
 }
 
+
+bool Pose::isSufficientlyPreciseForFlightControl() const
+{
+    return
+            getAge() < 80                           // Don't use old poses!
+            && precision & Pose::AttitudeAvailable  // We need at least yaw
+            && precision & Pose::HeadingFixed       // Obvious
+            && precision & Pose::CorrectionAgeLow   // We want precision
+
+            // Non-integrated poses contain IMU drift. When the next integrated pose comes, there'll be a big
+            // step from drifted value to ground thruth, causing trouble in the flight-controller's D-component
+            && precision & Pose::ModeIntegrated
+
+            && precision & Pose::RtkFixed;          // When switching from RtkFixed to Differential, height can jump by >30m in 1 second(!)
+}
+
+
 // Must be able to process what operator<< writes above, for example:
 // pose t501171350 (-30.49/51.84/140.01) YPR (155.27/2.92/-1.03) pr 17 co 2.34
 Pose::Pose(const QString& poseString)

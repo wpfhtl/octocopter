@@ -3,24 +3,14 @@
 
 FlightController::FlightController(const QString& logFilePrefix) : QObject()
 {
-    mLogFile = 0;
-
-    if(!logFilePrefix.isNull())
-    {
-        qDebug()<< "fcv size:" << sizeof(FlightControllerValues);
-        mLogFile = new QFile(logFilePrefix + QString("flightcontroller.flt"));
-        if(!mLogFile->open(QIODevice::WriteOnly))
-            qFatal("FlightController::FlightController(): Couldn't open logfile %s for writing, exiting.", qPrintable(mLogFile->fileName()));
-    }
-
+    mLogFile = new LogFile(logFilePrefix + QString("flightcontroller.flt"), LogFile::Encoding::Binary);
+    qDebug()<< "Size of FlightControllerValues:" << sizeof(FlightControllerValues);
 
     mBackupTimerComputeMotion = new QTimer(this);
     connect(mBackupTimerComputeMotion, SIGNAL(timeout()), SLOT(slotComputeBackupMotion()));
 
     mImuOffsets.pitch = 0.0f;
     mImuOffsets.roll = 0.0f;
-
-
 
     // Initialize default/template controllers
     QMap<QChar, float> weights;
@@ -83,6 +73,10 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
 
     mFlightControllerWeights.insert(FlightState::Value::ApproachWayPoint, controllerWeights);
 
+    // If we don't use a laserscanner (for whatever reason during testing),
+    // set mFlightControllerValues.lastKnownHeightOverGround to 1.0 so it doesn't prevent pitch/roll
+    mFlightControllerValues.lastKnownHeightOverGround = 1.0f;
+
     setFlightState(FlightState(FlightState::Value::UserControl));
 }
 
@@ -92,13 +86,9 @@ FlightController::~FlightController()
     mBackupTimerComputeMotion->stop();
     mBackupTimerComputeMotion->deleteLater();
 
-    if(mLogFile)
-    {
-        qDebug() << "FlightController::~FlightController(): closing logfile...";
-        mLogFile->close();
-        mLogFile->deleteLater();
-        qDebug() << "FlightController::~FlightController(): done.";
-    }
+    qDebug() << "FlightController::~FlightController(): deleting logfile...";
+    delete mLogFile;
+    qDebug() << "FlightController::~FlightController(): done.";
 }
 
 void FlightController::slotComputeBackupMotion()
@@ -108,7 +98,7 @@ void FlightController::slotComputeBackupMotion()
     slotComputeMotionCommands();
 }
 
-// WARNING: We computer safe motion commands when the pose is not precise or old. If it turns out such poses are unavoidable at times,
+// WARNING: We compute safe motion commands when the pose is not precise or old. If it turns out such poses are unavoidable at times,
 // it might be better not to generate motion at all, because a single safe-motion between otherwise valid motion-commands can cause
 // the helicopter to start bouncing in the air. We need to test this!
 void FlightController::slotComputeMotionCommands()
@@ -140,13 +130,7 @@ void FlightController::slotComputeMotionCommands()
         // Can be overridden with better non-default values below
         mFlightControllerValues.motionCommand = MotionCommand(MotionCommand::thrustHover, 0.0f, 0.0f, 0.0f);
 
-        if(
-                mFlightControllerValues.lastKnownPose.getAge() < 80
-                // If pose is unprecise, emit safe stuff. Note that we don't expect ModeIntegrated, because only 1 of 2_or_5 packets is integrated - and thats ok.
-                && mFlightControllerValues.lastKnownPose.precision & Pose::AttitudeAvailable
-                && mFlightControllerValues.lastKnownPose.precision & Pose::HeadingFixed
-                && mFlightControllerValues.lastKnownPose.precision & Pose::RtkFixed
-                )
+        if(mFlightControllerValues.lastKnownPose.isSufficientlyPreciseForFlightControl())
         {
             mFlightControllerValues.targetPosition = mWayPoints.first();
             //TODO: use both targetPosition and nextWayPoint?
@@ -230,20 +214,10 @@ void FlightController::slotComputeMotionCommands()
 
     case FlightState::Value::Hover:
     {
-        mFlightControllerValues.targetPosition = mFlightControllerValues.targetPosition;
-
         // Can be overridden with better non-default values below
         mFlightControllerValues.motionCommand = MotionCommand(MotionCommand::thrustHover, 0.0f, 0.0f, 0.0f);
 
-        if(
-                mFlightControllerValues.lastKnownPose.getAge() < 80
-                // If pose is unprecise, emit safe stuff. Note that we don't expect ModeIntegrated, because only 1 of 2_or_5 packets is integrated - and thats ok.
-                && mFlightControllerValues.lastKnownPose.precision & Pose::AttitudeAvailable
-                && mFlightControllerValues.lastKnownPose.precision & Pose::HeadingFixed
-                && mFlightControllerValues.lastKnownPose.precision & Pose::CorrectionAgeLow
-                // && mFlightControllerValues.lastKnownPose.precision & Pose::ModeIntegrated // Also use non-integrated poses. Position might be off, but angles could be helpful
-                && mFlightControllerValues.lastKnownPose.precision & Pose::RtkFixed // When switching from RtkFixed to Differential, height can jump by >30m in 1 second(!)
-                )
+        if(mFlightControllerValues.lastKnownPose.isSufficientlyPreciseForFlightControl())
         {
             const QVector2D vectorVehicleToOrigin = -mFlightControllerValues.lastKnownPose.getPlanarPosition();
 
@@ -315,32 +289,27 @@ void FlightController::slotComputeMotionCommands()
 
 void FlightController::smoothenControllerOutput(MotionCommand& mc)
 {
-    mc.thrust = (quint8)(((quint16)mc.thrust + (quint16)mLastMotionCommand.thrust) / 2.0f);
-    mc.yaw = (quint8)(((quint16)mc.yaw + (quint16)mLastMotionCommand.yaw) / 2.0f);
-    mc.pitch = (quint8)(((quint16)mc.pitch + (quint16)mLastMotionCommand.pitch) / 2.0f);
-    mc.roll = (quint8)(((quint16)mc.roll + (quint16)mLastMotionCommand.roll) / 2.0f);
+    Q_ASSERT(false && "Why the hell was I casting to unsigned ints here? YPR can be negative!!?");
+    mc.thrust = (quint8)(((quint16)mc.thrust + (quint16)mLastMotionCommandUsedForSmoothing.thrust) / 2.0f);
+    mc.yaw = (quint8)(((quint16)mc.yaw + (quint16)mLastMotionCommandUsedForSmoothing.yaw) / 2.0f);
+    mc.pitch = (quint8)(((quint16)mc.pitch + (quint16)mLastMotionCommandUsedForSmoothing.pitch) / 2.0f);
+    mc.roll = (quint8)(((quint16)mc.roll + (quint16)mLastMotionCommandUsedForSmoothing.roll) / 2.0f);
 
-    mLastMotionCommand = mc;
+    mLastMotionCommandUsedForSmoothing = mc;
 }
 
 void FlightController::logFlightControllerValues()
 {
-    if(mLogFile)
-    {
-        mFlightControllerValues.timestamp = GnssTime::currentTow();
+    mFlightControllerValues.timestamp = GnssTime::currentTow();
 
-        QByteArray magic("FLTCLR");
-//        Q_ASSERT(magic.size() == 6);
-        mLogFile->write(magic.constData(), magic.size());
-        mLogFile->write((const char*)&mFlightControllerValues, sizeof(FlightControllerValues));
-    }
+    QByteArray magic("FLTCLR");
+    mLogFile->write(magic.constData(), magic.size());
+    mLogFile->write((const char*)&mFlightControllerValues, sizeof(FlightControllerValues));
 }
 
 void FlightController::slotCalibrateImu()
 {
-    mImuOffsets.pitch = mFlightControllerValues.lastKnownPose.getPitchDegrees();
-    mImuOffsets.roll = mFlightControllerValues.lastKnownPose.getRollDegrees();
-    qDebug() << "FlightController::slotCalibrateImu(): calibrated IMU offsets to pitch" << mImuOffsets.pitch << "and roll" << mImuOffsets.roll << "from pose with age" << mFlightControllerValues.lastKnownPose.getAge();
+    mImuOffsets.doCalibration();
 }
 
 void FlightController::nextWayPointReached()
@@ -416,18 +385,21 @@ void FlightController::slotNewVehiclePose(const Pose* const pose)
 {
     qDebug() << "FlightController::slotNewVehiclePose(): flightstate:" << mFlightControllerValues.flightState.toString() << ": new pose from" << pose->timestamp << "has age" << GnssTime::currentTow() - pose->timestamp;
 
-    // Whatever precision and flightstate, save the pose. We also save unprecise poses here, which comes in handy
-    // for IMU calibration (which doesn't require e.g. RTK). Instead, IMU calibration requires a very recent pose.
+    // Whatever precision and flightstate, save the pose. We also save unprecise poses here,
+    // which might come in handy later.
     //
-    // Of course, this means that we need to check this pose before we actually use it for flight control!
+    // Of course, this means that we need to check this pose before we actually
+    // use it for flight control!
     mFlightControllerValues.lastKnownPose = *pose;
+
+    if(mImuOffsets.needsMoreMeasurements()) mImuOffsets.calibrate(pose);
 
     switch(mFlightControllerValues.flightState.state)
     {
     case FlightState::Value::UserControl:
     {
         // Keep ourselves disabled in UserControl.
-        logFlightControllerValues();
+        // why should we logFlightControllerValues(); ???
         Q_ASSERT(!mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): UserControl has active backup timer!");
         break;
     }
@@ -445,12 +417,17 @@ void FlightController::slotNewVehiclePose(const Pose* const pose)
     {
         Q_ASSERT(mBackupTimerComputeMotion->interval() == backupTimerIntervalFast && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): ApproachWayPoint has inactive backup timer or wrong interval!");
 
-        // This method was called with a new pose, so lets use it to compute motion
-        slotComputeMotionCommands();
+        // This method was called with a new pose. If that was precise enough, lets use it to compute motion.
+        // If its not precise, let's not compute hover-values now, but wait for a precise pose until the backup
+        // timer times out. Sequences of precise-backupmotion-precise can make the vehicle start swinging.
+        if(pose->isSufficientlyPreciseForFlightControl())
+        {
+            slotComputeMotionCommands();
 
-        // Re-set the safety timer, making it fire 50ms in the future - not when its scheduled, which might be sooner.
-        // So that when no new pose comes in for too long, we'll compute a backup motion.
-        mBackupTimerComputeMotion->start(backupTimerIntervalFast);
+            // Re-set the safety timer, making it fire 50ms in the future - not when its scheduled, which might be sooner.
+            // So that when no new pose comes in for too long, we'll compute a backup motion.
+            mBackupTimerComputeMotion->start(backupTimerIntervalFast);
+        }
 
         break;
     }
@@ -459,12 +436,17 @@ void FlightController::slotNewVehiclePose(const Pose* const pose)
     {
         Q_ASSERT(mBackupTimerComputeMotion->interval() == backupTimerIntervalFast && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): Hover has inactive backup timer or wrong interval!");
 
-        // This method was called with a new pose, so lets use it to compute motion
-        slotComputeMotionCommands();
+        // This method was called with a new pose. If that was precise enough, lets use it to compute motion.
+        // If its not precise, let's not compute hover-values now, but wait for a precise pose until the backup
+        // timer times out. Sequences of precise-backupmotion-precise can make the vehicle start swinging.
+        if(pose->isSufficientlyPreciseForFlightControl())
+        {
+            slotComputeMotionCommands();
 
-        // Re-set the safety timer, making it fire 50ms in the future - not when its scheduled, which might be sooner.
-        // So that when no new pose comes in for too long, we'll compute a backup motion.
-        mBackupTimerComputeMotion->start(backupTimerIntervalFast);
+            // Re-set the safety timer, making it fire 50ms in the future - not when its scheduled, which might be sooner.
+            // So that when no new pose comes in for too long, we'll compute a backup motion.
+            mBackupTimerComputeMotion->start(backupTimerIntervalFast);
+        }
 
         break;
     }
@@ -601,12 +583,12 @@ void FlightController::slotSetHeightOverGround(const float& beamLength)
     mFlightControllerValues.lastKnownHeightOverGroundTimestamp = GnssTime::currentTow();
     mFlightControllerValues.lastKnownHeightOverGround = beamLength - 0.16f;
 }
-
+/*
 bool FlightController::isHeightOverGroundValueRecent() const
 {
     qDebug() << "FlightController::isHeightOverGroundValueRecent(): time of last heightOverGround measurement is" << mFlightControllerValues.lastKnownHeightOverGroundTimestamp;
     return (GnssTime::currentTow() - mFlightControllerValues.lastKnownHeightOverGroundTimestamp) < 500;
-}
+}*/
 
 // To be called after waypoints have changed to check for dangerous states:
 // If wpt list is empty and state is ApproachWayPoint, will either

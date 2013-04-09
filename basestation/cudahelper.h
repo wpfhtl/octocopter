@@ -47,17 +47,27 @@ inline void __cudaCheckSuccess(const char *errorSource, const char *file, const 
     return;
 }
 
-void *mapGLBufferObject(struct cudaGraphicsResource **cuda_vbo_resource);
+class CudaHelper
+{
+private:
+    CudaHelper() {} // We don't want to have this instantiated
 
-void copyArrayFromDevice(void* host, const void* device, struct cudaGraphicsResource **cuda_vbo_resource, int size);
+public:
+    static bool isDeviceSupported;
+    static bool initializeCuda();
 
-//Round a / b to nearest higher integer value
-uint iDivUp(uint a, uint b);
+    static void *mapGLBufferObject(struct cudaGraphicsResource **cuda_vbo_resource);
 
-// compute grid and thread block size for a given number of elements
-void computeExecutionKernelGrid(uint n, uint blockSize, uint &numBlocks, uint &numThreads);
+    static void copyArrayFromDevice(void* host, const void* device, struct cudaGraphicsResource **cuda_vbo_resource, int size);
 
-QVector3D cudaConvert(const float3& p);
-float3 cudaConvert(const QVector3D& p);
+    //Round a / b to nearest higher integer value
+    static uint iDivUp(uint a, uint b);
+
+    // compute grid and thread block size for a given number of elements
+    static void computeExecutionKernelGrid(uint n, uint blockSize, uint &numBlocks, uint &numThreads);
+
+    static QVector3D cudaConvert(const float3& p);
+    static float3 cudaConvert(const QVector3D& p);
+};
 
 #endif

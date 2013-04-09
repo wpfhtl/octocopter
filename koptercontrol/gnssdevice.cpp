@@ -402,7 +402,7 @@ void GnssDevice::slotCommunicationSetup()
     // airplane-application, which may need the setting to be on High. In my opinion, it
     // will less smooth and take into account more the real movement of the application.
     // Just as a test, you could run the Max-value (as explained above, take care!).
-    slotQueueCommand("setReceiverDynamics,Moderate");
+    //slotQueueCommand("setReceiverDynamics,Moderate");
 
     // Configure as rover in StandAlone+RTK mode.
     slotQueueCommand("setPVTMode,Rover,all,auto,Loosely");
@@ -434,16 +434,17 @@ void GnssDevice::slotCommunicationSetup()
     //slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
 
     // For now, record support messages for septentrio
-    slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,msec500"); // septentrio wants msec100, but that kills the cpu
+    slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,msec100"); // septentrio wants msec100, but that kills the cpu
 
     // BBSamples contains data for the spectrum view, but Vim (not the editor, the RF-guy of Septentrio fame) said this is a VERY heavy packet.
     // So we skip this for now to keep the CPU load low (it was over 80%!)
     //slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",BBSamples,sec1"); // septentrio wants msec100, but that kills the cpu
 
-    //slotQueueCommand("setSBFOutput,Stream7,"+mSerialPortOnDeviceUsb+",ExtSensorMeas,msec20");
+    // Needed for septentrio to debug IMU problems
+    slotQueueCommand("setSBFOutput,Stream7,"+mSerialPortOnDeviceUsb+",ExtSensorMeas+AttEuler,msec20");
 
     // No idea what this is for - Septentrio debugging?
-    slotQueueCommand("setSBFOutput,Stream8,"+mSerialPortOnDeviceUsb+",MeasEpoch,msec200");
+    //slotQueueCommand("setSBFOutput,Stream8,"+mSerialPortOnDeviceUsb+",MeasEpoch,msec200");
 
     // show current config
     slotQueueCommand("lstConfigFile,Current");

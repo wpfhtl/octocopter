@@ -23,7 +23,7 @@ struct ParametersPointCloud
 
     void initialize()
     {
-        grid.cells.x = grid.cells.y = grid.cells.z = 0;
+        grid.initialize();
         minimumDistance = 0.0f;
         elementCount = 0;
         elementQueueCount = 0;

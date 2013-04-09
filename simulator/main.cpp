@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
     Q_ASSERT(sizeof(Ogre::Real) == 4 && "Please make sure OGRE is compiled to use single precision");
 
     QApplication app(argc, argv);
-    app.setWindowIcon(QIcon(":/images/appicon.png"));
+    app.setWindowIcon(QIcon("../icon128.png"));
 
     Simulator simulator;
     simulator.show();

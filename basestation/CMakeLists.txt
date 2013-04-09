@@ -9,7 +9,7 @@ FILE(GLOB_RECURSE CUDA_SRCS "*.cu")
 SET(SRC_FILES
     ${CUDA_SRCS}
 
-    cudahelper.cpp
+    cudahelper
     main
     particlesystem
     pointcloudcuda
@@ -50,7 +50,7 @@ SET(SRC_FILES
     ../common/gnsstime
     ../common/pose
     ../common/common
-    ../common/plotwidget
+    #../common/plotwidget
     ../common/gnssstatus
     ../common/wirelessdevice
     ../common/vehiclestatus
@@ -110,7 +110,7 @@ SET(INC_FILES
     ../common/gnsstime.h
     ../common/pose.h
     ../common/common.h
-    ../common/plotwidget.h
+    #../common/plotwidget.h
     ../common/gnssstatus.h
     ../common/wirelessdevice.h
     ../common/vehiclestatus.h
@@ -152,7 +152,8 @@ Find_PACKAGE(SDL)
 Find_PACKAGE(SDL_mixer)
 FIND_PACKAGE(CUDA)
 
-LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_20,code=sm_21)
+LIST(APPEND CUDA_NVCC_FLAGS -gencode=arch=compute_30,code=sm_30)
+#LIST(APPEND CUDA_NVCC_FLAGS -G -g -gencode=arch=compute_30,code=sm_30)
 
 ADD_DEFINITIONS(-std=c++0x -fpermissive)
 
@@ -178,7 +179,7 @@ INCLUDE_DIRECTORIES(/usr/include
                     ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 LINK_DIRECTORIES(/usr/lib/ /usr/local/lib/)
 SET(LIBRARIES
-    qwt
+    #qwt
     ${QT_LIBRARIES}
     ${BULLET_LIBRARIES}
     ${IL_LIBRARIES}
@@ -194,7 +195,7 @@ SET(CUDA_SEPARABLE_COMPILATION ON)
 
 CUDA_ADD_EXECUTABLE(basestation
     ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS}
-    OPTIONS -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_30,code=sm_30
+    OPTIONS -gencode=arch=compute_30,code=sm_30 # those are the nvcc options only ofr linking
   )
 SET_TARGET_PROPERTIES(basestation PROPERTIES AUTOMOC TRUE)
 TARGET_LINK_LIBRARIES(basestation ${LIBRARIES})

@@ -15,8 +15,6 @@ void copyArrayToDevice(
         int           offset,
         int           size);
 
-void *mapGLBufferObject(struct cudaGraphicsResource **cuda_vbo_resource);
-
 void copyParametersToGpu(ParametersParticleSystem *hostParams);
 
 void getDeviceAddressOfParametersParticleSystem(ParametersParticleSystem** ptr);
