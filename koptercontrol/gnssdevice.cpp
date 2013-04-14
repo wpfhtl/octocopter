@@ -388,9 +388,9 @@ void GnssDevice::slotCommunicationSetup()
 
     // specify vector from GNSS antenna ARP to IMU in Vehicle reference frame
     // (vehicle reference frame has X forward, Y right and Z down)
-    // IMU is 2cm in front, 10cm to the right and 47cm below ARP. Max precision is 1 cm.
+    // IMU is 2cm in front, 10cm to the right and 22cm below ARP. Max precision is 1 cm.
     // Specifying orientation is not so easy (=fucking mess, Firmware User manual pg. 41)
-    slotQueueCommand("setExtSensorCalibration,COM1,manual,180,0,0,manual,0.02,-0.10,-0.47");
+    slotQueueCommand("setExtSensorCalibration,COM1,manual,180,0,0,manual,0.02,-0.10,-0.22");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
     //slotQueueCommand("setEventParameters,EventA,High2Low"); // Hokuyo
@@ -711,7 +711,7 @@ void GnssDevice::slotSetSystemTime(const qint32& tow)
     // For small clock drifts, adjust clock. Else, set clock
     if(abs(offsetHostToGnss) < 10)
     {
-        qDebug() << "GnssDevice::slotSetSystemTime(): offset smaller than 10ms, using adjtime to correct clock drift...";
+        qDebug() << "GnssDevice::slotSetSystemTime(): unix-time now is" << QDateTime::currentMSecsSinceEpoch() / 1000 << "- offset smaller than 10ms, using adjtime to correct clock drift...";
         system.tv_sec = 0;
         system.tv_usec = offsetHostToGnss * 1000;
         if(adjtime(&system, NULL) < 0)
@@ -723,7 +723,7 @@ void GnssDevice::slotSetSystemTime(const qint32& tow)
     }
     else
     {
-        qDebug() << "GnssDevice::slotSetSystemTime(): offset larger than 10ms or device startup, using settimeofday to set clock...";
+        qDebug() << "GnssDevice::slotSetSystemTime(): unix-time now is" << QDateTime::currentMSecsSinceEpoch() / 1000 << "- offset larger than 10ms or device startup, using settimeofday to set clock...";
         system.tv_sec += offsetHostToGnss/1000;
         system.tv_usec += (offsetHostToGnss%1000)*1000;
 
@@ -743,5 +743,5 @@ void GnssDevice::slotSetSystemTime(const qint32& tow)
         }
     }
 
-    qDebug() << "GnssDevice::slotSetSystemTime(): time synchronized, offset host to gnss was" << offsetHostToGnss << "ms";
+    qDebug() << "GnssDevice::slotSetSystemTime(): time synchronized, offset host to gnss was" << offsetHostToGnss << "ms, unix-time now is" << QDateTime::currentMSecsSinceEpoch() / 1000;
 }
