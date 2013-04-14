@@ -6,32 +6,33 @@ PROJECT(lrfreader)
 
 cmake_policy(SET CMP0015 NEW)
 
+ADD_DEFINITIONS(-std=c++0x -fpermissive)
+
 SET(SRC_FILES
 main
-laserscanner
+../koptercontrol/hokuyo
+../koptercontrol/laserscanner
+../common/logfile
+../common/pose
+../common/gnsstime
 )
 
 SET(INC_FILES
-laserscanner.h
+../koptercontrol/hokuyo.h
+../koptercontrol/laserscanner.h
+../common/logfile.h
+../common/pose.h
+../common/gnsstime.h
 )
 
 SET(RESOURCE_FILES
 )
 
-SET(URG_LIBRARIES
-    urg_connection
-    urg_common
-    urg_coordinate
-    urg_geometry
-    #urg_monitor
-    urg_system
-    urg)
-
 #"Sources" and "Headers" are the group names in Visual Studio.
 SOURCE_GROUP("Sources" FILES ${SRC_FILES})
 SOURCE_GROUP("Headers" FILES ${INC_FILES})
 
-FIND_PACKAGE(SDL REQUIRED)
+#FIND_PACKAGE(SDL REQUIRED)
 
 FIND_PACKAGE(Qt4 REQUIRED)
 SET(QT_USE_QTGUI 1)
@@ -47,6 +48,7 @@ SET(CMAKE_DEBUG_POSTFIX "_d")
 SET(CMAKE_BUILD_TYPE "Debug")
 
 INCLUDE_DIRECTORIES(
+    ../common/
     /usr/include
     /usr/local/include
     ${SDL_INCLUDE_DIR}
@@ -55,4 +57,4 @@ INCLUDE_DIRECTORIES(
 
 LINK_DIRECTORIES(urg/usr/lib/)
 ADD_EXECUTABLE(lrfreader ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS})
-TARGET_LINK_LIBRARIES(lrfreader ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES})
+TARGET_LINK_LIBRARIES(lrfreader ${QT_LIBRARIES})
