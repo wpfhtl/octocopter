@@ -3,6 +3,7 @@
 LogFile* mMasterLogFile = 0;
 QTextStream* mMasterLogStream = 0;
 QByteArray* mLogMessage = 0;
+QMutex* mMutexMessageHandler = 0;
 
 MessageHandler::MessageHandler(const QString& logFilePrefix)
 {
@@ -22,6 +23,8 @@ MessageHandler::MessageHandler(const QString& logFilePrefix)
     // To get a thousand group separator of "."
     QLocale german(QLocale::German);
     mMasterLogStream->setLocale(german);
+
+    mMutexMessageHandler = new QMutex;
 
     qInstallMsgHandler(MessageHandler::handleMessage);
     qDebug() << "MessageHandler::MessageHandler(): successfully set up console logging.";
@@ -53,6 +56,8 @@ MessageHandler::~MessageHandler()
 
 void MessageHandler::handleMessage(QtMsgType type, const char *msg)
 {
+    QMutexLocker l(mMutexMessageHandler);
+
     Q_ASSERT(mMasterLogStream != 0 && "masterLogSteram is not set!");
 
     const qint32 tow = GnssTime::currentTow();
