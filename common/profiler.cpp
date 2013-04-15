@@ -1,6 +1,6 @@
 #include "profiler.h"
 
-Profiler::Profiler(const QString name) : mName(name)
+Profiler::Profiler(const QString name, const qint32 minTimeForWarningUsec) : mName(name), mMinTimeForWarningUsec(minTimeForWarningUsec)
 {
     if(gettimeofday(&mTimeStart, NULL))
       Q_ASSERT("Profiler::Profiler(): couldn't get time, aborting" && false);
@@ -23,7 +23,8 @@ Profiler::~Profiler()
         difference.tv_sec -=1;
     }
 
-    const long long interval = 1000000LL * difference.tv_sec + difference.tv_usec;
+    const long long intervalUsec = 1000000LL * difference.tv_sec + difference.tv_usec;
 
-    qDebug() << "Profiler::~Profiler(): action" << mName << "took" << interval << "usec /" << interval/1000 << "ms";
+    if(intervalUsec > mMinTimeForWarningUsec)
+        qDebug() << "Profiler::~Profiler(): action" << mName << "took" << intervalUsec << "usec /" << intervalUsec/1000 << "ms";
 }

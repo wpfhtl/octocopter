@@ -10,10 +10,11 @@ class Profiler
 {
 private:
     QString mName;
+    qint32 mMinTimeForWarningUsec;
     /*struct */timeval mTimeStart/*, mTimeStop*/;
 
 public:
-    Profiler(const QString name);
+    Profiler(const QString name, const qint32 minTimeForWarningUsec = 0);
     ~Profiler();
 };
 

@@ -36,6 +36,7 @@ SET(SRC_FILES
     roverconnection
     #bulletdebugdrawergl
     shaderprogram
+    ../common/profiler
     ../common/motioncommand
     ../common/joystick
     ../common/sbfparser
@@ -96,6 +97,7 @@ SET(INC_FILES
     roverconnection.h
     #bulletdebugdrawergl.h
     shaderprogram.h
+    ../common/profiler.h
     ../common/motioncommand.h
     ../common/joystick.h
     ../common/sbfparser.h

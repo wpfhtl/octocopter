@@ -1,5 +1,6 @@
 #include "flightcontroller.h"
 #include "motioncommand.h"
+#include <profiler.h>
 
 FlightController::FlightController(const QString& logFilePrefix) : QObject()
 {
@@ -383,6 +384,7 @@ void FlightController::slotSetWayPoints(const QList<WayPoint>& wayPoints)
 
 void FlightController::slotNewVehiclePose(const Pose* const pose)
 {
+    Profiler p(__PRETTY_FUNCTION__);
     qDebug() << "FlightController::slotNewVehiclePose(): flightstate:" << mFlightControllerValues.flightState.toString() << ": new pose from" << pose->timestamp << "has age" << GnssTime::currentTow() - pose->timestamp;
 
     // Whatever precision and flightstate, save the pose. We also save unprecise poses here,
