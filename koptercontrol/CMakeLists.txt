@@ -42,6 +42,7 @@ koptermessage
 kopter
 camera
 messagehandler
+../common/profiler
 ../common/gnsstime
 ../common/logfile
 ../common/sensorfuser
@@ -70,6 +71,7 @@ koptermessage.h
 kopter.h
 camera.h
 messagehandler.h
+../common/profiler.h
 ../common/logfile.h
 ../common/gnsstime.h
 ../common/sensorfuser.h
@@ -101,3 +103,4 @@ SOURCE_GROUP("Headers" FILES ${INC_FILES_KOPTERCONTROL})
 ADD_EXECUTABLE(koptercontrol ${SRC_FILES_KOPTERCONTROL} ${MOC_SRCS})
 SET_TARGET_PROPERTIES(koptercontrol PROPERTIES AUTOMOC TRUE)
 TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES} -lqserialdevice)
+

@@ -111,7 +111,7 @@ public:
     }
 
     void setPvtMode(const quint8 pvtModeCode);
-    bool hasPvtMode(const quint8 pvtModeCode) {return static_cast<quint8>(pvtMode) == pvtModeCode & 15; } // also contains bitfield which we ignore, see pg. 51 of SBF reference guide
+    bool hasPvtMode(const quint8 pvtModeCode) {return static_cast<quint8>(pvtMode) == (pvtModeCode & 15); } // also contains bitfield which we ignore, see pg. 51 of SBF reference guide
 
     void setIntegrationMode(const quint8 integrationModeCode);
     bool hasIntegrationMode(const quint8 integrationModeCode) {return static_cast<quint8>(integrationMode) == integrationModeCode; }

@@ -1,5 +1,6 @@
 #include "sensorfuser.h"
 #include <unistd.h> // usleep
+#include <profiler.h>
 
 SensorFuser::SensorFuser(const quint8& stridePoint, const quint8& strideScan) : QObject()
 {
@@ -574,6 +575,8 @@ void SensorFuser::slotNewVehiclePose(const Pose* const pose)
         return;
     }
 
+    Profiler p(__PRETTY_FUNCTION__);
+
 //    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a " << pose;
 
     // Make sure we receive data in order
@@ -684,6 +687,8 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGnss)
 void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, std::vector<quint16> * const distances)
 {
 //    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
+
+    Profiler p(__PRETTY_FUNCTION__);
 
     // Do not store data that we cannot fuse anyway, because there is no pose or its very old (no gnss reception)
     if(!mPoses.size() || mPoses.last().timestamp < (timestampScanScanner - MaximumFusionTimeOffset::Cubic))

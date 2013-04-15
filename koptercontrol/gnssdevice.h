@@ -75,7 +75,7 @@ private slots:
     void slotDataReadyOnUsb();
     void slotDataReadyOnCom();
     void slotDetermineSerialPortsOnDevice();
-    void slotSetPoseFrequency(bool highSpeed);
+    void slotSetPoseFrequency(bool highSpeed = true);
 
     // Call this method with a valid TOW and it'll sync the system time to this time.
     void slotSetSystemTime(const qint32& tow);

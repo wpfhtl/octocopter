@@ -42,7 +42,7 @@ QString GnssStatus::getPvtMode(const GnssStatus::PvtMode& pvtMode)
     case PvtMode::PppFloat: pvtModeString = "PPP Float"; break;
 
     default:
-        qWarning() << "GnssStatus::getGnssMode(): WARNING: unknown gnssmode" << static_cast<quint8>(pvtMode);
+        qWarning() << "GnssStatus::getPvtMode(): WARNING: unknown pvtmode" << static_cast<quint8>(pvtMode);
         pvtModeString = QString("Unknown GNSSPVTMode %1").arg(static_cast<quint8>(pvtMode));
         break;
     }

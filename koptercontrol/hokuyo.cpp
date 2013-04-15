@@ -872,9 +872,6 @@ void Hokuyo::slotProcessScans()
                     sizeof(quint16) * ((indexStop - indexStart) + 1)     // how many bytes to write
                     );
 
-        // Every full moon, emit the distance from vehicle center to the ground in meters (scanner to vehicle center is 3cm)
-        if(mHeightOverGroundClockDivisor == 0) emit heightOverGround(distances->at(540)/1000.0f + 0.03f);
-
         // With this call, we GIVE UP OWNERSHIP of the data. It might get deleted immediately!
         emit newScanData(timeStampScanMiddle, distances);
     } while (mState == State::Scanning);

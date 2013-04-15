@@ -1,4 +1,5 @@
 #include "gnssdevice.h"
+#include <profiler.h>
 
 /*
  * This is the receiver's bootup-config concerning I/O:
@@ -639,6 +640,8 @@ void GnssDevice::slotDataReadyOnCom()
 
 void GnssDevice::slotDataReadyOnUsb()
 {
+    Profiler p(__PRETTY_FUNCTION__);
+
     while(true)
     {
         // Move all new bytes into our SBF buffer
