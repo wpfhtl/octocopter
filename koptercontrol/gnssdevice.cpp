@@ -80,6 +80,10 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
 
     // initialize the device whenever we get time to do this. By doing it asynchronously, we can give our creator time to connect our signals and fetch them.
     QTimer::singleShot(0, this, SLOT(slotDetermineSerialPortsOnDevice()));
+
+
+ // For testing only
+ QTimer::singleShot(20000, this, SLOT(slotSetPoseFrequency()));
 }
 
 GnssDevice::~GnssDevice()
@@ -441,7 +445,7 @@ void GnssDevice::slotCommunicationSetup()
     //slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",BBSamples,sec1"); // septentrio wants msec100, but that kills the cpu
 
     // Needed for septentrio to debug IMU problems
-    slotQueueCommand("setSBFOutput,Stream7,"+mSerialPortOnDeviceUsb+",ExtSensorMeas+AttEuler,msec20");
+    //slotQueueCommand("setSBFOutput,Stream7,"+mSerialPortOnDeviceUsb+",ExtSensorMeas+AttEuler,msec20");
 
     // No idea what this is for - Septentrio debugging?
     //slotQueueCommand("setSBFOutput,Stream8,"+mSerialPortOnDeviceUsb+",MeasEpoch,msec200");
