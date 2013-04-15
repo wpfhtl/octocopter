@@ -1,5 +1,6 @@
 #include "kopter.h"
 #include "motioncommand.h"
+#include <profiler.h>
 
 Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
 {
@@ -98,6 +99,7 @@ void Kopter::send(const KopterMessage& message)
 
 void Kopter::slotSetMotion(const MotionCommand* const mc)
 {
+    Profiler p(__PRETTY_FUNCTION__);
     if(!mMissionStartTime.isValid()) mMissionStartTime = QTime::currentTime();
 
     const MotionCommand motionClamped = mc->clampedToSafeLimits();
@@ -201,6 +203,8 @@ void Kopter::slotSubscribeDebugValues(int interval)
 
 void Kopter::slotSerialPortDataReady()
 {
+    Profiler p(__PRETTY_FUNCTION__);
+
     mReceiveBuffer.append(mSerialPortFlightCtrl->readAll());
 
     // Remove crap before the message starts

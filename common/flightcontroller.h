@@ -69,7 +69,7 @@ private:
     //
     // When used in the simulator, we want to pause this timer when the simulation is paused,
     // so this is what setPause(bool) is for - it is to be used ONLY in simulation.
-    static const quint16 backupTimerIntervalFast = 150;
+    static const quint16 backupTimerIntervalFast = 180;
     static const quint16 backupTimerIntervalSlow = 500;
     QTimer *mBackupTimerComputeMotion;
 

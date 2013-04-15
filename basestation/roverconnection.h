@@ -24,7 +24,9 @@ private:
     // When we get a packet indicating that the connection is alive, we re-start this timer,
     // which will switch to failure after no packet arrived for some seconds
     QTimer mTimerConnectionWatchdog;
-    QTime mTimeOfLastConnectionStatusUpdate;
+    QTime mTimeOfLastPacket;
+
+//    QTimer mTimerRetryConnect;
 
     // This class keeps instances of objects that are updated from the rover. After they are,
     // we simply emit pointers to this data.
@@ -82,7 +84,7 @@ public slots:
 private slots:
     void slotSocketConnected(void);
     void slotSocketDisconnected(void);
-    void slotEmitConnectionTimedOut(void);
+    void slotWatchdogTimerFired(void);
     void slotReadSocket(void);
     void slotSocketError(QAbstractSocket::SocketError socketError);
     void slotSendData(const QByteArray &data);
