@@ -44,6 +44,8 @@ private slots:
     void slotReadSocket(bool lockMutex = true);
     void slotSocketError(QAbstractSocket::SocketError socketError);
 
+    void slotSendPingReply();
+
     // the internalCall parameter skips locking of the mutex, which would lead to a deadlock if
     // slotSendData was called from a class-internal method that already locked the mutex.
     void slotSendData(const QByteArray &data, bool lockMutex = true);

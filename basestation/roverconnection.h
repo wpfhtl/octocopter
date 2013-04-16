@@ -21,6 +21,10 @@ private:
     QTcpSocket* mTcpSocket;
     QByteArray mIncomingDataBuffer;
 
+    // When we haven't received a packet for quite a while (usual e.g. in simulator),
+    // we send a ping request to confirm network is still alive. This is for bookkeeping.
+    bool mCurrentlyWaitingForPingReply;
+
     // When we get a packet indicating that the connection is alive, we re-start this timer,
     // which will switch to failure after no packet arrived for some seconds
     QTimer mTimerConnectionWatchdog;
@@ -80,6 +84,7 @@ public slots:
     void slotSendDiffCorrToRover(const QByteArray& diffcorr);
 
     void slotSendMotionToKopter(const MotionCommand* const mc);
+    void slotSendPingRequest();
 
 private slots:
     void slotSocketConnected(void);

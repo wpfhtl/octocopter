@@ -82,36 +82,49 @@ private:
     MotionCommand mLastMotionCommandUsedForSmoothing;
     void smoothenControllerOutput(MotionCommand& mc);
 
-    struct ImuOffsets {
-        static const quint8 numberOfMeasurementsToAverage = 3;
+    // Where is the vehicle's position, relative to the vehicle, split up in pitch and roll axis-components
+    void getLateralOffsets(const Pose& vehiclePose, const QVector3D& desiredPosition, float& pitch, float& roll);
+
+    class ImuOffsets {
+    private:
+        static const quint8 numberOfMeasurementsToAverage = 10;
         quint8 mNumberOfMeasurementsAveraged;
-        float pitch, roll;
-        float mPitchMeasurementSum, mRollMeasurementSum;
+        float mOffsetPitch, mOffsetRoll;
+        float mMeasurementSumPitch, mMeasurementSumRoll;
         bool mDoCalibration;
 
-        ImuOffsets() : mNumberOfMeasurementsAveraged(0), pitch(0.0f), roll(0.0f), mPitchMeasurementSum(0.0f), mRollMeasurementSum(0.0f), mDoCalibration(false) {}
+    public:
+        ImuOffsets() : mNumberOfMeasurementsAveraged(0), mOffsetPitch(0.0f), mOffsetRoll(0.0f), mMeasurementSumPitch(0.0f), mMeasurementSumRoll(0.0f), mDoCalibration(false) {}
+
+        void applyCorrection(float& pitch, float& roll) const
+        {
+            pitch -= mOffsetPitch;
+            roll -= mOffsetRoll;
+        }
 
         void doCalibration() {mDoCalibration = true;}
 
         void calibrate(const Pose* const p)
         {
             Q_ASSERT(needsMoreMeasurements());
+            const float measuredPitch = p->getPitchDegrees();
+            const float measuredRoll = p->getRollDegrees();
 
-            mPitchMeasurementSum += p->getPitchDegrees();
-            mRollMeasurementSum += p->getRollDegrees();
+            mMeasurementSumPitch += measuredPitch;
+            mMeasurementSumRoll += measuredRoll;
 
-            qDebug() << "ImuOffsets::calibrate(): added IMU offsets pitch" << pitch << "and roll" << roll << "from pose of TOW" << p->timestamp << "to IMU offset computation.";
+            qDebug() << "ImuOffsets::calibrate(): added IMU offsets pitch" << measuredPitch << "and roll" << measuredRoll << "from pose of TOW" << p->timestamp << "to IMU offset computation.";
 
             mNumberOfMeasurementsAveraged++;
 
             if(mNumberOfMeasurementsAveraged == numberOfMeasurementsToAverage)
             {
-                pitch = mPitchMeasurementSum / numberOfMeasurementsToAverage;
-                roll = mRollMeasurementSum / numberOfMeasurementsToAverage;
-                qDebug() << "ImuOffsets::calibrate(): calibrated IMU offsets to pitch" << pitch << "and roll" << roll << "from" << mNumberOfMeasurementsAveraged << "poses";
+                mOffsetPitch = mMeasurementSumPitch / numberOfMeasurementsToAverage;
+                mOffsetRoll = mMeasurementSumRoll / numberOfMeasurementsToAverage;
+                qDebug() << "ImuOffsets::calibrate(): calibrated IMU offsets to pitch" << mOffsetPitch << "and roll" << mOffsetRoll << "from" << mNumberOfMeasurementsAveraged << "poses";
 
                 // reset, so that we could calibrate again.
-                mPitchMeasurementSum = mRollMeasurementSum = 0.0f;
+                mMeasurementSumPitch = mMeasurementSumRoll = 0.0f;
                 mNumberOfMeasurementsAveraged = 0;
                 mDoCalibration = false;
             }

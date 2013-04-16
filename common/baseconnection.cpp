@@ -153,6 +153,10 @@ void BaseConnection::processPacket(QByteArray packet)
 
         emit controllerWeights(&mControllerName, &mControllerWeights);
     }
+    else if(command == "pingrequest")
+    {
+        slotSendPingReply();
+    }
     else
     {
         qDebug() << "UNKNOWN COMMAND" << command;
@@ -256,6 +260,16 @@ void BaseConnection::slotRoverWayPointInserted(const quint16& index, const WayPo
     stream << QString("waypointinserted");
     stream << (quint16)index;
     stream << wayPoint;
+    slotSendData(data, false);
+}
+
+void BaseConnection::slotSendPingReply()
+{
+    //qDebug() << "BaseConnection::slotSendPingReply(): sending ping reply to base";
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    stream << QString("pingreply");
     slotSendData(data, false);
 }
 
