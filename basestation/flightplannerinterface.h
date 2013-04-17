@@ -24,6 +24,8 @@ protected:
     QWidget* mParentWidget;
     PointCloud* mPointCloudDense;
 
+    bool mShowBoundingBox;
+
     //QList<WayPoint>* mWayPointsAhead, *mWayPointsPassed;
     // A map, mapping from name to waypointlist. Names are e.g. waypoints_ahead, waypoints_passed etc.
     QMap<QString, WayPointList*> mWaypointListMap;
@@ -69,7 +71,7 @@ public:
     }
 
     // For e.g. glWidget to send some user-key-strokes (e.g. for visualization)
-    virtual void keyPressEvent(QKeyEvent *event) = 0;
+    virtual void keyPressEvent(QKeyEvent *event);
 
 private slots:
 
@@ -80,7 +82,7 @@ public slots:
     void slotWayPointSwap(const quint16& i, const quint16& j);
     void slotWayPointsClear();
 
-    // Called by LogPlayer or RoverConnection when new scanData arrives.
+    // Called by LogPlayer or RoverConnection when new scanData arrives. @points must be float4!
     virtual void slotNewScanData(const float* const points, const quint32& count, const QVector3D* const scannerPosition) = 0;
 
     // Called by UI to clear the drawn trajectory

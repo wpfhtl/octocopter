@@ -40,9 +40,14 @@ class GlWidget : public QGLWidget
     QTime mTimeOfLastRender;
     QTimer* mTimerUpdate;
 
+    // points scanned from further distance than this shouldn't be rendered by the shader!
+    float mMaxPointVisualizationDistance;
+    bool mBackgroundDarkOrBright;
+
     float mRotationPerFrame;
     bool mViewRotating;
     bool mViewZooming;
+    bool mRenderAxisBase, mRenderAxisVehicle, mRenderTrajectory, mRenderVehicle;
 
     // Mouse Rotations
     QPoint      mLastMousePosition;
@@ -95,6 +100,8 @@ signals:
     void initializingInGlContext();
     void visualizeNow();
     void rotating(bool);
+    void showOnlyPointsScannedFromLessThan(float);
+    void message(const LogImportance& importance, const QString& source, const QString& message);
 
 public slots:
     // When this is called, we take note of the time of last external update. Because when zooming/rotating

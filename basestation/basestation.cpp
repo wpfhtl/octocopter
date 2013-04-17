@@ -19,7 +19,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     mProgress = 0;
 
-    mPlotWidget = 0;
+//    mPlotWidget = 0;
     mTimerJoystick = 0;
     mLogPlayer = 0;
     mPtuController = 0;
@@ -51,7 +51,9 @@ BaseStation::BaseStation() : QMainWindow()
     setCentralWidget(mGlWidget);
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(slotUpdateView()));
 
-    mPointCloud = new PointCloudCuda(QVector3D(-50, 0, -50), QVector3D(50, 20, 50)/*, 250000*/);
+//    mPointCloud = new PointCloudCuda(QVector3D(-64, -2, -64), QVector3D(64, 30, 64)/*, 250000*/);
+    mPointCloud = new PointCloudCuda(QVector3D(-50, 0, -50), QVector3D(50, 30, 50)/*, 250000*/);
+    connect(mGlWidget, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
     connect(mGlWidget, SIGNAL(initializingInGlContext()), mPointCloud, SLOT(slotInitialize()));
 
     // register dense pointcloud for rendering.
@@ -95,7 +97,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     mMenuFile->addAction("Save Cloud", this, SLOT(slotExportCloud()));
     mMenuFile->addAction("Load Cloud", this, SLOT(slotImportCloud()));
-    mMenuFile->addAction("Clear Cloud", this, SLOT(slotClearOctree()));
+    mMenuFile->addAction("Clear Cloud", this, SLOT(slotClearCloud()));
 
     connect(mGlWidget, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
     connect(mGlWidget, SIGNAL(visualizeNow()), mPtuController, SLOT(slotVisualize()));
@@ -184,7 +186,6 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mRoverConnection, SIGNAL(wayPointReachedByRover(WayPoint)), mFlightPlanner, SLOT(slotWayPointReached(WayPoint)));
         connect(mRoverConnection, SIGNAL(wayPointInsertedByRover(quint16,WayPoint)), mFlightPlanner, SLOT(slotWayPointInsertedByRover(quint16,WayPoint)));
 
-
         // When FlightPlanner wants us to send waypoint updates to the rover...
         connect(mFlightPlanner, SIGNAL(wayPointInsertOnRover(quint16,WayPoint)), mRoverConnection, SLOT(slotRoverWayPointInsert(quint16,WayPoint)));
         connect(mFlightPlanner, SIGNAL(wayPointDeleteOnRover(quint16)), mRoverConnection, SLOT(slotRoverWayPointDelete(quint16)));
@@ -207,7 +208,7 @@ BaseStation::BaseStation() : QMainWindow()
     {
         mLogPlayer = new LogPlayer(this);
         mLogPlayer->setAllowedAreas(Qt::AllDockWidgetAreas);
-        addDockWidget(Qt::BottomDockWidgetArea, mLogPlayer);
+        addDockWidget(Qt::RightDockWidgetArea, mLogPlayer);
         connect(mLogPlayer, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mControlWidget, SLOT(slotUpdatePose(const Pose* const)));
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mFlightPlanner, SLOT(slotVehiclePoseChanged(const Pose* const)));
@@ -239,7 +240,7 @@ BaseStation::BaseStation() : QMainWindow()
 BaseStation::~BaseStation()
 {
     delete mPtuController;
-    delete mPlotWidget;
+//    delete mPlotWidget;
     delete mPidControllerWidget;
     delete mLogPlayer;
     delete mFlightPlanner;
@@ -322,12 +323,15 @@ void BaseStation::keyPressEvent(QKeyEvent* event)
 {
     if(event->key() == Qt::Key_P)
         slotToggleViewPointCloudDense();
+    else if(event->key() == Qt::Key_C)
+        slotClearCloud();
 
     mGlWidget->keyPressEvent(event);
     mFlightPlanner->keyPressEvent(event);
+    if(mLogPlayer) mLogPlayer->keyPressEvent(event);
 }
 
-void BaseStation::slotClearOctree()
+void BaseStation::slotClearCloud()
 {
     mPointCloud->slotReset();
     mGlWidget->update();

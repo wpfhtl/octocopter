@@ -1,7 +1,9 @@
 #include "messagehandler.h"
 
-QFile* mMasterLogFile = 0;
+LogFile* mMasterLogFile = 0;
 QTextStream* mMasterLogStream = 0;
+QByteArray* mLogMessage = 0;
+QMutex* mMutexMessageHandler = 0;
 
 MessageHandler::MessageHandler(const QString& logFilePrefix)
 {
@@ -9,22 +11,20 @@ MessageHandler::MessageHandler(const QString& logFilePrefix)
 
     mNumPunct = new comma_numpunct();
     mLocale = new std::locale(std::locale(), mNumPunct);
+    mLogMessage = new QByteArray;
 
     // tell cout to use our new locale.
     std::cout.imbue(*mLocale);
     std::cout << std::setprecision(3) << std::fixed;
 
-    mMasterLogFile = new QFile(logFilePrefix + QString("console.txt"));
-    if(!mMasterLogFile->open(QIODevice::WriteOnly | QIODevice::Append))
-    {
-        qFatal("MessageHandler::MessageHandler(): cannot open logfile: %s, exiting", qPrintable(mMasterLogFile->fileName()));
-    }
-
-    mMasterLogStream = new QTextStream(mMasterLogFile);
+    mMasterLogFile = new LogFile(logFilePrefix + QString("console.txt"), LogFile::Encoding::Text);
+    mMasterLogStream = new QTextStream(mLogMessage);
 
     // To get a thousand group separator of "."
     QLocale german(QLocale::German);
     mMasterLogStream->setLocale(german);
+
+    mMutexMessageHandler = new QMutex;
 
     qInstallMsgHandler(MessageHandler::handleMessage);
     qDebug() << "MessageHandler::MessageHandler(): successfully set up console logging.";
@@ -48,14 +48,16 @@ MessageHandler::~MessageHandler()
     if(mMasterLogFile)
     {
         qDebug() << "MessageHandler::~MessageHandler(): closing logfile";
-        mMasterLogFile->flush();
-        mMasterLogFile->close();
         delete mMasterLogFile;
     }
+
+    delete mLogMessage;
 }
 
 void MessageHandler::handleMessage(QtMsgType type, const char *msg)
 {
+    QMutexLocker l(mMutexMessageHandler);
+
     Q_ASSERT(mMasterLogStream != 0 && "masterLogSteram is not set!");
 
     const qint32 tow = GnssTime::currentTow();
@@ -64,6 +66,10 @@ void MessageHandler::handleMessage(QtMsgType type, const char *msg)
 
     // Don't use endl, as that would flush the line/file to sd-card, which is sloooooow
     (*mMasterLogStream) << tow << ' ' << msg << '\n';
+    mMasterLogStream->flush();
+    mMasterLogStream->seek(0);
+    mMasterLogFile->write(mLogMessage);
+    mLogMessage->clear();
 
     if(type == QtFatalMsg) abort();
 }

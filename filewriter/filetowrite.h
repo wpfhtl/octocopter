@@ -7,6 +7,8 @@
 #include <QDebug>
 #include <QDataStream>
 
+#include "logfile.h"
+
 class FileToWrite : public QObject
 {
     Q_OBJECT
@@ -18,11 +20,11 @@ public:
 public slots:
 
 private:
+    LogFile* mLogFile;
     char* data;
     quint32 mNumBytes;
     quint32 mMaxWriteTime;
     QTimer mTimer;
-    QFile* mFile;
 
 private slots:
     void slotWrite();

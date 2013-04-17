@@ -153,6 +153,10 @@ void BaseConnection::processPacket(QByteArray packet)
 
         emit controllerWeights(&mControllerName, &mControllerWeights);
     }
+    else if(command == "pingrequest")
+    {
+        slotSendPingReply();
+    }
     else
     {
         qDebug() << "UNKNOWN COMMAND" << command;
@@ -259,6 +263,16 @@ void BaseConnection::slotRoverWayPointInserted(const quint16& index, const WayPo
     slotSendData(data, false);
 }
 
+void BaseConnection::slotSendPingReply()
+{
+    //qDebug() << "BaseConnection::slotSendPingReply(): sending ping reply to base";
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    stream << QString("pingreply");
+    slotSendData(data, false);
+}
+
 void BaseConnection::slotFlightControllerWayPointsChanged(const QList<WayPoint>* const wayPoints)
 {
     // We're here because the base sent some changes to the rover's waypoint-list, and now
@@ -324,7 +338,7 @@ void BaseConnection::slotFlightStateChanged(const FlightState* const fs)
 }
 
 // called by rover to send lidarpoints to the basestation
-void BaseConnection::slotNewScannedPoints(const QVector<QVector3D>& points, const QVector3D& scannerPosition)
+void BaseConnection::slotNewScannedPoints(const QVector<QVector4D>& points, const QVector3D& scannerPosition)
 {
     slotNewScannedPoints((float*)points.constData(), points.size(), &scannerPosition);
 }
@@ -342,6 +356,7 @@ void BaseConnection::slotNewScannedPoints(const QVector<QVector3D>& points, cons
     slotSendData(data, false);
 }*/
 
+// float4!
 void BaseConnection::slotNewScannedPoints(const float* const points, const quint32 numPoints, const QVector3D* const scannerPosition)
 {
 //    qDebug() << "sending" << points.size() << "new lidarpoints to base";
@@ -351,7 +366,7 @@ void BaseConnection::slotNewScannedPoints(const float* const points, const quint
     stream << QString("lidarpoints");
     stream << *scannerPosition;
     stream << numPoints;
-    stream.writeRawData((char*)points, numPoints * sizeof(float) * 3);
+    stream.writeRawData((char*)points, numPoints * sizeof(float) * 4);
 
     slotSendData(data, false);
 }

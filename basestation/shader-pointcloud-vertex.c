@@ -21,6 +21,7 @@ layout(std140) uniform GlobalValues
 
 uniform mat4 matrixExtra;
 uniform bool useMatrixExtra;
+uniform float maxPointVisualizationDistance;
 
 void main()
 {
@@ -28,18 +29,25 @@ void main()
 
     vec4 colorTemp = vec4(1.0, 1.0, 1.0, 0.3); // a is alpha, 1.0 is visible
 
+    // the w-component stores the squared distance. For rendering, lets set it to 1.0.
+    vec4 pos = in_position;
+    if(maxPointVisualizationDistance < pos.w)
+        colorTemp.a = 0.03;
+
+    pos.w = 1.0;
+
     if(useMatrixExtra)
-      gl_Position = matrixCameraToClip * matrixModelToCamera * matrixExtra * in_position;
+      gl_Position = matrixCameraToClip * matrixModelToCamera * matrixExtra * pos;
     else
-      gl_Position = matrixCameraToClip * matrixModelToCamera * in_position;
+      gl_Position = matrixCameraToClip * matrixModelToCamera * pos;
 
     float vmin = -2;
     float vmax = 18.0; // colormap repeats every 10 height-meters
     float dv = vmax - vmin;
-    //float colorValue = abs(in_position.y); // colormap repeats every 10 height-meters
+    //float colorValue = abs(pos.y); // colormap repeats every 10 height-meters
     // ben: max 10m, repeat cycle (use mod())
-    //float colorValue = mod(abs(in_position.y), vmax); // colormap repeats every 10 height-meters
-    float colorValue = in_position.y; // colormap, non-repeating
+    //float colorValue = mod(abs(pos.y), vmax); // colormap repeats every 10 height-meters
+    float colorValue = pos.y; // colormap, non-repeating
 
     if(colorValue < vmin)
       colorValue = vmin;

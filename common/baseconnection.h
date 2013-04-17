@@ -44,6 +44,8 @@ private slots:
     void slotReadSocket(bool lockMutex = true);
     void slotSocketError(QAbstractSocket::SocketError socketError);
 
+    void slotSendPingReply();
+
     // the internalCall parameter skips locking of the mutex, which would lead to a deadlock if
     // slotSendData was called from a class-internal method that already locked the mutex.
     void slotSendData(const QByteArray &data, bool lockMutex = true);
@@ -95,11 +97,11 @@ public slots:
     // called by rover when flightcontroller's pidcontroller-weights have been changed (due to a request from basestation)
     void slotFlightControllerWeightsChanged();
 
-    // called by rover to send lidarpoints to the basestation
+    // called by rover to send lidarpoints (float4!) to the basestation
+    // in the simulator, send the data instead, because the laserscanner lives in another thread
+    void slotNewScannedPoints(const QVector<QVector4D>& points, const QVector3D& scannerPosition);
     // for the rover, its fine to send a pointer, because sender and receiver live in the same thread
     void slotNewScannedPoints(const float* const points, const quint32 numPoints, const QVector3D* const scannerPosition);
-    // in the simulator, send the data instead, because the laserscanner lives in another thread
-    void slotNewScannedPoints(const QVector<QVector3D>& points, const QVector3D& scannerPosition);
 
     // called by rover to send new vehicle status to basestation
     void slotNewVehicleStatus(const VehicleStatus* const vs);

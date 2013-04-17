@@ -22,16 +22,6 @@ INCLUDE(${QT_USE_FILE})
 SET(CMAKE_DEBUG_POSTFIX "_d")
 SET(CMAKE_BUILD_TYPE "Debug")
 
-SET(URG_LIBRARIES
-    urg_connection
-    urg_common
-    urg_coordinate
-    urg_geometry
-    #urg_monitor
-    urg_system
-    urg
-)
-
 INCLUDE_DIRECTORIES(
     /usr/include
     /usr/local/include
@@ -52,7 +42,9 @@ koptermessage
 kopter
 camera
 messagehandler
+../common/profiler
 ../common/gnsstime
+../common/logfile
 ../common/sensorfuser
 ../common/flightcontroller
 ../common/flightcontrollervalues
@@ -70,6 +62,7 @@ messagehandler
 ../common/vehiclestatus
 gnssdevice
 laserscanner
+hokuyo
 )
 
 SET(INC_FILES_KOPTERCONTROL
@@ -78,6 +71,8 @@ koptermessage.h
 kopter.h
 camera.h
 messagehandler.h
+../common/profiler.h
+../common/logfile.h
 ../common/gnsstime.h
 ../common/sensorfuser.h
 ../common/flightcontroller.h
@@ -96,6 +91,7 @@ messagehandler.h
 ../common/vehiclestatus.h
 gnssdevice.h
 laserscanner.h
+hokuyo.h
 )
 
 #"Sources" and "Headers" are the group names in Visual Studio.
@@ -106,4 +102,5 @@ SOURCE_GROUP("Headers" FILES ${INC_FILES_KOPTERCONTROL})
 
 ADD_EXECUTABLE(koptercontrol ${SRC_FILES_KOPTERCONTROL} ${MOC_SRCS})
 SET_TARGET_PROPERTIES(koptercontrol PROPERTIES AUTOMOC TRUE)
-TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} ${URG_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES} -lqserialdevice)
+TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} ${SDLMAIN_LIBRARIES} ${SDL_LIBRARIES} -lqserialdevice)
+

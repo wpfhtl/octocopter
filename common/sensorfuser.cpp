@@ -1,5 +1,6 @@
 #include "sensorfuser.h"
 #include <unistd.h> // usleep
+#include <profiler.h>
 
 SensorFuser::SensorFuser(const quint8& stridePoint, const quint8& strideScan) : QObject()
 {
@@ -8,13 +9,13 @@ SensorFuser::SensorFuser(const quint8& stridePoint, const quint8& strideScan) : 
 
     mFlushRemainingData = false;
     mNewestDataTime = 0;
-    mMaximumFusableRayLength = 200.0;
+    mMaximumFusableRayLength = 60.0f;
     mStatsScansDiscarded = 0;
     mLastScanMiddleGnssTow = 0;
     mNumberOfScansWithMissingGnssTimestamps = 0;
     mMaximumTimeOffsetBetweenScannerAndGnss = 12;
 
-    mRegisteredPoints = new float[1080 * 3];
+    mRegisteredPoints = new float[1080 * 4];
     mNumberOfPointsFusedInThisScan = 0;
 
     mBestInterpolationMethodToUse = InterpolationMethod::Linear;
@@ -105,10 +106,10 @@ void SensorFuser::fuseRayWithLastInterpolatedPose(const qint16 index, const floa
 
     const QVector3D p = mLastInterpolatedPose * vectorScannerToPoint;
 
-    mRegisteredPoints[mNumberOfPointsFusedInThisScan * 3 + 0] = p.x();
-    mRegisteredPoints[mNumberOfPointsFusedInThisScan * 3 + 1] = p.y();
-    mRegisteredPoints[mNumberOfPointsFusedInThisScan * 3 + 2] = p.z();
-//    mRegisteredPoints[mNumberOfPointsFusedInThisScan + 3] = 1.0f;
+    mRegisteredPoints[mNumberOfPointsFusedInThisScan * 4 + 0] = p.x();
+    mRegisteredPoints[mNumberOfPointsFusedInThisScan * 4 + 1] = p.y();
+    mRegisteredPoints[mNumberOfPointsFusedInThisScan * 4 + 2] = p.z();
+    mRegisteredPoints[mNumberOfPointsFusedInThisScan * 4 + 3] = vectorScannerToPoint.lengthSquared(); // squared distance to point
     mNumberOfPointsFusedInThisScan++;
 
 //    static quint32 pointNum = 0;
@@ -538,7 +539,7 @@ qint8 SensorFuser::matchTimestamps()
         // - S is not the last scan in the list. Because if it IS, the next scan might fit even better to G.
         if(smallestTimeDifference <= mMaximumTimeOffsetBetweenScannerAndGnss && (bestFitTimestampScannerIndex < mScanInformation.size() - 1))
         {
-            qDebug() << "SensorFuser::matchTimestamps(): assigning gnss timestamp" << timestampGnss << "to scanner time" << mScanInformation[bestFitTimestampScannerIndex].timeStampScanMiddleScanner << "- time difference:" << smallestTimeDifference;
+//            qDebug() << "SensorFuser::matchTimestamps(): assigning gnss timestamp" << timestampGnss << "to scanner time" << mScanInformation[bestFitTimestampScannerIndex].timeStampScanMiddleScanner << "- time difference:" << smallestTimeDifference;
 
             // fill ScanInfo with more precise gnss timestamp
             mScanInformation[bestFitTimestampScannerIndex].timeStampScanMiddleGnss = timestampGnss;
@@ -573,6 +574,8 @@ void SensorFuser::slotNewVehiclePose(const Pose* const pose)
 //        qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received pose is not precise enough for fusing, ignoring it";
         return;
     }
+
+    Profiler p(__PRETTY_FUNCTION__);
 
 //    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a " << pose;
 
@@ -684,6 +687,8 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGnss)
 void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, std::vector<quint16> * const distances)
 {
 //    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
+
+    Profiler p(__PRETTY_FUNCTION__);
 
     // Do not store data that we cannot fuse anyway, because there is no pose or its very old (no gnss reception)
     if(!mPoses.size() || mPoses.last().timestamp < (timestampScanScanner - MaximumFusionTimeOffset::Cubic))

@@ -2,8 +2,9 @@
 #define LASERSCANNER_H
 
 #include <QtCore>
-#include <urg/UrgCtrl.h>
 #include <pose.h>
+#include "logfile.h"
+#include "hokuyo.h"
 
 // We don't use lidarpoints on the rover, because storing the ray back to laserscanner from
 // each scanned point is a large overhead with little gain. Instead, we store a list of
@@ -14,20 +15,18 @@ class LaserScanner : public QObject
     Q_OBJECT
 
 private:
-    QFile* mLogFile;
+//    LogFile* mLogFile;
+    QThread* mThreadReadScanner;
     QString mDeviceFileName;
-    qrk::UrgCtrl mScanner;
+    Hokuyo* mHokuyo;
     const Pose mRelativeScannerPose; // The scanner's pose relative to the vehicle frame
-    bool mIsEnabled;
-    quint8 mHeightOverGroundClockDivisor;
     qint64 mOffsetTimeScannerToTow;
     qint32 mLastScannerTimeStamp;
-    QTimer* mTimerScan; // this calls capture() when needed;
 
     std::vector<long> mScannedDistances;
 
 private slots:
-    void slotCaptureScanData();
+    //void slotCaptureScanData();
 
 public:
     // The pose specifies translation from vehicle frame to the laser source, so the scanner's
@@ -41,16 +40,24 @@ public:
     const bool isScanning() const;
     const Pose& getRelativePose() const;
 
-    // This depends on the laserscanner's pose relative to the vehicle, but is hardcoded ATM.
-//    const float getHeightAboveGround() const;
-
-    inline static quint8 getScanDuration() {return 25;}
-
 public slots:
     void slotEnableScanning(const bool = true);
 
+    void slotDisableScanning()
+    {
+        qDebug() << "LaserScanner::slotDisableScanning().";
+        slotEnableScanning(false);
+    }
+
     // To set the laserscanner's timestamp to the gps time. Hopefully.
-    void slotSetScannerTimeStamp(const qint32 timestamp);
+    //void slotSetScannerTimeStamp(const qint32 timestamp);
+
+    void slotThreadStarted();
+    void slotThreadFinished();
+    void slotThreadTerminated();
+
+    // testing, remove!
+    void slotNewScanData(qint32 timestamp,std::vector<quint16>*const data);
 
 signals:
     // the distance from the vehicle's center to the ground in meters

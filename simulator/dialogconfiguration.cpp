@@ -162,7 +162,7 @@ void DialogConfiguration::slotReadConfigurationLaserScanner()
 
         laserScanners->append(newLaserScanner);
 
-        connect(newLaserScanner, SIGNAL(newLidarPoints(QVector<QVector3D>,QVector3D)), mSimulator->mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector3D>,QVector3D)));
+        connect(newLaserScanner, SIGNAL(newLidarPoints(QVector<QVector4D>,QVector3D)), mSimulator->mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector4D>,QVector3D)));
         connect(newLaserScanner, SIGNAL(heightOverGround(float)), mSimulator->mFlightController, SLOT(slotSetHeightOverGround(float)));
 
         // Now create a row in the LaserScannerTable
@@ -439,7 +439,7 @@ void DialogConfiguration::slotLaserScannerAdd()
     mTableWidgetLaserScanners->setItem(row, 10,new QTableWidgetItem("0.25"));
     mTableWidgetLaserScanners->blockSignals(false);
 
-    connect(newLaserScanner, SIGNAL(newLidarPoints(QVector<QVector3D>,QVector3D)), mSimulator->mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector3D>,QVector3D)));
+    connect(newLaserScanner, SIGNAL(newLidarPoints(QVector<QVector4D>,QVector3D)), mSimulator->mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector4D>,QVector3D)));
     connect(newLaserScanner, SIGNAL(heightOverGround(float)), mSimulator->mFlightController, SLOT(slotSetHeightOverGround(float)));
 
     newLaserScanner->start();

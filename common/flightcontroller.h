@@ -7,6 +7,7 @@
 
 #include <common.h>
 #include "gnsstime.h"
+#include "logfile.h"
 #include "flightstate.h"
 #include "flightstateswitch.h"
 #include "flightcontrollervalues.h"
@@ -44,7 +45,7 @@ public:
     const FlightState& getFlightState(void) const { return mFlightControllerValues.flightState; }
 
 private:
-    QFile* mLogFile;
+    LogFile* mLogFile;
 
     FlightControllerValues mFlightControllerValues;
 
@@ -68,7 +69,7 @@ private:
     //
     // When used in the simulator, we want to pause this timer when the simulation is paused,
     // so this is what setPause(bool) is for - it is to be used ONLY in simulation.
-    static const quint16 backupTimerIntervalFast = 150;
+    static const quint16 backupTimerIntervalFast = 180;
     static const quint16 backupTimerIntervalSlow = 500;
     QTimer *mBackupTimerComputeMotion;
 
@@ -78,12 +79,58 @@ private:
     // This is an attempt to smooth out GNSS reception problems in single GNSS-packets that would
     // otherwise lead to a bouncing vehicle while flip-flopping between safe control values and
     // hover/approachwaypoint.
-    MotionCommand mLastMotionCommand;
+    MotionCommand mLastMotionCommandUsedForSmoothing;
     void smoothenControllerOutput(MotionCommand& mc);
 
-    struct ImuOffsets {
-        float pitch;
-        float roll;
+    // Where is the vehicle's position, relative to the vehicle, split up in pitch and roll axis-components
+    void getLateralOffsets(const Pose& vehiclePose, const QVector3D& desiredPosition, float& pitch, float& roll);
+
+    class ImuOffsets {
+    private:
+        static const quint8 numberOfMeasurementsToAverage = 10;
+        quint8 mNumberOfMeasurementsAveraged;
+        float mOffsetPitch, mOffsetRoll;
+        float mMeasurementSumPitch, mMeasurementSumRoll;
+        bool mDoCalibration;
+
+    public:
+        ImuOffsets() : mNumberOfMeasurementsAveraged(0), mOffsetPitch(0.0f), mOffsetRoll(0.0f), mMeasurementSumPitch(0.0f), mMeasurementSumRoll(0.0f), mDoCalibration(false) {}
+
+        void applyCorrection(float& pitch, float& roll) const
+        {
+            pitch -= mOffsetPitch;
+            roll -= mOffsetRoll;
+        }
+
+        void doCalibration() {mDoCalibration = true;}
+
+        void calibrate(const Pose* const p)
+        {
+            Q_ASSERT(needsMoreMeasurements());
+            const float measuredPitch = p->getPitchDegrees();
+            const float measuredRoll = p->getRollDegrees();
+
+            mMeasurementSumPitch += measuredPitch;
+            mMeasurementSumRoll += measuredRoll;
+
+            qDebug() << "ImuOffsets::calibrate(): added IMU offsets pitch" << measuredPitch << "and roll" << measuredRoll << "from pose of TOW" << p->timestamp << "to IMU offset computation.";
+
+            mNumberOfMeasurementsAveraged++;
+
+            if(mNumberOfMeasurementsAveraged == numberOfMeasurementsToAverage)
+            {
+                mOffsetPitch = mMeasurementSumPitch / numberOfMeasurementsToAverage;
+                mOffsetRoll = mMeasurementSumRoll / numberOfMeasurementsToAverage;
+                qDebug() << "ImuOffsets::calibrate(): calibrated IMU offsets to pitch" << mOffsetPitch << "and roll" << mOffsetRoll << "from" << mNumberOfMeasurementsAveraged << "poses";
+
+                // reset, so that we could calibrate again.
+                mMeasurementSumPitch = mMeasurementSumRoll = 0.0f;
+                mNumberOfMeasurementsAveraged = 0;
+                mDoCalibration = false;
+            }
+        }
+
+        bool needsMoreMeasurements() const {return mDoCalibration && mNumberOfMeasurementsAveraged < numberOfMeasurementsToAverage;}
     };
 
     ImuOffsets mImuOffsets;
@@ -101,7 +148,7 @@ private:
 
     void initializeControllers();
 
-    bool isHeightOverGroundValueRecent() const;
+    //bool isHeightOverGroundValueRecent() const;
 
     void nextWayPointReached();
     void setFlightState(FlightState);

@@ -3,7 +3,6 @@
 #undef _GLIBCXX_USE_INT128
 
 #include "grid.cuh"
-//#include "simulationparameters.cuh"
 #include "cudahelper.h"
 #include "cudahelper.cuh"
 #include "helper_math.h"
@@ -77,32 +76,27 @@ __host__ __device__ float3 Grid::getCellSize() const
                 );
 }
 
-// Calculate grid hash value for each particle
-__global__
-void computeMappingFromGridCellToParticleD(
-        uint*   gridParticleHash,  // output
-        uint*   gridParticleIndex, // output
-        float4* pos,               // input: particle positions
-        const Grid* const   grid,              // input: pointer to the grid being used
-        uint    numParticles)
+__host__ __device__ uint3 Grid::getOptimalResolution(const float minDist)
 {
-    const unsigned int index = getThreadIndex1D();
-    if(index >= numParticles) return;
+    uint3 cells;
 
-    volatile float4 p = pos[index];
+    // What would be the ideal cell count in this dimension?
+    cells.x = floor((worldMax.x - worldMin.x) / minDist);
+    cells.y = floor((worldMax.y - worldMin.y) / minDist);
+    cells.z = floor((worldMax.z - worldMin.z) / minDist);
 
-    // In which grid cell does the particle live?
-    int3 gridPos = grid->getCellCoordinate(make_float3(p.x, p.y, p.z));
+    // Make sure that it doesn't grow beyond hardware limits
+    cells.x = cudaBound(1, cells.x, 255);
+    cells.y = cudaBound(1, cells.y, 31);
+    cells.z = cudaBound(1, cells.z, 255);
 
-    // Calculate the particle's hash from the grid-cell. This means particles in the same cell have the same hash
-    uint hash = grid->getCellHash(gridPos);
+    // And use a power of two, as this is needed by Grid::getCellHash().
+    // TODO: Actually, that limitation should be removed, because using more grid cells means we're missing neighbors that we should check against!
+    cells.x = nextHigherPowerOfTwo(cells.x);
+    cells.y = nextHigherPowerOfTwo(cells.y);
+    cells.z = nextHigherPowerOfTwo(cells.z);
 
-    // This array is the key-part of the map, mapping cellId (=hash) to particleIndex. The term "map" is not
-    // exactly correct, because there can be multiple keys (because one cell can store many particles)
-    gridParticleHash[index] = hash;
-
-    // It seems stupid to fill an array like "array[x]=x". But this array is the value-part of a map and will get sorted according to the keys (=gridParticleHash)
-    gridParticleIndex[index] = index;
+    return cells;
 }
 
 // rearrange particle data into sorted order (sorted according to containing grid cell), and find the start of each cell in the sorted hash array
@@ -148,7 +142,7 @@ void sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArraysD(
 
     __syncthreads();
 
-    if (threadIndex < numParticles)
+    if(threadIndex < numParticles)
     {
         // If this particle has a different cell index to the previous particle then it must be the
         // first particle in the cell, so store the index of this particle in the cell. As it isn't
@@ -156,7 +150,7 @@ void sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArraysD(
         if(threadIndex == 0 || hash != sharedHash[threadIdx.x])
         {
             cellStart[hash] = threadIndex;
-            if (threadIndex > 0)
+            if(threadIndex > 0)
                 cellEnd[sharedHash[threadIdx.x]] = threadIndex;
         }
 
@@ -174,7 +168,12 @@ void sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArraysD(
         if(velUnsorted && velSorted)
             vel = velUnsorted[sortedIndex];
 
-        // ben: hier if() beenden, dann syncthreads() und dann nicht in sortedPos schreiben, sondern in oldPos? Bräuchte ich dann noch zwei pos/vel container?
+        // I once thought that I could __syncthreads() here to make sure that all threads have fetched the unsorted positions. Then, I would
+        // simply write to the sorted indices in the same array. This in-place sort would save me a second array of the same size.
+        // Unfortunately, when we read from e.g. posUnsorted[123], __syncthreads() and write to posUnsorted[789], then its unlikely that
+        // posUnsorted[789] will have been read by another thread after __syncthreads(). This is because the thread reading posUnsorted[789]
+        // is scheduled much later, in another thread block. So, this method can only be used when the number of points is less than the
+        // number of points/particles whose indices we're trying to sort. This makes it unpracticable. We need a second positions array!
         posSorted[threadIndex] = pos;
         if(velUnsorted && velSorted) velSorted[threadIndex] = vel;
     }
@@ -182,9 +181,37 @@ void sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArraysD(
 
 
 
+// Calculate grid hash value for each particle
+__global__
+void computeMappingFromGridCellToParticleD(
+        uint*   gridParticleHash,  // output
+        uint*   gridParticleIndex, // output
+        float4* pos,               // input: particle positions
+        const Grid* const   grid,              // input: pointer to the grid being used
+        uint    numParticles)
+{
+    const unsigned int index = getThreadIndex1D();
+    if(index >= numParticles) return;
+
+    volatile float4 p = pos[index];
+
+    // In which grid cell does the particle live?
+    int3 gridPos = grid->getCellCoordinate(make_float3(p.x, p.y, p.z));
+
+    // Calculate the particle's hash from the grid-cell. This means particles in the same cell have the same hash
+    uint hash = grid->getCellHash(gridPos);
+
+    // This array is the key-part of the map, mapping cellId (=hash) to particleIndex. The term "map" is not
+    // exactly correct, because there can be multiple keys (because one cell can store many particles)
+    gridParticleHash[index] = hash;
+
+    // It seems stupid to fill an array like "array[x]=x". But this array is the value-part of a map and will get sorted according to the keys (=gridParticleHash)
+    gridParticleIndex[index] = index;
+}
+
 
 // Calculates a hash for each particle. The hash value is ("based on") its cell id.
-void computeMappingFromGridCellToParticle(
+void computeMappingFromPointToGridCell(
         uint*  gridParticleHash,
         uint*  gridParticleIndex,
         float* pos,
@@ -194,7 +221,14 @@ void computeMappingFromGridCellToParticle(
     if(numParticles == 0) return;
 
     uint numThreads, numBlocks;
-    computeExecutionKernelGrid(numParticles, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
+    CudaHelper::computeExecutionKernelGrid(numParticles, 64, numBlocks, numThreads);
+
+    Grid ben;
+    cudaMemcpy(&ben, grid, sizeof(Grid), cudaMemcpyDeviceToHost);
+    qDebug() << "grid on device:"
+             << ben.worldMin.x << ben.worldMin.y << ben.worldMin.z
+             << ben.worldMax.x << ben.worldMax.y << ben.worldMax.z
+             << ben.cells.x << ben.cells.y << ben.cells.z;
 
     // execute the kernel
     computeMappingFromGridCellToParticleD<<< numBlocks, numThreads >>>(
@@ -206,7 +240,7 @@ void computeMappingFromGridCellToParticle(
                                                                          );
 
     // check if kernel invocation generated an error
-    cudaCheckSuccess("computeMappingFromGridCellToParticleD");
+    cudaCheckSuccess("computeMappingFromPointToGridCell");
 }
 
 void sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
@@ -221,13 +255,13 @@ void sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
         uint   numParticles,
         uint   numCells)
 {
+    if(numParticles == 0) return;
+
     // set all cells to empty
     cudaMemset(cellStart, 0xffffffff, numCells*sizeof(uint));
 
-    if(numParticles == 0) return;
-
     uint numThreads, numBlocks;
-    computeExecutionKernelGrid(numParticles, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
+    CudaHelper::computeExecutionKernelGrid(numParticles, 64, numBlocks, numThreads);
 
     // Number of bytes in shared memory that is allocated for each (thread)block.
     uint smemSize = sizeof(uint)*(numThreads+1);
@@ -245,53 +279,3 @@ void sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
 
     cudaCheckSuccess("sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArraysD");
 }
-
-#if false
-QVector3D Grid::getWorldSizeQt() const
-{
-    return QVector3D(
-                worldMax.x - worldMin.x,
-                worldMax.y - worldMin.y,
-                worldMax.z - worldMin.z);
-}
-
-QVector3D Grid::getWorldCenterQt() const
-{
-    return QVector3D(worldMin.x, worldMin.y, worldMin.z) + getWorldSizeQt() / 2.0f;
-}
-
-int3 Grid::getCellCoordinate(const QVector3D& worldPos) const
-{
-    const QVector3D posRelativeToGridMin = worldPos - QVector3D(worldMin.x, worldMin.y, worldMin.z);
-    const QVector3D cellSize = getCellSizeQt();
-
-    int3 cell;
-
-    cell.x = floor(posRelativeToGridMin.x() / cellSize.x());
-    cell.y = floor(posRelativeToGridMin.y() / cellSize.y());
-    cell.z = floor(posRelativeToGridMin.z() / cellSize.z());
-
-    return cell;
-}
-
-
-QVector3D Grid::getCellSizeQt() const
-{
-    return QVector3D(
-                (worldMax.x - worldMin.x) / cells.x,
-                (worldMax.y - worldMin.y) / cells.y,
-                (worldMax.z - worldMin.z) / cells.z
-                );
-}
-
-QVector3D Grid::getCellCenterQt(const int3& gridCellCoordinate) const
-{
-    const QVector3D cellSize = getCellSizeQt();
-
-    return QVector3D(
-                worldMin.x + (cellSize.x() * gridCellCoordinate.x) + (cellSize.x() / 2.0f),
-                worldMin.y + (cellSize.y() * gridCellCoordinate.y) + (cellSize.y() / 2.0f),
-                worldMin.z + (cellSize.z() * gridCellCoordinate.z) + (cellSize.z() / 2.0f)
-                );
-}
-#endif

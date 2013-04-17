@@ -435,21 +435,10 @@ void fillGridMapCellWorldPositionsD(
 
 void integrateSystem(float *particlePositions, float *particleVelocities, uint8_t* gridWaypointPressure, float* particleCollisionPositions, const ParametersParticleSystem* const params, uint numParticles)
 {
-// old thrust version. Cannot write to the non-linear waypointpressure position when using thrust tuples.
-//    thrust::device_ptr<float4> d_pos4((float4*)pos);
-//    thrust::device_ptr<float4> d_vel4((float4*)vel);
-//    thrust::device_ptr<float4> d_pcp4((float4*)particleCollisionPositions);
-//    thrust::device_ptr<uint8_t> d_gwpp((uint8_t*)gridWaypointPressure);
-
-//    thrust::for_each(
-//                thrust::make_zip_iterator(thrust::make_tuple(d_pos4, d_vel4, d_pcp4, d_gwpp)),
-//                thrust::make_zip_iterator(thrust::make_tuple(d_pos4 + numParticles, d_vel4 + numParticles, d_pcp4 + numParticles, d_gwpp + numParticles)),
-//                integrate_functor(deltaTime));
-
     if(numParticles == 0) return;
 
     uint numThreads, numBlocks;
-    computeExecutionKernelGrid(numParticles, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
+    CudaHelper::computeExecutionKernelGrid(numParticles, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
 
     // execute the kernel
     integrateSystemD<<< numBlocks, numThreads >>>(
@@ -488,7 +477,7 @@ void collideParticlesWithParticlesAndColliders(
 
     // thread per particle
     uint numThreads, numBlocks;
-    computeExecutionKernelGrid(numParticles, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
+    CudaHelper::computeExecutionKernelGrid(numParticles, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
 
     // execute the kernel
     collideParticlesWithParticlesAndCollidersD<<< numBlocks, numThreads >>>(
@@ -510,7 +499,7 @@ void collideParticlesWithParticlesAndColliders(
                                                                               numParticles);
 
     // check if kernel invocation generated an error
-    cudaCheckSuccess("collideParticlesWithParticlesD");
+    cudaCheckSuccess("collideParticlesWithParticlesAndCollidersD");
 }
 
 void sortGridOccupancyMap(uint *dGridParticleHash, uint *dGridParticleIndex, uint numParticles)
@@ -530,7 +519,7 @@ void fillGridMapCellWorldPositions(float* gridMapCellWorldPositions, uint numCel
 {
     // thread per cell
     uint numThreads, numBlocks;
-    computeExecutionKernelGrid(numCells, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
+    CudaHelper::computeExecutionKernelGrid(numCells, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
 
     fillGridMapCellWorldPositionsD<<< numBlocks, numThreads >>>(
                                                                   (float4*)gridMapCellWorldPositions,

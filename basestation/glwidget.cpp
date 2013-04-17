@@ -3,6 +3,7 @@
 #include <cuda_gl_interop.h>
 #include "pointcloud.h"
 #include "glwidget.h"
+#include "cudahelper.h"
 
 GlWidget::GlWidget(QWidget* parent) :
     QGLWidget(parent),
@@ -23,6 +24,9 @@ GlWidget::GlWidget(QWidget* parent) :
     mVboVehiclePathBytesMaximum = (3600 * 50 * mVboVehiclePathElementSize); // For a flight time of one hour
     mVboVehiclePathBytesCurrent = 0;
 
+    mMaxPointVisualizationDistance = 1000.0f;
+    mBackgroundDarkOrBright = true;
+
     mFramesRenderedThisSecond = 0;
 
     mZoomFactorCurrent = 0.5;
@@ -36,6 +40,11 @@ GlWidget::GlWidget(QWidget* parent) :
     mRotationPerFrame = 0.001f;
     mViewRotating = false;
     mViewZooming = false;
+
+    mRenderAxisBase = true;
+    mRenderAxisVehicle = true;
+    mRenderTrajectory = true;
+    mRenderVehicle = true;
 
     mTimerUpdate = new QTimer(this);
     mTimerUpdate->setInterval(1000 / 60);
@@ -55,38 +64,7 @@ void GlWidget::initializeGL()
     // Bind the VAO to the context
     glBindVertexArray(mVertexArrayObject);
 
-    // Initialize CUDA
-    int numberOfCudaDevices;
-    cudaGetDeviceCount(&numberOfCudaDevices);
-    Q_ASSERT(numberOfCudaDevices && "GlWidget::initializeGL(): No CUDA devices found, exiting.");
-
-    cudaError_t cudaError;
-
-    int activeCudaDevice;
-    cudaError = cudaGetDevice(&activeCudaDevice);
-    if(cudaError != cudaSuccess) qFatal("GlWidget::initializeGL(): couldn't get device: code %d: %s, exiting.", cudaError, cudaGetErrorString(cudaError));
-
-    // Necessary for OpenGL graphics interop: GlWidget and CUDA-based FlightPlanners have a close relationship because cudaGlSetGlDevice() needs to be called in GL context and before any other CUDA calls.
-    cudaError = cudaGLSetGLDevice(activeCudaDevice);
-    if(cudaError != cudaSuccess) qFatal("GlWidget::initializeGL(): couldn't set device to GL interop mode: code %d: %s, exiting.", cudaError, cudaGetErrorString(cudaError));
-
-    cudaError = cudaSetDeviceFlags(cudaDeviceMapHost);// in order for the cudaHostAllocMapped flag to have any effect
-    if(cudaError != cudaSuccess) qFatal("GlWidget::initializeGL(): couldn't set device flag: code %d: %s, exiting.", cudaError, cudaGetErrorString(cudaError));
-
-    cudaDeviceProp deviceProps;
-    cudaGetDeviceProperties(&deviceProps, activeCudaDevice);
-
-    size_t memTotal, memFree;
-    cudaMemGetInfo(&memFree, &memTotal);
-
-    qDebug() << "GlWidget::initializeGL(): device" << deviceProps.name << "has compute capability" << deviceProps.major << deviceProps.minor << "and"
-             << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free, has"
-             << deviceProps.multiProcessorCount << "multiprocessors,"
-             << (deviceProps.integrated ? "is" : "is NOT" ) << "integrated,"
-             << (deviceProps.canMapHostMemory ? "can" : "can NOT") << "map host mem, has"
-             << deviceProps.memoryClockRate / 1000 << "Mhz mem clock, a"
-             << deviceProps.memoryBusWidth << "bit mem bus and max"
-             << deviceProps.maxTexture1DLinear / 1048576 << "mb of 1d texture bound to linear memory.";
+    CudaHelper::initializeCuda();
 
     // Create the uniform buffer object (UBO) for all members of the UBO-Block
     mUboSize = 64 + 64; // One Matrix4x4 has 16 floats with 4 bytes each, giving 64 bytes.
@@ -172,7 +150,7 @@ void GlWidget::initializeGL()
 
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);					// Black Background
     glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// White Background
-    glClearColor(0.2f, 0.2f, 0.2f, 0.0f);					// Gray  Background
+//    glClearColor(0.2f, 0.2f, 0.2f, 0.0f);					// Gray  Background
 
     // Set Line Antialiasing
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
@@ -202,8 +180,8 @@ void GlWidget::resizeGL(int w, int h)
 
     // OpenGL 4 core profile: We set the second matrix (perspective = cameraToClip) in the UBO
     QMatrix4x4 matrixCameraToClip;
-    matrixCameraToClip.perspective(50.0f * mZoomFactorCurrent, (float)w/(float)h, 10.0f, +1000.0f);
-    //matrixCameraToClip.ortho(-w/2.0f * mZoomFactorCurrent, w/2.0f * mZoomFactorCurrent, -h/2.0f * mZoomFactorCurrent, h/2.0f * mZoomFactorCurrent, 1.0, 10000.0);
+    //matrixCameraToClip.perspective(50.0f * mZoomFactorCurrent, (float)w/(float)h, 10.0f, +1000.0f);
+    matrixCameraToClip.ortho(-w/2.0f * mZoomFactorCurrent, w/2.0f * mZoomFactorCurrent, -h/2.0f * mZoomFactorCurrent, h/2.0f * mZoomFactorCurrent, 1.0, 10000.0);
 
     //    qDebug() << "GlWidget::resizeGL(): resizing gl viewport to" << w << h << "setting perspective/cameraclip matrix" << matrixCameraToClip;
 
@@ -230,7 +208,7 @@ void GlWidget::paintGL()
     if(mTimeOfLastRender.second() != currentTime.second())
     {
         // A second has passed!
-        qDebug() << "GlWidget::paintGL(): currently rendering at" << mFramesRenderedThisSecond << "fps.";
+//        qDebug() << "GlWidget::paintGL(): currently rendering at" << mFramesRenderedThisSecond << "fps.";
         mFramesRenderedThisSecond = 0;
     }
 
@@ -240,6 +218,11 @@ void GlWidget::paintGL()
         mCameraRotation.setY(mCameraRotation.y() + 180 * mRotationPerFrame);
 
     // Clear color buffer and depth buffer
+    if(mBackgroundDarkOrBright)
+        glClearColor(0.2f, 0.2f, 0.2f, 0.0f);					// Dark Background
+    else
+        glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// White Background
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     const QVector3D camLookAt = mCamLookAtOffset + (mLastKnownVehiclePose ? mLastKnownVehiclePose->getPosition() : QVector3D());
@@ -281,6 +264,7 @@ void GlWidget::paintGL()
     glEnable (GL_BLEND); glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
     {
         mShaderProgramPointCloud->bind();
+        mShaderProgramPointCloud->setUniformValue("maxPointVisualizationDistance", (GLfloat)pow(mMaxPointVisualizationDistance, 2.0)); // distances are squared in the point cloud, too!
         for(int i=0;i<mPointCloudsToRender.size();i++)
         {
             const QVector<PointCloud::VboInfo>& vboInfoList = mPointCloudsToRender.at(i)->getVboInfo();
@@ -311,44 +295,55 @@ void GlWidget::paintGL()
 
         mShaderProgramDefault->bind();
         {
-            mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
-
-            // Render the vehicle's path - same shader, but variable color
-            mShaderProgramDefault->setUniformValue("useFixedColor", false);
-            glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
-            glEnableVertexAttribArray(0);
-            glEnableVertexAttribArray(1);
-            // Stride is NOT the number of useless bytes between two packets, its the
-            // "distance" between two beginnings of two consecutive useful packets
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 28, 0); // position.
-            glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 28, (void*)12); // color
-            glDrawArrays(GL_POINTS, 0, (mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize));
-            glDisableVertexAttribArray(0);
-            glDisableVertexAttribArray(1);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-            // Render axes once at origin, once at vehicle
+            if(mRenderTrajectory)
             {
-                // At the origin
+                // Render the vehicle's path - same shader, but variable color
+                mShaderProgramDefault->setUniformValue("useFixedColor", false);
+                glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
+                glEnableVertexAttribArray(0);
+                glEnableVertexAttribArray(1);
+                // Stride is NOT the number of useless bytes between two packets, its the
+                // "distance" between two beginnings of two consecutive useful packets
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 28, 0); // position.
+                glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 28, (void*)12); // color
+                glDrawArrays(GL_POINTS, 0, (mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize));
+                glDisableVertexAttribArray(0);
+                glDisableVertexAttribArray(1);
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
+            }
+
+            // Prepare axis rendering if desired
+            if(mRenderAxisBase || mRenderAxisVehicle)
+            {
                 mShaderProgramDefault->setUniformValue("useFixedColor", false);
                 glBindBuffer(GL_ARRAY_BUFFER, mVboAxes);
                 glEnableVertexAttribArray(0);
                 glEnableVertexAttribArray(1);
                 glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0); // positions
                 glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, (void*)(12 * sizeof(float) * 4)); // colors
-                glDrawArrays(GL_LINES, 0, 12);
+            }
 
-                // At the vehicle
-                if(mLastKnownVehiclePose)
-                {
-                    mShaderProgramDefault->setUniformValue("useMatrixExtra", true);
-                    mShaderProgramDefault->setUniformValue("matrixExtra", mLastKnownVehiclePose->getMatrixConst());
-                    glDrawArrays(GL_LINES, 0, 12);
-                    glDisableVertexAttribArray(0);
-                    glDisableVertexAttribArray(1);
-                    glBindBuffer(GL_ARRAY_BUFFER, 0);
-                    mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
-                }
+            // At the origin
+            if(mRenderAxisBase)
+            {
+                glDrawArrays(GL_LINES, 0, 12);
+            }
+
+            // At the vehicle
+            if(mRenderAxisVehicle && mLastKnownVehiclePose)
+            {
+                mShaderProgramDefault->setUniformValue("useMatrixExtra", true);
+                mShaderProgramDefault->setUniformValue("matrixExtra", mLastKnownVehiclePose->getMatrixConst());
+                glDrawArrays(GL_LINES, 0, 12);
+                mShaderProgramDefault->setUniformValue("useMatrixExtra", false);
+            }
+
+            // Clean up axis rendering
+            if(mRenderAxisBase || mRenderAxisVehicle)
+            {
+                glDisableVertexAttribArray(0);
+                glDisableVertexAttribArray(1);
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
             }
         }
         glDisable(GL_BLEND);
@@ -456,8 +451,11 @@ void GlWidget::paintGL()
         }
     }
 
-    mModelVehicle->slotSetModelTransform(transformVehicle);
-    mModelVehicle->render();
+    if(mRenderVehicle)
+    {
+        mModelVehicle->slotSetModelTransform(transformVehicle);
+        mModelVehicle->render();
+    }
 }
 
 void GlWidget::renderController(const QMatrix4x4& transform, const PidController* const controller)
@@ -655,6 +653,48 @@ void GlWidget::keyPressEvent(QKeyEvent *event)
     {
         mRotationPerFrame += 0.0005f;
         slotEnableTimerRotation(true);
+    }
+    else if(event->key() == Qt::Key_L)
+    {
+        mBackgroundDarkOrBright = !mBackgroundDarkOrBright;
+        emit message(LogImportance::Information, "GlWidget::keyPressEvent()", "toggling background brightness");
+        slotUpdateView();
+    }
+    else if(event->key() == Qt::Key_V)
+    {
+        mRenderVehicle = !mRenderVehicle;
+        emit message(LogImportance::Information, "GlWidget::keyPressEvent()", "toggling background brightness");
+        slotUpdateView();
+    }
+    else if(event->key() == Qt::Key_T)
+    {
+        mRenderTrajectory = !mRenderTrajectory;
+        emit message(LogImportance::Information, "GlWidget::keyPressEvent()", "toggling visualization of vehicle trajectory");
+        slotUpdateView();
+    }
+    else if(event->key() == Qt::Key_A && (event->modifiers() & Qt::ShiftModifier))
+    {
+        mRenderAxisBase = !mRenderAxisBase;
+        emit message(LogImportance::Information, "GlWidget::keyPressEvent()", "toggling visualization of coordinate system at base");
+        slotUpdateView();
+    }
+    else if(event->key() == Qt::Key_A && !(event->modifiers() & Qt::ShiftModifier))
+    {
+        mRenderAxisVehicle = !mRenderAxisVehicle;
+        emit message(LogImportance::Information, "GlWidget::keyPressEvent()", "toggling visualization of coordinate system at vehicle");
+        slotUpdateView();
+    }
+    else if(event->key() == Qt::Key_Minus)
+    {
+        mMaxPointVisualizationDistance = qBound(0.0f, mMaxPointVisualizationDistance - 0.5f, 60.0f);
+        emit message(LogImportance::Information, "GlWidget::keyPressEvent()", QString("setting max point visualization distance to %1").arg(mMaxPointVisualizationDistance));
+        slotUpdateView();
+    }
+    else if(event->key() == Qt::Key_Plus)
+    {
+        mMaxPointVisualizationDistance = qBound(0.0f, mMaxPointVisualizationDistance + 0.5f, 60.0f);
+        emit message(LogImportance::Information, "GlWidget::keyPressEvent()", QString("setting max point visualization distance to %1").arg(mMaxPointVisualizationDistance));
+        slotUpdateView();
     }
     else
         QGLWidget::keyPressEvent(event);

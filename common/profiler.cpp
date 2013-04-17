@@ -1,24 +1,21 @@
 #include "profiler.h"
 
-Profiler::Profiler(void)
+Profiler::Profiler(const QString name, const qint32 minTimeForWarningUsec) : mName(name), mMinTimeForWarningUsec(minTimeForWarningUsec)
 {
+    if(gettimeofday(&mTimeStart, NULL))
+      Q_ASSERT("Profiler::Profiler(): couldn't get time, aborting" && false);
 }
 
-void Profiler::start()
+Profiler::~Profiler()
 {
-    if(gettimeofday(&timeStart, NULL))
-      Q_ASSERT("Couldn't get time, aborting" && false);
-}
-
-long long Profiler::stop(const QString action)
-{
-    if(gettimeofday(&timeStop, NULL))
-      Q_ASSERT("Couldn't get time, aborting" && false);
+    timeval mTimeStop;
+    if(gettimeofday(&mTimeStop, NULL))
+      Q_ASSERT("Profiler::~Profiler(): couldn't get time, aborting" && false);
 
     struct timeval difference;
 
-    difference.tv_sec  = timeStop.tv_sec  - timeStart.tv_sec ;
-    difference.tv_usec = timeStop.tv_usec - timeStart.tv_usec;
+    difference.tv_sec  = mTimeStop.tv_sec  - mTimeStart.tv_sec ;
+    difference.tv_usec = mTimeStop.tv_usec - mTimeStart.tv_usec;
 
     while(difference.tv_usec < 0)
     {
@@ -26,9 +23,8 @@ long long Profiler::stop(const QString action)
         difference.tv_sec -=1;
     }
 
-    const long long interval = 1000000LL * difference.tv_sec + difference.tv_usec;
+    const long long intervalUsec = 1000000LL * difference.tv_sec + difference.tv_usec;
 
-//    qDebug() << "Profiler::stop(): action" << action << "took" << interval << "usec";
-
-    return interval;
+    if(intervalUsec > mMinTimeForWarningUsec)
+        qDebug() << "Profiler::~Profiler(): action" << mName << "took" << intervalUsec << "usec /" << intervalUsec/1000 << "ms";
 }

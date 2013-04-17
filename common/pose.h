@@ -113,6 +113,8 @@ public:
     static float getShortestTurnRadians(float angle);
     static float getShortestTurnDegrees(float angle);
 
+    bool isSufficientlyPreciseForFlightControl() const;
+
     void getEulerAnglesRadians(float& yaw, float &pitch, float &roll) const;
     void getEulerAnglesDegrees(float& yaw, float &pitch, float &roll) const;
 

@@ -13,6 +13,7 @@ LaserScanner::LaserScanner(
     Q_ASSERT(angleStart < angleStop);
 
     qRegisterMetaType<QVector<QVector3D> >("QVector<QVector3D>");
+    qRegisterMetaType<QVector<QVector4D> >("QVector<QVector4D>");
 
     mSimulator = simulator;
     mOgreWidget = ogreWidget;
@@ -127,9 +128,6 @@ void LaserScanner::slotDoScan()
 
     int numberOfRays = 0;
 
-    mRegisteredPoints.clear();
-    mRegisteredPoints.reserve((mAngleStop - mAngleStart) / mAngleStep + 10);
-
     while(mCurrentScanAngle <= mAngleStop)
     {
         numberOfRays++;
@@ -221,7 +219,7 @@ void LaserScanner::slotDoScan()
                 }
             }
 
-            mRegisteredPoints << QVector3D(point.x, point.y, point.z);
+            mRegisteredPoints << QVector4D(point.x, point.y, point.z, pow(distanceFinal, 2.0));
         }
 
         // Increase mCurrentScanAngle by mAngleStep for the next laserBeam
@@ -257,13 +255,13 @@ void LaserScanner::slotDoScan()
     mCurrentScanAngle = mAngleStart;
     mScannerOrientationPrevious = mScannerOrientation;
     mScannerPositionPrevious = mScannerPosition;
+    mRegisteredPoints.clear();
 
     // Sleep for degreesToNextScan = 360.0 - mAngleStop + mAngleStart
     gettimeofday(&timeNow, NULL);
     const long long scanTimeElapsed = (timeNow.tv_sec - timeStart.tv_sec) * 1000000 + (timeNow.tv_usec - timeStart.tv_usec);
     const long long timeRest = (1000000/(mSpeed/60)) * (1.0 / mTimeFactor) - scanTimeElapsed;
 //    qDebug() << "LaserScanner::slotDoScan(): emitted results, resting" << timeRest << "us after scan.";
-    mRegisteredPoints.clear();
     usleep(std::max(0, (int)timeRest));
 }
 

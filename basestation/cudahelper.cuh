@@ -6,4 +6,10 @@
 
 __device__ unsigned int getThreadIndex1D(void);
 
+
+// compute the next higher power of 2 of 32-bit v
+__host__ __device__ unsigned int nextHigherPowerOfTwo(unsigned int v);
+
+__host__ __device__ unsigned int cudaBound(const unsigned int min, const unsigned int value, const unsigned int max);
+
 #endif

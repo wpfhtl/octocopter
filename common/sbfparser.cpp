@@ -16,7 +16,7 @@ SbfParser::SbfParser(QObject *parent) : QObject(parent)
     mGnssDeviceWorkingPrecisely = false;
 
     // Offset from ARP to vehicle center in meters, local vehicle coordinate system
-    mTransformArpToVehicle.translate(0.1f, -0.39f, -0.04f);
+    mTransformArpToVehicle.translate(0.09f, -0.53f, -0.04f);
 }
 
 SbfParser::~SbfParser()
@@ -152,11 +152,8 @@ void SbfParser::setPose(
                 (qint32)tow // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
                 );
 
-//    qDebug() << "arp:" << mLastPose;
-
+    // Move the pose from the ARP/Marker that IntPVAAGeod outputs to the vehicle's center
     mLastPose.getMatrixRef() *= mTransformArpToVehicle;
-
-//    qDebug() << "vec:" << mLastPose;
 
     mLastPose.precision = precision;
 }
@@ -175,6 +172,8 @@ QVector3D SbfParser::convertGeodeticToCartesian(const double &lon, const double 
         {
             mOriginLongitude = lon;
             mOriginLatitude = lat;
+
+            // Whats the transform for?
             mOriginElevation = elevation + mTransformArpToVehicle(1, 3);
         }
         else
@@ -510,9 +509,9 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         // Emitted at full rate, any precision
         emit newVehiclePose(&mLastPose);
 
-        // Emitted slowly (2Hz), any precision
-        // Update: Need higher rate for PTU-tracking (10Hz)
-        if(mLastPose.timestamp % 100 == 0)
+        // Emitted slowly (1Hz), any precision
+        // PTU-tracking might need faster rate (10Hz)
+        if(mLastPose.timestamp % 1000 == 0)
             emit newVehiclePoseStatus(&mLastPose);
 
         // Only emit a precise pose if the values are not set to the do-not-use values.
@@ -523,11 +522,6 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
                 && block->Lon != -2147483648L
                 && block->Alt != -2147483648L)
         {
-            // Emit only integrated poses for flight control, this will automatically reduce
-            // the rate to 10Hz, which the flightcontrol-board should be able to handle.
-            if(precisionFlags & Pose::ModeIntegrated)
-                emit newVehiclePoseFlightController(&mLastPose);
-
             emit newVehiclePoseSensorFuser(&mLastPose);
 
             // Tell others whether we're working well.
@@ -645,7 +639,8 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
 //    qDebug() << "SbfParser::processNextValidPacket(): processed packet id:" << msgIdBlock;
 
     // emit new status if it changed significantly.
-    if(mGnssStatus.interestingOrDifferentComparedTo(previousGpsStatus)) emit status(&mGnssStatus);
+    if(mGnssStatus.interestingOrDifferentComparedTo(previousGpsStatus))
+        emit status(&mGnssStatus);
 
     /*
      Remove the processed SBF block from our incoming buffer, so that it contains either nothing, the next (possibly

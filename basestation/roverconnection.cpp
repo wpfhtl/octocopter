@@ -5,11 +5,13 @@ RoverConnection::RoverConnection(const QString& hostName, const quint16& port, Q
     mHostName = hostName;
     mPort = port;
 
-    mTimeOfLastConnectionStatusUpdate = QTime::currentTime();
-    mTimerConnectionWatchdog.start(5000);
-    connect(&mTimerConnectionWatchdog, SIGNAL(timeout()), SLOT(slotEmitConnectionTimedOut()));
+    mTimeOfLastPacket = QTime::currentTime();
+    connect(&mTimerConnectionWatchdog, SIGNAL(timeout()), SLOT(slotWatchdogTimerFired()));
+    mTimerConnectionWatchdog.start(2000);
 
-    mRegisteredPointsFloat = new float[1080 * 4];
+    mRegisteredPointsFloat = new float[8192 * 4];
+
+    mCurrentlyWaitingForPingReply = false;
 
     mIncomingDataBuffer.clear();
 
@@ -25,12 +27,28 @@ RoverConnection::~RoverConnection()
     delete mRegisteredPointsFloat;
 }
 
-void RoverConnection::slotEmitConnectionTimedOut()
+void RoverConnection::slotWatchdogTimerFired()
 {
     // This method is called only by a timer, which is reset whenever a packet comes in.
     // So, as lsong as we receive packets within intervals smaller than the timer's, we
     // should never emit a broken connection.
-    emit connectionStatusRover(false);
+
+    if(mTimeOfLastPacket.msecsTo(QTime::currentTime()) > 1.5f * mTimerConnectionWatchdog.interval() && !mCurrentlyWaitingForPingReply)
+    {
+        mCurrentlyWaitingForPingReply = true;
+        slotSendPingRequest();
+    }
+
+    if(mTcpSocket->state() != QAbstractSocket::ConnectedState || mTimeOfLastPacket.msecsTo(QTime::currentTime()) > 2.5f * mTimerConnectionWatchdog.interval())
+    {
+        qDebug() << "RoverConnection::slotWatchdogTimerFired(): emitting broken connection, attempting reconnect...";
+        emit connectionStatusRover(false);
+        slotConnectToRover();
+    }
+    else
+    {
+        emit connectionStatusRover(true);
+    }
 }
 
 void RoverConnection::slotSocketDisconnected()
@@ -41,10 +59,6 @@ void RoverConnection::slotSocketDisconnected()
                 Warning,
                 QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                 "Connection closed, retrying...");
-
-    emit connectionStatusRover(false);
-
-    slotConnectToRover();
 }
 
 void RoverConnection::slotSocketConnected()
@@ -57,8 +71,34 @@ void RoverConnection::slotSocketConnected()
                 "Connection established.");
 
     emit connectionStatusRover(true);
+
+    mTimeOfLastPacket = QTime::currentTime();
+    mCurrentlyWaitingForPingReply = false;
 }
 
+void RoverConnection::slotConnectToRover()
+{
+    Q_ASSERT(!mHostName.isEmpty() && mPort != 0 && "RoverConnection::slotConnectToRover(): hostname or port not set.");
+    qDebug() << "RoverConnection::slotConnectToRover(): abort()ing connection, then reconnecting...";
+
+    mTcpSocket->abort();
+    mTcpSocket->connectToHost(mHostName, mPort);
+
+    emit message(
+                Information,
+                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
+                "Trying to connect to rover...");
+}
+
+void RoverConnection::slotSocketError(QAbstractSocket::SocketError socketError)
+{
+    emit connectionStatusRover(false);
+
+    emit message(
+                Error,
+                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
+                "Connection failed: " + mTcpSocket->errorString() + ", retrying...");
+}
 
 void RoverConnection::slotReadSocket()
 {
@@ -95,16 +135,7 @@ void RoverConnection::processPacket(QByteArray data)
 {
 //    qDebug() << "RoverConnection::processPacket(): processing bytes:" << data.size();
 
-    if(mTimeOfLastConnectionStatusUpdate.msecsTo(QTime::currentTime()) > mTimerConnectionWatchdog.interval() / 2.0f)
-    {
-        // Restart the timer, so we don't get a timeout.
-        mTimerConnectionWatchdog.start();
-
-        // Tell everyone the connection is still alive
-        emit connectionStatusRover(true);
-
-        mTimeOfLastConnectionStatusUpdate = QTime::currentTime();
-    }
+    mTimeOfLastPacket = QTime::currentTime();
 
     QDataStream stream(data);
 
@@ -117,8 +148,8 @@ void RoverConnection::processPacket(QByteArray data)
         stream >> mScannerPosition;
         stream >> numPoints;
 
-        // We reserved up to 1080 points above!
-        stream.readRawData((char*)mRegisteredPointsFloat, numPoints * sizeof(float) * 3);
+        // read the points!
+        stream.readRawData((char*)mRegisteredPointsFloat, numPoints * sizeof(float) * 4);
 
         emit scanData(mRegisteredPointsFloat, numPoints, &mScannerPosition);
     }
@@ -151,7 +182,7 @@ void RoverConnection::processPacket(QByteArray data)
         stream >> mGnssStatus;
 
         emit message(
-                    mGnssStatus.error == GnssStatus::Error::NoError && mGnssStatus.pvtMode == GnssStatus::PvtMode::RtkFixed && mGnssStatus.integrationMode != GnssStatus::IntegrationMode::Unavailable && mGnssStatus.numSatellitesUsed >= 5 ? Information : Error,
+                    mGnssStatus.error == GnssStatus::Error::NoError && mGnssStatus.pvtMode == GnssStatus::PvtMode::RtkFixed && mGnssStatus.integrationMode != GnssStatus::IntegrationMode::NoSolution && mGnssStatus.integrationMode != GnssStatus::IntegrationMode::GNSS_only && mGnssStatus.numSatellitesUsed >= 5 ? Information : Error,
                     QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                     mGnssStatus.toString());
 
@@ -217,6 +248,10 @@ void RoverConnection::processPacket(QByteArray data)
 
         emit flightControllerValues(&mFlightControllerValues);
     }
+    else if(packetType == "pingreply")
+    {
+        mCurrentlyWaitingForPingReply = false;
+    }
     else
     {
         qDebug() << "RoverConnection::processPacket(): unknown packetType" << packetType;
@@ -248,6 +283,17 @@ void RoverConnection::slotSendMotionToKopter(const MotionCommand* const mc)
     slotSendData(data);
 }
 
+void RoverConnection::slotSendPingRequest()
+{
+    //qDebug() << "RoverConnection::slotSendPingRequest(): sending a ping request to rover";
+
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    stream << QString("pingrequest");
+
+    slotSendData(data);
+}
 
 void RoverConnection::slotRoverWayPointsSet(const QList<WayPoint>* const wayPoints)
 {
@@ -356,30 +402,3 @@ void RoverConnection::slotSendData(const QByteArray &data)
     mTcpSocket->write(dataToSend);
 }
 
-
-void RoverConnection::slotConnectToRover()
-{
-    Q_ASSERT(!mHostName.isEmpty() && mPort != 0 && "RoverConnection::slotConnectToRover(): hostname or port not set.");
-
-    mTcpSocket->abort();
-    mTcpSocket->connectToHost(mHostName, mPort);
-
-    emit message(
-                Information,
-                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                "Trying to connect to rover...");
-}
-
-void RoverConnection::slotSocketError(QAbstractSocket::SocketError socketError)
-{
-//    qDebug() << "RoverConnection::slotSocketError():" << socketError;
-
-    emit connectionStatusRover(false);
-
-    emit message(
-                Error,
-                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                "Connection failed: " + mTcpSocket->errorString() + ", retrying...");
-
-    QTimer::singleShot(2000, this, SLOT(slotConnectToRover()));
-}

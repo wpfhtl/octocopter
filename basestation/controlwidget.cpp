@@ -163,7 +163,9 @@ void ControlWidget::slotUpdateGnssStatus(const GnssStatus* const gnssStatus)
     if(gnssStatus->pvtMode == GnssStatus::PvtMode::RtkFixed) mLabelGnssMode->setStyleSheet(""); else mLabelGnssMode->setStyleSheet(getBackgroundCss());
 
     mLabelGnssIntegrationMode->setText(gnssStatus->getIntegrationMode());
-    if(gnssStatus->integrationMode != GnssStatus::IntegrationMode::Unavailable) mLabelGnssIntegrationMode->setStyleSheet(""); else mLabelGnssIntegrationMode->setStyleSheet(getBackgroundCss());
+    if(gnssStatus->integrationMode == GnssStatus::IntegrationMode::Loosely_INS || gnssStatus->integrationMode == GnssStatus::IntegrationMode::Loosely_INS_and_GNSS)
+        mLabelGnssIntegrationMode->setStyleSheet("");
+    else mLabelGnssIntegrationMode->setStyleSheet(getBackgroundCss());
 
     mLabelGnssInfo->setText(gnssStatus->getInfoRichText());
     mLabelGnssInfo->setToolTip(mLabelGnssInfo->text());

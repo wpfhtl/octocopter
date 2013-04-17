@@ -66,7 +66,7 @@ private:
 
     // a container for collected rays, or rather the world coordinates of where they ended
     QVector3D mScannerPositionQt;
-    QVector<QVector3D> mRegisteredPoints;
+    QVector<QVector4D> mRegisteredPoints;
 
 //    CoordinateConverter *mCoordinateConverter;
 
@@ -142,7 +142,8 @@ public slots:
 signals:
     void heightOverGround(const float&);
 
-    void newLidarPoints(const QVector<QVector3D>&, const QVector3D&);
+    //void newLidarPoints(const QVector<QVector3D>&, const QVector3D&);
+    void newLidarPoints(const QVector<QVector4D>& points, const QVector3D& scannerPosition);
 
     void scanFinished(const quint32&);
 };

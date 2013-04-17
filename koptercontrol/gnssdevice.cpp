@@ -1,4 +1,5 @@
 #include "gnssdevice.h"
+#include <profiler.h>
 
 /*
  * This is the receiver's bootup-config concerning I/O:
@@ -23,11 +24,8 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
 {
     qDebug() << "GnssDevice::GnssDevice(): Using usb port" << serialDeviceFileUsb << "and com port" << serialDeviceFileCom;
 
-    mLogFileSbf = new QFile(logFilePrefix + QString("gnssdata.sbf"));
-    if(!mLogFileSbf->open(QIODevice::WriteOnly)) qFatal("GnssDevice::GnssDevice(): couldn't open sbf log file for writing, exiting");
-
-    mLogFileCmd = new QFile(logFilePrefix + QString("gnsscommands.txt"));
-    if(!mLogFileCmd->open(QIODevice::WriteOnly)) qFatal("GnssDevice::GnssDevice(): couldn't open cmd log file for writing, exiting");
+    mLogFileSbf = new LogFile(logFilePrefix + QString("gnssdata.sbf"), LogFile::Encoding::Binary);
+    mLogFileCmd = new LogFile(logFilePrefix + QString("gnsscommands.txt"), LogFile::Encoding::Text);
 
     mSbfParser = new SbfParser;
     // If our SBF parser has a question to the device, forward it.
@@ -83,6 +81,10 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
 
     // initialize the device whenever we get time to do this. By doing it asynchronously, we can give our creator time to connect our signals and fetch them.
     QTimer::singleShot(0, this, SLOT(slotDetermineSerialPortsOnDevice()));
+
+
+ // For testing only
+ QTimer::singleShot(20000, this, SLOT(slotSetPoseFrequency()));
 }
 
 GnssDevice::~GnssDevice()
@@ -95,11 +97,8 @@ GnssDevice::~GnssDevice()
     mSerialPortCom->close();
     mSerialPortCom->deleteLater();
 
-    mLogFileCmd->close();
-    mLogFileCmd->deleteLater();
-
-    mLogFileSbf->close();
-    mLogFileSbf->deleteLater();
+    delete mLogFileCmd;
+    delete mLogFileSbf;
 
     mStatusTimer->stop();
     mStatusTimer->deleteLater();
@@ -130,10 +129,13 @@ quint8 GnssDevice::slotFlushCommandQueue()
         //usleep(100000);
         mSerialPortUsb->write(mLastCommandToGnssDevice[mSerialPortOnDeviceUsb]);
 
-        QTextStream commandLog(mLogFileCmd);
+        QByteArray text;
+        QTextStream commandLog(&text);
         commandLog << '\n' << '\n' << "################################################################################" << '\n' << '\n';
         commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << "HOST ->" << mSerialPortOnDeviceUsb << ":" << mLastCommandToGnssDevice[mSerialPortOnDeviceUsb] << '\n';
         commandLog << "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" << '\n' << '\n';
+        commandLog.flush();
+        mLogFileCmd->write(text);
     }
     else if(!mLastCommandToGnssDevice[mSerialPortOnDeviceUsb].isEmpty())
     {
@@ -391,9 +393,9 @@ void GnssDevice::slotCommunicationSetup()
 
     // specify vector from GNSS antenna ARP to IMU in Vehicle reference frame
     // (vehicle reference frame has X forward, Y right and Z down)
-    // IMU is 2cm in front, 10cm to the right and 47cm below ARP. Max precision is 1 cm.
+    // IMU is 2cm in front, 10cm to the right and 22cm below ARP. Max precision is 1 cm.
     // Specifying orientation is not so easy (=fucking mess, Firmware User manual pg. 41)
-    slotQueueCommand("setExtSensorCalibration,COM1,manual,180,0,0,manual,0.02,-0.10,-0.47");
+    slotQueueCommand("setExtSensorCalibration,COM1,manual,180,0,0,manual,0.02,-0.10,-0.22");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
     //slotQueueCommand("setEventParameters,EventA,High2Low"); // Hokuyo
@@ -405,7 +407,7 @@ void GnssDevice::slotCommunicationSetup()
     // airplane-application, which may need the setting to be on High. In my opinion, it
     // will less smooth and take into account more the real movement of the application.
     // Just as a test, you could run the Max-value (as explained above, take care!).
-    slotQueueCommand("setReceiverDynamics,Moderate");
+    //slotQueueCommand("setReceiverDynamics,Moderate");
 
     // Configure as rover in StandAlone+RTK mode.
     slotQueueCommand("setPVTMode,Rover,all,auto,Loosely");
@@ -423,7 +425,7 @@ void GnssDevice::slotCommunicationSetup()
 
     // We want to know the pose - often. But on startup, we ask for slower data and then raise to msec20 when
     // the poses are of higher quality. See slotSetPoseFrequency()
-    slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec500");
+    slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec200");
 
     // We want to know PVTCartesion for MeanCorrAge (average correction data age), ReceiverStatus for CPU Load and IntAttCovEuler for Covariances (sigma-values)
     slotQueueCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus+IntAttCovEuler,msec500");
@@ -437,14 +439,17 @@ void GnssDevice::slotCommunicationSetup()
     //slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
 
     // For now, record support messages for septentrio
-    slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,msec500"); // septentrio wants msec100, but that kills the cpu
+    slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,msec200"); // septentrio wants msec100, but that kills the cpu
 
-    // Why doesn't BBSamples work? It seems the device has never seen it?!
-    slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",BBSamples,sec1"); // septentrio wants msec100, but that kills the cpu
+    // BBSamples contains data for the spectrum view, but Vim (not the editor, the RF-guy of Septentrio fame) said this is a VERY heavy packet.
+    // So we skip this for now to keep the CPU load low (it was over 80%!)
+    //slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",BBSamples,sec1"); // septentrio wants msec100, but that kills the cpu
 
-    //slotQueueCommand("setSBFOutput,Stream7,"+mSerialPortOnDeviceUsb+",ExtSensorMeas,msec20");
+    // Needed for septentrio to debug IMU problems
+    //slotQueueCommand("setSBFOutput,Stream7,"+mSerialPortOnDeviceUsb+",ExtSensorMeas+AttEuler,msec20");
 
-    slotQueueCommand("setSBFOutput,Stream8,"+mSerialPortOnDeviceUsb+",MeasEpoch,msec200");
+    // No idea what this is for - Septentrio debugging?
+    //slotQueueCommand("setSBFOutput,Stream8,"+mSerialPortOnDeviceUsb+",MeasEpoch,msec200");
 
     // show current config
     slotQueueCommand("lstConfigFile,Current");
@@ -511,11 +516,11 @@ void GnssDevice::slotSetPoseFrequency(bool highSpeed)
     if(highSpeed)
     {
         // Maybe use msec50 instead of msec20 to avoid RxError 64 (congestion on line)
-        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec40");
+        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec20");
     }
     else
     {
-        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec200");
+        slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec100");
     }
 }
 
@@ -575,9 +580,12 @@ bool GnssDevice::parseCommandReply(const QString& portNameOnDevice, QByteArray* 
 
             qDebug() << "GnssDevice::parseCommandReply(): port" << portNameOnDevice << "received reply to:" << mLastCommandToGnssDevice[portNameOnDevice].trimmed() << "-" << commandReply.size() << "bytes:" << commandReply.trimmed();
 
-            QTextStream commandLog(mLogFileCmd);
+            QByteArray text;
+            QTextStream commandLog(&text);
             commandLog << QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz") << portNameOnDevice << "-> HOST: " << commandReply.trimmed() << '\n';
             commandLog << '\n' << "################################################################################" << '\n' << '\n' << '\n' << '\n';
+            commandLog.flush();
+            mLogFileCmd->write(text);
 
             if(commandReply.contains("$R? ASCII commands between prompts were discarded!"))
                 qDebug() << "GnssDevice::parseCommandReply(): WARNING, we were talking too fast on port" << portNameOnDevice;
@@ -632,6 +640,8 @@ void GnssDevice::slotDataReadyOnCom()
 
 void GnssDevice::slotDataReadyOnUsb()
 {
+    //Profiler p(__PRETTY_FUNCTION__);
+
     while(true)
     {
         // Move all new bytes into our SBF buffer
@@ -708,7 +718,7 @@ void GnssDevice::slotSetSystemTime(const qint32& tow)
     // For small clock drifts, adjust clock. Else, set clock
     if(abs(offsetHostToGnss) < 10)
     {
-        qDebug() << "GnssDevice::slotSetSystemTime(): offset smaller than 10ms, using adjtime to correct clock drift...";
+        qDebug() << "GnssDevice::slotSetSystemTime(): unix-time now is" << QDateTime::currentMSecsSinceEpoch() / 1000 << "- offset smaller than 10ms, using adjtime to correct clock drift...";
         system.tv_sec = 0;
         system.tv_usec = offsetHostToGnss * 1000;
         if(adjtime(&system, NULL) < 0)
@@ -720,7 +730,7 @@ void GnssDevice::slotSetSystemTime(const qint32& tow)
     }
     else
     {
-        qDebug() << "GnssDevice::slotSetSystemTime(): offset larger than 10ms or device startup, using settimeofday to set clock...";
+        qDebug() << "GnssDevice::slotSetSystemTime(): unix-time now is" << QDateTime::currentMSecsSinceEpoch() / 1000 << "- offset larger than 10ms or device startup, using settimeofday to set clock...";
         system.tv_sec += offsetHostToGnss/1000;
         system.tv_usec += (offsetHostToGnss%1000)*1000;
 
@@ -740,5 +750,5 @@ void GnssDevice::slotSetSystemTime(const qint32& tow)
         }
     }
 
-    qDebug() << "GnssDevice::slotSetSystemTime(): time synchronized, offset host to gnss was" << offsetHostToGnss << "ms";
+    qDebug() << "GnssDevice::slotSetSystemTime(): time synchronized, offset host to gnss was" << offsetHostToGnss << "ms, unix-time now is" << QDateTime::currentMSecsSinceEpoch() / 1000;
 }

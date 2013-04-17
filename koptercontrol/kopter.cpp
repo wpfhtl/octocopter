@@ -1,5 +1,6 @@
 #include "kopter.h"
 #include "motioncommand.h"
+#include <profiler.h>
 
 Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
 {
@@ -98,6 +99,7 @@ void Kopter::send(const KopterMessage& message)
 
 void Kopter::slotSetMotion(const MotionCommand* const mc)
 {
+    Profiler p(__PRETTY_FUNCTION__);
     if(!mMissionStartTime.isValid()) mMissionStartTime = QTime::currentTime();
 
     const MotionCommand motionClamped = mc->clampedToSafeLimits();
@@ -201,12 +203,17 @@ void Kopter::slotSubscribeDebugValues(int interval)
 
 void Kopter::slotSerialPortDataReady()
 {
+    //Profiler p(__PRETTY_FUNCTION__);
+
     mReceiveBuffer.append(mSerialPortFlightCtrl->readAll());
 
     // Remove crap before the message starts
     mReceiveBuffer.remove(0, std::max(0, mReceiveBuffer.indexOf('#')));
 
     //qDebug() << "Kopter::slotSerialPortDataReady(): bytes:" << mReceiveBuffer.size() << "data:" << mReceiveBuffer.replace("\r", " ");
+
+    // Looking at http://www.mikrokopter.de/ucwiki/en/SerialProtocol, it seems there cannot be packets with less than 6 bytes.
+    if(mReceiveBuffer.size() < 6) return;
 
     while(mReceiveBuffer.indexOf('\r') != -1)
     {
@@ -336,5 +343,4 @@ void Kopter::slotSerialPortDataReady()
             //qWarning() << "Kopter::slotSerialPortDataReady(): got KopterMessage with id" <<  message.getId() << "from ignored address:" << message.getAddress();
         }
     }
-
 }

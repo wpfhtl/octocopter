@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>231</width>
-    <height>588</height>
+    <height>545</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -52,7 +52,7 @@
       </property>
       <layout class="QGridLayout" name="gridLayout">
        <property name="leftMargin">
-        <number>4</number>
+        <number>2</number>
        </property>
        <property name="topMargin">
         <number>0</number>
@@ -128,7 +128,7 @@
           <string>Offline</string>
          </property>
          <property name="alignment">
-          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+          <set>Qt::AlignCenter</set>
          </property>
         </widget>
        </item>
@@ -152,7 +152,7 @@
           <string>Offline</string>
          </property>
          <property name="alignment">
-          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+          <set>Qt::AlignCenter</set>
          </property>
         </widget>
        </item>
@@ -419,7 +419,7 @@
         <number>2</number>
        </property>
        <property name="leftMargin">
-        <number>4</number>
+        <number>2</number>
        </property>
        <property name="topMargin">
         <number>0</number>
@@ -720,7 +720,7 @@
         <number>0</number>
        </property>
        <property name="leftMargin">
-        <number>4</number>
+        <number>2</number>
        </property>
        <property name="topMargin">
         <number>0</number>
@@ -847,8 +847,11 @@
        </item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_4">
+         <property name="spacing">
+          <number>0</number>
+         </property>
          <property name="leftMargin">
-          <number>4</number>
+          <number>0</number>
          </property>
          <item>
           <widget class="QLabel" name="label_14">
@@ -866,7 +869,7 @@
             </size>
            </property>
            <property name="decimals">
-            <number>0</number>
+            <number>1</number>
            </property>
            <property name="minimum">
             <double>-1000.000000000000000</double>
@@ -917,7 +920,7 @@
             </size>
            </property>
            <property name="decimals">
-            <number>0</number>
+            <number>1</number>
            </property>
            <property name="minimum">
             <double>-1000.000000000000000</double>
@@ -974,7 +977,7 @@
             </size>
            </property>
            <property name="decimals">
-            <number>0</number>
+            <number>1</number>
            </property>
            <property name="minimum">
             <double>-1000.000000000000000</double>

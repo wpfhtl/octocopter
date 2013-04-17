@@ -1,26 +1,21 @@
 #ifndef PROFILER_H
 #define PROFILER_H
 
-#include <QObject>
-#include <QSettings>
-#include <Ogre.h>
-#include <math.h>
+#include <QString>
+#include <QDebug>
+//#include <math.h>
 #include <sys/time.h>
 
-#include "coordinategps.h"
-//#include "coordinateogre.h"
-
-class Profiler : public QObject
+class Profiler
 {
-
-    Q_OBJECT
 private:
-    struct timeval timeStart, timeStop;
+    QString mName;
+    qint32 mMinTimeForWarningUsec;
+    /*struct */timeval mTimeStart/*, mTimeStop*/;
 
 public:
-    Profiler(void);
-    void start();
-    long long stop(const QString action = QString());
+    Profiler(const QString name, const qint32 minTimeForWarningUsec = 0);
+    ~Profiler();
 };
 
 #endif

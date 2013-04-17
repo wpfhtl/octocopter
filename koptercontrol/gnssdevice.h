@@ -10,6 +10,7 @@
 #include <sys/time.h> // for syncing time
 #include <common.h>
 #include "pose.h"
+#include "logfile.h"
 #include "sbfparser.h"
 #include <math.h>
 #include <errno.h>
@@ -29,8 +30,8 @@ public:
     SbfParser* const getSbfParser(void) {return mSbfParser;}
 
 private:
-    QFile* mLogFileSbf;
-    QFile* mLogFileCmd;
+    LogFile* mLogFileSbf;
+    LogFile* mLogFileCmd;
 
     // To emit status in regular intervals
     QTimer* mStatusTimer;
@@ -74,7 +75,7 @@ private slots:
     void slotDataReadyOnUsb();
     void slotDataReadyOnCom();
     void slotDetermineSerialPortsOnDevice();
-    void slotSetPoseFrequency(bool highSpeed);
+    void slotSetPoseFrequency(bool highSpeed = true);
 
     // Call this method with a valid TOW and it'll sync the system time to this time.
     void slotSetSystemTime(const qint32& tow);

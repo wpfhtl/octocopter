@@ -98,10 +98,10 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     mLaserScanner = new LaserScanner(
                 deviceSerialLaserScanner,
                 Pose(
-                    QVector3D(      // Offset from Antenna to Laser Source. In Vehicle Reference Frame: Like OpenGL, red arm forward pointing to screen
-                        +0.09,      // From antenna positive is right to laser
-                        -0.38,      // From Antenna negative is down to laser
-                        -0.11),     // From Antenna negative forward to laser
+                    QVector3D(      // Offset from vehicle center to Laser Source. In Vehicle Reference Frame: Like OpenGL, red arm forward pointing to screen
+                        +0.00,      // From vehicle left/right to laser, positive is moved to right "wing"
+                        -0.04,      // From vehicle up/down to laser, negative is down to laser
+                        -0.14),     // From vehicle 14cm forward, towards the front arm.
                     +000.0,         // No yawing
                     -090.0,         // 90 deg pitched down
                     +000.0,         // No rolling
@@ -109,6 +109,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
                     ),
                 logFilePrefix
                 );
+
     mGnssDevice = new GnssDevice(deviceSerialGnssUsb, deviceSerialGnssCom, logFilePrefix, this);
     mSensorFuser = new SensorFuser(1); // Really lo-res data for septentrio postprocessing tests.
     mSensorFuser->setLaserScannerRelativePose(mLaserScanner->getRelativePose());
@@ -146,7 +147,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mGnssDevice->getSbfParser(), SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
     connect(mGnssDevice->getSbfParser(), SIGNAL(gnssDeviceWorkingPrecisely(bool)), mLaserScanner, SLOT(slotEnableScanning(bool)));
     connect(mLaserScanner, SIGNAL(newScanData(qint32, std::vector<quint16>*const)), mSensorFuser, SLOT(slotNewScanData(qint32,std::vector<quint16>*const)));
-    connect(mSensorFuser, SIGNAL(scanData(float*const,quint32,QVector3D*const)), mBaseConnection, SLOT(slotNewScannedPoints(float*const,quint32,QVector3D*const));
+    connect(mSensorFuser, SIGNAL(scanData(float*const,quint32,QVector3D*const)), mBaseConnection, SLOT(slotNewScannedPoints(float*const,quint32,QVector3D*const)));
 
     // Lots of traffic - for what?
     connect(mFlightController, SIGNAL(flightControllerValues(const FlightControllerValues* const)), mBaseConnection, SLOT(slotNewFlightControllerValues(const FlightControllerValues* const)));
@@ -159,6 +160,9 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     //    WARNING! THIS ENABLES MOTION!
     connect(mFlightController, SIGNAL(motion(const MotionCommand* const)), mKopter, SLOT(slotSetMotion(const MotionCommand* const)));
+
+
+QTimer::singleShot(30000, mLaserScanner, SLOT(slotEnableScanning()));
 }
 
 KopterControl::~KopterControl()
