@@ -209,10 +209,11 @@ void FlightController::slotComputeMotionCommands()
 
                 qDebug() << "FlightController::slotComputeMotionCommands(): lateral vehicle offset: vehicle is" << offsetRoll << "m too far" << (offsetRoll > 0.0f ? "right" : "left") << "- desiredRoll is" << desiredRoll;
 
-                // The magnitude of the pitch depends on how well we point towards the target, the sign depends on the pitchOffset
+                // The magnitude of the pitch depends on how well we point towards the target, the sign depends on the pitchOffset (=direction)
                 const float desiredPitch = copysign(
-                            -pow(20.0f - qBound(0.0, fabs(RAD2DEG(angleToTurnToWayPointInRadians)), 20.0), 2.0f) / 20.0f, // magnitude
-                            offsetPitch);
+                            -pow(15.0f - qBound(0.0, fabs(RAD2DEG(angleToTurnToWayPointInRadians)), 15.0), 2.0f) / 15.0f,   // magnitude
+                            offsetPitch                                                                                     // sign
+                            );
 
                 qDebug() << "FlightController::slotComputeMotionCommands(): lateral vehicle offset: vehicle must go" << offsetPitch << "m" << (offsetPitch > 0.0f ? "forward" : "backward") << "- desiredPitch is" << desiredPitch;
 

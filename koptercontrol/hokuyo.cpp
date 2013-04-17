@@ -32,6 +32,9 @@ Hokuyo::Hokuyo(const QString &logFilePrefix) : QObject(), mState(State::Stopped)
     mLaserFd(-1), mHeightOverGroundClockDivisor(0)
 {
     mLogFile = new LogFile(logFilePrefix + QString("scannerdata.lsr"), LogFile::Encoding::Binary);
+
+
+    qRegisterMetaType<std::vector<quint16>*const >("std::vector<quint16>*const");
 }
 
 Hokuyo::~Hokuyo ()
@@ -814,7 +817,7 @@ void Hokuyo::slotProcessScans()
             QTime t;t.start();
             const int status = serviceScan(distances, towScanBeginning);
 
-            qDebug() << "Hokuyo::slotProcessScans(): serviceScan() took" << t.elapsed() << "ms for" << distances->size() <<"rays, scan started at time" << towScanBeginning;
+            //qDebug() << "Hokuyo::slotProcessScans(): serviceScan() took" << t.elapsed() << "ms for" << distances->size() <<"rays, scan started at time" << towScanBeginning;
 
             if(status != 0)
             {

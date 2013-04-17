@@ -56,6 +56,9 @@ public slots:
     void slotThreadFinished();
     void slotThreadTerminated();
 
+    // testing, remove!
+    void slotNewScanData(qint32 timestamp,std::vector<quint16>*const data);
+
 signals:
     // the distance from the vehicle's center to the ground in meters
     void heightOverGround(const float&);
