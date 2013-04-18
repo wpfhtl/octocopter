@@ -155,7 +155,7 @@ void GlWidget::initializeGL()
     // Set Line Antialiasing
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 
-    // Find the oktokopter model and load it
+    // Find the models and load them
     QDir modelPath = QDir::current();
     modelPath.cdUp();
 
@@ -164,7 +164,10 @@ void GlWidget::initializeGL()
     mModelConeYaw = new Model(QFile(modelPath.absolutePath() + "/media/cone-green.obj"), QString("../media/"), this);
     mModelConePitch = new Model(QFile(modelPath.absolutePath() + "/media/cone-red.obj"), QString("../media/"), this);
     mModelConeRoll = new Model(QFile(modelPath.absolutePath() + "/media/cone-blue.obj"), QString("../media/"), this);
-    mModelTarget = new Model(QFile(modelPath.absolutePath() + "/media/target.obj"), QString("../media/"), this);
+    mModelHoverPosition = new Model(QFile(modelPath.absolutePath() + "/media/target.obj"), QString("../media/"), this);
+
+    mModelTrajectoryStart = new Model(QFile(modelPath.absolutePath() + "/media/trajectory-start.obj"), QString("../media/"), this);
+    mModelTrajectoryGoal = new Model(QFile(modelPath.absolutePath() + "/media/trajectory-goal.obj"), QString("../media/"), this);
 
     mModelControllerP = new Model(QFile(modelPath.absolutePath() + "/media/controller-p.obj"), QString("../media/"), this);
     mModelControllerI = new Model(QFile(modelPath.absolutePath() + "/media/controller-i.obj"), QString("../media/"), this);
@@ -444,10 +447,26 @@ void GlWidget::paintGL()
         // Render hover position!
         if(!mLastFlightControllerValues->hoverPosition.isNull())
         {
-            QMatrix4x4 trTarget;
-            trTarget.translate(mLastFlightControllerValues->hoverPosition);
-            mModelTarget->slotSetModelTransform(trTarget);
-            mModelTarget->render();
+            QMatrix4x4 tr;
+            tr.translate(mLastFlightControllerValues->hoverPosition);
+            mModelHoverPosition->slotSetModelTransform(tr);
+            mModelHoverPosition->render();
+        }
+
+        // Render start and goal
+        if(!mLastFlightControllerValues->trajectoryStart.isNull())
+        {
+            QMatrix4x4 tr;
+            tr.translate(mLastFlightControllerValues->trajectoryStart);
+            mModelTrajectoryStart->slotSetModelTransform(tr);
+            mModelTrajectoryStart->render();
+        }
+        if(!mLastFlightControllerValues->trajectoryGoal.isNull())
+        {
+            QMatrix4x4 tr;
+            tr.translate(mLastFlightControllerValues->trajectoryGoal);
+            mModelTrajectoryGoal->slotSetModelTransform(tr);
+            mModelTrajectoryGoal->render();
         }
     }
 

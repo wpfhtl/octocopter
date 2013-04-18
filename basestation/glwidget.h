@@ -27,7 +27,7 @@ class GlWidget : public QGLWidget
 
     QVector3D mCamLookAtOffset;
 
-    Model *mModelVehicle, *mModelThrust, *mModelConeYaw, *mModelConePitch, *mModelConeRoll, *mModelTarget;
+    Model *mModelVehicle, *mModelThrust, *mModelConeYaw, *mModelConePitch, *mModelConeRoll, *mModelHoverPosition, *mModelTrajectoryStart, *mModelTrajectoryGoal;
     Model *mModelControllerP, *mModelControllerI, *mModelControllerD;
 
     const Pose* mLastKnownVehiclePose;
