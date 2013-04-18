@@ -7,7 +7,9 @@ FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, GlWidget* glWidg
     mGlWidget = glWidget;
     mParentWidget = widget;
     mShaderProgramDefault = mShaderProgramSpheres = 0;
-    mBoundingBoxVbo = 0;
+    mVboBoundingBox = 0;
+    mVboWayPointConnections = 0;
+    mShowWayPoints = true;
     mShowBoundingBox = true;
 
     mVehiclePoses.reserve(25 * 60 * 20); // enough poses for 20 minutes with 25Hz
@@ -30,7 +32,7 @@ void FlightPlannerInterface::slotSetScanVolume(const QVector3D minBox, const QVe
     mScanVolumeMin = minBox;
     mScanVolumeMax = maxBox;
 
-    OpenGlUtilities::setVboToBoundingBox(mBoundingBoxVbo, mScanVolumeMin, mScanVolumeMax);
+    OpenGlUtilities::setVboToBoundingBox(mVboBoundingBox, mScanVolumeMin, mScanVolumeMax);
 }
 
 
@@ -209,11 +211,15 @@ void FlightPlannerInterface::slotVisualize()
 {
     // Bounding Box
     // Initialize shaders and VBO if necessary
-    if(mShowBoundingBox && mShaderProgramDefault == 0 && mGlWidget != 0)
+    if(mShaderProgramDefault == 0 && mGlWidget != 0)
     {
         mShaderProgramDefault = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
-        glGenBuffers(1, &mBoundingBoxVbo);
-        OpenGlUtilities::setVboToBoundingBox(mBoundingBoxVbo, mScanVolumeMin, mScanVolumeMax);
+    }
+
+    if(mVboBoundingBox == 0)
+    {
+        glGenBuffers(1, &mVboBoundingBox);
+        OpenGlUtilities::setVboToBoundingBox(mVboBoundingBox, mScanVolumeMin, mScanVolumeMax);
     }
 
     if(mShowBoundingBox && mShaderProgramDefault != 0)
@@ -224,7 +230,7 @@ void FlightPlannerInterface::slotVisualize()
         glEnable(GL_BLEND);
         glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
         {
-            glBindBuffer(GL_ARRAY_BUFFER, mBoundingBoxVbo);
+            glBindBuffer(GL_ARRAY_BUFFER, mVboBoundingBox);
             glEnableVertexAttribArray(0);
             glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0); // position
 
@@ -247,14 +253,16 @@ void FlightPlannerInterface::slotVisualize()
         mShaderProgramDefault->release();
     }
 
-    // Waypoint Lists
+
+    // Waypoints
+
     // Initialize shaders and VBO if necessary
     if(mShaderProgramSpheres == 0 && mGlWidget != 0)
     {
         mShaderProgramSpheres = new ShaderProgram(this, "shader-particles-vertex.c", "shader-particles-geometry.c", "shader-particles-fragment.c");
     }
 
-    if(mShaderProgramSpheres != 0)
+    if(mShowWayPoints && mShaderProgramSpheres != 0)
     {
         mShaderProgramSpheres->bind();
         mShaderProgramSpheres->setUniformValue("useFixedColor", true);
@@ -297,20 +305,44 @@ void FlightPlannerInterface::slotVisualize()
         mShaderProgramSpheres->release();
     }
 
-    /* port to opengl4 core: draw line between future waypoints
-    glLineWidth(1);
-    glColor4f(1.0f, 1.0f, 0.0f, 0.8f);
-    glBegin(GL_LINE_STRIP);
-
-    if(mVehiclePoses.size())
+    if(mShowWayPoints && mShaderProgramSpheres != 0)
     {
-        const QVector3D p = mVehiclePoses.last().getPosition();
-        glVertex3f(p.x(), p.y(), p.z());
+        mShaderProgramDefault->bind();
+        mShaderProgramDefault->setUniformValue("useFixedColor", true);
+
+        glEnable(GL_BLEND);
+        glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
+        {
+            QMapIterator<QString, WayPointList*> i(mWaypointListMap);
+            while (i.hasNext()) {
+                i.next();
+                WayPointList *wpl = i.value();
+
+                mShaderProgramSpheres->setUniformValue("fixedColor",
+                                                       QVector4D(
+                                                           wpl->color().redF(),
+                                                           wpl->color().greenF(),
+                                                           wpl->color().blueF(),
+                                                           wpl->color().alphaF()
+                                                           )
+                                                       );
+
+                glBindBuffer(GL_ARRAY_BUFFER, wpl->vbo());
+                // Make the contents of this array available at layout position vertexShaderVertexIndex in the vertex shader
+                Q_ASSERT(glGetAttribLocation(mShaderProgramDefault->programId(), "in_position") != -1);
+                glEnableVertexAttribArray(glGetAttribLocation(mShaderProgramDefault->programId(), "in_position"));
+                glVertexAttribPointer(glGetAttribLocation(mShaderProgramDefault->programId(), "in_position"), 3, GL_FLOAT, GL_FALSE, 0, 0);
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+                // Draw using shaders
+                glDrawArrays(GL_LINE_STRIP, 0, wpl->list()->size());
+
+                glDisableVertexAttribArray(glGetAttribLocation(mShaderProgramDefault->programId(), "in_position"));
+            }
+        }
+        glDisable(GL_BLEND);
+        mShaderProgramDefault->release();
     }
 
-    foreach(const WayPoint& wpt, *mWayPointsAhead)
-        glVertex3f(wpt.x(), wpt.y(), wpt.z());
-    glEnd();
-    */
 }
 

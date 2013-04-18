@@ -102,10 +102,10 @@ void PidControllerWidget::setControllers(const FlightControllerValues* const fcv
     connect(ui->mTableControllerValues, SIGNAL(cellChanged(int,int)), this, SLOT(slotCellChanged(int,int)));
 
 //    ui->mTableControllerValues->resizeColumnsToContents();
-    ui->mTableControllerValues->setColumnWidth(0, 35); // sepcial width for weights
-    ui->mTableControllerValues->setColumnWidth(1, 35); // sepcial width for weights
-    ui->mTableControllerValues->setColumnWidth(2, 35); // sepcial width for weights
-    ui->mTableControllerValues->setColumnWidth(3, 35);
+    ui->mTableControllerValues->setColumnWidth(0, 40); // sepcial width for weights
+    ui->mTableControllerValues->setColumnWidth(1, 40); // sepcial width for weights
+    ui->mTableControllerValues->setColumnWidth(2, 40); // sepcial width for weights
+    ui->mTableControllerValues->setColumnWidth(3, 40);
     ui->mTableControllerValues->setColumnWidth(4, 35);
     ui->mTableControllerValues->setColumnWidth(5, 35);
     ui->mTableControllerValues->setColumnWidth(6, 35);
@@ -115,7 +115,7 @@ void PidControllerWidget::setControllers(const FlightControllerValues* const fcv
     ui->mTableControllerValues->setColumnWidth(10, 35);
     ui->mTableControllerValues->setColumnWidth(11, 35);
     ui->mTableControllerValues->setColumnWidth(12, 35);
-    ui->mTableControllerValues->setColumnWidth(13, 35);
+    ui->mTableControllerValues->setColumnWidth(13, 45);
 
 //    ui->mTableControllerValues->resizeRowsToContents();
 

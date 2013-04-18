@@ -19,7 +19,9 @@ public:
     PidController controllerThrust, controllerYaw, controllerPitch, controllerRoll;
     MotionCommand motionCommand;
     FlightState flightState;
-    QVector3D targetPosition;
+    QVector3D trajectoryStart;
+    QVector3D trajectoryGoal;
+    QVector3D hoverPosition;
     Pose lastKnownPose;
     float lastKnownHeightOverGround;
     qint32 lastKnownHeightOverGroundTimestamp;

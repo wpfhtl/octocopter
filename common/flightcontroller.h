@@ -48,7 +48,7 @@ private:
     LogFile* mLogFile;
 
     FlightControllerValues mFlightControllerValues;
-
+/*
     // When approaching waypoints, we first yaw until we point towards the target. As soon as
     // that's done, we activate the roll to keep the vehicle on the virtual line between vehicle
     // and target. If we didn't do this, wind would make the kopter drift, causing it to constantly
@@ -62,6 +62,8 @@ private:
 
     ApproachPhase mApproachPhase;
 
+    // 2013-04-17: Don't. Simply hover towards the waypoint
+*/
     // Motion is computed whenever a new pose comes in, so we don't need a timer - except
     // when the GPS board fails to deliver useful poses, we'll need to compute safe values
     // to emit. Thus, when Poses are planned to come in every 100ms, we start this timer
@@ -85,6 +87,14 @@ private:
     // Where is the vehicle's position, relative to the vehicle, split up in pitch and roll axis-components
     void getLateralOffsets(const Pose& vehiclePose, const QVector3D& desiredPosition, float& pitch, float& roll);
 
+    // When approaching waypoints, we move the hoverpoint along the trajectory (the carrot and mule thingy)
+    // In case strong wind pushes the vehicle back, we don't want the hoverPoint to slide back on the trajectory.
+    // For this reason, this variable records how far we've come, preventing the hoverpoint to slide back.
+    float mHoverPointProgressAlongTrajectory;
+
+    QVector3D getClosestPointOnTrajectory(const QVector3D& trajectoryStart, const QVector3D& trajectoryGoal, const QVector3D& point);
+    QVector3D getHoverPosition(const QVector3D& trajectoryStart, const QVector3D& trajectoryGoal, const QVector3D& vehiclePosition, const float& desiredDistanceToHoverPosition);
+
     class ImuOffsets {
     private:
         static const quint8 numberOfMeasurementsToAverage = 10;
@@ -92,6 +102,7 @@ private:
         float mOffsetPitch, mOffsetRoll;
         float mMeasurementSumPitch, mMeasurementSumRoll;
         bool mDoCalibration;
+
 
     public:
         ImuOffsets() : mNumberOfMeasurementsAveraged(0), mOffsetPitch(0.0f), mOffsetRoll(0.0f), mMeasurementSumPitch(0.0f), mMeasurementSumRoll(0.0f), mDoCalibration(false) {}

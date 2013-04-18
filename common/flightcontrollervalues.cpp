@@ -6,7 +6,7 @@ FlightControllerValues::FlightControllerValues()
     timestamp = 0;
     flightState = FlightState();
     motionCommand = MotionCommand();
-    targetPosition = QVector3D();
+    trajectoryStart = trajectoryGoal = hoverPosition = QVector3D();
     lastKnownPose = Pose();
     lastKnownHeightOverGround = 0.0f;
     lastKnownHeightOverGroundTimestamp = 0;
@@ -18,7 +18,9 @@ QDataStream& operator<<(QDataStream &out, const FlightControllerValues &fcv)
     out
             << fcv.motionCommand
             << fcv.flightState
-            << fcv.targetPosition
+            << fcv.trajectoryStart
+            << fcv.trajectoryGoal
+            << fcv.hoverPosition
             << fcv.lastKnownPose
             << fcv.lastKnownHeightOverGround
             << fcv.lastKnownHeightOverGroundTimestamp
@@ -34,7 +36,9 @@ QDataStream& operator>>(QDataStream &in, FlightControllerValues& fcv)
 {
     in >> fcv.motionCommand;
     in >> ((quint8&)fcv.flightState);
-    in >> fcv.targetPosition;
+    in >> fcv.trajectoryStart;
+    in >> fcv.trajectoryGoal;
+    in >> fcv.hoverPosition;
     in >> fcv.lastKnownPose;
     in >> fcv.lastKnownHeightOverGround;
     in >> fcv.lastKnownHeightOverGroundTimestamp;

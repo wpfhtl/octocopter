@@ -19,21 +19,21 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
     weights.clear();
     weights.insert('p', 50.0f);
     weights.insert('i', 0.0f);
-    weights.insert('d', 10.0f);
+    weights.insert('d', 20.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerThrust, weights);
 
     // Hover - Yaw
     weights.clear();
-    weights.insert('p', 2.5f);
+    weights.insert('p', 3.0f);
     weights.insert('i', 0.0f);
-    weights.insert('d', 1.0f);
+    weights.insert('d', 1.5f);
     controllerWeights.insert(&mFlightControllerValues.controllerYaw, weights);
 
     // Hover - Pitch / Roll
     weights.clear();
-    weights.insert('p', 3.0f);
+    weights.insert('p', 5.0f);
     weights.insert('i', 0.0f);
-    weights.insert('d', 6.0f);
+    weights.insert('d', 25.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerPitch, weights);
     controllerWeights.insert(&mFlightControllerValues.controllerRoll, weights);
     mFlightControllerWeights.insert(FlightState::Value::Hover, controllerWeights);
@@ -45,28 +45,28 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
     weights.clear();
     weights.insert('p', 50.0f);
     weights.insert('i', 0.0f);
-    weights.insert('d', 10.0f);
+    weights.insert('d', 20.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerThrust, weights);
 
     // ApproachWayPoint - Yaw
     weights.clear();
-    weights.insert('p', 2.5f);
+    weights.insert('p', 3.0f);
     weights.insert('i', 0.0f);
-    weights.insert('d', 1.0f);
+    weights.insert('d', 1.5f);
     controllerWeights.insert(&mFlightControllerValues.controllerYaw, weights);
 
     // ApproachWayPoint - Pitch
     weights.clear();
-    weights.insert('p', 1.0f);
+    weights.insert('p', 3.0f);
     weights.insert('i', 0.0f);
-    weights.insert('d', 0.1f);
+    weights.insert('d', 10.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerPitch, weights);
 
     // ApproachWayPoint - Roll
     weights.clear();
-    weights.insert('p', 2.0f);
+    weights.insert('p', 3.0f);
     weights.insert('i', 0.0f);
-    weights.insert('d', 0.2f);
+    weights.insert('d', 10.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerRoll, weights);
 
     mFlightControllerWeights.insert(FlightState::Value::ApproachWayPoint, controllerWeights);
@@ -104,17 +104,13 @@ void FlightController::slotComputeMotionCommands()
     Q_ASSERT(mFlightControllerValues.flightState != FlightState::Value::UserControl && "FlightController::slotComputeMotionCommands(): i was called in FlightState UserControl");
     Q_ASSERT(mFlightControllerValues.flightState != FlightState::Value::Undefined && "FlightController::slotComputeMotionCommands(): i was called in FlightState Undefined");
 
-    // This can be set for all the cases below.
-    // mLastFlightControllerValues.mFlightControllerValues.flightState is already set in slotNewVehiclePose()
-
-
     switch(mFlightControllerValues.flightState.state)
     {
 
     case FlightState::Value::Idle:
     {
         qDebug() << "FlightController::slotComputeMotionCommands(): FlightState: Idle, emitting idle-thrust.";
-        mFlightControllerValues.targetPosition = mFlightControllerValues.lastKnownPose.getPosition();
+        mFlightControllerValues.trajectoryGoal = QVector3D();
         mFlightControllerValues.motionCommand = MotionCommand((quint8)90, 0.0f, 0.0f, 0.0f);
         break;
     }
@@ -123,117 +119,54 @@ void FlightController::slotComputeMotionCommands()
     {
         Q_ASSERT(mWayPoints.size() && "I'm in ApproachWayPoint, but there's no more waypoints present!");
 
-        // We have two variables capable of holding target positions:
-        //
-        //  - mFlightControllerValues.targetPosition
-        //  - mWayPoints.first()
-        //
-        // We also have two ApproachPhases: 1) OrientTowardsTarget and 2) ApproachTarget
-        //
-        // In 1), we want to orient towards mWayPoints.first(), while hovering at mFlightControllerValues.targetPosition
-        // In 2), we want to move towards mFlightControllerValues.targetPosition
-        //
-        // This means that when entering ApproachWaypoint from another state, we have to set
-        // mFlightControllerValues.targetPosition to the vehicle's current location. When
-        // ApproachPhases are switched, mFlightControllerValues.targetPosition is set to
-        // mWayPoints.first(). This will make things work nicely for the next waypoint.
-
         // Can be overridden with better non-default values below
         mFlightControllerValues.motionCommand = MotionCommand(MotionCommand::thrustHover, 0.0f, 0.0f, 0.0f);
 
         if(mFlightControllerValues.lastKnownPose.isSufficientlyPreciseForFlightControl())
         {
-            // see comment directly above! mFlightControllerValues.targetPosition = mWayPoints.first();
-            const WayPoint nextWayPoint = mWayPoints.first();
+            // positionStart has been set already, lets define positionGoal. As that may change in-flight,
+            // we re-set it here in every iteration.
+            mFlightControllerValues.trajectoryGoal = mWayPoints.first();
 
-            const QVector3D vectorVehicleToWayPoint = (nextWayPoint - mFlightControllerValues.lastKnownPose.getPosition());
-            const float angleBetweenNorthAndTowardsWayPointInRadians = atan2(-vectorVehicleToWayPoint.x(), -vectorVehicleToWayPoint.z());
-            const float angleToTurnToWayPointInRadians = Pose::getShortestTurnRadians(angleBetweenNorthAndTowardsWayPointInRadians - mFlightControllerValues.lastKnownPose.getYawRadians());
+            // We want the vehicle to look NOT towards positionGoal, but always look in the same
+            // direction as the line from start to goal - even if it has drifted off that line!
+            const QVector3D trajectory = mFlightControllerValues.trajectoryGoal - mFlightControllerValues.trajectoryStart;
 
-            // If the planar distance to the next waypoint is very small (this happens when only the height is off),
-            // we don't want to yaw and pitch. So, we introduce a factor [0;1], which becomes 0 with small distance
-            const float planarDistanceToWayPoint = (mFlightControllerValues.lastKnownPose.getPlanarPosition() - Pose::getPlanarPosition(nextWayPoint)).length();
-            const float factorPlanarDistance = qBound(0.0f, planarDistanceToWayPoint * 2.0f, 1.0f);
+            const float angleToTurn = Pose::getShortestTurnRadians(-Pose::getShortestTurnRadians(- atan2(-trajectory.x(), -trajectory.z())) - mFlightControllerValues.lastKnownPose.getYawRadians());
 
-            // If the height very small (this happens during liftoff and landing),
-            // we don't want to yaw and pitch. So, we introduce a factor [0;1], which becomes 0 with small distance
-            // We don't check for mFlightControllerValues.lastKnownHeightOverGroundTimestamp, as an old value means that the scanner hasn't
-            // seen anything for a long time, which SHOULD mean we're high up.
-            const float factorHeight = qBound(0.0f, mFlightControllerValues.lastKnownHeightOverGround, 1.0f);
+            mFlightControllerValues.controllerYaw.setDesiredValue(0.0f);
+            const float outputYaw = mFlightControllerValues.controllerRoll.computeOutputFromError(RAD2DEG(angleToTurn));
+            qDebug() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint," << mFlightControllerValues.lastKnownPose;
+            qDebug() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, trajectory" << trajectory << "angleToTurn:" << RAD2DEG(angleToTurn) << "outputYaw:" << outputYaw ;
 
-            qDebug() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, lastKnownPose:" << mFlightControllerValues.lastKnownPose.toStringVerbose() << "nextWayPoint:" << nextWayPoint;
-            qDebug() << "FlightController::slotComputeMotionCommands(): angleToTurn" << RAD2DEG(angleToTurnToWayPointInRadians) << "planar distance:" << planarDistanceToWayPoint << "factorPlanarDistance" << factorPlanarDistance << "factorHeight" << factorHeight;
+            const QVector3D hoverPosOld = mFlightControllerValues.hoverPosition;
+            mFlightControllerValues.hoverPosition = getHoverPosition(
+                        mFlightControllerValues.trajectoryStart,
+                        mFlightControllerValues.trajectoryGoal,
+                        mFlightControllerValues.lastKnownPose.getPosition(),
+                        2.0f);
 
-            // adjust pitch/roll to reach target, maximum pitch is -20 degrees (forward)
-            if(mApproachPhase == ApproachPhase::OrientTowardsTarget && fabs(RAD2DEG(angleToTurnToWayPointInRadians)) < 5.0f)
-            {
-                qDebug() << "FlightController::slotComputeMotionCommands(): pointing at target, switching from OrientTowardsTarget to ApproachTarget, setting target position to waypoint.";
-                mFlightControllerValues.targetPosition = mWayPoints.first();
-                mApproachPhase = ApproachPhase::ApproachTarget;
-            }
+            qDebug() << "FlightController::slotComputeMotionCommands(): ApproachWayPoint, we're moving hoverPos from:" << hoverPosOld << "to" << mFlightControllerValues.hoverPosition;
 
-            float currentPitch = mFlightControllerValues.lastKnownPose.getPitchDegrees();
-            float currentRoll = mFlightControllerValues.lastKnownPose.getRollDegrees();
-            mImuOffsets.applyCorrection(currentPitch, currentRoll);
+            // Now that we've yawed to look parallel to the trajectory, lets hover towards the hoverPosition...
+            float lateralOffsetPitch, lateralOffsetRoll;
+            getLateralOffsets(mFlightControllerValues.lastKnownPose, mFlightControllerValues.hoverPosition, lateralOffsetPitch, lateralOffsetRoll);
 
-            float outputYaw, outputPitch, outputRoll, outputThrust = 0.0f;
+            // Pitch and roll are computed based on position-offsets. Of course, we want the offset to be 0...
+            mFlightControllerValues.controllerPitch.setDesiredValue(0.0f);
+            const float outputPitch = mFlightControllerValues.controllerPitch.computeOutputFromValue(qBound(-10.0f, -lateralOffsetPitch, 10.0f));
 
-            if(mApproachPhase == ApproachPhase::OrientTowardsTarget)
-            {
-                // pitch/roll to stay on position
-                float lateralOffsetPitch, lateralOffsetRoll;
-                getLateralOffsets(mFlightControllerValues.lastKnownPose, mFlightControllerValues.targetPosition, lateralOffsetPitch, lateralOffsetRoll);
+            mFlightControllerValues.controllerRoll.setDesiredValue(0.0f);
+            const float outputRoll = mFlightControllerValues.controllerRoll.computeOutputFromValue(qBound(-10.0f, -lateralOffsetRoll, 10.0f));
 
-                // Pitch and roll are computed based on position-offsets. Of course, we want the offset to be 0...
-                mFlightControllerValues.controllerPitch.setDesiredValue(0.0f);
-                outputPitch = mFlightControllerValues.controllerPitch.computeOutputFromValue(qBound(-10.0f, -lateralOffsetPitch, 10.0f));
-
-                mFlightControllerValues.controllerRoll.setDesiredValue(0.0f);
-                outputRoll = mFlightControllerValues.controllerRoll.computeOutputFromValue(qBound(-10.0f, -lateralOffsetRoll, 10.0f));
-
-                // Yaw towards waypoint ONLY when orienting, not when approaching (we want to correct using roll then!)
-                outputYaw = factorHeight * mFlightControllerValues.controllerYaw.computeOutputFromError(RAD2DEG(angleToTurnToWayPointInRadians));
-
-                // When approaching target, set the target's (=previous waypoint's) height as desired value.
-                mFlightControllerValues.controllerThrust.setDesiredValue(mFlightControllerValues.targetPosition.y());
-            }
-            else if(mApproachPhase == ApproachPhase::ApproachTarget)
-            {
-                // In ApproachTarget, activate roll to correct lateral offset
-                // Lateral offset between vehicle and line. A positive value means the
-                // vehicle is too far on the right, so it should roll positively.
-                float offsetPitch, offsetRoll;
-                getLateralOffsets(mFlightControllerValues.lastKnownPose, nextWayPoint, offsetPitch, offsetRoll);
-
-                const float desiredRoll = qBound(-20.0f, offsetRoll * 10.0f, 20.0f);
-
-                qDebug() << "FlightController::slotComputeMotionCommands(): lateral vehicle offset: vehicle is" << offsetRoll << "m too far" << (offsetRoll > 0.0f ? "right" : "left") << "- desiredRoll is" << desiredRoll;
-
-                // The magnitude of the pitch depends on how well we point towards the target, the sign depends on the pitchOffset (=direction)
-                const float desiredPitch = copysign(
-                            -pow(15.0f - qBound(0.0, fabs(RAD2DEG(angleToTurnToWayPointInRadians)), 15.0), 2.0f) / 15.0f,   // magnitude
-                            offsetPitch                                                                                     // sign
-                            );
-
-                qDebug() << "FlightController::slotComputeMotionCommands(): lateral vehicle offset: vehicle must go" << offsetPitch << "m" << (offsetPitch > 0.0f ? "forward" : "backward") << "- desiredPitch is" << desiredPitch;
-
-                // We don't want to yaw towards the target anymore, we want to roll. Thus, we don't overwrite outputYaw, which is 0.
-                mFlightControllerValues.controllerPitch.setDesiredValue(desiredPitch);
-                outputPitch = factorHeight * factorPlanarDistance * mFlightControllerValues.controllerPitch.computeOutputFromValue(currentPitch);
-
-                mFlightControllerValues.controllerRoll.setDesiredValue(desiredRoll);
-                outputRoll = factorHeight * factorPlanarDistance * mFlightControllerValues.controllerRoll.computeOutputFromValue(currentRoll);
-
-                // When approaching target, set the waypoint's height as desired value.
-                mFlightControllerValues.controllerThrust.setDesiredValue(nextWayPoint.y());
-            }
-
-            outputThrust = MotionCommand::thrustHover + mFlightControllerValues.controllerThrust.computeOutputFromValue(mFlightControllerValues.lastKnownPose.getPosition().y());
+            // When approaching target, set the hoverPosition's height as desired value
+            mFlightControllerValues.controllerThrust.setDesiredValue(mFlightControllerValues.hoverPosition.y());
+            const float outputThrust = MotionCommand::thrustHover + mFlightControllerValues.controllerThrust.computeOutputFromValue(mFlightControllerValues.lastKnownPose.getPosition().y());
 
             mFlightControllerValues.motionCommand = MotionCommand(outputThrust, outputYaw, outputPitch, outputRoll);
 
             // See whether we've reached the waypoint
-            if(mFlightControllerValues.lastKnownPose.getPosition().distanceToLine(nextWayPoint, QVector3D()) < 0.80f) // close to wp
+            if(mFlightControllerValues.lastKnownPose.getPosition().distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < 0.80f) // close to wp
             {
                 nextWayPointReached();
             }
@@ -253,7 +186,7 @@ void FlightController::slotComputeMotionCommands()
 
         if(mFlightControllerValues.lastKnownPose.isSufficientlyPreciseForFlightControl())
         {
-            const QVector2D vectorVehicleToOrigin = -mFlightControllerValues.lastKnownPose.getPlanarPosition();
+            const QVector3D vectorVehicleToOrigin = -mFlightControllerValues.lastKnownPose.getPosition();
 
             // We want to point exactly away from the origin, because thats probably where the user is
             // standing - steering is easier if the vehicle's forward arm points away from the user.
@@ -261,7 +194,7 @@ void FlightController::slotComputeMotionCommands()
                         Pose::getShortestTurnRadians(
                             -Pose::getShortestTurnRadians(
                                 DEG2RAD(180.0f)
-                                - atan2(-vectorVehicleToOrigin.x(), -vectorVehicleToOrigin.y())
+                                - atan2(-vectorVehicleToOrigin.x(), -vectorVehicleToOrigin.z())
                                 )
                             - mFlightControllerValues.lastKnownPose.getYawRadians()
                             )
@@ -272,16 +205,16 @@ void FlightController::slotComputeMotionCommands()
             // want to turn 20 degrees right. So, we need PidController::computeOutputFromError();
             const float outputYaw = mFlightControllerValues.controllerYaw.computeOutputFromError(angleToTurnAwayFromOrigin);
 
-            const float planarDistanceToTarget = (mFlightControllerValues.lastKnownPose.getPlanarPosition() - QVector2D(mFlightControllerValues.targetPosition.x(), mFlightControllerValues.targetPosition.z())).length();
+            const float planarDistanceToTarget = (mFlightControllerValues.lastKnownPose.getPlanarPosition() - QVector2D(mFlightControllerValues.hoverPosition.x(), mFlightControllerValues.hoverPosition.z())).length();
 
-            qDebug() << "FlightController::slotComputeMotionCommands(): Hover," << mFlightControllerValues.lastKnownPose << "target:" << mFlightControllerValues.targetPosition << "planarDistance:" << planarDistanceToTarget << "angleToTurnAwayFromOrigin: turn" << (angleToTurnAwayFromOrigin < 0.0f ? "right" : "left") << angleToTurnAwayFromOrigin;
+            qDebug() << "FlightController::slotComputeMotionCommands(): Hover," << mFlightControllerValues.lastKnownPose << "target:" << mFlightControllerValues.hoverPosition << "planarDistance:" << planarDistanceToTarget << "angleToTurnAwayFromOrigin: turn" << (angleToTurnAwayFromOrigin < 0.0f ? "right" : "left") << angleToTurnAwayFromOrigin;
 
-            mFlightControllerValues.controllerThrust.setDesiredValue(mFlightControllerValues.targetPosition.y());
+            mFlightControllerValues.controllerThrust.setDesiredValue(mFlightControllerValues.hoverPosition.y());
             const float outputThrust = MotionCommand::thrustHover + mFlightControllerValues.controllerThrust.computeOutputFromValue(mFlightControllerValues.lastKnownPose.getPosition().y());
 
             // Now that we've yawed to look away from the origin, pitch/roll to move towards hover-position
             float lateralOffsetPitch, lateralOffsetRoll;
-            getLateralOffsets(mFlightControllerValues.lastKnownPose, mFlightControllerValues.targetPosition, lateralOffsetPitch, lateralOffsetRoll);
+            getLateralOffsets(mFlightControllerValues.lastKnownPose, mFlightControllerValues.hoverPosition, lateralOffsetPitch, lateralOffsetRoll);
 
             // Pitch and roll are computed based on position-offsets. Of course, we want the offset to be 0...
             mFlightControllerValues.controllerPitch.setDesiredValue(0.0f);
@@ -362,7 +295,12 @@ void FlightController::nextWayPointReached()
 {
     Q_ASSERT(mFlightControllerValues.flightState == FlightState::Value::ApproachWayPoint && "FlightController::nextWayPointReached(): reached waypoint, but am not in ApproachWayPoint state. Expect trouble!");
 
-    // The next waypoint has been reached.
+    mHoverPointProgressAlongTrajectory = 0.0f;
+
+    // We have reached the mWayPoints.first() position. Let this point be the start of the next route we travel.
+    mFlightControllerValues.trajectoryStart = mWayPoints.first();
+
+    // The next waypoint has been reached. Remove and append it to the list of passed points.
     mWayPointsPassed.append(mWayPoints.takeFirst());
 
     qDebug() << "FlightController::nextWayPointReached(): distance" << mFlightControllerValues.lastKnownPose.getPosition().distanceToLine(mWayPointsPassed.last(), QVector3D()) << " - reached waypoint" << mWayPointsPassed.last();
@@ -429,7 +367,7 @@ void FlightController::slotSetWayPoints(const QList<WayPoint>& wayPoints)
 
 void FlightController::slotNewVehiclePose(const Pose* const pose)
 {
-    Profiler p(__PRETTY_FUNCTION__);
+    //Profiler p(__PRETTY_FUNCTION__);
     qDebug() << "FlightController::slotNewVehiclePose(): flightstate:" << mFlightControllerValues.flightState.toString() << ": new pose from" << pose->timestamp << "has age" << GnssTime::currentTow() - pose->timestamp;
 
     // Whatever precision and flightstate, save the pose. We also save unprecise poses here,
@@ -541,40 +479,51 @@ void FlightController::setFlightState(FlightState newFlightState)
     mFlightControllerValues.controllerPitch.reset();
     mFlightControllerValues.controllerRoll.reset();
 
-    mFlightControllerValues.targetPosition = QVector3D();
+    // Reset positions
+    mFlightControllerValues.hoverPosition = mFlightControllerValues.trajectoryStart = mFlightControllerValues.trajectoryGoal = QVector3D();
+
     mFlightControllerValues.motionCommand = MotionCommand();
 
     switch(newFlightState.state)
     {
     case FlightState::Value::ApproachWayPoint:
     {
-        qDebug() << "FlightController::setFlightState(): ApproachWayPoint - initializing controllers, setting backup motion timer to high-freq, setting targetPosition to current position.";
+
+        // Set the new flightstate, even if we possibly revert that next.
+        mFlightControllerValues.flightState = newFlightState;
+
+        if(mWayPoints.size() == 0)
+        {
+            qDebug() << "FlightController::setFlightState(): ApproachWayPoint: no waypoints to approach - setting hover mode!";
+
+            // It is important that flightstate was already set to ApproachWaypoint above. If it was
+            // still left in e.g. Hover, then calling setFlightState(Hover) could cause problems.
+            setFlightState(FlightState::Value::Hover);
+            return;
+        }
 
         mBackupTimerComputeMotion->start(backupTimerIntervalFast);
 
-        mFlightControllerValues.flightState = newFlightState;
-
-        // When entering ApproachWaypoint from another state, we have to set
-        // mFlightControllerValues.targetPosition to the vehicle's current location
-
-        mFlightControllerValues.targetPosition = mFlightControllerValues.lastKnownPose.getPosition();
+        mFlightControllerValues.hoverPosition = mFlightControllerValues.lastKnownPose.getPosition();
+        mFlightControllerValues.trajectoryStart = mFlightControllerValues.lastKnownPose.getPosition();
+        mFlightControllerValues.trajectoryGoal = mWayPoints.first();
+        qDebug() << "FlightController::setFlightState(): ApproachWayPoint - initializing controllers, setting backup motion timer to high-freq.";
+        qDebug() << "FlightController::setFlightState(): ApproachWayPoint - setting hoverPosition and trajectoryStart to current position" << mFlightControllerValues.trajectoryStart << "and goal to wp" << mFlightControllerValues.trajectoryGoal;
 
         // We're going to use the controllers, so make sure to initialize them.
         initializeControllers();
 
-        // Make sure there actually ARE waypoints. If not, create some for landing.
-        ensureSafeFlightAfterWaypointsChanged();
         break;
     }
 
     case FlightState::Value::Hover:
     {
-        mFlightControllerValues.targetPosition = mFlightControllerValues.lastKnownPose.getPosition();
+        mFlightControllerValues.hoverPosition = mFlightControllerValues.lastKnownPose.getPosition();
 
         if(mFlightControllerValues.lastKnownPose.getAge() > 100)
-            qDebug() << "FlightController::setFlightState(): WARNING: going to hover, but age of pose being set as hover-target is" << mFlightControllerValues.lastKnownPose.getAge() << "ms!";
+            qDebug() << "FlightController::setFlightState(): WARNING: going to hover, but pose being set as hover-target is" << mFlightControllerValues.lastKnownPose.getAge() << "ms old!";
 
-        qDebug() << "FlightController::setFlightState(): going to hover, setting backup motion timer to high-freq and staying at" << mFlightControllerValues.targetPosition;
+        qDebug() << "FlightController::setFlightState(): going to hover, setting backup motion timer to high-freq and staying at" << mFlightControllerValues.hoverPosition;
 
         mBackupTimerComputeMotion->start(backupTimerIntervalFast);
         mFlightControllerValues.flightState = newFlightState;
@@ -625,7 +574,9 @@ void FlightController::initializeControllers()
 //    emit flightControllerWeightsChanged();
 
     // We want to approach a target using roll only after the vehicle points at it.
-    mApproachPhase = ApproachPhase::OrientTowardsTarget;
+//    mApproachPhase = ApproachPhase::OrientTowardsTarget;
+
+    mHoverPointProgressAlongTrajectory = 0.0f;
 }
 
 void FlightController::slotSetHeightOverGround(const float& beamLength)
@@ -649,8 +600,6 @@ bool FlightController::isHeightOverGroundValueRecent() const
 //  - descend slowly if heightOverGround is unknown
 void FlightController::ensureSafeFlightAfterWaypointsChanged()
 {
-    // Reset approach phase to rotate towards target!
-    mApproachPhase = ApproachPhase::OrientTowardsTarget;
 
     Q_ASSERT(mFlightControllerValues.flightState == FlightState::Value::ApproachWayPoint && "FlightController::ensureSafeFlightAfterWaypointsChanged(): flightstate is NOT ApproachWayPoint!");
 
@@ -836,9 +785,40 @@ void FlightController::slotSetControllerWeights(const QString* const controllerN
         mFlightControllerWeights[assignedFlightState][&mFlightControllerValues.controllerRoll] = *weights;
     }
 
-
-
     qDebug() << "FlightController::slotSetControllerWeights(): weights changed, emitting new flightcontrollervalues and then the changed signal.";
     emit flightControllerValues(&mFlightControllerValues);
     emit flightControllerWeightsChanged();
+}
+
+// Given a line segment @start->@goal and a @point, returns the point lying on start->goal that is closest to @point.
+// The return value is bound to a line SEGMENT, i.e. it lies between @start and @goal.
+QVector3D FlightController::getClosestPointOnTrajectory(const QVector3D& trajectoryStart, const QVector3D& trajectoryGoal, const QVector3D& point)
+{
+    const QVector3D trajectoryUnitVector = (trajectoryGoal - trajectoryStart).normalized();
+    const QVector3D vectorFromTrajectoryStartToPoint = point - trajectoryStart;
+    const float dotProduct = std::max(0.0, QVector3D::dotProduct(trajectoryUnitVector, vectorFromTrajectoryStartToPoint));
+    const QVector3D r((trajectoryUnitVector.x() * dotProduct), (trajectoryUnitVector.y() * dotProduct), (trajectoryUnitVector.z() * dotProduct));
+    return trajectoryStart + r;
+}
+
+// Get the position of the carrot (=hoverPosition) that the mule shall follow...
+QVector3D FlightController::getHoverPosition(const QVector3D& trajectoryStart, const QVector3D& trajectoryGoal, const QVector3D& vehiclePosition, const float& desiredDistanceToHoverPosition)
+{
+    const QVector3D closestPointOnTrajectory = getClosestPointOnTrajectory(trajectoryStart, trajectoryGoal, vehiclePosition);
+    const float distanceVehicleToClosestPoint = vehiclePosition.distanceToLine(closestPointOnTrajectory, QVector3D());
+
+    const float distanceFromTrajectoryStartToClosestPoint = trajectoryStart.distanceToLine(closestPointOnTrajectory, QVector3D());
+    const QVector3D trajectoryUnitVector = (trajectoryGoal-trajectoryStart).normalized();
+
+    const float trajectoryLength = trajectoryStart.distanceToLine(trajectoryGoal, QVector3D());
+    const float distanceFromClosestPointToHoverPosition = sqrt(pow(desiredDistanceToHoverPosition, 2.0f) - pow(distanceVehicleToClosestPoint, 2.0f));
+
+    const float newDistanceAlongTrajectory = qBound(0.0f, distanceFromTrajectoryStartToClosestPoint + distanceFromClosestPointToHoverPosition, trajectoryLength);
+
+    mHoverPointProgressAlongTrajectory = std::max(newDistanceAlongTrajectory, mHoverPointProgressAlongTrajectory);
+
+    qDebug() << "FlightController::getHoverPosition(): CPOT" << closestPointOnTrajectory << "DVTCP" << distanceVehicleToClosestPoint << "DTSTCP" << distanceFromTrajectoryStartToClosestPoint
+             << "TUV" << trajectoryUnitVector << "TL" << trajectoryLength << "DFCPTHP" << distanceFromClosestPointToHoverPosition << "NDAT" << newDistanceAlongTrajectory << "MHPPAT" << mHoverPointProgressAlongTrajectory;
+
+    return trajectoryStart + (trajectoryUnitVector * mHoverPointProgressAlongTrajectory);
 }

@@ -24,14 +24,14 @@ protected:
     QWidget* mParentWidget;
     PointCloud* mPointCloudDense;
 
-    bool mShowBoundingBox;
+    bool mShowBoundingBox, mShowWayPoints;
 
     //QList<WayPoint>* mWayPointsAhead, *mWayPointsPassed;
     // A map, mapping from name to waypointlist. Names are e.g. waypoints_ahead, waypoints_passed etc.
     QMap<QString, WayPointList*> mWaypointListMap;
 
-    unsigned int mBoundingBoxVbo;
-    QVector<float> mBoundingBoxVertices;
+    unsigned int mVboBoundingBox, mVboWayPointConnections;
+    //QVector<float> mBoundingBoxVertices;
 
     ShaderProgram *mShaderProgramDefault, *mShaderProgramSpheres;
 

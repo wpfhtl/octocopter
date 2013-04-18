@@ -441,11 +441,11 @@ void GlWidget::paintGL()
 //            renderController(trThrustController, &mLastFlightControllerValues->controllerThrust);
         }
 
-        // Render target position!
-        if(!mLastFlightControllerValues->targetPosition.isNull())
+        // Render hover position!
+        if(!mLastFlightControllerValues->hoverPosition.isNull())
         {
             QMatrix4x4 trTarget;
-            trTarget.translate(mLastFlightControllerValues->targetPosition);
+            trTarget.translate(mLastFlightControllerValues->hoverPosition);
             mModelTarget->slotSetModelTransform(trTarget);
             mModelTarget->render();
         }
