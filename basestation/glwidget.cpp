@@ -29,6 +29,8 @@ GlWidget::GlWidget(QWidget* parent) :
 
     mFramesRenderedThisSecond = 0;
 
+    mVboRawScanRays = 0;
+
     mZoomFactorCurrent = 0.5;
     mZoomFactorTarget = 0.5;
 
@@ -41,6 +43,7 @@ GlWidget::GlWidget(QWidget* parent) :
     mViewRotating = false;
     mViewZooming = false;
 
+    mRenderRawScanRays = false;
     mRenderAxisBase = true;
     mRenderAxisVehicle = true;
     mRenderTrajectory = true;
@@ -77,6 +80,7 @@ void GlWidget::initializeGL()
 
     mShaderProgramDefault = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
     mShaderProgramPointCloud = new ShaderProgram(this, "shader-pointcloud-vertex.c", "", "shader-pointcloud-fragment.c");
+    mShaderProgramRawScanRays = new ShaderProgram(this, "shader-rawscanrays-vertex.c", "shader-rawscanrays-geometry.c", "shader-default-fragment.c");
 
     // Create a VBO for the vehicle's path.
     glGenBuffers(1, &mVboVehiclePath);
@@ -264,7 +268,7 @@ void GlWidget::paintGL()
         mViewZooming = false;
     }
 
-    glEnable (GL_BLEND); glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
+    glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
     {
         mShaderProgramPointCloud->bind();
         mShaderProgramPointCloud->setUniformValue("maxPointVisualizationDistance", (GLfloat)pow(mMaxPointVisualizationDistance, 2.0)); // distances are squared in the point cloud, too!
@@ -349,9 +353,42 @@ void GlWidget::paintGL()
                 glBindBuffer(GL_ARRAY_BUFFER, 0);
             }
         }
-        glDisable(GL_BLEND);
+        mShaderProgramDefault->release();
+
+        if(mRenderRawScanRays && mVboRawScanRays)
+        {
+            quint8 rayStride = 1; // how many rays to ignore between visualized rays
+            mShaderProgramRawScanRays->bind();
+//            mShaderProgramRawScanRays->setUniformValue("useFixedColor", true);
+            mShaderProgramRawScanRays->setUniformValue("rayStride", rayStride);
+//            mShaderProgramRawScanRays->setUniformValue("fixedColor", QColor(255,64,64, 128));
+            QMatrix4x4 lidarMatrix;
+            if(mLastKnownVehiclePose)
+            {
+                lidarMatrix = mLastKnownVehiclePose->getMatrixCopy();
+            }
+            QVector3D lidar(0.0f, -0.04f, -0.14f);
+            lidarMatrix.translate(lidar);
+            mShaderProgramRawScanRays->setUniformValue("useFixedColor", false);
+            mShaderProgramRawScanRays->setUniformValue("useMatrixExtra", true);
+            mShaderProgramRawScanRays->setUniformValue("matrixExtra", lidarMatrix);
+
+            glBindBuffer(GL_ARRAY_BUFFER, mVboRawScanRays);
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(
+                        0,          // index
+                        1,          // one element is one vertex attribute
+                        GL_UNSIGNED_SHORT,   // quint16 is GL_UNSIGNED_SHORT
+                        GL_TRUE,    // normalize to float [0-1]
+                        (rayStride+1) * sizeof(quint16),          // bytes stride, not ray stride
+                        0);         // no offset
+            glDrawArrays(GL_POINTS, 0, 1080 / (rayStride+1)); // 1080 rays from hokuyo...
+            glDisableVertexAttribArray(0);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            mShaderProgramRawScanRays->release();
+        }
     }
-    mShaderProgramDefault->release();
+    glDisable(GL_BLEND);
 
     emit visualizeNow();
 
@@ -705,14 +742,20 @@ void GlWidget::keyPressEvent(QKeyEvent *event)
     }
     else if(event->key() == Qt::Key_Minus)
     {
-        mMaxPointVisualizationDistance = qBound(0.0f, mMaxPointVisualizationDistance - 0.5f, 60.0f);
+        mMaxPointVisualizationDistance = qBound(0.0f, mMaxPointVisualizationDistance - 0.5f, 30.0f);
         emit message(LogImportance::Information, "GlWidget::keyPressEvent()", QString("setting max point visualization distance to %1").arg(mMaxPointVisualizationDistance));
         slotUpdateView();
     }
     else if(event->key() == Qt::Key_Plus)
     {
-        mMaxPointVisualizationDistance = qBound(0.0f, mMaxPointVisualizationDistance + 0.5f, 60.0f);
+        mMaxPointVisualizationDistance = qBound(0.0f, mMaxPointVisualizationDistance + 0.5f, 30.0f);
         emit message(LogImportance::Information, "GlWidget::keyPressEvent()", QString("setting max point visualization distance to %1").arg(mMaxPointVisualizationDistance));
+        slotUpdateView();
+    }
+    else if(event->key() == Qt::Key_S)
+    {
+        mRenderRawScanRays = !mRenderRawScanRays;
+        emit message(LogImportance::Information, "GlWidget::keyPressEvent()", QString("toggling visualization of raw scan rays"));
         slotUpdateView();
     }
     else
@@ -782,4 +825,21 @@ void GlWidget::slotSetFlightControllerValues(const FlightControllerValues* const
     mLastFlightControllerValues = fcv;
     mLastKnownVehiclePose = &fcv->lastKnownPose;
     slotUpdateView();
+}
+
+void GlWidget::slotNewScanData(const qint32& timestampScanScanner, std::vector<quint16> * const distances)
+{
+    if(mRenderRawScanRays)
+    {
+        // If needed, create a VBO for the scan rays
+        if(!mVboRawScanRays) glGenBuffers(1, &mVboRawScanRays);
+
+//        std::reverse(distances->begin(), distances->end());
+        glBindBuffer(GL_ARRAY_BUFFER, mVboRawScanRays);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quint16) * distances->size(), distances->data(), GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+//        std::reverse(distances->begin(), distances->end());
+
+        slotUpdateView();
+    }
 }

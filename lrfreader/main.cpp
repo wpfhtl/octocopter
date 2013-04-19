@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 
     ls->slotEnableScanning(true);
 
-    QTimer::singleShot(1000, ls, SLOT(slotDisableScanning()));
+    QTimer::singleShot(15000, ls, SLOT(slotDisableScanning()));
 
     return app.exec();
 }

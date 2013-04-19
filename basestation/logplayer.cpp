@@ -426,6 +426,7 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const QByteAr
                     rayBytes
                     );
 
+        emit newScanData(tow, data);
         mSensorFuser->slotNewScanData(tow, data);
 
         mProgressBarTow->setFormat("TOW %v L");

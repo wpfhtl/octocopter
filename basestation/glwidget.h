@@ -47,7 +47,7 @@ class GlWidget : public QGLWidget
     float mRotationPerFrame;
     bool mViewRotating;
     bool mViewZooming;
-    bool mRenderAxisBase, mRenderAxisVehicle, mRenderTrajectory, mRenderVehicle;
+    bool mRenderAxisBase, mRenderAxisVehicle, mRenderTrajectory, mRenderVehicle, mRenderRawScanRays;
 
     // Mouse Rotations
     QPoint      mLastMousePosition;
@@ -58,7 +58,7 @@ class GlWidget : public QGLWidget
 
     GLuint mVertexArrayObject;
 
-    unsigned int mVboVehicle, mVboAxes;
+    unsigned int mVboVehicle, mVboAxes, mVboRawScanRays;
 
     unsigned int mVboVehiclePathElementSize;
     unsigned int mVboVehiclePathBytesMaximum;
@@ -72,7 +72,7 @@ class GlWidget : public QGLWidget
 
     ShaderProgram *mShaderProgramDefault;
     ShaderProgram *mShaderProgramPointCloud;
-    ShaderProgram *mShaderProgramParticles; // for testing billboarding of the PointCloud
+    ShaderProgram *mShaderProgramRawScanRays;
 
     // Wheel Zooming. For smooth zooming, mZoomFactorCurrent converges toward mZoomFactorTarget
     GLdouble    mZoomFactorTarget, mZoomFactorCurrent;
@@ -118,6 +118,9 @@ public slots:
     // LogPlayer and RoverConnection set values used/computed by the flightcontroller.
     // These shall be visualized here in GlWidget for debugging.
     void slotSetFlightControllerValues(const FlightControllerValues *const fcv);
+
+    // Called from logplayer, for debugging unfused laser data. Copy it to OpenGL-Buffer if you need it.
+    void slotNewScanData(const qint32& timestampScanScanner, std::vector<quint16> * const distances);
 
     void slotNewVehiclePose(const Pose *const);
     void slotClearVehicleTrajectory();

@@ -257,6 +257,7 @@ void FlightPlannerInterface::slotVisualize()
     // Waypoints
 
     // Initialize shaders and VBO if necessary
+    /*
     if(mShaderProgramSpheres == 0 && mGlWidget != 0)
     {
         mShaderProgramSpheres = new ShaderProgram(this, "shader-particles-vertex.c", "shader-particles-geometry.c", "shader-particles-fragment.c");
@@ -303,9 +304,9 @@ void FlightPlannerInterface::slotVisualize()
         }
         glDisable(GL_BLEND);
         mShaderProgramSpheres->release();
-    }
+    }*/
 
-    if(mShowWayPoints && mShaderProgramSpheres != 0)
+    if(mShowWayPoints && mShaderProgramDefault != 0)
     {
         mShaderProgramDefault->bind();
         mShaderProgramDefault->setUniformValue("useFixedColor", true);
@@ -318,7 +319,7 @@ void FlightPlannerInterface::slotVisualize()
                 i.next();
                 WayPointList *wpl = i.value();
 
-                mShaderProgramSpheres->setUniformValue("fixedColor",
+                mShaderProgramDefault->setUniformValue("fixedColor",
                                                        QVector4D(
                                                            wpl->color().redF(),
                                                            wpl->color().greenF(),

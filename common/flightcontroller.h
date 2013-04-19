@@ -81,8 +81,8 @@ private:
     // This is an attempt to smooth out GNSS reception problems in single GNSS-packets that would
     // otherwise lead to a bouncing vehicle while flip-flopping between safe control values and
     // hover/approachwaypoint.
-    MotionCommand mLastMotionCommandUsedForSmoothing;
-    void smoothenControllerOutput(MotionCommand& mc);
+//    MotionCommand mLastMotionCommandUsedForSmoothing;
+//    void smoothenControllerOutput(MotionCommand& mc);
 
     // Where is the vehicle's position, relative to the vehicle, split up in pitch and roll axis-components
     void getLateralOffsets(const Pose& vehiclePose, const QVector3D& desiredPosition, float& pitch, float& roll);
@@ -90,9 +90,9 @@ private:
     // When approaching waypoints, we move the hoverpoint along the trajectory (the carrot and mule thingy)
     // In case strong wind pushes the vehicle back, we don't want the hoverPoint to slide back on the trajectory.
     // For this reason, this variable records how far we've come, preventing the hoverpoint to slide back.
-    float mHoverPointProgressAlongTrajectory;
+    float mTrajectoryProgress;
 
-    QVector3D getClosestPointOnTrajectory(const QVector3D& trajectoryStart, const QVector3D& trajectoryGoal, const QVector3D& point);
+//    QVector3D getClosestPointOnTrajectory(const QVector3D& trajectoryStart, const QVector3D& trajectoryGoal, const QVector3D& point);
     QVector3D getHoverPosition(const QVector3D& trajectoryStart, const QVector3D& trajectoryGoal, const QVector3D& vehiclePosition, const float& desiredDistanceToHoverPosition);
 
     class ImuOffsets {

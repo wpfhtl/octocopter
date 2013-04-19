@@ -676,7 +676,7 @@ int Hokuyo::serviceScan(LaserScan& scan, int timeout)
 
     do {
         ind = laserReadlineAfter(buf, 100, "M",timeout);
-        scan.timeStampSystem = getSystemTime() + mLatencyOffset;
+        scan.timeStampSystem = getSystemTime() + mLatencyOffset/1000;
 
         if(ind[0] == 'D')
             intensity = false;
@@ -746,7 +746,7 @@ int Hokuyo::serviceScan(std::vector<quint16>* const distances, qint32& towScanBe
 
     do {
         ind = laserReadlineAfter(buf, 100, "M",timeout);
-        towScanBeginning = GnssTime::currentTow() + mLatencyOffset;
+        towScanBeginning = GnssTime::currentTow() + mLatencyOffset/1000;
 
         if(ind[0] == 'D')
             intensity = false;
@@ -802,8 +802,10 @@ void Hokuyo::slotProcessScans()
         determineLatency(false, config.angleStart, config.angleStop);
     }
 
+    qDebug() << "Hokuyo::slotProcessScans(): requesting scans...";
     requestScans(false, config.angleStart, config.angleStop);
 
+    qDebug() << "Hokuyo::slotProcessScans(): done requesting scans.";
     do
     {
         mHeightOverGroundClockDivisor++;
@@ -817,7 +819,7 @@ void Hokuyo::slotProcessScans()
             QTime t;t.start();
             const int status = serviceScan(distances, towScanBeginning);
 
-            //qDebug() << "Hokuyo::slotProcessScans(): serviceScan() took" << t.elapsed() << "ms for" << distances->size() <<"rays, scan started at time" << towScanBeginning;
+            qDebug() << "Hokuyo::slotProcessScans(): serviceScan() took" << t.elapsed() << "ms for" << distances->size() <<"rays, scan started at time" << towScanBeginning;
 
             if(status != 0)
             {
@@ -1086,7 +1088,7 @@ void Hokuyo::determineLatency(bool intensity, double angleMin, double angleMax, 
 
     mLatencyOffset = median(samples);
     mIsLatencyDetermined = true;
-    qDebug() << "Hokuyo::determineLatency(): latency determined to be" << mLatencyOffset << "ms";
+    qDebug() << "Hokuyo::determineLatency(): latency determined to be" << mLatencyOffset << "us";
 }
 
 // Returns microseconds since unix epoch

@@ -121,6 +121,10 @@ signals:
     void gnssStatus(const GnssStatus* const);
     void flightControllerValues(const FlightControllerValues* const);
     void flightControllerWeightsChanged();
+
+    // Emits the raw distances, like the ones being fed into sensorfuser. You are NOT owner of this data, sensorfuser
+    // is and it will probably delete it. So, if you need it, copy it!
+    void newScanData(qint32 timestampScanner, std::vector<quint16> * const distances);
 };
 
 #endif // LOGPLAYER_H

@@ -160,9 +160,6 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     //    WARNING! THIS ENABLES MOTION!
     connect(mFlightController, SIGNAL(motion(const MotionCommand* const)), mKopter, SLOT(slotSetMotion(const MotionCommand* const)));
-
-
-QTimer::singleShot(30000, mLaserScanner, SLOT(slotEnableScanning()));
 }
 
 KopterControl::~KopterControl()
