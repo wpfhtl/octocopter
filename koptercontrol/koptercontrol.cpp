@@ -1,6 +1,9 @@
 #include "koptercontrol.h"
 #include <math.h>
 
+// for renicing in main()
+#include <sys/resource.h>
+
 int KopterControl::signalFd[] = {0,0};
 
 void setupUnixSignalHandlers()
@@ -225,9 +228,16 @@ void KopterControl::slotHandleSignal()
 
 int main(int argc, char **argv)
 {
-    if(getuid() != 0) qFatal("I must be run as root so I can synchronize system time to GNSS time. Bye.");
+    if(getuid() != 0) qFatal("main(): must be run as root to synchronize system time to GNSS time.");
+
+    // Renice
+    if(setpriority(PRIO_PROCESS, /*who*/0, -20) != 0)
+    {
+        qFatal("main(): unable to renice, quitting.");
+    }
 
     setupUnixSignalHandlers();
+
 
     KopterControl KopterControl(argc, argv);
 

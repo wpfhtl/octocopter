@@ -33,8 +33,10 @@ Hokuyo::Hokuyo(const QString &logFilePrefix) : QObject(), mState(State::Stopped)
 {
     mLogFile = new LogFile(logFilePrefix + QString("scannerdata.lsr"), LogFile::Encoding::Binary);
 
+    qDebug() << "Hokuyo::Hokuyo(): registering meta type(s)";
+    //qRegisterMetaType<std::vector<quint16>*const >("std::vector<quint16>*const");
 
-    qRegisterMetaType<std::vector<quint16>*const >("std::vector<quint16>*const");
+    qRegisterMetaType<std::vector<quint16>*>("std::vector<quint16>*");
 }
 
 Hokuyo::~Hokuyo ()

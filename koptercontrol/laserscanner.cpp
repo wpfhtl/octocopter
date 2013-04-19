@@ -10,10 +10,6 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
 
     mDeviceFileName = deviceFileName;
 
-//    mLogFile = new LogFile(logFilePrefix + QString("scannerdata.lsr"), LogFile::Encoding::Binary);
-
-//    mLastScannerTimeStamp = 0;
-
     mHokuyo = new Hokuyo(logFilePrefix);
 
     if(mHokuyo->open(mDeviceFileName))
@@ -39,8 +35,8 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
     connect(mHokuyo, SIGNAL(finished()), mThreadReadScanner, SLOT(quit()));
 
     connect(mHokuyo, SIGNAL(heightOverGround(float)), SIGNAL(heightOverGround(float)));
+    qDebug() << "LaserScanner::LaserScanner(): connecting singal containing data, qregistermetatype?";
     connect(mHokuyo, SIGNAL(newScanData(qint32,std::vector<quint16>*const)), SIGNAL(newScanData(qint32,std::vector<quint16>*const)));
-//    connect(mHokuyo, SIGNAL(newScanData(qint32,std::vector<quint16>*const)), SLOT(slotNewScanData(qint32,std::vector<quint16>*const)));
 }
 
 LaserScanner::~LaserScanner()
@@ -56,15 +52,6 @@ LaserScanner::~LaserScanner()
     delete mHokuyo;
 
     qDebug() << "LaserScanner::~LaserScanner(): done.";
-}
-
-void LaserScanner::slotNewScanData(qint32 timestamp,std::vector<quint16>*const data)
-{
-    qDebug() << "laserdate from" << timestamp;
-    for(int i=0;i<data->size();i++)
-    {
-        printf(" %.2f", data->at(i)/1000.0f);
-    }
 }
 
 const bool LaserScanner::isScanning() const
