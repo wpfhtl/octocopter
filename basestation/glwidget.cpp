@@ -300,6 +300,35 @@ void GlWidget::paintGL()
         }
         mShaderProgramPointCloud->release();
 
+        if(mRenderRawScanRays && mVboRawScanRays)
+        {
+            quint8 rayStride = 1; // how many rays to ignore between visualized rays
+            mShaderProgramRawScanRays->bind();
+            mShaderProgramRawScanRays->setUniformValue("rayStride", rayStride);
+
+            QMatrix4x4 lidarMatrix;
+            if(mLastKnownVehiclePose) lidarMatrix = mLastKnownVehiclePose->getMatrixCopy();
+            lidarMatrix.translate(QVector3D(0.0f, -0.04f, -0.14f));
+
+            mShaderProgramRawScanRays->setUniformValue("useFixedColor", false);
+            mShaderProgramRawScanRays->setUniformValue("useMatrixExtra", true);
+            mShaderProgramRawScanRays->setUniformValue("matrixExtra", lidarMatrix);
+
+            glBindBuffer(GL_ARRAY_BUFFER, mVboRawScanRays);
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(
+                        0,          // index
+                        1,          // one element is one vertex attribute
+                        GL_UNSIGNED_SHORT,   // quint16 is GL_UNSIGNED_SHORT
+                        GL_TRUE,    // normalize to float [0-1]
+                        (rayStride+1) * sizeof(quint16),          // bytes stride, not ray stride
+                        0);         // no offset
+            glDrawArrays(GL_POINTS, 0, 1080 / (rayStride+1)); // 1080 rays from hokuyo...
+            glDisableVertexAttribArray(0);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            mShaderProgramRawScanRays->release();
+        }
+
         mShaderProgramDefault->bind();
         {
             if(mRenderTrajectory)
@@ -354,39 +383,6 @@ void GlWidget::paintGL()
             }
         }
         mShaderProgramDefault->release();
-
-        if(mRenderRawScanRays && mVboRawScanRays)
-        {
-            quint8 rayStride = 1; // how many rays to ignore between visualized rays
-            mShaderProgramRawScanRays->bind();
-//            mShaderProgramRawScanRays->setUniformValue("useFixedColor", true);
-            mShaderProgramRawScanRays->setUniformValue("rayStride", rayStride);
-//            mShaderProgramRawScanRays->setUniformValue("fixedColor", QColor(255,64,64, 128));
-            QMatrix4x4 lidarMatrix;
-            if(mLastKnownVehiclePose)
-            {
-                lidarMatrix = mLastKnownVehiclePose->getMatrixCopy();
-            }
-            QVector3D lidar(0.0f, -0.04f, -0.14f);
-            lidarMatrix.translate(lidar);
-            mShaderProgramRawScanRays->setUniformValue("useFixedColor", false);
-            mShaderProgramRawScanRays->setUniformValue("useMatrixExtra", true);
-            mShaderProgramRawScanRays->setUniformValue("matrixExtra", lidarMatrix);
-
-            glBindBuffer(GL_ARRAY_BUFFER, mVboRawScanRays);
-            glEnableVertexAttribArray(0);
-            glVertexAttribPointer(
-                        0,          // index
-                        1,          // one element is one vertex attribute
-                        GL_UNSIGNED_SHORT,   // quint16 is GL_UNSIGNED_SHORT
-                        GL_TRUE,    // normalize to float [0-1]
-                        (rayStride+1) * sizeof(quint16),          // bytes stride, not ray stride
-                        0);         // no offset
-            glDrawArrays(GL_POINTS, 0, 1080 / (rayStride+1)); // 1080 rays from hokuyo...
-            glDisableVertexAttribArray(0);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-            mShaderProgramRawScanRays->release();
-        }
     }
     glDisable(GL_BLEND);
 

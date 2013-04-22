@@ -47,6 +47,11 @@ public:
 private:
     LogFile* mLogFile;
 
+    // test for speed-based controls
+    QTime mTimeOfLastSpeedMeasurement;
+    Pose mPreviousPose;
+    float mPreviousLateralOffsetPitch, mPreviousLateralOffsetRoll;
+
     FlightControllerValues mFlightControllerValues;
 /*
     // When approaching waypoints, we first yaw until we point towards the target. As soon as
@@ -85,7 +90,7 @@ private:
 //    void smoothenControllerOutput(MotionCommand& mc);
 
     // Where is the vehicle's position, relative to the vehicle, split up in pitch and roll axis-components
-    void getLateralOffsets(const Pose& vehiclePose, const QVector3D& desiredPosition, float& pitch, float& roll);
+    void getLateralOffsetsVehicleToHoverPosition(const QVector3D &vehiclePosition, const float vehicleYaw, const QVector3D& desiredPosition, float& pitch, float& roll);
 
     // When approaching waypoints, we move the hoverpoint along the trajectory (the carrot and mule thingy)
     // In case strong wind pushes the vehicle back, we don't want the hoverPoint to slide back on the trajectory.

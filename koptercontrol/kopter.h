@@ -61,10 +61,24 @@ class Kopter : public QObject
         qint16 yaw;
         qint16 motorSafety;     // SW3
         qint16 poti;            // CTRL7
-        qint16 externalControl; // SW1
+        qint16 externalControl; // SW6/7, three-state
         qint16 calibration;     // SW4/PB8
 
         PpmChannels() {}
+
+        QString toString() const
+        {
+            return QString("PpmChannels::toString(): unused %1, thrust %2, roll %3, pitch %4, yaw %5, motorSafety %6, poti %7, externalControl %8, calibration %9")
+                    .arg(unused)
+                    .arg(thrust)
+                    .arg(roll)
+                    .arg(pitch)
+                    .arg(yaw)
+                    .arg(motorSafety)
+                    .arg(poti)
+                    .arg(externalControl)
+                    .arg(calibration);
+        }
     };
 
     struct VersionInfo

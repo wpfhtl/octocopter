@@ -244,9 +244,9 @@ void Kopter::slotSerialPortDataReady()
             }
             else
             {
-                // If we receive somethign we didn't ask for, start bitching.
+                // If we receive something we didn't ask for, start bitching.
                 //  k is mkmag's compass data which cannot be disabled, event though no mkmag is installed
-                //  D  is debug out, which we subscribed to. Its just that one subscription gives multiple replies.
+                //  D is debug out, which we subscribed to. Its just that one subscription gives multiple replies.
                 if(message.getId() != 'k' && message.getId() != 'D')
                 {
                     qWarning() << "Kopter::slotSerialPortDataReady(): got reply" << message.getId() << "to an unsent request, mPendingReply:" << (mPendingReply.isNull() ? "null" : QString(mPendingReply));
@@ -285,19 +285,7 @@ void Kopter::slotSerialPortDataReady()
 //                const qint16* ppmChannels = (qint16*)payload.data();
                 const PpmChannels* ppmChannels = (PpmChannels*)payload.data();
 
-                //for(int i=0; i < payload.size()/2; i++) qDebug() << "Kopter::slotSerialPortDataReady(): ppm channel" << i << ":" << ppmChannels[i];
-
-                // These channel values are experienced when read from incoming data. They do NOT match the mikrokopter-tool levels!
-                // ppmChannels[1] is Thrust: -127 is min, 14 is max
-                // ppmChannels[2] is Roll: 93 is max (left on R/C), -93 is min (right on R/C). Positive rolls positive on the Z axis.
-                // ppmChannels[3] is Pitch: 94 is max (up on R/C), -94 is min (down on R/C). Positive pitches negative on the X axis.
-                // ppmChannels[4] is Yaw: 96 is max (left on R/C), -90 is min (right on R/C). Positive yaws positive on the Y axis
-                // ppmChannels[5] is SW3 / MotorSafety. -122 is disabled (motors can be toggled), 127 is enabled (motor switching blocked)
-                // ppmChannels[6] is CTRL7. -122 is disabled (motors can be toggled), 127 is enabled (motor switching blocked)
-                // ppmChannels[7] is SW1 / ExternalControl. -122 is disabled, 127 is enabled
-                // ppmChannels[8] is SW4PB8 / Calibration. -122 and 127 are the two states it can reach.
-
-                qDebug() << "Kopter::slotSerialPortDataReady(): remote control limits thrust to" << ppmChannels->thrust + 127;
+                qDebug() << "Kopter::slotSerialPortDataReady():" << ppmChannels->toString();
 
                 FlightStateSwitch fssv(ppmChannels->externalControl);
 //                qDebug() << "Kopter::slotSerialPortDataReady(): flightstate switch value" << ppmChannels->externalControl << "is state:" << fssv.toString();

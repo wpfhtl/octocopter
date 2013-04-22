@@ -17,9 +17,9 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
     controllerWeights.clear();
     // Hover - Thrust
     weights.clear();
-    weights.insert('p', 50.0f);
+    weights.insert('p', 80.0f);
     weights.insert('i', 0.0f);
-    weights.insert('d', 20.0f);
+    weights.insert('d', 30.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerThrust, weights);
 
     // Hover - Yaw
@@ -31,9 +31,9 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
 
     // Hover - Pitch / Roll
     weights.clear();
-    weights.insert('p', 5.0f);
+    weights.insert('p', 10.0f);
     weights.insert('i', 0.0f);
-    weights.insert('d', 25.0f);
+    weights.insert('d', 15.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerPitch, weights);
     controllerWeights.insert(&mFlightControllerValues.controllerRoll, weights);
     mFlightControllerWeights.insert(FlightState::Value::Hover, controllerWeights);
@@ -117,9 +117,11 @@ void FlightController::slotComputeMotionCommands()
         // Only use poses that are sufficiently precise. Else, keep safe hover values.
         if(mFlightControllerValues.lastKnownPose.isSufficientlyPreciseForFlightControl())
         {
-            // When hovering, we want to look away fro the origin. When approaching a waypoint, we want to look at the hoverPosition.
+            // When hovering, we want to look away from the origin. When approaching a waypoint, we want to look at the hoverPosition.
             // This variable shall hold the desired yaw angle.
             float angleToYawDegrees = 0.0f;
+
+            // See how we can reach hoverPosition by pitching and rolling
 
             if(mFlightControllerValues.flightState.state == FlightState::Value::ApproachWayPoint)
             {
@@ -138,22 +140,29 @@ void FlightController::slotComputeMotionCommands()
                             mFlightControllerValues.trajectoryGoal,
                             mFlightControllerValues.lastKnownPose.getPosition(),
                             2.0f);
+
+//                mFlightControllerValues.hoverPosition = mFlightControllerValues.trajectoryGoal;
+
             }
             else if(mFlightControllerValues.flightState.state == FlightState::Value::Hover)
             {
-                const QVector3D vectorVehicleToOrigin = -mFlightControllerValues.lastKnownPose.getPosition();
-
                 // We want to point exactly away from the origin, because thats probably where the user is
                 // standing - steering is easier if the vehicle's forward arm points away from the user.
+                // Thats fine as long as there is a sufficient distance between vehicle and origin during
+                // hover. If the vehicle hovers around the origin, it starts turning quickly, which sucks.
+                // To prevent this, we don't consider the vehicle's current position, but rather the chosen
+                // hover position.
+                const QVector3D vectorHoverPositionToOrigin = -mFlightControllerValues.hoverPosition;
+
                 angleToYawDegrees = RAD2DEG(
                             Pose::getShortestTurnRadians(
-                                atan2(-vectorVehicleToOrigin.x(), -vectorVehicleToOrigin.z())
+                                atan2(-vectorHoverPositionToOrigin.x(), -vectorHoverPositionToOrigin.z())
                                 - DEG2RAD(180.0f)
                                 - mFlightControllerValues.lastKnownPose.getYawRadians()
                                 )
                             );
 
-//                Q_ASSERT(fabs(angleToYawDegrees - angleToYawDegrees2) < 0.1);
+//                getLateralOffsetsVehicleToHoverPosition(mFlightControllerValues.lastKnownPose, mFlightControllerValues.hoverPosition, lateralOffsetPitch, lateralOffsetRoll);
             }
 
             // If we give the yaw controller our current yaw (e.g. -170 deg) and our desired value (e.g. +170),
@@ -168,20 +177,78 @@ void FlightController::slotComputeMotionCommands()
             mFlightControllerValues.controllerThrust.setDesiredValue(mFlightControllerValues.hoverPosition.y());
             const float outputThrust = MotionCommand::thrustHover + mFlightControllerValues.controllerThrust.computeOutputFromValue(mFlightControllerValues.lastKnownPose.getPosition().y());
 
-            // See how we can reach hoverPosition by pitching and rolling
+            // We want to control based on speed, split up on pitch and roll axes. If we're e.g. X pitch-meter away
+            // from the target, we'd like to approach it with Xm/s.
+
+
+
+
+            const float maxSpeedPerAxis = 1.0f; // in meters per second
+
+            // For the first time, we need to make sth. up.
+            if(!mTimeOfLastSpeedMeasurement.isValid()) mTimeOfLastSpeedMeasurement = QTime::currentTime().addMSecs(-100);
+
+//            const QVector3D vectorVehicleToHoverPosition = mFlightControllerValues.hoverPosition - mFlightControllerValues.lastKnownPose.getPosition();
+
+            const float timeDiff = mTimeOfLastSpeedMeasurement.msecsTo(QTime::currentTime()) / 1000.0f;
+
+            // How fast the vehicle moves in m/s in the world frame
+            QVector3D worldFrameSpeedValue = (mFlightControllerValues.lastKnownPose.getPosition() - mPreviousPose.getPosition()) / timeDiff;
+            worldFrameSpeedValue.setY(0.0f);
+
+//            // Depending on the orientation, determine how fast it
+//            float lateralOffsetPitchNow, lateralOffsetRollNow;
             float lateralOffsetPitch, lateralOffsetRoll;
-            getLateralOffsets(mFlightControllerValues.lastKnownPose, mFlightControllerValues.hoverPosition, lateralOffsetPitch, lateralOffsetRoll);
 
-            // Pitch and roll are computed based on position-offsets. Of course, we want the offset to be 0...
-            mFlightControllerValues.controllerPitch.setDesiredValue(0.0f);
-            const float outputPitch = mFlightControllerValues.controllerPitch.computeOutputFromValue(qBound(-10.0f, -lateralOffsetPitch, 10.0f));
+            getLateralOffsetsVehicleToHoverPosition(
+                        mPreviousPose.getPosition(),
+                        mFlightControllerValues.lastKnownPose.getYawRadians(), // Use the current yaw, to that yawing doesn't skew the lateral offsets
+                        //mFlightControllerValues.hoverPosition, ->
+                        mFlightControllerValues.trajectoryGoal,
+                        lateralOffsetPitch,
+                        lateralOffsetRoll);
 
-            mFlightControllerValues.controllerRoll.setDesiredValue(0.0f);
-            const float outputRoll = mFlightControllerValues.controllerRoll.computeOutputFromValue(qBound(-10.0f, -lateralOffsetRoll, 10.0f));
+//            getLateralOffsetsVehicleToHoverPosition(
+//                        mFlightControllerValues.lastKnownPose.getPosition(),
+//                        mFlightControllerValues.lastKnownPose.getYawRadians(),
+//                        mFlightControllerValues.trajectoryGoal,
+//                        lateralOffsetPitchNow,
+//                        lateralOffsetRollNow);
+
+            const float angleFromVehicleFrontToSpeedVector = Pose::getShortestTurnRadians(
+                        atan2(-worldFrameSpeedValue.x(), -worldFrameSpeedValue.z())
+                        - mFlightControllerValues.lastKnownPose.getYawRadians()
+                        );
+
+            const float speedOverPitchValue = -cos(angleFromVehicleFrontToSpeedVector) * worldFrameSpeedValue.length();
+            const float speedOverRollValue  = -sin(angleFromVehicleFrontToSpeedVector) * worldFrameSpeedValue.length();
+
+            const float speedOverPitchDesired = qBound(-maxSpeedPerAxis, lateralOffsetPitch, maxSpeedPerAxis);
+            const float speedOverRollDesired  = qBound(-maxSpeedPerAxis, lateralOffsetRoll, maxSpeedPerAxis);
+
+            // speedPitch denotes the vehicle's translation speed forward/backward. This speed goes along its Z-axis,
+            // which points backwards. A positive speed thus means moving backwards. Positive pitch-control values
+            // also mean bending backwards, so this matches.
+//            const float speedPitch = (lateralOffsetPitchNow - mPreviousLateralOffsetPitch) / timeDiff;
+            mFlightControllerValues.controllerPitch.setDesiredValue(speedOverPitchDesired);
+            const float outputPitch = mFlightControllerValues.controllerPitch.computeOutputFromValue(speedOverPitchValue);
+//            mPreviousLateralOffsetPitch = lateralOffsetPitchNow;
+
+            // speedRoll denotes the vehicle's translation speed left/right. This speed goes along its X-axis,
+            // which points right. A positive speed thus means moving right. Positive roll-control values
+            // mean bending leftwards, so outputRoll needs to be inverted.
+//            const float speedRoll = -(lateralOffsetRollNow - mPreviousLateralOffsetRoll) / timeDiff;
+            mFlightControllerValues.controllerRoll.setDesiredValue(-speedOverRollDesired);
+            const float outputRoll = mFlightControllerValues.controllerRoll.computeOutputFromValue(-speedOverRollValue);
+//            mPreviousLateralOffsetRoll = lateralOffsetRollNow;
+
+            mTimeOfLastSpeedMeasurement = QTime::currentTime();
 
             mFlightControllerValues.motionCommand = MotionCommand(outputThrust, outputYaw, outputPitch, outputRoll);
             qDebug() << "FlightController::slotComputeMotionCommands(): emitting motion:" << mFlightControllerValues.motionCommand;
             emit motion(&mFlightControllerValues.motionCommand);
+
+            mPreviousPose = mFlightControllerValues.lastKnownPose;
 
             // See whether we've reached the waypoint
             if(mFlightControllerValues.flightState.state == FlightState::Value::ApproachWayPoint && mFlightControllerValues.lastKnownPose.getPosition().distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < 0.80f) // close to wp
@@ -204,20 +271,21 @@ void FlightController::slotComputeMotionCommands()
     logFlightControllerValues();
 }
 
+// Positive values mean that the target is along the direction of the vehicle coordinate system's respective axes.
 // pitch: negative: target is in front of vehicle, positive: target is behind vehicle
-// roll:  negative: target is right of vehicle, positive: target is left of vehicle
-void FlightController::getLateralOffsets(const Pose& vehiclePose, const QVector3D &desiredPosition, float& pitch, float& roll)
+// roll:  negative: target is left of vehicle, positive: target is right of vehicle
+void FlightController::getLateralOffsetsVehicleToHoverPosition(const QVector3D& vehiclePosition, const float vehicleYaw, const QVector3D &desiredPosition, float& pitch, float& roll)
 {
-    QVector3D vectorVehicleToHoverPosition = vehiclePose.getPosition() - desiredPosition;
+    QVector3D vectorVehicleToHoverPosition = vehiclePosition - desiredPosition;
     const float angleToTurnTowardsDesiredPosition = Pose::getShortestTurnRadians(
                 atan2(-vectorVehicleToHoverPosition.x(), -vectorVehicleToHoverPosition.z())
-                - vehiclePose.getYawRadians()
+                - vehicleYaw
                 );
 
     vectorVehicleToHoverPosition.setY(0.0f);
 
     pitch = cos(angleToTurnTowardsDesiredPosition) * vectorVehicleToHoverPosition.length();
-    roll = -sin(angleToTurnTowardsDesiredPosition) * vectorVehicleToHoverPosition.length();
+    roll =  sin(angleToTurnTowardsDesiredPosition) * vectorVehicleToHoverPosition.length();
 
     qDebug() << "FlightController::getLateralOffsets(): lateral offset pitch" << pitch << "roll" << roll;
 }
@@ -476,6 +544,9 @@ void FlightController::setFlightState(FlightState newFlightState)
     {
         mFlightControllerValues.hoverPosition = mFlightControllerValues.lastKnownPose.getPosition();
 
+        // Just for testing
+        mFlightControllerValues.trajectoryGoal = mFlightControllerValues.lastKnownPose.getPosition();
+
         if(mFlightControllerValues.lastKnownPose.getAge() > 100)
             qDebug() << "FlightController::setFlightState(): WARNING: going to hover, but pose being set as hover-target is" << mFlightControllerValues.lastKnownPose.getAge() << "ms old!";
 
@@ -527,6 +598,10 @@ void FlightController::initializeControllers()
     mFlightControllerValues.controllerYaw.reset();
     mFlightControllerValues.controllerPitch.reset();
     mFlightControllerValues.controllerRoll.reset();
+
+    // for speed-based control
+    mTimeOfLastSpeedMeasurement = QTime();
+    mPreviousLateralOffsetPitch = mPreviousLateralOffsetRoll = 0.0f;
 
     // If we change weights above, tell basestation about the changes.
 //    emit flightControllerValues(&mFlightControllerValues);
