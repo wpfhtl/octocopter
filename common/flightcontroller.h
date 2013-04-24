@@ -47,10 +47,8 @@ public:
 private:
     LogFile* mLogFile;
 
-    // test for speed-based controls
-    QTime mTimeOfLastSpeedMeasurement;
-    Pose mPreviousPose;
-    float mPreviousLateralOffsetPitch, mPreviousLateralOffsetRoll;
+//    Pose mPreviousPose;
+    float mFlightSpeedPerAxis;
 
     FlightControllerValues mFlightControllerValues;
 /*
@@ -91,6 +89,11 @@ private:
 
     // Where is the vehicle's position, relative to the vehicle, split up in pitch and roll axis-components
     void getLateralOffsetsVehicleToHoverPosition(const QVector3D &vehiclePosition, const float vehicleYaw, const QVector3D& desiredPosition, float& pitch, float& roll);
+
+    // When the vehicle pitches and rolls strongly, we should increase thrust to keep the height constant. The height-
+    // controller will do this automatically, but with a delay. To remove this delay, we amplify thrust based on
+    // pitch and roll angles.
+    void adjustThrustToPitchAndRoll(MotionCommand& mc);
 
     // When approaching waypoints, we move the hoverpoint along the trajectory (the carrot and mule thingy)
     // In case strong wind pushes the vehicle back, we don't want the hoverPoint to slide back on the trajectory.
@@ -209,6 +212,8 @@ public slots:
     void slotSetWayPoints(const QList<WayPoint>&);
 
     void slotEmitFlightControllerInfo();
+
+    void slotSetFlightSpeed(const float flightSpeed);
 
     void slotSetControllerWeights(const QString *const controllerName, const QMap<QChar, float> *const weights);
 

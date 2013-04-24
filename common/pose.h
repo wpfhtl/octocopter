@@ -50,6 +50,7 @@ class Pose
 {
 private:
     QMatrix4x4 mTransform;
+    QVector3D mVelocity; // m/s
 
 public:
     Pose(const QVector3D &position, const float &yawDegrees, const float &pitchDegrees, const float &rollDegrees, const qint32& timestamp = 0);
@@ -67,12 +68,18 @@ public:
     float covariances;
     quint8 precision;
 
+    static constexpr float maximumUsableCovariance = 0.02f;
+
+    void setVelocity(const QVector3D& velocity)
+    {
+        mVelocity = velocity;
+//        qDebug() << "Pose::setVelocity():" << mVelocity;
+    }
+    const QVector3D& getVelocity() const {return mVelocity;}
+
     // These scalar members were added to debug/test interpolation accuracies and their applciability to pointcloud registration
-    float velocity; // m/s
     float acceleration; // m/s^2
     float rotation; // deg/s
-
-    constexpr static float maximumUsableCovariance = 1.0f;
 
     enum Precision
     {
@@ -88,8 +95,7 @@ public:
     // How old os this pose in milliseconds? Requires a synchronized system clock.
     qint32 getAge() const { return GnssTime::currentTow() - timestamp; }
 
-    const QString toString() const;
-    const QString toStringVerbose() const; // includes human readable precision flags
+    const QString toString(bool verbose = false) const; // verbose includes flags-string
 
     const QVector3D getPosition() const;
     const QQuaternion getOrientation() const;
@@ -126,7 +132,7 @@ public:
         // just for testing, remove in the future!
         r.rotation = rotation;
         r.acceleration = acceleration;
-        r.velocity = velocity;
+        r.mVelocity = mVelocity;
         r.covariances = covariances;
         r.precision = precision;
 

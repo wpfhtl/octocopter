@@ -1,5 +1,6 @@
 #include "logplayer.h"
 #include "ui_logplayer.h"
+#include <QMenu>
 
 LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlayer)
 {
@@ -7,7 +8,7 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     mProgressBarTow = new ProgressBar;
     ui->verticalLayout->insertWidget(2, mProgressBarTow);
 
-    setMaximumSize(minimumSize());
+    //setMaximumSize(minimumSize());
 
     mTimerAnimation = new QTimer(this);
     connect(mTimerAnimation, SIGNAL(timeout()), SLOT(slotPlay()));
@@ -19,12 +20,36 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     mIndexLaser = -1;
     mIndexFlightController = -1;
 
+    // Allow user to choose to step until a specific datasource was processed
+    mStepUntilDataSource = DataSource::Source_Invalid;
+    mStepSignalMapper = new QSignalMapper(this);
+    mStepMenu = new QMenu(this);
+
+    mStepMenu->addAction("Any", mStepSignalMapper, SLOT(map()));
+    connect(mStepMenu->actions().last(), SIGNAL(triggered()), mStepSignalMapper, SLOT(map()));
+    mStepSignalMapper->setMapping(mStepMenu->actions().last(), (int)DataSource::Source_Invalid);
+
+    mStepMenu->addAction("GNSS", mStepSignalMapper, SLOT(map()));
+    connect(mStepMenu->actions().last(), SIGNAL(triggered()), mStepSignalMapper, SLOT(map()));
+    mStepSignalMapper->setMapping(mStepMenu->actions().last(), (int)DataSource::Source_Sbf);
+
+    mStepMenu->addAction("LIDAR");
+    connect(mStepMenu->actions().last(), SIGNAL(triggered()), mStepSignalMapper, SLOT(map()));
+    mStepSignalMapper->setMapping(mStepMenu->actions().last(), (int)DataSource::Source_Laser);
+
+    mStepMenu->addAction("FlightController");
+    connect(mStepMenu->actions().last(), SIGNAL(triggered()), mStepSignalMapper, SLOT(map()));
+    mStepSignalMapper->setMapping(mStepMenu->actions().last(), (int)DataSource::Source_FlightController);
+
+    ui->mPushButtonStepForward->setMenu(mStepMenu);
+    connect(mStepSignalMapper, SIGNAL(mapped(int)), this, SLOT(slotStepDataSourceChanged(int)));
+
     // Connect UI...
     connect(ui->mPushButtonOpenLogs, SIGNAL(clicked()), SLOT(slotOpenLogFiles()));
     connect(ui->mPushButtonRewind, SIGNAL(clicked()), SLOT(slotRewind()));
     connect(ui->mPushButtonGoTo, SIGNAL(clicked()), SLOT(slotGoToTow()));
     connect(ui->mPushButtonPlay, SIGNAL(clicked()), SLOT(slotPlay()));
-    connect(ui->mPushButtonStepForward, SIGNAL(clicked()), SLOT(slotStepForward()));
+    connect(ui->mPushButtonStepForward, SIGNAL(clicked()), SLOT(slotStepUntilDataSourceProcessed()));
 
     connect(mProgressBarTow, SIGNAL(seekToTow(qint32)), SLOT(slotGoToTow(qint32)));
 
@@ -57,6 +82,8 @@ LogPlayer::~LogPlayer()
 {
     delete mSensorFuser;
     delete ui;
+    delete mStepMenu;
+    delete mStepSignalMapper;
 }
 
 void LogPlayer::slotLaserScannerRelativePoseChanged()
@@ -352,7 +379,24 @@ LogPlayer::DataSource LogPlayer::getNextDataSource(qint32* tow)
     return Source_Invalid;
 }
 
-bool LogPlayer::slotStepForward(DataSource source)
+bool LogPlayer::slotStepUntilDataSourceProcessed()
+{
+    if(mStepUntilDataSource == DataSource::Source_Invalid)
+    {
+        slotStepForward(DataSource::Source_Invalid);
+        return true;
+    }
+
+    DataSource processedSource;
+    do
+    {
+        processedSource = slotStepForward();
+    }
+    while(processedSource != mStepUntilDataSource && processedSource != DataSource::Source_Invalid);
+    qDebug() << "LogPlayer::slotStepUntilDataSourceProcessed(): processed datasource" << processedSource << "- done!";
+}
+
+LogPlayer::DataSource LogPlayer::slotStepForward(DataSource source)
 {
     if(source == Source_Invalid) source = getNextDataSource();
 
@@ -390,13 +434,13 @@ bool LogPlayer::slotStepForward(DataSource source)
     {
         qDebug() << "LogPlayer::slotStepForward(): seems I'm at the end, cannot fetch further Sbf, FlightController or Laser packets from logs";
         emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Reached end of log data.");
-        return false;
+        return DataSource::Source_Invalid;
     }
     break;
 
     }
 
-    return true;
+    return source;
 }
 
 void LogPlayer::processPacket(const LogPlayer::DataSource& source, const QByteArray& packet)
@@ -482,7 +526,7 @@ void LogPlayer::slotPlay()
             qDebug() << "LogPlayer::slotPlay(): starting playback, realtime" << mTimePlaybackStartReal << "tow" << mTimePlaybackStartTow;
         }
 
-        if(!slotStepForward(ds))
+        if(slotStepForward(ds) == DataSource::Source_Invalid)
         {
             // Playback failed, we're probably at the end
             qDebug() << "LogPlayer::slotPlay(): slotStepForward() failed, we're probably at the end, stopping timer.";
@@ -687,11 +731,27 @@ void LogPlayer::slotGoToTow(qint32 towTarget)
     mProgressBarTow->setValue(towTarget);
 }
 
-void LogPlayer::keyPressEvent(QKeyEvent* event)
+/*void LogPlayer::keyPressEvent(QKeyEvent* event)
 {
     if(event->key() == Qt::Key_Space)
     {
         ui->mPushButtonPlay->setChecked(!ui->mPushButtonPlay->isChecked());
         slotPlay();
     }
+}*/
+
+void LogPlayer::slotStepDataSourceChanged(const int datasource)
+{
+    // When pressing STEP the next time, step util we process a packet from datasource
+    mStepUntilDataSource = (DataSource)datasource;
+    switch(mStepUntilDataSource)
+    {
+        case DataSource::Source_Sbf: ui->mPushButtonStepForward->setText("Step/G"); break;
+        case DataSource::Source_Laser: ui->mPushButtonStepForward->setText("Step/L"); break;
+        case DataSource::Source_FlightController: ui->mPushButtonStepForward->setText("Step/F"); break;
+        case DataSource::Source_Invalid: ui->mPushButtonStepForward->setText("Step/A"); break;
+    }
+
+    // The menu was used to select a source. Lets process this packet!
+    slotStepUntilDataSourceProcessed();
 }

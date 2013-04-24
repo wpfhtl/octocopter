@@ -1,4 +1,8 @@
 #include "motioncommand.h"
+#include "common.h"
+#include <QVector3D>
+#include <QQuaternion>
+#include <math.h> // ceil and floor
 
 MotionCommand::MotionCommand()
 {
@@ -32,6 +36,7 @@ MotionCommand::MotionCommand(const quint8 thrust, const float yaw, const float p
     this->roll = (qint8)qBound(-127.0f, roll, 127.0f);
 }
 
+/*
 MotionCommand::MotionCommand(const QString& string)
 {
     QStringList list = string.split(" ", QString::KeepEmptyParts);
@@ -47,12 +52,13 @@ MotionCommand::MotionCommand(const QString& string)
     Q_ASSERT(success);
     roll = list.at(7).toInt(&success);
     Q_ASSERT(success);
-}
+}*/
 
 QString MotionCommand::toString() const
 {
     return QString ("thrust %1 yaw %2 pitch %3 roll %4").arg(thrust).arg(yaw).arg(pitch).arg(roll);
 }
+
 QDataStream& operator<<(QDataStream &out, const MotionCommand &mc)
 {
     out << mc.thrust;
@@ -94,4 +100,16 @@ MotionCommand MotionCommand::clampedToSafeLimits() const
     clamped.roll = (qint8)qBound(-15.0f, (float)roll, 15.0f);
 
     return clamped;
+}
+
+void MotionCommand::adjustThrustToPitchAndRoll()
+{
+    const QVector3D upWorld(0,1,0);
+    const QQuaternion pitchAndRoll(QQuaternion::fromAxisAndAngle(QVector3D(1,0,0), pitch) * QQuaternion::fromAxisAndAngle(QVector3D(0,0,1), roll));
+    const QVector3D upVehicle = pitchAndRoll.rotatedVector(upWorld);
+
+    const float angleBetweenVehicleAndWorldUpInRad = acos(QVector3D::dotProduct(upWorld, upVehicle));
+    const quint8 addedThrust = MotionCommand::thrustHover * (float)sin(angleBetweenVehicleAndWorldUpInRad);
+    qDebug() << "MotionCommand::adjustThrustToPitchAndRoll(): vehicle points" << RAD2DEG(angleBetweenVehicleAndWorldUpInRad) << "deg away from world up, amplifying thrust from" << thrust << "to" << thrust + addedThrust;
+    thrust += addedThrust;
 }

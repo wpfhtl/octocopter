@@ -20,6 +20,11 @@ class RigidBodyState : public QObject, public btMotionState
     protected:
         btTransform mTransform;
         btTransform mCenterOfMassOffset;
+        quint32 mPoseCounter;
+
+        // used to calculate velocities
+        QTime mPreviousPoseTime;
+        btVector3 mPreviousPosePosition;
 
         Ogre::SceneNode *mNode;
 
@@ -27,7 +32,8 @@ class RigidBodyState : public QObject, public btMotionState
         RigidBodyState(Ogre::SceneNode *node, const btTransform &transform, const btTransform &offset = btTransform::getIdentity())
             : mNode(node),
               mTransform(transform),
-              mCenterOfMassOffset(offset)
+              mCenterOfMassOffset(offset),
+              mPoseCounter(0)
         {
         }
 
@@ -35,7 +41,8 @@ class RigidBodyState : public QObject, public btMotionState
                 mNode(node),
                 mTransform(((node != NULL) ? BtOgre::Convert::toBullet(node->getOrientation()) : btQuaternion(0,0,0,1)),
                            ((node != NULL) ? BtOgre::Convert::toBullet(node->getPosition())    : btVector3(0,0,0))),
-                mCenterOfMassOffset(btTransform::getIdentity())
+                mCenterOfMassOffset(btTransform::getIdentity()),
+                mPoseCounter(0)
         {
         }
 
@@ -68,7 +75,6 @@ class RigidBodyState : public QObject, public btMotionState
 
                 mNode->setPosition(posO);
 
-//                qDebug() << "RigidBodyState::setWorldTransform(): emitting new pose";
 //                emit newPose(getPose());
             }
         }
@@ -81,18 +87,35 @@ class RigidBodyState : public QObject, public btMotionState
             Ogre::Radian yaw, pitch, roll;
             mat.ToEulerAnglesYXZ(yaw, pitch, roll);
 
-            btVector3 posBt = (mTransform * mCenterOfMassOffset).getOrigin();
+            btVector3 posePosition = (mTransform * mCenterOfMassOffset).getOrigin();
+
+            float timeDiff = mPreviousPoseTime.msecsTo(QTime::currentTime()) / 1000.0f;
+            mPreviousPoseTime = QTime::currentTime();
+
+            QVector3D velocity(
+                        (posePosition.x() - mPreviousPosePosition.x()) / timeDiff,
+                        (posePosition.y() - mPreviousPosePosition.y()) / timeDiff,
+                        (posePosition.z() - mPreviousPosePosition.z()) / timeDiff);
+
+            mPreviousPosePosition = posePosition;
 
             Pose p(
-                        QVector3D(posBt.x(), posBt.y(), posBt.z()),
+                        QVector3D(posePosition.x(), posePosition.y(), posePosition.z()),
                         //fmod(yaw.valueRadians() + Ogre::Degree(360.0).valueRadians(), 360.0*M_PI/180.0),
                         fmod(yaw.valueDegrees() + Ogre::Degree(360.0).valueDegrees(), 360.0),
                         pitch.valueDegrees(),
                         roll.valueDegrees()
                         );
 
+            p.setVelocity(velocity);
+
             // Whee, we are precise!!
-            p.precision = Pose::ModeIntegrated | Pose::AttitudeAvailable | Pose::HeadingFixed | Pose::RtkFixed | Pose::CorrectionAgeLow;
+            p.precision = Pose::AttitudeAvailable | Pose::HeadingFixed | Pose::RtkFixed | Pose::CorrectionAgeLow;
+
+            // Every second pose is integrated. I'd prefer to update the counter in setTRansform(), but that is called
+            // multiple times per physics iteration. Often, its two times, making this mechanism useless.
+            if(mPoseCounter++ % 2 == 0) p.precision |= Pose::ModeIntegrated;
+
 
             return p;
         }

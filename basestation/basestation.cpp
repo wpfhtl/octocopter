@@ -329,7 +329,7 @@ void BaseStation::keyPressEvent(QKeyEvent* event)
 
     mGlWidget->keyPressEvent(event);
     mFlightPlanner->keyPressEvent(event);
-    if(mLogPlayer) mLogPlayer->keyPressEvent(event);
+    //if(mLogPlayer) mLogPlayer->keyPressEvent(event);
 }
 
 void BaseStation::slotClearCloud()

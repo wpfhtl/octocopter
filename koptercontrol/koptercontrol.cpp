@@ -127,6 +127,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mKopter, SIGNAL(vehicleStatus(const VehicleStatus* const)), mBaseConnection, SLOT(slotNewVehicleStatus(const VehicleStatus* const)));
     connect(mKopter, SIGNAL(flightStateSwitchValueChanged(const FlightStateSwitch* const)), mFlightController, SLOT(slotFlightStateSwitchValueChanged(const FlightStateSwitch* const)));
     connect(mKopter, SIGNAL(calibrationSwitchToggled()), mFlightController, SLOT(slotCalibrateImu()));
+    connect(mKopter, SIGNAL(flightSpeedChanged(float)), mFlightController, SLOT(slotSetFlightSpeed(float)));
 
     connect(mLaserScanner, SIGNAL(heightOverGround(const float)), mFlightController, SLOT(slotSetHeightOverGround(const float)));
     connect(mBaseConnection, SIGNAL(enableScanning(const bool)), mLaserScanner, SLOT(slotEnableScanning(const bool)));
@@ -231,7 +232,7 @@ int main(int argc, char **argv)
     if(getuid() != 0) qFatal("main(): must be run as root to synchronize system time to GNSS time.");
 
     // Renice
-    if(setpriority(PRIO_PROCESS, /*who*/0, -20) != 0)
+    if(setpriority(/*what*/PRIO_PROCESS, /*who*/0, /*prio*/-20) != 0)
     {
         qFatal("main(): unable to renice, quitting.");
     }

@@ -190,8 +190,6 @@ Pose::Pose()
     precision = 0;
     covariances = 100.0f;
     timestamp = 0;
-
-    velocity = 0.0f;
     acceleration = 0.0f;
     rotation = 0.0f;
 }
@@ -205,7 +203,7 @@ Pose::Pose(const QMatrix4x4& matrix, const qint32& timestamp)
     else
         this->timestamp = timestamp;
 
-    velocity = 0.0f;
+    mVelocity = QVector3D();
     acceleration = 0.0f;
     rotation = 0.0f;
 }
@@ -226,7 +224,7 @@ Pose::Pose(const QVector3D &position, const float &yawDegrees, const float &pitc
     else
         this->timestamp = timestamp;
 
-    velocity = 0.0f;
+    mVelocity = QVector3D();
     acceleration = 0.0f;
     rotation = 0.0f;
 }
@@ -329,7 +327,7 @@ Pose Pose::interpolateLinear(const Pose &p0, const Pose &p1, const qint32& time)
     p.timestamp = time;
 
     p.rotation = p0.rotation * (1.0f - mu) + p1.rotation * mu;
-    p.velocity = p0.velocity * (1.0f - mu) + p1.velocity * mu;
+    p.mVelocity = p0.mVelocity * (1.0f - mu) + p1.mVelocity * mu;
     p.acceleration = p0.acceleration * (1.0f - mu) + p1.acceleration * mu;
 
     return p;
@@ -396,7 +394,7 @@ Pose Pose::interpolateCubic(const Pose * const p0, const Pose * const p1, const 
     p.timestamp = time;
 
     p.rotation = p1->rotation * (1.0f - mu) + p2->rotation * mu;
-    p.velocity = p1->velocity * (1.0f - mu) + p2->velocity * mu;
+    p.mVelocity = p1->mVelocity * (1.0f - mu) + p2->mVelocity * mu;
     p.acceleration = p1->acceleration * (1.0f - mu) + p2->acceleration * mu;
 
     return p;
@@ -524,20 +522,25 @@ QDebug operator<<(QDebug dbg, const Pose &pose)
     return dbg.space();
 }
 
-const QString Pose::toString() const
+const QString Pose::toString(bool verbose) const
 {
     const QVector3D position = getPosition();
 
-    return QString()
-            .append("pose t").append(QString::number(timestamp))
-            .append(" (").append(QString::number(position.x(), 'f', 2))
-            .append("/").append(QString::number(position.y(), 'f', 2))
-            .append("/").append(QString::number(position.z(), 'f', 2))
-            .append(") YPR (").append(QString::number(getYawDegrees(), 'f', 2))
-            .append("/").append(QString::number(getPitchDegrees(), 'f', 2))
-            .append("/").append(QString::number(getRollDegrees(), 'f', 2)).append(")")
-            .append(" pr ").append(QString::number(precision))
-            .append(" co ").append(QString::number(covariances, 'f', 2));
+    const QString precisionString = verbose ? getFlagsString() : QString::number(precision);
+
+    return QString("pose t%1 (%2/%3/%4) YPR (%5/%6/%7) VEL (%8/%9/%10) PR %11 CO %12")
+            .arg(timestamp)
+            .arg(position.x(), 0, 'f', 2)
+            .arg(position.y(), 0, 'f', 2)
+            .arg(position.z(), 0, 'f', 2)
+            .arg(getYawDegrees(), 0, 'f', 2)
+            .arg(getPitchDegrees(), 0, 'f', 2)
+            .arg(getRollDegrees(), 0, 'f', 2)
+            .arg(mVelocity.x(), 0, 'f', 3)
+            .arg(mVelocity.y(), 0, 'f', 3)
+            .arg(mVelocity.z(), 0, 'f', 3)
+            .arg(precisionString)
+            .arg(covariances, 0, 'f', 2);
 }
 
 const QString Pose::getFlagsString() const
@@ -551,23 +554,6 @@ const QString Pose::getFlagsString() const
     return flags;
 }
 
-const QString Pose::toStringVerbose() const
-{
-    const QVector3D position = getPosition();
-
-    return QString()
-            .append("pose t").append(QString::number(timestamp))
-            .append(" (").append(QString::number(position.x(), 'f', 2))
-            .append("/").append(QString::number(position.y(), 'f', 2))
-            .append("/").append(QString::number(position.z(), 'f', 2))
-            .append(") YPR (").append(QString::number(getYawDegrees(), 'f', 2))
-            .append("/").append(QString::number(getPitchDegrees(), 'f', 2))
-            .append("/").append(QString::number(getRollDegrees(), 'f', 2)).append(")")
-            .append(" pr ").append(getFlagsString())
-            .append(" co ").append(QString::number(covariances, 'f', 2));
-}
-
-
 bool Pose::isSufficientlyPreciseForFlightControl() const
 {
     return
@@ -577,19 +563,21 @@ bool Pose::isSufficientlyPreciseForFlightControl() const
             && precision & Pose::CorrectionAgeLow   // We want precision
 
             // Non-integrated poses contain IMU drift. When the next integrated pose comes, there'll be a big
-            // step from drifted value to ground thruth, causing trouble in the flight-controller's D-component
-            && precision & Pose::ModeIntegrated
+            // step from drifted value to ground thruth, causing trouble in the flight-controller's D-component.
+            // 2013-04-23: It seems only the 5 INS poses in msec20-intervals show this problem, msec50 is fine.
+            // (see e.g. "speedbased1"-logfiles). Thus, we use msec50 and do not require integrated poses.
+            //&& precision & Pose::ModeIntegrated
 
             && precision & Pose::RtkFixed;          // When switching from RtkFixed to Differential, height can jump by >30m in 1 second(!)
 }
 
 
 // Must be able to process what operator<< writes above, for example:
-// pose t501171350 (-30.49/51.84/140.01) YPR (155.27/2.92/-1.03) pr 17 co 2.34
+// pose t501171350 (-30.49/51.84/140.01) YPR (155.27/2.92/-1.03) VEL (0.12/-0.01/0.47) PR 17 CO 2.34
 Pose::Pose(const QString& poseString)
 {
     QStringList tokens = poseString.split(' ');
-    if(tokens.size() != 9) qDebug() << "Pose::Pose(QString): token stringlist size is not 5!";
+    if(tokens.size() != 11) qDebug() << "Pose::Pose(QString): unexpected token stringlist size, expecting 11!";
     bool success = false;
 
     // set time
@@ -629,17 +617,29 @@ Pose::Pose(const QString& poseString)
     mTransform.rotate(pitch, QVector3D(1,0,0));
     mTransform.rotate(roll, QVector3D(0,0,1));
 
+    // set velocities
+    float vx, vy, vz;
+    QString velocityString = tokens.value(6).remove(0, 1);
+    velocityString.chop(1);
+    const QStringList velocities = velocityString.split('/');
+    vx = velocities.at(0).toFloat(&success);
+    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert vx to float.";
+    vy = velocities.at(1).toFloat(&success);
+    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert vy to float.";
+    vz = velocities.at(2).toFloat(&success);
+    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert vz to float.";
+    setVelocity(QVector3D(vx, vy, vz));
+
     // set precision and covariances
-    precision = tokens.value(6).toInt(&success);
+    precision = tokens.value(8).toInt(&success);
     if(!success) qDebug() << "Pose::Pose(QString): couldn't convert precision to int.";
 
-    covariances = tokens.value(8).toFloat(&success);
+    covariances = tokens.value(10).toFloat(&success);
     if(!success) qDebug() << "Pose::Pose(QString): couldn't convert covariances to float.";
 
     if(poseString != toString())
         qDebug() << "Pose::Pose(QString): parsing failed: original:" << poseString << "reconstructed" << toString();
 
-    velocity = 0.0f;
     acceleration = 0.0f;
     rotation = 0.0f;
 }
@@ -650,18 +650,22 @@ QDataStream& operator<<(QDataStream &out, const Pose &pose)
     out << pose.timestamp;
     out << pose.precision;
     out << pose.covariances;
+    out << pose.getVelocity();
     return out;
 }
 
 QDataStream& operator>>(QDataStream &in, Pose &pose)
 {
     QMatrix4x4 matrix;
+    QVector3D velocity;
     in >> matrix;
     in >> pose.timestamp;
     in >> pose.precision;
     in >> pose.covariances;
+    in >> velocity;
 
     pose.setMatrix(matrix);
+    pose.setVelocity(velocity);
 
     return in;
 }

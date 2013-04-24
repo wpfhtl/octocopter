@@ -146,6 +146,7 @@ private:
     VehicleStatus mVehicleStatus;
     FlightStateSwitch mLastFlightStateSwitch;
     CalibrationSwitchValue mLastCalibrationSwitchValue;
+    qint8 mLastFlightSpeed; // maps to CTRL7, used to set ApproachWaypoint flightspeed in meters per second
 
     void send(const KopterMessage& message);
 
@@ -170,6 +171,8 @@ signals:
     // Mikrokopter calls control from non-remote-control sources "ExternalControl". This reflects SW1 on the RC.
     void flightStateSwitchValueChanged(const FlightStateSwitch* const fss);
     void calibrationSwitchToggled();
+
+    void flightSpeedChanged(const float speed);
 
 };
 

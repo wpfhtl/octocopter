@@ -56,7 +56,7 @@ public:
     ~LogPlayer();
 
     const FlightControllerValues* const getFlightControllerValues() const {return &mFlightControllerValues;}
-    void keyPressEvent(QKeyEvent* event);
+    //void keyPressEvent(QKeyEvent* event);
 
 private:
 
@@ -67,6 +67,11 @@ private:
         Source_FlightController,
         Source_Invalid
     };
+
+    // For the step-datasource-selection
+    QSignalMapper* mStepSignalMapper;
+    QMenu* mStepMenu;
+    DataSource mStepUntilDataSource;
 
     Ui::LogPlayer *ui;
     SbfParser* mSbfParser;
@@ -107,10 +112,13 @@ private slots:
     void slotNewSbfTime(const qint32 tow, const char *, quint16);
 
     bool slotOpenLogFiles();
-    bool slotStepForward(DataSource source = Source_Invalid);
+    DataSource slotStepForward(DataSource source = Source_Invalid);
     void slotRewind();
     void slotGoToTow(qint32 towTarget = -1);
     void slotPlay();
+
+    void slotStepDataSourceChanged(const int datasource);
+    bool slotStepUntilDataSourceProcessed();
 
 signals:
     void message(const LogImportance& importance, const QString& source, const QString& message);

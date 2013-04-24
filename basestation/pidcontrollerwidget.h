@@ -4,6 +4,7 @@
 #include <QDockWidget>
 #include <QMessageBox>
 #include <QString>
+#include <QResizeEvent>
 #include <QTableWidgetItem>
 #include <QMap>
 
@@ -38,6 +39,7 @@ private:
 
     // We don't want to overwrite the values of a cell thats currently being edited by the user.
     QTableWidgetItem* mActiveItem;
+    void resizeEvent(QResizeEvent * event);
 
 private slots:
 //    void slotWeightChanged(int row, int column);

@@ -3,12 +3,7 @@
 
 #include <QDebug>
 #include <QDataStream>
-#include <QStringList>
-
-#include <math.h> // ceil and floor
-
-//TODO: I think FlightControllerValues is the only direct user of this. Merge them?
-
+//#include <QStringList>
 
 class MotionCommand
 {
@@ -25,9 +20,11 @@ public:
     MotionCommand(const quint8 thrust, const float yaw, const float pitch, const float roll);
 
     // Must be able to deserialize toString()
-    MotionCommand(const QString& string);
+//    MotionCommand(const QString& string);
 
     MotionCommand clampedToSafeLimits() const;
+
+    void adjustThrustToPitchAndRoll();
 
     QString toString() const;
 

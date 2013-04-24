@@ -129,36 +129,67 @@ quint16 SbfParser::computeChecksum(const void *buf, unsigned int length) const
   return crc;
 }
 
-void SbfParser::setPose(
-    const qint32& lon,
-    const qint32& lat,
-    const qint32& alt,
-    const quint16& heading,
-    const qint16& pitch,
-    const qint16& roll,
-    const quint32& tow,
-    const quint8& precision)
+void SbfParser::setPose(const Sbf_IntPVAAGeod* block, const GnssStatus& gnssStatus)
 {
-    const double floatLon = ((double)lon) / 10000000.0l;
-    const double floatLat = ((double)lat) / 10000000.0l;
-    const double floatAlt = ((double)alt) / 1000.0l;
+    const double floatLon = ((double)block->Lon) / 10000000.0l;
+    const double floatLat = ((double)block->Lat) / 10000000.0l;
+    const double floatAlt = ((double)block->Alt) / 1000.0l;
+
+    // The rotational velocity is contained in IntAttEuler, which we don't have. So calculate
+    // it using the previous pose before mLastPose is overwritten.
+    const qint32 previousPoseAge = block->TOW - mLastPose.timestamp;
+    const QQuaternion previousPoseOrientation = mLastPose.getOrientation();
 
     // Please look at the septentrio "Firmware user manual", page 47ff for conversion rules.
     mLastPose = Pose(
-                convertGeodeticToCartesian(floatLon, floatLat, floatAlt, precision),
-                -((double)heading) * 0.01l, // Z axis points down in VehicleReferenceFrame, values from 0 to 360, both point north
-                ((double)pitch) * 0.01l,
-                -((double)roll) * 0.01l, // their roll axis points forward from the vehicle. We have it OpenGL-style with Z pointing backwards
-                (qint32)tow // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
+                convertGeodeticToCartesian(floatLon, floatLat, floatAlt),
+                -((double)block->Heading) * 0.01l, // Z axis points down in VehicleReferenceFrame, values from 0 to 360, both point north
+                ((double)block->Pitch) * 0.01l,
+                -((double)block->Roll) * 0.01l, // their roll axis points forward from the vehicle. We have it OpenGL-style with Z pointing backwards
+                (qint32)block->TOW // Receiver time in milliseconds. WARNING: be afraid of WNc rollovers at runtime!
                 );
+
+    if(block->Heading != 65535 && block->Pitch != -32768 && block->Roll != -32768)
+        mLastPose.precision |= Pose::AttitudeAvailable;
+
+    if(testBit(block->Info, 11)) // Heading ambiguity is Fixed
+        mLastPose.precision |= Pose::HeadingFixed;
+
+    // This flag is useless for precision, as non-integrated (the 4 steps between two integrated poses) are good enough for sensor fusion, too.
+    if(block->Mode == 2) // integrated solution, not sensor-only or GNSS-only
+        mLastPose.precision |= Pose::ModeIntegrated;
+
+    if((block->GNSSPVTMode & 15) == 4) // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().
+        mLastPose.precision |= Pose::RtkFixed;
+
+    if(gnssStatus.meanCorrAge < 100) // Thats ten seconds
+        mLastPose.precision |= Pose::CorrectionAgeLow;
 
     // Move the pose from the ARP/Marker that IntPVAAGeod outputs to the vehicle's center
     mLastPose.getMatrixRef() *= mTransformArpToVehicle;
 
-    mLastPose.precision = precision;
+    mLastPose.covariances = gnssStatus.covariances;
+
+    // Determine rotational speed in degrees per second
+    if(previousPoseAge < 100)
+    {
+        mLastPose.rotation = Pose::getAngleBetweenDegrees(previousPoseOrientation, mLastPose.getOrientation());
+        mLastPose.rotation /= (previousPoseAge / 1000.0f);
+    }
+    else
+        mLastPose.rotation = 0.0f;
+
+    // Determine acceleration magnitude
+    if(block->Ax != I16_DONOTUSE && block->Ay != I16_DONOTUSE && block->Az != I16_DONOTUSE)
+        mLastPose.acceleration = QVector3D(block->Ax, block->Ay, block->Az+981).length() / 100.0f;
+    else
+        mLastPose.acceleration = 0.0f;
+
+    if(block->Vnorth != I32_DONOTUSE && block->Veast != I32_DONOTUSE && block->Vup != I32_DONOTUSE)
+        mLastPose.setVelocity(QVector3D(block->Veast/1000.0f, block->Vup/1000.0f, -block->Vnorth/1000.0f));
 }
 
-QVector3D SbfParser::convertGeodeticToCartesian(const double &lon, const double &lat, const double &elevation, const quint8& precision)
+QVector3D SbfParser::convertGeodeticToCartesian(const double &lon, const double &lat, const double &elevation)
 {
     // Set longitude, latitude and elevation of first GNSS fix to let the rover start at cartesian 0/0/0
     // This may ONLY happen based on really good positional fixes (=RTK Fixed): if we initialize these
@@ -168,7 +199,7 @@ QVector3D SbfParser::convertGeodeticToCartesian(const double &lon, const double 
     {
         // Our world coordinate system is not set yet. If the GNSS measurement is precise enough, define it now. If
         // its NOT precise, return a null QVector3D.
-        if(precision & Pose::RtkFixed)
+        if(mGnssStatus.pvtMode == GnssStatus::PvtMode::RtkFixed)
         {
             mOriginLongitude = lon;
             mOriginLatitude = lat;
@@ -459,50 +490,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
             mGnssStatus.numSatellitesUsed = numberOfSatellitesUsed;
         }
 
-        quint8 precisionFlags = 0;
-
-        if(block->Heading != 65535 && block->Pitch != -32768 && block->Roll != -32768)
-            precisionFlags |= Pose::AttitudeAvailable;
-
-        if(testBit(block->Info, 11)) // Heading ambiguity is Fixed
-            precisionFlags |= Pose::HeadingFixed;
-
-        // This flag is useless for precision, as non-integrated (the 4 steps between two integrated poses) are good enough for sensor fusion, too.
-        if(block->Mode == 2) // integrated solution, not sensor-only or GNSS-only
-            precisionFlags |= Pose::ModeIntegrated;
-
-        if((block->GNSSPVTMode & 15) == 4) // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().
-            precisionFlags |= Pose::RtkFixed;
-
-        if(mGnssStatus.meanCorrAge < 40) // thats four seconds
-            precisionFlags |= Pose::CorrectionAgeLow;
-
-
-        // The rotational velocity is contained in IntAttEuler, which we don't have. So calculate using last pose
-        qint32 ageOfOldPose = block->TOW - mLastPose.timestamp;
-        const QQuaternion lastOrientation = mLastPose.getOrientation();
-
-        setPose(block->Lon, block->Lat, block->Alt, block->Heading, block->Pitch, block->Roll, block->TOW, precisionFlags);
-        mLastPose.covariances = mGnssStatus.covariances;
-
-        if(ageOfOldPose < 100)
-        {
-//            qDebug() << ageOfOldPose;
-            mLastPose.rotation = Pose::getAngleBetweenDegrees(lastOrientation, mLastPose.getOrientation());
-            mLastPose.rotation /= (ageOfOldPose / 1000.0f);
-        }
-        else
-            mLastPose.rotation = 0.0f;
-
-        if(block->Ax != I16_DONOTUSE && block->Ay != I16_DONOTUSE && block->Az != I16_DONOTUSE)
-            mLastPose.acceleration = QVector3D(block->Ax, block->Ay, block->Az+981).length() / 100.0f;
-        else
-            mLastPose.acceleration = 0.0f;
-
-        if(block->Vnorth != I32_DONOTUSE && block->Veast != I32_DONOTUSE && block->Vup != I32_DONOTUSE)
-            mLastPose.velocity = QVector3D(block->Vnorth, block->Veast, block->Vup).length() / 1000.0f;
-        else
-            mLastPose.velocity = 0.0f;
+        setPose(block, mGnssStatus);
 
         // Here we emit the gathered pose. Depending on the pose's time and its quality, we emit it for different consumers
 
@@ -525,7 +513,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
             emit newVehiclePoseSensorFuser(&mLastPose);
 
             // Tell others whether we're working well.
-            if(!mGnssDeviceWorkingPrecisely && precisionFlags & Pose::AttitudeAvailable && precisionFlags & Pose::HeadingFixed && precisionFlags & Pose::RtkFixed && precisionFlags & Pose::CorrectionAgeLow)
+            if(!mGnssDeviceWorkingPrecisely && mLastPose.precision & Pose::AttitudeAvailable && mLastPose.precision & Pose::HeadingFixed && mLastPose.precision & Pose::RtkFixed && mLastPose.precision & Pose::CorrectionAgeLow)
             {
                 mGnssDeviceWorkingPrecisely = true;
                 qDebug() << block->TOW << "SbfParser::processNextValidPacket(): precise pose, setting mGnssDeviceWorkingPrecisely to true, emitting.";
@@ -534,11 +522,11 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
             else if(mGnssDeviceWorkingPrecisely
                     &&
                     !
-                    (precisionFlags & Pose::AttitudeAvailable && precisionFlags & Pose::HeadingFixed && precisionFlags & Pose::RtkFixed && precisionFlags & Pose::CorrectionAgeLow)
+                    (mLastPose.precision & Pose::AttitudeAvailable && mLastPose.precision & Pose::HeadingFixed && mLastPose.precision & Pose::RtkFixed && mLastPose.precision & Pose::CorrectionAgeLow)
                     )
             {
                 mGnssDeviceWorkingPrecisely = false;
-                qDebug() << block->TOW << "SbfParser::processNextValidPacket(): unprecise pose, setting mGnssDeviceWorkingPrecisely to false, emitting.";
+                qDebug() << block->TOW << "SbfParser::processNextValidPacket(): unprecise pose (flags" << mLastPose.precision << "), setting mGnssDeviceWorkingPrecisely to false, emitting.";
                 emit gnssDeviceWorkingPrecisely(mGnssDeviceWorkingPrecisely);
             }
         }

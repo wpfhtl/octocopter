@@ -6,20 +6,20 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>233</width>
-    <height>160</height>
+    <width>220</width>
+    <height>142</height>
    </rect>
   </property>
   <property name="sizePolicy">
-   <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+   <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
     <horstretch>0</horstretch>
     <verstretch>0</verstretch>
    </sizepolicy>
   </property>
   <property name="minimumSize">
    <size>
-    <width>233</width>
-    <height>160</height>
+    <width>220</width>
+    <height>134</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -36,6 +36,18 @@
     <enum>Qt::DefaultContextMenu</enum>
    </property>
    <layout class="QVBoxLayout" name="verticalLayout">
+    <property name="leftMargin">
+     <number>2</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>2</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout">
       <item>
@@ -108,6 +120,12 @@
       </item>
       <item row="0" column="4">
        <widget class="QDoubleSpinBox" name="mSpinBoxLaserScannerY">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
         <property name="minimum">
          <double>-1.000000000000000</double>
         </property>
@@ -177,6 +195,12 @@
       </item>
       <item row="1" column="4">
        <widget class="QDoubleSpinBox" name="mSpinBoxLaserScannerPitch">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
         <property name="decimals">
          <number>0</number>
         </property>
@@ -247,15 +271,30 @@
     </item>
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_3">
+      <property name="spacing">
+       <number>1</number>
+      </property>
       <item>
        <widget class="QPushButton" name="mPushButtonRewind">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="text">
          <string>Rewind</string>
         </property>
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="mPushButtonStepForward">
+       <widget class="QToolButton" name="mPushButtonStepForward">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="text">
          <string>Step</string>
         </property>
@@ -263,6 +302,12 @@
       </item>
       <item>
        <widget class="QPushButton" name="mPushButtonGoTo">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="text">
          <string>GoTo</string>
         </property>
@@ -270,6 +315,12 @@
       </item>
       <item>
        <widget class="QPushButton" name="mPushButtonPlay">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="text">
          <string>Play</string>
         </property>

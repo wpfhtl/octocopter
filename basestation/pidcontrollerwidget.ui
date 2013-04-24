@@ -10,6 +10,12 @@
     <height>152</height>
    </rect>
   </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
   <property name="windowTitle">
    <string>PID Controllers</string>
   </property>
@@ -35,20 +41,26 @@
       <property name="showGrid">
        <bool>false</bool>
       </property>
+      <attribute name="horizontalHeaderCascadingSectionResizes">
+       <bool>true</bool>
+      </attribute>
       <attribute name="horizontalHeaderDefaultSectionSize">
-       <number>40</number>
+       <number>50</number>
       </attribute>
       <attribute name="horizontalHeaderHighlightSections">
        <bool>false</bool>
       </attribute>
       <attribute name="horizontalHeaderMinimumSectionSize">
-       <number>20</number>
+       <number>50</number>
+      </attribute>
+      <attribute name="horizontalHeaderStretchLastSection">
+       <bool>true</bool>
       </attribute>
       <attribute name="verticalHeaderDefaultSectionSize">
        <number>15</number>
       </attribute>
       <attribute name="verticalHeaderMinimumSectionSize">
-       <number>10</number>
+       <number>15</number>
       </attribute>
      </widget>
     </item>

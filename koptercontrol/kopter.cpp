@@ -27,6 +27,8 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     mTimerPpmChannelPublisher->start(500);
     connect(mTimerPpmChannelPublisher, SIGNAL(timeout()), SLOT(slotGetPpmChannelValues()));
 
+    mLastFlightSpeed = 0.0f;
+
     slotRequestVersion();
 
     slotSubscribeDebugValues(2000);
@@ -103,6 +105,10 @@ void Kopter::slotSetMotion(const MotionCommand* const mc)
     if(!mMissionStartTime.isValid()) mMissionStartTime = QTime::currentTime();
 
     const MotionCommand motionClamped = mc->clampedToSafeLimits();
+
+    // When pitching/rolling a lot, we should add more thrust to keep our height.
+    // Enable this as soon as there are no weird outliers in pitch/roll anymore.
+    //motionClamped.adjustThrustToPitchAndRoll();
 
     qDebug() << "Kopter::slotSetMotion(): setting clamped motion, frame:" << mStructExternControl.Frame << "thrust:" << motionClamped.thrust << "yaw:" << motionClamped.yaw << "pitch:" << motionClamped.pitch << "roll:" << motionClamped.roll;
 
@@ -303,6 +309,15 @@ void Kopter::slotSerialPortDataReady()
                     emit calibrationSwitchToggled();
                 }
                 mLastCalibrationSwitchValue = ppmChannels->calibration > 0 ? CalibrationSwitchHigh : CalibrationSwitchLow;
+
+                if(abs(ppmChannels->poti - mLastFlightSpeed) > 3)
+                {
+                    // The value's range is actually -123 to 128.
+                    float flightSpeed = qBound(0, ppmChannels->poti + 120, 255) / 100.0f;
+                    mLastFlightSpeed = ppmChannels->poti;
+                    qDebug() << "Kopter::slotSerialPortDataReady(): flightspeed changed to" << flightSpeed;
+                    emit flightSpeedChanged(flightSpeed);
+                }
             }
             else if(message.getId() == 'T')
             {

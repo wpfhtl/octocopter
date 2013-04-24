@@ -511,6 +511,12 @@ void GnssDevice::slotSetPoseFrequency(bool highSpeed)
 
       As for the msec50 option, the result is the same: 10 integrated packets per second.
       If that is enough for sensorfuser (to be decided), then lets use msec50!
+
+      2013-04-23: It SEEMS(!), that when using msec20, the 4 IMU-integrated poses can
+      drift off badly, whereas the single IMU-integrated pose in msec50 seems quite precise.
+
+      Because the INS only poses in msec20 are unusable for both sensorfusion and flight-
+      control, we use msec50. Flightcontrol works with 10Hz, but maybe 20Hz is even better.
     */
 
     if(highSpeed)
@@ -672,7 +678,7 @@ void GnssDevice::slotSetDifferentialCorrections(const QByteArray* const differen
     {
         // simply write the RTK data into the com-port
         mDiffCorrDataCounter += differentialCorrections->size();
-        //        qDebug() << "GnssDevice::slotSetDifferentialCorrections(): forwarding" << data.size() << "bytes of diffcorr to GNSS device, total is" << mRtkDataCounter;
+        qDebug() << "GnssDevice::slotSetDifferentialCorrections(): forwarding" << differentialCorrections->size() << "bytes of diffcorr to GNSS device, total is" << mDiffCorrDataCounter/1024.0f << "mb";
         mSerialPortCom->write(*differentialCorrections);
         //        emit message(
         //                Information,

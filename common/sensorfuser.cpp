@@ -119,6 +119,8 @@ void SensorFuser::fuseRayWithLastInterpolatedPose(const qint16 index, const floa
 // According to mInterpolationmethod, we set each ScanInfo' object 's poses-list to be the 1(nn) / 2(linear) / 3(linear) / 4(cubic) / 5(cubic) best poses to interpolate
 void SensorFuser::fuseScans()
 {
+    Profiler p(__PRETTY_FUNCTION__);
+
     // Process every scan...
     QMutableVectorIterator<ScanInformation> iteratorScanInformation(mScanInformation);
     while(iteratorScanInformation.hasNext())
@@ -575,7 +577,7 @@ void SensorFuser::slotNewVehiclePose(const Pose* const pose)
         return;
     }
 
-    Profiler p(__PRETTY_FUNCTION__);
+    //Profiler p(__PRETTY_FUNCTION__);
 
 //    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a " << pose;
 
@@ -688,7 +690,7 @@ void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, std::vecto
 {
 //    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
 
-    Profiler p(__PRETTY_FUNCTION__);
+    //Profiler p(__PRETTY_FUNCTION__);
 
     // Do not store data that we cannot fuse anyway, because there is no pose or its very old (no gnss reception)
     if(!mPoses.size() || mPoses.last().timestamp < (timestampScanScanner - MaximumFusionTimeOffset::Cubic))
