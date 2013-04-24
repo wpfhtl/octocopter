@@ -455,7 +455,6 @@ void FlightController::setFlightState(FlightState newFlightState)
         return;
     }
 
-    /* keep controller values constant for now!
     // Set controller weights according to new flightstate
     if(mFlightControllerWeights.contains(newFlightState.state))
     {
@@ -475,7 +474,7 @@ void FlightController::setFlightState(FlightState newFlightState)
         mFlightControllerValues.controllerPitch.setWeights(0.0f, 0.0f, 0.0f);
         mFlightControllerValues.controllerRoll.setWeights(0.0f, 0.0f, 0.0f);
     }
-    */
+    
 
     // When switching from ApproachWaypoint or Hover to something manual, we want these members to be cleared for easier debugging.
     mFlightControllerValues.controllerThrust.reset();
@@ -527,7 +526,7 @@ void FlightController::setFlightState(FlightState newFlightState)
         // hoverpos a little below ourselves, so the rotors keep quiet. We can then raise the hoverpos by a meter to
         // make it start up. If the hoverpos was at the current pos, the thrust would change quickly due to noise in
         // the GNSS pose's positions.
-        const QVector3D offset(0.0f, -0.1f, 0.0f);
+        const QVector3D offset(0.0f, -0.2f, 0.0f);
 
         mFlightControllerValues.hoverPosition = mFlightControllerValues.lastKnownPose.getPosition() + offset;
 
