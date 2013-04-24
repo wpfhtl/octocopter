@@ -48,7 +48,7 @@ private:
     LogFile* mLogFile;
 
 //    Pose mPreviousPose;
-    float mFlightSpeedPerAxis;
+    float mMaxFlightSpeedPerAxis;
 
     FlightControllerValues mFlightControllerValues;
 /*
@@ -221,6 +221,10 @@ public slots:
     // This means that reading IMU values and then setting the kopter's pitch/roll from there leads to big drifting. To
     // counter this, we fly manually and tune pitch/roll to have it balanced, then toggle SW4/PB8, calling this slot.
     // FlightController then saves the currently read IMU values as offsets. Easy, huh?
+    // 2013-04-24: we don't currently use the IMU values at all, as we control based on speeds.
+    // As an experiment, we use this switch on the remote control to raise the hoverPosition by one meter. This way, we
+    // can have the helicopter in UserControl on the ground, then switch to hover, making it hover on the ground. Then,
+    // we call this slot to raise the hoverpos, causing the helicopter to start quite furiously :)
     void slotCalibrateImu();
 
     // This signal comes from Kopter (the MK's serial connection), and we use it only to derive the flightstate from the RemoteControl's flightstate-switch

@@ -17,23 +17,23 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
     controllerWeights.clear();
     // Hover - Thrust
     weights.clear();
-    weights.insert('p', 80.0f);
+    weights.insert('p', 100.0f);
     weights.insert('i', 0.0f);
-    weights.insert('d', 30.0f);
+    weights.insert('d', 10.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerThrust, weights);
 
     // Hover - Yaw
     weights.clear();
-    weights.insert('p', 3.0f);
+    weights.insert('p', 1.0f);
     weights.insert('i', 0.0f);
-    weights.insert('d', 1.5f);
+    weights.insert('d', 0.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerYaw, weights);
 
     // Hover - Pitch / Roll
     weights.clear();
-    weights.insert('p', 10.0f);
+    weights.insert('p', 30.0f);
     weights.insert('i', 0.0f);
-    weights.insert('d', 15.0f);
+    weights.insert('d', 0.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerPitch, weights);
     controllerWeights.insert(&mFlightControllerValues.controllerRoll, weights);
     mFlightControllerWeights.insert(FlightState::Value::Hover, controllerWeights);
@@ -75,7 +75,7 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
     // set mFlightControllerValues.lastKnownHeightOverGround to 1.0 so it doesn't prevent pitch/roll
     mFlightControllerValues.lastKnownHeightOverGround = 1.0f;
 
-    mFlightSpeedPerAxis = 1.0f;
+    mMaxFlightSpeedPerAxis = 1.0f;
 
     setFlightState(FlightState(FlightState::Value::UserControl));
 }
@@ -195,8 +195,8 @@ void FlightController::slotComputeMotionCommands()
             const float speedOverPitchValue = -cos(angleFromVehicleFrontToSpeedVector) * worldFrameSpeedValue.length();
             const float speedOverRollValue  = -sin(angleFromVehicleFrontToSpeedVector) * worldFrameSpeedValue.length();
 
-            const float speedOverPitchDesired = qBound(-mFlightSpeedPerAxis, lateralOffsetPitch, mFlightSpeedPerAxis);
-            const float speedOverRollDesired  = qBound(-mFlightSpeedPerAxis, lateralOffsetRoll, mFlightSpeedPerAxis);
+            const float speedOverPitchDesired = qBound(-mMaxFlightSpeedPerAxis, lateralOffsetPitch, mMaxFlightSpeedPerAxis);
+            const float speedOverRollDesired  = qBound(-mMaxFlightSpeedPerAxis, lateralOffsetRoll, mMaxFlightSpeedPerAxis);
 
             qDebug() << "FlightController::slotComputeMotionCommands():" << getFlightState().toString() << mFlightControllerValues.lastKnownPose
                      << "trajGoal:" << mFlightControllerValues.trajectoryGoal
@@ -259,7 +259,7 @@ void FlightController::getLateralOffsetsVehicleToHoverPosition(const QVector3D& 
     pitch = cos(angleToTurnTowardsDesiredPosition) * vectorVehicleToHoverPosition.length();
     roll =  sin(angleToTurnTowardsDesiredPosition) * vectorVehicleToHoverPosition.length();
 
-    qDebug() << "FlightController::getLateralOffsets(): lateral offset pitch" << pitch << "roll" << roll;
+    qDebug() << "FlightController::getLateralOffsetsVehicleToHoverPosition(): lateral offset pitch" << pitch << "roll" << roll;
 }
 
 /*void FlightController::smoothenControllerOutput(MotionCommand& mc)
@@ -284,7 +284,14 @@ void FlightController::logFlightControllerValues()
 
 void FlightController::slotCalibrateImu()
 {
-    mImuOffsets.doCalibration();
+    //mImuOffsets.doCalibration();
+    // raise the hoverpos by 1.5m to start the flight.
+    if(mFlightControllerValues.flightState == FlightState::Value::Hover)
+    {
+        qDebug() << "FlightController::slotCalibrateImu(): hovering, raising hoverpos and trajectorygoal by 1.5m - please step back!";
+        mFlightControllerValues.hoverPosition  += QVector3D(0.0f, 1.5f, 0.0f);
+        mFlightControllerValues.trajectoryGoal += QVector3D(0.0f, 1.5f, 0.0f);
+    }
 }
 
 void FlightController::nextWayPointReached()
@@ -448,10 +455,11 @@ void FlightController::setFlightState(FlightState newFlightState)
         return;
     }
 
+    /* keep controller values constant for now!
     // Set controller weights according to new flightstate
     if(mFlightControllerWeights.contains(newFlightState.state))
     {
-        QMutableMapIterator<PidController*,QMap<QChar /*weightName*/,float /*weight*/> > itFlightStateWeights(mFlightControllerWeights[newFlightState.state]);
+        QMutableMapIterator<PidController*,QMap<QChar,float> > itFlightStateWeights(mFlightControllerWeights[newFlightState.state]);
         while(itFlightStateWeights.hasNext())
         {
             itFlightStateWeights.next();
@@ -467,7 +475,7 @@ void FlightController::setFlightState(FlightState newFlightState)
         mFlightControllerValues.controllerPitch.setWeights(0.0f, 0.0f, 0.0f);
         mFlightControllerValues.controllerRoll.setWeights(0.0f, 0.0f, 0.0f);
     }
-
+    */
 
     // When switching from ApproachWaypoint or Hover to something manual, we want these members to be cleared for easier debugging.
     mFlightControllerValues.controllerThrust.reset();
@@ -514,10 +522,17 @@ void FlightController::setFlightState(FlightState newFlightState)
 
     case FlightState::Value::Hover:
     {
-        mFlightControllerValues.hoverPosition = mFlightControllerValues.lastKnownPose.getPosition();
+        // When going to hover, we want the vehicle to stay almost at its current position, but just a little below.
+        // This is to ease the start-procedure: When in UserControl on the ground, we switch to hover, setting the
+        // hoverpos a little below ourselves, so the rotors keep quiet. We can then raise the hoverpos by a meter to
+        // make it start up. If the hoverpos was at the current pos, the thrust would change quickly due to noise in
+        // the GNSS pose's positions.
+        const QVector3D offset(0.0f, -0.1f, 0.0f);
+
+        mFlightControllerValues.hoverPosition = mFlightControllerValues.lastKnownPose.getPosition() + offset;
 
         // Just for testing
-        mFlightControllerValues.trajectoryGoal = mFlightControllerValues.lastKnownPose.getPosition();
+        mFlightControllerValues.trajectoryGoal = mFlightControllerValues.lastKnownPose.getPosition() + offset;
 
         if(mFlightControllerValues.lastKnownPose.getAge() > 100)
             qDebug() << "FlightController::setFlightState(): WARNING: going to hover, but pose being set as hover-target is" << mFlightControllerValues.lastKnownPose.getAge() << "ms old!";
@@ -824,6 +839,6 @@ QVector3D FlightController::getHoverPosition(const QVector3D& trajectoryStart, c
 
 void FlightController::slotSetFlightSpeed(const float flightSpeed)
 {
-    qDebug() << "FlightController::slotSetFlightSpeed(): changing flightspeed per axis from" << mFlightSpeedPerAxis << "m/s to" << flightSpeed << "m/s";
-    mFlightSpeedPerAxis = flightSpeed;
+    qDebug() << "FlightController::slotSetFlightSpeed(): changing maximum flightspeed per axis from" << mMaxFlightSpeedPerAxis << "m/s to" << flightSpeed << "m/s";
+    mMaxFlightSpeedPerAxis = flightSpeed;
 }

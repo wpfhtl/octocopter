@@ -439,7 +439,7 @@ void GnssDevice::slotCommunicationSetup()
     //slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
 
     // For now, record support messages for septentrio
-    slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,msec500"); // septentrio wants msec100, but that kills the cpu
+    slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,sec1"); // septentrio wants msec100, but that kills the cpu
 
     // BBSamples contains data for the spectrum view, but Vim (not the editor, the RF-guy of Septentrio fame) said this is a VERY heavy packet.
     // So we skip this for now to keep the CPU load low (it was over 80%!)

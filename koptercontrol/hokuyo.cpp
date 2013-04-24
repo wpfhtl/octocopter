@@ -821,7 +821,7 @@ void Hokuyo::slotProcessScans()
             QTime t;t.start();
             const int status = serviceScan(distances, towScanBeginning);
 
-            qDebug() << "Hokuyo::slotProcessScans(): serviceScan() took" << t.elapsed() << "ms for" << distances->size() <<"rays, scan started at time" << towScanBeginning;
+            //qDebug() << "Hokuyo::slotProcessScans(): serviceScan() took" << t.elapsed() << "ms for" << distances->size() <<"rays, scan started at time" << towScanBeginning;
 
             if(status != 0)
             {

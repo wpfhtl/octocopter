@@ -68,7 +68,8 @@ public:
     float covariances;
     quint8 precision;
 
-    static constexpr float maximumUsableCovariance = 0.02f;
+    // Usually, maximum covariances converge to about 0.02.
+    static constexpr float maximumUsableCovariance = 0.06f;
 
     void setVelocity(const QVector3D& velocity)
     {
