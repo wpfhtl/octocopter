@@ -36,24 +36,6 @@ MotionCommand::MotionCommand(const quint8 thrust, const float yaw, const float p
     this->roll = (qint8)qBound(-127.0f, roll, 127.0f);
 }
 
-/*
-MotionCommand::MotionCommand(const QString& string)
-{
-    QStringList list = string.split(" ", QString::KeepEmptyParts);
-    Q_ASSERT(list.size() == 8);
-
-    bool success = false;
-
-    thrust = list.at(1).toInt(&success);
-    Q_ASSERT(success);
-    yaw = list.at(3).toInt(&success);
-    Q_ASSERT(success);
-    pitch = list.at(5).toInt(&success);
-    Q_ASSERT(success);
-    roll = list.at(7).toInt(&success);
-    Q_ASSERT(success);
-}*/
-
 QString MotionCommand::toString() const
 {
     return QString ("thrust %1 yaw %2 pitch %3 roll %4").arg(thrust).arg(yaw).arg(pitch).arg(roll);

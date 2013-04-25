@@ -19,9 +19,6 @@ public:
 
     MotionCommand(const quint8 thrust, const float yaw, const float pitch, const float roll);
 
-    // Must be able to deserialize toString()
-//    MotionCommand(const QString& string);
-
     MotionCommand clampedToSafeLimits() const;
 
     void adjustThrustToPitchAndRoll();

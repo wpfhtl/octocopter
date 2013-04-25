@@ -239,7 +239,6 @@ int main(int argc, char **argv)
 
     setupUnixSignalHandlers();
 
-
     KopterControl KopterControl(argc, argv);
 
     return KopterControl.exec();

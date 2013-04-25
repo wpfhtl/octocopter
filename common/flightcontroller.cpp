@@ -259,7 +259,7 @@ float FlightController::getLateralOffsetOnVehicleRollAxisToPosition(const QVecto
 
 void FlightController::logFlightControllerValues()
 {
-    qDebug() << "FlightController::logFlightControllerValues(): logging pose velocity of" << mFlightControllerValues.lastKnownPose.getVelocity();
+    qDebug() << "FlightController::logFlightControllerValues(): logging" << mFlightControllerValues.lastKnownPose << "at fcvtime" << mFlightControllerValues.timestamp;
 
     QByteArray magic("FLTCLR");
     mLogFile->write(magic.constData(), magic.size());

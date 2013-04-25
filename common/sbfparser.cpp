@@ -520,10 +520,10 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         // Only emit a precise pose if the values are not set to the do-not-use values.
         if(
                 block->Error == 0
-                && block->TOW != (quint32)4294967295
-                && block->Lat != (qint32)-2147483648
-                && block->Lon != (qint32)-2147483648
-                && block->Alt != (qint32)-2147483648)
+                && block->TOW != U32_DONOTUSE
+                && block->Lat != I32_DONOTUSE
+                && block->Lon != I32_DONOTUSE
+                && block->Alt != I32_DONOTUSE)
         {
             emit newVehiclePoseSensorFuser(&mLastPose);
 
@@ -577,7 +577,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
 
         //qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): received ReceiverTime block: msgid" << msgId << "msgIdBlock" << msgIdBlock << "msgLength" << msgLength << "revision" << msgIdRev;
 
-        if(block->TOW == (quint32)4294967295)
+        if(block->TOW == U32_DONOTUSE)
         {
             emit message(
                         Error,
@@ -610,7 +610,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         // Laserscanner sync signal is soldered to both ports, but port 1 is broken. If it ever starts working again, I want to know.
         Q_ASSERT(block->Source == 2);
 
-        if(block->TOW != 4294967295L)
+        if(block->TOW != U32_DONOTUSE)
         {
             // Emit the time of the scan. The Scanner sets the pulse at the END of a scan,
             // but our convention is to use times of a scans middle. Thus, decrement 12ms.
