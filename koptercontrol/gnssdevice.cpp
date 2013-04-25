@@ -678,7 +678,7 @@ void GnssDevice::slotSetDifferentialCorrections(const QByteArray* const differen
     {
         // simply write the RTK data into the com-port
         mDiffCorrDataCounter += differentialCorrections->size();
-        qDebug() << "GnssDevice::slotSetDifferentialCorrections(): forwarding" << differentialCorrections->size() << "bytes of diffcorr to GNSS device, total is" << mDiffCorrDataCounter/1024.0f << "mb";
+        qDebug() << "GnssDevice::slotSetDifferentialCorrections(): forwarding" << differentialCorrections->size() << "bytes of diffcorr to GNSS device, total is" << mDiffCorrDataCounter/1048576.0f << "mb";
         mSerialPortCom->write(*differentialCorrections);
         //        emit message(
         //                Information,
