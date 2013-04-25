@@ -14,7 +14,7 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     mSerialPortFlightCtrl->setFlowControl(AbstractSerial::FlowControlOff);
 
     mLastFlightStateSwitch.value = FlightStateSwitch::Value::UserControl;
-    mLastCalibrationSwitchValue = CalibrationSwitchUndefined;
+    mLastPushButtonValue = PushButtonValueUndefined;
     mStructExternControl.Frame = 0;
 
     mLastSendTime = QTime::currentTime();
@@ -101,7 +101,6 @@ void Kopter::send(const KopterMessage& message)
 
 void Kopter::slotSetMotion(const MotionCommand* const mc)
 {
-    Profiler p(__PRETTY_FUNCTION__);
     if(!mMissionStartTime.isValid()) mMissionStartTime = QTime::currentTime();
 
     const MotionCommand motionClamped = mc->clampedToSafeLimits();
@@ -303,12 +302,12 @@ void Kopter::slotSerialPortDataReady()
                     emit flightStateSwitchValueChanged(&mLastFlightStateSwitch);
                 }
 
-                if(ppmChannels->calibration > 0 != (mLastCalibrationSwitchValue == CalibrationSwitchHigh) && mLastCalibrationSwitchValue != CalibrationSwitchUndefined)
+                if(ppmChannels->pushButton > 0 != (mLastPushButtonValue == PushButtonValueHigh) && mLastPushButtonValue != PushButtonValueUndefined)
                 {
-                    //qDebug() << "Kopter::slotSerialPortDataReady(): calibration switch toggled from" << mLastCalibrationSwitchValue << "to:" << (ppmChannels->calibration > 0);
-                    emit calibrationSwitchToggled();
+                    //qDebug() << "Kopter::slotSerialPortDataReady(): pushbutton toggled from" << mLastPushButtonValue << "to:" << (ppmChannels->pushButton > 0);
+                    emit pushButtonToggled();
                 }
-                mLastCalibrationSwitchValue = ppmChannels->calibration > 0 ? CalibrationSwitchHigh : CalibrationSwitchLow;
+                mLastPushButtonValue = ppmChannels->pushButton > 0 ? PushButtonValueHigh : PushButtonValueLow;
 
                 if(abs(ppmChannels->poti - mLastFlightSpeed) > 3)
                 {

@@ -240,6 +240,7 @@ void RoverConnection::processPacket(QByteArray data)
     {
         stream >> mFlightState;
 
+        qDebug() << "RoverConnection::processPacket: emitting flightstate" << mFlightState.toString();
         emit flightState(&mFlightState);
     }
     else if(packetType == "flightcontrollervalues")

@@ -173,6 +173,8 @@ void GlWidget::initializeGL()
     mModelTrajectoryStart = new Model(QFile(modelPath.absolutePath() + "/media/trajectory-start.obj"), QString("../media/"), this);
     mModelTrajectoryGoal = new Model(QFile(modelPath.absolutePath() + "/media/trajectory-goal.obj"), QString("../media/"), this);
 
+    mModelVelocityArrow = new Model(QFile(modelPath.absolutePath() + "/media/velocity-arrow.obj"), QString("../media/"), this);
+
     mModelControllerP = new Model(QFile(modelPath.absolutePath() + "/media/controller-p.obj"), QString("../media/"), this);
     mModelControllerI = new Model(QFile(modelPath.absolutePath() + "/media/controller-i.obj"), QString("../media/"), this);
     mModelControllerD = new Model(QFile(modelPath.absolutePath() + "/media/controller-d.obj"), QString("../media/"), this);
@@ -394,7 +396,7 @@ void GlWidget::paintGL()
     if(mLastKnownVehiclePose) transformVehicle = mLastKnownVehiclePose->getMatrixConst();
 
     // Only show controller input if its present and less than 500 ms old.
-    if(mLastFlightControllerValues/* && mLastKnownVehiclePose->timestamp - mLastFlightControllerValues->lastKnownPose.timestamp < 500*/)
+    if(mLastFlightControllerValues && mLastKnownVehiclePose->timestamp - mLastFlightControllerValues->lastKnownPose.timestamp < 500)
     {
 //        qDebug() << "now visualizing motioncommand from" << mLastFlightControllerValues->lastKnownPose.timestamp << mLastFlightControllerValues->motionCommand;
 
@@ -501,6 +503,50 @@ void GlWidget::paintGL()
             mModelTrajectoryGoal->slotSetModelTransform(tr);
             mModelTrajectoryGoal->render();
         }
+    }
+
+    // Render velocities - preferrably from the flightcontroller.
+    const Pose* p;
+    if(mLastFlightControllerValues && mLastKnownVehiclePose->timestamp - mLastFlightControllerValues->lastKnownPose.timestamp < 500)
+        p = &mLastFlightControllerValues->lastKnownPose;
+    else
+        p = mLastKnownVehiclePose;
+
+    if(p != 0)
+    {
+        QVector3D velocity = p->getVelocity();
+        qDebug() << "GlWidget::paintGL(): velocity from" << (mLastFlightControllerValues ? "fc" : "pose") << velocity;
+        velocity.setY(0.0f);
+        const float velocityScalar = velocity.length();
+
+        const float angleBetweenFrontAndVelocity = Pose::getShortestTurnRadians(p->getYawRadians() - atan2(-velocity.x(), -velocity.z()));
+
+        float velocityOverPitch = cos(angleBetweenFrontAndVelocity) * velocityScalar;
+        float velocityOverRoll = sin(angleBetweenFrontAndVelocity) * velocityScalar;
+
+        QMatrix4x4 trVelocity;
+        trVelocity.translate(p->getPosition());
+        trVelocity.rotate(RAD2DEG(atan2(-velocity.x(), -velocity.z())), QVector3D(0,1,0));
+        trVelocity.scale(1.0f, 1.0f, velocityScalar);
+        trVelocity.translate(0.0f, 0.2f, 0.0f);
+        mModelVelocityArrow->slotSetModelTransform(trVelocity);
+        mModelVelocityArrow->render();
+
+        QMatrix4x4 trVelocityPitch;
+        trVelocityPitch.translate(p->getPosition());
+        trVelocityPitch.rotate(p->getYawDegrees(), QVector3D(0,1,0));
+        trVelocityPitch.scale(1.0f, 1.0f, velocityOverPitch);
+        trVelocityPitch.translate(0.0f, 0.2f, 0.0f);
+        mModelVelocityArrow->slotSetModelTransform(trVelocityPitch);
+        mModelVelocityArrow->render();
+
+        QMatrix4x4 trVelocityRoll;
+        trVelocityRoll.translate(p->getPosition());
+        trVelocityRoll.rotate(p->getYawDegrees() - 90.0f, QVector3D(0,1,0));
+        trVelocityRoll.scale(1.0f, 1.0f, velocityOverRoll);
+        trVelocityRoll.translate(0.0f, 0.2f, 0.0f);
+        mModelVelocityArrow->slotSetModelTransform(trVelocityRoll);
+        mModelVelocityArrow->render();
     }
 
     if(mRenderVehicle)

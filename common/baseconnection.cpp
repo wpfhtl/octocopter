@@ -329,6 +329,7 @@ void BaseConnection::slotNewVehiclePose(const Pose *const pose)
 
 void BaseConnection::slotFlightStateChanged(const FlightState* const fs)
 {
+    qDebug() << "BaseConnection::slotFlightStateChanged(): sending flightstate" << fs->toString() << "to base";
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 

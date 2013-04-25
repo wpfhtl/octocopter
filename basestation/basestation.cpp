@@ -360,6 +360,7 @@ void BaseStation::slotSetFlightControllerValues(const FlightControllerValues* co
     // visualize pose and controller values
     mGlWidget->slotSetFlightControllerValues(fcv);
 
+    qDebug() << "BaseStation::slotSetFlightControllerValues(): setting flightstate" << fcv->flightState.toString() << "in control widget";
     mControlWidget->slotFlightStateChanged(&fcv->flightState);
 
 //    if(!mPidControllerWidget->isPopulated()) mPidControllerWidget->slotUpdateWeights();

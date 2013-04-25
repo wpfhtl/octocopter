@@ -50,7 +50,7 @@ class Kopter : public QObject
         ppmChannels[7] is SW6/7 / ExternalControl, 3-State-Switch. Set to non-linear in remote-control, so that only the first
                           state is below 127 (ExternControl disabled), while state 2 and 3 are above, enabling ExternalControl.
                           Values in KopterTool: 0 (towards user)/154(center)/254(away from user), in code we read -127, X and 127.
-        ppmChannels[8] is SW4PB8 / Calibration. -122 and 127 are the two states it can reach.
+        ppmChannels[8] is SW4PB8 / LiftOff. -122 and 127 are the two states it can reach.
     */
     struct PpmChannels
     {
@@ -62,13 +62,13 @@ class Kopter : public QObject
         qint16 motorSafety;     // SW3
         qint16 poti;            // CTRL7
         qint16 externalControl; // SW6/7, three-state
-        qint16 calibration;     // SW4/PB8
+        qint16 pushButton;     // SW4/PB8
 
         PpmChannels() {}
 
         QString toString() const
         {
-            return QString("PpmChannels::toString(): unused %1, thrust %2, roll %3, pitch %4, yaw %5, motorSafety %6, poti %7, externalControl %8, calibration %9")
+            return QString("PpmChannels::toString(): unused %1, thrust %2, roll %3, pitch %4, yaw %5, motorSafety %6, poti %7, externalControl %8, pushButton %9")
                     .arg(unused)
                     .arg(thrust)
                     .arg(roll)
@@ -77,7 +77,7 @@ class Kopter : public QObject
                     .arg(motorSafety)
                     .arg(poti)
                     .arg(externalControl)
-                    .arg(calibration);
+                    .arg(pushButton);
         }
     };
 
@@ -101,11 +101,11 @@ class Kopter : public QObject
         DebugOut() {}
     };
 
-    enum CalibrationSwitchValue
+    enum PushButtonValue
     {
-        CalibrationSwitchUndefined,
-        CalibrationSwitchHigh,
-        CalibrationSwitchLow
+        PushButtonValueUndefined,
+        PushButtonValueHigh,
+        PushButtonValueLow
     };
 
 public:
@@ -145,7 +145,7 @@ private:
 
     VehicleStatus mVehicleStatus;
     FlightStateSwitch mLastFlightStateSwitch;
-    CalibrationSwitchValue mLastCalibrationSwitchValue;
+    PushButtonValue mLastPushButtonValue;
     qint8 mLastFlightSpeed; // maps to CTRL7, used to set ApproachWaypoint flightspeed in meters per second
 
     void send(const KopterMessage& message);
@@ -170,7 +170,7 @@ signals:
     void vehicleStatus(const VehicleStatus* const vs);
     // Mikrokopter calls control from non-remote-control sources "ExternalControl". This reflects SW1 on the RC.
     void flightStateSwitchValueChanged(const FlightStateSwitch* const fss);
-    void calibrationSwitchToggled();
+    void pushButtonToggled();
 
     void flightSpeedChanged(const float speed);
 

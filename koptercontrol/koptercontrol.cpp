@@ -126,7 +126,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mKopter, SIGNAL(vehicleStatus(const VehicleStatus* const)), mBaseConnection, SLOT(slotNewVehicleStatus(const VehicleStatus* const)));
     connect(mKopter, SIGNAL(flightStateSwitchValueChanged(const FlightStateSwitch* const)), mFlightController, SLOT(slotFlightStateSwitchValueChanged(const FlightStateSwitch* const)));
-    connect(mKopter, SIGNAL(calibrationSwitchToggled()), mFlightController, SLOT(slotCalibrateImu()));
+    connect(mKopter, SIGNAL(pushButtonToggled()), mFlightController, SLOT(slotLiftHoverPosition()));
     connect(mKopter, SIGNAL(flightSpeedChanged(float)), mFlightController, SLOT(slotSetFlightSpeed(float)));
 
     connect(mLaserScanner, SIGNAL(heightOverGround(const float)), mFlightController, SLOT(slotSetHeightOverGround(const float)));
@@ -155,7 +155,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     // Lots of traffic - for what?
     connect(mFlightController, SIGNAL(flightControllerValues(const FlightControllerValues* const)), mBaseConnection, SLOT(slotNewFlightControllerValues(const FlightControllerValues* const)));
-
+    connect(mFlightController, SIGNAL(flightStateChanged(FlightState*const)), mBaseConnection, SLOT(slotFlightStateChanged(FlightState*const)));
     connect(mFlightController, SIGNAL(wayPointReached(WayPoint)), mBaseConnection, SLOT(slotWayPointReached(WayPoint)));
     connect(mFlightController, SIGNAL(wayPointInserted(quint16,WayPoint)), mBaseConnection, SLOT(slotRoverWayPointInserted(quint16,WayPoint)));
     connect(mFlightController, SIGNAL(currentWayPoints(QList<WayPoint>*const)), mBaseConnection, SLOT(slotFlightControllerWayPointsChanged(QList<WayPoint>*const)));

@@ -48,7 +48,7 @@ private:
     LogFile* mLogFile;
 
 //    Pose mPreviousPose;
-    float mMaxFlightSpeedPerAxis;
+    float mMaxFlightVelPerAxis;
 
     FlightControllerValues mFlightControllerValues;
 /*
@@ -80,15 +80,9 @@ private:
 
     QList<WayPoint> mWayPoints, mWayPointsPassed;
 
-    // The following method mixes the new controller outpuit with the last one to achieve smoothing
-    // This is an attempt to smooth out GNSS reception problems in single GNSS-packets that would
-    // otherwise lead to a bouncing vehicle while flip-flopping between safe control values and
-    // hover/approachwaypoint.
-//    MotionCommand mLastMotionCommandUsedForSmoothing;
-//    void smoothenControllerOutput(MotionCommand& mc);
-
     // Where is the vehicle's position, relative to the vehicle, split up in pitch and roll axis-components
-    void getLateralOffsetsVehicleToHoverPosition(const QVector3D &vehiclePosition, const float vehicleYaw, const QVector3D& desiredPosition, float& pitch, float& roll);
+    float getLateralOffsetOnVehiclePitchAxisToPosition(const QVector3D& vehiclePosition, const float vehicleYaw, const QVector3D &desiredPosition) const;
+    float getLateralOffsetOnVehicleRollAxisToPosition(const QVector3D& vehiclePosition, const float vehicleYaw, const QVector3D &desiredPosition) const;
 
     // When the vehicle pitches and rolls strongly, we should increase thrust to keep the height constant. The height-
     // controller will do this automatically, but with a delay. To remove this delay, we amplify thrust based on
@@ -225,7 +219,7 @@ public slots:
     // As an experiment, we use this switch on the remote control to raise the hoverPosition by one meter. This way, we
     // can have the helicopter in UserControl on the ground, then switch to hover, making it hover on the ground. Then,
     // we call this slot to raise the hoverpos, causing the helicopter to start quite furiously :)
-    void slotCalibrateImu();
+    void slotLiftHoverPosition();
 
     // This signal comes from Kopter (the MK's serial connection), and we use it only to derive the flightstate from the RemoteControl's flightstate-switch
     void slotFlightStateSwitchValueChanged(const FlightStateSwitch *const fssv);

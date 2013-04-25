@@ -37,45 +37,13 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
     controllerWeights.insert(&mFlightControllerValues.controllerPitch, weights);
     controllerWeights.insert(&mFlightControllerValues.controllerRoll, weights);
     mFlightControllerWeights.insert(FlightState::Value::Hover, controllerWeights);
-
-/* same values for hover and approachwaypoint, they're doing pretty much the same anyway
-
-    controllerWeights.clear();
-    // ApproachWayPoint - Thrust
-    weights.clear();
-    weights.insert('p', 50.0f);
-    weights.insert('i', 0.0f);
-    weights.insert('d', 20.0f);
-    controllerWeights.insert(&mFlightControllerValues.controllerThrust, weights);
-
-    // ApproachWayPoint - Yaw
-    weights.clear();
-    weights.insert('p', 3.0f);
-    weights.insert('i', 0.0f);
-    weights.insert('d', 1.5f);
-    controllerWeights.insert(&mFlightControllerValues.controllerYaw, weights);
-
-    // ApproachWayPoint - Pitch
-    weights.clear();
-    weights.insert('p', 3.0f);
-    weights.insert('i', 0.0f);
-    weights.insert('d', 10.0f);
-    controllerWeights.insert(&mFlightControllerValues.controllerPitch, weights);
-
-    // ApproachWayPoint - Roll
-    weights.clear();
-    weights.insert('p', 3.0f);
-    weights.insert('i', 0.0f);
-    weights.insert('d', 10.0f);
-    controllerWeights.insert(&mFlightControllerValues.controllerRoll, weights);*/
-
     mFlightControllerWeights.insert(FlightState::Value::ApproachWayPoint, controllerWeights);
 
     // If we don't use a laserscanner (for whatever reason, during testing),
     // set mFlightControllerValues.lastKnownHeightOverGround to 1.0 so it doesn't prevent pitch/roll
     mFlightControllerValues.lastKnownHeightOverGround = 1.0f;
 
-    mMaxFlightSpeedPerAxis = 1.0f;
+    mMaxFlightVelPerAxis = 1.0f;
 
     setFlightState(FlightState(FlightState::Value::UserControl));
 }
@@ -162,12 +130,19 @@ void FlightController::slotComputeMotionCommands()
                             );
             }
 
+            // angleToYawDegrees needs some tuning: When using a p(d) controller and a range of 0 to (-)180, the vehicle
+            // would yaw quite quickly, making the laserscanner give sparse results while turning. So, we do want to
+            // turn as fast as the laserscanner allows until shortly before we're oriented correctly. On the other hand,
+            // we don't really want to be pointing too far off, so we want to yaw with more than "1" if we're 1 degree off.
+            // As it turns out (by asking Manfred :), arctan is exactly what we need.
+            const float maxYaw = 45.0f;
+            const float angleToYawDegreesAtan = (maxYaw/M_PI_2) * atan(0.2f * angleToYawDegrees); // 0.2f is the "aggressiveness"
+
             // If we give the yaw controller our current yaw (e.g. -170 deg) and our desired value (e.g. +170),
             // it would compute an error of 340 degrees - making the kopter turn 340 degrees left. Instead, we
             // want to turn 20 degrees right. So, we need PidController::computeOutputFromError();
             mFlightControllerValues.controllerYaw.setDesiredValue(0.0f);
-            const float outputYaw = mFlightControllerValues.controllerYaw.computeOutputFromError(angleToYawDegrees);
-
+            const float outputYaw = mFlightControllerValues.controllerYaw.computeOutputFromError(angleToYawDegreesAtan);
 
             // When approaching target, set the hoverPosition's height as desired value
             mFlightControllerValues.controllerThrust.setDesiredValue(mFlightControllerValues.hoverPosition.y());
@@ -178,49 +153,55 @@ void FlightController::slotComputeMotionCommands()
             QVector3D worldFrameSpeedValue(mFlightControllerValues.lastKnownPose.getVelocity());
             worldFrameSpeedValue.setY(0.0f);
 
-            float lateralOffsetPitch, lateralOffsetRoll;
-
-            getLateralOffsetsVehicleToHoverPosition(
+            // We want the offset to the goal over the pitch axis
+            float lateralOffsetPitchToTrajectoryGoal = getLateralOffsetOnVehiclePitchAxisToPosition(
                         mFlightControllerValues.lastKnownPose.getPosition(),
-                        mFlightControllerValues.lastKnownPose.getYawRadians(), // Use the current yaw, to that yawing doesn't skew the lateral offsets
-                        /*mFlightControllerValues.hoverPosition*/mFlightControllerValues.trajectoryGoal,
-                        lateralOffsetPitch,
-                        lateralOffsetRoll);
+                        mFlightControllerValues.lastKnownPose.getYawRadians(),
+                        mFlightControllerValues.trajectoryGoal);
+
+            // We want the offset to the trajectory over the roll axis
+            float lateralOffsetRollToTrajectory = getLateralOffsetOnVehicleRollAxisToPosition(
+                        mFlightControllerValues.lastKnownPose.getPosition(),
+                        mFlightControllerValues.lastKnownPose.getYawRadians(),
+                        mFlightControllerValues.hoverPosition);
 
             const float angleFromVehicleFrontToSpeedVector = Pose::getShortestTurnRadians(
                         atan2(-worldFrameSpeedValue.x(), -worldFrameSpeedValue.z())
                         - mFlightControllerValues.lastKnownPose.getYawRadians()
                         );
 
-            const float speedOverPitchValue = -cos(angleFromVehicleFrontToSpeedVector) * worldFrameSpeedValue.length();
-            const float speedOverRollValue  = -sin(angleFromVehicleFrontToSpeedVector) * worldFrameSpeedValue.length();
+            const float velOverPitchValue = -cos(angleFromVehicleFrontToSpeedVector) * worldFrameSpeedValue.length();
+            const float velOverRollValue  = -sin(angleFromVehicleFrontToSpeedVector) * worldFrameSpeedValue.length();
 
-            const float speedOverPitchDesired = qBound(-mMaxFlightSpeedPerAxis, lateralOffsetPitch, mMaxFlightSpeedPerAxis);
-            const float speedOverRollDesired  = qBound(-mMaxFlightSpeedPerAxis, lateralOffsetRoll, mMaxFlightSpeedPerAxis);
+            const float velOverPitchDesired = qBound(-mMaxFlightVelPerAxis, lateralOffsetPitchToTrajectoryGoal, mMaxFlightVelPerAxis);
+            // Do not bound desired speed over roll, we want to correct quickly.
+            const float velOverRollDesired  = /*qBound(-mMaxFlightVelPerAxis,*/ lateralOffsetRollToTrajectory/*, mMaxFlightVelPerAxis)*/;
+
+            QVector3D horizontalVelocity(mFlightControllerValues.lastKnownPose.getPosition());
+            horizontalVelocity.setY(0.0f);
 
             qDebug() << "FlightController::slotComputeMotionCommands():" << getFlightState().toString() << mFlightControllerValues.lastKnownPose
+                     << "maxVelPerAxis:" << mMaxFlightVelPerAxis
+                     << "horVel" << horizontalVelocity.length()
                      << "trajGoal:" << mFlightControllerValues.trajectoryGoal
-                     << "angleToYawDeg:" << angleToYawDegrees << "deg" << (angleToYawDegrees < 0.0f ? "right" : "left")
-                     << "offset pitch" << lateralOffsetPitch << "roll" << lateralOffsetRoll
-                     << "spdPitchVal" << speedOverPitchValue << "spdPitchDes" << speedOverPitchDesired
-                     << "spdRollVal" << speedOverRollValue << "spdRollDes" << speedOverRollDesired;
+                     << "angleToYawDeg:" << angleToYawDegreesAtan << "deg" << (angleToYawDegreesAtan < 0.0f ? "right" : "left") << "- atan:" << angleToYawDegreesAtan
+                     << "offset pitchToGoal" << lateralOffsetPitchToTrajectoryGoal << "rollToTraj" << lateralOffsetRollToTrajectory
+                     << "velPitchVal" << velOverPitchValue << "velPitchDes" << velOverPitchDesired
+                     << "velRollVal" << velOverRollValue << "velRollDes" << velOverRollDesired;
 
             // speedPitch denotes the vehicle's translation speed forward/backward. This speed goes along its Z-axis,
             // which points backwards. A positive speed thus means moving backwards. Positive pitch-control values
             // also mean bending backwards, so this matches.
-            mFlightControllerValues.controllerPitch.setDesiredValue(speedOverPitchDesired);
-            const float outputPitch = mFlightControllerValues.controllerPitch.computeOutputFromValue(speedOverPitchValue);
+            mFlightControllerValues.controllerPitch.setDesiredValue(velOverPitchDesired);
+            const float outputPitch = mFlightControllerValues.controllerPitch.computeOutputFromValue(velOverPitchValue);
 
             // speedRoll denotes the vehicle's translation speed left/right. This speed goes along its X-axis,
             // which points right. A positive speed thus means moving right. Positive roll-control values
             // mean bending leftwards, so outputRoll needs to be inverted.
-            mFlightControllerValues.controllerRoll.setDesiredValue(-speedOverRollDesired);
-            const float outputRoll = mFlightControllerValues.controllerRoll.computeOutputFromValue(-speedOverRollValue);
+            mFlightControllerValues.controllerRoll.setDesiredValue(-velOverRollDesired);
+            const float outputRoll = mFlightControllerValues.controllerRoll.computeOutputFromValue(-velOverRollValue);
 
             mFlightControllerValues.motionCommand = MotionCommand(outputThrust, outputYaw, outputPitch, outputRoll);
-
-            qDebug() << "FlightController::slotComputeMotionCommands(): emitting motion:" << mFlightControllerValues.motionCommand;
-            emit motion(&mFlightControllerValues.motionCommand);
 
             // See whether we've reached the waypoint
             if(mFlightControllerValues.flightState.state == FlightState::Value::ApproachWayPoint && mFlightControllerValues.lastKnownPose.getPosition().distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < 0.80f) // close to wp
@@ -239,6 +220,8 @@ void FlightController::slotComputeMotionCommands()
         Q_ASSERT(false);
     }
 
+    qDebug() << "FlightController::slotComputeMotionCommands(): emitting motion:" << mFlightControllerValues.motionCommand;
+    emit motion(&mFlightControllerValues.motionCommand);
     emit flightControllerValues(&mFlightControllerValues);
     logFlightControllerValues();
 }
@@ -246,7 +229,7 @@ void FlightController::slotComputeMotionCommands()
 // Positive values mean that the target is along the direction of the vehicle coordinate system's respective axes.
 // pitch: negative: target is in front of vehicle, positive: target is behind vehicle
 // roll:  negative: target is left of vehicle, positive: target is right of vehicle
-void FlightController::getLateralOffsetsVehicleToHoverPosition(const QVector3D& vehiclePosition, const float vehicleYaw, const QVector3D &desiredPosition, float& pitch, float& roll)
+float FlightController::getLateralOffsetOnVehiclePitchAxisToPosition(const QVector3D& vehiclePosition, const float vehicleYaw, const QVector3D &desiredPosition) const
 {
     QVector3D vectorVehicleToHoverPosition = vehiclePosition - desiredPosition;
     const float angleToTurnTowardsDesiredPosition = Pose::getShortestTurnRadians(
@@ -256,25 +239,25 @@ void FlightController::getLateralOffsetsVehicleToHoverPosition(const QVector3D& 
 
     vectorVehicleToHoverPosition.setY(0.0f);
 
-    pitch = cos(angleToTurnTowardsDesiredPosition) * vectorVehicleToHoverPosition.length();
-    roll =  sin(angleToTurnTowardsDesiredPosition) * vectorVehicleToHoverPosition.length();
-
-    qDebug() << "FlightController::getLateralOffsetsVehicleToHoverPosition(): lateral offset pitch" << pitch << "roll" << roll;
+    return cos(angleToTurnTowardsDesiredPosition) * vectorVehicleToHoverPosition.length();
 }
 
-/*void FlightController::smoothenControllerOutput(MotionCommand& mc)
+float FlightController::getLateralOffsetOnVehicleRollAxisToPosition(const QVector3D& vehiclePosition, const float vehicleYaw, const QVector3D &desiredPosition) const
 {
-    Q_ASSERT(false && "Why the hell was I casting to unsigned ints here? YPR can be negative!!?");
-    mc.thrust = (quint8)(((quint16)mc.thrust + (quint16)mLastMotionCommandUsedForSmoothing.thrust) / 2.0f);
-    mc.yaw = (quint8)(((quint16)mc.yaw + (quint16)mLastMotionCommandUsedForSmoothing.yaw) / 2.0f);
-    mc.pitch = (quint8)(((quint16)mc.pitch + (quint16)mLastMotionCommandUsedForSmoothing.pitch) / 2.0f);
-    mc.roll = (quint8)(((quint16)mc.roll + (quint16)mLastMotionCommandUsedForSmoothing.roll) / 2.0f);
+    QVector3D vectorVehicleToHoverPosition = vehiclePosition - desiredPosition;
+    const float angleToTurnTowardsDesiredPosition = Pose::getShortestTurnRadians(
+                atan2(-vectorVehicleToHoverPosition.x(), -vectorVehicleToHoverPosition.z())
+                - vehicleYaw
+                );
 
-    mLastMotionCommandUsedForSmoothing = mc;
-}*/
+    vectorVehicleToHoverPosition.setY(0.0f);
+
+    return sin(angleToTurnTowardsDesiredPosition) * vectorVehicleToHoverPosition.length();
+}
 
 void FlightController::logFlightControllerValues()
 {
+    qDebug() << "FlightController::logFlightControllerValues(): logging pose velocity of" << mFlightControllerValues.lastKnownPose.getVelocity();
     mFlightControllerValues.timestamp = GnssTime::currentTow();
 
     QByteArray magic("FLTCLR");
@@ -282,13 +265,13 @@ void FlightController::logFlightControllerValues()
     mLogFile->write((const char*)&mFlightControllerValues, sizeof(FlightControllerValues));
 }
 
-void FlightController::slotCalibrateImu()
+void FlightController::slotLiftHoverPosition()
 {
     //mImuOffsets.doCalibration();
     // raise the hoverpos by 1.5m to start the flight.
     if(mFlightControllerValues.flightState == FlightState::Value::Hover)
     {
-        qDebug() << "FlightController::slotCalibrateImu(): hovering, raising hoverpos and trajectorygoal by 1.5m - please step back!";
+        qDebug() << "FlightController::slotLiftHoverPosition(): hovering, raising hoverpos and trajectorygoal by 1.5m - please step back!";
         mFlightControllerValues.hoverPosition  += QVector3D(0.0f, 1.5f, 0.0f);
         mFlightControllerValues.trajectoryGoal += QVector3D(0.0f, 1.5f, 0.0f);
     }
@@ -838,6 +821,6 @@ QVector3D FlightController::getHoverPosition(const QVector3D& trajectoryStart, c
 
 void FlightController::slotSetFlightSpeed(const float flightSpeed)
 {
-    qDebug() << "FlightController::slotSetFlightSpeed(): changing maximum flightspeed per axis from" << mMaxFlightSpeedPerAxis << "m/s to" << flightSpeed << "m/s";
-    mMaxFlightSpeedPerAxis = flightSpeed;
+    qDebug() << "FlightController::slotSetFlightSpeed(): changing maximum flightspeed per axis from" << mMaxFlightVelPerAxis << "m/s to" << flightSpeed << "m/s";
+    mMaxFlightVelPerAxis = flightSpeed;
 }

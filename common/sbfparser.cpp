@@ -131,14 +131,19 @@ quint16 SbfParser::computeChecksum(const void *buf, unsigned int length) const
 
 void SbfParser::setPose(const Sbf_IntPVAAGeod* block, const GnssStatus& gnssStatus)
 {
-    const double floatLon = ((double)block->Lon) / 10000000.0l;
-    const double floatLat = ((double)block->Lat) / 10000000.0l;
+    const quint8 latFine = block->PosFine & 15;  // the lower 4 bits
+    const quint8 lonFine = block->PosFine & 240; // the upper 4 bits
+
+    const double floatLat = ((double)block->Lat) / 10000000.0l + latFine*6.25e-9f;
+    const double floatLon = ((double)block->Lon) / 10000000.0l + lonFine*6.25e-9f;
     const double floatAlt = ((double)block->Alt) / 1000.0l;
 
     // The rotational velocity is contained in IntAttEuler, which we don't have. So calculate
     // it using the previous pose before mLastPose is overwritten.
-    const qint32 previousPoseAge = block->TOW - mLastPose.timestamp;
+    const float timeSinceLastPose = (block->TOW - mLastPose.timestamp) / 1000.0f;
+    const QVector3D previousPosePosition = mLastPose.getPosition();
     const QQuaternion previousPoseOrientation = mLastPose.getOrientation();
+
 
     // Please look at the septentrio "Firmware user manual", page 47ff for conversion rules.
     mLastPose = Pose(
@@ -171,22 +176,32 @@ void SbfParser::setPose(const Sbf_IntPVAAGeod* block, const GnssStatus& gnssStat
     mLastPose.covariances = gnssStatus.covariances;
 
     // Determine rotational speed in degrees per second
-    if(previousPoseAge < 100)
+    if(timeSinceLastPose < 0.15f)
     {
         mLastPose.rotation = Pose::getAngleBetweenDegrees(previousPoseOrientation, mLastPose.getOrientation());
-        mLastPose.rotation /= (previousPoseAge / 1000.0f);
+        mLastPose.rotation /= timeSinceLastPose;
+    }
+
+    // Determine the velocity. As can be seen in speedbased4 logfiles, the receiver's velocity values ALL
+    // drop to zero sometimes for no reason. When that happens, compute velocities based on the last pose.
+    if(block->Vnorth != I32_DONOTUSE && block->Veast != I32_DONOTUSE && block->Vup != I32_DONOTUSE && (block->Vnorth != 0 || block->Veast != 0 || block->Vup != 0))
+    {
+        const QVector3D velocity = QVector3D(block->Veast, block->Vup, -block->Vnorth);
+        mLastPose.setVelocity(velocity / 1000.0f);
+        qDebug() << "SbfParser::setPose(): ENU velocities" << block->Veast << block->Vnorth << block->Vup << "are valid, velocity:" << mLastPose.getVelocity();
     }
     else
-        mLastPose.rotation = 0.0f;
+    {
+        const QVector3D velocity = (mLastPose.getPosition() - previousPosePosition) / timeSinceLastPose;
+        mLastPose.setVelocity(velocity);
+        qDebug() << "SbfParser::setPose(): ENU velocities" << block->Veast << block->Vnorth << block->Vup << "are either DO-NOT-USE or all zero (=buggy), computing velocities using previous pose:" << mLastPose.getVelocity();
+    }
 
     // Determine acceleration magnitude
     if(block->Ax != I16_DONOTUSE && block->Ay != I16_DONOTUSE && block->Az != I16_DONOTUSE)
         mLastPose.acceleration = QVector3D(block->Ax, block->Ay, block->Az+981).length() / 100.0f;
     else
         mLastPose.acceleration = 0.0f;
-
-    if(block->Vnorth != I32_DONOTUSE && block->Veast != I32_DONOTUSE && block->Vup != I32_DONOTUSE)
-        mLastPose.setVelocity(QVector3D(block->Veast/1000.0f, block->Vup/1000.0f, -block->Vnorth/1000.0f));
 }
 
 QVector3D SbfParser::convertGeodeticToCartesian(const double &lon, const double &lat, const double &elevation)

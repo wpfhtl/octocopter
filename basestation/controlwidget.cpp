@@ -98,6 +98,7 @@ void ControlWidget::slotUpdateConnectionRtk(const bool working)
 
 void ControlWidget::slotFlightStateChanged(const FlightState* const fs)
 {
+    qDebug() << "ControlWidget::slotFlightStateChanged(): flightstate changed to" << fs->toString();
     mLabelFlightState->setText(fs->toString());
     if(fs->state != FlightState::Value::Undefined) mLabelFlightState->setStyleSheet(""); else mLabelFlightState->setStyleSheet(getBackgroundCss(true, false));
 }

@@ -566,7 +566,8 @@ bool Pose::isSufficientlyPreciseForFlightControl() const
             // step from drifted value to ground thruth, causing trouble in the flight-controller's D-component.
             // 2013-04-23: It seems only the 5 INS poses in msec20-intervals show this problem, msec50 is fine.
             // (see e.g. "speedbased1"-logfiles). Thus, we use msec50 and do not require integrated poses.
-            //&& precision & Pose::ModeIntegrated
+            // 2013-04-24: This is *mostly* true, have a look at speedbased5. Use onlyintegrated poses.
+            && precision & Pose::ModeIntegrated
 
             && precision & Pose::RtkFixed;          // When switching from RtkFixed to Differential, height can jump by >30m in 1 second(!)
 }
@@ -576,6 +577,8 @@ bool Pose::isSufficientlyPreciseForFlightControl() const
 // pose t501171350 (-30.49/51.84/140.01) YPR (155.27/2.92/-1.03) VEL (0.12/-0.01/0.47) PR 17 CO 2.34
 Pose::Pose(const QString& poseString)
 {
+    Q_ASSERT("who the hell is using this?");
+
     QStringList tokens = poseString.split(' ');
     if(tokens.size() != 11) qDebug() << "Pose::Pose(QString): unexpected token stringlist size, expecting 11!";
     bool success = false;

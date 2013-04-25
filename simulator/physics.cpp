@@ -339,7 +339,7 @@ Physics::~Physics()
 
 void Physics::slotSetMotion(const MotionCommand* const motionCommand)
 {
-//    qDebug() << "Physics::slotSetMotion(): updating physics forces with thrust" << motionCommandClamped.thrust << "pitch" << motionCommandClamped.pitch << "roll" << motionCommandClamped.roll << "yaw" << motionCommandClamped.yaw;
+    qDebug() << "Physics::slotSetMotion(): updating physics forces with" << motionCommand->toString();
 
     /*
       The MikroKopter moves in his own ways, this is how it translates the given externControls into motion:
@@ -366,11 +366,11 @@ void Physics::slotSetMotion(const MotionCommand* const motionCommand)
     // http://gallery.mikrokopter.de/main.php/v/tech/Okto2_5000_Payload.gif.html?g2_imageViewsIndex=1,
 
     // Apply general thrust. A value of 255 means 100% thrust, which means around 4.5A per single motor at full battery
-    const float thrustCurrent = (((float)motionCommand->thrust) / 255.0f) * 4.5f * (mSimulator->mBattery->voltageCurrent() / mSimulator->mBattery->voltageMax());
+    const float thrustCurrent = (((float)motionCommand->thrust) / 255.0f) * 5.5f * (mSimulator->mBattery->voltageCurrent() / mSimulator->mBattery->voltageMax());
     const float thrustScalar = mEngine.calculateThrust(thrustCurrent) * 8.0f;
     const Ogre::Vector3 thrustVectorOgre = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0, thrustScalar, 0.0f);
     mVehicleBody->applyCentralForce(btVector3(thrustVectorOgre.x, thrustVectorOgre.y, thrustVectorOgre.z));
-
+    qDebug() << thrustScalar;
     // Discharge Battery:
     // When we yaw, pitch or roll, we always take x RPM from one pair of motors and add it to another pair. Since
     // the rpm/current-curve is pretty linear for small changes, we assume that yawing, pitching and rolling do
