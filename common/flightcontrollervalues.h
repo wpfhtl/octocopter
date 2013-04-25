@@ -15,7 +15,7 @@ class FlightControllerValues
 public:
     FlightControllerValues();
 
-    qint32 timestamp;
+    qint32 timestamp; // Is set by flightcontroller after all values are computed
     PidController controllerThrust, controllerYaw, controllerPitch, controllerRoll;
     MotionCommand motionCommand;
     FlightState flightState;

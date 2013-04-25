@@ -222,6 +222,8 @@ void FlightController::slotComputeMotionCommands()
 
     qDebug() << "FlightController::slotComputeMotionCommands(): emitting motion:" << mFlightControllerValues.motionCommand;
     emit motion(&mFlightControllerValues.motionCommand);
+
+    mFlightControllerValues.timestamp = GnssTime::currentTow();
     emit flightControllerValues(&mFlightControllerValues);
     logFlightControllerValues();
 }
@@ -258,7 +260,6 @@ float FlightController::getLateralOffsetOnVehicleRollAxisToPosition(const QVecto
 void FlightController::logFlightControllerValues()
 {
     qDebug() << "FlightController::logFlightControllerValues(): logging pose velocity of" << mFlightControllerValues.lastKnownPose.getVelocity();
-    mFlightControllerValues.timestamp = GnssTime::currentTow();
 
     QByteArray magic("FLTCLR");
     mLogFile->write(magic.constData(), magic.size());

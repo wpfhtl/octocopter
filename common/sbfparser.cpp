@@ -520,10 +520,10 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         // Only emit a precise pose if the values are not set to the do-not-use values.
         if(
                 block->Error == 0
-                && block->TOW != 4294967295L
-                && block->Lat != -2147483648L
-                && block->Lon != -2147483648L
-                && block->Alt != -2147483648L)
+                && block->TOW != (quint32)4294967295
+                && block->Lat != (qint32)-2147483648
+                && block->Lon != (qint32)-2147483648
+                && block->Alt != (qint32)-2147483648)
         {
             emit newVehiclePoseSensorFuser(&mLastPose);
 
@@ -577,7 +577,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
 
         //qDebug() << t() << block->TOW << "SbfParser::processNextValidPacket(): received ReceiverTime block: msgid" << msgId << "msgIdBlock" << msgIdBlock << "msgLength" << msgLength << "revision" << msgIdRev;
 
-        if(block->TOW == 4294967295L)
+        if(block->TOW == (quint32)4294967295)
         {
             emit message(
                         Error,

@@ -16,6 +16,7 @@ FlightControllerValues::FlightControllerValues()
 QDataStream& operator<<(QDataStream &out, const FlightControllerValues &fcv)
 {
     out
+            << fcv.timestamp
             << fcv.motionCommand
             << fcv.flightState
             << fcv.trajectoryStart
@@ -34,6 +35,7 @@ QDataStream& operator<<(QDataStream &out, const FlightControllerValues &fcv)
 
 QDataStream& operator>>(QDataStream &in, FlightControllerValues& fcv)
 {
+    in >> fcv.timestamp;
     in >> fcv.motionCommand;
     in >> ((quint8&)fcv.flightState);
     in >> fcv.trajectoryStart;
