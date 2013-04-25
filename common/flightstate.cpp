@@ -41,12 +41,14 @@ FlightState& FlightState::operator=(const FlightState& other)
 // for streaming
 QDataStream& operator<<(QDataStream &out, const FlightState &fs)
 {
-    out << (quint8)fs.state;
+    out << static_cast<quint8>(fs.state);
     return out;
 }
 
 QDataStream& operator>>(QDataStream &in, FlightState& fs)
 {
-    in >> (quint8&)fs.state;
+    quint8 state;
+    in >> state;
+    fs.state = static_cast<FlightState::Value>(state);
     return in;
 }
