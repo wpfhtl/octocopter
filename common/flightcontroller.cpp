@@ -265,6 +265,7 @@ void FlightController::logFlightControllerValues()
 
     QByteArray data("FLTCLR"); // start with the magic bytes
     QDataStream ds(&data, QIODevice::WriteOnly);
+    ds.skipRawData(data.size()); // position the stream after the magic bytes
     ds << mFlightControllerValues;
     mLogFile->write(data.constData(), data.size());
 }
