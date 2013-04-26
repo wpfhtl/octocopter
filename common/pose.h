@@ -68,6 +68,10 @@ public:
     float covariances;
     quint8 precision;
 
+    // These scalar members were added to debug/test interpolation accuracies and their applciability to pointcloud registration
+    float acceleration; // m/s^2
+    float rotation; // deg/s
+
     // Usually, maximum covariances converge to about 0.02.
     static constexpr float maximumUsableCovariance = 0.06f;
 
@@ -78,9 +82,6 @@ public:
     }
     const QVector3D& getVelocity() const {return mVelocity;}
 
-    // These scalar members were added to debug/test interpolation accuracies and their applciability to pointcloud registration
-    float acceleration; // m/s^2
-    float rotation; // deg/s
 
     enum Precision
     {

@@ -216,15 +216,19 @@ qint32 LogPlayer::getLastTow(const DataSource& source)
     {
         qint32 lastSearchIndex = -1;
 
-        // Search backwards as long as we cannot find a valid SBF packe to extract TOW from
-        while(lastSearchIndex > -2 && tow < 0)
+        // Search backwards as long as we cannot find a valid FlightController packet to extract TOW from
+        while(lastSearchIndex > -2 && (tow < 0 || tow > 7 * 24 * 3600 * 1000))
         {
             QByteArray lastPacket = mDataFlightController.right(mDataFlightController.size() - mDataFlightController.lastIndexOf("FLTCLR", lastSearchIndex));
 
             if(lastPacket.isEmpty()) return -1;
 
-            FlightControllerValues* fcv = (FlightControllerValues*)(lastPacket.data() + 6); // FLTCLR
-            tow = fcv->timestamp;
+            QDataStream ds(lastPacket);
+            ds.skipRawData(6); // FLTCLR
+            FlightControllerValues fcv;
+            ds >> fcv;
+
+            tow = fcv.timestamp;
 
             // Where to search next if values couldn't be extracted
             lastSearchIndex = mDataFlightController.size() - lastPacket.size() - 6;
@@ -235,7 +239,6 @@ qint32 LogPlayer::getLastTow(const DataSource& source)
     default:
         Q_ASSERT("unknown datasource!");
         break;
-
 
     }
 
@@ -274,8 +277,11 @@ qint32 LogPlayer::getNextTow(const DataSource& source)
         // If we can extract something, fine. If not, we might just not have any laser data at all. In that case we'll return -1
         if(nextPacket.size())
         {
-            FlightControllerValues* fcv = (FlightControllerValues*)(nextPacket.data() + 6); // magic bytes FLTCLR
-            tow = fcv->timestamp;
+            QDataStream ds(nextPacket);
+            ds.skipRawData(6); // FLTCLR
+            FlightControllerValues fcv;
+            ds >> fcv;
+            tow = fcv.timestamp;
         }
     }
     break;
@@ -314,14 +320,20 @@ QByteArray LogPlayer::getNextPacket(const DataSource& source)
 
     case Source_FlightController:
     {
-        // check uninitialized and out-of-bounds conditions
-        if(mIndexFlightController + sizeof(FlightControllerValues) > mDataFlightController.size() || !mDataFlightController.size())
+        // check if uninitialized and out-of-bounds conditions
+        if(!mDataFlightController.size())
+            return result;
+
+        // check if past the last packet
+        if(mDataFlightController.indexOf("FLTCLR", mIndexFlightController) < 0)
             return result;
 
         // We can be called with ESTIMATED mIndexFlightController-values. So, search for the next packet's beginning
+//        qint32 oldIndex = mIndexFlightController;
         mIndexFlightController = mDataFlightController.indexOf("FLTCLR", mIndexFlightController);
         // search for packet-end right after its beginning, otherwise we find out own beginning.
         const qint32 posPacketEnd = mDataFlightController.indexOf("FLTCLR", mIndexFlightController + 1);
+//        qDebug() << "LogPlayer::getNextPacket(): FLT, index was" <<oldIndex << "found packet from" << mIndexFlightController << "to" << posPacketEnd;
 
         result = mDataFlightController.mid(mIndexFlightController, posPacketEnd - mIndexFlightController);
     }
@@ -480,30 +492,34 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const QByteAr
 
     case Source_FlightController:
     {
-        FlightControllerValues* fcv = (FlightControllerValues*)(packet.data() + 6); // FLTCLR
-        mProgressBarTow->setFormat("TOW %v F");
-        mProgressBarTow->setValue(mFlightControllerValues.timestamp);
+        QDataStream ds(packet);
+        ds.skipRawData(6); // FLTCLR
+        FlightControllerValues fcv;
+        ds >> fcv;
 
         if(!(
-                    fcv->controllerThrust.hasSameWeights(&mFlightControllerValues.controllerThrust)
+                    fcv.controllerThrust.hasSameWeights(&mFlightControllerValues.controllerThrust)
                     &&
-                    fcv->controllerYaw.hasSameWeights(&mFlightControllerValues.controllerYaw)
+                    fcv.controllerYaw.hasSameWeights(&mFlightControllerValues.controllerYaw)
                     &&
-                    fcv->controllerPitch.hasSameWeights(&mFlightControllerValues.controllerPitch)
+                    fcv.controllerPitch.hasSameWeights(&mFlightControllerValues.controllerPitch)
                     &&
-                    fcv->controllerRoll.hasSameWeights(&mFlightControllerValues.controllerRoll)
+                    fcv.controllerRoll.hasSameWeights(&mFlightControllerValues.controllerRoll)
              ))
         {
             // mFlightControllerValues needs to be set before emitting!
-            mFlightControllerValues = *fcv;
+            mFlightControllerValues = fcv;
             emit flightControllerWeightsChanged();
         }
 
-        mFlightControllerValues = *fcv;
+        mFlightControllerValues = fcv;
 
-//        qDebug() << "FLTCLR:" << fcv->timestamp;
+        qDebug() << "FLTCLR:" << mFlightControllerValues.timestamp;
 
         emit flightControllerValues(&mFlightControllerValues);
+
+        mProgressBarTow->setFormat("TOW %v F");
+        mProgressBarTow->setValue(mFlightControllerValues.timestamp);
     }
     break;
     }
@@ -606,7 +622,7 @@ void LogPlayer::slotGoToTow(qint32 towTarget)
     // First, do SBF:
     qint32 indexSbf = mDataSbfCopy.size() / 2;
     qint32 stepSize = indexSbf / 2;
-    qint32 tow0, tow1, tow2;
+    qint32 tow0 = -1, tow1 = -1, tow2 = -1;
     qDebug() << "LogPlayer::slotGoToTow(): towTgt is" << towTarget;
     while(mSbfParser->getNextValidPacketInfo(mDataSbfCopy.mid(indexSbf, 2000), 0, &tow0))
     {
@@ -694,39 +710,42 @@ void LogPlayer::slotGoToTow(qint32 towTarget)
     mIndexFlightController = mDataFlightController.size() / 2;
     stepSize = mIndexFlightController / 2;
     tow0 = 0; tow1 = 0; tow2 = 0;
+    const qint32 flightControllerPacketSize = getNextPacket(Source_FlightController).size();
     while(mDataFlightController.size() && tow0 >= 0)
     {
         tow0 = getNextTow(Source_FlightController);
-        qDebug() << "LogPlayer::slotGoToTow(): stepsize is" << stepSize << "indexFltClr is" << mIndexFlightController << "of" << mDataFlightController.size();
+        qDebug() << "LogPlayer::slotGoToTow(): sizeofPacket" << 6+sizeof(FlightControllerValues) << "stepsize is" << stepSize << "indexFltClr is" << mIndexFlightController << "of" << mDataFlightController.size();
 
         // We're done if we reached the target tow OR the tow doesn't change anymore OR we toggle between tow TOWs
-        if(tow0 == towTarget || (tow0 == tow1 && tow0 == tow2))
+        if(tow0 == towTarget || (tow0 == tow2 && tow1 < tow0))
         {
             break;
         }
 
         if(tow0 > towTarget)
         {
-            qDebug() << "LogPlayer::slotGoToTow(): back, towFltClr is" << tow0;
+            qDebug() << "LogPlayer::slotGoToTow(): towFltClr is" << tow0 << "going backward" << stepSize << "bytes...";
             mIndexFlightController = qBound(0, mIndexFlightController - stepSize, mDataFlightController.size());
         }
         else if(tow0 < towTarget)
         {
-            qDebug() << "LogPlayer::slotGoToTow(): frwd, towFltClr is" << tow0;
+            qDebug() << "LogPlayer::slotGoToTow(): towFltClr is" << tow0 << "going forwards" << stepSize << "bytes...";
             mIndexFlightController = qBound(0, mIndexFlightController + stepSize, mDataFlightController.size());
         }
 
         tow2 = tow1;
         tow1 = tow0;
 
-        // Don't let stepsize go far below packetSize
-        stepSize = std::max(200, stepSize/2);
+        // Don't let stepsize go below the packetSize, else jumping stepSize will not get new packets
+        stepSize = std::max(flightControllerPacketSize, stepSize/2);
     }
 
     // Clear SensorFuser data, because otherwise the next data isn't guaranteed to come in in chronological order
     mSensorFuser->slotClearData();
 
     qDebug() << "LogPlayer::slotGoToTow(): FLTCLR: reached TOW" << tow0 << ", targeted was" << towTarget;
+
+    // TODO: if currently playing, reset mTimePlaybackStart* and friends
 
     mProgressBarTow->setValue(towTarget);
 }

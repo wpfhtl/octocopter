@@ -134,15 +134,17 @@ void FlightController::slotComputeMotionCommands()
             // would yaw quite quickly, making the laserscanner give sparse results while turning. So, we do want to
             // turn as fast as the laserscanner allows until shortly before we're oriented correctly. On the other hand,
             // we don't really want to be pointing too far off, so we want to yaw with more than "1" if we're 1 degree off.
-            // As it turns out (by asking Manfred :), arctan is exactly what we need.
+            // As it turns out (by asking Manfred :), both arctan and (X/1+abs(x)) are exactly what we need. The latter
+            // seems cheaper to compute, so we use that one.
             const float maxYaw = 45.0f;
-            const float angleToYawDegreesAtan = (maxYaw/M_PI_2) * atan(0.2f * angleToYawDegrees); // 0.2f is the "aggressiveness"
+            const float aggressiveness = 0.2f; // how quickly to reach the maxYaw when abs(angleToYawDegrees) rises
+            const float angleToYawDegreesAdjusted = maxYaw * ((aggressiveness * angleToYawDegrees) / (1.0f + aggressiveness * angleToYawDegrees));
 
             // If we give the yaw controller our current yaw (e.g. -170 deg) and our desired value (e.g. +170),
             // it would compute an error of 340 degrees - making the kopter turn 340 degrees left. Instead, we
             // want to turn 20 degrees right. So, we need PidController::computeOutputFromError();
             mFlightControllerValues.controllerYaw.setDesiredValue(0.0f);
-            const float outputYaw = mFlightControllerValues.controllerYaw.computeOutputFromError(angleToYawDegreesAtan);
+            const float outputYaw = mFlightControllerValues.controllerYaw.computeOutputFromError(angleToYawDegreesAdjusted);
 
             // When approaching target, set the hoverPosition's height as desired value
             mFlightControllerValues.controllerThrust.setDesiredValue(mFlightControllerValues.hoverPosition.y());
@@ -184,7 +186,7 @@ void FlightController::slotComputeMotionCommands()
                      << "maxVelPerAxis:" << mMaxFlightVelPerAxis
                      << "horVel" << horizontalVelocity.length()
                      << "trajGoal:" << mFlightControllerValues.trajectoryGoal
-                     << "angleToYawDeg:" << angleToYawDegreesAtan << "deg" << (angleToYawDegreesAtan < 0.0f ? "right" : "left") << "- atan:" << angleToYawDegreesAtan
+                     << "angleToYawDeg:" << angleToYawDegreesAdjusted << "deg" << (angleToYawDegreesAdjusted < 0.0f ? "right" : "left") << "- adj:" << angleToYawDegreesAdjusted
                      << "offset pitchToGoal" << lateralOffsetPitchToTrajectoryGoal << "rollToTraj" << lateralOffsetRollToTrajectory
                      << "velPitchVal" << velOverPitchValue << "velPitchDes" << velOverPitchDesired
                      << "velRollVal" << velOverRollValue << "velRollDes" << velOverRollDesired;
@@ -261,9 +263,10 @@ void FlightController::logFlightControllerValues()
 {
     qDebug() << "FlightController::logFlightControllerValues(): logging" << mFlightControllerValues.lastKnownPose << "at fcvtime" << mFlightControllerValues.timestamp;
 
-    QByteArray magic("FLTCLR");
-    mLogFile->write(magic.constData(), magic.size());
-    mLogFile->write((const char*)&mFlightControllerValues, sizeof(FlightControllerValues));
+    QByteArray data("FLTCLR"); // start with the magic bytes
+    QDataStream ds(&data, QIODevice::WriteOnly);
+    ds << mFlightControllerValues;
+    mLogFile->write(data.constData(), data.size());
 }
 
 void FlightController::slotLiftHoverPosition()

@@ -456,7 +456,7 @@ void GlWidget::paintGL()
             renderController(trRollController, &mLastFlightControllerValues->controllerRoll);
         }
 
-        if(mLastFlightControllerValues->motionCommand.thrust != mLastFlightControllerValues->motionCommand.thrustHover && mLastFlightControllerValues->motionCommand.thrust > 0)
+        if(mLastFlightControllerValues->motionCommand.thrust != MotionCommand::thrustHover && mLastFlightControllerValues->motionCommand.thrust > 0)
         {
             // Render controller thrust input
             QMatrix4x4 trThrust(transformVehicle);
@@ -512,10 +512,13 @@ void GlWidget::paintGL()
     else
         p = mLastKnownVehiclePose;
 
-    if(p != 0)
+    // tetsing, only use fc values
+    p = &mLastFlightControllerValues->lastKnownPose;
+
+    if(mLastFlightControllerValues/*p != 0*/)
     {
         QVector3D velocity = p->getVelocity();
-        qDebug() << "GlWidget::paintGL(): velocity from" << (mLastFlightControllerValues ? "fc" : "pose") << velocity;
+        qDebug() << "GlWidget::paintGL(): fcv-time" << mLastFlightControllerValues->timestamp << "pose:" << *p;
         velocity.setY(0.0f);
         const float velocityScalar = velocity.length();
 
