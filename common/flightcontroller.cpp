@@ -261,9 +261,11 @@ void FlightController::logFlightControllerValues()
 {
     qDebug() << "FlightController::logFlightControllerValues(): logging" << mFlightControllerValues.lastKnownPose << "at fcvtime" << mFlightControllerValues.timestamp;
 
-    QByteArray magic("FLTCLR");
-    mLogFile->write(magic.constData(), magic.size());
-    mLogFile->write((const char*)&mFlightControllerValues, sizeof(FlightControllerValues));
+    QByteArray data("FLTCLR"); // start with the magic bytes
+    QDataStream ds(&data, QIODevice::WriteOnly);
+    ds.skipRawData(data.size()); // position the stream after the magic bytes
+    ds << mFlightControllerValues;
+    mLogFile->write(data.constData(), data.size());
 }
 
 void FlightController::slotLiftHoverPosition()
