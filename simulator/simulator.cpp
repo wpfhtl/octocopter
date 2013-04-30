@@ -122,7 +122,8 @@ void Simulator::slotOgreInitialized(void)
 
     // Only one of the two objects will emit motion signals depending on mJoystickEnabled
     // FlightController's motion should go through a clampToSafeLimits, while the joystickmotion is sent directly.
-    connect(mFlightController, SIGNAL(motion(const MotionCommand* const)), this, SLOT(slotSetClampedMotion(const MotionCommand* const)));
+//    connect(mFlightController, SIGNAL(motion(const MotionCommand* const)), this, SLOT(slotSetClampedMotion(const MotionCommand* const)));
+    connect(mFlightController, SIGNAL(motion(const MotionCommand* const)), mPhysics, SLOT(slotSetMotion(const MotionCommand* const)));
     connect(mJoystick, SIGNAL(motion(const MotionCommand* const)), mPhysics, SLOT(slotSetMotion(const MotionCommand* const)));
 
     // Same thing for StatusWidget, which has the configuration window. Tell it to read the config only after ogre
@@ -433,8 +434,8 @@ void Simulator::slotNewConnection()
     mBaseConnection->slotNewVehicleStatus(&mVehicleStatus);
 }
 
-void Simulator::slotSetClampedMotion(const MotionCommand* const mc)
+/*void Simulator::slotSetClampedMotion(const MotionCommand* const mc)
 {
     const MotionCommand mcClamped = mc->clampedToSafeLimits();
     mPhysics->slotSetMotion(&mcClamped);
-}
+}*/

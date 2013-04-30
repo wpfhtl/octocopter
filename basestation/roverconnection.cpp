@@ -151,6 +151,7 @@ void RoverConnection::processPacket(QByteArray data)
         // read the points!
         stream.readRawData((char*)mRegisteredPointsFloat, numPoints * sizeof(float) * 4);
 
+        qDebug() << "received" << numPoints << "points from rover";
         emit scanData(mRegisteredPointsFloat, numPoints, &mScannerPosition);
     }
     else if(packetType == "image")
@@ -192,6 +193,7 @@ void RoverConnection::processPacket(QByteArray data)
     {
         stream >> mPose;
 
+        qDebug() << "RoverConnection::processPacket(): emitting reconstructued" << mPose;
         emit vehiclePose(&mPose);
     }
     else if(packetType == "currentwaypointshash")

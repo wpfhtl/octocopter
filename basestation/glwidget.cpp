@@ -518,7 +518,7 @@ void GlWidget::paintGL()
     if(mLastFlightControllerValues/*p != 0*/)
     {
         QVector3D velocity = p->getVelocity();
-        qDebug() << "GlWidget::paintGL(): fcv-time" << mLastFlightControllerValues->timestamp << "pose:" << *p;
+        //qDebug() << "GlWidget::paintGL(): fcv-time" << mLastFlightControllerValues->timestamp << "pose:" << *p;
         velocity.setY(0.0f);
         const float velocityScalar = velocity.length();
 
@@ -868,8 +868,7 @@ bool GlWidget::isPointCloudRegistered(PointCloud* p)
 void GlWidget::slotSetFlightControllerValues(const FlightControllerValues* const fcv)
 {
     mLastFlightControllerValues = fcv;
-    mLastKnownVehiclePose = &fcv->lastKnownPose;
-    slotUpdateView();
+    slotNewVehiclePose(&fcv->lastKnownPose);
 }
 
 void GlWidget::slotNewScanData(const qint32& timestampScanScanner, std::vector<quint16> * const distances)
@@ -879,11 +878,9 @@ void GlWidget::slotNewScanData(const qint32& timestampScanScanner, std::vector<q
         // If needed, create a VBO for the scan rays
         if(!mVboRawScanRays) glGenBuffers(1, &mVboRawScanRays);
 
-//        std::reverse(distances->begin(), distances->end());
         glBindBuffer(GL_ARRAY_BUFFER, mVboRawScanRays);
         glBufferData(GL_ARRAY_BUFFER, sizeof(quint16) * distances->size(), distances->data(), GL_STATIC_DRAW);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
-//        std::reverse(distances->begin(), distances->end());
 
         slotUpdateView();
     }

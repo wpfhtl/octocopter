@@ -100,7 +100,6 @@ public slots:
 
 private slots:
     void slotUpdateWind();
-    void slotUpdateEngineRotations();
 };
 
 #endif

@@ -370,7 +370,6 @@ void Physics::slotSetMotion(const MotionCommand* const motionCommand)
     const float thrustScalar = mEngine.calculateThrust(thrustCurrent) * 8.0f;
     const Ogre::Vector3 thrustVectorOgre = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0, thrustScalar, 0.0f);
     mVehicleBody->applyCentralForce(btVector3(thrustVectorOgre.x, thrustVectorOgre.y, thrustVectorOgre.z));
-    qDebug() << thrustScalar;
     // Discharge Battery:
     // When we yaw, pitch or roll, we always take x RPM from one pair of motors and add it to another pair. Since
     // the rpm/current-curve is pretty linear for small changes, we assume that yawing, pitching and rolling do
@@ -390,7 +389,10 @@ void Physics::slotSetMotion(const MotionCommand* const motionCommand)
     Ogre::Radian currentYaw, currentPitch, currentRoll;
     mat.ToEulerAnglesYXZ(currentYaw, currentPitch, currentRoll);
 
-    const float timeDiff = std::min(0.2f, (float)(mSimulator->getSimulationTime() - mTimeOfLastControllerUpdate) / 1000.0f); // elapsed time since last call in seconds
+    float timeDiffDelme = (mSimulator->getSimulationTime() - mTimeOfLastControllerUpdate) / 1000.0f;
+    const float timeDiff = qBound(0.01f, (float)(mSimulator->getSimulationTime() - mTimeOfLastControllerUpdate) / 1000.0f, 0.3f); // elapsed time since last call in seconds
+    qDebug() << thrustVectorOgre.x << thrustVectorOgre.y << thrustVectorOgre.z << timeDiffDelme << "bound:" << timeDiff;
+    mTimeOfLastControllerUpdate = mSimulator->getSimulationTime();
 
     const float mikrokopterPitchRollP = 6.0f;
     const float mikrokopterPitchRollI = 0.0f;
@@ -496,11 +498,6 @@ float Physics::getHeightAboveGround()
     return -1.0;
 }
 
-void Physics::slotUpdateEngineRotations()
-{
-
-}
-
 void Physics::slotUpdatePhysics(void)
 {
 
@@ -508,7 +505,7 @@ void Physics::slotUpdatePhysics(void)
     const btScalar deltaS = qBound(0.0f, (simulationTime - mTimeOfLastPhysicsUpdate) / 1000.0f, 0.1f); // elapsed time since last call in seconds
     const int maxSubSteps = 20;
     const btScalar fixedTimeStep = 1.0 / 60.0;
-//    qDebug() << "Physics::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
+    qDebug() << "Physics::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
     slotUpdateWind();
 
     mVehicleBody->applyDamping(deltaS);
@@ -530,7 +527,7 @@ void Physics::slotUpdatePhysics(void)
     foreach(LaserScanner* ls, *laserScanners)
     {
         Ogre::SceneNode* scannerNode = ls->getSceneNode();
-            scannerNode->_update(false, true);
+        scannerNode->_update(false, true);
         ls->slotSetScannerPose(scannerNode->_getDerivedPosition(), scannerNode->_getDerivedOrientation());
     }
 

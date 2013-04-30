@@ -17,9 +17,9 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
     controllerWeights.clear();
     // Hover - Thrust
     weights.clear();
-    weights.insert('p', 100.0f);
+    weights.insert('p', 80.0f);
     weights.insert('i', 0.0f);
-    weights.insert('d', 10.0f);
+    weights.insert('d', 20.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerThrust, weights);
 
     // Hover - Yaw
@@ -33,7 +33,7 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
     weights.clear();
     weights.insert('p', 30.0f);
     weights.insert('i', 0.0f);
-    weights.insert('d', 0.0f);
+    weights.insert('d', 10.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerPitch, weights);
     controllerWeights.insert(&mFlightControllerValues.controllerRoll, weights);
     mFlightControllerWeights.insert(FlightState::Value::Hover, controllerWeights);
@@ -128,6 +128,16 @@ void FlightController::slotComputeMotionCommands()
                                 - mFlightControllerValues.lastKnownPose.getYawRadians()
                                 )
                             );
+
+                /*angleToYawDegrees = RAD2DEG(
+                            Pose::getShortestTurnRadians(
+                                -Pose::getShortestTurnRadians(
+                                    DEG2RAD(180.0f)
+                                    - atan2(-vectorHoverPositionToOrigin.x(), -vectorHoverPositionToOrigin.z())
+                                    )
+                                - mFlightControllerValues.lastKnownPose.getYawRadians()
+                                )
+                            );*/
             }
 
             // angleToYawDegrees needs some tuning: When using a p(d) controller and a range of 0 to (-)180, the vehicle
@@ -138,7 +148,7 @@ void FlightController::slotComputeMotionCommands()
             // seems cheaper to compute, so we use that one.
             const float maxYaw = 45.0f;
             const float aggressiveness = 0.2f; // how quickly to reach the maxYaw when abs(angleToYawDegrees) rises
-            const float angleToYawDegreesAdjusted = maxYaw * ((aggressiveness * angleToYawDegrees) / (1.0f + aggressiveness * angleToYawDegrees));
+            const float angleToYawDegreesAdjusted = maxYaw * ((aggressiveness * angleToYawDegrees) / (1.0f + fabs(aggressiveness * angleToYawDegrees)));
 
             // If we give the yaw controller our current yaw (e.g. -170 deg) and our desired value (e.g. +170),
             // it would compute an error of 340 degrees - making the kopter turn 340 degrees left. Instead, we
@@ -186,7 +196,7 @@ void FlightController::slotComputeMotionCommands()
                      << "maxVelPerAxis:" << mMaxFlightVelPerAxis
                      << "horVel" << horizontalVelocity.length()
                      << "trajGoal:" << mFlightControllerValues.trajectoryGoal
-                     << "angleToYawDeg:" << angleToYawDegreesAdjusted << "deg" << (angleToYawDegreesAdjusted < 0.0f ? "right" : "left") << "- adj:" << angleToYawDegreesAdjusted
+                     << "angleToYawDeg:" << angleToYawDegrees << "deg" << (angleToYawDegrees < 0.0f ? "right" : "left") << "- adj:" << angleToYawDegreesAdjusted
                      << "offset pitchToGoal" << lateralOffsetPitchToTrajectoryGoal << "rollToTraj" << lateralOffsetRollToTrajectory
                      << "velPitchVal" << velOverPitchValue << "velPitchDes" << velOverPitchDesired
                      << "velRollVal" << velOverRollValue << "velRollDes" << velOverRollDesired;
@@ -221,6 +231,8 @@ void FlightController::slotComputeMotionCommands()
         qDebug() << "FlightController::slotComputeMotionCommands(): FLIGHTSTATE NOT DEFINED:" << mFlightControllerValues.flightState.toString();
         Q_ASSERT(false);
     }
+
+    mFlightControllerValues.motionCommand.adjustThrustToPitchAndRoll();
 
     qDebug() << "FlightController::slotComputeMotionCommands(): emitting motion:" << mFlightControllerValues.motionCommand;
     emit motion(&mFlightControllerValues.motionCommand);
@@ -811,7 +823,7 @@ QVector3D FlightController::getHoverPosition(const QVector3D& trajectoryStart, c
 
     mTrajectoryProgress = std::max(mTrajectoryProgress, projectedTrajectoryProgress);
 
-    if(distanceFromVehicleToProjectedHoverPosition < desiredDistanceToHoverPosition)
+    if(false /*do not advance, we're speed-based now.*/ && distanceFromVehicleToProjectedHoverPosition < desiredDistanceToHoverPosition)
     {
         // The vehicle is so close that we should advance the carrot, to keep it desiredDistanceToHoverPosition in front
         const float advanceHoverPosition = sqrt(pow(desiredDistanceToHoverPosition, 2.0f) - pow(distanceFromVehicleToProjectedHoverPosition, 2.0f));
