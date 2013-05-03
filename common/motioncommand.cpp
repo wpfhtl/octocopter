@@ -2,7 +2,6 @@
 #include "common.h"
 #include <QVector3D>
 #include <QQuaternion>
-#include <math.h> // ceil and floor
 
 MotionCommand::MotionCommand()
 {
@@ -71,15 +70,10 @@ MotionCommand MotionCommand::clampedToSafeLimits() const
 {
     MotionCommand clamped;
 
-    // As documented in the header, about 127 means hovering.
-    clamped.thrust = (quint8)qBound(50.0f, (float)thrust, 180.0f);
-
-    // A yaw of 15 rotates by about 15 degrees per second, which is slooow
-    clamped.yaw = (qint8)qBound(-50.0, yaw > 0.0f ? ceil(yaw) : floor(yaw), 50.0);
-
-    // Lets limit to 25 for testing, this seems plenty
-    clamped.pitch = (qint8)qBound(-25.0f, (float)pitch, 25.0f);
-    clamped.roll = (qint8)qBound(-25.0f, (float)roll, 25.0f);
+    clamped.thrust = clamp(thrustMin, thrust, thrustMax);
+    clamped.yaw = clamp((qint8)-yawMax, yaw, yawMax);
+    clamped.pitch = clamp((qint8)-pitchMax, pitch, pitchMax);
+    clamped.roll = clamp((qint8)-rollMax, roll, rollMax);
 
     return clamped;
 }
@@ -90,7 +84,9 @@ void MotionCommand::adjustThrustToPitchAndRoll()
     const QQuaternion pitchAndRoll(QQuaternion::fromAxisAndAngle(QVector3D(1,0,0), pitch) * QQuaternion::fromAxisAndAngle(QVector3D(0,0,1), roll));
     const QVector3D upVehicle = pitchAndRoll.rotatedVector(upWorld);
 
-    const float angleBetweenVehicleAndWorldUpInRad = acos(QVector3D::dotProduct(upWorld, upVehicle));
+    // We might be called on unclamped values. Limit the angle to clampedToSafeLimit-values.
+    const float angleBetweenVehicleAndWorldUpInRad = std::min(acos(QVector3D::dotProduct(upWorld, upVehicle)), DEG2RAD(rollMax));
+
     const quint8 addedThrust = MotionCommand::thrustHover * (float)sin(angleBetweenVehicleAndWorldUpInRad);
     qDebug() << "MotionCommand::adjustThrustToPitchAndRoll(): vehicle points" << RAD2DEG(angleBetweenVehicleAndWorldUpInRad) << "deg away from world up, amplifying thrust from" << thrust << "to" << thrust + addedThrust;
     thrust += addedThrust;
