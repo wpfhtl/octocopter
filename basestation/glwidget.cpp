@@ -304,7 +304,7 @@ void GlWidget::paintGL()
 
         if(mRenderRawScanRays && mVboRawScanRays)
         {
-            quint8 rayStride = 1; // how many rays to ignore between visualized rays
+            quint8 rayStride = 0; // how many rays to ignore between visualized rays
             mShaderProgramRawScanRays->bind();
             mShaderProgramRawScanRays->setUniformValue("rayStride", rayStride);
 

@@ -57,15 +57,14 @@ struct HokuyoConfig
 
   QString toString()
   {
-      return QString("HokuyoConfig: angleStart(%1), angleStop(%2), angleIncrement(%3), timeIncrement(%4), timeBetweenScans(%5), rangeMin(%6), rangeMax(%7), rangeResolution(%8)")
+      return QString("HokuyoConfig: angleStart %1, angleStop %2, angleIncrement %3, timeIncrement %4, timeBetweenScans %5, rangeMin %6, rangeMax %7")
               .arg(angleStart)
               .arg(angleStop)
               .arg(angleIncrement)
               .arg(timeIncrement)
               .arg(timeBetweenScans)
               .arg(rangeMin)
-              .arg(rangeMax)
-              .arg(rangeResolution);
+              .arg(rangeMax);
   }
 };
 
@@ -171,17 +170,17 @@ public:
    *  to terminate scanning.  Service_scan() must be called repeatedly
    *  to receive scans as they come in.
    *
-   * \param intensity  Whether or not intensity data should be provided
-   * \param min_ang    Minimal angle of the scan (radians)
-   * \param max_ang    Maximum angle of the scan (radians)
-   * \param clustering Number of adjascent ranges to be clustered into a single measurement
+   * \param intensity  Whether intensity data should be provided
+   * \param angleStart Minimal angle of the scan (radians)
+   * \param angleStop  Maximum angle of the scan (radians)
+   * \param clustering Number of adjacent ranges to be clustered into a single measurement
    * \param skip       Number of scans to skip between returning measurements
    * \param num        Number of scans to return (0 for indefinite)
    * \param timeout    Timeout in milliseconds.
    *
    * \return Status code returned from hokuyo device.
    */
-  int requestScans(bool intensity, double min_ang, double max_ang, int clustering = 0, int skip = 0, int num = 0, int timeout = -1);
+  int requestScans(bool intensity, double angleStart, double angleStop, int clustering = 0, int skip = 0, int num = 0, int timeout = -1);
 
   //! Retrieve a scan if they have been requested
   /*!

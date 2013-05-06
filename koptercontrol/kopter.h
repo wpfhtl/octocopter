@@ -35,7 +35,7 @@ class Kopter : public QObject
         unsigned char Config;	//if set to 1 the ExternControl is set active
 
         ExternControl() {} // Hopefully, this c'tor will initialize all members to zero.
-    };
+    } __attribute__ ((packed));
 
     /*
         These channel values are experienced when read from incoming data. They do NOT match the mikrokopter-tool levels!
@@ -68,18 +68,18 @@ class Kopter : public QObject
 
         QString toString() const
         {
-            return QString("PpmChannels::toString(): unused %1, thrust %2, roll %3, pitch %4, yaw %5, motorSafety %6, poti %7, externalControl %8, pushButton %9")
+            return QString("PpmChannels: unused %1, thrust %2, roll %3, pitch %4, yaw %5, motorSafety %6, poti %7, externalControl %8, pushButton %9")
                     .arg(unused)
-                    .arg(thrust)
+                    .arg(thrust + 128)
                     .arg(roll)
                     .arg(pitch)
                     .arg(yaw)
-                    .arg(motorSafety)
+                    .arg(motorSafety < 0 ? "inactive" : "active")
                     .arg(poti)
                     .arg(externalControl)
-                    .arg(pushButton);
+                    .arg(pushButton < 0 ? "low" : "high");
         }
-    };
+    } __attribute__ ((packed));
 
     struct VersionInfo
     {
@@ -91,7 +91,7 @@ class Kopter : public QObject
         unsigned char HardwareError[5];
 
         VersionInfo() {}
-    };
+    } __attribute__ ((packed));
 
     struct DebugOut
     {
@@ -99,7 +99,7 @@ class Kopter : public QObject
         qint16 Analog[32];    // Debugwerte
 
         DebugOut() {}
-    };
+    } __attribute__ ((packed));
 
     enum PushButtonValue
     {

@@ -85,9 +85,10 @@ void MotionCommand::adjustThrustToPitchAndRoll()
     const QVector3D upVehicle = pitchAndRoll.rotatedVector(upWorld);
 
     // We might be called on unclamped values. Limit the angle to clampedToSafeLimit-values.
-    const float angleBetweenVehicleAndWorldUpInRad = std::min(acos(QVector3D::dotProduct(upWorld, upVehicle)), DEG2RAD(rollMax));
+    const float angleBetweenVehicleAndWorldUpInRad = qBound(0.0, acos(QVector3D::dotProduct(upWorld, upVehicle)), DEG2RAD(rollMax));
 
-    const quint8 addedThrust = MotionCommand::thrustHover * (float)sin(angleBetweenVehicleAndWorldUpInRad);
+    // Sending a desired roll of e.g. 20 doesn't mean we'll really have an attitude of 20 degrees, so downscale the adjustment using the factor below.
+    const quint8 addedThrust = MotionCommand::thrustHover * (float)sin(angleBetweenVehicleAndWorldUpInRad) * 0.2f;
     qDebug() << "MotionCommand::adjustThrustToPitchAndRoll(): vehicle points" << RAD2DEG(angleBetweenVehicleAndWorldUpInRad) << "deg away from world up, amplifying thrust from" << thrust << "to" << thrust + addedThrust;
     thrust += addedThrust;
 }
