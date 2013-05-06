@@ -165,11 +165,14 @@ void FlightController::slotComputeMotionCommands()
             QVector3D worldFrameSpeedValue(mFlightControllerValues.lastKnownPose.getVelocity());
             worldFrameSpeedValue.setY(0.0f);
 
-            // We want the offset to the goal over the pitch axis
+            // We want the offset to the goal over the pitch axis. Right after reaching a waypoint, trajectoryGoal can be behind the vehicle
+            // when angleToYawDegrees is still large (orientation in progress). But pitching to trajectoryGoal behind you while yawing isn't
+            // good, as it causes weird behaviour (kopterlog-20130430-105341-1120-normandienstagnoadjust-gnssdata.sbf, 212210600).
+            // To fix this, we pitch towards the hoverposition while orientation is in progress and towards trajectorygoal after that.
             float lateralOffsetPitchToTrajectoryGoal = getLateralOffsetOnVehiclePitchAxisToPosition(
                         mFlightControllerValues.lastKnownPose.getPosition(),
                         mFlightControllerValues.lastKnownPose.getYawRadians(),
-                        mFlightControllerValues.trajectoryGoal);
+                        fabs(angleToYawDegrees) < 5.0f ? mFlightControllerValues.trajectoryGoal : mFlightControllerValues.hoverPosition);
 
             // We want the offset to the trajectory over the roll axis
             float lateralOffsetRollToTrajectory = getLateralOffsetOnVehicleRollAxisToPosition(
