@@ -871,6 +871,11 @@ void Hokuyo::slotProcessScans()
         mLogFile->write((const char*)&timeStampScanMiddle, sizeof(timeStampScanMiddle));
         mLogFile->write((const char*)&indexFirst, sizeof(indexFirst));
 
+        QString debugString;
+        for(int i=0;i<distances->size();i++)
+            debugString.append(QString::number((*distances)[i] + ','));
+
+        qDebug() << "Hokuyo::slotProcessScans(): incoming:" << debugString;
 
         qDebug() << "Hokuyo::slotProcessScans(): got" << distances->size() << "rays at" << distances->data() << ", indexFirst" << indexFirst << "indexLast" << indexLast << "writing" << numberOfDistanceBytesToWrite << "bytes starting at" << distanceBytesToWrite;
         qDebug() << "Hokuyo::slotProcessScans():"
