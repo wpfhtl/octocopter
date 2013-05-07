@@ -85,7 +85,7 @@ private:
       quint16       CRC;
       quint16       ID;
       quint16       Length;
-    };
+    } __attribute__ ((packed));
 
     struct Sbf_ReceiverTime
     {
@@ -103,7 +103,7 @@ private:
       qint8         DeltaLS;
       quint8        SyncLevel;
       quint8        Reserved[2];
-    };
+    } __attribute__ ((packed));
 
     struct Sbf_IntAttCovEuler
     {
@@ -121,7 +121,7 @@ private:
       float          Cov_HeadPitch;
       float          Cov_HeadRoll;
       float          Cov_PitchRoll;
-    };
+    } __attribute__ ((packed));
 
     struct Sbf_ExtEvent
     {
@@ -133,7 +133,7 @@ private:
         float          Offset;
         double         RxClkBias;
         quint16       PVTAge;
-    };
+    } __attribute__ ((packed));
 
     struct Sbf_IntPVAAGeod
     {
@@ -170,7 +170,7 @@ private:
         quint16       Heading;
         qint16        Pitch;
         qint16        Roll;
-    };
+    } __attribute__ ((packed));
 
     struct Sbf_IntAttEuler
     {
@@ -197,7 +197,7 @@ private:
         float          PitchDot;
         float          RollDot;
         float          HeadingDot;
-    };
+    } __attribute__ ((packed));
 
     struct Sbf_PVTCartesian
     {
@@ -228,7 +228,7 @@ private:
       quint8        AlertFlag;
       quint8        NrBases;
       quint8        Reserved[2];
-    };
+    } __attribute__ ((packed));
 
     struct Sbf_ReceiverStatus
     {
@@ -246,7 +246,7 @@ private:
       quint8        SBSize;
       quint8        Reserved2[2];
       // unused AGCState_2_0_t AGCState[MAXSB_AGCSTATE];
-    };
+    } __attribute__ ((packed));
 
     void setPose(const Sbf_IntPVAAGeod* block, const GnssStatus& gnssStatus);
 

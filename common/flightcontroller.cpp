@@ -146,9 +146,8 @@ void FlightController::slotComputeMotionCommands()
             // we don't really want to be pointing too far off, so we want to yaw with more than "1" if we're 1 degree off.
             // As it turns out (by asking Manfred :), both arctan and (X/1+abs(x)) are exactly what we need. The latter
             // seems cheaper to compute, so we use that one.
-            const float maxYaw = 45.0f;
-            const float aggressiveness = 0.2f; // how quickly to reach the maxYaw when abs(angleToYawDegrees) rises
-            const float angleToYawDegreesAdjusted = maxYaw * ((aggressiveness * angleToYawDegrees) / (1.0f + fabs(aggressiveness * angleToYawDegrees)));
+            const float aggressiveness = 0.2f; // how quickly to reach MotionCommand::yawMax when abs(angleToYawDegrees) rises
+            const float angleToYawDegreesAdjusted = MotionCommand::yawMax * ((aggressiveness * angleToYawDegrees) / (1.0f + fabs(aggressiveness * angleToYawDegrees)));
 
             // If we give the yaw controller our current yaw (e.g. -170 deg) and our desired value (e.g. +170),
             // it would compute an error of 340 degrees - making the kopter turn 340 degrees left. Instead, we
@@ -172,7 +171,7 @@ void FlightController::slotComputeMotionCommands()
             float lateralOffsetPitchToTrajectoryGoal = getLateralOffsetOnVehiclePitchAxisToPosition(
                         mFlightControllerValues.lastKnownPose.getPosition(),
                         mFlightControllerValues.lastKnownPose.getYawRadians(),
-                        fabs(angleToYawDegrees) < 5.0f ? mFlightControllerValues.trajectoryGoal : mFlightControllerValues.hoverPosition);
+                        fabs(angleToYawDegrees) < 15.0f ? mFlightControllerValues.trajectoryGoal : mFlightControllerValues.hoverPosition);
 
             // We want the offset to the trajectory over the roll axis
             float lateralOffsetRollToTrajectory = getLateralOffsetOnVehicleRollAxisToPosition(
@@ -235,7 +234,7 @@ void FlightController::slotComputeMotionCommands()
         Q_ASSERT(false);
     }
 
-    mFlightControllerValues.motionCommand.adjustThrustToPitchAndRoll();
+    //mFlightControllerValues.motionCommand.adjustThrustToPitchAndRoll();
 
     qDebug() << "FlightController::slotComputeMotionCommands(): emitting motion:" << mFlightControllerValues.motionCommand;
     emit motion(&mFlightControllerValues.motionCommand);
@@ -810,6 +809,7 @@ void FlightController::slotSetControllerWeights(const QString* const controllerN
 }
 
 // Get the position of the carrot (=hoverPosition) that the mule shall follow...
+// Fix: Start (0,1.0,0) -> (0,0.2,0)
 QVector3D FlightController::getHoverPosition(const QVector3D& trajectoryStart, const QVector3D& trajectoryGoal, const QVector3D& vehiclePosition, const float& desiredDistanceToHoverPosition)
 {
     const QVector3D trajectoryUnitVector = (trajectoryGoal-trajectoryStart).normalized();
@@ -819,20 +819,19 @@ QVector3D FlightController::getHoverPosition(const QVector3D& trajectoryStart, c
     // If we project the vehicle's position on the trajectory, how far along are we? We bound to between 0 and trajectory-length.
     const float projectedTrajectoryProgress = qBound(0.0f, (float)QVector3D::dotProduct(trajectoryUnitVector, vectorFromTrajectoryStartToVehicle), trajectoryLength);
 
-//    mTrajectoryProgress = std::max(projectedTrajectoryProgress, mTrajectoryProgress);
-    const QVector3D projectedHoverPosition(trajectoryStart + (trajectoryUnitVector * projectedTrajectoryProgress));
-
-    const float distanceFromVehicleToProjectedHoverPosition = vehiclePosition.distanceToLine(projectedHoverPosition, QVector3D());
-
     mTrajectoryProgress = std::max(mTrajectoryProgress, projectedTrajectoryProgress);
 
-    if(false /*do not advance, we're speed-based now.*/ && distanceFromVehicleToProjectedHoverPosition < desiredDistanceToHoverPosition)
+/* do not advance, we're speed-based now:
+    const QVector3D projectedHoverPosition(trajectoryStart + (trajectoryUnitVector * projectedTrajectoryProgress));
+    const float distanceFromVehicleToProjectedHoverPosition = vehiclePosition.distanceToLine(projectedHoverPosition, QVector3D());
+
+    if(distanceFromVehicleToProjectedHoverPosition < desiredDistanceToHoverPosition)
     {
         // The vehicle is so close that we should advance the carrot, to keep it desiredDistanceToHoverPosition in front
         const float advanceHoverPosition = sqrt(pow(desiredDistanceToHoverPosition, 2.0f) - pow(distanceFromVehicleToProjectedHoverPosition, 2.0f));
         const float newTrajectoryProgress = std::min(projectedTrajectoryProgress + advanceHoverPosition, trajectoryLength);
         mTrajectoryProgress = std::max(mTrajectoryProgress, newTrajectoryProgress);
-    }
+    }*/
 
     qDebug() << "FlightController::getHoverPosition(): TS" << trajectoryStart << "VP" << vehiclePosition << "TUV" << trajectoryUnitVector << "TL" << trajectoryLength << "VFTSTV" << vectorFromTrajectoryStartToVehicle << "PTP" << projectedTrajectoryProgress << "MTP" << mTrajectoryProgress;
 

@@ -602,30 +602,24 @@ int Hokuyo::stopScanning()
     return laserOff(); // This one should work because the scan is stopped.
 }
 
-int Hokuyo::requestScans(bool intensity, double min_ang, double max_ang, int cluster, int skip, int count, int timeout)
+int Hokuyo::requestScans(bool intensity, double angleStart, double angleStop, int cluster, int skip, int count, int timeout)
 {
+    //! @todo check that values are within range?
     Q_ASSERT(portOpen());
 
-    //! @todo check that values are within range?
+    if(cluster == 0) cluster = 1;
 
-    int status;
-
-    if(cluster == 0)
-        cluster = 1;
-
-    int min_i = (int)(mAfrt + min_ang*mAres/(2.0*M_PI));
-    int max_i = (int)(mAfrt + max_ang*mAres/(2.0*M_PI));
+    int rayStart = (int)(mAfrt + angleStart * mAres / (2.0*M_PI));
+    int rayStop =  (int)(mAfrt + angleStop  * mAres / (2.0*M_PI));
 
     char cmdbuf[mMaximumCommandLength];
 
     const char intensityChar = intensity ? 'E' : 'D';
 
-    sprintf(cmdbuf,"M%c%.4d%.4d%.2d%.1d%.2d", intensityChar, min_i, max_i, cluster, skip, count);
-    //qDebug() << "Hokuyo::requestScans(): requesting scans" << intensityChar << "mini" << min_i << "maxi" << max_i << "cluster" << cluster << "skip" << skip << "count" << count << ":" << cmdbuf;
+    sprintf(cmdbuf,"M%c%.4d%.4d%.2d%.1d%.2d", intensityChar, rayStart, rayStop, cluster, skip, count);
+    qDebug() << "Hokuyo::requestScans(): requesting scans using" << cmdbuf << ":" << (intensity ? "with" : "without") << "intensity, rayStart" << rayStart << "rayStop" << rayStop << "cluster" << cluster << "skip" << skip << "count" << count << ":" << cmdbuf;
 
-    status = sendCmd(cmdbuf, timeout);
-
-    return status;
+    return sendCmd(cmdbuf, timeout);
 }
 
 bool Hokuyo::isIntensitySupported()
@@ -641,8 +635,7 @@ bool Hokuyo::isIntensitySupported()
         serviceScan(scan, 1000);
         return true;
     }
-    catch (Exception &e)
-    {}
+    catch (Exception &e) {}
 
     // Try a non intensity command.
     try
@@ -820,7 +813,7 @@ void Hokuyo::slotProcessScans()
 
         try
         {
-            QTime t;t.start();
+            //QTime t;t.start();
             const int status = serviceScan(distances, towScanBeginning);
 
             //qDebug() << "Hokuyo::slotProcessScans(): serviceScan() took" << t.elapsed() << "ms for" << distances->size() <<"rays, scan started at time" << towScanBeginning;
@@ -853,33 +846,51 @@ void Hokuyo::slotProcessScans()
 
         // A usual dataset contains 200 1's at the beginning and 200 1's at the end.
         // We RLE-compress the leading 1s and drop the trailing 1s
-        quint16 indexStart = 0;
-        while((*distances)[indexStart] <= 20)
-            indexStart++;
+        quint16 indexFirst = 0;
+        while((*distances)[indexFirst] <= 20)
+            indexFirst++;
 
-        quint16 indexStop = distances->size()-1;
-        while((*distances)[indexStop] <= 20)
-            indexStop--;
+        quint16 indexLast = distances->size()-1;
+        while((*distances)[indexLast] <= 20)
+            indexLast--;
+
+        Q_ASSERT(indexFirst < indexLast);
+
+        const quint32 numberOfDistanceBytesToWrite = sizeof(quint16) * ((indexLast - indexFirst) + 1);
+        const char* distanceBytesToWrite = (const char*)(distances->data() + indexFirst);
 
         // Write the total amount of bytes of this scan into the stream
         const quint16 length = 5 // LASER
                 + sizeof(quint16) // length at beginning
                 + sizeof(qint32) // timeStampScanMiddle
-                + sizeof(quint16) // indexStart
-                + ((indexStop - indexStart ) + 1) * sizeof(quint16); // number of bytes for the distance-data
+                + sizeof(quint16) // indexFirst
+                + numberOfDistanceBytesToWrite; // number of bytes for the distance-data
 
         QByteArray magic("LASER");
 
         mLogFile->write(magic.constData(), magic.size());
         mLogFile->write((const char*)&length, sizeof(length));
         mLogFile->write((const char*)&timeStampScanMiddle, sizeof(timeStampScanMiddle));
-        mLogFile->write((const char*)&indexStart, sizeof(indexStart));
+        mLogFile->write((const char*)&indexFirst, sizeof(indexFirst));
+
+        QString debugString;
+        for(int i=0;i<distances->size();i++)
+            debugString.append(QString::number((*distances)[i] + ','));
+
+        qDebug() << "Hokuyo::slotProcessScans(): incoming:" << debugString;
+
+        qDebug() << "Hokuyo::slotProcessScans(): got" << distances->size() << "rays at" << distances->data() << ", indexFirst" << indexFirst << "indexLast" << indexLast << "writing" << numberOfDistanceBytesToWrite << "bytes starting at" << distanceBytesToWrite;
+        qDebug() << "Hokuyo::slotProcessScans():"
+                    << "index" << indexFirst-1 << ":" << (*distances)[indexFirst-1]
+                    << "index" << indexFirst+0 << ":" << (*distances)[indexFirst+0]
+                    << "index" << indexFirst+1 << ":" << (*distances)[indexFirst+1];
+        qDebug() << "Hokuyo::slotProcessScans():"
+                    << "index" << indexLast-1 << ":" << (*distances)[indexLast-1]
+                    << "index" << indexLast+0 << ":" << (*distances)[indexLast+0]
+                    << "index" << indexLast+1 << ":" << (*distances)[indexLast+1];
 
         // Instead of looping through the indices, lets write everything at once.
-        mLogFile->write(
-                    (const char*)(distances->data() + indexStart), // where to start writing.
-                    sizeof(quint16) * ((indexStop - indexStart) + 1)     // how many bytes to write
-                    );
+        mLogFile->write(distanceBytesToWrite, numberOfDistanceBytesToWrite);
 
         // With this call, we GIVE UP OWNERSHIP of the data. It might get deleted immediately!
         emit newScanData(timeStampScanMiddle, distances);

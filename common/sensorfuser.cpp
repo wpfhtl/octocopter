@@ -456,6 +456,7 @@ void SensorFuser::fuseScans()
                 mStatsScansFused[InterpolationMethod::Linear]++;
 
                 mLastScannerPosition = mPoses[poseIndicesToUse[1]].getPosition();
+                qDebug() << "SensorFuser::fuseScans(): emitting" << mNumberOfPointsFusedInThisScan << "rays.";
                 emit scanData(mRegisteredPoints, mNumberOfPointsFusedInThisScan, &mLastScannerPosition);
             }
         }
@@ -573,13 +574,13 @@ void SensorFuser::slotNewVehiclePose(const Pose* const pose)
             pose->covariances < Pose::maximumUsableCovariance
             ))
     {
-//        qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received pose is not precise enough for fusing, ignoring it";
+        qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received pose is not precise enough for fusing, ignoring it";
         return;
     }
 
     //Profiler p(__PRETTY_FUNCTION__);
 
-//    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a " << pose;
+    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a usable" << pose;
 
     // Make sure we receive data in order
     if(mPoses.size()) Q_ASSERT(mPoses.last().timestamp < pose->timestamp);
@@ -643,6 +644,8 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGnss)
       We also compute the drift and cause an alarm if it becomes too high, neccessitating a shorter ratio.
       */
 
+    qDebug() << t() << "SensorFuser::slotScanFinished(): gnss receiver says scanner finished a scan at time" << timestampScanGnss;
+
     // Make sure we receive data in order
     if(mGnssTimeStamps.size()) Q_ASSERT(mGnssTimeStamps.last() < timestampScanGnss);
 
@@ -650,7 +653,6 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGnss)
     // subscriptions. Make sure to only process an ExtEvent once, even if it comes in N times.
     if(mLastScanMiddleGnssTow >= timestampScanGnss) return;
 
-    //qDebug() << t() << "SensorFuser::slotScanFinished(): gnss receiver says scanner finished a scan at time" << timestampScanGnss;
 
     // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
     if(!mPoses.size() || mPoses.last().timestamp < (timestampScanGnss - 1000))
@@ -688,7 +690,7 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGnss)
 
 void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, std::vector<quint16> * const distances)
 {
-//    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
+    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
 
     //Profiler p(__PRETTY_FUNCTION__);
 
