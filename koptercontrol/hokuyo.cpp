@@ -875,11 +875,11 @@ void Hokuyo::slotProcessScans()
 
         QString debugString;
         for(int i=0;i<distances->size();i++)
-            debugString.append(QString::number((*distances)[i] + ','));
+            debugString.append(QString::number((*distances)[i]) + QString(","));
 
         qDebug() << "Hokuyo::slotProcessScans(): incoming:" << debugString;
 
-        qDebug() << "Hokuyo::slotProcessScans(): got" << distances->size() << "rays at" << distances->data() << ", indexFirst" << indexFirst << "indexLast" << indexLast << "writing" << numberOfDistanceBytesToWrite << "bytes starting at" << distanceBytesToWrite;
+        qDebug() << "Hokuyo::slotProcessScans(): got" << distances->size() << "rays at" << distances->data() << ", indexFirst" << indexFirst << "indexLast" << indexLast << "writing" << numberOfDistanceBytesToWrite << "bytes starting at" << (quint16*)distanceBytesToWrite;
         qDebug() << "Hokuyo::slotProcessScans():"
                     << "index" << indexFirst-1 << ":" << (*distances)[indexFirst-1]
                     << "index" << indexFirst+0 << ":" << (*distances)[indexFirst+0]
