@@ -1,5 +1,7 @@
 #include "laserscanner.h"
 
+#include <sys/types.h>
+#include <unistd.h>
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
