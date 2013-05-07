@@ -17,7 +17,7 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
     controllerWeights.clear();
     // Hover - Thrust
     weights.clear();
-    weights.insert('p', 80.0f);
+    weights.insert('p', 50.0f);
     weights.insert('i', 0.0f);
     weights.insert('d', 20.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerThrust, weights);
