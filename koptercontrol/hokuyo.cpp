@@ -875,19 +875,25 @@ void Hokuyo::slotProcessScans()
 
         QString debugString;
         for(int i=0;i<distances->size();i++)
-            debugString.append(QString::number((*distances)[i]) + QString(","));
+        {
+            if(i == indexFirst)
+                debugString.append(QString("[") + QString::number((*distances)[i]) + QString(" "));
+            else if(i == indexLast)
+                debugString.append(QString::number((*distances)[i]) + QString("] "));
+            else
+                debugString.append(QString::number((*distances)[i]) + QString(" "));
+        }
 
-        qDebug() << "Hokuyo::slotProcessScans(): incoming:" << debugString;
+        qDebug() << "Hokuyo::slotProcessScans(): incoming from" << timeStampScanMiddle << ":" << debugString;
 
         qDebug() << "Hokuyo::slotProcessScans(): got" << distances->size() << "rays at" << distances->data() << ", indexFirst" << indexFirst << "indexLast" << indexLast << "writing" << numberOfDistanceBytesToWrite << "bytes starting at" << (quint16*)distanceBytesToWrite;
-        qDebug() << "Hokuyo::slotProcessScans():"
-                    << "index" << indexFirst-1 << ":" << (*distances)[indexFirst-1]
-                    << "index" << indexFirst+0 << ":" << (*distances)[indexFirst+0]
-                    << "index" << indexFirst+1 << ":" << (*distances)[indexFirst+1];
-        qDebug() << "Hokuyo::slotProcessScans():"
-                    << "index" << indexLast-1 << ":" << (*distances)[indexLast-1]
-                    << "index" << indexLast+0 << ":" << (*distances)[indexLast+0]
-                    << "index" << indexLast+1 << ":" << (*distances)[indexLast+1];
+
+        qDebug() << "Hokuyo::slotProcessScans(): index" << indexFirst-1 << ":" << (*distances)[indexFirst-1];
+        qDebug() << "Hokuyo::slotProcessScans(): index" << indexFirst+0 << ":" << (*distances)[indexFirst+0];
+        qDebug() << "Hokuyo::slotProcessScans(): index" << indexFirst+1 << ":" << (*distances)[indexFirst+1];
+        qDebug() << "Hokuyo::slotProcessScans(): index" << indexLast-1  << ":" << (*distances)[indexLast -1];
+        qDebug() << "Hokuyo::slotProcessScans(): index" << indexLast+0  << ":" << (*distances)[indexLast +0];
+        qDebug() << "Hokuyo::slotProcessScans(): index" << indexLast+1  << ":" << (*distances)[indexLast +1];
 
         // Instead of looping through the indices, lets write everything at once.
         mLogFile->write(distanceBytesToWrite, numberOfDistanceBytesToWrite);
