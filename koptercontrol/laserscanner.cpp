@@ -6,11 +6,12 @@
 #include <iostream>
 #include <fstream>
 
-LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeScannerPose, const QString& logFilePrefix) : QObject(), mRelativeScannerPose(relativeScannerPose)
+LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeScannerPose, const QString& logFilePrefix) :
+    QObject(),
+    mRelativeScannerPose(relativeScannerPose),
+    mDeviceFileName(deviceFileName)
 {
     qDebug() << "LaserScanner::LaserScanner(): initializing laserscanner";
-
-    mDeviceFileName = deviceFileName;
 
     mHokuyo = new Hokuyo(logFilePrefix);
 
@@ -33,7 +34,7 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
     connect(mThreadReadScanner, SIGNAL(finished()), this, SLOT(slotThreadFinished()));
     connect(mThreadReadScanner, SIGNAL(terminated()), this, SLOT(slotThreadTerminated()));
 
-    connect(mThreadReadScanner, SIGNAL(started()), mHokuyo, SLOT(slotProcessScans()));
+    connect(mThreadReadScanner, SIGNAL(started()), mHokuyo, SLOT(slotStartScanning()));
     connect(mHokuyo, SIGNAL(finished()), mThreadReadScanner, SLOT(quit()));
 
     connect(mHokuyo, SIGNAL(heightOverGround(float)), SIGNAL(heightOverGround(float)));
@@ -66,13 +67,10 @@ const Pose& LaserScanner::getRelativePose() const
     return mRelativeScannerPose;
 }
 
-/*
 void LaserScanner::slotSetScannerTimeStamp(const qint32 timestamp)
 {
     // We were called after the host was synchronized with the GPS clock, so @timestamp
     // should be pretty much now.
-
-    // Now that everything is running, we should
 
     // Because Hokuyo UTM30LX only supports time-stamp values up to 2^24=16M milliseconds and
     // starts with 0 on bootup, it wraps after 4.66 hours. This means we cannot feed the GPS
@@ -85,7 +83,9 @@ void LaserScanner::slotSetScannerTimeStamp(const qint32 timestamp)
     // is unaccounted for and adds another ~4ms delay, while the calculated delay should be
     // halved (its not a roundtrip). So, instead of 4ms RTT, it should be 4msRTT + 2ms = 6ms
     // of delay.
-}*/
+
+    mHokuyo->slotSetScannerTimeStamp(timestamp);
+}
 
 void LaserScanner::slotEnableScanning(const bool value)
 {

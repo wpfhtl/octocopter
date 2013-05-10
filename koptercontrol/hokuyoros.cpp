@@ -781,7 +781,7 @@ int Hokuyo::serviceScan(std::vector<quint16>* const distances, qint32& towScanBe
     return 0;
 }
 
-void Hokuyo::slotProcessScans()
+void Hokuyo::slotStartScanning()
 {
     qDebug() << GnssTime::currentTow() << "Hokuyo::slotProcessScans(): starting in process" << getpid() << "thread" << pthread_self();
 

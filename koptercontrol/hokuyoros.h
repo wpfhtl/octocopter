@@ -305,7 +305,7 @@ public:
   qint64 readScannerTimeStamp(int timeout = -1);
 
 public slots:
-  void slotProcessScans();
+  void slotStartScanning();
   void slotStopScanning();
 
 signals:

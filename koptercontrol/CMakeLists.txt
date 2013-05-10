@@ -99,7 +99,17 @@ SOURCE_GROUP("Headers" FILES ${INC_FILES_KOPTERCONTROL})
 
 #QT4_WRAP_CPP(MOC_SRCS_KOPTERCONTROL ${INC_FILES_KOPTERCONTROL})
 
+SET(URG_LIBRARIES
+    urg_connection
+    urg_common
+    urg_coordinate
+    urg_geometry
+    #urg_monitor
+    urg_system
+    urg
+)
+
 ADD_EXECUTABLE(koptercontrol ${SRC_FILES_KOPTERCONTROL} ${MOC_SRCS})
 SET_TARGET_PROPERTIES(koptercontrol PROPERTIES AUTOMOC TRUE)
-TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} -lqserialdevice)
+TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} ${URG_LIBRARIES} -lqserialdevice)
 
