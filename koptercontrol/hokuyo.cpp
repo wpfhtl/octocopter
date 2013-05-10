@@ -36,7 +36,8 @@ Hokuyo::Hokuyo(const QString &logFilePrefix) : QObject(), mState(State::Stopped)
     mLogFile = new LogFile(logFilePrefix + QString("scannerdata.lsr"), LogFile::Encoding::Binary);
 
     qDebug() << "Hokuyo::Hokuyo(): registering meta type(s)";
-    //qRegisterMetaType<std::vector<quint16>*const >("std::vector<quint16>*const");
+    //QObject::connect: Cannot queue arguments of type 'std::vector<quint16>*const' (Make sure 'std::vector<quint16>*const' is registered using qRegisterMetaType().)
+    qRegisterMetaType<std::vector<quint16>*const >("std::vector<quint16>*const");
 
     qRegisterMetaType<std::vector<quint16>*>("std::vector<quint16>*");
 }
@@ -884,16 +885,16 @@ void Hokuyo::slotProcessScans()
                 debugString.append(QString::number((*distances)[i]) + QString(" "));
         }
 
+        /*
         qDebug() << "Hokuyo::slotProcessScans(): incoming from" << timeStampScanMiddle << ":" << debugString;
-
         qDebug() << "Hokuyo::slotProcessScans(): got" << distances->size() << "rays at" << distances->data() << ", indexFirst" << indexFirst << "indexLast" << indexLast << "writing" << numberOfDistanceBytesToWrite << "bytes starting at" << (quint16*)distanceBytesToWrite;
-
-        qDebug() << "Hokuyo::slotProcessScans(): index" << indexFirst-1 << ":" << (*distances)[indexFirst-1];
+        qDebug() << "Hokuyo::slotProcessScans(): index" << qMax(indexFirst-1, 0) << ":" << (*distances)[qMax(indexFirst-1, 0)];
         qDebug() << "Hokuyo::slotProcessScans(): index" << indexFirst+0 << ":" << (*distances)[indexFirst+0];
         qDebug() << "Hokuyo::slotProcessScans(): index" << indexFirst+1 << ":" << (*distances)[indexFirst+1];
         qDebug() << "Hokuyo::slotProcessScans(): index" << indexLast-1  << ":" << (*distances)[indexLast -1];
         qDebug() << "Hokuyo::slotProcessScans(): index" << indexLast+0  << ":" << (*distances)[indexLast +0];
-        qDebug() << "Hokuyo::slotProcessScans(): index" << indexLast+1  << ":" << (*distances)[indexLast +1];
+        qDebug() << "Hokuyo::slotProcessScans(): index" << qMin(indexLast+1,distances->size()-1)  << ":" << (*distances)[qMin(indexLast+1,distances->size()-1)];
+        */
 
         // Instead of looping through the indices, lets write everything at once.
         mLogFile->write(distanceBytesToWrite, numberOfDistanceBytesToWrite);
