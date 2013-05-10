@@ -1,5 +1,6 @@
 #include "hokuyo.h"
-
+//#include <sys/types.h>
+#include <unistd.h>
 
 Hokuyo::Hokuyo(const QString& logFilePrefix) : QObject()
 {

@@ -28,6 +28,8 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
     mThreadReadScanner = new QThread;
     mHokuyo->moveToThread(mThreadReadScanner);
 
+    qRegisterMetaType<std::vector<quint16>*const >("std::vector<quint16>*const");
+
     // These should come before the worker slot is connected. Otherwise, slotThreadStarted() is called
     // after the thread has ended. Weird...
     connect(mThreadReadScanner, SIGNAL(started()), this, SLOT(slotThreadStarted()));

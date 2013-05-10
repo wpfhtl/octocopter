@@ -32,9 +32,6 @@ private:
 
     State mState;
 
-private slots:
-    void slotCaptureScanData();
-
 public:
     // The pose specifies translation from vehicle frame to the laser source, so the scanner's
     // physical dimensions are ignored completely. Further down, this class receives high-

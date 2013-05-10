@@ -580,7 +580,7 @@ void SensorFuser::slotNewVehiclePose(const Pose* const pose)
 
     //Profiler p(__PRETTY_FUNCTION__);
 
-    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a usable" << pose;
+    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a usable" << *pose;
 
     // Make sure we receive data in order
     if(mPoses.size()) Q_ASSERT(mPoses.last().timestamp < pose->timestamp);
