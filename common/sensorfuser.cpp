@@ -456,7 +456,6 @@ void SensorFuser::fuseScans()
                 mStatsScansFused[InterpolationMethod::Linear]++;
 
                 mLastScannerPosition = mPoses[poseIndicesToUse[1]].getPosition();
-                qDebug() << "SensorFuser::fuseScans(): emitting" << mNumberOfPointsFusedInThisScan << "rays.";
                 emit scanData(mRegisteredPoints, mNumberOfPointsFusedInThisScan, &mLastScannerPosition);
             }
         }

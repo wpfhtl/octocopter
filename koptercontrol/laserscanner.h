@@ -43,11 +43,11 @@ public:
 public slots:
     void slotEnableScanning(const bool = true);
 
-    void slotDisableScanning()
-    {
-        qDebug() << "LaserScanner::slotDisableScanning().";
-        slotEnableScanning(false);
-    }
+//    void slotDisableScanning()
+//    {
+//        qDebug() << "LaserScanner::slotDisableScanning().";
+//        slotEnableScanning(false);
+//    }
 
     // To set the laserscanner's timestamp to the gps time. Hopefully.
     void slotSetScannerTimeStamp(const qint32 timestamp);

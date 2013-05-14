@@ -81,10 +81,6 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
 
     // initialize the device whenever we get time to do this. By doing it asynchronously, we can give our creator time to connect our signals and fetch them.
     QTimer::singleShot(0, this, SLOT(slotDetermineSerialPortsOnDevice()));
-
-
- // For testing only
- QTimer::singleShot(20000, this, SLOT(slotSetPoseFrequency()));
 }
 
 GnssDevice::~GnssDevice()

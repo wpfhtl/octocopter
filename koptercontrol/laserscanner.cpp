@@ -28,6 +28,7 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeSc
     mThreadReadScanner = new QThread;
     mHokuyo->moveToThread(mThreadReadScanner);
 
+    // This code causes ugly warnings, but we need it to transport the scanned data
     qRegisterMetaType<std::vector<quint16>*const >("std::vector<quint16>*const");
 
     // These should come before the worker slot is connected. Otherwise, slotThreadStarted() is called
