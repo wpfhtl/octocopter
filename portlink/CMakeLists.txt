@@ -1,15 +1,21 @@
-CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
-PROJECT(portlink)
+cmake_minimum_required(VERSION 2.8.8)
+project(portlink)
 
+add_definitions(-std=c++0x -fPIC)
 
-SET(SRC_FILES
+set(CMAKE_AUTOMOC ON)
+
+find_package(Qt5Core REQUIRED)
+
+set(SRC_FILES
 portlink
 networkserver
 networkclient
 serialport
+port
 )
 
-SET(INC_FILES
+set(INC_FILES
 portlink.h
 networkserver.h
 networkclient.h
@@ -17,21 +23,6 @@ serialport.h
 port.h
 )
 
-#"Sources" and "Headers" are the group names in Visual Studio.
-SOURCE_GROUP("Sources" FILES ${SRC_FILES})
-SOURCE_GROUP("Headers" FILES ${INC_FILES})
-
-FIND_PACKAGE(Qt4 COMPONENTS QtCore QtNetwork REQUIRED)
-
-#SET(QT_USE_QTCORE 1)
-#SET(QT_USE_QTGUI 0)
-#SET(QT_USE_QTNETWORK 1)
-INCLUDE(${QT_USE_FILE})
-QT4_WRAP_CPP(MOC_SRCS ${INC_FILES})
-
-SET(CMAKE_DEBUG_POSTFIX "_d")
-SET(CMAKE_BUILD_TYPE "Debug")
-
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/qserialdevice/include)
-ADD_EXECUTABLE(portlink ${SRC_FILES} ${MOC_SRCS})
-TARGET_LINK_LIBRARIES(portlink ${QT_LIBRARIES} qserialdevice)
+add_executable(portlink ${SRC_FILES})
+qt5_use_modules(portlink Core Network SerialPort)
+set_target_properties(portlink PROPERTIES AUTOMOC TRUE)

@@ -687,7 +687,7 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGnss)
     mLastScanMiddleGnssTow = timestampScanGnss;
 }
 
-void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, std::vector<quint16> * const distances)
+void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, std::vector<quint16> * distances)
 {
     qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
 

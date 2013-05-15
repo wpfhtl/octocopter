@@ -3,6 +3,7 @@
 
 #include <QDebug>
 #include <QString>
+#include <QDataStream>
 #include <math.h>
 
 #include <common.h>

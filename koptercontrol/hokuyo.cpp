@@ -19,7 +19,7 @@ Hokuyo::Hokuyo(const QString& logFilePrefix) : QObject()
 
 bool Hokuyo::open(const QString& deviceFilename)
 {
-    if(mScanner.connect(deviceFilename.toAscii().constData()))
+    if(mScanner.connect(qPrintable(deviceFilename)))
     {
         qDebug() << "Hokuyo::Hokuyo(): connecting to" << deviceFilename << "succeeded.";
         return true;

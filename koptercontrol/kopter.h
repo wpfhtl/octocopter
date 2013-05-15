@@ -2,11 +2,11 @@
 #define KOPTER_H
 
 #include <QCoreApplication>
+#include <QtSerialPort/QSerialPort>
 #include <QFile>
 #include <QTimer>
 #include <QDebug>
 
-#include <abstractserial.h>
 #include "koptermessage.h"
 #include "flightstateswitch.h"
 #include "motioncommand.h"
@@ -138,7 +138,7 @@ private:
     // How many milliseconds between two debug outputs?
     int mDesiredDebugDataInterval;
 
-    AbstractSerial *mSerialPortFlightCtrl;
+    QSerialPort *mSerialPortFlightCtrl;
     QByteArray mReceiveBuffer;
     QTime mMissionStartTime;
     QTimer* mTimerPpmChannelPublisher;

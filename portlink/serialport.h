@@ -5,7 +5,7 @@
 #include <QDebug>
 #include <QStringList>
 
-#include <abstractserial.h>
+#include <QtSerialPort/QSerialPort>
 #include "port.h"
 
 class SerialPort : public Port
@@ -17,11 +17,11 @@ public:
     ~SerialPort();
 
 private:
-    AbstractSerial *mSerialPort;
+    QSerialPort *mSerialPort;
 
 private slots:
     void slotSerialPortDataReady();
-    void slotSerialPortStatusChanged(const QString& status, const QDateTime& time);
+    void slotSerialPortError(const QSerialPort::SerialPortError &error);
 
 public slots:
     void write(const QByteArray &data);

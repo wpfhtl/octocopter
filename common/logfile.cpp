@@ -1,4 +1,5 @@
 #include "logfile.h"
+#include <QtConcurrent/QtConcurrentRun>
 
 LogFile::LogFile(const QString& fileName, const Encoding encoding, QObject *parent) : QObject(parent)
 {

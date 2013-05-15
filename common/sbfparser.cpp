@@ -114,14 +114,14 @@ void SbfParser::slotEmitCurrentGnssStatus()
     emit status(&mGnssStatus);
 }
 
-quint16 SbfParser::computeChecksum(const void *buf, unsigned int length) const
+quint16 SbfParser::computeChecksum(const void *buf, const quint32 length) const
 {
   quint32  i;
   quint16  crc = 0;
-  const quint8  *buf8 = (quint8*)buf; /* Convert the type to access by byte. */
+  const quint8 *buf8 = (quint8*)buf; /* Convert the type to access by byte. */
 
   /* see for example the BINEX web site */
-  for (i=0; i < length; i++)
+  for(i=0; i < length; i++)
   {
     crc = (crc << 8) ^ CRC_16CCIT_LookUp[ (crc >> 8) ^ buf8[i] ];
   }
@@ -679,7 +679,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         if(positionOfNextInfo >= msgLength)
         {
             // construct a string starting at the found position, but make sure not to overrun the buffer-end
-            const QString sync = QString::fromAscii(sbfData.data() + positionOfNextInfo, std::min(3, sbfData.size() - positionOfNextInfo));
+            const QString sync = QString::fromLatin1(sbfData.data() + positionOfNextInfo, std::min(3, sbfData.size() - positionOfNextInfo));
             if(sync.left(2) == "$@" || sync == "$R:" || sync == "$R?" || sync == "$R;")
             {
 //                qDebug() << "SbfParser::processNextValidPacket(): nextInfo found at" << positionOfNextInfo << "- breaking.";

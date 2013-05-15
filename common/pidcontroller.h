@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QDebug>
+#include <QDataStream>
 #include <QTime>
 
 // http://en.wikipedia.org/wiki/PID_controller, thanks Minorsky!

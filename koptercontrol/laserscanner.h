@@ -64,7 +64,7 @@ signals:
     void message(const LogImportance& importance, const QString&, const QString& message);
 
     // Emits new scan data, allocated on heap. Ownership is passed to receiver(s).
-    void newScanData(qint32 timestampScanner, std::vector<quint16> * const distances);
+    void newScanData(qint32 timestampScanner, std::vector<quint16> * distances);
 };
 
 #endif

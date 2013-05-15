@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.8)
-project(fclogconverter)
+project(scanconverter)
 
 add_definitions(-std=c++0x -fPIC)
 
@@ -7,16 +7,13 @@ find_package(Qt5Core)
 
 include_directories(
     /usr/include
-    ${CMAKE_CURRENT_BINARY_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/
-    ${CMAKE_CURRENT_SOURCE_DIR}/../koptercontrol/
 )
 
 link_directories(/usr/local/lib/)
 
 
-set(SRC_FILES_LRFLOGWRITER
+set(SRC_FILES_SCANCONVERTER
 ../common/flightcontrollervalues
 ../common/common
 ../common/pidcontroller
@@ -24,15 +21,15 @@ set(SRC_FILES_LRFLOGWRITER
 ../common/flightstate
 ../common/gnsstime
 ../common/pose
-fclogconverter
+scanconverter
 )
 
-set(INC_FILES_LRFLOGWRITER
+set(INC_FILES_SCANCONVERTER
 ../common/flightcontrollervalues.h
 ../common/common.h
 ../common/pose.h
 )
 
-add_executable(fclogconverter ${SRC_FILES_LRFLOGWRITER} ${MOC_SRCS})
-qt5_use_modules(fclogconverter Gui Core)
-set_target_properties(fclogconverter PROPERTIES AUTOMOC TRUE)
+set(CMAKE_AUTOMOC ON)
+add_executable(scanconverter ${SRC_FILES_SCANCONVERTER})
+qt5_use_modules(scanconverter Core Gui)

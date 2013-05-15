@@ -232,7 +232,7 @@ QString KopterMessage::toString() const
     }
 
     QByteArray temp;
-    temp.append('#').append('a' + mAddress).append(mId.toAscii()).append(encode(mPayload));
+    temp.append('#').append('a' + mAddress).append(mId.toLatin1()).append(encode(mPayload));
 
     return QString("# ADR %2-%3, ID %4, PAYLOAD %5 (decoded %6)")
             .arg(mAddress)

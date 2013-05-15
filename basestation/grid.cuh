@@ -1,7 +1,7 @@
 #ifndef GRID_CUH
 #define GRID_CUH
 
-#include <QVector3D>
+#include <stdint.h>
 #include "vector_types.h"
 #include "vector_functions.h"
 
@@ -28,7 +28,7 @@ struct Grid
     // Calculate a particle's hash value (=address in grid) from its containing cell (clamping to edges)
     __host__ __device__ unsigned int getCellHash(int3 gridCellCoordinate) const;
 
-    quint32 cellCount() const {return cells.x * cells.y * cells.z;}
+    uint32_t cellCount() const {return cells.x * cells.y * cells.z;}
 
     // If the Grid bounds are defined by worldMin and worldMax, then what is the best cells-configuration
     // given a fixed @minDist? result would be e.g. 256x32x256 cells.

@@ -225,10 +225,10 @@ void computeMappingFromPointToGridCell(
 
     Grid ben;
     cudaMemcpy(&ben, grid, sizeof(Grid), cudaMemcpyDeviceToHost);
-    qDebug() << "grid on device:"
-             << ben.worldMin.x << ben.worldMin.y << ben.worldMin.z
-             << ben.worldMax.x << ben.worldMax.y << ben.worldMax.z
-             << ben.cells.x << ben.cells.y << ben.cells.z;
+//    qDebug() << "grid on device:"
+//             << ben.worldMin.x << ben.worldMin.y << ben.worldMin.z
+//             << ben.worldMax.x << ben.worldMax.y << ben.worldMax.z
+//             << ben.cells.x << ben.cells.y << ben.cells.z;
 
     // execute the kernel
     computeMappingFromGridCellToParticleD<<< numBlocks, numThreads >>>(

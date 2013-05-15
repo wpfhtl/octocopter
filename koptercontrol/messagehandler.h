@@ -3,6 +3,8 @@
 
 #include <QFile>
 #include <QTextStream>
+#include <QtDebug>
+#include <QtGlobal>
 
 #include <iostream>
 #include <iomanip>
@@ -36,7 +38,7 @@ public:
 
     ~MessageHandler();
 
-    static void handleMessage(QtMsgType type, const char *msg);
+    static void handleMessage(QtMsgType type, const QMessageLogContext &context, const QString &msg);
 };
 
 #endif // MESSAGEHANDLER_H

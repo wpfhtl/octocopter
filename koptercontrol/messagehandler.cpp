@@ -26,7 +26,7 @@ MessageHandler::MessageHandler(const QString& logFilePrefix)
 
     mMutexMessageHandler = new QMutex;
 
-    qInstallMsgHandler(MessageHandler::handleMessage);
+    qInstallMessageHandler(MessageHandler::handleMessage);
     qDebug() << "MessageHandler::MessageHandler(): successfully set up console logging.";
 }
 
@@ -37,7 +37,7 @@ MessageHandler::~MessageHandler()
     delete mLocale;
 
     // Re-set logging to the default handler.
-    qInstallMsgHandler(0);
+    qInstallMessageHandler(0);
 
     if(mMasterLogStream)
     {
@@ -54,7 +54,7 @@ MessageHandler::~MessageHandler()
     delete mLogMessage;
 }
 
-void MessageHandler::handleMessage(QtMsgType type, const char *msg)
+void MessageHandler::handleMessage(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
     QMutexLocker l(mMutexMessageHandler);
 
@@ -62,7 +62,7 @@ void MessageHandler::handleMessage(QtMsgType type, const char *msg)
 
     const qint32 tow = GnssTime::currentTow();
 
-    std::cout << tow << ' ' << msg << std::endl;
+    std::cout << tow << ' ' << qPrintable(msg) << std::endl;
 
     // Don't use endl, as that would flush the line/file to sd-card, which is sloooooow
     (*mMasterLogStream) << tow << ' ' << msg << '\n';
@@ -71,5 +71,9 @@ void MessageHandler::handleMessage(QtMsgType type, const char *msg)
     mMasterLogFile->write(mLogMessage);
     mLogMessage->clear();
 
-    if(type == QtFatalMsg) abort();
+    if(type == QtFatalMsg)
+    {
+        fprintf(stderr, "Fatal: %s (%s:%u, %s)\n", qPrintable(msg), context.file, context.line, context.function);
+        abort();
+    }
 }

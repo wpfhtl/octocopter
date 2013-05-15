@@ -150,7 +150,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mGnssDevice->getSbfParser(), SIGNAL(newVehiclePoseStatus(const Pose* const)), mBaseConnection, SLOT(slotNewVehiclePose(const Pose* const)));
     connect(mGnssDevice->getSbfParser(), SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
     connect(mGnssDevice->getSbfParser(), SIGNAL(gnssDeviceWorkingPrecisely(bool)), mLaserScanner, SLOT(slotEnableScanning(bool)));
-    connect(mLaserScanner, SIGNAL(newScanData(qint32, std::vector<quint16>*const)), mSensorFuser, SLOT(slotNewScanData(qint32,std::vector<quint16>*const)));
+    connect(mLaserScanner, SIGNAL(newScanData(qint32, std::vector<quint16>*)), mSensorFuser, SLOT(slotNewScanData(qint32,std::vector<quint16>*)));
     connect(mSensorFuser, SIGNAL(scanData(float*const,quint32,QVector3D*const)), mBaseConnection, SLOT(slotNewScannedPoints(float*const,quint32,QVector3D*const)));
 
     // Lots of traffic - for what?
@@ -192,12 +192,14 @@ KopterControl::~KopterControl()
 
 void KopterControl::signalHandler(int signal)
 {
+    qDebug() << "KopterControl::signalHandler(): received signal" << signal;
     static int abortCounter = 0;
     abortCounter++;
     char a = 1;
-    qDebug() << "KopterControl::signalHandler(): received signal" << signal;
+    // We write into the pipe, thereby calling KoperControl::slotHandleSignal() safely in its own thread.
     ::write(signalFd[0], &a, sizeof(a));
 
+    // If the user sends more signals, lets kill it hard.
     if(abortCounter == 2)
     {
         qDebug() << "KopterControl::signalHandler(): received signal" << signal << "for" << abortCounter << "times, quit()ing.";
@@ -221,9 +223,11 @@ void KopterControl::slotHandleSignal()
     snSignalPipe->setEnabled(true);
 
     // shutdown orderly
+    qDebug() << "KopterControl::slotHandleSignal(): shutting down scanner...";
     mLaserScanner->slotEnableScanning(false);
 
     // When mGnssDevice finishes device-shutdown, it will quit(), starting the rest of the shutdown sequence.
+    qDebug() << "KopterControl::slotHandleSignal(): shutting down GNSS device...";
     mGnssDevice->slotShutDown();
 }
 

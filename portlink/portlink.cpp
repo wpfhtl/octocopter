@@ -84,7 +84,11 @@ PortLink::PortLink(int argc, char **argv) : QCoreApplication(argc, argv)
 
     while(commandLine.size()) qWarning("PortLink::PortLink(): Ignoring leftover argument %s.", qPrintable(commandLine.takeFirst()));
 
-    if(numberOfPorts < 2) qFatal("PortLink::PortLink(): Less than two ports in use, kinda useless for forwarding data. Exiting.");
+    if(numberOfPorts < 2)
+    {
+        qDebug() << "PortLink::PortLink(): less than two ports in use, kinda useless for forwarding data. Exiting.";
+        abort();
+    }
 
     for(int i = 0; i < mPortList.size(); i++)
     {

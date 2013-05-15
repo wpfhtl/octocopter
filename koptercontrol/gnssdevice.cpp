@@ -44,36 +44,36 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
     mSerialPortOnDeviceUsb = "";
 
     // We use the USB port to talk to the GNSS receiver and receive poses
-    mSerialPortUsb = new AbstractSerial();
+    mSerialPortUsb = new QSerialPort(serialDeviceFileUsb, this);
     //    mSerialPortUsb->enableEmitStatus(true);
     //    connect(mSerialPortUsb, SIGNAL(signalStatus(QString,QDateTime)), SLOT(slotSerialPortStatusChanged(QString,QDateTime)));
-    mSerialPortUsb->setDeviceName(serialDeviceFileUsb);
-    if(!mSerialPortUsb->open(AbstractSerial::ReadWrite))
+//    mSerialPortUsb->setDeviceName(serialDeviceFileUsb);
+    if(!mSerialPortUsb->open(QIODevice::ReadWrite))
     {
         mSerialPortUsb->close();
         qFatal("GnssDevice::GnssDevice(): Opening serial usb port %s failed, exiting.", qPrintable(serialDeviceFileUsb));
     }
-    mSerialPortUsb->setBaudRate(AbstractSerial::BaudRate115200);
-    mSerialPortUsb->setDataBits(AbstractSerial::DataBits8);
-    mSerialPortUsb->setParity(AbstractSerial::ParityNone);
-    mSerialPortUsb->setStopBits(AbstractSerial::StopBits1);
-    mSerialPortUsb->setFlowControl(AbstractSerial::FlowControlOff);
+    mSerialPortUsb->setBaudRate(QSerialPort::Baud115200);
+    mSerialPortUsb->setDataBits(QSerialPort::Data8);
+    mSerialPortUsb->setParity(QSerialPort::NoParity);
+    mSerialPortUsb->setStopBits(QSerialPort::OneStop);
+    mSerialPortUsb->setFlowControl(QSerialPort::NoFlowControl);
 
     // We use the COM port to feed the device RTK correction data
-    mSerialPortCom = new AbstractSerial();
+    mSerialPortCom = new QSerialPort(serialDeviceFileCom, this);
     //    mSerialPortCom->enableEmitStatus(true);
     //    connect(mSerialPortCom, SIGNAL(signalStatus(QString,QDateTime)), SLOT(slotSerialPortStatusChanged(QString,QDateTime)));
-    mSerialPortCom->setDeviceName(serialDeviceFileCom);
-    if(!mSerialPortCom->open(AbstractSerial::ReadWrite))
+//    mSerialPortCom->setDeviceName(serialDeviceFileCom);
+    if(!mSerialPortCom->open(QIODevice::ReadWrite))
     {
         mSerialPortCom->close();
         qFatal("GnssDevice::GnssDevice(): Opening serial com port %s failed, exiting.", qPrintable(serialDeviceFileCom));
     }
-    mSerialPortCom->setBaudRate(AbstractSerial::BaudRate115200);
-    mSerialPortCom->setDataBits(AbstractSerial::DataBits8);
-    mSerialPortCom->setParity(AbstractSerial::ParityNone);
-    mSerialPortCom->setStopBits(AbstractSerial::StopBits1);
-    mSerialPortCom->setFlowControl(AbstractSerial::FlowControlOff);
+    mSerialPortCom->setBaudRate(QSerialPort::Baud115200);
+    mSerialPortCom->setDataBits(QSerialPort::Data8);
+    mSerialPortCom->setParity(QSerialPort::NoParity);
+    mSerialPortCom->setStopBits(QSerialPort::OneStop);
+    mSerialPortCom->setFlowControl(QSerialPort::NoFlowControl);
 
     mStatusTimer = new QTimer(this);
     connect(mStatusTimer, SIGNAL(timeout()), mSbfParser, SLOT(slotEmitCurrentGnssStatus()));
@@ -109,7 +109,7 @@ void GnssDevice::slotQueueCommand(QString command)
     qDebug() << "GnssDevice::slotQueueCommand(): queueing command" << command;
     command.replace("#USB#", mSerialPortOnDeviceUsb);
     command.replace("#COM#", mSerialPortOnDeviceCom);
-    mCommandQueueUsb.append(command.append("\r\n").toAscii());
+    mCommandQueueUsb.append(command.append("\r\n").toLatin1());
 
     if(mLastCommandToGnssDevice[mSerialPortOnDeviceUsb].isEmpty())
         slotFlushCommandQueue();
@@ -592,7 +592,7 @@ bool GnssDevice::parseCommandReply(const QString& portNameOnDevice, QByteArray* 
             if(commandReply.contains("$R? ASCII commands between prompts were discarded!"))
                 qDebug() << "GnssDevice::parseCommandReply(): WARNING, we were talking too fast on port" << portNameOnDevice;
 
-            if(commandReply.contains(QString("setDataInOut,"+mSerialPortOnDeviceCom+",RTCMv3,SBF").toAscii()))
+            if(commandReply.contains(QString("setDataInOut,"+mSerialPortOnDeviceCom+",RTCMv3,SBF").toLatin1()))
             {
                 qDebug() << "GnssDevice::parseCommandReply(): gnss device now configured to accept diffcorr";
                 mGnssDeviceIsConfigured = true;

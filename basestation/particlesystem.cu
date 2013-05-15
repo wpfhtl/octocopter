@@ -16,7 +16,7 @@
 #include "grid.cuh"
 #include "helper_math.h"
 
-#include <QDebug>
+//#include <QDebug>
 
 // simulation parameters in constant memory
 __constant__ ParametersParticleSystem parametersParticleSystem;

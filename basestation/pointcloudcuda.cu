@@ -6,7 +6,7 @@
 #include "thrust/unique.h"
 #include <thrust/remove.h>
 
-#include <QDebug>
+//#include <QDebug>
 #include "cuda.h"
 #include "cudahelper.cuh"
 #include "cudahelper.h"

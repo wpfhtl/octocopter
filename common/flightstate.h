@@ -3,6 +3,7 @@
 
 #include <QString>
 #include <QDebug>
+#include <QDataStream>
 
 class FlightState
 {

@@ -1,41 +1,27 @@
-# The name of our project is "lrfreader". CMakeLists files in this project can
-# refer to the root source directory of the project as ${SIMULATOR_SOURCE_DIR} and
-# to the root binary directory of the project as ${SIMULATOR_BINARY_DIR}.
-CMAKE_MINIMUM_REQUIRED (VERSION 2.8.6)
-PROJECT(koptercontrol)
+cmake_minimum_required(VERSION 2.8.8)
+project(koptercontrol)
 
-# Starting with gcc-4.6, we might need "-Wl,--no-as-needed" in CMAKE_CXX_FLAGS
-# -pg is for using gprof.
-SET(CMAKE_CXX_FLAGS "-Wl,--no-as-needed")
+add_definitions(-std=c++0x -fPIC)
+#ADD_DEFINITIONS(-std=c++0x -fpermissive)
 
-cmake_policy(SET CMP0015 NEW)
+find_package(Qt5Core)
 
-ADD_DEFINITIONS(-std=c++0x -fpermissive)
+#find_package(DevIL)
+#find_package(SDL)
+#find_package(SDL_mixer)
+#find_package(CUDA)
 
-#FIND_PACKAGE(SDL REQUIRED)
-FIND_PACKAGE(Qt4 REQUIRED)
-SET(QT_USE_QTGUI 1)
-SET(QT_USE_QTXML 1)
-SET(QT_USE_QTNETWORK 1)
-INCLUDE(${QT_USE_FILE})
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_BUILD_TYPE Debug)
 
-SET(CMAKE_DEBUG_POSTFIX "_d")
-SET(CMAKE_BUILD_TYPE "Debug")
-
-INCLUDE_DIRECTORIES(
+include_directories(
     /usr/include
-    /usr/local/include
-    ${CMAKE_CURRENT_BINARY_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/qserialdevice/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/
 )
 
-LINK_DIRECTORIES(/usr/local/lib/)
+link_directories(/usr/local/lib/)
 
-### koptercontrol binary
-
-SET(SRC_FILES_KOPTERCONTROL
+set(SRC_FILES_KOPTERCONTROL
 koptercontrol
 koptermessage
 kopter
@@ -64,7 +50,7 @@ laserscanner
 hokuyo
 )
 
-SET(INC_FILES_KOPTERCONTROL
+set(INC_FILES_KOPTERCONTROL
 koptercontrol.h
 koptermessage.h
 kopter.h
@@ -94,22 +80,20 @@ hokuyo.h
 )
 
 #"Sources" and "Headers" are the group names in Visual Studio.
-SOURCE_GROUP("Sources" FILES ${SRC_FILES_KOPTERCONTROL})
-SOURCE_GROUP("Headers" FILES ${INC_FILES_KOPTERCONTROL})
+source_group("Sources" FILES ${SRC_FILES_KOPTERCONTROL})
+source_group("Headers" FILES ${INC_FILES_KOPTERCONTROL})
 
-#QT4_WRAP_CPP(MOC_SRCS_KOPTERCONTROL ${INC_FILES_KOPTERCONTROL})
-
-SET(URG_LIBRARIES
+set(URG_LIBRARIES
     urg_connection
     urg_common
     urg_coordinate
     urg_geometry
-    #urg_monitor
+    urg_monitor
     urg_system
     urg
 )
 
-ADD_EXECUTABLE(koptercontrol ${SRC_FILES_KOPTERCONTROL} ${MOC_SRCS})
-SET_TARGET_PROPERTIES(koptercontrol PROPERTIES AUTOMOC TRUE)
-TARGET_LINK_LIBRARIES(koptercontrol ${QT_LIBRARIES} ${URG_LIBRARIES} -lqserialdevice)
+add_executable(koptercontrol ${SRC_FILES_KOPTERCONTROL})
+qt5_use_modules(koptercontrol Widgets Gui Core Concurrent Network SerialPort)
+target_link_libraries(koptercontrol ${URG_LIBRARIES})
 

@@ -31,7 +31,7 @@ const QSize Camera::getImageSize() const
 int Camera::initDevice()
 {
     /*** open device ***/
-    if (-1 == (mFileDescriptor = open(mDeviceFile.toAscii().constData(), O_RDWR | O_NONBLOCK, 0)))
+    if (-1 == (mFileDescriptor = open(qPrintable(mDeviceFile), O_RDWR | O_NONBLOCK, 0)))
     {
         qDebug() << "Camera::initDevice(): Could not open device:" << mDeviceFile;
         return -1;

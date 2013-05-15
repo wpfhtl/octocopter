@@ -4,14 +4,14 @@
 
 Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
 {
-    mSerialPortFlightCtrl = new AbstractSerial();
-    mSerialPortFlightCtrl->setDeviceName(serialDeviceFile);
-    if(!mSerialPortFlightCtrl->open(AbstractSerial::ReadWrite)) qFatal("Kopter::Kopter(): Opening serial port %s failed, exiting.", qPrintable(serialDeviceFile));
-    mSerialPortFlightCtrl->setBaudRate(AbstractSerial::BaudRate57600);
-    mSerialPortFlightCtrl->setDataBits(AbstractSerial::DataBits8);
-    mSerialPortFlightCtrl->setParity(AbstractSerial::ParityNone);
-    mSerialPortFlightCtrl->setStopBits(AbstractSerial::StopBits1);
-    mSerialPortFlightCtrl->setFlowControl(AbstractSerial::FlowControlOff);
+    mSerialPortFlightCtrl = new QSerialPort(serialDeviceFile);
+    if(!mSerialPortFlightCtrl->open(QIODevice::ReadWrite)) qFatal("Kopter::Kopter(): Opening serial port %s failed, exiting.", qPrintable(serialDeviceFile));
+    mSerialPortFlightCtrl->setBaudRate(QSerialPort::Baud57600);
+    mSerialPortFlightCtrl->setDataBits(QSerialPort::Data8);
+    mSerialPortFlightCtrl->setParity(QSerialPort::NoParity);
+    mSerialPortFlightCtrl->setStopBits(QSerialPort::OneStop);
+    mSerialPortFlightCtrl->setFlowControl(QSerialPort::NoFlowControl);
+
 
     mLastFlightStateSwitch.value = FlightStateSwitch::Value::UserControl;
     mLastPushButtonValue = PushButtonValueUndefined;

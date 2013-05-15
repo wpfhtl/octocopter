@@ -1,14 +1,13 @@
 # We need 2.8.10 and a FindCUDA from svn, so that separate compilation works.
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.10)
-PROJECT(basestation)
+cmake_minimum_required(VERSION 2.8.10)
+project(basestation)
 
-SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} /usr/share/cmake/Modules/)
+#set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} /usr/share/cmake/Modules/)
 
-FILE(GLOB_RECURSE CUDA_SRCS "*.cu")
+file(GLOB_RECURSE CUDA_SRCS "*.cu")
 
-SET(SRC_FILES
+set(SRC_FILES
     ${CUDA_SRCS}
-
     cudahelper
     main
     particlesystem
@@ -61,12 +60,7 @@ SET(SRC_FILES
     pointcloudoctreenode
 )
 
-SET(TEST_SRC_FILES
-    testmain
-    testptu
-)
-
-SET(INC_FILES
+set(INC_FILES
     cudahelper.h
     pointcloud.h
     pointcloudcuda.h
@@ -118,7 +112,7 @@ SET(INC_FILES
     ../common/vehiclestatus.h
 )
 
-SET(UI_FILES
+set(UI_FILES
     controlwidget.ui
     logplayer.ui
     ptucontroller.ui
@@ -129,75 +123,41 @@ SET(UI_FILES
     flightplannerparticlesdialog.ui
 )
 
-SET(RESOURCE_FILES
+set(RESOURCE_FILES
 )
 
-#"Sources" and "Headers" are the group names in Visual Studio.
-SOURCE_GROUP("Sources" FILES ${SRC_FILES})
-SOURCE_GROUP("Headers" FILES ${INC_FILES})
+find_package(Qt5Core)
+find_package(Qt5Gui) # !!!
+find_package(DevIL)
+find_package(SDL)
+find_package(SDL_mixer)
+find_package(CUDA)
 
-FIND_PACKAGE(Qt4)
-SET(QT_USE_QTGUI 1)
-SET(QT_USE_QTXML 1)
-SET(QT_USE_QTOPENGL 1)
-SET(QT_USE_QTNETWORK 1)
-SET(QT_USE_QTTEST 1)
-INCLUDE(${QT_USE_FILE})
+list(APPEND CUDA_NVCC_FLAGS -gencode=arch=compute_30,code=sm_30)
+#list(APPEND CUDA_NVCC_FLAGS -G -g -gencode=arch=compute_30,code=sm_30)
 
-#FIND_PACKAGE(Bullet)
-IF(BULLET_FOUND)
- ADD_DEFINITIONS(-DBASESTATION)
-ENDIF(BULLET_FOUND)
+add_definitions(-std=c++0x -fPIC)
 
-FIND_PACKAGE(DevIL)
-Find_PACKAGE(SDL)
-Find_PACKAGE(SDL_mixer)
-FIND_PACKAGE(CUDA)
+set(CMAKE_BUILD_TYPE Debug)
 
-LIST(APPEND CUDA_NVCC_FLAGS -gencode=arch=compute_30,code=sm_30)
-#LIST(APPEND CUDA_NVCC_FLAGS -G -g -gencode=arch=compute_30,code=sm_30)
-
-ADD_DEFINITIONS(-std=c++0x -fpermissive)
-
-QT4_WRAP_UI(UI_SRCS ${UI_FILES})
-QT4_ADD_RESOURCES(RESOURCE_SRCS ${RESOURCE_FILES})
-
-SET(CMAKE_DEBUG_POSTFIX "_d")
-SET(CMAKE_BUILD_TYPE "Debug")
-
-# Enable the Node LidarPoint::node member, in which a lidarpoint remembers in which node it is stored. Increases octree efficiency,
-# but also creates a dependency on "Node", which is otherwise unused in koptercontrol project
-ADD_DEFINITIONS(-DLIDARPOINT_KEEPS_PARENTNODE)
-ADD_SUBDIRECTORY(qserialdevice)
-INCLUDE_DIRECTORIES(/usr/include
-                    /usr/local/include/
+include_directories(/usr/include
                     /usr/local/cuda/computing_sdk/CUDALibraries/common/inc/
-                    /opt/cuda-sdk/CUDALibraries/common/inc/
-                    ${CMAKE_CURRENT_SOURCE_DIR}/qserialdevice/src/qserialdevice
-                    ${BULLET_INCLUDE_DIRS}
+                    ${Qt5Gui_INCLUDES} # !!!
                     ${IL_INCLUDE_DIR}
-                    ${CMAKE_CURRENT_BINARY_DIR}
-                    ${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
-LINK_DIRECTORIES(/usr/lib/ /usr/local/lib/)
-SET(LIBRARIES
-    #qwt
-    ${QT_LIBRARIES}
-    ${BULLET_LIBRARIES}
+
+link_directories(/usr/lib/ /usr/local/lib/)
+
+set(LIBRARIES
     ${IL_LIBRARIES}
     ${SDL_LIBRARY}
     ${SDLMIXER_LIBRARY}
     SDLmain
-    GL
-    GLEW
-    qserialdeviced
     assimp)
 
-SET(CUDA_SEPARABLE_COMPILATION ON)
+set(CUDA_SEPARABLE_COMPILATION ON)
+set(CMAKE_AUTOMOC ON)
 
-CUDA_ADD_EXECUTABLE(basestation
-    ${SRC_FILES} ${MOC_SRCS} ${UI_SRCS} ${RESOURCE_SRCS}
-    OPTIONS -gencode=arch=compute_30,code=sm_30 # those are the nvcc options only ofr linking
-  )
-SET_TARGET_PROPERTIES(basestation PROPERTIES AUTOMOC TRUE)
-TARGET_LINK_LIBRARIES(basestation ${LIBRARIES})
+cuda_add_executable(basestation ${SRC_FILES} ${UI_SRCS} ${RESOURCE_SRCS} OPTIONS -gencode=arch=compute_30,code=sm_30) # those are the nvcc options only for linking
+target_link_libraries(basestation ${LIBRARIES})
+qt5_use_modules(basestation Widgets Gui Core Concurrent Network SerialPort)

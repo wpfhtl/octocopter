@@ -427,10 +427,10 @@ const QQuaternion Pose::getOrientation() const
     // Adapted from: http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
     float x,y,z,w;
 
-    w = sqrt( std::max( 0.0, 1 + mTransform(0,0) + mTransform(1,1)+ mTransform(2,2)) ) / 2;
-    x = sqrt( std::max( 0.0, 1 + mTransform(0,0) - mTransform(1,1)- mTransform(2,2)) ) / 2;
-    y = sqrt( std::max( 0.0, 1 - mTransform(0,0) + mTransform(1,1)- mTransform(2,2)) ) / 2;
-    z = sqrt( std::max( 0.0, 1 - mTransform(0,0) - mTransform(1,1)+ mTransform(2,2)) ) / 2;
+    w = sqrt( std::max( 0.0f, 1 + mTransform(0,0) + mTransform(1,1)+ mTransform(2,2)) ) / 2;
+    x = sqrt( std::max( 0.0f, 1 + mTransform(0,0) - mTransform(1,1)- mTransform(2,2)) ) / 2;
+    y = sqrt( std::max( 0.0f, 1 - mTransform(0,0) + mTransform(1,1)- mTransform(2,2)) ) / 2;
+    z = sqrt( std::max( 0.0f, 1 - mTransform(0,0) - mTransform(1,1)+ mTransform(2,2)) ) / 2;
 
     x *= sign( x * ( mTransform(2,1)- mTransform(1,2)) );
     y *= sign( y * ( mTransform(0,2)- mTransform(2,0)) );

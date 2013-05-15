@@ -9,7 +9,7 @@ SerialPort::SerialPort(QString serialDeviceFile, QString settings) : Port()
     QString portDataBits = "8";
     QString portParity = "None";
     QString portStopBits = "1";
-    QString portFlowControl = "Disable";
+    QString portFlowControl = "Off";
 
     if(settingsList.size() > 0 && !settingsList.at(0).isEmpty()) portBaudRate = settingsList.at(0);
     if(settingsList.size() > 1 && !settingsList.at(1).isEmpty()) portDataBits = settingsList.at(1);
@@ -29,20 +29,34 @@ SerialPort::SerialPort(QString serialDeviceFile, QString settings) : Port()
     qDebug() << "SerialPort::SerialPort(): Default settings are 115200,8,None,1,Disable, settingsstring was" << settings;
     qDebug() << "SerialPort::SerialPort(): Effective settings are" << portBaudRate << portDataBits << portParity << portStopBits << portFlowControl;
 
-    mSerialPort = new AbstractSerial();
-    mSerialPort->enableEmitStatus(true);
-    connect(mSerialPort, SIGNAL(signalStatus(QString,QDateTime)), SLOT(slotSerialPortStatusChanged(QString,QDateTime)));
-    mSerialPort->setDeviceName(serialDeviceFile);
-    if(!mSerialPort->open(AbstractSerial::ReadWrite))
+    mSerialPort = new QSerialPort(serialDeviceFile, this);
+    connect(mSerialPort, SIGNAL(error(QSerialPort::SerialPortError)), SLOT(slotSerialPortError(QSerialPort::SerialPortError)));
+    if(!mSerialPort->open(QIODevice::ReadWrite))
     {
         mSerialPort->close();
         qFatal("SerialPort::SerialPort(): Opening serial port %s failed, exiting.", qPrintable(serialDeviceFile));
     }
-    mSerialPort->setBaudRate(portBaudRate);
-    mSerialPort->setDataBits(portDataBits + " bit"); // Yes, "8" doesn't work, it needs to be "8 bit"
-    mSerialPort->setParity(portParity);
-    mSerialPort->setStopBits(portStopBits); // Here 1, 1.5, 2 work fine.
-    mSerialPort->setFlowControl(portFlowControl); // "Off" doesn't work, it needs to be "Disable"
+
+    mSerialPort->setBaudRate(portBaudRate.toInt());
+
+    if(portDataBits == "8") mSerialPort->setDataBits(QSerialPort::Data8);
+    else if(portDataBits == "7") mSerialPort->setDataBits(QSerialPort::Data7);
+    else if(portDataBits == "6") mSerialPort->setDataBits(QSerialPort::Data6);
+    else if(portDataBits == "5") mSerialPort->setDataBits(QSerialPort::Data5);
+
+    if(portParity.toLower() == "none") mSerialPort->setParity(QSerialPort::NoParity);
+    else if(portParity.toLower() == "even") mSerialPort->setParity(QSerialPort::EvenParity);
+    else if(portParity.toLower() == "odd") mSerialPort->setParity(QSerialPort::OddParity);
+    else if(portParity.toLower() == "space") mSerialPort->setParity(QSerialPort::SpaceParity);
+    else if(portParity.toLower() == "mark") mSerialPort->setParity(QSerialPort::MarkParity);
+
+    if(portStopBits == "1") mSerialPort->setStopBits(QSerialPort::OneStop);
+    else if(portStopBits == "1.5") mSerialPort->setStopBits(QSerialPort::OneAndHalfStop);
+    else if(portStopBits == "2") mSerialPort->setStopBits(QSerialPort::TwoStop);
+
+    if(portFlowControl.toLower() == "off") mSerialPort->setFlowControl(QSerialPort::NoFlowControl);
+    else if(portFlowControl.toLower() == "hardware") mSerialPort->setFlowControl(QSerialPort::HardwareControl);
+    else if(portFlowControl.toLower() == "software") mSerialPort->setFlowControl(QSerialPort::SoftwareControl);
 
     if(mSerialPort->isOpen())
     {
@@ -78,7 +92,7 @@ void SerialPort::slotSerialPortDataReady()
     emit data(mSerialPort->readAll());
 }
 
-void SerialPort::slotSerialPortStatusChanged(const QString& status, const QDateTime& time)
+void SerialPort::slotSerialPortError(const QSerialPort::SerialPortError& error)
 {
-    qDebug() << "SerialPort::slotSerialPortStatusChanged():" << status << ((mSerialPort->errorString() != QString("Unknown error")) ? QString(mSerialPort->errorString()) : "");
+    qDebug() << __PRETTY_FUNCTION__ << "QSerialPort::SerialPortError" << error;
 }
