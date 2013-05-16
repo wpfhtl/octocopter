@@ -16,22 +16,20 @@ PtuController::PtuController(const QString& deviceFile, QWidget *parent) :
     connect(ui->mDirectInput, SIGNAL(returnPressed()), SLOT(slotSendDirectCommand()));
     connect(ui->mPushButtonToggleControllerState, SIGNAL(pressed()), SLOT(slotCalculateBasePose()));
 
-    mSerialPortPtu = new AbstractSerial();
-    mSerialPortPtu->enableEmitStatus(true);
-    connect(mSerialPortPtu, SIGNAL(signalStatus(QString,QDateTime)), SLOT(slotSerialPortStatusChanged(QString,QDateTime)));
-    mSerialPortPtu->setDeviceName(deviceFile);
-    if(!mSerialPortPtu->open(AbstractSerial::ReadWrite))
+    mSerialPortPtu = new QSerialPort(deviceFile, this);
+    connect(mSerialPortPtu, SIGNAL(error(QSerialPort::SerialPortError)), SLOT(slotSerialPortError(QSerialPort::SerialPortError)));
+    if(!mSerialPortPtu->open(QIODevice::ReadWrite))
     {
         mSerialPortPtu->close();
         qDebug("PtuController::PtuController(): Opening serial usb port %s failed.", qPrintable(deviceFile));
     }
     else
     {
-        mSerialPortPtu->setBaudRate(AbstractSerial::BaudRate9600); // PTU can go faster, but do we need to?
-        mSerialPortPtu->setDataBits(AbstractSerial::DataBits8);
-        mSerialPortPtu->setParity(AbstractSerial::ParityNone);
-        mSerialPortPtu->setStopBits(AbstractSerial::StopBits1);
-        mSerialPortPtu->setFlowControl(AbstractSerial::FlowControlOff);
+        mSerialPortPtu->setBaudRate(9600); // PTU can go faster, but do we need to?
+        mSerialPortPtu->setDataBits(QSerialPort::Data8);
+        mSerialPortPtu->setParity(QSerialPort::NoParity);
+        mSerialPortPtu->setStopBits(QSerialPort::OneStop);
+        mSerialPortPtu->setFlowControl(QSerialPort::NoFlowControl);
         connect(mSerialPortPtu, SIGNAL(readyRead()), SLOT(slotDataReady()));
 
         mTimerUpdateStatus = new QTimer(this);
@@ -85,7 +83,7 @@ void PtuController::slotRetrieveStatus()
 
 void PtuController::slotSendCommandToPtu(const QString& command)
 {
-    mSerialPortPtu->write(QString(command + " ").toAscii());
+    mSerialPortPtu->write(QString(command + " ").toLatin1());
 }
 
 void PtuController::slotSendDirectCommand()
@@ -208,9 +206,9 @@ void PtuController::slotInitialize()
     mElapsedTimer.start();
 }
 
-void PtuController::slotSerialPortStatusChanged(const QString& status, const QDateTime& time)
+void PtuController::slotSerialPortError(const QSerialPort::SerialPortError& error)
 {
-     qDebug() << "PtuController::slotSerialPortStatusChanged(): usb port status" << status;// << "errorstring" << mSerialPortPtu->errorString();
+     qDebug() << "PtuController::slotSerialPortError(): usb port error" << error;
 }
 
 void PtuController::slotVehiclePoseChanged(const Pose* const pose)

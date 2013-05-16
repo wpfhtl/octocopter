@@ -7,6 +7,7 @@
 #include <QDebug>
 #include <QVector3D>
 #include <QVector4D>
+#include <QOpenGLFunctions_4_3_Core>
 
 #include "common.h"
 #include "grid.cuh"
@@ -15,7 +16,7 @@ class PointCloudCuda;
 
 // See http://forums.nvidia.com/index.php?showtopic=173696
 
-class ParticleSystem : public QObject
+class ParticleSystem : public QObject, public QOpenGLFunctions_4_3_Core
 {
     Q_OBJECT
 public:

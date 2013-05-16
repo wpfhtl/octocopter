@@ -1,8 +1,7 @@
-#include <GL/glew.h>
-#include "glwidget.h"
+#include "glwindow.h"
 #include "flightplannerinterface.h"
 
-FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, GlWidget* glWidget, PointCloud *pointcloud) : QObject()
+FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, GlWindow* glWidget, PointCloud *pointcloud) : QObject()
 {
     mGlWidget = glWidget;
     mParentWidget = widget;
@@ -213,6 +212,7 @@ void FlightPlannerInterface::slotVisualize()
     // Initialize shaders and VBO if necessary
     if(mShaderProgramDefault == 0 && mGlWidget != 0)
     {
+        initializeOpenGLFunctions();
         mShaderProgramDefault = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
     }
 

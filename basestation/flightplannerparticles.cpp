@@ -1,10 +1,10 @@
-#include <GL/glew.h>
 #include "flightplannerparticles.h"
 #include "flightplannerparticlesdialog.h"
 #include "particlesystem.cuh"
 #include "pointcloudcuda.h"
+#include "cudahelper.cuh"
 
-FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWidget *glWidget, PointCloud *pointcloud) : FlightPlannerInterface(parentWidget, glWidget, pointcloud)
+FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWindow *glWidget, PointCloud *pointcloud) : FlightPlannerInterface(parentWidget, glWidget, pointcloud)
 {
     mParticleSystem = 0;
     mParticleRenderer = 0;

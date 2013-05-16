@@ -1,4 +1,6 @@
 #include "basestation.h"
+#include <QMenu>
+#include <QMenuBar>
 
 BaseStation::BaseStation() : QMainWindow()
 {
@@ -47,23 +49,26 @@ BaseStation::BaseStation() : QMainWindow()
     mMenuFile->addAction("Save Log", mLogWidget, SLOT(save()));
     mMenuWindowList->addAction("Log Viewer", this, SLOT(slotToggleLogWidget()));
 
-    mGlWidget = new GlWidget(this);
-    setCentralWidget(mGlWidget);
-    connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWidget, SLOT(slotUpdateView()));
+    mGlWindow = new GlWindow;
+    QWidget* glContainer = QWidget::createWindowContainer(mGlWindow, this);
+    setCentralWidget(glContainer);
+    connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWindow, SLOT(slotUpdateView()));
 
 //    mPointCloud = new PointCloudCuda(QVector3D(-64, -2, -64), QVector3D(64, 30, 64)/*, 250000*/);
     mPointCloud = new PointCloudCuda(QVector3D(-50, 0, -50), QVector3D(50, 30, 50)/*, 250000*/);
-    connect(mGlWidget, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
-    connect(mGlWidget, SIGNAL(initializingInGlContext()), mPointCloud, SLOT(slotInitialize()));
+    connect(mGlWindow, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
+    connect(mGlWindow, SIGNAL(initializingInGlContext()), mPointCloud, SLOT(slotInitialize()));
+    // After connecting consumers of initializingInGlContext(), initialze glWindow, which will emit the signal.
+    mGlWindow->slotInitialize();
 
     // register dense pointcloud for rendering.
-    mGlWidget->slotPointCloudRegister(mPointCloud);
+    mGlWindow->slotPointCloudRegister(mPointCloud);
 
     // Choose your weapon!
 //    mFlightPlanner = new FlightPlannerCuda(this, mGlWidget, mPointCloud);
 //    mFlightPlanner = new FlightPlannerPhysics(this, mGlWidget, mPointCloud);
 //    mFlightPlanner->slotSetScanVolume(QVector3D(-10, -10, -10), QVector3D(10, 10, 10));
-    mFlightPlanner = new FlightPlannerParticles(this, mGlWidget, mPointCloud);
+    mFlightPlanner = new FlightPlannerParticles(this, mGlWindow, mPointCloud);
 
     mPtuController = new PtuController("/dev/serial/by-id/usb-Hjelmslund_Electronics_USB485_ISO4W_HEVGI92A-if00-port0", this);
     addDockWidget(Qt::BottomDockWidgetArea, mPtuController);
@@ -99,20 +104,19 @@ BaseStation::BaseStation() : QMainWindow()
     mMenuFile->addAction("Load Cloud", this, SLOT(slotImportCloud()));
     mMenuFile->addAction("Clear Cloud", this, SLOT(slotClearCloud()));
 
-    connect(mGlWidget, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
-    connect(mGlWidget, SIGNAL(visualizeNow()), mPtuController, SLOT(slotVisualize()));
-    connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWidget, SLOT(slotUpdateView()));
+    connect(mGlWindow, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
+    connect(mGlWindow, SIGNAL(visualizeNow()), mPtuController, SLOT(slotVisualize()));
+    connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWindow, SLOT(slotUpdateView()));
 
-    mMenuFile->addAction("Screenshot", mGlWidget, SLOT(slotSaveImage()));
     mMenuView->addAction("Dense PointCloud", this, SLOT(slotToggleViewPointCloudDense()));
-    mMenuView->addAction("ViewFromSide", mGlWidget, SLOT(slotViewFromSide()));
-    mMenuView->addAction("ViewFromTop", mGlWidget, SLOT(slotViewFromTop()));
+    mMenuView->addAction("ViewFromSide", mGlWindow, SLOT(slotViewFromSide()));
+    mMenuView->addAction("ViewFromTop", mGlWindow, SLOT(slotViewFromTop()));
     mMenuView->addAction("Clear Trajectory", mFlightPlanner, SLOT(slotClearVehicleTrajectory()));
 
     QAction* actionRotateView = new QAction("Rotate View", this);
     actionRotateView->setCheckable(true);
-    connect(actionRotateView, SIGNAL(triggered(bool)), mGlWidget, SLOT(slotEnableTimerRotation(bool)));
-    connect(mGlWidget, SIGNAL(rotating(bool)), actionRotateView, SLOT(setChecked(bool)));
+    connect(actionRotateView, SIGNAL(triggered(bool)), mGlWindow, SLOT(slotEnableTimerRotation(bool)));
+    connect(mGlWindow, SIGNAL(rotating(bool)), actionRotateView, SLOT(setChecked(bool)));
     mMenuView->addAction(actionRotateView);
 
     mActionEnableAudio = new QAction("AudioOut", this);
@@ -173,7 +177,7 @@ BaseStation::BaseStation() : QMainWindow()
 
         connect(mRoverConnection, SIGNAL(vehiclePose(const Pose* const)), mPtuController, SLOT(slotVehiclePoseChanged(const Pose* const)));
 
-        connect(mRoverConnection, SIGNAL(vehiclePose(const Pose* const)), mGlWidget, SLOT(slotNewVehiclePose(const Pose* const)));
+        connect(mRoverConnection, SIGNAL(vehiclePose(const Pose* const)), mGlWindow, SLOT(slotNewVehiclePose(const Pose* const)));
 
         connect(mRoverConnection, SIGNAL(connectionStatusRover(const bool)), mControlWidget, SLOT(slotUpdateConnectionRover(const bool)));
 
@@ -212,12 +216,12 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mLogPlayer, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mControlWidget, SLOT(slotUpdatePose(const Pose* const)));
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mFlightPlanner, SLOT(slotVehiclePoseChanged(const Pose* const)));
-        connect(mLogPlayer, SIGNAL(newScanData(qint32,std::vector<quint16>*const)), mGlWidget, SLOT(slotNewScanData(qint32,std::vector<quint16>*const)));
+        connect(mLogPlayer, SIGNAL(newScanData(qint32,std::vector<quint16>*const)), mGlWindow, SLOT(slotNewScanData(qint32,std::vector<quint16>*const)));
 
         //connect(mLogPlayer, SIGNAL(vehiclePoseLowFreq(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mPtuController, SLOT(slotVehiclePoseChanged(const Pose* const)));
 
-        connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mGlWidget, SLOT(slotNewVehiclePose(const Pose* const)));
+        connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mGlWindow, SLOT(slotNewVehiclePose(const Pose* const)));
         connect(mLogPlayer, SIGNAL(scanData(float*const, quint32, QVector3D*const)), mFlightPlanner, SLOT(slotNewScanData(float*const,quint32,QVector3D*const)));
     //    connect(mLogPlayer, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
         connect(mLogPlayer, SIGNAL(gnssStatus(const GnssStatus* const)), mControlWidget, SLOT(slotUpdateGnssStatus(const GnssStatus* const)));
@@ -247,7 +251,7 @@ BaseStation::~BaseStation()
     delete mFlightPlanner;
     delete mDiffCorrFetcher;
     delete mTimerJoystick;
-    delete mGlWidget;
+    delete mGlWindow;
     delete mWirelessDevice;
     delete mAudioPlayer;
     delete mPointCloud;
@@ -327,7 +331,7 @@ void BaseStation::keyPressEvent(QKeyEvent* event)
     else if(event->key() == Qt::Key_C)
         slotClearCloud();
 
-    mGlWidget->keyPressEvent(event);
+    mGlWindow->keyPressEvent(event);
     mFlightPlanner->keyPressEvent(event);
     //if(mLogPlayer) mLogPlayer->keyPressEvent(event);
 }
@@ -335,7 +339,7 @@ void BaseStation::keyPressEvent(QKeyEvent* event)
 void BaseStation::slotClearCloud()
 {
     mPointCloud->slotReset();
-    mGlWidget->update();
+    mGlWindow->slotRenderNow();
 }
 
 void BaseStation::slotSpeakGnssStatus(const GnssStatus* const status)
@@ -358,7 +362,7 @@ void BaseStation::slotSpeakGnssStatus(const GnssStatus* const status)
 void BaseStation::slotSetFlightControllerValues(const FlightControllerValues* const fcv)
 {
     // visualize pose and controller values
-    mGlWidget->slotSetFlightControllerValues(fcv);
+    mGlWindow->slotSetFlightControllerValues(fcv);
 
     mControlWidget->slotFlightStateChanged(&fcv->flightState);
 

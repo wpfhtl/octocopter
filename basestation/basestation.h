@@ -5,8 +5,9 @@
 #include <QtGui>
 #include <QDebug>
 #include <QInputDialog>
+#include <QMainWindow>
 
-#include "glwidget.h"
+#include "glwindow.h"
 #include "audioplayer.h"
 #include "logplayer.h"
 #include "ptucontroller.h"
@@ -33,7 +34,7 @@
 #include "pointcloudcuda.h"
 
 class FlightPlannerInterface;
-class GlWidget;
+class GlWindow;
 
 class BaseStation : public QMainWindow
 {
@@ -60,7 +61,7 @@ private:
     // a container for collected rays, or rather the world coordinates of where they ended
     PointCloud* mPointCloud;
 
-    GlWidget *mGlWidget;
+    GlWindow *mGlWindow;
 
     void keyPressEvent(QKeyEvent* event);
 
@@ -82,7 +83,7 @@ private slots:
     void slotToggleControlWidget(void) {if(mControlWidget) mControlWidget->setVisible(!mControlWidget->isVisible());}
     void slotTogglePidControllerWidget() {if(mPidControllerWidget) mPidControllerWidget->setVisible(! mPidControllerWidget->isVisible());}
     void slotTogglePtuControllerWidget() {if(mPtuController) mPtuController->setVisible(! mPtuController->isVisible());}
-    void slotToggleViewPointCloudDense() {if(mGlWidget->isPointCloudRegistered(mPointCloud)) mGlWidget->slotPointCloudUnregister(mPointCloud); else mGlWidget->slotPointCloudRegister(mPointCloud);}
+    void slotToggleViewPointCloudDense() {if(mGlWindow->isPointCloudRegistered(mPointCloud)) mGlWindow->slotPointCloudUnregister(mPointCloud); else mGlWindow->slotPointCloudRegister(mPointCloud);}
 
     void slotSetFlightControllerValues(const FlightControllerValues *const fcv);
     void slotSpeakGnssStatus(const GnssStatus *const status);

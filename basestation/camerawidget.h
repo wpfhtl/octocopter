@@ -2,6 +2,8 @@
 #define CAMERAWIDGET_H
 
 #include <QtGui>
+#include <QDockWidget>
+#include <QLabel>
 
 class CameraWidget : public QDockWidget
 {

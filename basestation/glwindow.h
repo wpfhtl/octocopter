@@ -3,9 +3,10 @@
 
 #include <QtGui>
 #include <QColor>
-#include <QGLWidget>
+#include <QWindow>
 #include <QVector>
 #include <QVector3D>
+#include <QOpenGLFunctions_4_3_Core>
 
 #include <cuda_gl_interop.h>
 
@@ -18,10 +19,11 @@ class PointCloud;
 
 class FlightPlannerInterface;
 
-
-class GlWidget : public QGLWidget
+class GlWindow : public QWindow, protected QOpenGLFunctions_4_3_Core
 {
     Q_OBJECT
+
+    QOpenGLContext* mOpenGlContext;
 
     QList<PointCloud*> mPointCloudsToRender;
 
@@ -85,16 +87,15 @@ class GlWidget : public QGLWidget
 
     void renderController(const QMatrix4x4 &transform, const PidController* const controller);
 
+    void resize();
+    void exposeEvent(QExposeEvent *event);
+    void resizeEvent(QResizeEvent *event);
+
 public:
-    GlWidget(QWidget* parent/*, FlightPlannerInterface* flightPlanner*/);
+    GlWindow(QWindow *parent = 0/*, FlightPlannerInterface* flightPlanner*/);
     void moveCamera(const QVector3D &pos);
     void keyPressEvent(QKeyEvent *event);
     bool isPointCloudRegistered(PointCloud* p);
-
-protected:
-    void initializeGL();
-    void resizeGL(int w, int h);
-    void paintGL();
 
 signals:
     void initializingInGlContext();
@@ -104,11 +105,15 @@ signals:
     void message(const LogImportance& importance, const QString& source, const QString& message);
 
 public slots:
+    // This will init opengl and emit initializingInGlContext()
+    void slotInitialize();
+
     // When this is called, we take note of the time of last external update. Because when zooming/rotating
     // is also active, the redraws caused by those actions overlap with the external redraws, causing
     // superfluous and slow redrawing. So, by only redrawing for rotation/zoom when there hasn't been an
     // external redraw in a while, we can save CPU cycles.
-    void slotUpdateView();
+    void slotRenderLater();
+    void slotRenderNow();
 
     // GlWidget renders points from all known PointClouds. These methods (de)register PointClouds for rendering.
     // Ownership remains with the caller, meaning they MUST be deregistered before deletion
@@ -128,7 +133,6 @@ public slots:
     void slotEnableTimerRotation(const bool& enable);
     void slotViewFromTop();
     void slotViewFromSide();
-    void slotSaveImage();
 };
 
 #endif

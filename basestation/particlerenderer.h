@@ -2,11 +2,12 @@
 #define RENDER_PARTICLES_H
 
 #include <QObject>
+#include <QOpenGLFunctions_4_3_Core>
 
 #include "shaderprogram.h"
 #include <common.h>
 
-class ParticleRenderer : public QObject
+class ParticleRenderer : public QObject, protected QOpenGLFunctions_4_3_Core
 {
     Q_OBJECT
 public:
@@ -32,6 +33,7 @@ public slots:
     void slotSetVboInfoParticles(const quint32 vboPositions, const quint32 vboColors, const quint32 count, const QVector3D particleSystemWorldMin, const QVector3D particleSystemWorldMax);
 
 private:
+    bool mIsInitialized;
     bool mRenderParticles, mRenderWaypointPressure, mRenderBoundingBox;
 
     ShaderProgram *mShaderProgramDefault, *mShaderProgramParticles, *mShaderProgramGrid;

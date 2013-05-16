@@ -1,24 +1,39 @@
-#include <GL/glew.h>
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
 #include "pointcloud.h"
-#include "glwidget.h"
+#include "glwindow.h"
 #include "cudahelper.h"
 
-GlWidget::GlWidget(QWidget* parent) :
-    QGLWidget(parent),
+GlWindow::GlWindow(QWindow* parent) :
+    QWindow(parent),
+    mShaderProgramDefault(0),
+    mShaderProgramPointCloud(0),
+    mShaderProgramRawScanRays(0),
     mLastFlightControllerValues(0),
     mLastKnownVehiclePose(0)
 {
-    QGLFormat glFormat;
-    glFormat.setSamples(4);
-    glFormat.setSampleBuffers(true);
-    glFormat.setVersion(4,0);
-    // This means no OpenGL-deprecated stuff is used (like glBegin() and glEnd())
-    //    glFormat.setProfile(QGLFormat::CoreProfile);
-    glFormat.setProfile(QGLFormat::CompatibilityProfile);
-    QGLFormat::setDefaultFormat(glFormat);
-    setFormat(glFormat);
+    // Tell Qt we will use OpenGL for this window
+    setSurfaceType(QWindow::OpenGLSurface);
+
+    // Specify the format and create platform-specific surface
+    QSurfaceFormat format;
+    format.setDepthBufferSize(24);
+    format.setMajorVersion(4);
+    format.setMinorVersion(3);
+    format.setSamples(4);
+    format.setProfile(QSurfaceFormat::CoreProfile);
+    //format.setOption( QSurfaceFormat::DebugContext );
+//    resize(640,480);
+    setFormat(format);
+    create();
+
+//    setVisible(true);
+
+    // Create an OpenGL context
+    mOpenGlContext = new QOpenGLContext;
+    mOpenGlContext->setFormat(format);
+    mOpenGlContext->create();
+
 
     mVboVehiclePathElementSize = sizeof(QVector3D) + sizeof(QVector4D); // position and color with alpha
     mVboVehiclePathBytesMaximum = (3600 * 50 * mVboVehiclePathElementSize); // For a flight time of one hour
@@ -51,16 +66,21 @@ GlWidget::GlWidget(QWidget* parent) :
 
     mTimerUpdate = new QTimer(this);
     mTimerUpdate->setInterval(1000 / 60);
-    connect(mTimerUpdate, SIGNAL(timeout()), SLOT(slotUpdateView()));
-
-    setMinimumSize(640, 480);
-    setFocusPolicy(Qt::ClickFocus);
+    connect(mTimerUpdate, SIGNAL(timeout()), SLOT(slotRenderLater()));
 }
 
-void GlWidget::initializeGL()
+void GlWindow::slotInitialize()
 {
-    glewExperimental = GL_TRUE; // needed for core profile... :|
-    glewInit();
+    qDebug() << __PRETTY_FUNCTION__;
+    mOpenGlContext->makeCurrent(this);
+
+    if(!initializeOpenGLFunctions())
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "couldn't initialize OpenGL 4.3 Core context, quitting.";
+        exit(1);
+    }
+
+    OpenGlUtilities::init();
 
     // Create Vertex Array Object to contain our VBOs
     glGenVertexArrays(1, &mVertexArrayObject);
@@ -182,8 +202,15 @@ void GlWidget::initializeGL()
     emit initializingInGlContext();
 }
 
-void GlWidget::resizeGL(int w, int h)
+void GlWindow::resize()
 {
+    mOpenGlContext->makeCurrent(this);
+
+    int w = width();
+    int h = height();
+
+    qDebug() << __PRETTY_FUNCTION__ << "size:" << w << h;
+
     // setup viewport, projection etc.
     glViewport(0, 0, w, h);
 
@@ -192,24 +219,32 @@ void GlWidget::resizeGL(int w, int h)
     //matrixCameraToClip.perspective(50.0f * mZoomFactorCurrent, (float)w/(float)h, 10.0f, +1000.0f);
     matrixCameraToClip.ortho(-w/2.0f * mZoomFactorCurrent, w/2.0f * mZoomFactorCurrent, -h/2.0f * mZoomFactorCurrent, h/2.0f * mZoomFactorCurrent, 1.0, 10000.0);
 
-    //    qDebug() << "GlWidget::resizeGL(): resizing gl viewport to" << w << h << "setting perspective/cameraclip matrix" << matrixCameraToClip;
+    //qDebug() << "GlWindow::resizeGL(): resizing gl viewport to" << w << h << "setting perspective/cameraclip matrix" << matrixCameraToClip;
 
     // Set the second matrix (cameraToClip) in the UBO
     glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
-    glBufferSubData(GL_UNIFORM_BUFFER, 64, 64, OpenGlUtilities::matrixToOpenGl(matrixCameraToClip).constData());
+    glBufferSubData(GL_UNIFORM_BUFFER, 64, 64, matrixCameraToClip.constData());
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
-void GlWidget::moveCamera(const QVector3D &pos)
+
+
+void GlWindow::moveCamera(const QVector3D &pos)
 {
     //    qDebug() << "moveCamera to " << pos;
     mCameraPosition = pos;
     //    slotEmitModelViewProjectionMatrix();
-    update();
+    slotRenderNow();
 }
 
-void GlWidget::paintGL()
+void GlWindow::slotRenderNow()
 {
+    if(!isExposed()) return;
+
+        // Make the context current
+    //    qDebug() << __PRETTY_FUNCTION__ << "making context current.";
+    mOpenGlContext->makeCurrent(this);
+
     mFramesRenderedThisSecond++;
 
     const QTime currentTime = QTime::currentTime();
@@ -217,7 +252,7 @@ void GlWidget::paintGL()
     if(mTimeOfLastRender.second() != currentTime.second())
     {
         // A second has passed!
-//        qDebug() << "GlWidget::paintGL(): currently rendering at" << mFramesRenderedThisSecond << "fps.";
+//        qDebug() << "GlWidget::slotRenderNow(): currently rendering at" << mFramesRenderedThisSecond << "fps.";
         mFramesRenderedThisSecond = 0;
     }
 
@@ -246,9 +281,9 @@ void GlWidget::paintGL()
     QMatrix4x4 matrixModelToCamera;
     matrixModelToCamera.lookAt(camPos, camLookAt, QVector3D(0.0f, 1.0f, 0.0f));
     glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
-    glBufferSubData(GL_UNIFORM_BUFFER, 0, 64, OpenGlUtilities::matrixToOpenGl(matrixModelToCamera).constData());
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, 64, matrixModelToCamera.constData());
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
-    //    qDebug() << "GlWidget::paintGL(): camPos" << camPos << "lookAt" << camLookAt << "modelToCamera:" << matrixModelToCamera << matrixModelToCamera.inverted() * QVector3D();
+    //    qDebug() << "GlWidget::slotRenderNow(): camPos" << camPos << "lookAt" << camLookAt << "modelToCamera:" << matrixModelToCamera << matrixModelToCamera.inverted() * QVector3D();
 
     // Here we make mZoomFactorCurrent converge to mZoomFactorTarget for smooth zooming
     float step = 0.0f;
@@ -261,7 +296,7 @@ void GlWidget::paintGL()
     {
         mZoomFactorCurrent += step;
         mViewZooming = true;
-        resizeGL(width(),height()); // this sets up a new view with the new zoomFactor
+        resize(); // this sets up a new view with the new zoomFactor
     }
     else
     {
@@ -518,7 +553,7 @@ void GlWidget::paintGL()
     if(mLastFlightControllerValues/*p != 0*/)
     {
         QVector3D velocity = p->getVelocity();
-        //qDebug() << "GlWidget::paintGL(): fcv-time" << mLastFlightControllerValues->timestamp << "pose:" << *p;
+        //qDebug() << "GlWidget::slotRenderNow(): fcv-time" << mLastFlightControllerValues->timestamp << "pose:" << *p;
         velocity.setY(0.0f);
         const float velocityScalar = velocity.length();
 
@@ -557,9 +592,11 @@ void GlWidget::paintGL()
         mModelVehicle->slotSetModelTransform(transformVehicle);
         mModelVehicle->render();
     }
+
+    mOpenGlContext->swapBuffers(this);
 }
 
-void GlWidget::renderController(const QMatrix4x4& transform, const PidController* const controller)
+void GlWindow::renderController(const QMatrix4x4& transform, const PidController* const controller)
 {
     // Now render the controller-values
     QMatrix4x4 trControllerP(transform);
@@ -634,7 +671,7 @@ void GlWidget::renderController(const QMatrix4x4& transform, const PidController
     mModelControllerD->render();
 }
 
-void GlWidget::slotNewVehiclePose(const Pose* const pose)
+void GlWindow::slotNewVehiclePose(const Pose* const pose)
 {
     if(mVboVehiclePathBytesCurrent + mVboVehiclePathElementSize < mVboVehiclePathBytesMaximum)
     {
@@ -684,15 +721,15 @@ void GlWidget::slotNewVehiclePose(const Pose* const pose)
 
     mLastKnownVehiclePose = pose;
 
-    slotUpdateView();
+    slotRenderLater();
 }
 
-void GlWidget::slotClearVehicleTrajectory()
+void GlWindow::slotClearVehicleTrajectory()
 {
     mVboVehiclePathBytesCurrent = 0;
 }
 
-void GlWidget::slotEnableTimerRotation(const bool& enable)
+void GlWindow::slotEnableTimerRotation(const bool& enable)
 {
     if(mViewRotating == enable) return;
 
@@ -704,12 +741,12 @@ void GlWidget::slotEnableTimerRotation(const bool& enable)
 
     emit rotating(enable);
 }
-void GlWidget::mousePressEvent(QMouseEvent *event)
+void GlWindow::mousePressEvent(QMouseEvent *event)
 {
     mLastMousePosition = event->pos();
 }
 
-void GlWidget::mouseMoveEvent(QMouseEvent *event)
+void GlWindow::mouseMoveEvent(QMouseEvent *event)
 {
     const float deltaX = -float(event->x()-mLastMousePosition.x())/width();
     const float deltaY = -float(event->y()-mLastMousePosition.y())/height();
@@ -730,20 +767,20 @@ void GlWidget::mouseMoveEvent(QMouseEvent *event)
     //qDebug() << "mCamLookAtOffset: " << mCamLookAtOffset << "rotXYZ:" << rotX << rotY << rotZ;
 
     // update();
-    slotUpdateView();
+    slotRenderLater();
 }
 
-void GlWidget::wheelEvent(QWheelEvent *event)
+void GlWindow::wheelEvent(QWheelEvent *event)
 {
     event->delta() > 0 ? mZoomFactorTarget *= 1.5f : mZoomFactorTarget *= 0.5f;
     mZoomFactorTarget = qBound(0.002f, (float)mZoomFactorTarget, 1.0f);
     mViewZooming = true;
     mTimerUpdate->setInterval(1000 / 60);
     mTimerUpdate->start();
-    slotUpdateView();
+    slotRenderLater();
 }
 
-void GlWidget::keyPressEvent(QKeyEvent *event)
+void GlWindow::keyPressEvent(QKeyEvent *event)
 {
     if(event->key() == Qt::Key_Q)
     {
@@ -759,62 +796,62 @@ void GlWidget::keyPressEvent(QKeyEvent *event)
     {
         mBackgroundDarkOrBright = !mBackgroundDarkOrBright;
         emit message(LogImportance::Information, "GlWidget::keyPressEvent()", "toggling background brightness");
-        slotUpdateView();
+        slotRenderLater();
     }
     else if(event->key() == Qt::Key_V)
     {
         mRenderVehicle = !mRenderVehicle;
         emit message(LogImportance::Information, "GlWidget::keyPressEvent()", "toggling background brightness");
-        slotUpdateView();
+        slotRenderLater();
     }
     else if(event->key() == Qt::Key_T)
     {
         mRenderTrajectory = !mRenderTrajectory;
         emit message(LogImportance::Information, "GlWidget::keyPressEvent()", "toggling visualization of vehicle trajectory");
-        slotUpdateView();
+        slotRenderLater();
     }
     else if(event->key() == Qt::Key_A && (event->modifiers() & Qt::ShiftModifier))
     {
         mRenderAxisBase = !mRenderAxisBase;
         emit message(LogImportance::Information, "GlWidget::keyPressEvent()", "toggling visualization of coordinate system at base");
-        slotUpdateView();
+        slotRenderLater();
     }
     else if(event->key() == Qt::Key_A && !(event->modifiers() & Qt::ShiftModifier))
     {
         mRenderAxisVehicle = !mRenderAxisVehicle;
         emit message(LogImportance::Information, "GlWidget::keyPressEvent()", "toggling visualization of coordinate system at vehicle");
-        slotUpdateView();
+        slotRenderLater();
     }
     else if(event->key() == Qt::Key_Minus)
     {
         mMaxPointVisualizationDistance = qBound(0.0f, mMaxPointVisualizationDistance - 0.5f, 30.0f);
         emit message(LogImportance::Information, "GlWidget::keyPressEvent()", QString("setting max point visualization distance to %1").arg(mMaxPointVisualizationDistance));
-        slotUpdateView();
+        slotRenderLater();
     }
     else if(event->key() == Qt::Key_Plus)
     {
         mMaxPointVisualizationDistance = qBound(0.0f, mMaxPointVisualizationDistance + 0.5f, 30.0f);
         emit message(LogImportance::Information, "GlWidget::keyPressEvent()", QString("setting max point visualization distance to %1").arg(mMaxPointVisualizationDistance));
-        slotUpdateView();
+        slotRenderLater();
     }
     else if(event->key() == Qt::Key_S)
     {
         mRenderRawScanRays = !mRenderRawScanRays;
         emit message(LogImportance::Information, "GlWidget::keyPressEvent()", QString("toggling visualization of raw scan rays"));
-        slotUpdateView();
+        slotRenderLater();
     }
     else
-        QGLWidget::keyPressEvent(event);
+        QWindow::keyPressEvent(event);
 }
 
-void GlWidget::slotUpdateView()
+void GlWindow::slotRenderLater()
 {
     // quick hack to see ALL generated poses
     // update(); return;
 
     if(mTimeOfLastRender.msecsTo(QTime::currentTime()) > mTimerUpdate->interval())
     {
-        update();
+        slotRenderNow();
 
         if(!mViewRotating && !mViewZooming)
             mTimerUpdate->stop();
@@ -828,50 +865,63 @@ void GlWidget::slotUpdateView()
 //    QTimer::singleShot(desiredInterval + 1 - mTimeOfLastRender.msecsTo(QTime::currentTime()), this, SLOT(slotUpdateView()));
 }
 
-void GlWidget::slotViewFromTop()
+void GlWindow::exposeEvent(QExposeEvent *event)
+{
+    qDebug() << __PRETTY_FUNCTION__;
+    Q_UNUSED(event);
+
+    if(isExposed()) slotRenderNow();
+}
+
+void GlWindow::resizeEvent(QResizeEvent *event)
+{
+    qDebug() << __PRETTY_FUNCTION__;
+    Q_UNUSED(event);
+
+    resize();
+
+    if(isExposed()) slotRenderNow();
+}
+
+void GlWindow::slotViewFromTop()
 {
     mCameraRotation = QVector2D(50, -17.71);
     mZoomFactorCurrent = 0.6;
     mZoomFactorTarget = 0.6;
-    updateGL();
+    slotRenderNow();
 }
 
-void GlWidget::slotViewFromSide()
+void GlWindow::slotViewFromSide()
 {
     mCameraRotation = QVector2D(-23, -3.5);
 
     mZoomFactorCurrent = 0.6;
     mZoomFactorTarget = 0.6;
-    updateGL();
+    slotRenderNow();
 }
 
-void GlWidget::slotSaveImage()
-{
-    renderPixmap(0, 0, true).save(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmsszzz").prepend("snapshot-").append(".png"));
-}
-
-void GlWidget::slotPointCloudRegister(PointCloud* p)
+void GlWindow::slotPointCloudRegister(PointCloud* p)
 {
     mPointCloudsToRender.append(p);
 }
 
-void GlWidget::slotPointCloudUnregister(PointCloud* p)
+void GlWindow::slotPointCloudUnregister(PointCloud* p)
 {
     mPointCloudsToRender.removeOne(p);
 }
 
-bool GlWidget::isPointCloudRegistered(PointCloud* p)
+bool GlWindow::isPointCloudRegistered(PointCloud* p)
 {
     return mPointCloudsToRender.contains(p);
 }
 
-void GlWidget::slotSetFlightControllerValues(const FlightControllerValues* const fcv)
+void GlWindow::slotSetFlightControllerValues(const FlightControllerValues* const fcv)
 {
     mLastFlightControllerValues = fcv;
     slotNewVehiclePose(&fcv->lastKnownPose);
 }
 
-void GlWidget::slotNewScanData(const qint32& timestampScanScanner, std::vector<quint16> * const distances)
+void GlWindow::slotNewScanData(const qint32& timestampScanScanner, std::vector<quint16> * const distances)
 {
     if(mRenderRawScanRays)
     {
@@ -882,6 +932,6 @@ void GlWidget::slotNewScanData(const qint32& timestampScanScanner, std::vector<q
         glBufferData(GL_ARRAY_BUFFER, sizeof(quint16) * distances->size(), distances->data(), GL_STATIC_DRAW);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-        slotUpdateView();
+        slotRenderLater();
     }
 }

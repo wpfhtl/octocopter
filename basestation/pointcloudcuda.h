@@ -69,7 +69,7 @@ public:
     void setColor(const QColor& c) {mVboInfo[0].color = c;}
 
     bool importFromPly(const QString& fileName, QWidget* widget = 0);
-    bool exportToPly(const QString& fileName, QWidget* widget = 0) const;
+    bool exportToPly(const QString& fileName, QWidget* widget = 0);
 
 private:
     ParametersPointCloud mParameters;

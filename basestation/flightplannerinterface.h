@@ -1,8 +1,8 @@
 #ifndef FLIGHTPLANNERINTERFACE_H
 #define FLIGHTPLANNERINTERFACE_H
 
-#include <QGLWidget>
 #include <QMap>
+#include <QOpenGLFunctions_4_3_Core>
 #include "pointcloud.h"
 #include "openglutilities.h"
 #include "shaderprogram.h"
@@ -10,9 +10,9 @@
 #include <pose.h>
 
 class Pose;
-class GlWidget;
+class GlWindow;
 
-class FlightPlannerInterface : public QObject
+class FlightPlannerInterface : public QObject, protected QOpenGLFunctions_4_3_Core
 {
     Q_OBJECT
 public:
@@ -20,7 +20,7 @@ public:
 protected:
     QVector3D mScanVolumeMin, mScanVolumeMax;
     QVector<Pose> mVehiclePoses;
-    GlWidget* mGlWidget;
+    GlWindow* mGlWidget;
     QWidget* mParentWidget;
     PointCloud* mPointCloudDense;
 
@@ -39,7 +39,7 @@ protected:
 
 public:
     // Here, basestation passes its own pointcloud. Its up to the implementation to use it.
-    FlightPlannerInterface(QWidget* widget, GlWidget *glWidget, PointCloud* pointcloud);
+    FlightPlannerInterface(QWidget* widget, GlWindow *glWidget, PointCloud* pointcloud);
     virtual ~FlightPlannerInterface();
 
 //    void setGlWidget(GlWidget* glWidget) {mGlWidget = glWidget;}

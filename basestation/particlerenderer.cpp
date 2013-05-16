@@ -1,5 +1,3 @@
-#include <GL/glew.h>
-
 #include <math.h>
 #include <assert.h>
 #include <stdio.h>
@@ -10,6 +8,8 @@
 
 ParticleRenderer::ParticleRenderer()
 {
+    mIsInitialized = false;
+
     mRenderBoundingBox = true;
     mRenderParticles = false;
     mRenderWaypointPressure = false;
@@ -58,6 +58,12 @@ void ParticleRenderer::slotSetVboInfoGridWaypointPressure(const quint32 vboPress
 
 void ParticleRenderer::render()
 {
+    if(!mIsInitialized)
+    {
+        initializeOpenGLFunctions();
+        mIsInitialized = true;
+    }
+
     glDepthMask(GL_TRUE);
     glEnable(GL_DEPTH_TEST);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -165,8 +171,6 @@ void ParticleRenderer::render()
 
         mShaderProgramGrid->release();
     }
-
-
 
     glDisable(GL_BLEND);
 }

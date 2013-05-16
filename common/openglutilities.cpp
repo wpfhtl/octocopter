@@ -1,27 +1,24 @@
-#include <GL/glew.h>
+#include <QFile>
 #include "openglutilities.h"
 
-QVector<float> OpenGlUtilities::matrixToOpenGl(const QMatrix4x4 &matrix)
+QOpenGLFunctions_4_3_Core* OpenGlUtilities::mGlFunctions = 0;
+
+void OpenGlUtilities::init()
 {
-    QVector<float> data;
-    double* matrixValues = (double*)matrix.constData();
-    for(int i=0;i<16;i++)
-        data.append((float)matrixValues[i]);
-
-    return data;
+    mGlFunctions = new QOpenGLFunctions_4_3_Core;
+    mGlFunctions->initializeOpenGLFunctions();
 }
-
 
 quint32 OpenGlUtilities::createVbo(quint32 size)
 {
-    glGetError(); // clear previous GL errors!
+    mGlFunctions->glGetError(); // clear previous GL errors!
     GLuint vbo;
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    mGlFunctions->glGenBuffers(1, &vbo);
+    mGlFunctions->glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    mGlFunctions->glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
+    mGlFunctions->glBindBuffer(GL_ARRAY_BUFFER, 0);
     // TODO: replace this by using a debug context and debug callback
-    if(glGetError() != GL_NO_ERROR) qFatal("ParticleSystem::createVbo(): error creating VBO!");
+    if(mGlFunctions->glGetError() != GL_NO_ERROR) qFatal("ParticleSystem::createVbo(): error creating VBO!");
     return vbo;
 }
 
@@ -68,14 +65,14 @@ void OpenGlUtilities::setVboToBoundingBox(const quint32 vbo, const QVector3D& mi
             << max.x() << min.y() << min.z() << 1.0f
             << min.x() << min.y() << min.z() << 1.0f;
 
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), NULL, GL_STATIC_DRAW);
-    glBufferSubData(
+    mGlFunctions->glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    mGlFunctions->glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), NULL, GL_STATIC_DRAW);
+    mGlFunctions->glBufferSubData(
                 GL_ARRAY_BUFFER,
                 0, // offset in the VBO
                 vertices.size() * sizeof(float), // how many bytes to store?
                 (void*)(vertices.constData()) // data to store
                 );
 
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    mGlFunctions->glBindBuffer(GL_ARRAY_BUFFER, 0);
 }

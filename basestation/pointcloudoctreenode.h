@@ -2,7 +2,6 @@
 #define POINTCLOUDOCTREENODE_H
 
 #include <QVector3D>
-//#include <QGLWidget>
 #include "lidarpoint.h"
 
 

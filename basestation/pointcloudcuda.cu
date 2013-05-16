@@ -9,7 +9,7 @@
 //#include <QDebug>
 #include "cuda.h"
 #include "cudahelper.cuh"
-#include "cudahelper.h"
+//#include "cudahelper.h"
 #include "pointcloudcuda.cuh"
 #include "helper_math.h"
 
@@ -143,7 +143,7 @@ void markCollidingPoints(
 
     // thread per particle
     uint numThreads, numBlocks;
-    CudaHelper::computeExecutionKernelGrid(numPoints, 64, numBlocks, numThreads);
+    computeExecutionKernelGrid(numPoints, 64, numBlocks, numThreads);
 
     // execute the kernel
     markCollidingPointsD<<< numBlocks, numThreads >>>(

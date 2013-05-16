@@ -1,4 +1,6 @@
 #include "cudahelper.h"
+#include "cudahelper.cuh"
+#include <QDebug>
 
 bool CudaHelper::isDeviceSupported = false;
 
@@ -68,19 +70,6 @@ void CudaHelper::copyArrayFromDevice(void* host, const void* device, struct cuda
     cudaSafeCall(cudaMemcpy(host, device, size, cudaMemcpyDeviceToHost));
 
     if(cuda_vbo_resource) cudaSafeCall(cudaGraphicsUnmapResources(1, cuda_vbo_resource, 0));
-}
-
-// Round a / b to nearest higher integer value
-uint CudaHelper::iDivUp(uint a, uint b)
-{
-    return (a % b != 0) ? (a / b + 1) : (a / b);
-}
-
-// Compute grid and thread block size for a given number of elements
-void CudaHelper::computeExecutionKernelGrid(uint n, uint blockSize, uint &numBlocks, uint &numThreads)
-{
-    numThreads = std::min(blockSize, n);
-    numBlocks = iDivUp(n, numThreads);
 }
 
 QVector3D CudaHelper::cudaConvert(const float3& p) { return QVector3D(p.x, p.y, p.z); }

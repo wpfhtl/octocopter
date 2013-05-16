@@ -1,4 +1,3 @@
-#include <GL/glew.h>
 #include "particlesystem.h"
 #include "particlesystem.cuh"
 #include <thrust/version.h>
@@ -6,6 +5,7 @@
 #include <cuda_gl_interop.h>
 #include <cuda_runtime_api.h>
 #include "cudahelper.h"
+#include "cudahelper.cuh"
 
 #include <assert.h>
 #include <math.h>
@@ -130,6 +130,9 @@ void ParticleSystem::initialize()
 {
     Q_ASSERT(!mIsInitialized);
 
+    // This needs to be called only once, but here it might get called more often. Shouldn't be a problem.
+    initializeOpenGLFunctions();
+
     size_t memTotal, memFree;
     cudaSafeCall(cudaMemGetInfo(&memFree, &memTotal));
     qDebug() << "ParticleSystem::initialize(): before init, device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free.";
@@ -226,8 +229,8 @@ void ParticleSystem::initialize()
     cudaSafeCall(cudaGraphicsGLRegisterBuffer(&mCudaColorVboResource, mVboParticleColors, cudaGraphicsMapFlagsNone));
 
     // fill color buffer
-    glBindBufferARB(GL_ARRAY_BUFFER, mVboParticleColors);
-    float *data = (float *) glMapBufferARB(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+    glBindBuffer(GL_ARRAY_BUFFER, mVboParticleColors);
+    float *data = (float *) glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
     for(unsigned int i=0; i<mSimulationParameters->particleCount; i++)
     {
         const float t = i / (float) mSimulationParameters->particleCount;
@@ -236,7 +239,7 @@ void ParticleSystem::initialize()
         data+=3;
         *data++ = 0.5f; // should be the alpha value
     }
-    glUnmapBufferARB(GL_ARRAY_BUFFER);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     qDebug() << "ParticleSystem::initialize(): worldsize" << CudaHelper::cudaConvert(mSimulationParameters->gridParticleSystem.getWorldSize()) << "and particle radius" << mSimulationParameters->particleRadius << ": created system with" << mSimulationParameters->particleCount << "particles and" << mSimulationParameters->gridParticleSystem.cells.x << "*" << mSimulationParameters->gridParticleSystem.cells.y << "*" << mSimulationParameters->gridParticleSystem.cells.z << "cells";
     qDebug() << "ParticleSystem::initialize(): allocated" << mNumberOfBytesAllocatedCpu << "bytes on CPU," << mNumberOfBytesAllocatedGpu << "bytes on GPU.";

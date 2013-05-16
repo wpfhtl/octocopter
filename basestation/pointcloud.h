@@ -4,12 +4,13 @@
 #include <QVector>
 #include <QVector3D>
 #include <QColor>
+#include <QOpenGLFunctions_4_3_Core>
 
 #include <plymanager.h> // for saving to .ply files
 
 // This defines the INTERFACE of all pointclouds!
 
-class PointCloud : public QObject
+class PointCloud : public QObject, public QOpenGLFunctions_4_3_Core
 {
     Q_OBJECT
 protected:
@@ -65,7 +66,7 @@ public:
     virtual quint32 getNumberOfPoints(void) const = 0;
     virtual quint32 getCapacity(void) const = 0;
 
-    virtual bool exportToPly(const QString& fileName, QWidget* widget = 0) const = 0;
+    virtual bool exportToPly(const QString& fileName, QWidget* widget = 0) = 0;
     virtual bool importFromPly(const QString& fileName, QWidget* widget = 0) = 0;
 
 

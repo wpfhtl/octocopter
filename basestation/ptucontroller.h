@@ -9,7 +9,7 @@
 #include <QElapsedTimer>
 #include <QByteArray>
 
-#include <abstractserial.h>
+#include <QtSerialPort/QSerialPort>
 #include "pose.h"
 #include "model.h"
 #include "shaderprogram.h"
@@ -42,7 +42,7 @@ public:
 private:
     Ui::PtuController *ui;
     QTimer* mTimerUpdateStatus;
-    AbstractSerial *mSerialPortPtu;
+    QSerialPort *mSerialPortPtu;
 
     // This first pose as calculated by the very first determinePtuPose when the enable-button is clicked.
     // Further updates on vehiclePoseChanged will only change mTiltToVehicle and mPanToVehicle.
@@ -68,7 +68,7 @@ private:
     QElapsedTimer mElapsedTimer;
 
 private slots:
-    void slotSerialPortStatusChanged(const QString& status, const QDateTime& time);
+    void slotSerialPortError(const QSerialPort::SerialPortError &error);
     void slotSendDirectCommand();
     void slotInitialize();
     void slotDataReady();

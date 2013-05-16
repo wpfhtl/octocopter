@@ -1,6 +1,3 @@
-#include <GL/glew.h>
-#include <GL/gl.h>
-
 #include "waypointlist.h"
 
 WayPointList::WayPointList()
@@ -109,7 +106,11 @@ void WayPointList::sortToShortestPath(const QVector3D &vehiclePosition)
 // Copy all waypoints into our VBO
 void WayPointList::setVbo()
 {
-    if(!mVbo) glGenBuffers(1, &mVbo);
+    if(!mVbo)
+    {
+        initializeOpenGLFunctions();
+        glGenBuffers(1, &mVbo);
+    }
 
     QVector<float> vertices;
     foreach (const WayPoint& wpt, mWaypoints)

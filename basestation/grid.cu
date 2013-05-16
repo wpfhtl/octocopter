@@ -3,7 +3,7 @@
 #undef _GLIBCXX_USE_INT128
 
 #include "grid.cuh"
-#include "cudahelper.h"
+//#include "cudahelper.h"
 #include "cudahelper.cuh"
 #include "helper_math.h"
 
@@ -221,7 +221,7 @@ void computeMappingFromPointToGridCell(
     if(numParticles == 0) return;
 
     uint numThreads, numBlocks;
-    CudaHelper::computeExecutionKernelGrid(numParticles, 64, numBlocks, numThreads);
+    computeExecutionKernelGrid(numParticles, 64, numBlocks, numThreads);
 
     Grid ben;
     cudaMemcpy(&ben, grid, sizeof(Grid), cudaMemcpyDeviceToHost);
@@ -261,7 +261,7 @@ void sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
     cudaMemset(cellStart, 0xffffffff, numCells*sizeof(uint));
 
     uint numThreads, numBlocks;
-    CudaHelper::computeExecutionKernelGrid(numParticles, 64, numBlocks, numThreads);
+    computeExecutionKernelGrid(numParticles, 64, numBlocks, numThreads);
 
     // Number of bytes in shared memory that is allocated for each (thread)block.
     uint smemSize = sizeof(uint)*(numThreads+1);

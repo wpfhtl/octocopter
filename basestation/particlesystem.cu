@@ -12,7 +12,7 @@
 #include "cuda.h"
 #include "particlesystem.cuh"
 #include "cudahelper.cuh"
-#include "cudahelper.h"
+//#include "cudahelper.h"
 #include "grid.cuh"
 #include "helper_math.h"
 
@@ -123,7 +123,7 @@ void integrateSystemD(
     // new position = old position + velocity * params.timeStep
     pos += movement;
 
-#ifdef TRUE
+#if 1
     // particles bounce off the cube's inner sides
     if(pos.x > params->gridParticleSystem.worldMax.x - params->particleRadius) { pos.x = params->gridParticleSystem.worldMax.x - params->particleRadius; vel.x *= params->velocityFactorCollisionBoundary;}
     if(pos.x < params->gridParticleSystem.worldMin.x + params->particleRadius) { pos.x = params->gridParticleSystem.worldMin.x + params->particleRadius; vel.x *= params->velocityFactorCollisionBoundary;}
@@ -438,7 +438,7 @@ void integrateSystem(float *particlePositions, float *particleVelocities, uint8_
     if(numParticles == 0) return;
 
     uint numThreads, numBlocks;
-    CudaHelper::computeExecutionKernelGrid(numParticles, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
+    computeExecutionKernelGrid(numParticles, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
 
     // execute the kernel
     integrateSystemD<<< numBlocks, numThreads >>>(
@@ -477,7 +477,7 @@ void collideParticlesWithParticlesAndColliders(
 
     // thread per particle
     uint numThreads, numBlocks;
-    CudaHelper::computeExecutionKernelGrid(numParticles, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
+    computeExecutionKernelGrid(numParticles, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
 
     // execute the kernel
     collideParticlesWithParticlesAndCollidersD<<< numBlocks, numThreads >>>(
@@ -519,7 +519,7 @@ void fillGridMapCellWorldPositions(float* gridMapCellWorldPositions, uint numCel
 {
     // thread per cell
     uint numThreads, numBlocks;
-    CudaHelper::computeExecutionKernelGrid(numCells, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
+    computeExecutionKernelGrid(numCells, KERNEL_LAUNCH_BLOCKSIZE, numBlocks, numThreads);
 
     fillGridMapCellWorldPositionsD<<< numBlocks, numThreads >>>(
                                                                   (float4*)gridMapCellWorldPositions,

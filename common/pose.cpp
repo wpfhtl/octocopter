@@ -310,7 +310,7 @@ Pose Pose::interpolateLinear(const Pose &p0, const Pose &p1, const qint32& time)
 {
     // recreate mu from time argument
     const float mu = (((float)(time - p0.timestamp)) / ((float)(p1.timestamp - p0.timestamp)));
-    Q_ASSERT(mu <= 0.0 && mu <= 1.0);
+    Q_ASSERT(mu >= 0.0 && mu <= 1.0);
 
     const QVector3D position = p0.getPosition() * (1.0 - mu) + p1.getPosition() * mu;
     const QQuaternion orientation = QQuaternion::nlerp(p0.getOrientation(), p1.getOrientation(), mu);

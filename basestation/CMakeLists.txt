@@ -4,6 +4,14 @@ project(basestation)
 
 #set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} /usr/share/cmake/Modules/)
 
+find_package(Qt5Core REQUIRED)
+find_package(Qt5Gui REQUIRED) # !!!
+find_package(Qt5Widgets REQUIRED)
+find_package(DevIL REQUIRED)
+find_package(SDL REQUIRED)
+find_package(SDL_mixer REQUIRED)
+find_package(CUDA REQUIRED)
+
 file(GLOB_RECURSE CUDA_SRCS "*.cu")
 
 set(SRC_FILES
@@ -14,7 +22,7 @@ set(SRC_FILES
     pointcloudcuda
     basestation
     audioplayer
-    glwidget
+    glwindow
     logwidget
     pidcontrollerwidget
     logplayer
@@ -56,21 +64,21 @@ set(SRC_FILES
     ../common/vehiclestatus
     particlerenderer
     pointcloud
-    pointcloudoctree
-    pointcloudoctreenode
+    #pointcloudoctree
+    #pointcloudoctreenode
 )
 
 set(INC_FILES
     cudahelper.h
     pointcloud.h
     pointcloudcuda.h
-    pointcloudoctree.h
-    pointcloudoctreenode.h
+    #pointcloudoctree.h
+    #pointcloudoctreenode.h
     particlesystem.h
     particlerenderer.h
     basestation.h
     audioplayer.h
-    glwidget.h
+    glwindow.h
     logwidget.h
     pidcontrollerwidget.h
     logplayer.h
@@ -123,15 +131,10 @@ set(UI_FILES
     flightplannerparticlesdialog.ui
 )
 
+qt5_wrap_ui(UI_SRCS ${UI_FILES})
+
 set(RESOURCE_FILES
 )
-
-find_package(Qt5Core)
-find_package(Qt5Gui) # !!!
-find_package(DevIL)
-find_package(SDL)
-find_package(SDL_mixer)
-find_package(CUDA)
 
 list(APPEND CUDA_NVCC_FLAGS -gencode=arch=compute_30,code=sm_30)
 #list(APPEND CUDA_NVCC_FLAGS -G -g -gencode=arch=compute_30,code=sm_30)
@@ -144,6 +147,7 @@ include_directories(/usr/include
                     /usr/local/cuda/computing_sdk/CUDALibraries/common/inc/
                     ${Qt5Gui_INCLUDES} # !!!
                     ${IL_INCLUDE_DIR}
+                    ${CMAKE_CURRENT_BINARY_DIR}
                     ${CMAKE_CURRENT_SOURCE_DIR}/../common/)
 
 link_directories(/usr/lib/ /usr/local/lib/)

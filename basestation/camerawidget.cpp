@@ -1,4 +1,5 @@
 #include "camerawidget.h"
+#include <QVBoxLayout>
 
 CameraWidget::CameraWidget(QWidget *parent, const QString &windowTitle) :
         QDockWidget(parent), mPixmap(0), mLabel(0)

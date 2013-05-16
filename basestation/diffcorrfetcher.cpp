@@ -124,7 +124,7 @@ bool DiffCorrFetcher::isReceiving(void) const
 
 void DiffCorrFetcher::sendAsciiCommand(QString command)
 {
-    mCommandQueue.append(command.append("\r\n").toAscii());
+    mCommandQueue.append(command.append("\r\n").toLatin1());
 
     slotFlushCommandQueue();
 }
@@ -197,7 +197,7 @@ void DiffCorrFetcher::rtkOutputInitialize()
     while(!file.atEnd())
     {
         QByteArray line = file.readLine();
-        line.replace("$PORT", mSerialPortOnDevice.toAscii());
+        line.replace("$PORT", mSerialPortOnDevice.toLatin1());
         sendAsciiCommand(line.trimmed());
     }
 
@@ -218,7 +218,7 @@ void DiffCorrFetcher::rtkOutputStart()
     while(!file.atEnd())
     {
         QByteArray line = file.readLine();
-        line.replace("$PORT", mSerialPortOnDevice.toAscii());
+        line.replace("$PORT", mSerialPortOnDevice.toLatin1());
         sendAsciiCommand(line.trimmed());
     }
 
@@ -244,7 +244,7 @@ void DiffCorrFetcher::rtkOutputStop()
     while(!file.atEnd())
     {
         QByteArray line = file.readLine();
-        line.replace("$PORT", mSerialPortOnDevice.toAscii());
+        line.replace("$PORT", mSerialPortOnDevice.toLatin1());
         sendAsciiCommand(line.trimmed());
     }
 

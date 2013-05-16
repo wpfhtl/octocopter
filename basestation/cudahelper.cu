@@ -32,4 +32,18 @@ __host__ __device__ unsigned int cudaBound(const unsigned int min, const unsigne
         return value;
 }
 
+__host__ __device__ uint /*CudaHelper::*/iDivUp(uint a, uint b)
+{
+    return (a % b != 0) ? (a / b + 1) : (a / b);
+}
+
+// Compute grid and thread block size for a given number of elements
+__host__ __device__ void /*CudaHelper::*/computeExecutionKernelGrid(uint n, uint blockSize, uint &numBlocks, uint &numThreads)
+{
+    numThreads = blockSize < n ? blockSize : n;// std::min(blockSize, n);
+    numBlocks = iDivUp(n, numThreads);
+}
+
+
+
 #endif

@@ -1,4 +1,6 @@
 #include "controlwidget.h"
+#include <QFileDialog>
+#include <QMessageBox>
 
 ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
 {
@@ -27,8 +29,8 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
 
     connect(mBtnSetScanVolume, SIGNAL(clicked()), SLOT(slotSetScanVolume()));
 
-    mStyle = new QPlastiqueStyle;
-    mCompass->setStyle(mStyle);
+//    mStyle = new QPlastiqueStyle;
+//    mCompass->setStyle(mStyle);
 
     mBarWirelessRssi->setRange(0, 100);
 
@@ -37,7 +39,7 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
 
 ControlWidget::~ControlWidget()
 {
-    delete mStyle;
+//    delete mStyle;
 }
 
 void ControlWidget::initWayPointTable()

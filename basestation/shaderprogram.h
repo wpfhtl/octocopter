@@ -3,10 +3,11 @@
 
 #include <QObject>
 #include <QDir>
-#include <QGLShader>
-#include <QGLShaderProgram>
+#include <QOpenGLShader>
+#include <QOpenGLShaderProgram>
+#include <QOpenGLFunctions_4_3_Core>
 
-class ShaderProgram : public QGLShaderProgram
+class ShaderProgram : public QOpenGLShaderProgram, public QOpenGLFunctions_4_3_Core
 {
     Q_OBJECT
 

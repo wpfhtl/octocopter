@@ -5,7 +5,7 @@
 #include "particlerenderer.h"
 #include "particlesystem.h"
 #include "lidarpoint.h"
-#include "glwidget.h"
+#include "glwindow.h"
 #include <waypoint.h>
 #include "openglutilities.h"
 
@@ -17,7 +17,7 @@ class FlightPlannerParticles : public FlightPlannerInterface
 {
     Q_OBJECT
 public:
-    FlightPlannerParticles(QWidget* parentWidget, GlWidget* glWidget, PointCloud* pointcloud);
+    FlightPlannerParticles(QWidget* parentWidget, GlWindow* glWidget, PointCloud* pointcloud);
     ~FlightPlannerParticles();
 
     void keyPressEvent(QKeyEvent *event);

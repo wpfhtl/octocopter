@@ -1,6 +1,3 @@
-#include <GL/glew.h>
-#include <GL/gl.h>
-
 #include "pointcloudoctree.h"
 
 PointCloudOctree::PointCloudOctree(const QVector3D &min, const QVector3D &max, quint32 maxItemsPerLeaf, const quint32 expectedMaximumElementCount) :

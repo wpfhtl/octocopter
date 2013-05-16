@@ -1,14 +1,15 @@
-#include <GL/glew.h>
 #include "shaderprogram.h"
 
-ShaderProgram::ShaderProgram(QObject *parent, const QString& shaderVertex, const QString& shaderGeometry, const QString& shaderFragment) : QGLShaderProgram(parent)
+ShaderProgram::ShaderProgram(QObject *parent, const QString& shaderVertex, const QString& shaderGeometry, const QString& shaderFragment) : QOpenGLShaderProgram(parent)
 {
     QDir shaderPath = QDir::current();
     shaderPath.cdUp(); // because we're in the build/ subdir
 
+    initializeOpenGLFunctions();
+
     if(!shaderVertex.isEmpty())
     {
-    if(!addShaderFromSourceFile(QGLShader::Vertex, shaderPath.absolutePath() + "/" + shaderVertex))
+    if(!addShaderFromSourceFile(QOpenGLShader::Vertex, shaderPath.absolutePath() + "/" + shaderVertex))
         qDebug() << "ShaderProgram::ShaderProgram(): compiling vertex shader" << shaderVertex << "failed, log:" << log();
 //    else
 //        qDebug() << "ShaderProgram::ShaderProgram(): compiling vertex shader" << shaderVertex << "succeeded, log:" << log();
@@ -16,7 +17,7 @@ ShaderProgram::ShaderProgram(QObject *parent, const QString& shaderVertex, const
 
     if(!shaderGeometry.isEmpty())
     {
-        if(!addShaderFromSourceFile(QGLShader::Geometry, shaderPath.absolutePath() + "/" + shaderGeometry))
+        if(!addShaderFromSourceFile(QOpenGLShader::Geometry, shaderPath.absolutePath() + "/" + shaderGeometry))
             qDebug() << "ShaderProgram::ShaderProgram(): compiling geometry shader" << shaderGeometry << "failed, log:" << log();
 //        else
 //            qDebug() << "ShaderProgram::ShaderProgram(): compiling geometry shader" << shaderGeometry << "succeeded, log:" << log();
@@ -24,7 +25,7 @@ ShaderProgram::ShaderProgram(QObject *parent, const QString& shaderVertex, const
 
     if(!shaderFragment.isEmpty())
     {
-        if(!addShaderFromSourceFile(QGLShader::Fragment, shaderPath.absolutePath() + "/" + shaderFragment))
+        if(!addShaderFromSourceFile(QOpenGLShader::Fragment, shaderPath.absolutePath() + "/" + shaderFragment))
             qDebug() << "ShaderProgram::ShaderProgram(): compiling fragment shader" << shaderFragment << "failed, log:" << log();
 //        else
 //            qDebug() << "ShaderProgram::ShaderProgram(): compiling fragment shader" << shaderFragment << "succeeded, log:" << log();

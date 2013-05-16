@@ -1,4 +1,6 @@
 #include "logwidget.h"
+#include <QFileDialog>
+#include <QMessageBox>
 
 LogWidget::LogWidget(QWidget* widget)
 {

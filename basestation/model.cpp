@@ -1,4 +1,3 @@
-#include <GL/glew.h>
 #include <IL/il.h> // DevIL for image loading
 
 #include "model.h"
@@ -14,7 +13,7 @@ Model::Model(const QFile& file, const QString& mediaPrefix, QObject *parent) : Q
     // This needs to be unique!
     mMaterialUniformLocation = 2;
 
-    loadGlTextures(mAssimpScene);
+    initialize();
 
     mShaderProgram = new ShaderProgram(this, "shader-model-vertex.c", "", "shader-model-fragment.c");
 
@@ -38,6 +37,12 @@ Model::Model(const QFile& file, const QString& mediaPrefix, QObject *parent) : Q
 */
     //glEnable(GL_MULTISAMPLE);
 
+}
+
+void Model::initialize()
+{
+    initializeOpenGLFunctions();
+    loadGlTextures(mAssimpScene);
 }
 
 bool Model::importFile(const QFile& modelFile)
@@ -362,15 +367,15 @@ void Model::renderRecursively(const struct aiScene *scene, const struct aiNode* 
     const QMatrix4x4 matrixModelTransformOld = mModelTransform;
 
     // retrieve thisnode's transform (aiMatrix4x4 is row-major, like QMatrix4x4's c'tor)
-    qreal valuesQReal[16];
-    for(int i=0;i<16;i++) valuesQReal[i] = *(node->mTransformation[i]);
-    QMatrix4x4 matrixModelSubMeshTransform(valuesQReal);
-    matrixModelSubMeshTransform.optimize();
+//    qreal valuesQReal[16];
+//    for(int i=0;i<16;i++) valuesQReal[i] = *(node->mTransformation[i]);
+//    QMatrix4x4 matrixModelSubMeshTransform(valuesQReal);
+//    matrixModelSubMeshTransform.optimize();
 
     // Combine matrices
   //  mModelTransform = mModelTransform * matrixModelSubMeshTransform;
     // Send this temporary matrix into the shaderprogram's uniform
-    mModelTransform.copyDataTo(valuesQReal);
+//    mModelTransform.copyDataTo(valuesQReal);
 
     mShaderProgram->setUniformValue("matrixModelSubMeshTransform", mModelTransform);
 //    mShaderProgram->setUniformValue("matrixModelSubMeshTransform", QMatrix4x4());

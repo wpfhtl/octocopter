@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QFile>
 #include <QMatrix4x4>
+#include <QOpenGLFunctions_4_3_Core>
 
 
 #include <assimp/postprocess.h>
@@ -20,7 +21,7 @@
   this object NOT showing up doesn't bug me then.
   */
 
-class Model : public QObject
+class Model : public QObject, protected QOpenGLFunctions_4_3_Core
 {
     Q_OBJECT
 
@@ -28,6 +29,7 @@ class Model : public QObject
     QMatrix4x4 mModelTransform;
     QString mMediaPrefix;
 
+    void initialize();
     bool importFile(const QFile& modelFile);
     void loadGlTextures(const aiScene* scene);
     void generateVAOsAndUniformBuffer(const struct aiScene *scene);

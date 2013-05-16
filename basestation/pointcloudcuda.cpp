@@ -1,8 +1,6 @@
-#include <GL/glew.h>
-
 #include <cuda_gl_interop.h>
 #include <cuda_runtime_api.h>
-
+#include "cudahelper.cuh"
 #include "pointcloudcuda.h"
 
 PointCloudCuda::PointCloudCuda(const QVector3D &min, const QVector3D &max, const quint32 maximumElementCount) : PointCloud(min, max)
@@ -60,6 +58,8 @@ PointCloudCuda::~PointCloudCuda()
 
 void PointCloudCuda::slotInitialize()
 {
+    initializeOpenGLFunctions();
+
     // determine data-size of all points in GPU
     const unsigned int memSizePointQuadrupels = sizeof(float) * 4 * mParameters.capacity;
     // Allocate GPU data
@@ -450,7 +450,7 @@ bool PointCloudCuda::importFromPly(const QString& fileName, QWidget* widget)
     return true;
 }
 
-bool PointCloudCuda::exportToPly(const QString& fileName, QWidget *widget) const
+bool PointCloudCuda::exportToPly(const QString& fileName, QWidget *widget)
 {
     PlyManager pm(widget);
     if(!pm.open(fileName, PlyManager::DataSaveToFile))

@@ -32,7 +32,7 @@ protected:
     void mouseReleaseEvent ( QMouseEvent * event )
     {
         const float width = size().width();// - 7.0;
-        float pos = event->posF().x() + 1.5;
+        float pos = event->pos().x() + 1.5;
         const qint32 tow = minimum() + qBound(0.0f, pos / width, 1.0f) * (maximum() - minimum());
 //        qDebug() << "width" << width << "pos" << pos << "percent:" << (pos / width) * 100.0f << "tow" << tow;
         emit seekToTow(tow);
