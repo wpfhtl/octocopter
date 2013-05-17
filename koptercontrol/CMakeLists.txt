@@ -6,18 +6,10 @@ add_definitions(-std=c++0x -fPIC)
 
 find_package(Qt5Core)
 
-#find_package(DevIL)
-#find_package(SDL)
-#find_package(SDL_mixer)
-#find_package(CUDA)
-
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_BUILD_TYPE Debug)
 
-include_directories(
-    /usr/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../common/
-)
+include_directories(/usr/include ${CMAKE_CURRENT_SOURCE_DIR}/../common/ ${CMAKE_CURRENT_SOURCE_DIR})
 
 link_directories(/usr/local/lib/)
 
@@ -27,6 +19,9 @@ koptermessage
 kopter
 camera
 messagehandler
+gnssdevice
+laserscanner
+hokuyo
 ../common/profiler
 ../common/gnsstime
 ../common/logfile
@@ -45,9 +40,6 @@ messagehandler
 ../common/baseconnection
 ../common/gnssstatus
 ../common/vehiclestatus
-gnssdevice
-laserscanner
-hokuyo
 )
 
 set(INC_FILES_KOPTERCONTROL
@@ -56,6 +48,9 @@ koptermessage.h
 kopter.h
 camera.h
 messagehandler.h
+gnssdevice.h
+laserscanner.h
+hokuyo.h
 ../common/profiler.h
 ../common/logfile.h
 ../common/gnsstime.h
@@ -74,14 +69,7 @@ messagehandler.h
 ../common/baseconnection.h
 ../common/gnssstatus.h
 ../common/vehiclestatus.h
-gnssdevice.h
-laserscanner.h
-hokuyo.h
 )
-
-#"Sources" and "Headers" are the group names in Visual Studio.
-source_group("Sources" FILES ${SRC_FILES_KOPTERCONTROL})
-source_group("Headers" FILES ${INC_FILES_KOPTERCONTROL})
 
 set(URG_LIBRARIES
     urg_connection
@@ -96,4 +84,3 @@ set(URG_LIBRARIES
 add_executable(koptercontrol ${SRC_FILES_KOPTERCONTROL})
 qt5_use_modules(koptercontrol Widgets Gui Core Concurrent Network SerialPort)
 target_link_libraries(koptercontrol ${URG_LIBRARIES})
-
