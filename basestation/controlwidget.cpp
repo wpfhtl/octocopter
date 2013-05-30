@@ -34,12 +34,25 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
 
     mBarWirelessRssi->setRange(0, 100);
 
-    resize(minimumSizeHint());
+    QTimer::singleShot(0, this, SLOT(slotResizeToMinimum()));
+
+
+    setMaximumWidth(minimumWidth());
+//    qDebug() << "minSize" << minimumSize();
+//    qDebug() << "sizeHint" << sizeHint();
+//    qDebug() << "minSizeHint" << minimumSizeHint();
+//    qDebug() << "maxSize" << maximumSize();
 }
 
 ControlWidget::~ControlWidget()
 {
 //    delete mStyle;
+}
+
+void ControlWidget::slotResizeToMinimum()
+{
+    // super ugly....
+    setMaximumWidth(80000);
 }
 
 void ControlWidget::initWayPointTable()

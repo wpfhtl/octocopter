@@ -137,7 +137,7 @@ void GnssStatus::setError(const quint8 errorCode)
 // for streaming
 QDataStream& operator<<(QDataStream &out, const GnssStatus &status)
 {
-    out << static_cast<quint8>(status.pvtMode) << static_cast<quint8>(status.integrationMode) << static_cast<quint8>(status.error) << status.info << status.numSatellitesUsed << status.gnssAge << status.meanCorrAge << status.cpuLoad << status.covariances;
+    out << static_cast<quint8>(status.pvtMode) << static_cast<quint8>(status.integrationMode) << static_cast<quint8>(status.error) << status.info << status.numSatellitesUsed << status.gnssAge << status.meanCorrAge << status.cpuLoad << status.covariances << status.longitude << status.latitude << status.height;
     return out;
 }
 
@@ -161,6 +161,9 @@ QDataStream& operator>>(QDataStream &in, GnssStatus& status)
     in >> status.meanCorrAge;
     in >> status.cpuLoad;
     in >> status.covariances;
+    in >> status.longitude;
+    in >> status.latitude;
+    in >> status.height;
 
     return in;
 }

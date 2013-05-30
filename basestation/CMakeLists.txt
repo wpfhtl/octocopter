@@ -14,8 +14,20 @@ find_package(CUDA REQUIRED)
 
 file(GLOB_RECURSE CUDA_SRCS "*.cu")
 
+file(GLOB_RECURSE NORAD_SRCS "../common/sgp4sdp4/*.cpp")
+
+set(NORAD_SRC_FILES
+../common/sgp4sdp4/sgp4sdp4.c
+../common/sgp4sdp4/sgp_in.c
+../common/sgp4sdp4/sgp_math.c
+../common/sgp4sdp4/sgp_obs.c
+../common/sgp4sdp4/sgp_time.c
+../common/sgp4sdp4/solar.c
+)
+
 set(SRC_FILES
     ${CUDA_SRCS}
+    ${NORAD_SRC_FILES}
     cudahelper
     main
     particlesystem
@@ -39,6 +51,7 @@ set(SRC_FILES
     diffcorrfetcher
     model
     controlwidget
+    satellitewidget
     connectiondialog
     roverconnection
     #bulletdebugdrawergl
@@ -62,6 +75,8 @@ set(SRC_FILES
     ../common/gnssstatus
     ../common/wirelessdevice
     ../common/vehiclestatus
+    ../common/satellite
+    ../common/almanac
     particlerenderer
     pointcloud
     #pointcloudoctree
@@ -95,6 +110,7 @@ set(INC_FILES
     diffcorrfetcher.h
     model.h
     controlwidget.h
+    satellitewidget.h
     connectiondialog.h
     roverconnection.h
     #bulletdebugdrawergl.h
@@ -118,6 +134,8 @@ set(INC_FILES
     ../common/gnssstatus.h
     ../common/wirelessdevice.h
     ../common/vehiclestatus.h
+    ../common/satellite.h
+    ../common/almanac.h
 )
 
 set(UI_FILES
@@ -127,6 +145,7 @@ set(UI_FILES
     logwidget.ui
     connectiondialog.ui
     pidcontrollerwidget.ui
+    satellitewidget.ui
     #flightplannerphysicsdialog.ui
     flightplannerparticlesdialog.ui
 )

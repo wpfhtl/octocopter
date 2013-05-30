@@ -24,6 +24,7 @@
 #include "camerawidget.h"
 #include "connectiondialog.h"
 #include "controlwidget.h"
+#include "satellitewidget.h"
 #include "logwidget.h"
 #include "plymanager.h"
 #include "roverconnection.h"
@@ -51,6 +52,7 @@ private:
     DiffCorrFetcher* mDiffCorrFetcher;
     ControlWidget* mControlWidget;
     LogWidget* mLogWidget;
+    SatelliteWidget* mSatelliteWidget;
     PidControllerWidget* mPidControllerWidget;
 //    PlotWidget* mPlotWidget;
     LogPlayer* mLogPlayer;
@@ -72,6 +74,8 @@ private:
 
     QProgressDialog* mProgress;
 
+    void closeEvent(QCloseEvent *event);
+
 signals:
 
 
@@ -79,7 +83,7 @@ private slots:
     void slotExportCloud(void);
     void slotImportCloud(void);
     void slotToggleLogWidget(void) {if(mLogWidget) mLogWidget->setVisible(!mLogWidget->isVisible());}
-//    void slotTogglePlotWidget(void) {if(mPlotWidget) mPlotWidget->setVisible(!mPlotWidget->isVisible());}
+    void slotToggleSatelliteWidget(void) {if(mSatelliteWidget) mSatelliteWidget->setVisible(!mSatelliteWidget->isVisible());}
     void slotToggleControlWidget(void) {if(mControlWidget) mControlWidget->setVisible(!mControlWidget->isVisible());}
     void slotTogglePidControllerWidget() {if(mPidControllerWidget) mPidControllerWidget->setVisible(! mPidControllerWidget->isVisible());}
     void slotTogglePtuControllerWidget() {if(mPtuController) mPtuController->setVisible(! mPtuController->isVisible());}

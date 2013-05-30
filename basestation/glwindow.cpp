@@ -209,7 +209,7 @@ void GlWindow::resize()
     int w = width();
     int h = height();
 
-    qDebug() << __PRETTY_FUNCTION__ << "size:" << w << h;
+//    qDebug() << __PRETTY_FUNCTION__ << "size:" << w << h;
 
     // setup viewport, projection etc.
     glViewport(0, 0, w, h);
@@ -867,7 +867,7 @@ void GlWindow::slotRenderLater()
 
 void GlWindow::exposeEvent(QExposeEvent *event)
 {
-    qDebug() << __PRETTY_FUNCTION__;
+//    qDebug() << __PRETTY_FUNCTION__;
     Q_UNUSED(event);
 
     if(isExposed()) slotRenderNow();
@@ -875,7 +875,7 @@ void GlWindow::exposeEvent(QExposeEvent *event)
 
 void GlWindow::resizeEvent(QResizeEvent *event)
 {
-    qDebug() << __PRETTY_FUNCTION__;
+//    qDebug() << __PRETTY_FUNCTION__;
     Q_UNUSED(event);
 
     resize();

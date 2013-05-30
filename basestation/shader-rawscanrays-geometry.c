@@ -25,6 +25,7 @@ uniform int rayStride;
 
 void main()
 {
+    color = vec4(1.0, 0.2, 0.2, 0.8);
     mat4 matModelViewProjection = matrixCameraToClip * matrixModelToCamera;
 
     if(useMatrixExtra)
@@ -33,7 +34,6 @@ void main()
     gl_Position = matModelViewProjection * vec4(0.0, 0.0, 0.0, 1.0);
     EmitVertex();
 
-    color = vec4(1.0, 0.2, 0.2, 0.8);
     float distance = raylength[0] * 65.536;
     if(distance < 0.1)
     {
