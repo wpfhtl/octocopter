@@ -7,7 +7,7 @@ SerialPort::SerialPort(QString serialDeviceFile, QString settings) : Port()
     // Set default parameters
     QString portBaudRate = "115200";
     QString portDataBits = "8";
-    QString portParity = "None";
+    QString portParity = "none";
     QString portStopBits = "1";
     QString portFlowControl = "Off";
 
@@ -16,15 +16,6 @@ SerialPort::SerialPort(QString serialDeviceFile, QString settings) : Port()
     if(settingsList.size() > 2 && !settingsList.at(2).isEmpty()) portParity = settingsList.at(2);
     if(settingsList.size() > 3 && !settingsList.at(3).isEmpty()) portStopBits = settingsList.at(3);
     if(settingsList.size() > 4 && !settingsList.at(4).isEmpty()) portFlowControl = settingsList.at(4);
-
-    // Do some replacements
-    if(portParity == "None") portParity == "Disable";
-    if(portFlowControl.toLower().contains("xo")) portFlowControl == "Xon/Xoff";
-    if(portFlowControl.toLower().contains("radwar")) portFlowControl == "Hardware";
-
-    // Show possible settings, unfinished and unneccesary
-    //QMapIterator<AbstractSerial::BaudRate, QString> i(mSerialPort->baudRateMap());
-    //while (i.hasNext()) { i.next(); qDebug() << i.value() << endl; }
 
     qDebug() << "SerialPort::SerialPort(): Default settings are 115200,8,None,1,Disable, settingsstring was" << settings;
     qDebug() << "SerialPort::SerialPort(): Effective settings are" << portBaudRate << portDataBits << portParity << portStopBits << portFlowControl;
