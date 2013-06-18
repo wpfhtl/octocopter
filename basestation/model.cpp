@@ -364,7 +364,7 @@ void Model::renderRecursively(const struct aiScene *scene, const struct aiNode* 
 //    qDebug() << "Model::renderRecursively(): rendering scene" << scene << "and node" << node;
 
     // "push" the matrix :)
-    const QMatrix4x4 matrixModelTransformOld = mModelTransform;
+//    const QMatrix4x4 matrixModelTransformOld = mModelTransform;
 
     // retrieve thisnode's transform (aiMatrix4x4 is row-major, like QMatrix4x4's c'tor)
 //    qreal valuesQReal[16];
@@ -410,7 +410,7 @@ void Model::renderRecursively(const struct aiScene *scene, const struct aiNode* 
     }
 
     // popMatrix();
-    mModelTransform = matrixModelTransformOld;
+//    mModelTransform = matrixModelTransformOld;
 }
 
 

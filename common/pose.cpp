@@ -2,7 +2,7 @@
 
     typedef struct {float x, y, z, w;} Quat; /* Quaternion */
     enum QuatPart {X, Y, Z, W};
-    typedef qreal HMatrix[4][4]; /* Right-handed, for column vectors */
+    typedef float HMatrix[4][4]; /* Right-handed, for column vectors */
     typedef Quat EulerAngles;    /* (x,y,z)=ang 1,2,3, w=order code  */
 
     /*** Order type constants, constructors, extractors ***/
@@ -249,8 +249,8 @@ void Pose::getEulerAnglesDegrees(float& yaw, float &pitch, float &roll) const
 void Pose::getEulerAnglesRadians(float& yaw, float &pitch, float &roll) const
 {
     EulerAngles outAngs;
-    qreal matrixElements[4][4];
-    memcpy(&matrixElements, mTransform.data(), sizeof(qreal)*16);
+    float matrixElements[4][4];
+    memcpy(&matrixElements, mTransform.data(), sizeof(float)*16);
     // We rotate yaw, pitch, roll, which is Y-X-Z, which seems to need being specified backwards
     // The R means that our axes rotate instead of being static during rotation
     outAngs = Eul_FromHMatrix(matrixElements, EulOrdZXYr);
