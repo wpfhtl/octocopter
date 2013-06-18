@@ -28,6 +28,9 @@ BaseStation::BaseStation() : QMainWindow()
     mAudioPlayer = 0;
     mDiffCorrFetcher = 0;
 
+    // Allow focusing this by tabbing and clicking
+    setFocusPolicy(Qt::StrongFocus);
+
     mMenuFile = menuBar()->addMenu("File");
     mMenuView = menuBar()->addMenu("View");
     mMenuWindowList = menuBar()->addMenu("Windows");
@@ -44,6 +47,10 @@ BaseStation::BaseStation() : QMainWindow()
     mWirelessDevice = new WirelessDevice("wlan0");
 //    connect(mWirelessDevice, SIGNAL(rssi(qint8)), mControlWidget, SLOT(slotUpdateWirelessRssi(qint8)));
 
+    mSatelliteWidget = new SatelliteWidget(this);
+    addDockWidget(Qt::RightDockWidgetArea, mSatelliteWidget);
+    mMenuWindowList->addAction("Satellite Manager", this, SLOT(slotToggleSatelliteWidget()));
+
     mLogWidget = new LogWidget(this);
     addDockWidget(Qt::BottomDockWidgetArea, mLogWidget);
     mMenuFile->addAction("Save Log", mLogWidget, SLOT(save()));
@@ -51,8 +58,9 @@ BaseStation::BaseStation() : QMainWindow()
 
     mGlWindow = new GlWindow;
     QWidget* glContainer = QWidget::createWindowContainer(mGlWindow, this);
+    glContainer->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
     setCentralWidget(glContainer);
-    connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWindow, SLOT(slotUpdateView()));
+    connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWindow, SLOT(slotRenderLater()));
 
 //    mPointCloud = new PointCloudCuda(QVector3D(-64, -2, -64), QVector3D(64, 30, 64)/*, 250000*/);
     mPointCloud = new PointCloudCuda(QVector3D(-50, 0, -50), QVector3D(50, 30, 50)/*, 250000*/);
@@ -106,7 +114,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     connect(mGlWindow, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
     connect(mGlWindow, SIGNAL(visualizeNow()), mPtuController, SLOT(slotVisualize()));
-    connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWindow, SLOT(slotUpdateView()));
+    connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWindow, SLOT(slotRenderLater()));
 
     mMenuView->addAction("Dense PointCloud", this, SLOT(slotToggleViewPointCloudDense()));
     mMenuView->addAction("ViewFromSide", mGlWindow, SLOT(slotViewFromSide()));
@@ -212,7 +220,8 @@ BaseStation::BaseStation() : QMainWindow()
     {
         mLogPlayer = new LogPlayer(this);
         mLogPlayer->setAllowedAreas(Qt::AllDockWidgetAreas);
-        addDockWidget(Qt::RightDockWidgetArea, mLogPlayer);
+        addDockWidget(Qt::BottomDockWidgetArea, mLogPlayer);
+        mMenuWindowList->addAction("Log Player", this, SLOT(slotToggleLogPlayer()));
         connect(mLogPlayer, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mControlWidget, SLOT(slotUpdatePose(const Pose* const)));
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mFlightPlanner, SLOT(slotVehiclePoseChanged(const Pose* const)));
@@ -239,6 +248,10 @@ BaseStation::BaseStation() : QMainWindow()
         mLogWidget->log(Information, "BaseStation::BaseStation()", "Working offline, disabling RoverConnection+RtkFetcher, enabling LogPlayer.");
     }
 
+    QSettings settings("BenAdler", "Basestation");
+    restoreGeometry(settings.value("geometry").toByteArray());
+    restoreState(settings.value("windowState").toByteArray());
+
     mLogWidget->log(Information, "BaseStation::BaseStation()", "Startup finished, ready.");
 }
 
@@ -255,6 +268,15 @@ BaseStation::~BaseStation()
     delete mWirelessDevice;
     delete mAudioPlayer;
     delete mPointCloud;
+}
+
+void BaseStation::closeEvent(QCloseEvent *event)
+{
+    qDebug() << "saving window state!";
+    QSettings settings("BenAdler", "Basestation");
+    settings.setValue("geometry", saveGeometry());
+    settings.setValue("windowState", saveState());
+    QMainWindow::closeEvent(event);
 }
 
 void BaseStation::slotManageJoystick(quint8 button, bool pressed)

@@ -15,6 +15,14 @@
 // So I can do qDebug() << "string is" << Q(myStringObject) << "."; without having quotes around the string-value inthe output
 #define Q(string) (string).toStdString().c_str()
 
+struct PositionGeodetic
+{
+    // degrees, meters
+    float longitude;
+    float latitude;
+    float elevation;
+};
+
 struct Box3D
 {
     QVector3D min,max;

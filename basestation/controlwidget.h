@@ -26,6 +26,11 @@ public:
     ControlWidget(QWidget *widget);
     ~ControlWidget();
 
+//    QSize 	sizeHint() const {return minimumSize();}
+//    QSize 	maximumSize() const {
+//        qDebug() << "maximumSIze()" << minimumSize();
+//        return minimumSize();}
+
 public slots:
     void slotFlightStateChanged(const FlightState *const fs);
     void slotUpdatePose(const Pose *const pose);
@@ -43,6 +48,8 @@ public slots:
     void slotWayPointsCleared();
 
 private slots:
+    void slotResizeToMinimum();
+
     // Called when buttons are pressed, simply emit signals to be processed by FlightPlanner
     void slotWayPointPrepend();
     void slotWayPointAppend();

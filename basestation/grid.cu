@@ -174,6 +174,7 @@ void sortPosAndVelAccordingToGridCellAndFillCellStartAndEndArraysD(
         // posUnsorted[789] will have been read by another thread after __syncthreads(). This is because the thread reading posUnsorted[789]
         // is scheduled much later, in another thread block. So, this method can only be used when the number of points is less than the
         // number of points/particles whose indices we're trying to sort. This makes it unpracticable. We need a second positions array!
+        // I guess the last sentence should have been: .. can only be used when the # of parallel threads is higher than the # of points.
         posSorted[threadIndex] = pos;
         if(velUnsorted && velSorted) velSorted[threadIndex] = vel;
     }

@@ -614,7 +614,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
         {
             // Emit the time of the scan. The Scanner sets the pulse at the END of a scan,
             // but our convention is to use times of a scans middle. Thus, decrement 12ms.
-//            qDebug() << "SbfParser::processNextValidPacket(): emitting scanFinished with a scanTimeGnss of" << block->TOW - 12;
+            //qDebug() << "SbfParser::processNextValidPacket(): emitting scanFinished with a scanTimeGnss of" << block->TOW - 12;
             emit scanFinished(block->TOW - 12);
         }
         else

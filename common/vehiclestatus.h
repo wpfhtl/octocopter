@@ -24,7 +24,6 @@ public slots:
     
 };
 
-
 // for using qDebug();
 QDebug operator<<(QDebug dbg, const VehicleStatus &mc);
 

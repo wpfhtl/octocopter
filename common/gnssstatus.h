@@ -66,6 +66,7 @@ public:
     quint8 meanCorrAge; // tenths of a second, giving 0.0 - 25.5 seconds
     quint8 cpuLoad; // in percent
     float covariances;
+    float longitude, latitude, height;
 
     GnssStatus()
     {
@@ -77,6 +78,7 @@ public:
         numSatellitesUsed = 0;
         gnssAge = 255;
         covariances = 10.0f;
+        longitude = latitude = height = 0.0f;
     }
 
     bool operator!=(const GnssStatus& b)
@@ -94,7 +96,10 @@ public:
                 && gnssAge == b.gnssAge
                 && meanCorrAge == b.meanCorrAge
                 && cpuLoad == b.cpuLoad
-                && covariances == b.covariances;
+                && covariances == b.covariances
+                && longitude == b.longitude
+                && latitude == b.latitude
+                && height == b.height;
     }
 
     bool interestingOrDifferentComparedTo(const GnssStatus& b)
@@ -108,7 +113,11 @@ public:
                 || meanCorrAge > 30
                 || cpuLoad > 80
                 || abs(cpuLoad - b.cpuLoad) > 2
-                || fabs(covariances - b.covariances) > 0.1;
+                || fabs(covariances - b.covariances) > 0.1
+                || fabs(longitude - b.longitude) > 0.001
+                || fabs(latitude - b.latitude) > 0.001
+                || fabs(height - b.height) > 1.0;
+
     }
 
     void setPvtMode(const quint8 pvtModeCode);
