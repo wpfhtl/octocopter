@@ -83,6 +83,7 @@ private slots:
     void slotExportCloud(void);
     void slotImportCloud(void);
     void slotToggleLogWidget(void) {if(mLogWidget) mLogWidget->setVisible(!mLogWidget->isVisible());}
+    void slotToggleLogPlayer(void) {if(mLogPlayer) mLogPlayer->setVisible(!mLogPlayer->isVisible());}
     void slotToggleSatelliteWidget(void) {if(mSatelliteWidget) mSatelliteWidget->setVisible(!mSatelliteWidget->isVisible());}
     void slotToggleControlWidget(void) {if(mControlWidget) mControlWidget->setVisible(!mControlWidget->isVisible());}
     void slotTogglePidControllerWidget() {if(mPidControllerWidget) mPidControllerWidget->setVisible(! mPidControllerWidget->isVisible());}

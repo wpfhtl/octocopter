@@ -646,7 +646,11 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGnss)
     qDebug() << t() << "SensorFuser::slotScanFinished(): gnss receiver says scanner finished a scan at time" << timestampScanGnss;
 
     // Make sure we receive data in order
-    if(mGnssTimeStamps.size()) Q_ASSERT(mGnssTimeStamps.last() < timestampScanGnss);
+    if(mGnssTimeStamps.size() && mGnssTimeStamps.last() >= timestampScanGnss)
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "last timestamp is" << mGnssTimeStamps.last() << "new timestamp is" << timestampScanGnss << "- this should never happen! Returning.";
+        return;
+    }
 
     // If we subscribe to ExtEvent and Support in different streams, we'll get the same ExtEvent from both
     // subscriptions. Make sure to only process an ExtEvent once, even if it comes in N times.

@@ -28,6 +28,9 @@ BaseStation::BaseStation() : QMainWindow()
     mAudioPlayer = 0;
     mDiffCorrFetcher = 0;
 
+    // Allow focusing this by tabbing and clicking
+    setFocusPolicy(Qt::StrongFocus);
+
     mMenuFile = menuBar()->addMenu("File");
     mMenuView = menuBar()->addMenu("View");
     mMenuWindowList = menuBar()->addMenu("Windows");
@@ -218,6 +221,7 @@ BaseStation::BaseStation() : QMainWindow()
         mLogPlayer = new LogPlayer(this);
         mLogPlayer->setAllowedAreas(Qt::AllDockWidgetAreas);
         addDockWidget(Qt::BottomDockWidgetArea, mLogPlayer);
+        mMenuWindowList->addAction("Log Player", this, SLOT(slotToggleLogPlayer()));
         connect(mLogPlayer, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mControlWidget, SLOT(slotUpdatePose(const Pose* const)));
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mFlightPlanner, SLOT(slotVehiclePoseChanged(const Pose* const)));
