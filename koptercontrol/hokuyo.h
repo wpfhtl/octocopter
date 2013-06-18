@@ -37,7 +37,7 @@ public:
     // physical dimensions are ignored completely. Further down, this class receives high-
     // frequency updates of the vehicle's poses. Using the vehicle-frame poses and its static
     // offset defined in this constructor, it can emit scanpoints in world-coordinates.
-    Hokuyo(const QString& logFilePrefix);
+    Hokuyo(LogFile * const logFile);
     ~Hokuyo();
 
     bool open(const QString &deviceFilename);

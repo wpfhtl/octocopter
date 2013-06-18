@@ -2,11 +2,11 @@
 //#include <sys/types.h>
 #include <unistd.h>
 
-Hokuyo::Hokuyo(const QString& logFilePrefix) : QObject()
+Hokuyo::Hokuyo(LogFile* const logFile) : QObject()
 {
     qDebug() << "Hokuyo::Hokuyo(): initializing Hokuyo";
 
-    mLogFile = new LogFile(logFilePrefix + QString("scannerdata.lsr"), LogFile::Encoding::Binary);
+    mLogFile = logFile;
 
     mLastScannerTimeStamp = 0;
 
@@ -140,7 +140,7 @@ void Hokuyo::slotStartScanning()
                     + sizeof(quint16) // indexStart
                     + ((indexStop - indexStart ) + 1) * sizeof(quint16); // number of bytes for the distance-data
 
-            QByteArray magic("LASER");
+            const QByteArray magic("LASER");
 
             mLogFile->write(magic.constData(), magic.size());
             mLogFile->write((const char*)&length, sizeof(length));

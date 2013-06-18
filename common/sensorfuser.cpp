@@ -52,7 +52,7 @@ SensorFuser::~SensorFuser()
 void SensorFuser::slotClearData(const qint32 maximumDataAge)
 {
     // Remove all poses older than maximumDataAge
-    QMutableVectorIterator<Pose> i(mPoses);
+    QMutableListIterator<Pose> i(mPoses);
     while(i.hasNext())
     {
         const qint32 timestamp = i.next().timestamp;
@@ -63,7 +63,7 @@ void SensorFuser::slotClearData(const qint32 maximumDataAge)
     }
 
     // Remove all gnss timestamps older than maximumAge
-    QMutableVectorIterator<qint32> j(mGnssTimeStamps);
+    QMutableListIterator<qint32> j(mGnssTimeStamps);
     while(j.hasNext())
     {
         const qint32 timestamp = j.next();
@@ -74,7 +74,7 @@ void SensorFuser::slotClearData(const qint32 maximumDataAge)
     }
 
     // Remove all gnss timestamps older than maximumAge
-    QMutableVectorIterator<ScanInformation> k(mScanInformation);
+    QMutableListIterator<ScanInformation> k(mScanInformation);
     while(k.hasNext())
     {
         ScanInformation& si = k.next();
@@ -122,7 +122,7 @@ void SensorFuser::fuseScans()
     Profiler p(__PRETTY_FUNCTION__);
 
     // Process every scan...
-    QMutableVectorIterator<ScanInformation> iteratorScanInformation(mScanInformation);
+    QMutableListIterator<ScanInformation> iteratorScanInformation(mScanInformation);
     while(iteratorScanInformation.hasNext())
     {
         ScanInformation& scanInfo = iteratorScanInformation.next();
@@ -283,7 +283,7 @@ void SensorFuser::fuseScans()
             if(allPosesPresent)
             {
                 // We finally have all poses required to fuse this scan. Go!
-                std::vector<quint16>* scanDistances = scanInfo.ranges;
+                const std::vector<quint16>* scanDistances = scanInfo.ranges;
 
                 const qint16 numRays = scanDistances->size();
                 for(qint16 index=0; index < numRays; index++)
@@ -320,6 +320,8 @@ void SensorFuser::fuseScans()
                                         &mPoses[poseIndicesToUse[4]],
                                         timeOfCurrentRay);
                         }
+
+                        mLastInterpolatedPose = mLastInterpolatedPose * (*scanInfo.relativeScannerPose);
 
                         emitLastInterpolatedPose();
                     }
@@ -411,7 +413,7 @@ void SensorFuser::fuseScans()
             if(allPosesPresent)
             {
                 // We finally have all poses required to fuse this scan. Go!
-                std::vector<quint16>* scanDistances = scanInfo.ranges;
+                const std::vector<quint16>* scanDistances = scanInfo.ranges;
 
                 const qint16 numRays = scanDistances->size();
                 for(qint16 index=0; index < numRays; index++)
@@ -469,7 +471,7 @@ void SensorFuser::fuseScans()
 
             emitLastInterpolatedPose();
 
-            std::vector<quint16>* scanDistances = scanInfo.ranges;
+            const std::vector<quint16>* scanDistances = scanInfo.ranges;
 
             const qint16 numRays = scanDistances->size();
             for(qint16 index=0; index < numRays; index++)
@@ -506,7 +508,7 @@ qint8 SensorFuser::matchTimestamps()
     //qDebug() << "SensorFuser::matchTimestamps(): gnss stamps:" << getTimeStamps(mScansTimestampGnss).join(",");
 
     // Iterate through the list of gnss-timestamps and try to find fitting laserscanner-timestamps - as long as there are scanner scans
-    QMutableVectorIterator<qint32> iteratorGnssTimeStamps(mGnssTimeStamps);
+    QMutableListIterator<qint32> iteratorGnssTimeStamps(mGnssTimeStamps);
     while(iteratorGnssTimeStamps.hasNext())
     {
         const qint32 timestampGnss = iteratorGnssTimeStamps.next();
@@ -579,15 +581,17 @@ void SensorFuser::slotNewVehiclePose(const Pose* const pose)
 
     //Profiler p(__PRETTY_FUNCTION__);
 
-    qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received a usable" << *pose;
+    qDebug() << "SensorFuser::slotNewVehiclePose(): received a usable" << *pose;
 
     // Make sure we receive data in order
-    if(mPoses.size()) Q_ASSERT(mPoses.last().timestamp < pose->timestamp);
+    if(mPoses.size() && mPoses.last().timestamp > pose->timestamp)
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "last known pose t" << mPoses.last().timestamp << "new pose t" << pose->timestamp;
+        return;
+    }
 
     // Append pose to our list
-    mPoses.append((*pose) * mLaserScannerRelativePose);
-
-    //qDebug() << "SensorFuser::slotNewVehiclePose(): vehicle" << pose << "relative scanner" << mLaserScannerRelativePose << "result" << mPoses.last();
+    mPoses.append(*pose);
 
     mNewestDataTime = std::max(mNewestDataTime, pose->timestamp);
 
@@ -656,7 +660,6 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGnss)
     // subscriptions. Make sure to only process an ExtEvent once, even if it comes in N times.
     if(mLastScanMiddleGnssTow >= timestampScanGnss) return;
 
-
     // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
     if(!mPoses.size() || mPoses.last().timestamp < (timestampScanGnss - 1000))
     {
@@ -691,7 +694,7 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGnss)
     mLastScanMiddleGnssTow = timestampScanGnss;
 }
 
-void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, std::vector<quint16> * distances)
+void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, const Pose* const relativeScannerPose, std::vector<quint16> * distances)
 {
     qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
 
@@ -708,9 +711,7 @@ void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, std::vecto
     // Make sure we receive data in order
     if(mScanInformation.size()) Q_ASSERT(mScanInformation.last().timeStampScanMiddleScanner < timestampScanScanner);
 
-    mScanInformation.append(ScanInformation());
-    mScanInformation.last().timeStampScanMiddleScanner = timestampScanScanner;
-    mScanInformation.last().ranges = distances;
+    mScanInformation.append(ScanInformation(relativeScannerPose, distances, timestampScanScanner));
 
     mNewestDataTime = std::max(mNewestDataTime, timestampScanScanner);
 }

@@ -6,14 +6,15 @@
 #include <iostream>
 #include <fstream>
 
-LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeScannerPose, const QString& logFilePrefix) :
+LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFilePrefix) :
     QObject(),
-    mRelativeScannerPose(relativeScannerPose),
     mDeviceFileName(deviceFileName)
 {
     qDebug() << "LaserScanner::LaserScanner(): initializing laserscanner";
 
-    mHokuyo = new Hokuyo(logFilePrefix);
+    mLogFile = new LogFile(logFilePrefix + QString("scannerdata.lsr"), LogFile::Encoding::Binary);
+
+    mHokuyo = new Hokuyo(mLogFile);
 
     if(mHokuyo->open(mDeviceFileName))
     {
@@ -64,6 +65,20 @@ LaserScanner::~LaserScanner()
 const bool LaserScanner::isScanning() const
 {
 //    return mTimerScan->isActive();
+}
+
+void LaserScanner::slotSetRelativeScannerPose(const Pose& p)
+{
+    mRelativeScannerPose = p;
+
+    // Write the new relative pose into the logfile.
+    const QByteArray id("RELATIVESCANNERPOSE");
+
+    QByteArray ba;
+    QDataStream ds(&ba);
+    ds.writeRawData(id.constData(), id.size());
+    ds << p;
+    mLogFile->write(ba.constData(), ba.size());
 }
 
 const Pose& LaserScanner::getRelativePose() const

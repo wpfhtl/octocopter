@@ -59,26 +59,60 @@ public:
     //void keyPressEvent(QKeyEvent* event);
 
 private:
-
-    enum DataSource
+    // probably cheaper than creating lots of QByteArrays using QByteArray::mid().
+    struct Data
     {
-        Source_Sbf,
-        Source_Laser,
-        Source_FlightController,
-        Source_Invalid
+        const char* data;
+        qint32 size;
+
+        Data() : data(0), size(0) {}
+        Data(const char* const d, const qint32 s) : data(d), size(s) {}
+    };
+
+    // We can have multiple Laserscanners, so wrap their informations in a class. While we're at it,
+    // also move GNSS and FC logs into this structure.
+    struct LogData
+    {
+        QByteArray data;
+        qint32 cursor;
+
+        LogData() : cursor(-1) {}
+        LogData(const QByteArray& d) : data(d), cursor(-1) {}
+    };
+
+    enum LogType
+    {
+        LogTypeGnss,
+        LogTypeLaser,
+        LogTypeFlightController,
+        LogTypeInvalid
+    };
+
+    // Used to indicate a data/logfile source, device, etc. Necessary now that we can have multiple laserscanners
+    struct DataSource
+    {
+        LogType type;
+        quint8 index;
+
+        DataSource() : type(LogTypeInvalid), index(0) {}
+        DataSource(const LogType& t) : type(t), index(0) {}
+        DataSource(const LogType& t, const quint8 i) : type(t), index(i) {}
     };
 
     // For the step-datasource-selection
     QSignalMapper* mStepSignalMapper;
     QMenu* mStepMenu;
-    DataSource mStepUntilDataSource;
+    LogType mStepUntilLogType;
 
     Ui::LogPlayer *ui;
     SbfParser* mSbfParser;
     SensorFuser* mSensorFuser;
-    QByteArray mDataSbf, mDataLaser, mDataSbfCopy, mDataFlightController; // We don't copy the laser array, as it can be several hundred megabytes in size!
-    qint32 mIndexLaser; // points to either 1) the beginning, 2) a byte after a \n or 3) behind the QByteArray's last byte (which should equal 2))
-    qint32 mIndexFlightController; // points to either 1) the beginning, 2) a byte after a \n or 3) behind the QByteArray's last byte (which should equal 2))
+    LogData mLogGnss, mLogFlightController;
+    QMap<QString, LogData> mLogsLaser;
+
+//    qint32 mCursorLaser; // points to either 1) the beginning, 2) a byte after a \n or 3) behind the QByteArray's last byte (which should equal 2))
+//    qint32 mCursorSbf; // points to either 1) the beginning, 2) two bytes $@ or 3) behind the QByteArray's last byte (which should equal 2))
+//    qint32 mCursorFlightController; // points to either 1) the beginning, 2) a byte after a \n or 3) behind the QByteArray's last byte (which should equal 2))
 
     // Stuff needed for realtime-playback
     QTimer* mTimerAnimation;
@@ -88,15 +122,15 @@ private:
     ProgressBar* mProgressBarTow;
 
     // Retrieves the next valid packet from the private data, or an empty packet if that
-    QByteArray getNextPacket(const DataSource& source);
+    Data getNextPacket(const LogType &type);
 
     // Returns the TOW of the next Laser-Packet/Line, or -1 when there's no more packet available.
-    qint32 getNextTow(const DataSource& source);
-    qint32 getLastTow(const DataSource& source);
+    qint32 getNextTow(const LogType &source);
+    qint32 getLastTow(const LogType &type);
 
     DataSource getNextDataSource(qint32* tow = 0);
 
-    void processPacket(const LogPlayer::DataSource& source, const QByteArray& packetLaser);
+    void processPacket(const LogPlayer::DataSource& source, const Data &packetLaser);
 
     // This class keeps instances of objects that are updated from the logfiles. After they are,
     // we simply emit pointers to this data.
@@ -108,16 +142,16 @@ private:
     VehicleStatus mVehicleStatus;
 
 private slots:
-    void slotLaserScannerRelativePoseChanged();
+//    void slotLaserScannerRelativePoseChanged();
     void slotNewSbfTime(const qint32 tow, const char *, quint16);
 
     bool slotOpenLogFiles();
-    DataSource slotStepForward(DataSource source = Source_Invalid);
+    DataSource slotStepForward(DataSource source = DataSource());
     void slotRewind();
     void slotGoToTow(qint32 towTarget = -1);
     void slotPlay();
 
-    void slotStepDataSourceChanged(const int datasource);
+    void slotStepDataSourceChanged(const int logType);
     bool slotStepUntilDataSourceProcessed();
 
 signals:
