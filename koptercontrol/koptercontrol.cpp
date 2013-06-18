@@ -114,7 +114,6 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     mGnssDevice = new GnssDevice(deviceSerialGnssUsb, deviceSerialGnssCom, logFilePrefix, this);
     mSensorFuser = new SensorFuser(1); // Really lo-res data for septentrio postprocessing tests.
-    mSensorFuser->setLaserScannerRelativePose(mLaserScanner->getRelativePose());
 
     mBaseConnection = new BaseConnection(networkInterface);
     mKopter = new Kopter(deviceSerialKopter, this);

@@ -19,7 +19,7 @@ private:
     QThread* mThreadReadScanner;
     QString mDeviceFileName;
     Hokuyo* mHokuyo;
-    const Pose mRelativeScannerPose; // The scanner's pose relative to the vehicle frame
+    Pose mRelativeScannerPose; // The scanner's pose relative to the vehicle frame
     qint64 mOffsetTimeScannerToTow;
     qint32 mLastScannerTimeStamp;
     LogFile* mLogFile;

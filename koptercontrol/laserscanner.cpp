@@ -71,14 +71,29 @@ void LaserScanner::slotSetRelativeScannerPose(const Pose& p)
 {
     mRelativeScannerPose = p;
 
-    // Write the new relative pose into the logfile.
-    const QByteArray id("RELATIVESCANNERPOSE");
+    // Write the new relative pose into the logfile. Format is:
+    // RPOSE PacketLengthInBytes(quint16) TOW(qint32) QDataStreamedPoseMatrix
+    //
+    // PacketLengthInBytes is ALL bytes of this packet
 
-    QByteArray ba;
-    QDataStream ds(&ba);
-    ds.writeRawData(id.constData(), id.size());
-    ds << p;
-    mLogFile->write(ba.constData(), ba.size());
+    const QByteArray magic("RPOSE");
+
+    QByteArray byteArrayPoseMatrix;
+    QDataStream ds(byteArrayPoseMatrix);
+    ds << p.getMatrixConst();
+
+    quint16 length =
+            magic.size()                    // size of MAGIC bytes
+            + sizeof(quint16)               // totalPacketLength
+            + sizeof(qint32)                // TOW
+            + byteArrayPoseMatrix.size();   // size of streamed pose
+
+    const qint32 tow = GnssTime::currentTow();
+
+    mLogFile->write(magic.constData(), magic.size());
+    mLogFile->write((const char*)&length, sizeof(length));
+    mLogFile->write((const char*)&tow, sizeof(tow)); // I hope this lines in well with scanner timestamps...
+    mLogFile->write(byteArrayPoseMatrix.constData(), byteArrayPoseMatrix.size());
 }
 
 const Pose& LaserScanner::getRelativePose() const

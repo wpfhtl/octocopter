@@ -9,6 +9,7 @@
 #include <QProgressBar>
 #include <QMouseEvent>
 #include <QString>
+#include <QVector>
 #include <QByteArray>
 
 #include <sbfparser.h>
@@ -73,7 +74,10 @@ private:
     // also move GNSS and FC logs into this structure.
     struct LogData
     {
+        // The data, all in memory. Once I get a velodyne, I'll have to think about using mmap()...
         QByteArray data;
+
+        // points to either 1) the beginning, 2) a byte after a \n or 3) behind the QByteArray's last byte (which should equal 2))
         qint32 cursor;
 
         LogData() : cursor(-1) {}
@@ -92,11 +96,11 @@ private:
     struct DataSource
     {
         LogType type;
-        quint8 index;
+        qint8 index;
 
-        DataSource() : type(LogTypeInvalid), index(0) {}
-        DataSource(const LogType& t) : type(t), index(0) {}
-        DataSource(const LogType& t, const quint8 i) : type(t), index(i) {}
+        DataSource() : type(LogTypeInvalid), index(-1) {}
+        DataSource(const LogType& t) : type(t), index(-1) {}
+        DataSource(const LogType& t, const qint8 i) : type(t), index(i) {}
     };
 
     // For the step-datasource-selection
@@ -108,11 +112,8 @@ private:
     SbfParser* mSbfParser;
     SensorFuser* mSensorFuser;
     LogData mLogGnss, mLogFlightController;
-    QMap<QString, LogData> mLogsLaser;
-
-//    qint32 mCursorLaser; // points to either 1) the beginning, 2) a byte after a \n or 3) behind the QByteArray's last byte (which should equal 2))
-//    qint32 mCursorSbf; // points to either 1) the beginning, 2) two bytes $@ or 3) behind the QByteArray's last byte (which should equal 2))
-//    qint32 mCursorFlightController; // points to either 1) the beginning, 2) a byte after a \n or 3) behind the QByteArray's last byte (which should equal 2))
+    QVector<LogData*> mLogsLaser;
+    QVector<Pose> mRelativeLaserPoses;
 
     // Stuff needed for realtime-playback
     QTimer* mTimerAnimation;
@@ -122,12 +123,15 @@ private:
     ProgressBar* mProgressBarTow;
 
     // Retrieves the next valid packet from the private data, or an empty packet if that
-    Data getNextPacket(const LogType &type);
+    Data getNextPacket(const DataSource &source);
 
     // Returns the TOW of the next Laser-Packet/Line, or -1 when there's no more packet available.
-    qint32 getNextTow(const LogType &source);
-    qint32 getLastTow(const LogType &type);
+    qint32 getNextTow(const DataSource &source);
+    qint32 getLastTow(const DataSource &source);
 
+    // Using the cursors of all logfiles, getNextDataSource() looks at the next
+    // packets of all sources and decides which one to process next. This is based
+    // on the smallest TOW found. If its a laserscanner, index is also filled.
     DataSource getNextDataSource(qint32* tow = 0);
 
     void processPacket(const LogPlayer::DataSource& source, const Data &packetLaser);
