@@ -40,6 +40,9 @@ private:
     QMap<QString, QByteArray> mLastCommandToGnssDevice;
     //bool mWaitingForCommandReply; // true when we're waiting for a reply from septentrio board (on usb port).
 
+    // This is a guess, there might be shorter packets!
+    constexpr static quint32 mMinimumDataPacketSize = 40;
+
     unsigned int mDiffCorrDataCounter;
 //    QByteArray mLastCommandToDeviceUsb;
     QSerialPort *mSerialPortUsb, *mSerialPortCom;
@@ -50,6 +53,17 @@ private:
     QString mSerialPortOnDeviceUsb, mSerialPortOnDeviceCom;
 
     QByteArray mReceiveBufferUsb, mReceiveBufferCom;
+
+    // When a packet of N bytes has been processed at the beginning of a buffer, we could remove the buffer's
+    // first N bytes. This is a slow operation which we don't want to do 100 times per second with small N.
+    // So instead, we keep indices up to where the buffers have been processed.
+    quint32 mDataCursorUsb, mDataCursorCom;
+    // If these cursors grow larger than
+    constexpr static quint32 mMaximumDataBufferSize = 1024*1024; // 1 MB
+    // we remove the first mDataCursorX bytes of mReceiveBufferX and reset mDataCursorX = 0. Basically,
+    // this is a poor man's RingBuffer. Compared to always removing single packets after processing, this
+    // rather simple change leads to a >100x speedup!
+
     QList<QByteArray> mCommandQueueUsb;
 
     // This method finds out how many seconds are left before the TOW (time-of-week)
@@ -57,15 +71,15 @@ private:
     quint32 getTimeToTowRollOver();
 
     // If the given port is waiting for a command reply, this function checks
-    // if the reply has arrived, takes it from the buffer and parses it.
-    bool parseCommandReply(const QString& portNameOnDevice, QByteArray *const receiveBuffer);
+    // if the reply has arrived, parses it and advances the corresponding dataCursor.
+    bool parseCommandReply(const QString& portNameOnDevice, const QByteArray * const receiveBuffer, quint32 * const dataCursorToAdvance);
 
 
 private slots:
     // Sends @command via USB port
     void slotQueueCommand(QString command);
 
-    void slotLogProcessedSbfPacket(const qint32 tow, const char *sbfData, quint16 length);
+//    void slotLogProcessedSbfPacket(const qint32 tow, const char *sbfData, quint16 length);
 
     void slotSerialPortStatusChanged(const QString& status, const QDateTime& time);
     void slotCommunicationSetup();

@@ -2,11 +2,11 @@
 //#include <sys/types.h>
 #include <unistd.h>
 
-Hokuyo::Hokuyo(const QString& logFilePrefix) : QObject()
+Hokuyo::Hokuyo(LogFile* const logFile) : QObject()
 {
     qDebug() << "Hokuyo::Hokuyo(): initializing Hokuyo";
 
-    mLogFile = new LogFile(logFilePrefix + QString("scannerdata.lsr"), LogFile::Encoding::Binary);
+    mLogFile = logFile;
 
     mLastScannerTimeStamp = 0;
 
@@ -120,8 +120,11 @@ void Hokuyo::slotStartScanning()
             std::vector<quint16>* distancesToEmit = new std::vector<quint16>(mScannedDistances.begin(), mScannedDistances.end());
 
             // Always write log data in binary format for later replay. Format is:
-            // PackageLengthInBytes(quint16) TOW(qint32) StartIndex(quint16) N-DISTANCES(quint16)
-            // StarIndex denotes the start of usable data (not 1s)
+            //
+            // LASER PacketLengthInBytes(quint16) TOW(qint32) StartIndex(quint16) N-DISTANCES(quint16)
+            //
+            // PacketLengthInBytes is ALL bytes of this packet
+            // StartIndex denotes the start of usable data (not 1s)
 
             // A usual dataset contains 200 1's at the beginning and 200 1's at the end.
             // We RLE-compress the leading 1s and drop the trailing 1s
@@ -140,7 +143,7 @@ void Hokuyo::slotStartScanning()
                     + sizeof(quint16) // indexStart
                     + ((indexStop - indexStart ) + 1) * sizeof(quint16); // number of bytes for the distance-data
 
-            QByteArray magic("LASER");
+            const QByteArray magic("LASER");
 
             mLogFile->write(magic.constData(), magic.size());
             mLogFile->write((const char*)&length, sizeof(length));

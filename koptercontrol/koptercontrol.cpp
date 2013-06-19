@@ -98,8 +98,8 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     qDebug() << "KopterControl::KopterControl(): reading RSSI at interface" << networkInterface;
 
     mFlightController = new FlightController(logFilePrefix);
-    mLaserScanner = new LaserScanner(
-                deviceSerialLaserScanner,
+    mLaserScanner = new LaserScanner(deviceSerialLaserScanner, logFilePrefix);
+    mLaserScanner->slotSetRelativeScannerPose(
                 Pose(
                     QVector3D(      // Offset from vehicle center to Laser Source. In Vehicle Reference Frame: Like OpenGL, red arm forward pointing to screen
                         +0.00,      // From vehicle left/right to laser, positive is moved to right "wing"
@@ -109,13 +109,11 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
                     -090.0,         // 90 deg pitched down
                     +000.0,         // No rolling
                     10             // Use 10 msec TOW, so that the relative pose is always older than whatever new pose coming in. Don't use 0, as that would be set to current TOW, which might be newer due to clock offsets.
-                    ),
-                logFilePrefix
+                    )
                 );
 
     mGnssDevice = new GnssDevice(deviceSerialGnssUsb, deviceSerialGnssCom, logFilePrefix, this);
     mSensorFuser = new SensorFuser(1); // Really lo-res data for septentrio postprocessing tests.
-    mSensorFuser->setLaserScannerRelativePose(mLaserScanner->getRelativePose());
 
     mBaseConnection = new BaseConnection(networkInterface);
     mKopter = new Kopter(deviceSerialKopter, this);
@@ -150,7 +148,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mGnssDevice->getSbfParser(), SIGNAL(newVehiclePoseStatus(const Pose* const)), mBaseConnection, SLOT(slotNewVehiclePose(const Pose* const)));
     connect(mGnssDevice->getSbfParser(), SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
     connect(mGnssDevice->getSbfParser(), SIGNAL(gnssDeviceWorkingPrecisely(bool)), mLaserScanner, SLOT(slotEnableScanning(bool)));
-    connect(mLaserScanner, SIGNAL(newScanData(qint32, std::vector<quint16>*)), mSensorFuser, SLOT(slotNewScanData(qint32,std::vector<quint16>*)));
+    connect(mLaserScanner, SIGNAL(newScanData(qint32, Pose*, std::vector<quint16>*)), mSensorFuser, SLOT(slotNewScanData(qint32,Pose*,std::vector<quint16>*)));
     connect(mSensorFuser, SIGNAL(scanData(float*const,quint32,QVector3D*const)), mBaseConnection, SLOT(slotNewScannedPoints(float*const,quint32,QVector3D*const)));
 
     // Lots of traffic - for what?

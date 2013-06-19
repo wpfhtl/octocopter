@@ -22,19 +22,19 @@ public:
         Cubic
     };
 
-    void setInterpolationmethod(const InterpolationMethod im) {mBestInterpolationMethodToUse = im;}
+    void setInterpolationMethod(const InterpolationMethod im) {mBestInterpolationMethodToUse = im;}
 
     void setMaximumFusableRayLength(const float& rayLength) {mMaximumFusableRayLength = rayLength;}
 
-    void setLaserScannerRelativePose(const Pose& pose)
-    {
-        mLaserScannerRelativePose = pose;
+//    void setLaserScannerRelativePose(const Pose& pose)
+//    {
+//        mLaserScannerRelativePose = pose;
 
-        // We can assign perfect precision, as it will be
-        // ANDed with the vehicle pose's precision lateron.
-        mLaserScannerRelativePose.precision = 255;
-        mLaserScannerRelativePose.covariances = 0.0f;
-    }
+//         We can assign perfect precision, as it will be
+//         ANDed with the vehicle pose's precision lateron.
+//        mLaserScannerRelativePose.precision = 255;
+//        mLaserScannerRelativePose.covariances = 0.0f;
+//    }
 
     quint8 getStridePoint(void) const {return mStridePoint;}
     void setStridePoint(quint8 stridePoint) {mStridePoint = stridePoint;}
@@ -44,16 +44,14 @@ public:
 
     struct ScanInformation
     {
-        std::vector<quint16>* ranges;
+        const std::vector<quint16>* ranges;
         qint32 timeStampScanMiddleGnss;
         qint32 timeStampScanMiddleScanner;
+        const Pose* relativeScannerPose;
 
-        ScanInformation()
-        {
-            ranges = 0;
-            timeStampScanMiddleGnss = 0;
-            timeStampScanMiddleScanner = 0;
-        }
+        ScanInformation(const Pose* const p, const std::vector<quint16>* r, const qint32 tScanner = 0, const qint32 tGnss = 0) :
+            relativeScannerPose(p), ranges(r), timeStampScanMiddleScanner(tScanner), timeStampScanMiddleGnss(tGnss)
+        {}
     };
 
 private:
@@ -100,13 +98,13 @@ private:
     qint32 mLastScanMiddleGnssTow; // the last time the GNSS told us about the TOW of a scanSweepMiddle.
 
     // All incoming poses will be registered in this vector
-    QVector<Pose> mPoses;
+    QList<Pose> mPoses;
 
     // All incoming gnss timestamps will be registered in this vector and then augmented into mScanInformation
-    QVector<qint32> mGnssTimeStamps;
+    QList<qint32> mGnssTimeStamps;
 
     // All incoming scans will be registered in this vector of structs, together with their timeStampScanner
-    QVector<ScanInformation> mScanInformation;
+    QList<ScanInformation> mScanInformation;
 
     // These two save the last registration results, which are emitted and processed by others
     float* mRegisteredPoints;
@@ -138,7 +136,7 @@ public slots:
 
     // Used to feed data from the laserscanner. You must guarantee that the scans are supplied
     // in chronological order!
-    void slotNewScanData(const qint32& timestampScanner, std::vector<quint16> *distances);
+    void slotNewScanData(const qint32& timestampScanner, const Pose * const relativeScannerPose, std::vector<quint16> *distances);
 
     // Clears all poses, gnss timestamps and scans. This is used by LogPlayer when seeking backwards.
     // If it didn't clean our data, there'd be no guarantee data comes in in chronological order.

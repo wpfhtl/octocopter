@@ -23,42 +23,42 @@ SbfParser::~SbfParser()
 {
 }
 
-bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offset, qint32* tow)
+bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, const quint32& sbfDataStart, quint32* offsetToValidPacket, qint32* tow)
 {
     // We try to stay as close as possible to Septentrio's SBF reference guide pg. 13/14.
 //    Sbf_Header *sbfHeader;
     Sbf_PVTCartesian *block;
-    qint32 offsetToValidPacket = -2; // Set to -2, as we start searching from (offsetToValidPacket + sizeof(header.sync)), yielding a first try from 0.
+    qint32 offsetToValidPacketLocal = sbfDataStart - 2; // Set to -2, as we start searching from (offsetToValidPacket + sizeof(header.sync)), yielding a first try from 0.
     quint16 calculatedCrc;
 
     forever
     {
         // Look for a Sync-field ("$@") in the data, but start one byte after where we found a field the last time
-        offsetToValidPacket = sbfData.indexOf("$@", (offsetToValidPacket + sizeof(block->Header.Sync)));
+        offsetToValidPacketLocal = sbfData.indexOf("$@", (offsetToValidPacketLocal + sizeof(block->Header.Sync)));
 
         // If the sync field "$@" was not found at all, no valid packet can be present. Quit.
-        if(offsetToValidPacket < 0)
+        if(offsetToValidPacketLocal < 0)
         {
 //            qDebug() << "SbfParser::getNextValidPacketInfo(): offsetToValidPacket" << offsetToValidPacket << "no $@ found, returning false";
             return false;
         }
 
         // Make sure that we have at least 8 bytes (the header size) to read (including the sync field)
-        if(sbfData.size() < offsetToValidPacket + sizeof(Sbf_Header))
+        if(sbfData.size() < offsetToValidPacketLocal + sizeof(Sbf_Header))
         {
 //            qDebug() << "SbfParser::getNextValidPacketInfo(): offsetToValidPacket" << offsetToValidPacket << ", $@ found, but not enough data (" << sbfData.size() << "bytes), returning false";
             return false;
         }
 
 //        sbfHeader = (Sbf_Header*)(sbfData.data() + offsetToValidPacket);
-        block = (Sbf_PVTCartesian*)(sbfData.data() + offsetToValidPacket);
+        block = (Sbf_PVTCartesian*)(sbfData.data() + offsetToValidPacketLocal);
 
         // If sbfData doesn't hold enough bytes for an SBF block with the specified Length, it can have two reasons:
         //  a) the packet isn't received completely yet
         //  b) the packet's header->Length is corrupt
         // If it was a), we could return false, but we cannot be sure its not b), as we haven't checksummed yet. Thus,
         // instead of returning false, we need to look for further packets to guarantee working even in condition b)
-        if(block->Header.Length > sbfData.size() - offsetToValidPacket)
+        if(block->Header.Length > sbfData.size() - offsetToValidPacketLocal)
         {
 //            qDebug() << "SbfParser::getNextValidPacketInfo(): offsetToValidPacket" << offsetToValidPacket << "$@ found, header present, packetLength" << block->Header.Length << "," << sbfData.size() << "bytes present, returning false";
             continue;
@@ -81,11 +81,11 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offse
         // Calculate the packet's checksum. For corrupt packets, the Length field might be random, so we bound
         // the bytes-to-be-checksummed to be between 0 and the buffer's remaining bytes after Sync and Crc fields.
         calculatedCrc = computeChecksum(
-                    (void*)(sbfData.data() + offsetToValidPacket + sizeof(block->Header.Sync) + sizeof(block->Header.CRC)),
+                    (void*)(sbfData.data() + offsetToValidPacketLocal + sizeof(block->Header.Sync) + sizeof(block->Header.CRC)),
                     qBound(
                         (qint32)0,
                         (qint32)(block->Header.Length - sizeof(block->Header.Sync) - sizeof(block->Header.CRC)),
-                        (qint32)(sbfData.size() - offsetToValidPacket - sizeof(block->Header.Sync) - sizeof(block->Header.CRC))
+                        (qint32)(sbfData.size() - offsetToValidPacketLocal - sizeof(block->Header.Sync) - sizeof(block->Header.CRC))
                         )
                     );
 
@@ -102,7 +102,7 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, quint32* offse
     }
 
     // If we're here, we have a valid SBF packet starting at offsetToValidPacket
-    if(offset) *offset = offsetToValidPacket;
+    if(offsetToValidPacket) *offsetToValidPacket = offsetToValidPacketLocal;
 
     if(tow) *tow = block->TOW;
 
@@ -244,10 +244,10 @@ QVector3D SbfParser::convertGeodeticToCartesian(const double &lon, const double 
     return co;
 }
 
-void SbfParser::processNextValidPacket(QByteArray& sbfData)
+quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint32 offsetToValidPacket)
 {
     //qDebug() << "SbfParser::processNextValidPacket():" << sbfData.size() << "bytes present.";
-
+/*
     quint32 offsetToValidPacket;
     qint32 tow;
 
@@ -265,13 +265,19 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
 //        emit processedPacket(sbfData.left(offsetToValidPacket), -1);
         emit processedPacket(-1, sbfData.constData(), offsetToValidPacket);
         sbfData.remove(0, offsetToValidPacket);
+    }*/
+
+    if(sbfData.at(offsetToValidPacket + 0) != '$' || sbfData.at(offsetToValidPacket + 1) != '@')
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "sbfData at" << offsetToValidPacket << "doesn't start with $@, but with" << readable(sbfData.mid(offsetToValidPacket, 20));
+        Q_ASSERT(false);
     }
 
-    const quint16 msgCrc = *(quint16*)(sbfData.data() + 2);
-    const quint16 msgId = *(quint16*)(sbfData.data() + 4);
+    const quint16 msgCrc = *(quint16*)(sbfData.data() + offsetToValidPacket + 2);
+    const quint16 msgId = *(quint16*)(sbfData.data() + offsetToValidPacket + 4);
     const quint16 msgIdBlock = msgId & 0x1fff;
     const quint16 msgIdRev = msgId >> 13;
-    const quint16 msgLength = *(quint16*)(sbfData.data() + 6);
+    const quint16 msgLength = *(quint16*)(sbfData.data() + offsetToValidPacket + 6);
 
     // Save our current gpsStatus in a const place, so we can check whether it changed after processing the whole packet
     const GnssStatus previousGpsStatus = mGnssStatus;
@@ -286,7 +292,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     case 4006:
     {
         // PVTCartesian
-        const Sbf_PVTCartesian *block = (Sbf_PVTCartesian*)sbfData.data();
+        const Sbf_PVTCartesian *block = (Sbf_PVTCartesian*)(sbfData.data() + offsetToValidPacket);
         // block->MeanCorrAge is quint16 in hundreds of a second
 //        qDebug() << "SBF: PVTCartesian: MeanCorrAge in seconds:" << ((float)block->MeanCorrAge)/100.0;
         mGnssStatus.meanCorrAge = std::min(block->MeanCorrAge / 10, 255);
@@ -296,7 +302,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     case 4072:
     {
         // IntAttCovEuler
-        const Sbf_IntAttCovEuler *block = (Sbf_IntAttCovEuler*)sbfData.data();
+        const Sbf_IntAttCovEuler *block = (Sbf_IntAttCovEuler*)(sbfData.data() + offsetToValidPacket);
 //        qDebug() << "SBF: IntAttCovEuler: covariances for heading, pitch, roll:" << block->Cov_HeadHead << block->Cov_PitchPitch << block->Cov_RollRoll;
         float newCovarianceValue = std::max(std::max(block->Cov_HeadHead, block->Cov_PitchPitch), block->Cov_RollRoll);
         if(fabs(mGnssStatus.covariances - newCovarianceValue) > 0.02)
@@ -310,7 +316,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     case 4014:
     {
         // ReceiverStatus
-        const Sbf_ReceiverStatus *block = (Sbf_ReceiverStatus*)sbfData.data();
+        const Sbf_ReceiverStatus *block = (Sbf_ReceiverStatus*)(sbfData.data() + offsetToValidPacket);
 
 //        qDebug() << "SBF: ReceiverStatus: CPU Load:" << block->CPULoad;
 
@@ -353,7 +359,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     case 4045:
     {
         // IntPVAAGeod
-        const Sbf_IntPVAAGeod *block = (Sbf_IntPVAAGeod*)sbfData.data();
+        const Sbf_IntPVAAGeod *block = (Sbf_IntPVAAGeod*)(sbfData.data() + offsetToValidPacket);
 
 //        qDebug() << "SBF: IntPVAAGeod";
 
@@ -571,7 +577,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     case 5914:
     {
         // ReceiverTime
-        const Sbf_ReceiverTime *block = (Sbf_ReceiverTime*)sbfData.data();
+        const Sbf_ReceiverTime *block = (Sbf_ReceiverTime*)(sbfData.data() + offsetToValidPacket);
 
         qDebug() << "SBF: ReceiverTime: TOW:" << block->TOW;
 
@@ -605,7 +611,7 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     {
         // ExtEvent
         //qDebug() << "SBF: ExtEvent";
-        const Sbf_ExtEvent* const block = (Sbf_ExtEvent* const)sbfData.data();
+        const Sbf_ExtEvent* const block = (Sbf_ExtEvent* const)(sbfData.data() + offsetToValidPacket);
 
         // Laserscanner sync signal is soldered to both ports, but port 1 is broken. If it ever starts working again, I want to know.
         Q_ASSERT(block->Source == 2);
@@ -644,6 +650,8 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     // emit new status if it changed significantly.
     if(mGnssStatus.interestingOrDifferentComparedTo(previousGpsStatus))
         emit status(&mGnssStatus);
+
+    return msgLength;
 
     /*
      Remove the processed SBF block from our incoming buffer, so that it contains either nothing, the next (possibly
@@ -737,10 +745,9 @@ void SbfParser::processNextValidPacket(QByteArray& sbfData)
     // Announce what packet we just processed. Might be used for logging.
     // ExtEvent is generic enough, the TOW is always at the same location
     const Sbf_ExtEvent * const block = (Sbf_ExtEvent*)sbfData.data();
-//    emit processedPacket(sbfData.left(bytesToRemove), (qint32)block->TOW);
-    emit processedPacket((qint32)block->TOW, sbfData.constData(), bytesToRemove);
+    //emit processedPacket((qint32)block->TOW, sbfData.constData(), bytesToRemove);
 
-    sbfData.remove(0, bytesToRemove);
+    //sbfData.remove(0, bytesToRemove);
 }
 
 // replace every non-printable char with a special char, for making sbf-data readable

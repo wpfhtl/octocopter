@@ -33,15 +33,15 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
     connect(mSbfParser, SIGNAL(gnssTimeOfWeekEstablished(qint32)), SLOT(slotSetSystemTime(qint32)));
     connect(mSbfParser, SIGNAL(gnssDeviceWorkingPrecisely(bool)), SLOT(slotSetPoseFrequency(bool)));
 
-    // We first feed SBF data to SbfParser, then we get it back from it via the signal below. A little complicated,
-    // but the alternative is to watch two ports for incoming SBF, which might lead to mixing of SBF in between
-    // packets.
-    connect(mSbfParser, SIGNAL(processedPacket(qint32,const char*,quint16)), SLOT(slotLogProcessedSbfPacket(qint32,const char*,quint16)));
-
     mGnssDeviceIsConfigured = false;
     mDiffCorrDataCounter = 0;
+
     mSerialPortOnDeviceCom = ""; // was set to COM3 previously
     mSerialPortOnDeviceUsb = "";
+    mDataCursorUsb = 0;
+    mDataCursorCom = 0;
+    mReceiveBufferCom.reserve(mMaximumDataBufferSize);
+    mReceiveBufferUsb.reserve(mMaximumDataBufferSize);
 
     // We use the USB port to talk to the GNSS receiver and receive poses
     mSerialPortUsb = new QSerialPort(serialDeviceFileUsb, this);
@@ -149,13 +149,13 @@ quint8 GnssDevice::slotFlushCommandQueue()
     return mCommandQueueUsb.size();
 }
 
-void GnssDevice::slotLogProcessedSbfPacket(const qint32 tow, const char* sbfData, quint16 length)
-{
+//void GnssDevice::slotLogProcessedSbfPacket(const qint32 tow, const char* sbfData, quint16 length)
+//{
     // Copy all new SBF bytes into our log. Don't use a datastream,
     // as that would add record-keeping-bytes in between the packets
 
-    mLogFileSbf->write(sbfData, length);
-}
+
+//}
 
 void GnssDevice::slotDetermineSerialPortsOnDevice()
 {
@@ -568,14 +568,15 @@ void GnssDevice::slotShutDown()
     qDebug() << "GnssDevice::slotShutDown(): shutdown sequence processed, waiting for asynchronous shutdown confirmation...";
 }
 
-bool GnssDevice::parseCommandReply(const QString& portNameOnDevice, QByteArray* const receiveBuffer)
+bool GnssDevice::parseCommandReply(const QString& portNameOnDevice, const QByteArray* const receiveBuffer, quint32* const dataCursorToAdvance)
 {
     if(!mLastCommandToGnssDevice[portNameOnDevice].isEmpty())
     {
         // Check for command replies before every packet
         const qint32 positionReplyStart = receiveBuffer->indexOf("$R");
         qint32 positionReplyStop  = receiveBuffer->indexOf(portNameOnDevice + QChar('>'));
-        if(positionReplyStart != -1 && positionReplyStop != -1)
+        //if(positionReplyStart != -1 && positionReplyStop != -1)
+        if(positionReplyStart == 0 && positionReplyStop != -1)
         {
             positionReplyStop += portNameOnDevice.length() + 1; // make sure we also include the "USB1>" at the end!
             const QByteArray commandReply = receiveBuffer->mid(positionReplyStart, positionReplyStop - positionReplyStart);
@@ -605,8 +606,9 @@ bool GnssDevice::parseCommandReply(const QString& portNameOnDevice, QByteArray* 
                 QCoreApplication::quit();
             }
 
-            const int bytesToCut = positionReplyStop - positionReplyStart;
-            receiveBuffer->remove(positionReplyStart, bytesToCut);
+//            const int bytesToCut = positionReplyStop - positionReplyStart;
+//            receiveBuffer->remove(positionReplyStart, bytesToCut);
+            *dataCursorToAdvance += positionReplyStop;
             mLastCommandToGnssDevice[portNameOnDevice] = QByteArray();
 
             slotFlushCommandQueue();
@@ -620,17 +622,42 @@ bool GnssDevice::parseCommandReply(const QString& portNameOnDevice, QByteArray* 
 
 void GnssDevice::slotDataReadyOnCom()
 {
+    quint32 offsetToValidPacket;
+
+    if(mSerialPortCom->bytesAvailable() < mMinimumDataPacketSize) return;
+
     while(true)
     {
         // Move all new bytes into our SBF buffer
         mReceiveBufferCom.append(mSerialPortCom->readAll());
 
-        while(parseCommandReply(mSerialPortOnDeviceCom, &mReceiveBufferCom));
+        // If we're waiting for a command-reply, try to find and parse it. When done, advance the dataCursor.
+        while(parseCommandReply(mSerialPortOnDeviceCom, &mReceiveBufferCom, &mDataCursorCom));
 
         // Process as much SBF as possible.
-        if(mSbfParser->getNextValidPacketInfo(mReceiveBufferCom))
+        if(mSbfParser->getNextValidPacketInfo(mReceiveBufferCom, mDataCursorCom, &offsetToValidPacket))
         {
-            mSbfParser->processNextValidPacket(mReceiveBufferCom);
+            if(mDataCursorCom != offsetToValidPacket)
+            {
+                qDebug() << __PRETTY_FUNCTION__ << "dataCursor is at" << mDataCursorCom << "but valid packet starts at non-zero" << offsetToValidPacket << "- they shouldn't differ!";
+                mDataCursorCom = offsetToValidPacket;
+            }
+
+            // Process the SBF
+            const quint32 bytesProcessed = mSbfParser->processNextValidPacket(mReceiveBufferCom, offsetToValidPacket);
+
+            // Log the processed packet
+            mLogFileSbf->write(mReceiveBufferCom.data() + offsetToValidPacket, bytesProcessed);
+
+            // And advance the data pointer
+            mDataCursorCom += bytesProcessed;
+
+            if(mDataCursorCom > mMaximumDataBufferSize - 4096)
+            {
+                qDebug() << __PRETTY_FUNCTION__ << "processed" << mDataCursorCom << "bytes, cutting begining of array...";
+                mReceiveBufferCom.remove(0, mDataCursorCom);
+                mDataCursorCom = 0;
+            }
         }
         else
         {
@@ -642,26 +669,45 @@ void GnssDevice::slotDataReadyOnCom()
 
 void GnssDevice::slotDataReadyOnUsb()
 {
-    //Profiler p(__PRETTY_FUNCTION__);
+    quint32 offsetToValidPacket;
+
+    if(mSerialPortUsb->bytesAvailable() < mMinimumDataPacketSize) return;
 
     while(true)
     {
         // Move all new bytes into our SBF buffer
         mReceiveBufferUsb.append(mSerialPortUsb->readAll());
 
-        // $@<header/><body>...$@...</body>...padding...$R;listCurrentConfig\n\n...........\nUS
-        // $@<header/><body>...$@...</body>...padding...$R;listCurrentConfig\n\n...........\nUSB1>$@<header/><body>...
+        // If we're waiting for a command-reply, try to find and parse it. When done, advance the dataCursor.
+        while(parseCommandReply(mSerialPortOnDeviceUsb, &mReceiveBufferUsb, &mDataCursorUsb));
 
-        while(parseCommandReply(mSerialPortOnDeviceUsb, &mReceiveBufferUsb));
-
-        if(mSbfParser->getNextValidPacketInfo(mReceiveBufferUsb))
+        // Process as much SBF as possible.
+        if(mSbfParser->getNextValidPacketInfo(mReceiveBufferUsb, mDataCursorUsb, &offsetToValidPacket))
         {
-            // There is at least one valid packet in the buffer, process it.
-            mSbfParser->processNextValidPacket(mReceiveBufferUsb);
+            if(mDataCursorUsb != offsetToValidPacket)
+            {
+                qDebug() << __PRETTY_FUNCTION__ << "dataCursor is at" << mDataCursorUsb << "but valid packet starts at non-zero" << offsetToValidPacket << "- they shouldn't differ!";
+                mDataCursorUsb = offsetToValidPacket;
+            }
+
+            // Process the SBF
+            const quint32 bytesProcessed = mSbfParser->processNextValidPacket(mReceiveBufferUsb, offsetToValidPacket);
+
+            // Log the processed packet
+            mLogFileSbf->write(mReceiveBufferUsb.data() + offsetToValidPacket, bytesProcessed);
+
+            // And advance the data pointer
+            mDataCursorUsb += bytesProcessed;
+
+            if(mDataCursorUsb > mMaximumDataBufferSize - 4096)
+            {
+                qDebug() << __PRETTY_FUNCTION__ << "processed" << mDataCursorUsb << "bytes, cutting begining of array...";
+                mReceiveBufferUsb.remove(0, mDataCursorUsb);
+                mDataCursorUsb = 0;
+            }
         }
         else
         {
-            // There is no valid packet in the buffer. Check whether its a coming packet
 //            qDebug() << "GnssDevice::slotDataReadyOnUsb():" << mReceiveBufferUsb.size() << "bytes left after parsing, but this is no valid packet yet:" << SbfParser::readable(mReceiveBufferUsb);
             return;
         }

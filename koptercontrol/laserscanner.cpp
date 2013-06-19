@@ -6,14 +6,15 @@
 #include <iostream>
 #include <fstream>
 
-LaserScanner::LaserScanner(const QString &deviceFileName, const Pose &relativeScannerPose, const QString& logFilePrefix) :
+LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFilePrefix) :
     QObject(),
-    mRelativeScannerPose(relativeScannerPose),
     mDeviceFileName(deviceFileName)
 {
     qDebug() << "LaserScanner::LaserScanner(): initializing laserscanner";
 
-    mHokuyo = new Hokuyo(logFilePrefix);
+    mLogFile = new LogFile(logFilePrefix + QString("scannerdata.lsr"), LogFile::Encoding::Binary);
+
+    mHokuyo = new Hokuyo(mLogFile);
 
     if(mHokuyo->open(mDeviceFileName))
     {
@@ -64,6 +65,35 @@ LaserScanner::~LaserScanner()
 const bool LaserScanner::isScanning() const
 {
 //    return mTimerScan->isActive();
+}
+
+void LaserScanner::slotSetRelativeScannerPose(const Pose& p)
+{
+    mRelativeScannerPose = p;
+
+    // Write the new relative pose into the logfile. Format is:
+    // RPOSE PacketLengthInBytes(quint16) TOW(qint32) QDataStreamedPoseMatrix
+    //
+    // PacketLengthInBytes is ALL bytes of this packet
+
+    const QByteArray magic("RPOSE");
+
+    QByteArray byteArrayPoseMatrix;
+    QDataStream ds(byteArrayPoseMatrix);
+    ds << p.getMatrixConst();
+
+    quint16 length =
+            magic.size()                    // size of MAGIC bytes
+            + sizeof(quint16)               // totalPacketLength
+            + sizeof(qint32)                // TOW
+            + byteArrayPoseMatrix.size();   // size of streamed pose
+
+    const qint32 tow = GnssTime::currentTow();
+
+    mLogFile->write(magic.constData(), magic.size());
+    mLogFile->write((const char*)&length, sizeof(length));
+    mLogFile->write((const char*)&tow, sizeof(tow)); // I hope this lines in well with scanner timestamps...
+    mLogFile->write(byteArrayPoseMatrix.constData(), byteArrayPoseMatrix.size());
 }
 
 const Pose& LaserScanner::getRelativePose() const

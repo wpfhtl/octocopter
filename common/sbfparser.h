@@ -85,7 +85,7 @@ private:
       quint16       CRC;
       quint16       ID;
       quint16       Length;
-    } __attribute__ ((packed, aligned(4)));
+    };// __attribute__ ((packed, aligned(4)));
 
     struct Sbf_ReceiverTime
     {
@@ -170,7 +170,7 @@ private:
         quint16       Heading;
         qint16        Pitch;
         qint16        Roll;
-    } __attribute__ ((packed, aligned(4)));
+    };// __attribute__ ((packed, aligned(4)));
 
     struct Sbf_IntAttEuler
     {
@@ -267,17 +267,15 @@ public:
     // SbfParser needs the offset.
     void slotSetTransformArpToVehicle(const QMatrix4x4& tf) { mTransformArpToVehicle = tf; }
 
-    // This method analyzes @sbfData, looking for the next valid SBF packet. A packet is valid when
-    // its checksum is correct. If it finds a valid packet, it writes the offset from the beginning of
-    // @sbfData to the valid packet into @offset and writes the packet's TOW into @tow.
+    // This method analyzes @sbfData, starting at offset @sbfDataStart, looking for the next valid SBF packet.
+    // A packet is valid when its checksum is correct. If it finds a valid packet, it writes the offset from
+    // the beginning of @sbfData to the valid packet into @offset and writes the packet's TOW into @tow.
     // If it doesn't find a valid packet in all of @sbfData, it returns false.
-    bool getNextValidPacketInfo(const QByteArray& sbfData, quint32* offset = 0, qint32* tow = 0);
+    bool getNextValidPacketInfo(const QByteArray& sbfData, const quint32 &sbfDataStart, quint32* offsetToValidPacket = 0, qint32* tow = 0);
 
-    // Tries to process the next valid SBF packet in @sbfData, even if @sbfData contains many (corrupt)
-    // SBF packets. This method also removes processed packet-data from @sbfData.
-    // This method does not return errors when it encounters corrupt SBF, as there's no way to fix
-    // corrupt SBF anyway.
-    void processNextValidPacket(QByteArray& sbfData);
+    // Tries to process the SBF data in @sbfData at offset @offsetToValidPacket. This data's format
+    // must have been verified using getNextValidPacketInfo() before. Returns the number of bytes processed.
+    quint32 processNextValidPacket(const QByteArray& sbfData, const quint32 offsetToValidPacket);
 
 signals:
     void newVehiclePose(const Pose* const); // emitted at full rate, all poses

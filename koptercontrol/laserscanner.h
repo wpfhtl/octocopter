@@ -19,9 +19,10 @@ private:
     QThread* mThreadReadScanner;
     QString mDeviceFileName;
     Hokuyo* mHokuyo;
-    const Pose mRelativeScannerPose; // The scanner's pose relative to the vehicle frame
+    Pose mRelativeScannerPose; // The scanner's pose relative to the vehicle frame
     qint64 mOffsetTimeScannerToTow;
     qint32 mLastScannerTimeStamp;
+    LogFile* mLogFile;
 
     std::vector<long> mScannedDistances;
 
@@ -33,7 +34,7 @@ public:
     // physical dimensions are ignored completely. Further down, this class receives high-
     // frequency updates of the vehicle's poses. Using the vehicle-frame poses and its static
     // offset defined in this constructor, it can emit scanpoints in world-coordinates.
-    LaserScanner(const QString &deviceFileName, const Pose &relativeScannerPose, const QString& logFilePrefix);
+    LaserScanner(const QString &deviceFileName, const QString& logFilePrefix);
 
     ~LaserScanner();
 
@@ -42,6 +43,7 @@ public:
 
 public slots:
     void slotEnableScanning(const bool = true);
+    void slotSetRelativeScannerPose(const Pose& p);
 
 //    void slotDisableScanning()
 //    {
@@ -63,8 +65,8 @@ signals:
     // log/status messages
     void message(const LogImportance& importance, const QString&, const QString& message);
 
-    // Emits new scan data, allocated on heap. Ownership is passed to receiver(s).
-    void newScanData(qint32 timestampScanner, std::vector<quint16> * distances);
+    // Emits new scan data, allocated on heap. Ownership (of the distances only!) is passed to receiver(s).
+    void newScanData(qint32 timestampScanner, const Pose* const relativeScannerPose, std::vector<quint16> * distances);
 };
 
 #endif
