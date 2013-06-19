@@ -1,6 +1,8 @@
 #include "logplayer.h"
 #include "ui_logplayer.h"
 #include <QMenu>
+#include <QMatrix4x4>
+#include <QDataStream>
 
 LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlayer)
 {
@@ -81,6 +83,10 @@ bool LogPlayer::slotOpenLogFiles()
     // We're opening new logfiles. That means we should clear the old ones!
     // GNSS and FlightController are not dynamic on the heap, so we don't care
     while(mLogsLaser.size()) delete mLogsLaser.takeLast();
+
+    // SensorFuser keeps pointers to the relative sensor poses that we store.
+    // When we delete those poses, tell sensorfuser to also delete the pointers.
+    mSensorFuser->slotClearData();
     mRelativeLaserPoses.clear();
 
     QString logFileName;
@@ -129,6 +135,20 @@ bool LogPlayer::slotOpenLogFiles()
         {
             emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Reading Laser log file %1...").arg(logFileName));
             mLogsLaser.append(new LogData(logFileLaser.readAll()));
+
+            // Append a default pose. Maybe overwritten later, using a pose found in a logfile.
+            mRelativeLaserPoses.append(
+                        Pose(
+                            QVector3D(      // Offset from vehicle center to Laser Source. In Vehicle Reference Frame: Like OpenGL, red arm forward pointing to screen
+                                            +0.00,      // From vehicle left/right to laser, positive is moved to right "wing"
+                                            -0.04,      // From vehicle up/down to laser, negative is down to laser
+                                            -0.14),     // From vehicle 14cm forward, towards the front arm.
+                            +000.0,         // No yawing
+                            -090.0,         // 90 deg pitched down
+                            +000.0,         // No rolling
+                            10             // Use 10 msec TOW, so that the relative pose is always older than whatever new pose coming in. Don't use 0, as that would be set to current TOW, which might be newer due to clock offsets.
+                            )
+                        );
         }
         laserScannerNumber++;
     } while(!logFileName.isNull());
@@ -145,9 +165,6 @@ void LogPlayer::slotRewind()
     mLogGnss.cursor = 0;
     mLogFlightController.cursor = 0;
     for(int i=0;i<mLogsLaser.size();i++) mLogsLaser.at(i)->cursor = 0;
-
-    // TODO
-    // We should read the first pose in laserlogs and advance the cursor!
 
     // Whats the minimum TOW in our data? Set progressbar accordingly
     qint32 towStart;
@@ -279,9 +296,8 @@ qint32 LogPlayer::getNextTow(const DataSource& source)
         // If we can extract something, fine. If not, we might just not have any laser data at all. In that case we'll return -1
         if(nextPacket.size)
         {
-            const QByteArray data(nextPacket.data, nextPacket.size);
+            const QByteArray data(nextPacket.data + 6, nextPacket.size); // + FLTCLR
             QDataStream ds(data);
-            ds.skipRawData(6); // FLTCLR
             FlightControllerValues fcv;
             ds >> fcv;
             tow = fcv.timestamp;
@@ -426,7 +442,7 @@ bool LogPlayer::slotStepUntilDataSourceProcessed()
         processedSource = slotStepForward();
     }
     while(processedSource.type != mStepUntilLogType && processedSource.type != LogTypeInvalid);
-    qDebug() << "LogPlayer::slotStepUntilDataSourceProcessed(): processed datasource" << processedSource << "- done!";
+    qDebug() << "LogPlayer::slotStepUntilDataSourceProcessed(): processed datasource" << processedSource.type << "- done!";
 }
 
 LogPlayer::DataSource LogPlayer::slotStepForward(DataSource source)
@@ -519,7 +535,7 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const LogPlay
                         rayBytes
                         );
 
-            emit newScanData(tow, data);
+            emit newRayData(&mRelativeLaserPoses[source.index], tow, data);
             mSensorFuser->slotNewScanData(tow, &mRelativeLaserPoses[source.index], data);
 
         }
@@ -530,13 +546,13 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const LogPlay
 
             tow = *((qint32*)(packet.data + 5 + sizeof(length)));
 
-            QByteArray byteArrayStreamedPoseMatrix(
+            const QByteArray byteArrayStreamedPoseMatrix(
                         packet.data + 5 + sizeof(length) + sizeof(tow),
                         length - 5 - sizeof(length) - sizeof(tow));
 
             QMatrix4x4 matrixRelativePose;
-            QDataStream ds(&byteArrayStreamedPoseMatrix);
-            matrixRelativePose << ds;
+            QDataStream ds(byteArrayStreamedPoseMatrix);
+            ds >> matrixRelativePose;
             qDebug() << "reconstructed relative scanner" << source.index << "pose" << matrixRelativePose;
             mRelativeLaserPoses[source.index] = Pose(matrixRelativePose, tow);
         }
@@ -714,54 +730,57 @@ void LogPlayer::slotGoToTow(qint32 towTarget)
     qDebug() << "LogPlayer::slotGoToTow(): SBF: reached TOW" << tow0 << ", targeted was" << towTarget;
 
     // LASER
-    mCursorLaser = mDataLaser.size() / 2;
-    stepSize = mCursorLaser / 2;
-    tow0 = 0; tow1 = 0; tow2 = 0;
-    while(tow0 >= 0)
+    for(int i=0;i<mLogsLaser.size();i++)
     {
-        tow0 = getNextTow(LogTypeLaser);
-
-        // We're done if
-        // - we reached the target tow
-        // - we toggle between TOWs
-        // - we reached beginning or end of data
-        if(tow0 == towTarget || (tow1 != tow0 && tow0 == tow2) || mCursorLaser == 0 || mCursorLaser == mDataLaser.size())
+        const qint32 laserLogSize = mLogsLaser[i]->data.size();
+        qint32 dataCursor = laserLogSize / 2;
+        stepSize = dataCursor / 2;
+        tow0 = 0; tow1 = 0; tow2 = 0;
+        while(tow0 >= 0)
         {
-            break;
+            tow0 = getNextTow(LogTypeLaser);
+
+            // We're done if
+            // - we reached the target tow
+            // - we toggle between TOWs
+            // - we reached beginning or end of data
+            if(tow0 == towTarget || (tow1 != tow0 && tow0 == tow2) || dataCursor == 0 || dataCursor == laserLogSize)
+            {
+                break;
+            }
+
+            if(tow0 > towTarget)
+            {
+                qDebug() << "LogPlayer::slotGoToTow(): back, towLaser is" << tow0;
+
+                // We need to go back stepsize bytes, or exactly one laser packet if stepsize
+                // bytes is below the packet's size. Thus, determine the minimum size to move.
+                const qint32 bytesToMoveForPreviousPacket = dataCursor - mLogsLaser[i]->data.lastIndexOf("LASER", dataCursor-1);
+                const qint32 bytesToMove = std::max(stepSize, bytesToMoveForPreviousPacket);
+                qDebug() << "LogPlayer::slotGoToTow(): stepsize is" << stepSize << "bytestomove" << bytesToMove << "indexLaser is" << dataCursor << "of" << mLogsLaser[i]->data.size();
+                dataCursor = qBound(0, dataCursor - bytesToMove, mLogsLaser[i]->data.size());
+            }
+            else if(tow0 < towTarget)
+            {
+                qDebug() << "LogPlayer::slotGoToTow(): frwd, towLaser is" << tow0;
+
+                // We need to go forward stepsize bytes, or exactly one laser packet if stepsize
+                // bytes is below the packet's size. Thus, determine the minimum size to move.
+                const qint32 bytesToMoveForNextPacket = mLogsLaser[i]->data.indexOf("LASER", dataCursor+1) - dataCursor;
+                const qint32 bytesToMove = std::max(stepSize, bytesToMoveForNextPacket);
+                qDebug() << "LogPlayer::slotGoToTow(): stepsize is" << stepSize << "bytestomove" << bytesToMove << "indexLaser is" << dataCursor << "of" << mLogsLaser[i]->data.size();
+                dataCursor = qBound(0, dataCursor + bytesToMove, mLogsLaser[i]->data.size());
+            }
+
+            tow2 = tow1;
+            tow1 = tow0;
+
+            // Step at least one packet, which is around 1500 bytes
+            stepSize = /*std::max(500, */stepSize/2;//);
         }
-
-        if(tow0 > towTarget)
-        {
-            qDebug() << "LogPlayer::slotGoToTow(): back, towLaser is" << tow0;
-
-            // We need to go back stepsize bytes, or exactly one laser packet if stepsize
-            // bytes is below the packet's size. Thus, determine the minimum size to move.
-            const qint32 bytesToMoveForPreviousPacket = mCursorLaser - mDataLaser.lastIndexOf("LASER", mCursorLaser-1);
-            const qint32 bytesToMove = std::max(stepSize, bytesToMoveForPreviousPacket);
-            qDebug() << "LogPlayer::slotGoToTow(): stepsize is" << stepSize << "bytestomove" << bytesToMove << "indexLaser is" << mCursorLaser << "of" << mDataLaser.size();
-            mCursorLaser = qBound(0, mCursorLaser - bytesToMove, mDataLaser.size());
-        }
-        else if(tow0 < towTarget)
-        {
-            qDebug() << "LogPlayer::slotGoToTow(): frwd, towLaser is" << tow0;
-
-            // We need to go forward stepsize bytes, or exactly one laser packet if stepsize
-            // bytes is below the packet's size. Thus, determine the minimum size to move.
-            const qint32 bytesToMoveForNextPacket = mDataLaser.indexOf("LASER", mCursorLaser+1) - mCursorLaser;
-            const qint32 bytesToMove = std::max(stepSize, bytesToMoveForNextPacket);
-            qDebug() << "LogPlayer::slotGoToTow(): stepsize is" << stepSize << "bytestomove" << bytesToMove << "indexLaser is" << mCursorLaser << "of" << mDataLaser.size();
-            mCursorLaser = qBound(0, mCursorLaser + bytesToMove, mDataLaser.size());
-        }
-
-        tow2 = tow1;
-        tow1 = tow0;
-
-        // Step at least one packet, which is around 1500 bytes
-        stepSize = /*std::max(500, */stepSize/2;//);
+        mLogsLaser[i]->cursor = dataCursor;
+        qDebug() << "LogPlayer::slotGoToTow(): LASER" << i << ": reached TOW" << tow0 << ", targeted was" << towTarget;
     }
-
-    qDebug() << "LogPlayer::slotGoToTow(): LASER: reached TOW" << tow0 << ", targeted was" << towTarget;
-
 
     // FlightController
     mLogFlightController.cursor = mLogFlightController.data.size() / 2;

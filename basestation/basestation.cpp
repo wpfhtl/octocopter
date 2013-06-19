@@ -225,7 +225,7 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mLogPlayer, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mControlWidget, SLOT(slotUpdatePose(const Pose* const)));
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mFlightPlanner, SLOT(slotVehiclePoseChanged(const Pose* const)));
-        connect(mLogPlayer, SIGNAL(newScanData(qint32,std::vector<quint16>*const)), mGlWindow, SLOT(slotNewScanData(qint32,std::vector<quint16>*const)));
+        connect(mLogPlayer, SIGNAL(newRayData(Pose*,qint32,std::vector<quint16>*const)), mGlWindow, SLOT(slotNewRayData(Pose*,qint32,std::vector<quint16>*const)));
 
         //connect(mLogPlayer, SIGNAL(vehiclePoseLowFreq(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mPtuController, SLOT(slotVehiclePoseChanged(const Pose* const)));

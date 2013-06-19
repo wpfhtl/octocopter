@@ -345,11 +345,11 @@ void GlWindow::slotRenderNow()
 
             QMatrix4x4 lidarMatrix;
             if(mLastKnownVehiclePose) lidarMatrix = mLastKnownVehiclePose->getMatrixCopy();
-            lidarMatrix.translate(QVector3D(0.0f, -0.04f, -0.14f));
+            //lidarMatrix.translate(QVector3D(0.0f, -0.04f, -0.14f));
 
             mShaderProgramRawScanRays->setUniformValue("useFixedColor", false);
             mShaderProgramRawScanRays->setUniformValue("useMatrixExtra", true);
-            mShaderProgramRawScanRays->setUniformValue("matrixExtra", lidarMatrix);
+            mShaderProgramRawScanRays->setUniformValue("matrixExtra", lidarMatrix * mRayVisualizationRelativeScannerMatrix);
 
             glBindBuffer(GL_ARRAY_BUFFER, mVboRawScanRays);
             glEnableVertexAttribArray(0);
@@ -922,10 +922,12 @@ void GlWindow::slotSetFlightControllerValues(const FlightControllerValues* const
     slotNewVehiclePose(&fcv->lastKnownPose);
 }
 
-void GlWindow::slotNewScanData(const qint32& timestampScanScanner, std::vector<quint16> * const distances)
+void GlWindow::slotNewRayData(const Pose* const relativeScannerPose, const qint32& timestampScanScanner, std::vector<quint16> * const distances)
 {
     if(mRenderRawScanRays)
     {
+        mRayVisualizationRelativeScannerMatrix = relativeScannerPose->getMatrixConst();
+
         // If needed, create a VBO for the scan rays
         if(!mVboRawScanRays) glGenBuffers(1, &mVboRawScanRays);
 

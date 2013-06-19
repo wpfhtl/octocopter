@@ -67,6 +67,8 @@ class GlWindow : public QWindow, protected QOpenGLFunctions_4_3_Core
     unsigned int mVboVehiclePathBytesCurrent;
     GLuint mVboVehiclePath;
 
+    QMatrix4x4 mRayVisualizationRelativeScannerMatrix;
+
     GLuint mUboId;
     unsigned int mUboSize;
 
@@ -125,7 +127,7 @@ public slots:
     void slotSetFlightControllerValues(const FlightControllerValues *const fcv);
 
     // Called from logplayer, for debugging unfused laser data. Copy it to OpenGL-Buffer if you need it.
-    void slotNewScanData(const qint32& timestampScanScanner, std::vector<quint16> * const distances);
+    void slotNewRayData(const Pose* const relativeScannerPose, const qint32& timestampScanScanner, std::vector<quint16> * const distances);
 
     void slotNewVehiclePose(const Pose *const);
     void slotClearVehicleTrajectory();

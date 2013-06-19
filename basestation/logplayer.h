@@ -111,6 +111,8 @@ private:
     Ui::LogPlayer *ui;
     SbfParser* mSbfParser;
     SensorFuser* mSensorFuser;
+
+    // TODO: Use a QMap<DataSource, LogData> for all(!) logfiles.
     LogData mLogGnss, mLogFlightController;
     QVector<LogData*> mLogsLaser;
     QVector<Pose> mRelativeLaserPoses;
@@ -170,7 +172,7 @@ signals:
 
     // Emits the raw distances, like the ones being fed into sensorfuser. You are NOT owner of this data, sensorfuser
     // is and it will probably delete it. So, if you need it, copy it!
-    void newScanData(qint32 timestampScanner, std::vector<quint16> * const distances);
+    void newRayData(const Pose* const, qint32 timestampScanner, std::vector<quint16> * const distances);
 };
 
 #endif // LOGPLAYER_H
