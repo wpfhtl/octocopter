@@ -1,13 +1,8 @@
 cmake_minimum_required(VERSION 2.8.8)
 project(hokuyoid)
 
-#include_directories(
-#    /usr/include
-#)
-
-set(SRC_FILES
-    main
-)
+include_directories(/usr/local/include)
+link_directories(/usr/local/lib/)
 
 set(URG_LIBRARIES
     urg
@@ -19,5 +14,5 @@ set(URG_LIBRARIES
     urg_system
 )
 
-add_executable(hokuyoid ${SRC_FILES})
+add_executable(hokuyoid main)
 target_link_libraries(hokuyoid ${URG_LIBRARIES})

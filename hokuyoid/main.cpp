@@ -32,9 +32,12 @@ int main(int argc, char *argv[])
     }
 
     // Output
-    for (vector<string>::iterator it = lines.begin(); it != lines.end(); ++it)
+    for(vector<string>::iterator it = lines.begin(); it != lines.end(); ++it)
     {
-        cout << *it << endl;
+	if(it->find(std::string("SERI")) != string::npos)
+	{
+          cout << it->substr(5, 8) << endl;
+	}
     }
 
     return 0;
