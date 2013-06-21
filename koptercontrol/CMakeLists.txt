@@ -72,13 +72,13 @@ hokuyo.h
 )
 
 set(URG_LIBRARIES
+    urg
     urg_connection
     urg_common
     urg_coordinate
     urg_geometry
     urg_monitor
     urg_system
-    urg
 )
 
 add_executable(koptercontrol ${SRC_FILES_KOPTERCONTROL})

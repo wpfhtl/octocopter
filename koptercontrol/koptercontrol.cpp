@@ -59,7 +59,8 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     QString deviceSerialKopter = "/dev/ttyUSB0";
     QString deviceSerialGnssCom = "/dev/ttyUSB1";
     QString deviceSerialGnssUsb = "/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device-if00"; //"/dev/ttyACM0";
-    QString deviceSerialLaserScanner = "/dev/serial/by-id/usb-Hokuyo_Data_Flex_for_USB_URG-Series_USB_Driver-if00"; // "/dev/ttyACM1";
+    QString deviceSerialLidarDown = "/dev/hokuyo_H1004271"; // using udev-rule and hokuyo_id program
+    QString deviceSerialLidarFrnt = "/dev/hokuyo_XXXXXXXX"; // using udev-rule and hokuyo_id program
 
     QStringList commandLine = arguments();
 
@@ -73,9 +74,14 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
         deviceSerialKopter = commandLine.at(commandLine.lastIndexOf("-sk") + 1);
     }
 
-    if(commandLine.lastIndexOf("-sl") != -1 && commandLine.size() > commandLine.lastIndexOf("-sl") + 1)
+    if(commandLine.lastIndexOf("-sld") != -1 && commandLine.size() > commandLine.lastIndexOf("-sld") + 1)
     {
-        deviceSerialLaserScanner = commandLine.at(commandLine.lastIndexOf("-sl") + 1);
+        deviceSerialLidarDown = commandLine.at(commandLine.lastIndexOf("-sld") + 1);
+    }
+
+    if(commandLine.lastIndexOf("-slf") != -1 && commandLine.size() > commandLine.lastIndexOf("-slf") + 1)
+    {
+        deviceSerialLidarFrnt = commandLine.at(commandLine.lastIndexOf("-slf") + 1);
     }
 
     if(commandLine.lastIndexOf("-sgu") != -1 && commandLine.size() > commandLine.lastIndexOf("-sgu") + 1)
@@ -94,20 +100,34 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     }
 
     qDebug() << "KopterControl::KopterControl(): using serial ports: kopter" << deviceSerialKopter << "gnss com" << deviceSerialGnssCom << "gnss usb" << deviceSerialGnssUsb;
-    qDebug() << "KopterControl::KopterControl(): using laserscanner at" << deviceSerialLaserScanner;
+    qDebug() << "KopterControl::KopterControl(): using laserscanner at" << deviceSerialLidarDown;
     qDebug() << "KopterControl::KopterControl(): reading RSSI at interface" << networkInterface;
 
     mFlightController = new FlightController(logFilePrefix);
-    mLaserScanner = new LaserScanner(deviceSerialLaserScanner, logFilePrefix);
-    mLaserScanner->slotSetRelativeScannerPose(
+    mLaserScannerDown = new LaserScanner(deviceSerialLidarDown, logFilePrefix);
+    mLaserScannerDown->slotSetRelativeScannerPose(
                 Pose(
                     QVector3D(      // Offset from vehicle center to Laser Source. In Vehicle Reference Frame: Like OpenGL, red arm forward pointing to screen
                         +0.00,      // From vehicle left/right to laser, positive is moved to right "wing"
                         -0.04,      // From vehicle up/down to laser, negative is down to laser
                         -0.14),     // From vehicle 14cm forward, towards the front arm.
                     +000.0,         // No yawing
-                    -090.0,         // 90 deg pitched down
+                    -091.0,         // 90 deg pitched down
                     +000.0,         // No rolling
+                    10             // Use 10 msec TOW, so that the relative pose is always older than whatever new pose coming in. Don't use 0, as that would be set to current TOW, which might be newer due to clock offsets.
+                    )
+                );
+
+    mLaserScannerFrnt = new LaserScanner(deviceSerialLidarFrnt, logFilePrefix);
+    mLaserScannerFrnt->slotSetRelativeScannerPose(
+                Pose(
+                    QVector3D(      // Offset from vehicle center to Laser Source. In Vehicle Reference Frame: Like OpenGL, red arm forward pointing to screen
+                        0.00,      // From vehicle left/right to laser, positive is moved to right "wing"
+                        0.10,      // From vehicle up/down to laser, negative is down to laser
+                        0.00),     // From vehicle 14cm forward, towards the front arm.
+                    0.0,         // No yawing
+                    0.0,         // No pitching
+                    0.0,         // No rolling
                     10             // Use 10 msec TOW, so that the relative pose is always older than whatever new pose coming in. Don't use 0, as that would be set to current TOW, which might be newer due to clock offsets.
                     )
                 );
@@ -121,14 +141,16 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     // For testing motion with a joystick from basestation
     //connect(mBaseConnection, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
 
-    connect(mLaserScanner, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
+    connect(mLaserScannerDown, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
+    connect(mLaserScannerFrnt, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mKopter, SIGNAL(vehicleStatus(const VehicleStatus* const)), mBaseConnection, SLOT(slotNewVehicleStatus(const VehicleStatus* const)));
     connect(mKopter, SIGNAL(flightStateSwitchValueChanged(const FlightStateSwitch* const)), mFlightController, SLOT(slotFlightStateSwitchValueChanged(const FlightStateSwitch* const)));
     connect(mKopter, SIGNAL(pushButtonToggled()), mFlightController, SLOT(slotLiftHoverPosition()));
     connect(mKopter, SIGNAL(flightSpeedChanged(float)), mFlightController, SLOT(slotSetFlightSpeed(float)));
 
-    connect(mLaserScanner, SIGNAL(heightOverGround(const float)), mFlightController, SLOT(slotSetHeightOverGround(const float)));
-    connect(mBaseConnection, SIGNAL(enableScanning(const bool)), mLaserScanner, SLOT(slotEnableScanning(const bool)));
+    connect(mLaserScannerDown, SIGNAL(heightOverGround(const float)), mFlightController, SLOT(slotSetHeightOverGround(const float)));
+    connect(mBaseConnection, SIGNAL(enableScanning(const bool)), mLaserScannerDown, SLOT(slotEnableScanning(const bool)));
+    connect(mBaseConnection, SIGNAL(enableScanning(const bool)), mLaserScannerFrnt, SLOT(slotEnableScanning(const bool)));
     connect(mBaseConnection, SIGNAL(differentialCorrections(const QByteArray*const)), mGnssDevice, SLOT(slotSetDifferentialCorrections(const QByteArray* const)));
     connect(mBaseConnection, SIGNAL(wayPointInsert(quint16, WayPoint)), mFlightController, SLOT(slotWayPointInsert(quint16, WayPoint)));
     connect(mBaseConnection, SIGNAL(wayPointDelete(quint16)), mFlightController, SLOT(slotWayPointDelete(quint16)));
@@ -138,7 +160,8 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     connect(mGnssDevice->getSbfParser(), SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mGnssDevice, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
-    connect(mGnssDevice->getSbfParser(), SIGNAL(gnssTimeOfWeekEstablished(qint32)), mLaserScanner, SLOT(slotSetScannerTimeStamp(qint32)));
+    connect(mGnssDevice->getSbfParser(), SIGNAL(gnssTimeOfWeekEstablished(qint32)), mLaserScannerDown, SLOT(slotSetScannerTimeStamp(qint32)));
+    connect(mGnssDevice->getSbfParser(), SIGNAL(gnssTimeOfWeekEstablished(qint32)), mLaserScannerFrnt, SLOT(slotSetScannerTimeStamp(qint32)));
 
     connect(mGnssDevice->getSbfParser(),SIGNAL(status(const GnssStatus* const)), mBaseConnection, SLOT(slotNewGnssStatus(const GnssStatus* const)));
 
@@ -147,8 +170,10 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mGnssDevice->getSbfParser(), SIGNAL(newVehiclePoseSensorFuser(const Pose* const)), mSensorFuser, SLOT(slotNewVehiclePose(const Pose* const)));
     connect(mGnssDevice->getSbfParser(), SIGNAL(newVehiclePoseStatus(const Pose* const)), mBaseConnection, SLOT(slotNewVehiclePose(const Pose* const)));
     connect(mGnssDevice->getSbfParser(), SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
-    connect(mGnssDevice->getSbfParser(), SIGNAL(gnssDeviceWorkingPrecisely(bool)), mLaserScanner, SLOT(slotEnableScanning(bool)));
-    connect(mLaserScanner, SIGNAL(newScanData(qint32, Pose*, std::vector<quint16>*)), mSensorFuser, SLOT(slotNewScanData(qint32,Pose*,std::vector<quint16>*)));
+    connect(mGnssDevice->getSbfParser(), SIGNAL(gnssDeviceWorkingPrecisely(bool)), mLaserScannerDown, SLOT(slotEnableScanning(bool)));
+    connect(mGnssDevice->getSbfParser(), SIGNAL(gnssDeviceWorkingPrecisely(bool)), mLaserScannerFrnt, SLOT(slotEnableScanning(bool)));
+    connect(mLaserScannerDown, SIGNAL(newScanData(qint32, Pose*, std::vector<quint16>*)), mSensorFuser, SLOT(slotNewScanData(qint32,Pose*,std::vector<quint16>*)));
+    connect(mLaserScannerFrnt, SIGNAL(newScanData(qint32, Pose*, std::vector<quint16>*)), mSensorFuser, SLOT(slotNewScanData(qint32,Pose*,std::vector<quint16>*)));
     connect(mSensorFuser, SIGNAL(scanData(float*const,quint32,QVector3D*const)), mBaseConnection, SLOT(slotNewScannedPoints(float*const,quint32,QVector3D*const)));
 
     // Lots of traffic - for what?
@@ -168,7 +193,8 @@ KopterControl::~KopterControl()
 {
     qDebug() << "KopterControl::~KopterControl(): shutting down, deleting objects.";
     delete mGnssDevice;
-    delete mLaserScanner;
+    delete mLaserScannerDown;
+    delete mLaserScannerFrnt;
     delete mFlightController;
     delete mSensorFuser;
     delete mKopter;
@@ -222,7 +248,8 @@ void KopterControl::slotHandleSignal()
 
     // shutdown orderly
     qDebug() << "KopterControl::slotHandleSignal(): shutting down scanner...";
-    mLaserScanner->slotEnableScanning(false);
+    mLaserScannerDown->slotEnableScanning(false);
+    mLaserScannerFrnt->slotEnableScanning(false);
 
     // When mGnssDevice finishes device-shutdown, it will quit(), starting the rest of the shutdown sequence.
     qDebug() << "KopterControl::slotHandleSignal(): shutting down GNSS device...";

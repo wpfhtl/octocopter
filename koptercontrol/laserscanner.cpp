@@ -6,13 +6,15 @@
 #include <iostream>
 #include <fstream>
 
+quint32 LaserScanner::instanceCounter = 0;
+
 LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFilePrefix) :
     QObject(),
     mDeviceFileName(deviceFileName)
 {
     qDebug() << "LaserScanner::LaserScanner(): initializing laserscanner";
 
-    mLogFile = new LogFile(logFilePrefix + QString("scannerdata.lsr"), LogFile::Encoding::Binary);
+    mLogFile = new LogFile(logFilePrefix + QString("scannerdata.lsr") + QString::number(instanceCounter++), LogFile::Encoding::Binary);
 
     mHokuyo = new Hokuyo(mLogFile);
 

@@ -10,16 +10,13 @@ set(SRC_FILES
 )
 
 set(URG_LIBRARIES
+    urg
     urg_connection
     urg_common
     urg_coordinate
     urg_geometry
     urg_monitor
     urg_system
-    urg
-    c_urg
-    c_urg_system
-    c_urg_connection
 )
 
 add_executable(hokuyoid ${SRC_FILES})

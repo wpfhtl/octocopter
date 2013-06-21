@@ -47,7 +47,7 @@ private:
     SensorFuser* mSensorFuser;
     FlightController *mFlightController;
     GnssDevice *mGnssDevice;
-    LaserScanner *mLaserScanner;
+    LaserScanner *mLaserScannerFrnt, *mLaserScannerDown;
     BaseConnection *mBaseConnection;
 //    VisualOdometry* mVisualOdometry;
 

@@ -16,6 +16,7 @@ class LaserScanner : public QObject
 
 private:
 //    LogFile* mLogFile;
+    static quint32 instanceCounter;
     QThread* mThreadReadScanner;
     QString mDeviceFileName;
     Hokuyo* mHokuyo;
