@@ -7,6 +7,7 @@
 FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWindow *glWidget, PointCloud *pointcloud) : FlightPlannerInterface(parentWidget, glWidget, pointcloud)
 {
     mParticleSystem = 0;
+    mPathPlanner = 0;
     mParticleRenderer = 0;
     mVboGridMapOfWayPointPressure = 0;
     mDeviceGridMapWaypointPressureCellWorldPositions = 0;
@@ -25,6 +26,8 @@ FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWindow *
     mSimulationParameters.initialize();
     mDialog = new FlightPlannerParticlesDialog(&mSimulationParameters, parentWidget);
 
+    mPathPlanner = new PathPlanner;
+
     connect(&mTimerProcessWaypointPressure, SIGNAL(timeout()), SLOT(slotProcessWaypointPressure()));
 }
 
@@ -36,7 +39,7 @@ void FlightPlannerParticles::slotInitialize()
     mSimulationParameters.gridWaypointPressure.cells = make_uint3(256, 32, 256);
     slotSetScanVolume(QVector3D(-32, -4, -32), QVector3D(32, 28, 32));
 
-    const quint32 numberOfCellsInScanVolume = mSimulationParameters.gridWaypointPressure.cellCount();
+    const quint32 numberOfCellsInScanVolume = mSimulationParameters.gridWaypointPressure.getCellCount();
 
     // Store the gridcell-waypoint-pressure-values in a VBO as 8bit-unsigned-ints
     mVboGridMapOfWayPointPressure = OpenGlUtilities::createVbo(sizeof(quint8) * numberOfCellsInScanVolume);
@@ -94,6 +97,10 @@ void FlightPlannerParticles::slotInitialize()
 //    connect(mDialog, SIGNAL(processPhysicsChanged(bool)), SLOT(slotProcessPhysics(bool)));
     connect(mDialog, SIGNAL(showParticlesChanged(bool)), mParticleRenderer, SLOT(slotSetRenderParticles(bool)));
     connect(mDialog, SIGNAL(showWaypointPressureChanged(bool)), mParticleRenderer, SLOT(slotSetRenderWaypointPressure(bool)));
+
+    // PathPlanner needs ColliderCloud to initialize!
+    mPathPlanner->slotSetPointCloudColliders(mPointCloudColliders);
+    mPathPlanner->slotInitialize();
 }
 
 void FlightPlannerParticles::keyPressEvent(QKeyEvent *event)
@@ -131,7 +138,7 @@ void FlightPlannerParticles::slotGenerateWaypoints(quint32 numberOfWaypointsToGe
         return;
     }
 
-    const quint32 numberOfCells = mSimulationParameters.gridWaypointPressure.cellCount();
+    const quint32 numberOfCells = mSimulationParameters.gridWaypointPressure.getCellCount();
     QVector<QVector4D> waypoints(std::min((quint32)200, numberOfCells));
 
     // Copy waypoint pressure from VBO into mDeviceGridMapWayPointPressureSorted
@@ -196,7 +203,7 @@ void FlightPlannerParticles::slotProcessWaypointPressure(const quint8 threshold)
         return;
     }
 
-    const quint32 numberOfCells = mSimulationParameters.gridWaypointPressure.cellCount();
+    const quint32 numberOfCells = mSimulationParameters.gridWaypointPressure.getCellCount();
 
     // Copy waypoint pressure from VBO into mDeviceGridMapWayPointPressureSorted
     quint8* gridMapOfWayPointPressure = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridMapOfWayPointPressure);
@@ -354,7 +361,7 @@ void FlightPlannerParticles::slotClearGridWayPointPressure()
     // check if we're initialized!
     if(mVboGridMapOfWayPointPressure)
     {
-        const quint32 numberOfCells = mSimulationParameters.gridWaypointPressure.cellCount();
+        const quint32 numberOfCells = mSimulationParameters.gridWaypointPressure.getCellCount();
         qDebug() << "ParticleSystem::slotClearGridWayPointPressure(): clearing pressure in" << numberOfCells << "cells in VBO" << mVboGridMapOfWayPointPressure;
         quint8* gridMapOfWayPointPressure = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridMapOfWayPointPressure);
         cudaSafeCall(cudaMemset(gridMapOfWayPointPressure, 0, sizeof(quint8) * numberOfCells));
@@ -369,7 +376,7 @@ void FlightPlannerParticles::showWaypointPressure()
     // This pointer is NOT accessible on the host (its in device address space), we need to cudaMemcpy() it from the device first.
     quint8* waypointPressureMapDevice = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridMapOfWayPointPressure);
 
-    const quint32 numberOfGridCells = mSimulationParameters.gridWaypointPressure.cellCount();
+    const quint32 numberOfGridCells = mSimulationParameters.gridWaypointPressure.getCellCount();
 
     quint8* waypointPressureMapHost = new quint8[numberOfGridCells];
 

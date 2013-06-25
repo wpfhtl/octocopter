@@ -19,8 +19,6 @@ BaseStation::BaseStation() : QMainWindow()
 //                );
 //    mOctree->mPointColor = QColor(128,128,128, 128);
 
-    mProgress = 0;
-
 //    mPlotWidget = 0;
     mTimerJoystick = 0;
     mLogPlayer = 0;

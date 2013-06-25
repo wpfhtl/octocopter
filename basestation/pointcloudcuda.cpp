@@ -92,7 +92,7 @@ void PointCloudCuda::initializeGrid()
     mParameters.grid.cells = mParameters.grid.getOptimalResolution(mParameters.minimumDistance);
     copyParametersToGpu(&mParameters);
 
-    const quint32 numberOfCells = mParameters.grid.cellCount();
+    const quint32 numberOfCells = mParameters.grid.getCellCount();
 
     if(mDeviceCellStart) cudaSafeCall(cudaFree(mDeviceCellStart));
     cudaSafeCall(cudaMalloc((void**)&mDeviceCellStart, numberOfCells*sizeof(unsigned int)));
@@ -371,7 +371,7 @@ quint32 PointCloudCuda::reducePoints(float* devicePoints, const quint32 numEleme
                 mDeviceMapPointIndex,
                 devicePoints,
                 numElements,
-                mParameters.grid.cellCount());*/
+                mParameters.grid.getCellCount());*/
 
     sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
                 mDeviceCellStart,                           // output: At which index in mDeviceMapParticleIndex does cell X start?
@@ -383,7 +383,7 @@ quint32 PointCloudCuda::reducePoints(float* devicePoints, const quint32 numEleme
                 devicePoints,                    // input:  The particle-positions, unsorted
                 0,                         // input:  The particle-velocities, unsorted
                 numElements,        // input:  The number of particles
-                mParameters.grid.cellCount()  // input: Number of grid cells
+                mParameters.grid.getCellCount()  // input: Number of grid cells
                 );
 
     // Mark redundant points by colliding with themselves using mParameters.minimumDistance

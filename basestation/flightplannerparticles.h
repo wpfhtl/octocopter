@@ -4,6 +4,7 @@
 #include "flightplannerinterface.h"
 #include "particlerenderer.h"
 #include "particlesystem.h"
+#include "pathplanner.h"
 #include "lidarpoint.h"
 #include "glwindow.h"
 #include <waypoint.h>
@@ -26,6 +27,8 @@ private:
     FlightPlannerParticlesDialog* mDialog;
 
     PointCloudCuda* mPointCloudColliders;
+
+    PathPlanner* mPathPlanner;
 
     QVector3D mLastParticleSystemPositionToFollowVehicle;
 

@@ -41,6 +41,7 @@ set(SRC_FILES
     ptucontroller
     camerawidget
     waypointlist
+    pathplanner
     flightplannerinterface
     #flightplannerbasic
     #flightplannercuda
@@ -100,10 +101,11 @@ set(INC_FILES
     ptucontroller.h
     camerawidget.h
     waypointlist.h
+    pathplanner.h
     flightplannerinterface.h
     #flightplannerbasic.h
     #flightplannercuda.h
-    #flightplannerparticles.h
+    flightplannerparticles.h
     #flightplannerphysics.h
     #flightplannerphysicsdialog.h
     flightplannerparticlesdialog.h

@@ -53,43 +53,43 @@ public slots:
     // (e.g. changing particleCount doesn't make sense, as we'd have to re-initialize). Maybe later.
     void slotSetSimulationParametersFromUi(const ParametersParticleSystem* sp)
     {
-        mSimulationParameters->timeStepInner = sp->timeStepInner;
-        mSimulationParameters->attraction = sp->attraction;
-        mSimulationParameters->dampingMotion = sp->dampingMotion;
-        mSimulationParameters->gravity = sp->gravity;
-        mSimulationParameters->particleRadius = sp->particleRadius;
-        mSimulationParameters->shear = sp->shear;
-        mSimulationParameters->spring = sp->spring;
-        mSimulationParameters->velocityFactorCollisionBoundary = sp->velocityFactorCollisionBoundary;
-        mSimulationParameters->velocityFactorCollisionParticle = sp->velocityFactorCollisionParticle;
-        mSimulationParameters->velocityFactorCollisionCollider = sp->velocityFactorCollisionCollider;
+        mParametersSimulation->timeStepInner = sp->timeStepInner;
+        mParametersSimulation->attraction = sp->attraction;
+        mParametersSimulation->dampingMotion = sp->dampingMotion;
+        mParametersSimulation->gravity = sp->gravity;
+        mParametersSimulation->particleRadius = sp->particleRadius;
+        mParametersSimulation->shear = sp->shear;
+        mParametersSimulation->spring = sp->spring;
+        mParametersSimulation->velocityFactorCollisionBoundary = sp->velocityFactorCollisionBoundary;
+        mParametersSimulation->velocityFactorCollisionParticle = sp->velocityFactorCollisionParticle;
+        mParametersSimulation->velocityFactorCollisionCollider = sp->velocityFactorCollisionCollider;
     }
 
     void slotSetParticleRadius(float);
 
-    void slotSetParticleSpring(const float spring) { mSimulationParameters->spring = spring; }
+    void slotSetParticleSpring(const float spring) { mParametersSimulation->spring = spring; }
 
     void slotSetParticleCount(const quint32 count)
     {
-        mSimulationParameters->particleCount = count;
+        mParametersSimulation->particleCount = count;
         // Need to rebuild data-structures when particle count changes.
         if(mIsInitialized) freeResources();
     }
 
     // Values between 0 and 1 make sense, something like 0.98f seems realistic
-    void slotSetDampingMotion(const float damping) { mSimulationParameters->dampingMotion = damping; }
+    void slotSetDampingMotion(const float damping) { mParametersSimulation->dampingMotion = damping; }
 
     // Needs to be negative, so that the particle reverses direction when hitting a bounding wall
-    void slotSetVelocityFactorCollisionBoundary(const float factor) { mSimulationParameters->velocityFactorCollisionBoundary = factor; }
+    void slotSetVelocityFactorCollisionBoundary(const float factor) { mParametersSimulation->velocityFactorCollisionBoundary = factor; }
 
     // The more damping, the more a collision will speed up the particles. So its the inverse of what you'd expect.
-    void slotSetVelocityFactorCollisionParticle(const float factor) { mSimulationParameters->velocityFactorCollisionParticle = factor; }
+    void slotSetVelocityFactorCollisionParticle(const float factor) { mParametersSimulation->velocityFactorCollisionParticle = factor; }
 
     void slotSetGravity(const QVector3D& gravity)
     {
-        mSimulationParameters->gravity.x = gravity.x();
-        mSimulationParameters->gravity.y = gravity.y();
-        mSimulationParameters->gravity.z = gravity.z();
+        mParametersSimulation->gravity.x = gravity.x();
+        mParametersSimulation->gravity.y = gravity.y();
+        mParametersSimulation->gravity.z = gravity.z();
     }
 
     void slotSetVolume(const QVector3D& min, const QVector3D& max);
@@ -102,7 +102,7 @@ signals:
     void vboInfoParticles(quint32 vboPositions, quint32 vboColor, quint32 particleCount, QVector3D particleSystemWorldMin, QVector3D particleSystemWorldMax);
 
 protected:
-    ParametersParticleSystem* mSimulationParameters;
+    ParametersParticleSystem* mParametersSimulation;
     // A pointer to the pointclouds holding the dense points and the colliders.
     PointCloudCuda *mPointCloudDense, *mPointCloudColliders;
 

@@ -56,11 +56,13 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     QString networkInterface = "wlan0";
     QString deviceCamera = "/dev/video0";
-    QString deviceSerialKopter = "/dev/ttyUSB0";
-    QString deviceSerialGnssCom = "/dev/ttyUSB1";
-    QString deviceSerialGnssUsb = "/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device-if00"; //"/dev/ttyACM0";
-    QString deviceSerialLidarDown = "/dev/hokuyo_H1004271"; // using udev-rule and hokuyo_id program
-    QString deviceSerialLidarFrnt = "/dev/hokuyo_XXXXXXXX"; // using udev-rule and hokuyo_id program
+    QString deviceSerialKopter = "/dev/serial/by-id/usb-FTDI_Dual_RS232-if00-port0";
+    //QString deviceSerialGnssPort1 = "/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device-if00"; // used for one-port mode
+    //QString deviceSerialGnssPort2 = "/dev/serial/by-id/usb-FTDI_Dual_RS232-if01-port0"; // used for one-port mode
+    QString deviceSerialGnssPort1 = "/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device-if01-port0";
+    QString deviceSerialGnssPort2 = "/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device-if03-port0";
+    QString deviceSerialLidarDown = "/dev/hokuyo_H1004271"; // using udev-rule and hokuyoid program
+    QString deviceSerialLidarFrnt = "/dev/hokuyo_H1102762"; // using udev-rule and hokuyoid program
 
     QStringList commandLine = arguments();
 
@@ -84,14 +86,14 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
         deviceSerialLidarFrnt = commandLine.at(commandLine.lastIndexOf("-slf") + 1);
     }
 
-    if(commandLine.lastIndexOf("-sgu") != -1 && commandLine.size() > commandLine.lastIndexOf("-sgu") + 1)
+    if(commandLine.lastIndexOf("-sgp1") != -1 && commandLine.size() > commandLine.lastIndexOf("-sgp1") + 1)
     {
-        deviceSerialGnssUsb = commandLine.at(commandLine.lastIndexOf("-sgu") + 1);
+        deviceSerialGnssPort1 = commandLine.at(commandLine.lastIndexOf("-sgp1") + 1);
     }
 
-    if(commandLine.lastIndexOf("-sgc") != -1 && commandLine.size() > commandLine.lastIndexOf("-sgc") + 1)
+    if(commandLine.lastIndexOf("-sgp2") != -1 && commandLine.size() > commandLine.lastIndexOf("-sgp2") + 1)
     {
-        deviceSerialGnssCom = commandLine.at(commandLine.lastIndexOf("-sgc") + 1);
+        deviceSerialGnssPort2 = commandLine.at(commandLine.lastIndexOf("-sgp2") + 1);
     }
 
     if(commandLine.lastIndexOf("-netiface") != -1 && commandLine.size() > commandLine.lastIndexOf("-netiface") + 1)
@@ -99,7 +101,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
         networkInterface = commandLine.at(commandLine.lastIndexOf("-netiface") + 1).toLower();
     }
 
-    qDebug() << "KopterControl::KopterControl(): using serial ports: kopter" << deviceSerialKopter << "gnss com" << deviceSerialGnssCom << "gnss usb" << deviceSerialGnssUsb;
+    qDebug() << "KopterControl::KopterControl(): using serial ports: kopter" << deviceSerialKopter << "gnss port1" << deviceSerialGnssPort1 << "gnss port2" << deviceSerialGnssPort2;
     qDebug() << "KopterControl::KopterControl(): using laserscanner at" << deviceSerialLidarDown;
     qDebug() << "KopterControl::KopterControl(): reading RSSI at interface" << networkInterface;
 
@@ -132,7 +134,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
                     )
                 );
 
-    mGnssDevice = new GnssDevice(deviceSerialGnssUsb, deviceSerialGnssCom, logFilePrefix, this);
+    mGnssDevice = new GnssDevice(deviceSerialGnssPort1, deviceSerialGnssPort2, logFilePrefix, this);
     mSensorFuser = new SensorFuser(1); // Really lo-res data for septentrio postprocessing tests.
 
     mBaseConnection = new BaseConnection(networkInterface);

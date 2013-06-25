@@ -72,8 +72,6 @@ private:
 
     QMap<QString, CameraWidget*> mCameraWidgets;
 
-    QProgressDialog* mProgress;
-
     void closeEvent(QCloseEvent *event);
 
 signals:
