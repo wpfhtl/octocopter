@@ -1,5 +1,5 @@
 #include "simulator.h"
-
+#include <QStatusBar>
 #include <cstdlib>
 
 Simulator::Simulator(void) :

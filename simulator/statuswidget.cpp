@@ -20,7 +20,7 @@ StatusWidget::StatusWidget(Simulator *simulator) : QDockWidget((QWidget*)simulat
     mLabelBatteryVoltage->setText(QString::number(mBattery->voltageMax(), 'f', 2) + " V");
     mLabelBatteryEnergy->setText(QString::number(mBattery->capacity(), 'f', 2) + " Ah");
 
-    mCompass->setStyle(new QPlastiqueStyle);
+//    mCompass->setStyle(new QPlastiqueStyle);
 
     mDialogConfiguration = new DialogConfiguration(mSimulator);
     connect(mDialogConfiguration, SIGNAL(windDetailChanged(bool,float)), SIGNAL(windDetailChanged(bool,float)));

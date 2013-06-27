@@ -2,7 +2,7 @@
 #define STATUSWIDGET_H
 
 #include <QtGui>
-#include <QPlastiqueStyle>
+//#include <QPlastiqueStyle>
 #include "coordinateconverter.h"
 #include "dialogconfiguration.h"
 #include "ui_statuswidget.h"
