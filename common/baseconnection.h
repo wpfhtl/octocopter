@@ -59,7 +59,7 @@ signals:
     // emitted when a new list of waypoints has arrived from the basestation
     void wayPointInsert(quint16 index, const WayPoint& wayPoint);
     void wayPointDelete(const quint16& index);
-    void wayPoints(const QList<WayPoint>& wayPoints);
+    void wayPoints(const QList<WayPoint>& wayPoints, const WayPointListSource);
 
     // emitted when the basestation wants to send direct ExternalControl motion commands, which is only used for testing.
     void motion(const MotionCommand* const mc);
@@ -79,14 +79,11 @@ signals:
     void newConnection();
 
 public slots:
-    // called when the rover has appended a waypoint, will be sent to base
-    void slotRoverWayPointInserted(const quint16& index, const WayPoint& wayPoint);
-
     // called by rover when it has reached a waypoint, notifies basestation
     void slotWayPointReached(const WayPoint&wpt);
 
     // called by flightcontroller when waypoints are changed (by basestation, just to compare afterwards)
-    void slotFlightControllerWayPointsChanged(const QList<WayPoint> *const);
+    void slotSetWayPoints(const QList<WayPoint> *const);
 
     // called by rover to send updated pose to basestation (called frequently)
     void slotNewVehiclePose(const Pose* const pose);

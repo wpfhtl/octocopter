@@ -100,30 +100,12 @@ void BaseConnection::processPacket(QByteArray packet)
     QString command;
     stream >> command;
 
-    if(command == "waypointinsert")
-    {
-        quint16 index;
-        WayPoint wayPoint;
-        stream >> index;
-        stream >> wayPoint;
-        qDebug() << "BaseConnection::processPacket(): inserting waypoint from base to index" << index;
-        emit wayPointInsert(index, wayPoint);
-        qDebug() << "BaseConnection::processPacket(): inserting waypoint from base to index" << index << "Done.";
-    }
-    else if(command == "waypointdelete")
-    {
-        quint16 index;
-        stream >> index;
-        qDebug() << "BaseConnection::processPacket(): base tells me to delete wpt" << index << "will now emit wptDelete";
-        emit wayPointDelete(index);
-        qDebug() << "BaseConnection::processPacket(): base tells me to delete wpt" << index << "will now emit wptDelete. Done.";
-    }
-    else if(command == "waypoints")
+    if(command == "waypoints")
     {
         QList<WayPoint> wayPointList;
         stream >> wayPointList;
-        qDebug() << "BaseConnection::processPacket(): received" << wayPointList.size() << "waypoints from base.";
-        emit wayPoints(wayPointList);
+        qDebug() << "BaseConnection::processPacket(): received" << wayPointList.size() << "waypoints from base, emitting...";
+        emit wayPoints(wayPointList, WayPointListSource::WayPointListSourceFlightPlanner);
         qDebug() << "BaseConnection::processPacket(): received" << wayPointList.size() << "waypoints from base. Done.";
     }
     else if(command == "motioncommand")
@@ -244,25 +226,6 @@ void BaseConnection::slotFlushWriteQueue()
     return signalQuality;
 }*/
 
-
-
-
-
-// called when the rover has inserted a waypoint into the list, will be sent to base
-// Disabled: Why should the rover ever send waypoints?
-// Update: Because it can cretae its own ladning-waypoint, the base will want to know!
-void BaseConnection::slotRoverWayPointInserted(const quint16& index, const WayPoint& wayPoint)
-{
-    qDebug() << "BaseConnection::slotRoverWayPointInserted(): sending waypoint" << wayPoint << "inserted at index" << index << "to base";
-    QByteArray data;
-    QDataStream stream(&data, QIODevice::WriteOnly);
-
-    stream << QString("waypointinserted");
-    stream << (quint16)index;
-    stream << wayPoint;
-    slotSendData(data, false);
-}
-
 void BaseConnection::slotSendPingReply()
 {
     //qDebug() << "BaseConnection::slotSendPingReply(): sending ping reply to base";
@@ -273,7 +236,7 @@ void BaseConnection::slotSendPingReply()
     slotSendData(data, false);
 }
 
-void BaseConnection::slotFlightControllerWayPointsChanged(const QList<WayPoint>* const wayPoints)
+void BaseConnection::slotSetWayPoints(const QList<WayPoint>* const wayPoints)
 {
     // We're here because the base sent some changes to the rover's waypoint-list, and now
     // we get a chance to send a hash of the rover's list back to the base, so they can compare.

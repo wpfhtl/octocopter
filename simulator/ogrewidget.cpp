@@ -1,40 +1,38 @@
 #include "ogrewidget.h"
 
+#include <QStatusBar>
+#include <QtX11Extras/QX11Info>
+
 const QPoint     OgreWidget::invalidMousePoint(-1,-1);
 const Ogre::Real OgreWidget::turboModifier(200);
 
 OgreWidget::OgreWidget(Simulator *simulator) :
-        QWidget((QWidget*)simulator),
-        mSimulator(simulator),
-        ogreRoot(0),
-        mSceneManager(0),
-        ogreRenderWindow(0),
-        ogreViewport(0),
-        mCamera(0),
-        mVehicleNode(0),
-        oldPosL(invalidMousePoint),
-        oldPosR(invalidMousePoint),
-        btnL(false),
-        btnR(false),
-        selectedNode(0),
-        mFrameCount(0),
-        mTerrainsImported(false),
-        mUpdateTimerId(0),
-        mMutex(QMutex::NonRecursive)
+    QWidget((QWidget*)simulator),
+    mSimulator(simulator),
+    mOgreRoot(0),
+    mSceneManager(0),
+    mOgreRenderWindow(0),
+    mOgreViewport(0),
+    mCamera(0),
+    mVehicleNode(0),
+    oldPosL(invalidMousePoint),
+    oldPosR(invalidMousePoint),
+    btnL(false),
+    btnR(false),
+    selectedNode(0),
+    mFrameCount(0),
+    mTerrainsImported(false),
+    mMutex(QMutex::NonRecursive)
 {
     qDebug() << "OgreWidget::OgreWidget()";
-    QMutexLocker locker(&mMutex);
-    setAttribute(Qt::WA_OpaquePaintEvent);
-    setAttribute(Qt::WA_PaintOnScreen);
-    setMinimumSize(240,240);
-    setFocusPolicy(Qt::ClickFocus);
 
-    mKeyCoordinateMapping[Qt::Key_W] = Ogre::Vector3( 0, 0,-1);
-    mKeyCoordinateMapping[Qt::Key_S] = Ogre::Vector3( 0, 0, 1);
-    mKeyCoordinateMapping[Qt::Key_A] = Ogre::Vector3(-1, 0, 0);
-    mKeyCoordinateMapping[Qt::Key_D] = Ogre::Vector3( 1, 0, 0);
-    mKeyCoordinateMapping[Qt::Key_E] = Ogre::Vector3( 0, 1, 0);
-    mKeyCoordinateMapping[Qt::Key_Q] = Ogre::Vector3( 0,-1, 0);
+//    setAttribute(Qt::WA_OpaquePaintEvent);
+//    setAttribute(Qt::WA_PaintOnScreen);
+//    setAttribute(Qt::WA_NoBackground);
+
+    setMinimumSize(240,240);
+    resize(300,300);
+    setFocusPolicy(Qt::ClickFocus);
 }
 
 OgreWidget::~OgreWidget()
@@ -47,106 +45,162 @@ OgreWidget::~OgreWidget()
     {
         i.next();
         MeshInformation* currentMeshInformation = i.value();
-//        delete[] currentMeshInformation->vertices;
-//        delete[] currentMeshInformation->indices;
+        //        delete[] currentMeshInformation->vertices;
+        //        delete[] currentMeshInformation->indices;
 
         delete currentMeshInformation;
     }
 
-    if(ogreRenderWindow)
+    if(mOgreRenderWindow)
     {
-        ogreRenderWindow->removeAllViewports();
+        mOgreRenderWindow->removeAllViewports();
     }
 
     delete mTerrainGroup;
     delete mTerrainGlobals;
 
-    if(ogreRoot)
+    if(mOgreRoot)
     {
-        ogreRoot->detachRenderTarget(ogreRenderWindow);
+        mOgreRoot->detachRenderTarget(mOgreRenderWindow);
 
         if(mSceneManager)
         {
-            ogreRoot->destroySceneManager(mSceneManager);
+            mOgreRoot->destroySceneManager(mSceneManager);
         }
     }
 
-    delete ogreRoot;
+    mOgreRoot->shutdown();
+
+    delete mOgreRoot;
 }
 
-void OgreWidget::setBackgroundColor(QColor c)
+
+void OgreWidget::initializeOgre()
 {
-    qDebug() << "OgreWidget::setBackgroundColor()";
-    QMutexLocker locker(&mMutex);
-    if(ogreViewport)
+    mOgreRoot = new Ogre::Root;
+
+    Ogre::RenderSystem *renderSystem = mOgreRoot->getRenderSystemByName("OpenGL Rendering Subsystem");
+    mOgreRoot->setRenderSystem(renderSystem);
+    mOgreRoot->initialise(false);
+
+    Ogre::NameValuePairList viewConfig;
+    QWidget *parentWidget = dynamic_cast <QWidget *>(parent());
+
+    Ogre::String windowHandle = Ogre::StringConverter::toString ((unsigned long)QX11Info::display()) +
+            ":" + Ogre::StringConverter::toString ((unsigned int)QX11Info::appScreen()) +
+            ":" + Ogre::StringConverter::toString ((unsigned long)parentWidget->winId());
+
+
+    qDebug() << __PRETTY_FUNCTION__ << "using window handle" << QString::fromStdString(windowHandle);
+    viewConfig["parentWindowHandle"] = windowHandle;
+    //viewConfig["vsync"] = "true"; // this actually works on linux/nvidia-blob/thinkpad!
+
+    mOgreRenderWindow = mOgreRoot->createRenderWindow("OgreRenderWindow", width(), height(), false, &viewConfig);
+
+
+
+
+    mOgreRenderWindow->setActive(true);
+      WId ogreWinId = 0x0;
+      mOgreRenderWindow->getCustomAttribute( "WINDOW", &ogreWinId );
+
+      assert( ogreWinId );
+
+      // bug fix, extract geometry
+      QRect geo = frameGeometry();
+
+      qDebug() << "hack" << ogreWinId << "and geo" << geo;
+
+
+      // create new window
+//      create(ogreWinId);
+//      create(ogreWinId, true, true);
+
+      // set geometrie infos to new window
+//      setGeometry(geo);
+
+
+//    setAttribute( Qt::WA_PaintOnScreen, true );
+//    setAttribute( Qt::WA_NoBackground );
+
+
+
+
+
+
+
+
+
+
+    Ogre::SceneManagerEnumerator::MetaDataIterator iter = Ogre::SceneManagerEnumerator::getSingleton().getMetaDataIterator();
+    while( iter.hasMoreElements() )
     {
-        Ogre::ColourValue ogreColour;
-        ogreColour.setAsARGB(c.rgba());
-        ogreViewport->setBackgroundColour(ogreColour);
+        Ogre::String st = iter.getNext()->typeName;
+        qDebug() << "Scene manager type available:" << QString::fromStdString(st);
     }
+
+    mSceneManager = mOgreRoot->createSceneManager(Ogre::ST_GENERIC);
+    //    ogreSceneManager = ogreRoot->createSceneManager("TerrainSceneManager"/*Ogre::ST_EXTERIOR_CLOSE*/);
+    //    ogreSceneManager->showBoundingBoxes(true);
+
+    // By default, entities cannot be found using a RSQ. This is to make sure that the
+    // Lidar's don't catch the rotors, cameras etc. It also means we'll have to set the
+    // flags to nonzero for any mesh that should be scannable.
+    Ogre::MovableObject::setDefaultQueryFlags(0x00000000);
+
+    mCamera = mSceneManager->createCamera("camera");
+    mCamera->setNearClipDistance(.1);
+    //mCamera->setPolygonMode(Ogre::PM_WIREFRAME);     /* wireframe */
+    mCamera->setPolygonMode(Ogre::PM_SOLID);         /* solid */
+
+    mCameraNode = mSceneManager->getRootSceneNode()->createChildSceneNode("CameraNode", Ogre::Vector3(0, 12, 15));
+    mCameraNode->attachObject(mCamera);
+    mCamera->lookAt(0,8,0);
+
+    mOgreViewport = mOgreRenderWindow->addViewport(mCamera);
+    mOgreViewport->setBackgroundColour(Ogre::ColourValue(0.7, 0.7, 0.7));
+    mCamera->setAspectRatio(Ogre::Real(width()) / Ogre::Real(height()));
+
+    if(mOgreRoot->getRenderSystem()->getCapabilities()->hasCapability(Ogre::RSC_INFINITE_FAR_PLANE))
+    {
+        mCamera->setFarClipDistance(0);   // enable infinite far clip distance if we can
+    }
+
+    // Initialize shader generator.
+    // Must be before resource loading in order to allow parsing extended material attributes.
+    if(!initializeRTShaderSystem(mSceneManager))
+    {
+        OGRE_EXCEPT(Ogre::Exception::ERR_FILE_NOT_FOUND,
+                    "Shader Generator Initialization failed - Core shader libs path not found",
+                    "SdkSample::_setup");
+    }
+
+    setupTerrain();
+
+    // initialize trajectory line
+    mTrajectoryLine = mSceneManager->createManualObject(QString("trajectoryLine_manualobject").toStdString());
+    Ogre::SceneNode* mTrajectoryLineNode = mSceneManager->getRootSceneNode()->createChildSceneNode("trajectoryLine_node");
+
+    Ogre::MaterialPtr trajectoryLineMaterial = Ogre::MaterialManager::getSingleton().create("trajectoryLineMaterial", "General");
+    trajectoryLineMaterial->setReceiveShadows(false);
+    trajectoryLineMaterial->getTechnique(0)->setLightingEnabled(true);
+    trajectoryLineMaterial->getTechnique(0)->getPass(0)->setDiffuse(0,0,1,0);
+    trajectoryLineMaterial->getTechnique(0)->getPass(0)->setAmbient(0,0,1);
+    trajectoryLineMaterial->getTechnique(0)->getPass(0)->setSelfIllumination(0,0,1);
+    //    trajectoryLineMaterial->dispose();  // dispose pointer, not the material
+    mTrajectoryLineNode->attachObject(mTrajectoryLine);
+
+    emit setupFinished();
+
+    qDebug() << __PRETTY_FUNCTION__ << "done.";
 }
-/*
-void OgreWidget::setCameraPosition(const Ogre::Vector3 &vector, const TranslationMode &mode, const Ogre::Node::TransformSpace &transformSpace, const Ogre::SceneNode* lookAt)
-{
-    qDebug() << "OgreWidget::setCameraPosition()";
-    QMutexLocker locker(&mMutex);
-
-    if(mode == OgreWidget::TRANSLATION_RELATIVE)
-        mCameraNode->translate(vector, transformSpace);
-    else if(mode == OgreWidget::TRANSLATION_ABSOLUTE)
-        mCameraNode->setPosition(vector);
-
-    if(lookAt) mCamera->lookAt(lookAt->getPosition());
-
-    update();
-
-    emit cameraPositionChanged(mCameraNode->getPosition());
-}*/
-
-
-/*
-void OgreWidget::setVehiclePosition(const Ogre::Vector3 &vector, const TranslationMode &mode, const Ogre::Node::TransformSpace &transformSpace, const bool reAimCamera)
-{
-    Q_ASSERT(false);
-    qDebug() << "OgreWidget::setVehiclePosition()";
-    QMutexLocker locker(&mMutex);
-
-    if(mode == OgreWidget::TRANSLATION_RELATIVE)
-        mVehicleNode->translate(vector, transformSpace);
-    else if(mode == OgreWidget::TRANSLATION_ABSOLUTE)
-        mVehicleNode->setPosition(vector);
-
-    if(reAimCamera)
-    {
-        mCamera->lookAt(mVehicleNode->getPosition());
-        emit cameraPositionChanged(mCameraNode->getPosition());
-    }
-
-    update();
-}*/
 
 void OgreWidget::keyPressEvent(QKeyEvent *e)
 {
     QMutexLocker locker(&mMutex);
 
     // Only act if the pressed key is a movement key
-    if(mKeyCoordinateMapping.find(e->key()) != mKeyCoordinateMapping.end())
-    {
-        e->accept();
-
-        // A movement-key has been pressed, remember that and start the timer if its not already running.
-        // In timerEvent(), the camera will be moved whenever the timer fires.
-        mKeysPressed << e->key();
-        if(! mUpdateTimerId) mUpdateTimerId = startTimer(1000/25);
-    }
-    else if(e->key() == Qt::ControlModifier)
-    {
-        // ControlModifier speeds up movement, but don't activate the timer for it
-        // because by itself, it doesn't cause any movement
-//        qDebug() << "OgreWidget::keyPressEvent(): CTRL pressed";
-        mKeysPressed << e->key();
-    }
-    else if(e->key() == Qt::Key_Space)
+    if(e->key() == Qt::Key_Space)
     {
         mCamera->lookAt(mSceneManager->getSceneNode("vehicleNode")->getPosition());
         update();
@@ -160,60 +214,6 @@ void OgreWidget::keyPressEvent(QKeyEvent *e)
             mCamera->setPolygonMode(Ogre::PM_SOLID);
 
         update();
-    }
-    else
-    {
-        e->ignore();
-    }
-}
-
-void OgreWidget::keyReleaseEvent(QKeyEvent *e)
-{
-    QMutexLocker locker(&mMutex);
-
-    mKeysPressed.removeOne(e->key());
-
-    if(mKeysPressed.empty() || (mKeysPressed.size() == 1 && mKeysPressed.contains(Qt::ControlModifier)))
-    {
-        killTimer(mUpdateTimerId);
-        mUpdateTimerId = 0;
-    }
-
-    e->accept();
-}
-
-void OgreWidget::mouseDoubleClickEvent(QMouseEvent *e)
-{
-//    qDebug() << "OgreWidget::mouseDoubleClickEvent()";
-    QMutexLocker locker(&mMutex);
-    if(e->buttons().testFlag(Qt::LeftButton))
-    {
-//        qDebug() << "OgreWidget::mouseDoubleClickEvent(): lmb";
-        Ogre::Real x = e->pos().x() / (float)width();
-        Ogre::Real y = e->pos().y() / (float)height();
-
-        Ogre::Ray ray = mCamera->getCameraToViewportRay(x, y);
-        Ogre::RaySceneQuery *query = mSceneManager->createRayQuery(ray);
-        Ogre::RaySceneQueryResult &queryResult = query->execute();
-        Ogre::RaySceneQueryResult::iterator queryResultIterator = queryResult.begin();
-
-        if(queryResultIterator != queryResult.end())
-        {
-            if(queryResultIterator->movable)
-            {
-                selectedNode = queryResultIterator->movable->getParentSceneNode();
-                selectedNode->showBoundingBox(true);
-            }
-        }
-        else if(selectedNode)
-        {
-            selectedNode->showBoundingBox(false);
-            selectedNode = 0;
-        }
-
-        mSceneManager->destroyQuery(query);
-
-        update();
         e->accept();
     }
     else
@@ -224,7 +224,7 @@ void OgreWidget::mouseDoubleClickEvent(QMouseEvent *e)
 
 void OgreWidget::mouseMoveEvent(QMouseEvent *e)
 {
-//    qDebug() << "OgreWidget::mouseMoveEvent()";
+    qDebug() << "OgreWidget::mouseMoveEvent()";
     QMutexLocker locker(&mMutex);
     if(e->buttons().testFlag(Qt::LeftButton) && oldPosL != invalidMousePoint && btnL)
     {
@@ -247,10 +247,9 @@ void OgreWidget::mouseMoveEvent(QMouseEvent *e)
         }
 
         mCameraNode->translate(mCamera->getOrientation() * Ogre::Vector3(deltaX/50, -deltaY/50, deltaZ/50), Ogre::Node::TS_LOCAL);
-        update();
-
         oldPosL = pos;
         e->accept();
+        update();
     }
     else if(e->buttons().testFlag(Qt::RightButton) && oldPosR != invalidMousePoint && btnR)
     {
@@ -258,13 +257,12 @@ void OgreWidget::mouseMoveEvent(QMouseEvent *e)
         const QPoint &pos = e->pos();
         const float diffX = (pos.x() - oldPosR.x()) / 10.0;
         const float diffY = (pos.y() - oldPosR.y()) / 10.0;
-//        qDebug() << "OgreWidget::mouseMoveEvent(): rotating camera:" << diffX << diffY;
+        //        qDebug() << "OgreWidget::mouseMoveEvent(): rotating camera:" << diffX << diffY;
         mCamera->yaw(Ogre::Degree(-diffX));
         mCamera->pitch(Ogre::Degree(-diffY));
-        update();
-
         oldPosR = pos;
         e->accept();
+        update();
     }
     else
     {
@@ -274,7 +272,7 @@ void OgreWidget::mouseMoveEvent(QMouseEvent *e)
 
 void OgreWidget::mousePressEvent(QMouseEvent *e)
 {
-//    qDebug() << "OgreWidget::mousePressEvent()";
+    qDebug() << "OgreWidget::mousePressEvent()";
 
     QMutexLocker locker(&mMutex);
     if(e->buttons().testFlag(Qt::LeftButton))
@@ -297,7 +295,7 @@ void OgreWidget::mousePressEvent(QMouseEvent *e)
 
 void OgreWidget::mouseReleaseEvent(QMouseEvent *e)
 {
-//    qDebug() << "OgreWidget::mouseReleaseEvent()";
+    qDebug() << "OgreWidget::mouseReleaseEvent()";
 
     QMutexLocker locker(&mMutex);
     if(!e->buttons().testFlag(Qt::LeftButton) && btnL)
@@ -326,56 +324,37 @@ void OgreWidget::moveEvent(QMoveEvent *e)
 
     QWidget::moveEvent(e);
 
-    if(e->isAccepted() && ogreRenderWindow)
+    if(e->isAccepted() && mOgreRenderWindow)
     {
-        ogreRenderWindow->windowMovedOrResized();
+        qDebug() << "OgreWidget::moveEvent(): ogreRenderWindow->windowMovedOrResized()";
+        mOgreRenderWindow->windowMovedOrResized();
         update();
     }
 }
 
+void OgreWidget::showEvent(QShowEvent* event)
+{
+    if(!mOgreRenderWindow)
+    {
+        initializeOgre();
+    }
+    QWidget::showEvent(event);
+}
+
 QPaintEngine* OgreWidget::paintEngine() const
 {
-//    qDebug() << "OgreWidget::paintEngine()";
-
-//    QMutexLocker locker(&mMutex);
-
-    // We don't want another paint engine to get in the way for our Ogre based paint engine.
-    // So we return nothing.
-    return NULL;
+//    exit(0);
+    return 0;
+    //return QWidget::paintEngine();
 }
 
-void OgreWidget::timerEvent(QTimerEvent * e)
+void OgreWidget::paintEvent(QPaintEvent* event)
 {
+//    exit(0);
+    qDebug() << __PRETTY_FUNCTION__;
+
     QMutexLocker locker(&mMutex);
-//    qDebug() << "OgreWidget::timerEvent(): start";
-
-    Q_ASSERT(! mKeysPressed.empty());
-
-    for(int i=0; i < mKeysPressed.size(); ++i)
-    {
-        QMap<int, Ogre::Vector3>::iterator keyPressed = mKeyCoordinateMapping.find(mKeysPressed.at(i));
-        if(keyPressed != mKeyCoordinateMapping.end() && mCamera)
-        {
-            if(QApplication::keyboardModifiers().testFlag(Qt::ControlModifier))
-                mCameraNode->translate(keyPressed.value() * turboModifier);
-            else
-                mCameraNode->translate(keyPressed.value());
-
-            update();
-        }
-    }
-
-    e->accept();
-//    qDebug() << "OgreWidget::timerEvent(): end";
-}
-
-void OgreWidget::paintEvent(QPaintEvent *e)
-{
-    QMutexLocker locker(&mMutex);
-    if(!ogreRoot)
-    {
-        initOgreSystem();
-    }
+    if(!mOgreRoot) initializeOgre();
 
     if(mTerrainGroup->isDerivedDataUpdateInProgress())
     {
@@ -402,12 +381,12 @@ void OgreWidget::paintEvent(QPaintEvent *e)
         }
     }
 
-    ogreRoot->_fireFrameStarted();
+    mOgreRoot->_fireFrameStarted();
 
     // this should be IN a frame listener! animation currently unused
-//    if(mVehicleAnimationState) mVehicleAnimationState->addTime(0.1);
+    //    if(mVehicleAnimationState) mVehicleAnimationState->addTime(0.1);
 
-//    qDebug() << "now rendering";
+    //    qDebug() << "now rendering";
 
     // Construct all laserscanner rays before rendering
     QList<LaserScanner*> *laserScanners = mSimulator->mLaserScanners;
@@ -418,7 +397,7 @@ void OgreWidget::paintEvent(QPaintEvent *e)
 
         Q_ASSERT(scanner->getSceneNode()->getParent() == mVehicleNode);
 
-//        scanner->getSceneNode()->_update(false, true);
+        //        scanner->getSceneNode()->_update(false, true);
 
         scanner->mRayObject->clear();
 
@@ -433,51 +412,45 @@ void OgreWidget::paintEvent(QPaintEvent *e)
         }
     }
 
-    ogreRenderWindow->update();
-//    qDebug() << "rendering done";
+    mOgreRenderWindow->update();
+    //    qDebug() << "rendering done";
 
-    ogreRoot->_fireFrameEnded();
+    mOgreRoot->_fireFrameEnded();
 
     if(mFrameCount++ % 25 == 0)
-        emit currentRenderStatistics(size(), ogreRenderWindow->getTriangleCount(), ogreRenderWindow->getLastFPS());
+        emit currentRenderStatistics(size(), mOgreRenderWindow->getTriangleCount(), mOgreRenderWindow->getLastFPS());
 
-    e->accept();
+    event->accept();
 }
 
-void OgreWidget::resizeEvent(QResizeEvent *e)
+void OgreWidget::resizeEvent(QResizeEvent* event)
 {
     QMutexLocker locker(&mMutex);
-//    qDebug() << "OgreWidget::resizeEvent()";
-    QWidget::resizeEvent(e);
+    qDebug() << __PRETTY_FUNCTION__;
 
-    if(e->isAccepted())
+    QWidget::resizeEvent(event);
+    if (event->isAccepted())
     {
-        const QSize &newSize = e->size();
-        if(ogreRenderWindow)
-        {
-            ogreRenderWindow->resize(newSize.width(), newSize.height());
-            ogreRenderWindow->windowMovedOrResized();
-        }
-        if(mCamera)
+        const QSize& newSize = event->size();
+        if (mCamera)
         {
             Ogre::Real aspectRatio = Ogre::Real(newSize.width()) / Ogre::Real(newSize.height());
             mCamera->setAspectRatio(aspectRatio);
         }
+        if (mOgreRenderWindow)
+        {
+            mOgreRenderWindow->resize(newSize.width(), newSize.height());
+            mOgreRenderWindow->windowMovedOrResized();
+            //mOgreRenderWindow->reposition(pos().x(), pos().y());
+            //mOgreRenderWindow->resize(width, height);
+        }
     }
-}
-
-void OgreWidget::showEvent(QShowEvent *e)
-{
-//    qDebug() << "OgreWidget::showEvent()";
-
-    QMutexLocker locker(&mMutex);
-
-    QWidget::showEvent(e);
+    //    update();
 }
 
 void OgreWidget::wheelEvent(QWheelEvent *e)
 {
-//    qDebug() << "OgreWidget::wheelEvent(): " << -e->delta() / 60;
+    //    qDebug() << "OgreWidget::wheelEvent(): " << -e->delta() / 60;
 
     QMutexLocker locker(&mMutex);
 
@@ -491,102 +464,6 @@ void OgreWidget::wheelEvent(QWheelEvent *e)
     update();
 
     e->accept();
-}
-
-void OgreWidget::initOgreSystem()
-{
-    qDebug() << "OgreWidget::initOgreSystem()";
-    ogreRoot = new Ogre::Root();
-
-    Ogre::RenderSystem *renderSystem = ogreRoot->getRenderSystemByName("OpenGL Rendering Subsystem");
-    ogreRoot->setRenderSystem(renderSystem);
-    ogreRoot->initialise(false);
-
-    Ogre::NameValuePairList viewConfig;
-    Ogre::String widgetHandle;
-#ifdef Q_WS_WIN
-    widgetHandle = Ogre::StringConverter::toString((size_t)((HWND)winId()));
-#else
-    QWidget *q_parent = dynamic_cast <QWidget *> (parent());
-    QX11Info xInfo = x11Info();
-
-    widgetHandle = Ogre::StringConverter::toString ((unsigned long)xInfo.display()) +
-        ":" + Ogre::StringConverter::toString ((unsigned int)xInfo.screen()) +
-        ":" + Ogre::StringConverter::toString ((unsigned long)q_parent->winId());
-#endif
-    viewConfig["parentWindowHandle"] = widgetHandle;
-    viewConfig["vsync"] = "true"; // this actually works on linux/nvidia-blob/thinkpad!
-
-    ogreRenderWindow = ogreRoot->createRenderWindow("Ogre rendering window", width(), height(), false, &viewConfig);
-
-    Ogre::SceneManagerEnumerator::MetaDataIterator iter = Ogre::SceneManagerEnumerator::getSingleton().getMetaDataIterator();
-    while( iter.hasMoreElements() )
-    {
-        Ogre::String st = iter.getNext()->typeName;
-        printf("Scene manager type available: %s\n\n",st.c_str());
-    }
-
-    mSceneManager = ogreRoot->createSceneManager(Ogre::ST_GENERIC);
-//    ogreSceneManager = ogreRoot->createSceneManager("TerrainSceneManager"/*Ogre::ST_EXTERIOR_CLOSE*/);
-//    ogreSceneManager->showBoundingBoxes(true);
-
-    // By default, entities cannot be found using a RSQ. This is to make sure that the
-    // Lidar's don't catch the rotors, cameras etc. It also means we'll have to set the
-    // flags to nonzero for any mesh that should be scannable.
-    Ogre::MovableObject::setDefaultQueryFlags(0x00000000);
-
-    mCamera = mSceneManager->createCamera("camera");
-    mCamera->setNearClipDistance(.1);
-    //mCamera->setPolygonMode(Ogre::PM_WIREFRAME);     /* wireframe */
-    mCamera->setPolygonMode(Ogre::PM_SOLID);         /* solid */
-
-
-    mCameraNode = mSceneManager->getRootSceneNode()->createChildSceneNode("CameraNode", Ogre::Vector3(0, 12, 15));
-    mCameraNode->attachObject(mCamera);
-    mCamera->lookAt(0,8,0);
-
-    ogreViewport = ogreRenderWindow->addViewport(mCamera);
-    ogreViewport->setBackgroundColour(Ogre::ColourValue(0.7, 0.7, 0.7));
-    mCamera->setAspectRatio(Ogre::Real(width()) / Ogre::Real(height()));
-
-    if(ogreRoot->getRenderSystem()->getCapabilities()->hasCapability(Ogre::RSC_INFINITE_FAR_PLANE))
-    {
-        mCamera->setFarClipDistance(0);   // enable infinite far clip distance if we can
-    }
-
-//    loadResources();
-
-    // Initialize shader generator.
-    // Must be before resource loading in order to allow parsing extended material attributes.
-    bool success = initializeRTShaderSystem(mSceneManager);
-    if (!success)
-    {
-        OGRE_EXCEPT(Ogre::Exception::ERR_FILE_NOT_FOUND,
-                    "Shader Generator Initialization failed - Core shader libs path not found",
-                    "SdkSample::_setup");
-    }
-
-    createScene();
-
-    setupTerrain();
-
-
-    // initialize trajectory line
-    mTrajectoryLine = mSceneManager->createManualObject(QString("trajectoryLine_manualobject").toStdString());
-    Ogre::SceneNode* mTrajectoryLineNode = mSceneManager->getRootSceneNode()->createChildSceneNode("trajectoryLine_node");
-
-    Ogre::MaterialPtr trajectoryLineMaterial = Ogre::MaterialManager::getSingleton().create("trajectoryLineMaterial", "General");
-    trajectoryLineMaterial->setReceiveShadows(false);
-    trajectoryLineMaterial->getTechnique(0)->setLightingEnabled(true);
-    trajectoryLineMaterial->getTechnique(0)->getPass(0)->setDiffuse(0,0,1,0);
-    trajectoryLineMaterial->getTechnique(0)->getPass(0)->setAmbient(0,0,1);
-    trajectoryLineMaterial->getTechnique(0)->getPass(0)->setSelfIllumination(0,0,1);
-//    trajectoryLineMaterial->dispose();  // dispose pointer, not the material
-    mTrajectoryLineNode->attachObject(mTrajectoryLine);
-
-    emit setupFinished();
-
-    qDebug() << "OgreWidget::initOgreSystem(): done";
 }
 
 void OgreWidget::loadResources()
@@ -625,25 +502,6 @@ void OgreWidget::loadResources()
 
     qDebug() << "OgreWidget::loadResources(): done.";
 }
-
-void OgreWidget::createScene()
-{
-    qDebug() << "OgreWidget::createScene()";
-//    ogreSceneManager->setAmbientLight(Ogre::ColourValue(1,1,1));
-
-//    ogreSceneManager->setWorldGeometry("media/terrain.cfg");
-//    ogreSceneManager->getSceneNode("Terrain")->showBoundingBox(true);
-
-    qDebug() << "OgreWidget::createScene(): done.";
-}
-
-//Ogre::RaySceneQuery* OgreWidget::createRaySceneQuery(void)
-//{
-//    qDebug() << "OgreWidget::createRaySceneQuery(): returning pointer.";
-
-////    QMutexLocker locker(&mMutex);
-//    return mSceneManager->createRayQuery(Ogre::Ray());
-//}
 
 Ogre::SceneNode* OgreWidget::createScanner(const QString name, const Ogre::Vector3 &relativePosition, const Ogre::Quaternion &relativeRotation)
 {
@@ -700,8 +558,8 @@ void OgreWidget::destroyManualObject(Ogre::ManualObject* manualObject, Ogre::Sce
     mSceneManager->getRootSceneNode()->removeAndDestroyChild(sceneNode->getName());
 
     // The ManualObject will automatically detach itself from any nodes on destruction.
-//    FIXME: this crashes.
-//    ogreSceneManager->destroyManualObject(manualObject);
+    //    FIXME: this crashes.
+    //    ogreSceneManager->destroyManualObject(manualObject);
 
     // Must not destroy material, it is shared between all scanners.
 }
@@ -709,15 +567,15 @@ void OgreWidget::destroyManualObject(Ogre::ManualObject* manualObject, Ogre::Sce
 void OgreWidget::createRttCamera(Ogre::Camera** camera, Ogre::RenderTarget** renderTarget, Ogre::SceneNode ** sceneNode, const QString name, const QSize size)
 {
     Ogre::TexturePtr tex = Ogre::TextureManager::getSingleton().createManual(
-            QString(name+"_texture").toStdString(),
-            Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME/*"general"*/,
-            Ogre::TEX_TYPE_2D,
-            size.width(),
-            size.height(),
-            32,
-            0,
-            Ogre::PF_R8G8B8,
-            Ogre::TU_RENDERTARGET);
+                QString(name+"_texture").toStdString(),
+                Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME/*"general"*/,
+                Ogre::TEX_TYPE_2D,
+                size.width(),
+                size.height(),
+                32,
+                0,
+                Ogre::PF_R8G8B8,
+                Ogre::TU_RENDERTARGET);
 
     *renderTarget = tex->getBuffer()->getRenderTarget();
     tex.setNull();
@@ -760,15 +618,15 @@ Ogre::SceneManager* OgreWidget::sceneManager()
 
 void OgreWidget::setupTerrain()
 {
-//    bool blankTerrain = false;
+    //    bool blankTerrain = false;
 
 
     mTerrainPos = Ogre::Vector3(1.0, -75.1, 1.0);
 
-//    mEditMarker = ogreSceneManager->createEntity("editMarker", "sphere.mesh");
-//    mEditNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode();
-//    mEditNode->attachObject(mEditMarker);
-//    mEditNode->setScale(0.05, 0.05, 0.05);
+    //    mEditMarker = ogreSceneManager->createEntity("editMarker", "sphere.mesh");
+    //    mEditNode = ogreSceneManager->getRootSceneNode()->createChildSceneNode();
+    //    mEditNode->attachObject(mEditMarker);
+    //    mEditNode->setScale(0.05, 0.05, 0.05);
 
     // These two lines makes the terrain textures look nicer:
     Ogre::MaterialManager::getSingleton().setDefaultTextureFiltering(Ogre::TFO_ANISOTROPIC);
@@ -910,7 +768,7 @@ void OgreWidget::setupTerrain()
     sceneNode->attachObject(entity);
     addMeshInformation(entity,sceneNode);
 
-//    qDebug() << "number of entities:" << mEntities.size();
+    //    qDebug() << "number of entities:" << mEntities.size();
 
     mSceneManager->setSkyBox(true, "Examples/CloudyNoonSkyBox");
 }
@@ -950,14 +808,14 @@ void OgreWidget::configureTerrainDefaults(Ogre::Light* light)
     // CompositeMapDistance decides how far the Ogre terrain will render the lightmapped terrain.
     mTerrainGlobals->setCompositeMapDistance(3000);
 
-//    mTerrainGlobals->setUseRayBoxDistanceCalculation(true);
+    //    mTerrainGlobals->setUseRayBoxDistanceCalculation(true);
     //mTerrainGlobals->getDefaultMaterialGenerator()->setDebugLevel(1);
     //mTerrainGlobals->setLightMapSize(256);
 
     //matProfile->setLightmapEnabled(false);
     // Important to set these so that the terrain knows what to use for derived (non-realtime) data
     mTerrainGlobals->setLightMapDirection(light->getDerivedDirection());
-//    mTerrainGlobals->setCompositeMapAmbient(mSceneManager->getAmbientLight());
+    //    mTerrainGlobals->setCompositeMapAmbient(mSceneManager->getAmbientLight());
     mTerrainGlobals->setCompositeMapDiffuse(light->getDiffuseColour());
 
     // Configure default import settings for if we use imported image
@@ -980,8 +838,6 @@ void OgreWidget::configureTerrainDefaults(Ogre::Light* light)
     defaultimp.layerList[2].worldSize = 100;
     defaultimp.layerList[2].textureNames.push_back("growth_weirdfungus-03_diffusespecular.dds");
     defaultimp.layerList[2].textureNames.push_back("growth_weirdfungus-03_normalheight.dds");
-
-
 }
 
 void OgreWidget::defineTerrain(long x, long y, bool flat)
@@ -1023,9 +879,9 @@ void OgreWidget::getTerrainImage(bool flipX, bool flipY, Ogre::Image& img)
 {
     img.load("terrain.png", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
     qDebug() << "OgreWidget::getTerrainImage(): loaded terrain heightmap, width is" << img.getWidth();
-    if (flipX)
+    if(flipX)
         img.flipAroundY();
-    if (flipY)
+    if(flipY)
         img.flipAroundX();
 
 }
@@ -1069,7 +925,7 @@ void OgreWidget::initBlendMaps(Ogre::Terrain* terrain)
 -----------------------------------------------------------------------------*/
 bool OgreWidget::initializeRTShaderSystem(Ogre::SceneManager* sceneMgr)
 {
-    if (Ogre::RTShader::ShaderGenerator::initialize())
+    if(Ogre::RTShader::ShaderGenerator::initialize())
     {
         loadResources();
         mShaderGenerator = Ogre::RTShader::ShaderGenerator::getSingletonPtr();
@@ -1099,7 +955,7 @@ bool OgreWidget::initializeRTShaderSystem(Ogre::SceneManager* sceneMgr)
             {
                 std::string archiveName = (*it)->archive->getName();
                 qDebug() << "Now looking for RTShaderLib in" << QString::fromStdString(archiveName);
-                if ((*it)->archive->getName().find("RTShaderLib") != Ogre::String::npos)
+                if((*it)->archive->getName().find("RTShaderLib") != Ogre::String::npos)
                 {
                     shaderCoreLibsPath = (*it)->archive->getName() + "/";
                     shaderCachePath = shaderCoreLibsPath;
@@ -1108,12 +964,12 @@ bool OgreWidget::initializeRTShaderSystem(Ogre::SceneManager* sceneMgr)
                 }
             }
             // Core libs path found in the current group.
-            if (coreLibsFound)
+            if(coreLibsFound)
                 break;
         }
 
         // Core shader libs not found -> shader generating will fail.
-        if (shaderCoreLibsPath.empty())
+        if(shaderCoreLibsPath.empty())
         {
             qDebug() << "shaderCoreLibsPath.empty()!";
             return false;
@@ -1138,7 +994,7 @@ bool OgreWidget::initializeRTShaderSystem(Ogre::SceneManager* sceneMgr)
 Ogre::SceneNode* OgreWidget::createVehicleNode(const Ogre::String name, Ogre::Entity** entity, const Ogre::Vector3 position, const Ogre::Quaternion orientation)
 {
     *entity = mSceneManager->createEntity("vehicleEntity", "oktokopter.mesh");
-/*
+    /*
     Ogre::StringVector vec = (*entity)->getAnimableValueNames();
     Ogre::StringVector::iterator animsIter = vec.begin();
     qDebug() << "animable value names:";
@@ -1158,9 +1014,9 @@ Ogre::SceneNode* OgreWidget::createVehicleNode(const Ogre::String name, Ogre::En
     mVehicleNode = mSceneManager->getRootSceneNode()->createChildSceneNode(name, position, orientation);
     mSceneManager->getRootSceneNode()->removeChild(mCameraNode);
     mVehicleNode->addChild(mCameraNode);
-//    mCameraNode->translate(Ogre::Vector3(0, 0, 5));
+    //    mCameraNode->translate(Ogre::Vector3(0, 0, 5));
     mCameraNode->setPosition(/*mVehicleNode->_getDerivedPosition() +*/ Ogre::Vector3(0, 5, 15));
-//    mCameraNode->setInheritOrientation(false);
+    //    mCameraNode->setInheritOrientation(false);
     mCamera->lookAt(mVehicleNode->_getDerivedPosition());
     qDebug() << "OgreWidget::createVehicleNode(): vehicle is at" << mVehicleNode->_getDerivedPosition().x << mVehicleNode->_getDerivedPosition().y << mVehicleNode->_getDerivedPosition().z;
     qDebug() << "OgreWidget::createVehicleNode(): camera  is at" << mCameraNode->_getDerivedPosition().x << mCameraNode->_getDerivedPosition().y << mCameraNode->_getDerivedPosition().z;
@@ -1171,13 +1027,13 @@ Ogre::SceneNode* OgreWidget::createVehicleNode(const Ogre::String name, Ogre::En
 // Get the mesh information for the given mesh.
 // Code found on this forum link: http://www.ogre3d.org/wiki/index.php/RetrieveVertexData
 void OgreWidget::getMeshInformation(const Ogre::MeshPtr mesh,
-                                size_t &vertex_count,
-                                Ogre::Vector3* &vertices,
-                                size_t &index_count,
-                                Ogre::uint32* &indices,
-                                const Ogre::Vector3 &position,
-                                const Ogre::Quaternion &orient,
-                                const Ogre::Vector3 &scale)
+                                    size_t &vertex_count,
+                                    Ogre::Vector3* &vertices,
+                                    size_t &index_count,
+                                    Ogre::uint32* &indices,
+                                    const Ogre::Vector3 &position,
+                                    const Ogre::Quaternion &orient,
+                                    const Ogre::Vector3 &scale)
 {
     bool added_shared = false;
     size_t current_offset = 0;
@@ -1232,13 +1088,13 @@ void OgreWidget::getMeshInformation(const Ogre::MeshPtr mesh,
             }
 
             const Ogre::VertexElement* posElem =
-                vertex_data->vertexDeclaration->findElementBySemantic(Ogre::VES_POSITION);
+                    vertex_data->vertexDeclaration->findElementBySemantic(Ogre::VES_POSITION);
 
             Ogre::HardwareVertexBufferSharedPtr vbuf =
-                vertex_data->vertexBufferBinding->getBuffer(posElem->getSource());
+                    vertex_data->vertexBufferBinding->getBuffer(posElem->getSource());
 
             unsigned char* vertex =
-                static_cast<unsigned char*>(vbuf->lock(Ogre::HardwareBuffer::HBL_READ_ONLY));
+                    static_cast<unsigned char*>(vbuf->lock(Ogre::HardwareBuffer::HBL_READ_ONLY));
 
             // There is _no_ baseVertexPointerToElement() which takes an Ogre::Ogre::Real or a double
             //  as second argument. So make it float, to avoid trouble when Ogre::Ogre::Real will
@@ -1269,7 +1125,7 @@ void OgreWidget::getMeshInformation(const Ogre::MeshPtr mesh,
 
         size_t offset = (submesh->useSharedVertices)? shared_offset : current_offset;
 
-        if ( use32bitindexes )
+        if( use32bitindexes )
         {
             for ( size_t k = 0; k < numTris*3; ++k)
             {

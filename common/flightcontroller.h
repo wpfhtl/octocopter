@@ -183,10 +183,6 @@ signals:
     // emitted when a waypoint is reached
     void wayPointReached(const WayPoint&);
 
-    // emitted when flightcontroller inserts a waypoint. Can be at the end (for landing) or in between
-    // for collision avoidance etc.
-    void wayPointInserted(quint16 index, const WayPoint& wayPoint);
-
     // emitted when the flightState changed
     void flightStateChanged(const FlightState* const fs);
 

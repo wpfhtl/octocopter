@@ -47,18 +47,15 @@ Simulator::Simulator(void) :
     connect(mUpdateTimer, SIGNAL(timeout()), SLOT(slotUpdate()));
 
     // Make it create logfiles!
-    mFlightController = new FlightController(QString("simulator-%1-").arg(QDateTime::currentDateTime().toString("yyyy-MM-dd-HHmmsszzz")));
+    mFlightController = new FlightController(QString("simulator-%1").arg(QDateTime::currentDateTime().toString("yyyy-MM-dd-HHmmsszzz")));
 
     mBaseConnection = new BaseConnection("eth0");
-    connect(mBaseConnection, SIGNAL(wayPointInsert(quint16,WayPoint)), mFlightController, SLOT(slotWayPointInsert(quint16,WayPoint)));
-    connect(mBaseConnection, SIGNAL(wayPointDelete(quint16)), mFlightController, SLOT(slotWayPointDelete(quint16)));
-    connect(mBaseConnection, SIGNAL(wayPoints(QList<WayPoint>)), mFlightController, SLOT(slotSetWayPoints(QList<WayPoint>)));
+    connect(mBaseConnection, SIGNAL(wayPoints(QList<WayPoint>,WayPointListSource)), mFlightController, SLOT(slotSetWayPoints(QList<WayPoint>,WayPointListSource)));
     connect(mBaseConnection, SIGNAL(controllerWeights(const QString* const,const QMap<QChar,float>* const)), mFlightController, SLOT(slotSetControllerWeights(const QString* const, const QMap<QChar,float>* const)));
     connect(mBaseConnection, SIGNAL(newConnection()), SLOT(slotNewConnection()));
 
     connect(mFlightController, SIGNAL(wayPointReached(WayPoint)), mBaseConnection, SLOT(slotWayPointReached(WayPoint)));
-    connect(mFlightController, SIGNAL(wayPointInserted(quint16,WayPoint)), mBaseConnection, SLOT(slotRoverWayPointInserted(quint16,WayPoint)));
-    connect(mFlightController, SIGNAL(currentWayPoints(const QList<WayPoint>* const)), mBaseConnection, SLOT(slotFlightControllerWayPointsChanged(const QList<WayPoint>*const)));
+    connect(mFlightController, SIGNAL(wayPoints(QList<WayPoint>*const,WayPointListSource)), mBaseConnection, SLOT(slotSetWayPoints(const QList<WayPoint>*const)));
     connect(mFlightController, SIGNAL(flightStateChanged(FlightState*const)), mBaseConnection, SLOT(slotFlightStateChanged(FlightState*const)));
     connect(mFlightController, SIGNAL(flightControllerValues(const FlightControllerValues* const)), mBaseConnection, SLOT(slotNewFlightControllerValues(const FlightControllerValues* const)));
 
@@ -81,7 +78,7 @@ Simulator::~Simulator(void)
         qDebug() << "Simulator::~Simulator(void): shutting down laserscanners, please wait.";
         LaserScanner* scanner = mLaserScanners->takeFirst();
         scanner->quit();
-        scanner->wait();
+        scanner->wait(200);
         scanner->deleteLater();
     }
     delete mLaserScanners;

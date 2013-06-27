@@ -4,6 +4,7 @@
 #include <QtGui>
 #include <QApplication>
 #include <QWidget>
+#include <QGLWidget>
 #include <QDebug>
 #include <QColor>
 #include <QTimer>
@@ -32,8 +33,6 @@
 #define TERRAIN_SIZE 513
 
 class Simulator;
-
-//using namespace Ogre;
 
 /** This class simply demonstrates basic usage of the CRTShader system.
 It subclasses the material manager listener class and when a target scheme callback
@@ -113,11 +112,6 @@ public:
     OgreWidget(Simulator *simulator);
     ~OgreWidget();
 
-    // Override QWidget::paintEngine to return NULL
-    QPaintEngine* paintEngine() const; // Turn off QTs paint engine for the Ogre widget.
-
-//    Ogre::RaySceneQuery* createRaySceneQuery(void);
-
     // will create the vehicle node at the followin position, set the @entity pointer, set the animationstate for later (when rendering) and return the scenenode
     Ogre::SceneNode* createVehicleNode(const Ogre::String name, Ogre::Entity** entity, const Ogre::Vector3 position, const Ogre::Quaternion orientation);
 
@@ -149,8 +143,6 @@ public:
     QMap<Ogre::Entity*, MeshInformation*> mEntities;
 
 public slots:
-    void setBackgroundColor(QColor c);
-
     void slotVisualizeTrajectory(const QVector3D& start, const QList<WayPoint>& waypoints);
 
 signals:
@@ -159,18 +151,22 @@ signals:
     void currentRenderStatistics(QSize windowSize, int triangles, float fps);
 
 protected:
-    virtual void keyPressEvent(QKeyEvent *e);
-    virtual void keyReleaseEvent(QKeyEvent *e);
-    virtual void moveEvent(QMoveEvent *e);
-    virtual void mouseDoubleClickEvent(QMouseEvent *e);
-    virtual void mouseMoveEvent(QMouseEvent *e);
-    virtual void mousePressEvent(QMouseEvent *e);
-    virtual void mouseReleaseEvent(QMouseEvent *e);
-    virtual void paintEvent(QPaintEvent *e);
-    virtual void resizeEvent(QResizeEvent *e);
-    virtual void showEvent(QShowEvent *e);
-    virtual void wheelEvent(QWheelEvent *e);
-    virtual void timerEvent( QTimerEvent * );
+//public:
+    /*virtual*/ void keyPressEvent(QKeyEvent *e);
+//    virtual void keyReleaseEvent(QKeyEvent *e);
+    /*virtual*/ void moveEvent(QMoveEvent *e);
+    /*virtual*/ void mouseMoveEvent(QMouseEvent *e);
+    /*virtual*/ void mousePressEvent(QMouseEvent *e);
+    /*virtual*/ void mouseReleaseEvent(QMouseEvent *e);
+//    virtual void resizeEvent(QResizeEvent *e);
+    /*virtual*/ void wheelEvent(QWheelEvent *e);
+    /*virtual*/ void showEvent(QShowEvent* event);
+//    virtual void timerEvent( QTimerEvent * );
+    void paintEvent(QPaintEvent* event);
+    void initializeOgre();
+
+    QPaintEngine* paintEngine() const;
+    /*virtual */void resizeEvent(QResizeEvent* event);
 
 private:
     // Terrain:
@@ -190,39 +186,32 @@ private:
     bool mTerrainsImported;
     // end Terrain
 
-    void initOgreSystem();
     void loadResources();
-    void createScene();
+//    void createScene();
     void setupTerrain();
 
     Simulator* mSimulator;
-
-//    Ogre::AnimationState* mVehicleAnimationState;
 
     static const Ogre::Real turboModifier;
     static const QPoint invalidMousePoint;
 
     mutable QMutex mMutex;
 
-    QMap<int, Ogre::Vector3> mKeyCoordinateMapping;
-    QList<int> mKeysPressed;
+//    QMap<int, Ogre::Vector3> mKeyCoordinateMapping;
+//    QList<int> mKeysPressed;
 
-    Ogre::Root          *ogreRoot;
+    Ogre::Root          *mOgreRoot;
     Ogre::SceneManager  *mSceneManager;
-    Ogre::RenderWindow  *ogreRenderWindow;
-    Ogre::Viewport      *ogreViewport;
+    Ogre::RenderWindow  *mOgreRenderWindow;
+    Ogre::Viewport      *mOgreViewport;
     Ogre::Camera        *mCamera;
 
     unsigned int mFrameCount;// currently only used to emit statistics not every frame
     QPoint oldPosL, oldPosR;
     bool btnL, btnR;
-    int mUpdateTimerId;
+//    int mUpdateTimerId;
 
-//    QHash<QString, QPair<const Ogre::Vector3&, const Ogre::Vector3&> > mRaysCurrent;
     QList<Ogre::SceneNode*> mScannerNodes;
-//    QHash<QString, Ogre::ManualObject*> mRayManualObjects;
-//    QHash<QString, Ogre::SceneNode*> mRayNodes;
-//    QHash<QString, Ogre::MaterialPtr> mRayMaterials;
 
     Ogre::SceneNode *selectedNode;
     Ogre::SceneNode *mCameraNode;
