@@ -26,12 +26,12 @@ OgreWidget::OgreWidget(Simulator *simulator) :
 {
     qDebug() << "OgreWidget::OgreWidget()";
 
-//    setAttribute(Qt::WA_OpaquePaintEvent);
-//    setAttribute(Qt::WA_PaintOnScreen);
-//    setAttribute(Qt::WA_NoBackground);
+    setAttribute(Qt::WA_OpaquePaintEvent);
+
+    // Do NOT set this, it will give you a black window!
+    //setAttribute(Qt::WA_PaintOnScreen);
 
     setMinimumSize(240,240);
-    resize(300,300);
     setFocusPolicy(Qt::ClickFocus);
 }
 
@@ -93,44 +93,11 @@ void OgreWidget::initializeOgre()
 
     qDebug() << __PRETTY_FUNCTION__ << "using window handle" << QString::fromStdString(windowHandle);
     viewConfig["parentWindowHandle"] = windowHandle;
-    //viewConfig["vsync"] = "true"; // this actually works on linux/nvidia-blob/thinkpad!
+    viewConfig["vsync"] = "true"; // this actually works on linux/nvidia-blob/thinkpad!
 
     mOgreRenderWindow = mOgreRoot->createRenderWindow("OgreRenderWindow", width(), height(), false, &viewConfig);
 
-
-
-
     mOgreRenderWindow->setActive(true);
-      WId ogreWinId = 0x0;
-      mOgreRenderWindow->getCustomAttribute( "WINDOW", &ogreWinId );
-
-      assert( ogreWinId );
-
-      // bug fix, extract geometry
-      QRect geo = frameGeometry();
-
-      qDebug() << "hack" << ogreWinId << "and geo" << geo;
-
-
-      // create new window
-//      create(ogreWinId);
-//      create(ogreWinId, true, true);
-
-      // set geometrie infos to new window
-//      setGeometry(geo);
-
-
-//    setAttribute( Qt::WA_PaintOnScreen, true );
-//    setAttribute( Qt::WA_NoBackground );
-
-
-
-
-
-
-
-
-
 
     Ogre::SceneManagerEnumerator::MetaDataIterator iter = Ogre::SceneManagerEnumerator::getSingleton().getMetaDataIterator();
     while( iter.hasMoreElements() )
@@ -332,26 +299,14 @@ void OgreWidget::moveEvent(QMoveEvent *e)
     }
 }
 
-void OgreWidget::showEvent(QShowEvent* event)
+void OgreWidget::paintEvent(QPaintEvent* event)
 {
+    qDebug() << __PRETTY_FUNCTION__;
+
     if(!mOgreRenderWindow)
     {
         initializeOgre();
     }
-    QWidget::showEvent(event);
-}
-
-QPaintEngine* OgreWidget::paintEngine() const
-{
-//    exit(0);
-    return 0;
-    //return QWidget::paintEngine();
-}
-
-void OgreWidget::paintEvent(QPaintEvent* event)
-{
-//    exit(0);
-    qDebug() << __PRETTY_FUNCTION__;
 
     QMutexLocker locker(&mMutex);
     if(!mOgreRoot) initializeOgre();
@@ -445,7 +400,6 @@ void OgreWidget::resizeEvent(QResizeEvent* event)
             //mOgreRenderWindow->resize(width, height);
         }
     }
-    //    update();
 }
 
 void OgreWidget::wheelEvent(QWheelEvent *e)
@@ -486,14 +440,7 @@ void OgreWidget::loadResources()
         {
             typeName = i->first;
             archName = i->second;
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
-            // OS X does not set the working directory relative to the app,
-            // In order to make things portable on OS X we need to provide
-            // the loading with it's own bundle path location
-            Ogre::ResourceGroupManager::getSingleton().addResourceLocation(Ogre::String(macBundlePath() + "/" + archName), typeName, secName);
-#else
             Ogre::ResourceGroupManager::getSingleton().addResourceLocation(archName, typeName, secName);
-#endif
         }
     }
 
@@ -920,9 +867,6 @@ void OgreWidget::initBlendMaps(Ogre::Terrain* terrain)
     blendMap1->update();
 }
 
-/*-----------------------------------------------------------------------------
-| Initialize the RT Shader system.
------------------------------------------------------------------------------*/
 bool OgreWidget::initializeRTShaderSystem(Ogre::SceneManager* sceneMgr)
 {
     if(Ogre::RTShader::ShaderGenerator::initialize())
@@ -994,23 +938,6 @@ bool OgreWidget::initializeRTShaderSystem(Ogre::SceneManager* sceneMgr)
 Ogre::SceneNode* OgreWidget::createVehicleNode(const Ogre::String name, Ogre::Entity** entity, const Ogre::Vector3 position, const Ogre::Quaternion orientation)
 {
     *entity = mSceneManager->createEntity("vehicleEntity", "oktokopter.mesh");
-    /*
-    Ogre::StringVector vec = (*entity)->getAnimableValueNames();
-    Ogre::StringVector::iterator animsIter = vec.begin();
-    qDebug() << "animable value names:";
-    while(animsIter != vec.end())
-    {
-        qDebug() << QString::fromStdString((std::string)(*animsIter));
-        animsIter++;
-    }
-    qDebug() << "animable value names end.";
-
-    mVehicleAnimationState = (*entity)->getAnimationState("bowensmeshanim");
-    qDebug() << "animation name" << QString::fromStdString(mVehicleAnimationState->getAnimationName()) << "pointer:" << mVehicleAnimationState;
-    mVehicleAnimationState->setEnabled(true);
-    mVehicleAnimationState->setLoop(true);
-*/
-
     mVehicleNode = mSceneManager->getRootSceneNode()->createChildSceneNode(name, position, orientation);
     mSceneManager->getRootSceneNode()->removeChild(mCameraNode);
     mVehicleNode->addChild(mCameraNode);

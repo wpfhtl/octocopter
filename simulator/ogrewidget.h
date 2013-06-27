@@ -151,22 +151,16 @@ signals:
     void currentRenderStatistics(QSize windowSize, int triangles, float fps);
 
 protected:
-//public:
-    /*virtual*/ void keyPressEvent(QKeyEvent *e);
-//    virtual void keyReleaseEvent(QKeyEvent *e);
-    /*virtual*/ void moveEvent(QMoveEvent *e);
-    /*virtual*/ void mouseMoveEvent(QMouseEvent *e);
-    /*virtual*/ void mousePressEvent(QMouseEvent *e);
-    /*virtual*/ void mouseReleaseEvent(QMouseEvent *e);
-//    virtual void resizeEvent(QResizeEvent *e);
-    /*virtual*/ void wheelEvent(QWheelEvent *e);
-    /*virtual*/ void showEvent(QShowEvent* event);
-//    virtual void timerEvent( QTimerEvent * );
+    void keyPressEvent(QKeyEvent *e);
+
+    void moveEvent(QMoveEvent *e);
+    void mouseMoveEvent(QMouseEvent *e);
+    void mousePressEvent(QMouseEvent *e);
+    void mouseReleaseEvent(QMouseEvent *e);
+    void wheelEvent(QWheelEvent *e);
     void paintEvent(QPaintEvent* event);
     void initializeOgre();
-
-    QPaintEngine* paintEngine() const;
-    /*virtual */void resizeEvent(QResizeEvent* event);
+    void resizeEvent(QResizeEvent* event);
 
 private:
     // Terrain:
@@ -184,10 +178,8 @@ private:
 
     Ogre::Vector3 mTerrainPos;
     bool mTerrainsImported;
-    // end Terrain
 
     void loadResources();
-//    void createScene();
     void setupTerrain();
 
     Simulator* mSimulator;
@@ -197,19 +189,15 @@ private:
 
     mutable QMutex mMutex;
 
-//    QMap<int, Ogre::Vector3> mKeyCoordinateMapping;
-//    QList<int> mKeysPressed;
-
     Ogre::Root          *mOgreRoot;
     Ogre::SceneManager  *mSceneManager;
     Ogre::RenderWindow  *mOgreRenderWindow;
     Ogre::Viewport      *mOgreViewport;
     Ogre::Camera        *mCamera;
 
-    unsigned int mFrameCount;// currently only used to emit statistics not every frame
+    quint32 mFrameCount;// currently only used to emit statistics not every frame
     QPoint oldPosL, oldPosR;
     bool btnL, btnR;
-//    int mUpdateTimerId;
 
     QList<Ogre::SceneNode*> mScannerNodes;
 

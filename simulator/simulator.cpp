@@ -78,7 +78,7 @@ Simulator::~Simulator(void)
         qDebug() << "Simulator::~Simulator(void): shutting down laserscanners, please wait.";
         LaserScanner* scanner = mLaserScanners->takeFirst();
         scanner->quit();
-        scanner->wait(200);
+        scanner->wait();
         scanner->deleteLater();
     }
     delete mLaserScanners;
