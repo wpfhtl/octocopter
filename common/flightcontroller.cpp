@@ -316,58 +316,26 @@ void FlightController::nextWayPointReached()
 
     ensureSafeFlightAfterWaypointsChanged();
 
-    emit currentWayPoints(&mWayPoints);
+    emit wayPoints(&mWayPoints, WayPointListSource::WayPointListSourceRover);
 }
 
-void FlightController::slotWayPointInsert(const quint16& index, const WayPoint& wayPoint)
+void FlightController::slotSetWayPoints(const QList<WayPoint>& wayPoints, const WayPointListSource source)
 {
-    qDebug() << "FlightController::slotSetNextWayPoint(): state is" << mFlightControllerValues.flightState.toString() << "inserting waypoint" << wayPoint << "into index" << index;
-    mWayPoints.insert(index, wayPoint);
-    emit currentWayPoints(&mWayPoints);
-
-    // Just in case we were idle before...
-    if(mFlightControllerValues.flightState == FlightState::Value::Idle)
+    if(source != WayPointListSource::WayPointListSourceRover)
     {
-        qDebug() << "FlightController::slotWayPointInsert(): we were idle, switching to ApproachWayPoint";
-        setFlightState(FlightState::Value::ApproachWayPoint);
-    }
-}
+        mWayPoints = wayPoints;
 
-void FlightController::slotWayPointDelete(const quint16& index)
-{
-    qDebug() << QString("FlightController::slotWayPointDelete(const quint16& index = %1)").arg(index);
-    if(mWayPoints.size() <= index)
-    {
-        qWarning("FlightController::slotWayPointDelete(): couldn't delete waypoint at index %d, list only has %d entries.", index, mWayPoints.size());
-    }
-    else
-    {
-        mWayPoints.removeAt(index);
+        // Just in case we were idle before...
+        if(mFlightControllerValues.flightState == FlightState::Value::Idle && mWayPoints.size())
+        {
+            qDebug() << "FlightController::slotSetWayPoints(): we were idle and got new waypoints, switching to ApproachWayPoint";
+            setFlightState(FlightState::Value::ApproachWayPoint);
+        }
 
-        // The list might now be empty, so me might have to land.
+        // The list might now be empty, so we might have to land.
         if(mFlightControllerValues.flightState == FlightState::Value::ApproachWayPoint)
             ensureSafeFlightAfterWaypointsChanged();
     }
-    qDebug() << "FlightController::slotWayPointDelete(): after deleting wpt, emitting new wpt list of size" << mWayPoints.size();
-    emit currentWayPoints(&mWayPoints);
-}
-
-void FlightController::slotSetWayPoints(const QList<WayPoint>& wayPoints)
-{
-    mWayPoints = wayPoints;
-
-    // Just in case we were idle before...
-    if(mFlightControllerValues.flightState == FlightState::Value::Idle && mWayPoints.size())
-    {
-        qDebug() << "FlightController::slotSetWayPoints(): we were idle and got new waypoints, switching to ApproachWayPoint";
-        setFlightState(FlightState::Value::ApproachWayPoint);
-    }
-
-    // The list might now be empty, so we might have to land.
-    if(mFlightControllerValues.flightState == FlightState::Value::ApproachWayPoint)
-        ensureSafeFlightAfterWaypointsChanged();
-
-    emit currentWayPoints(&mWayPoints);
 }
 
 void FlightController::slotNewVehiclePose(const Pose* const pose)
@@ -764,7 +732,7 @@ void FlightController::slotEmitFlightControllerInfo()
     emit flightControllerValues(&mFlightControllerValues);
     emit flightControllerWeightsChanged();
     emit flightStateChanged(&mFlightControllerValues.flightState);
-    emit currentWayPoints(&mWayPoints);
+    emit wayPoints(&mWayPoints, WayPointListSource::WayPointListSourceRover);
 }
 
 void FlightController::slotSetControllerWeights(const QString* const controllerName, const QMap<QChar,float>* const weights)

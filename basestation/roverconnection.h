@@ -38,7 +38,7 @@ private:
     FlightControllerValues mFlightControllerValues;
     FlightState mFlightState;
     Pose mPose;
-    QVector<QVector3D> mRegisteredPoints;
+    QList<WayPoint> mWayPointList;
     float* mRegisteredPointsFloat;
     QVector3D mScannerPosition;
     VehicleStatus mVehicleStatus;
@@ -57,9 +57,6 @@ signals:
 
     void message(const LogImportance& importance, const QString& source, const QString& message);
 
-    // deprecated!
-    void scanData(const QVector<QVector3D>* const pointList, const QVector3D* const scannerPosition);
-
     void scanData(const float* const points, const quint32& count, const QVector3D* const scannerPosition);
     void image(const QString& cameraName, const QSize& imageSize, const Pose& cameraPose, const QByteArray& imageData);
     void vehicleStatus(const VehicleStatus* const);
@@ -68,18 +65,19 @@ signals:
     void flightControllerWeightsChanged();
     void flightState(const FlightState* const);
 
-    void wayPointsHashFromRover(const QString& hash);
+    // When the rover has reached a waypoint
     void wayPointReachedByRover(const WayPoint& wpt);
-    void wayPointInsertedByRover(const quint16& index, const WayPoint& wpt);
+
+    // When the rover has updated the list by itself
+    void wayPoints(const QList<WayPoint>* const, const WayPointListSource);
 
 public slots:
     void slotConnectToRover(void);
 
     void slotSendControllerWeights(QString name, QMap<QChar,float> weights);
 
-    void slotRoverWayPointInsert(const quint16&, const WayPoint&);
-    void slotRoverWayPointDelete(const quint16&);
-    void slotRoverWayPointsSet(const QList<WayPoint> *const);
+    // To set waypoints on rover
+    void slotSetWayPoints(const QList<WayPoint>* const wayPointList, const WayPointListSource source);
 
     void slotSendDiffCorrToRover(const QByteArray& diffcorr);
 

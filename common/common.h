@@ -23,6 +23,14 @@ struct PositionGeodetic
     float elevation;
 };
 
+enum class WayPointListSource
+{
+    WayPointListSourceControlWidget,
+    WayPointListSourceFlightPlanner,
+    WayPointListSourceRover,
+    WayPointListSourceUnknown
+};
+
 struct Box3D
 {
     QVector3D min,max;

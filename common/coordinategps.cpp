@@ -1,4 +1,5 @@
 #include "coordinategps.h"
+#include <QDataStream>
 
 CoordinateGps::CoordinateGps() : QObject()
 {

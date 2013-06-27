@@ -198,11 +198,7 @@ void RoverConnection::processPacket(QByteArray data)
     }
     else if(packetType == "currentwaypointshash")
     {
-        // The rover just sent us his waypoints-hash
-        QString hash;
-        stream >> hash;
-
-        emit wayPointsHashFromRover(hash);
+        Q_ASSERT(false);
     }
     else if(packetType == "waypointreached")
     {
@@ -213,19 +209,15 @@ void RoverConnection::processPacket(QByteArray data)
 
         emit wayPointReachedByRover(wpt);
     }
-    else if(packetType == "waypointinserted")
+    else if(packetType == "waypointlist")
     {
-        // This happens when the rover reached the last waypoint and appended its own landing waypoint (probably just below the last one)
-        // ... or for collision avoidance
-        quint16 index;
-        stream >> index;
+        // This happens when the rover thinks it was a good idea to change the waypointlist by itself!
+        mWayPointList.clear();
+        stream >> mWayPointList;
 
-        WayPoint wpt;
-        stream >> wpt;
+        emit wayPoints(&mWayPointList, WayPointListSource::WayPointListSourceRover);
 
-        emit wayPointInsertedByRover(index, wpt);
-
-        qDebug() << "process packet: wpt appended by rover:" << QString("waypoint appended by rover: %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z());
+        qDebug() << "process packet: waypointlist from rover!";
     }
     else if(packetType == "logmessage")
     {
@@ -298,24 +290,28 @@ void RoverConnection::slotSendPingRequest()
     slotSendData(data);
 }
 
-void RoverConnection::slotRoverWayPointsSet(const QList<WayPoint>* const wayPoints)
+void RoverConnection::slotSetWayPoints(const QList<WayPoint>* const wayPoints, const WayPointListSource source)
 {
-    qDebug() << "RoverConnection::slotRoverWayPointsSet(): sending" << wayPoints->size() << "waypoints";
+    if(source != WayPointListSource::WayPointListSourceRover)
+    {
+        qDebug() << "RoverConnection::slotRoverWayPointsSet(): sending" << wayPoints->size() << "waypoints";
 
-    QByteArray data;
-    QDataStream stream(&data, QIODevice::WriteOnly);
+        QByteArray data;
+        QDataStream stream(&data, QIODevice::WriteOnly);
 
-    stream << QString("waypoints");
-    stream << *wayPoints;
+        stream << QString("waypoints");
+        stream << *wayPoints;
 
-    emit message(
-                Information,
-                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                QString("Transmitting %1 waypoints to rover").arg(wayPoints->size()));
+        emit message(
+                    Information,
+                    QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
+                    QString("Transmitting %1 waypoints to rover").arg(wayPoints->size()));
 
-    slotSendData(data);
+        slotSendData(data);
+    }
 }
 
+/*
 void RoverConnection::slotRoverWayPointInsert(const quint16& index, const WayPoint& wayPoint)
 {
     qDebug() << "RoverConnection::slotRoverWayPointInsert(): telling rover to insert wpt" << wayPoint << "before index" << index;
@@ -353,7 +349,7 @@ void RoverConnection::slotRoverWayPointDelete(const quint16& index)
                 QString("Deleting waypoint at index %1").arg(index));
 
     slotSendData(data);
-}
+}*/
 
 void RoverConnection::slotSendControllerWeights(QString name, QMap<QChar, float> weights)
 {

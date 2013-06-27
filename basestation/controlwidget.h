@@ -4,6 +4,7 @@
 #include <QtGui>
 #include "ui_controlwidget.h"
 #include <waypoint.h>
+#include "waypointlist.h"
 #include <gnssstatus.h>
 #include <flightstate.h>
 #include <vehiclestatus.h>
@@ -19,33 +20,27 @@ Q_OBJECT
 private:
     QString getBackgroundCss(const bool& error = true, const bool& dark = false);
 
+    void updateWayPointTable();
     void initWayPointTable();
     QStyle* mStyle; // so we can delete it later, else valgrind starts bitching.
+
+    // We don't use WayPointList, as that uses OpenGL stuff that we don't need here.
+    QList<WayPoint> mWayPointList;
 
 public:
     ControlWidget(QWidget *widget);
     ~ControlWidget();
-
-//    QSize 	sizeHint() const {return minimumSize();}
-//    QSize 	maximumSize() const {
-//        qDebug() << "maximumSIze()" << minimumSize();
-//        return minimumSize();}
 
 public slots:
     void slotFlightStateChanged(const FlightState *const fs);
     void slotUpdatePose(const Pose *const pose);
     void slotUpdateVehicleStatus(const VehicleStatus* const vs);
     void slotUpdateGnssStatus(const GnssStatus* const gnssStatus);
-    void slotUpdateConnectionRtk(const bool working);
+    void slotUpdateConnectionDiffCorr(const bool working);
     void slotUpdateConnectionRover(const bool connected);
 
-//    void slotSetWayPointCoordinateFields(Qt::MouseButton, QVector3D);
-
     // Called by FlightPlanner when it has changed its internal list.
-    void slotWayPointInserted(const quint16& index, const WayPoint& waypoint);
-    void slotWayPointDeleted(const quint16& index);
-    void slotSetWayPoints(const QList<WayPoint> *const);
-    void slotWayPointsCleared();
+    void slotSetWayPoints(const QList<WayPoint> *const, const WayPointListSource source);
 
 private slots:
     void slotResizeToMinimum();
@@ -54,28 +49,21 @@ private slots:
     void slotWayPointPrepend();
     void slotWayPointAppend();
     void slotWayPointDelete();
-    void slotWayPointChange(int, int);
-    void slotWayPointUp();
-    void slotWayPointDown();
+    void slotWayPointChanged(int, int);
 
     void slotWayPointLoad();
     void slotWayPointSave();
 
+    void slotEmitWaypoints();
+
     void slotSetScanVolume();
 
 signals:
-    void timeFactorChanged(double);
-    void simulationStart();
-    void simulationPause();
-
     void setScanVolume(QVector3D, QVector3D);
-
     void showUserInterface();
 
-    // These signals are emitted when the controlwidget wants waypoints to be changed on the kopter
-    void wayPointInsert(const quint16& index, const WayPoint&);
-    void wayPointDelete(const quint16& index);
-    void wayPointSwap(const quint16& i, const quint16& j);
+    // These signals are emitted when the controlwidget wants waypoints to be changed
+    void wayPoints(const QList<WayPoint>* const, const WayPointListSource);
 };
 
 #endif

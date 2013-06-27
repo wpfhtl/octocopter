@@ -193,7 +193,8 @@ signals:
     // The weights themselves are part of FlightControllerValues
     void flightControllerWeightsChanged();
 
-    void currentWayPoints(const QList<WayPoint>* const wpt);
+    // Emitted when FLightController changes the list. Thats currently not implemented
+    void wayPoints(const QList<WayPoint>* const wpt, WayPointListSource);
 
     // log/status messages
     void message(const LogImportance& importance, const QString&, const QString& message);
@@ -201,9 +202,7 @@ signals:
 public slots:
     void slotSetPause(bool pause) {if(pause) mBackupTimerComputeMotion->stop(); else mBackupTimerComputeMotion->start();}
     void slotNewVehiclePose(const Pose *const);
-    void slotWayPointInsert(const quint16& index, const WayPoint& wayPoint);
-    void slotWayPointDelete(const quint16& index);
-    void slotSetWayPoints(const QList<WayPoint>&);
+    void slotSetWayPoints(const QList<WayPoint>&, const WayPointListSource source);
 
     void slotEmitFlightControllerInfo();
 

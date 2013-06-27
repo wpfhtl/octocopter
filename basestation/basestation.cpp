@@ -96,15 +96,9 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
     connect(mControlWidget, SIGNAL(showUserInterface()), mFlightPlanner, SLOT(slotShowUserInterface()));
 
-    // When the controlwidget wants waypoints to be changed on the rover, tell flightplanner, which will take care of it.
-    connect(mControlWidget, SIGNAL(wayPointInsert(const quint16&, const WayPoint&)), mFlightPlanner, SLOT(slotWayPointInsert(const quint16&, const WayPoint&)));
-    connect(mControlWidget, SIGNAL(wayPointDelete(const quint16&)), mFlightPlanner, SLOT(slotWayPointDelete(const quint16&)));
-    connect(mControlWidget, SIGNAL(wayPointSwap(quint16,quint16)), mFlightPlanner, SLOT(slotWayPointSwap(quint16,quint16)));
-
-    // When the flightplanner changed waypoints, tell controlwidget, so changes are reflected inthe UI
-    connect(mFlightPlanner, SIGNAL(wayPointDeleted(quint16)), mControlWidget, SLOT(slotWayPointDeleted(quint16)));
-    connect(mFlightPlanner, SIGNAL(wayPoints(QList<WayPoint>*const)), mControlWidget, SLOT(slotSetWayPoints(QList<WayPoint>*const)));
-    connect(mFlightPlanner, SIGNAL(wayPointInserted(quint16,WayPoint)), mControlWidget, SLOT(slotWayPointInserted(quint16,WayPoint)));
+    // Connect ControlWidget and FlightPlanner
+    connect(mControlWidget, SIGNAL(wayPoints(QList<WayPoint>*const,WayPointListSource)), mFlightPlanner, SLOT(slotSetWayPoints(QList<WayPoint>*const,WayPointListSource)));
+    connect(mFlightPlanner, SIGNAL(wayPoints(QList<WayPoint>*const,WayPointListSource)), mControlWidget, SLOT(slotSetWayPoints(QList<WayPoint>*const,WayPointListSource)));
 
     mMenuFile->addAction("Save Cloud", this, SLOT(slotExportCloud()));
     mMenuFile->addAction("Load Cloud", this, SLOT(slotImportCloud()));
@@ -192,14 +186,10 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mRoverConnection, SIGNAL(gnssStatus(const GnssStatus* const)), mControlWidget, SLOT(slotUpdateGnssStatus(const GnssStatus* const)));
         connect(mRoverConnection, SIGNAL(flightControllerValues(const FlightControllerValues* const)), SLOT(slotSetFlightControllerValues(const FlightControllerValues* const)));
 
-        connect(mRoverConnection, SIGNAL(wayPointsHashFromRover(QString)), mFlightPlanner, SLOT(slotCheckWayPointsHashFromRover(QString)));
         connect(mRoverConnection, SIGNAL(wayPointReachedByRover(WayPoint)), mFlightPlanner, SLOT(slotWayPointReached(WayPoint)));
-        connect(mRoverConnection, SIGNAL(wayPointInsertedByRover(quint16,WayPoint)), mFlightPlanner, SLOT(slotWayPointInsertedByRover(quint16,WayPoint)));
 
-        // When FlightPlanner wants us to send waypoint updates to the rover...
-        connect(mFlightPlanner, SIGNAL(wayPointInsertOnRover(quint16,WayPoint)), mRoverConnection, SLOT(slotRoverWayPointInsert(quint16,WayPoint)));
-        connect(mFlightPlanner, SIGNAL(wayPointDeleteOnRover(quint16)), mRoverConnection, SLOT(slotRoverWayPointDelete(quint16)));
-        connect(mFlightPlanner, SIGNAL(wayPointsSetOnRover(QList<WayPoint>*const)), mRoverConnection, SLOT(slotRoverWayPointsSet(const QList<WayPoint>* const)));
+        connect(mRoverConnection, SIGNAL(wayPoints(QList<WayPoint>*const,WayPointListSource)), mFlightPlanner, SLOT(slotSetWayPoints(QList<WayPoint>*const,WayPointListSource)));
+        connect(mFlightPlanner, SIGNAL(wayPoints(QList<WayPoint>*const,WayPointListSource)), mRoverConnection, SLOT(slotSetWayPoints(QList<WayPoint>*const,WayPointListSource)));
 
         mDiffCorrFetcher = new DiffCorrFetcher(mConnectionDialog->getRtkBaseHostName(), mConnectionDialog->getRtkBasePort(), this);
         connect(mDiffCorrFetcher, SIGNAL(differentialCorrections(QByteArray)), mRoverConnection, SLOT(slotSendDiffCorrToRover(QByteArray)));

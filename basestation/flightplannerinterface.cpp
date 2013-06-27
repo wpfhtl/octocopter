@@ -43,20 +43,6 @@ void FlightPlannerInterface::slotClearVehicleTrajectory()
     emit suggestVisualization();
 }
 
-void FlightPlannerInterface::slotCheckWayPointsHashFromRover(const QString &hash)
-{
-    if(WayPoint::hash(getWayPoints()) != hash)
-    {
-        emit message(
-                    Warning,
-                    QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                    QString("Waypoints hash from rover does not match our hash, resending list"));
-
-        emit wayPointsSetOnRover(getWayPoints());
-    }
-}
-
-
 const Pose FlightPlannerInterface::getLastKnownVehiclePose(void) const
 {
     if(mVehiclePoses.size())
@@ -95,6 +81,7 @@ const QVector3D FlightPlannerInterface::getCurrentVehicleVelocity() const
         return (last.getPosition() - secondLast.getPosition()) * (1000 / timeDiffMs);
 }*/
 
+/*
 void FlightPlannerInterface::slotWayPointDelete(const quint16& index)
 {
     if(mWaypointListMap.value("ahead")->size() <= index)
@@ -122,56 +109,15 @@ void FlightPlannerInterface::slotWayPointInsert(const quint16& index, const WayP
     emit wayPointInserted(index, wpt);
     emit wayPointInsertOnRover(index, wpt);
     emit suggestVisualization();
-}
+}*/
 
-// Called when rover inserted a wpt. DO NOT TELL ROVER to insert that same wpt again!
-void FlightPlannerInterface::slotWayPointInsertedByRover(const quint16& index, const WayPoint& wpt)
+void FlightPlannerInterface::slotSetWayPoints(const QList<WayPoint>* const wayPointList, const WayPointListSource source)
 {
-    if(index > mWaypointListMap.value("ahead")->size())
-    {
-        qWarning() << "FlightPlannerInterface::slotWayPointInsertedByRover(): cannot delete waypoint at index" << index << ", size is only" << mWaypointListMap.value("ahead")->size();
-        return;
-    }
+    WayPointList* wpl = mWaypointListMap["ahead"];
+    *(wpl->list()) = *wayPointList;
 
-    emit message(
-                Information,
-                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                QString("Waypoint appended by rover: %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
-
-    mWaypointListMap["ahead"]->insert(index, wpt);
-    emit wayPointInserted(index, wpt);
-    emit suggestVisualization();
-}
-
-void FlightPlannerInterface::slotWayPointSwap(const quint16& i, const quint16& j)
-{
-    if(mWaypointListMap.value("ahead")->size() <= i || mWaypointListMap.value("ahead")->size() <= j)
-    {
-        qWarning() << "FlightPlannerInterface::slotWayPointSwap(): cannot swap waypoints at index" << i << "and" << j <<", size is only" << mWaypointListMap.value("ahead")->size();
-        return;
-    }
-    qDebug() << "FlightPlannerInterface::slotWayPointSwap(): swapping waypoints at index" << i << "and" << j <<", size is" << mWaypointListMap.value("ahead")->size();
-
-    mWaypointListMap["ahead"]->swap(i,j);
-
-    emit wayPointDeleted(j);
-    emit wayPointDeleteOnRover(j);
-    emit wayPointInserted(j, mWaypointListMap["ahead"]->at(j));
-    emit wayPointInsertOnRover(j, mWaypointListMap["ahead"]->at(j));
-    emit wayPointDeleted(i);
-    emit wayPointDeleteOnRover(i);
-    emit wayPointInserted(i, mWaypointListMap["ahead"]->at(i));
-    emit wayPointInsertOnRover(i, mWaypointListMap["ahead"]->at(i));
-
-    emit suggestVisualization();
-}
-
-void FlightPlannerInterface::slotWayPointsClear()
-{
-    mWaypointListMap["ahead"]->clear();
-    emit wayPointsSetOnRover(mWaypointListMap["ahead"]->list());
-    emit wayPoints(mWaypointListMap["ahead"]->list());
-    emit suggestVisualization();
+    // Tell others about our new waypoints!
+    emit wayPoints(mWaypointListMap["ahead"]->list(), source);
 }
 
 void FlightPlannerInterface::slotWayPointReached(const WayPoint& wpt)
@@ -190,7 +136,7 @@ void FlightPlannerInterface::slotWayPointReached(const WayPoint& wpt)
                 QString("Reached waypoint %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
 
     mWaypointListMap["passed"]->append(mWaypointListMap["ahead"]->takeAt(0));
-    emit wayPointDeleted(0);
+    emit wayPoints(mWaypointListMap["ahead"]->list(), WayPointListSource::WayPointListSourceFlightPlanner);
     qDebug() << "FlightPlannerInterface::slotWayPointReached(): rover->baseconnection->flightplanner waypoint reached, emitted wayPointDeleted(0)";
     emit suggestVisualization();
 }

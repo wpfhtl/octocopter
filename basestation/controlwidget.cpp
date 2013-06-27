@@ -12,7 +12,7 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
     initWayPointTable();
 
     // To enable colored text
-    mLabelGnssInfo->setTextFormat(Qt::RichText);
+    mLabelInsInfo->setTextFormat(Qt::RichText);
 
     connect(mBtnWptPrepend, SIGNAL(clicked()), SLOT(slotWayPointPrepend()));
     connect(mBtnWptAppend, SIGNAL(clicked()), SLOT(slotWayPointAppend()));
@@ -20,10 +20,7 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
     connect(mBtnWptLoad, SIGNAL(clicked()), SLOT(slotWayPointLoad()));
     connect(mBtnWptSave, SIGNAL(clicked()), SLOT(slotWayPointSave()));
 
-    connect(mBtnWptUp, SIGNAL(clicked()), SLOT(slotWayPointUp()));
-    connect(mBtnWptDown, SIGNAL(clicked()), SLOT(slotWayPointDown()));
-
-    connect(mWayPointTable, SIGNAL(cellChanged(int,int)), SLOT(slotWayPointChange(int,int)));
+    connect(mWayPointTable, SIGNAL(cellChanged(int,int)), SLOT(slotWayPointChanged(int, int)));
 
     connect(mBtnGenerateWaypoints, SIGNAL(clicked()), SIGNAL(showUserInterface()));
 
@@ -36,12 +33,7 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
 
     QTimer::singleShot(0, this, SLOT(slotResizeToMinimum()));
 
-
     setMaximumWidth(minimumWidth());
-//    qDebug() << "minSize" << minimumSize();
-//    qDebug() << "sizeHint" << sizeHint();
-//    qDebug() << "minSizeHint" << minimumSizeHint();
-//    qDebug() << "maxSize" << maximumSize();
 }
 
 ControlWidget::~ControlWidget()
@@ -89,25 +81,25 @@ void ControlWidget::slotUpdateConnectionRover(const bool connected)
     }
 }
 
-void ControlWidget::slotUpdateConnectionRtk(const bool working)
+void ControlWidget::slotUpdateConnectionDiffCorr(const bool working)
 {
     if(working)
     {
-        mLabelRtkIndicator->setText("OK");
+        mLabelDiffCorrIndicator->setText("OK");
 
-        if(mLabelRtkIndicator->styleSheet() == getBackgroundCss(false, false))
-            mLabelRtkIndicator->setStyleSheet(getBackgroundCss(false, true));
+        if(mLabelDiffCorrIndicator->styleSheet() == getBackgroundCss(false, false))
+            mLabelDiffCorrIndicator->setStyleSheet(getBackgroundCss(false, true));
         else
-            mLabelRtkIndicator->setStyleSheet(getBackgroundCss(false, false));
+            mLabelDiffCorrIndicator->setStyleSheet(getBackgroundCss(false, false));
     }
     else
     {
-        mLabelRtkIndicator->setText("ERR");
+        mLabelDiffCorrIndicator->setText("ERR");
 
-        if(mLabelRtkIndicator->styleSheet() == getBackgroundCss(true, false))
-            mLabelRtkIndicator->setStyleSheet(getBackgroundCss(true, true));
+        if(mLabelDiffCorrIndicator->styleSheet() == getBackgroundCss(true, false))
+            mLabelDiffCorrIndicator->setStyleSheet(getBackgroundCss(true, true));
         else
-            mLabelRtkIndicator->setStyleSheet(getBackgroundCss(true, false));
+            mLabelDiffCorrIndicator->setStyleSheet(getBackgroundCss(true, false));
     }
 }
 
@@ -178,16 +170,16 @@ void ControlWidget::slotUpdateGnssStatus(const GnssStatus* const gnssStatus)
     mLabelGnssMode->setText(gnssStatus->getPvtMode());
     if(gnssStatus->pvtMode == GnssStatus::PvtMode::RtkFixed) mLabelGnssMode->setStyleSheet(""); else mLabelGnssMode->setStyleSheet(getBackgroundCss());
 
-    mLabelGnssIntegrationMode->setText(gnssStatus->getIntegrationMode());
+    mLabelInsIntegrationMode->setText(gnssStatus->getIntegrationMode());
     if(gnssStatus->integrationMode == GnssStatus::IntegrationMode::Loosely_INS || gnssStatus->integrationMode == GnssStatus::IntegrationMode::Loosely_INS_and_GNSS)
-        mLabelGnssIntegrationMode->setStyleSheet("");
-    else mLabelGnssIntegrationMode->setStyleSheet(getBackgroundCss());
+        mLabelInsIntegrationMode->setStyleSheet("");
+    else mLabelInsIntegrationMode->setStyleSheet(getBackgroundCss());
 
-    mLabelGnssInfo->setText(gnssStatus->getInfoRichText());
-    mLabelGnssInfo->setToolTip(mLabelGnssInfo->text());
+    mLabelInsInfo->setText(gnssStatus->getInfoRichText());
+    mLabelInsInfo->setToolTip(mLabelInsInfo->text());
 
-    mLabelGnssError->setText(gnssStatus->getError());
-    if(gnssStatus->error == GnssStatus::Error::NoError) mLabelGnssError->setStyleSheet(""); else mLabelGnssError->setStyleSheet(getBackgroundCss());
+    mLabelInsError->setText(gnssStatus->getError());
+    if(gnssStatus->error == GnssStatus::Error::NoError) mLabelInsError->setStyleSheet(""); else mLabelInsError->setStyleSheet(getBackgroundCss());
 
     mLabelGnssNumSats->setText(QString::number(gnssStatus->numSatellitesUsed));
     if(gnssStatus->numSatellitesUsed > 5) mLabelGnssNumSats->setStyleSheet(""); else mLabelGnssNumSats->setStyleSheet(getBackgroundCss());
@@ -198,11 +190,11 @@ void ControlWidget::slotUpdateGnssStatus(const GnssStatus* const gnssStatus)
     mLabelGnssCorrAge->setText(QString::number(((float)gnssStatus->meanCorrAge) / 10.0));
     if(((float)gnssStatus->meanCorrAge)/10.0 < 5) mLabelGnssCorrAge->setStyleSheet(""); else mLabelGnssCorrAge->setStyleSheet(getBackgroundCss());
 
-    mLabelGnssCpuLoad->setText(QString::number(gnssStatus->cpuLoad));
-    if(gnssStatus->cpuLoad < 80) mLabelGnssCpuLoad->setStyleSheet(""); else mLabelGnssCpuLoad->setStyleSheet(getBackgroundCss());
+    mLabelInsCpuLoad->setText(QString::number(gnssStatus->cpuLoad));
+    if(gnssStatus->cpuLoad < 80) mLabelInsCpuLoad->setStyleSheet(""); else mLabelInsCpuLoad->setStyleSheet(getBackgroundCss());
 
-    mLabelGnssCovariances->setText(QString::number(gnssStatus->covariances, 'f', 2));
-    if(gnssStatus->covariances < 1.0) mLabelGnssCovariances->setStyleSheet(""); else mLabelGnssCovariances->setStyleSheet(getBackgroundCss());
+    mLabelInsCovariances->setText(QString::number(gnssStatus->covariances, 'f', 2));
+    if(gnssStatus->covariances < 1.0) mLabelInsCovariances->setStyleSheet(""); else mLabelInsCovariances->setStyleSheet(getBackgroundCss());
 }
 
 void ControlWidget::slotSetScanVolume()
@@ -213,132 +205,6 @@ void ControlWidget::slotSetScanVolume()
                 );
 }
 
-/*
-  ###########################################################################
-  Slots that are called when a button is pressed, emits signals with
-  modification requests for the waypoint list
-  ###########################################################################
-*/
-
-void ControlWidget::slotWayPointPrepend()
-{
-    emit wayPointInsert(0, WayPoint(QVector3D(mSpinBoxWptX->value(), mSpinBoxWptY->value(), mSpinBoxWptZ->value())));
-}
-
-void ControlWidget::slotWayPointAppend()
-{
-    emit wayPointInsert(mWayPointTable->rowCount(), WayPoint(QVector3D(mSpinBoxWptX->value(), mSpinBoxWptY->value(), mSpinBoxWptZ->value())));
-}
-
-void ControlWidget::slotWayPointDelete()
-{
-    const QList<QTableWidgetItem *> items = mWayPointTable->selectedItems();
-    if(items.size()) emit wayPointDelete(items.at(0)->row());
-}
-
-void ControlWidget::slotWayPointChange(int row, int /*column*/)
-{
-    const QVector3D wpt(
-                mWayPointTable->item(row, 0)->text().toFloat(),
-                mWayPointTable->item(row, 1)->text().toFloat(),
-                mWayPointTable->item(row, 2)->text().toFloat());
-
-    emit wayPointDelete(row);
-    emit wayPointInsert(row, wpt);
-}
-
-void ControlWidget::slotWayPointUp()
-{
-    QList<QTableWidgetItem *> items = mWayPointTable->selectedItems();
-
-    if(/*items.size() != 1 || */items.at(0)->row() < 1) return;
-
-    const int rowUpper = items.at(0)->row()-1;
-    const int rowLower = items.at(0)->row();
-
-    emit wayPointSwap(rowUpper, rowLower);
-    mWayPointTable->setCurrentCell(rowUpper, 1);
-}
-
-void ControlWidget::slotWayPointDown()
-{
-    QList<QTableWidgetItem *> items = mWayPointTable->selectedItems();
-
-    if(/*items.size() != 1 || */items.at(0)->row() >= mWayPointTable->rowCount()-1)
-    {
-        qDebug() << "items size" << items.size() << "row" << items.at(0)->row() << "rowcount" << mWayPointTable->rowCount();
-        return;
-    }
-
-    const int rowUpper = items.at(0)->row();
-    const int rowLower = items.at(0)->row()+1;
-
-    emit wayPointSwap(rowUpper, rowLower);
-    mWayPointTable->setCurrentCell(rowLower, 1);
-}
-
-
-/*
-  ###########################################################################
-  Slots that are called when a the waypoint list is changed externally, will
-  sync the gui with the list.
-  ###########################################################################
-*/
-
-void ControlWidget::slotWayPointInserted(const quint16& index, const WayPoint& waypoint)
-{
-    qDebug() << "ControlWidget::slotWayPointInserted(): waypoint" << waypoint << "inserted into index" << index << "by rover or flightplanner";
-    mWayPointTable->blockSignals(true);
-    mWayPointTable->insertRow(index);
-
-    mWayPointTable->setItem(index, 0, new QTableWidgetItem(QString::number(waypoint.x())));
-    mWayPointTable->setItem(index, 1, new QTableWidgetItem(QString::number(waypoint.y())));
-    mWayPointTable->setItem(index, 2, new QTableWidgetItem(QString::number(waypoint.z())));
-
-    mWayPointTable->resizeRowsToContents();
-
-    mWayPointTable->blockSignals(false);
-
-    mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
-}
-
-void ControlWidget::slotWayPointDeleted(const quint16& index)
-{
-    qDebug() << "ControlWidget::slotWayPointInserted(): waypoint deleted at index" << index << "by rover or flightplanner";
-    mWayPointTable->removeRow(index);
-    mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
-}
-
-void ControlWidget::slotSetWayPoints(const QList<WayPoint>* const wayPoints)
-{
-    qDebug() << "ControlWidget::slotSetWayPoints():" << wayPoints->size() << "waypoints set by rover or flightplanner";
-    mWayPointTable->clear();
-    mWayPointTable->setRowCount(0);
-
-    mWayPointTable->blockSignals(true);
-
-    for(int i=0;i<wayPoints->size();i++)
-    {
-        const WayPoint waypoint = wayPoints->at(i);
-
-        mWayPointTable->insertRow(i);
-
-        mWayPointTable->setItem(i, 0, new QTableWidgetItem(QString::number(waypoint.x())));
-        mWayPointTable->setItem(i, 1, new QTableWidgetItem(QString::number(waypoint.y())));
-        mWayPointTable->setItem(i, 2, new QTableWidgetItem(QString::number(waypoint.z())));
-    }
-
-    mWayPointTable->blockSignals(false);
-    mWayPointTable->resizeRowsToContents();
-
-    mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
-}
-
-void ControlWidget::slotWayPointsCleared()
-{
-    mWayPointTable->clear();
-    mWayPointTable->setRowCount(0);
-}
 
 void ControlWidget::slotWayPointLoad()
 {
@@ -352,7 +218,6 @@ void ControlWidget::slotWayPointLoad()
             return;
         }
 
-        int i = 0;
         while (!file.atEnd())
         {
             const QString line(file.readLine());
@@ -360,7 +225,7 @@ void ControlWidget::slotWayPointLoad()
 
             if(values.size() != 3)
             {
-                QMessageBox::warning(this, "File Format Error", QString("Not three numbers in line %1!").arg(i));
+                QMessageBox::warning(this, "File Format Error", QString("Not three numbers in line!"));
                 return;
             }
 
@@ -372,13 +237,39 @@ void ControlWidget::slotWayPointLoad()
                             )
                         );
 
-            emit wayPointInsert(mWayPointTable->rowCount(), wpt);
-
-            i++;
+            mWayPointList.append(wpt);
         }
 
         file.close();
     }
+
+    updateWayPointTable();
+    slotEmitWaypoints();
+}
+
+// Sets the table to the contents of mWayPointList
+void ControlWidget::updateWayPointTable()
+{
+    mWayPointTable->blockSignals(true);
+
+    mWayPointTable->clear();
+    mWayPointTable->setRowCount(0);
+
+    for(int i=0;i<mWayPointList.size();i++)
+    {
+        const WayPoint waypoint = mWayPointList.at(i);
+
+        mWayPointTable->insertRow(i);
+
+        mWayPointTable->setItem(i, 0, new QTableWidgetItem(QString::number(waypoint.x())));
+        mWayPointTable->setItem(i, 1, new QTableWidgetItem(QString::number(waypoint.y())));
+        mWayPointTable->setItem(i, 2, new QTableWidgetItem(QString::number(waypoint.z())));
+    }
+
+    mWayPointTable->blockSignals(false);
+    mWayPointTable->resizeRowsToContents();
+
+    mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
 }
 
 void ControlWidget::slotWayPointSave()
@@ -395,11 +286,11 @@ void ControlWidget::slotWayPointSave()
 
         QTextStream out(&file);
 
-        for(int row=0;row<mWayPointTable->rowCount();row++)
+        for(int i=0;i<mWayPointList.size();i++)
         {
-            out << mWayPointTable->item(row, 0)->text().toFloat() << ";";
-            out << mWayPointTable->item(row, 1)->text().toFloat() << ";";
-            out << mWayPointTable->item(row, 2)->text().toFloat();
+            out << mWayPointList.at(i).x() << ";";
+            out << mWayPointList.at(i).y() << ";";
+            out << mWayPointList.at(i).z();
             out << "\n";
         }
 
@@ -407,12 +298,80 @@ void ControlWidget::slotWayPointSave()
     }
 }
 
-//void ControlWidget::slotSetWayPointCoordinateFields(Qt::MouseButton btn, QVector3D pos)
-//{
-//    if(btn == Qt::MiddleButton)
-//    {
-//        mSpinBoxWptX->setValue(pos.x());
-//        mSpinBoxWptY->setValue(pos.y());
-//        mSpinBoxWptZ->setValue(pos.z());
-//    }
-//}
+void ControlWidget::slotEmitWaypoints()
+{
+    emit wayPoints(&mWayPointList, WayPointListSource::WayPointListSourceControlWidget);
+}
+
+
+/*
+  ###########################################################################
+  Slots that are called when a button is pressed, emits signals with
+  modification requests for the waypoint list
+  ###########################################################################
+*/
+
+void ControlWidget::slotWayPointPrepend()
+{
+    WayPoint wpt(QVector3D(mSpinBoxWptX->value(), mSpinBoxWptY->value(), mSpinBoxWptZ->value()));
+    mWayPointList.prepend(wpt);
+    updateWayPointTable();
+    slotEmitWaypoints();
+}
+
+void ControlWidget::slotWayPointAppend()
+{
+    WayPoint wpt(QVector3D(mSpinBoxWptX->value(), mSpinBoxWptY->value(), mSpinBoxWptZ->value()));
+    mWayPointList.append(wpt);
+    updateWayPointTable();
+    slotEmitWaypoints();
+}
+
+void ControlWidget::slotWayPointDelete()
+{
+    const QList<QTableWidgetItem *> items = mWayPointTable->selectedItems();
+    if(items.size())
+    {
+        const quint32 index = items.at(0)->row();
+        mWayPointList.removeAt(index);
+        updateWayPointTable();
+        slotEmitWaypoints();
+    }
+}
+
+void ControlWidget::slotWayPointChanged(int row, int /*column*/)
+{
+    WayPoint wpt = mWayPointList.at(row);
+    bool okX, okY, okZ;
+    wpt.setX(mWayPointTable->item(row, 0)->text().toFloat(&okX));
+    wpt.setY(mWayPointTable->item(row, 0)->text().toFloat(&okY));
+    wpt.setZ(mWayPointTable->item(row, 0)->text().toFloat(&okZ));
+
+    if(okX && okY && okZ)
+    {
+        // If all cells could be parsed, update waypoint list and emit
+        mWayPointList[row] = wpt;
+        slotEmitWaypoints();
+    }
+    else
+    {
+        // if parsing failed, switch back to old values.
+        updateWayPointTable();
+    }
+}
+
+/*
+  ###########################################################################
+  Slots that are called when a the waypoint list is changed externally, will
+  sync the gui with the list.
+  ###########################################################################
+*/
+
+void ControlWidget::slotSetWayPoints(const QList<WayPoint>* const wayPoints, const WayPointListSource source)
+{
+    if(source != WayPointListSource::WayPointListSourceControlWidget)
+    {
+        mWayPointList = *wayPoints;
+        updateWayPointTable();
+    }
+}

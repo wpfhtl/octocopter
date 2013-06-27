@@ -56,6 +56,8 @@ void WayPointList::mergeCloseWaypoints(const float minimumDistance)
             }
         }
     }
+
+    setVbo();
 }
 
 void WayPointList::sortToShortestPath(const QVector3D &vehiclePosition)

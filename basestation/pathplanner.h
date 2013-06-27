@@ -48,7 +48,7 @@ public:
 signals:
     // This is ALWAYS emitted after a call to slotRequestPath(). If the list is empty, no path was found.
     // If it is not empty, the first and last elements MUST be start and goal, respectively.
-    void pathFound(const QList<WayPoint>* const);
+    void pathFound(const QList<WayPoint>* const, WayPointListSource);
 
 private slots:
     void slotComputePathOnGpu();

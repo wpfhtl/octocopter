@@ -73,26 +73,31 @@ public:
     // For e.g. glWidget to send some user-key-strokes (e.g. for visualization)
     virtual void keyPressEvent(QKeyEvent *event);
 
-private slots:
-
 public slots:
-    void slotWayPointDelete(const quint16& index);
-    void slotWayPointInsert(const quint16& index, const WayPoint& wpt);
-    void slotWayPointInsertedByRover(const quint16& index, const WayPoint& wpt);
-    void slotWayPointSwap(const quint16& i, const quint16& j);
-    void slotWayPointsClear();
-
     // Called by LogPlayer or RoverConnection when new scanData arrives. @points must be float4!
     virtual void slotNewScanData(const float* const points, const quint32& count, const QVector3D* const scannerPosition) = 0;
 
     // Called by UI to clear the drawn trajectory
     void slotClearVehicleTrajectory();
 
-    void slotCheckWayPointsHashFromRover(const QString& hash);
-
     // Used in CUDA flightplanner, might be useful to others. Will be called
     // soon after construction, but maybe after the first call to slotVisualize().
     virtual void slotInitialize() = 0;
+
+    // Called to set the waypoint-list. There are at least 3 entities reading and writing those lists:
+    //
+    // - ControlWidget
+    // - FlightPlanner
+    // - Rover
+    //
+    // When slotSetWayPoints(...) is called, the FlightPlanner-waypoint-list will be set and wayPoints(...)
+    // will be emitted. So, if e.g. ControlWidget makes a change and calls FlightPlanner::slotSetWayPoints(),
+    // the resulting wayPoints(...) signal will unnecessarily update the ControlWidget again. Same for Rover.
+    //
+    // To prevent this, the caller of this method should indicate the source of the list (ControlWidget would
+    // use ControlWidget, Rover would use Rover, you get the idea). Then, the wayPoints()-signal is emitted
+    // with this same source again and ControlWidget can use that to ignore the list. Sweet.
+    void slotSetWayPoints(const QList<WayPoint>* const wayPointList, const WayPointListSource source/* = WayPointListSource::WayPointListSourceUnknown*/);
 
     virtual void slotWayPointReached(const WayPoint&);
 
@@ -106,19 +111,8 @@ public slots:
 signals:
     void message(const LogImportance& importance, const QString& source, const QString& message);
 
-    // Emitted to tell other classes that waypoint @wpt was inserted at index @index
-    void wayPointInserted(const quint16& index, const WayPoint& wpt);
-
-    // Emitted to tell the rover that it should insert waypoint @wpt at index @index
-    void wayPointInsertOnRover(const quint16& index, const WayPoint& wpt);
-
-    // Emitted to tell other classes that waypoint @index was deleted. We do not care how or by whom
-    void wayPointDeleted(const quint16& index);
-    // Emitted to tell the rover that it should delete waypoint @index
-    void wayPointDeleteOnRover(const quint16& index);
-
-    void wayPointsSetOnRover(const QList<WayPoint>* const);
-    void wayPoints(const QList<WayPoint>* const);
+    // This is emitted whenever FlightPlanner changes waypoints
+    void wayPoints(const QList<WayPoint>* const, const WayPointListSource);
 
     void suggestVisualization();
 };

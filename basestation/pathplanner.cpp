@@ -116,7 +116,7 @@ void PathPlanner::slotComputePathOnGpu()
     if(fabs(mHostWaypoints[0]) < 0.001 && fabs(mHostWaypoints[1]) < 0.001 && fabs(mHostWaypoints[2]) < 0.001)
     {
         qDebug() << __PRETTY_FUNCTION__ << "found NO path!";
-        emit pathFound(&mComputedPath);
+        emit pathFound(&mComputedPath, WayPointListSource::WayPointListSourceFlightPlanner);
     }
     else
     {
@@ -155,7 +155,7 @@ void PathPlanner::slotComputePathOnGpu()
 
         qDebug() << __PRETTY_FUNCTION__ << "found path:" << mComputedPath;
 
-        emit pathFound(&mComputedPath);
+        emit pathFound(&mComputedPath, WayPointListSource::WayPointListSourceFlightPlanner);
     }
 
     // Unmap at end here to avoid unnecessary graphics/CUDA context switch.

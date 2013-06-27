@@ -27,8 +27,7 @@ FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWindow *
     mDialog = new FlightPlannerParticlesDialog(&mSimulationParameters, parentWidget);
 
     mPathPlanner = new PathPlanner;
-    connect(mPathPlanner, SIGNAL(pathFound(QList<WayPoint>*const)), SIGNAL(wayPoints(QList<WayPoint>*const)));
-    connect(mPathPlanner, SIGNAL(pathFound(QList<WayPoint>*const)), SIGNAL(wayPointsSetOnRover(QList<WayPoint>*const)));
+    connect(mPathPlanner, SIGNAL(pathFound(QList<WayPoint>*const,WayPointListSource)), SIGNAL(wayPoints(QList<WayPoint>*const,WayPointListSource)));
 
     connect(&mTimerProcessWaypointPressure, SIGNAL(timeout()), SLOT(slotProcessWaypointPressure()));
 }
@@ -141,7 +140,7 @@ void FlightPlannerParticles::slotGenerateWaypoints(quint32 numberOfWaypointsToGe
     }
 
     const quint32 numberOfCells = mSimulationParameters.gridWaypointPressure.getCellCount();
-    QVector<QVector4D> waypoints(std::min((quint32)200, numberOfCells));
+    QVector<QVector4D> waypoints(std::min((quint32)20, numberOfCells));
 
     // Copy waypoint pressure from VBO into mDeviceGridMapWayPointPressureSorted
     quint8* gridMapOfWayPointPressure = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridMapOfWayPointPressure);
@@ -192,7 +191,6 @@ void FlightPlannerParticles::slotGenerateWaypoints(quint32 numberOfWaypointsToGe
 
     // Now that we've generated waypoints, we can deactivate the physics processing (and restart when only few waypoints are left)
     mDialog->setProcessPhysics(false);
-
 
     // Now use the PathPlanner to find a path to this next waypoint. It will emit a signal with the list. Hopefully.
     mPathPlanner->slotRequestPath(vehiclePosition, waypointList->first());
