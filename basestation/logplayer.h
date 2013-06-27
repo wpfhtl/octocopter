@@ -86,8 +86,8 @@ private:
 
     enum LogType
     {
-        LogTypeGnss,
-        LogTypeLaser,
+        LogTypeIns,
+        LogTypeLidar,
         LogTypeFlightController,
         LogTypeInvalid
     };
@@ -113,7 +113,7 @@ private:
     SensorFuser* mSensorFuser;
 
     // TODO: Use a QMap<DataSource, LogData> for all(!) logfiles.
-    LogData mLogGnss, mLogFlightController;
+    LogData mLogIns, mLogFlightController;
     QVector<LogData*> mLogsLaser;
     QVector<Pose> mRelativeLaserPoses;
 
@@ -149,7 +149,7 @@ private:
 
 private slots:
 //    void slotLaserScannerRelativePoseChanged();
-    void slotNewSbfTime(const qint32 tow, const char *, quint16);
+    void slotNewSbfTime(const qint32 tow);
 
     bool slotOpenLogFiles();
     DataSource slotStepForward(DataSource source = DataSource());
@@ -172,7 +172,7 @@ signals:
 
     // Emits the raw distances, like the ones being fed into sensorfuser. You are NOT owner of this data, sensorfuser
     // is and it will probably delete it. So, if you need it, copy it!
-    void newRayData(const Pose* const, qint32 timestampScanner, std::vector<quint16> * const distances);
+    void rayData(const Pose* const, qint32 timestampScanner, std::vector<quint16> * const distances);
 };
 
 #endif // LOGPLAYER_H

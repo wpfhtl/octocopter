@@ -27,6 +27,8 @@ FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWindow *
     mDialog = new FlightPlannerParticlesDialog(&mSimulationParameters, parentWidget);
 
     mPathPlanner = new PathPlanner;
+    connect(mPathPlanner, SIGNAL(pathFound(QList<WayPoint>*const)), SIGNAL(wayPoints(QList<WayPoint>*const)));
+    connect(mPathPlanner, SIGNAL(pathFound(QList<WayPoint>*const)), SIGNAL(wayPointsSetOnRover(QList<WayPoint>*const)));
 
     connect(&mTimerProcessWaypointPressure, SIGNAL(timeout()), SLOT(slotProcessWaypointPressure()));
 }
@@ -182,16 +184,18 @@ void FlightPlannerParticles::slotGenerateWaypoints(quint32 numberOfWaypointsToGe
     while(waypointList->size() > numberOfWaypointsToGenerate)
         waypointList->removeLast();
 
+    // Lets generate just one for now. Makes pathfinding easier!
     // Sort them to the shortest path, honoring the vehicle's current location.
-    wayPointStructure->sortToShortestPath(getLastKnownVehiclePose().getPosition());
+    //wayPointStructure->sortToShortestPath(getLastKnownVehiclePose().getPosition());
 
     qDebug() << "FlightPlannerParticles::slotGenerateWaypoints(): after merging, there are" << wayPointStructure->size() << "waypoints left. Now stopping physics processing.";
 
     // Now that we've generated waypoints, we can deactivate the physics processing (and restart when only few waypoints are left)
     mDialog->setProcessPhysics(false);
 
-    emit wayPoints(wayPointStructure->list());
-    emit wayPointsSetOnRover(wayPointStructure->list());
+
+    // Now use the PathPlanner to find a path to this next waypoint. It will emit a signal with the list. Hopefully.
+    mPathPlanner->slotRequestPath(vehiclePosition, waypointList->first());
 }
 
 // If the maximum waypointpressure is higher than threshold, it will generate new waypoints and decrease the pressure.

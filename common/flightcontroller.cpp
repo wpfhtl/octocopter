@@ -4,7 +4,7 @@
 
 FlightController::FlightController(const QString& logFilePrefix) : QObject()
 {
-    mLogFile = new LogFile(logFilePrefix + QString("flightcontroller.flt"), LogFile::Encoding::Binary);
+    mLogFile = new LogFile(logFilePrefix + QString(".flt"), LogFile::Encoding::Binary);
     qDebug()<< "Size of FlightControllerValues:" << sizeof(FlightControllerValues);
 
     mBackupTimerComputeMotion = new QTimer(this);

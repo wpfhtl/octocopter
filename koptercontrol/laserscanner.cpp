@@ -14,7 +14,7 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFile
 {
     qDebug() << "LaserScanner::LaserScanner(): initializing laserscanner";
 
-    mLogFile = new LogFile(logFilePrefix + QString("scannerdata.lsr") + QString::number(instanceCounter++), LogFile::Encoding::Binary);
+    mLogFile = new LogFile(logFilePrefix + QString(".ldr") + QString::number(instanceCounter++), LogFile::Encoding::Binary);
 
     mHokuyo = new Hokuyo(mLogFile);
 

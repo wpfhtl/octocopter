@@ -73,7 +73,7 @@ public:
     float rotation; // deg/s
 
     // Usually, maximum covariances converge to about 0.02.
-    static constexpr float maximumUsableCovariance = 0.05f;
+    static constexpr float maximumUsableCovariance = 0.55f;
 
     void setVelocity(const QVector3D& velocity)
     {

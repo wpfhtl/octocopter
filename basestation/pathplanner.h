@@ -3,7 +3,9 @@
 
 #include <QObject>
 #include <QFuture>
+#include <QTimer>
 #include "common.h"
+#include "waypoint.h"
 #include "grid.cuh"
 #include "pointcloudcuda.h"
 #include "pathplanner.cuh"
@@ -19,11 +21,16 @@ class PathPlanner : public QObject
 {
     Q_OBJECT
 private:
-    ParametersPathPlanner* mParametersPathPlanner;
+    static const int mMaxWaypoints = 5000; // should be more than enough
+
+    ParametersPathPlanner mParametersPathPlanner;
     PointCloudCuda* mPointCloudColliders;
     bool mPointCloudCollidersChanged;
     cudaStream_t mCudaStream;
     quint8*  mDeviceOccupancyGrid;
+    float*  mDeviceWaypoints;
+    float* mHostWaypoints;
+    QList<WayPoint> mComputedPath;
 
     struct cudaGraphicsResource *mCudaVboResourceColliderPositions; // handles OpenGL-CUDA exchange
 
@@ -33,16 +40,18 @@ private:
     bool mCancelComputation;
     QFuture<void> mFuture;
 
-    void computePathOnGpu();
 
 public:
     explicit PathPlanner(QObject *parent = 0);
     ~PathPlanner();
 
 signals:
-    // This is ALWAYS emitted after a call to slotRequestPath(). If the vector is empty, no path was found.
+    // This is ALWAYS emitted after a call to slotRequestPath(). If the list is empty, no path was found.
     // If it is not empty, the first and last elements MUST be start and goal, respectively.
-    void pathFound(QVector<QVector3D> waypoints);
+    void pathFound(const QList<WayPoint>* const);
+
+private slots:
+    void slotComputePathOnGpu();
 
 public slots:
     void slotInitialize();

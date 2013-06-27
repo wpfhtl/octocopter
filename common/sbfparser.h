@@ -288,7 +288,7 @@ signals:
     void gnssDeviceWorkingPrecisely(bool);
 
     // Tells others that we just processed @length bytes of @sbfData making up a packet from @tow
-    void processedPacket(const qint32& tow, const char* sbfData, const quint16 length);
+    void processedPacket(const qint32& tow);
 
     // log/status messages
     void message(const LogImportance& importance, const QString&, const QString& message);

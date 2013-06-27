@@ -740,12 +740,12 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
         }
     }
 
-    const quint16 bytesToRemove = std::max(msgLength, (quint16)positionOfNextInfo);
+//    const quint16 bytesToRemove = std::max(msgLength, (quint16)positionOfNextInfo);
 
     // Announce what packet we just processed. Might be used for logging.
     // ExtEvent is generic enough, the TOW is always at the same location
     const Sbf_ExtEvent * const block = (Sbf_ExtEvent*)sbfData.data();
-    //emit processedPacket((qint32)block->TOW, sbfData.constData(), bytesToRemove);
+    emit processedPacket((qint32)block->TOW);
 
     //sbfData.remove(0, bytesToRemove);
 }

@@ -30,11 +30,11 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
 
     mStepMenu->addAction("GNSS", mStepSignalMapper, SLOT(map()));
     connect(mStepMenu->actions().last(), SIGNAL(triggered()), mStepSignalMapper, SLOT(map()));
-    mStepSignalMapper->setMapping(mStepMenu->actions().last(), (int)LogTypeGnss);
+    mStepSignalMapper->setMapping(mStepMenu->actions().last(), (int)LogTypeIns);
 
     mStepMenu->addAction("LIDAR");
     connect(mStepMenu->actions().last(), SIGNAL(triggered()), mStepSignalMapper, SLOT(map()));
-    mStepSignalMapper->setMapping(mStepMenu->actions().last(), (int)LogTypeLaser);
+    mStepSignalMapper->setMapping(mStepMenu->actions().last(), (int)LogTypeLidar);
 
     mStepMenu->addAction("FlightController");
     connect(mStepMenu->actions().last(), SIGNAL(triggered()), mStepSignalMapper, SLOT(map()));
@@ -62,12 +62,8 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     connect(mSbfParser, SIGNAL(message(LogImportance,QString,QString)), SIGNAL(message(LogImportance,QString,QString)));
     connect(mSbfParser, SIGNAL(newVehiclePose(const Pose* const)), SIGNAL(vehiclePose(const Pose* const)));
     connect(mSbfParser, SIGNAL(newVehiclePoseSensorFuser(const Pose* const)), mSensorFuser, SLOT(slotNewVehiclePose(const Pose* const)));
-    connect(mSbfParser, SIGNAL(processedPacket(qint32,const char*,quint16)), SLOT(slotNewSbfTime(qint32,const char*,quint16)));
+    connect(mSbfParser, SIGNAL(processedPacket(qint32)), SLOT(slotNewSbfTime(qint32)));
     connect(mSbfParser, SIGNAL(scanFinished(const quint32&)), mSensorFuser, SLOT(slotScanFinished(const quint32&)));
-
-    // Actually invoke slotLaserScannerRelativePoseChanged() AFTER our parent
-    // has connected our signals, so the values are propagated to sensorfuser.
-    QTimer::singleShot(1000, this, SLOT(slotLaserScannerRelativePoseChanged()));
 }
 
 LogPlayer::~LogPlayer()
@@ -89,51 +85,57 @@ bool LogPlayer::slotOpenLogFiles()
     mSensorFuser->slotClearData();
     mRelativeLaserPoses.clear();
 
-    QString logFileName;
-    QString fileNameOfNextLogFile;
+    const QString logFileNameIns = QFileDialog::getOpenFileName(this, "Select INS log", QString(), "INS Data (*.ins)");
+    QFileInfo logFileInfo(logFileNameIns);
 
-    logFileName = QFileDialog::getOpenFileName(this, "Select SBF log", QString(), "SBF Data (*.sbf)");
-
-    QFile logFileSbf(logFileName);
-    if(!logFileSbf.open(QIODevice::ReadOnly))
+    QFile logFileIns(logFileNameIns);
+    if(!logFileIns.open(QIODevice::ReadOnly))
     {
-        emit message(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Unable to open SBF log file");
+        emit message(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Unable to open INS log file");
     }
     else
     {
-        emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Reading SBF log file %1...").arg(logFileName));
-        mLogGnss.data = logFileSbf.readAll();
+        emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Reading INS log file %1...").arg(logFileNameIns));
+        mLogIns.data = logFileIns.readAll();
     }
 
-    // We try to open the flightcontroller log. But even if this fails, do not abort, as SBF only is still something we can work with for playing back
-    fileNameOfNextLogFile = fileNameOfNextLogFile.replace("gnssdata.sbf", "flightcontroller.flt");
-    logFileName = QFileDialog::getOpenFileName(this, "Select flightcontroller log", fileNameOfNextLogFile, "Flightcontroller Log Data (*.flt)");
-    QFile logFileFlightController(logFileName);
+    // We try to open the flightcontroller log. But even if this fails, do not abort, as INS only is still something we can work with for playing back
+    QString logFileNameFlightController = QFileDialog::getOpenFileName(
+                this,
+                "Select flightcontroller log",
+                logFileInfo.absoluteFilePath() + "/" + logFileInfo.completeBaseName() + ".flt",
+                "Flightcontroller Log Data (*.flt)");
+
+    QFile logFileFlightController(logFileNameFlightController);
     if(!logFileFlightController.open(QIODevice::ReadOnly))
     {
-        emit message(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Unable to open FlightController log file %1").arg(logFileName));
+        emit message(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Unable to open FlightController log file %1").arg(logFileNameFlightController));
     }
     else
     {
-        emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Reading FlightController log file %1...").arg(logFileName));
+        emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Reading FlightController log file %1...").arg(logFileNameFlightController));
         mLogFlightController.data = logFileFlightController.readAll();
     }
 
     // We try to open the laser logs. But even if this fails, do not abort, as SBF only is still something we can work with for playing back
-    fileNameOfNextLogFile = logFileName.replace("flightcontroller.flt", "scannerdata.lsr");
-    quint32 laserScannerNumber = 0;
+    quint32 lidarNumber = 0;
+    QString logFileNameLidar;
     do
     {
-        const QString fileNameOfNextLaserLog = fileNameOfNextLogFile + QString::number(laserScannerNumber);
-        logFileName = QFileDialog::getOpenFileName(this, "Select laser log", fileNameOfNextLaserLog, QString("Laser Data (*.lsr%1)").arg(laserScannerNumber));
-        QFile logFileLaser(logFileName);
+        logFileNameLidar = QFileDialog::getOpenFileName(
+                    this,
+                    "Select LIDAR log",
+                    logFileInfo.absoluteFilePath() + "/" + logFileInfo.completeBaseName() + QString(".ldr%1").arg(lidarNumber),
+                    QString("LIDAR Data (*.ldr%1)").arg(lidarNumber));
+
+        QFile logFileLaser(logFileNameLidar);
         if(!logFileLaser.open(QIODevice::ReadOnly))
         {
-            emit message(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Unable to open Laser log file %1").arg(logFileName));
+            emit message(Error, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Unable to open LIDAR log file %1").arg(logFileNameLidar));
         }
         else
         {
-            emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Reading Laser log file %1...").arg(logFileName));
+            emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Reading LIDAR log file %1...").arg(logFileNameLidar));
             mLogsLaser.append(new LogData(logFileLaser.readAll()));
 
             // Append a default pose. Maybe overwritten later, using a pose found in a logfile.
@@ -150,8 +152,8 @@ bool LogPlayer::slotOpenLogFiles()
                             )
                         );
         }
-        laserScannerNumber++;
-    } while(!logFileName.isNull());
+        lidarNumber++;
+    } while(!logFileNameLidar.isNull());
 
     slotRewind();
 
@@ -162,7 +164,7 @@ void LogPlayer::slotRewind()
 {
     mTimePlaybackStartReal = QTime(); // set invalid
 
-    mLogGnss.cursor = 0;
+    mLogIns.cursor = 0;
     mLogFlightController.cursor = 0;
     for(int i=0;i<mLogsLaser.size();i++) mLogsLaser.at(i)->cursor = 0;
 
@@ -171,7 +173,7 @@ void LogPlayer::slotRewind()
     getNextDataSource(&towStart);
 
     // Whats the maximum TOW in our data? Set progressbar accordingly
-    const qint32 towStop = std::max(getLastTow(LogTypeGnss), std::max(getLastTow(LogTypeLaser), getLastTow(LogTypeFlightController)));
+    const qint32 towStop = std::max(getLastTow(LogTypeIns), std::max(getLastTow(LogTypeLidar), getLastTow(LogTypeFlightController)));
 
     qDebug() << "LogPlayer::slotRewind(): this file contains data between" << towStart << "and" << towStop << "- length in seconds:" << (towStop - towStart)/1000;
     mProgressBarTow->setRange(towStart, towStop);
@@ -184,23 +186,23 @@ qint32 LogPlayer::getLastTow(const DataSource& source)
     switch(source.type)
     {
 
-    case LogTypeGnss:
+    case LogTypeIns:
     {
         qint32 lastSearchIndex = -1;
 
         // Search backwards as long as we cannot find a valid SBF packe to extract TOW from
         while(lastSearchIndex > -2 && tow < 0)
         {
-            QByteArray lastPacketSbf = mLogGnss.data.right(mLogGnss.data.size() - mLogGnss.data.lastIndexOf("$@", lastSearchIndex));
+            QByteArray lastPacketSbf = mLogIns.data.right(mLogIns.data.size() - mLogIns.data.lastIndexOf("$@", lastSearchIndex));
             mSbfParser->getNextValidPacketInfo(lastPacketSbf, 0, 0, &tow);
 
             // Where to search next if TOW couldn't be extracted
-            lastSearchIndex = mLogGnss.data.size() - lastPacketSbf.size() - 2;
+            lastSearchIndex = mLogIns.data.size() - lastPacketSbf.size() - 2;
         }
     }
     break;
 
-    case LogTypeLaser:
+    case LogTypeLidar:
     {
         // Technically, the laser log also contains RELATIVESCANNERPOSE packets. But these have no TOW
         // and are really unlikely to appear at the end anyway.
@@ -208,7 +210,7 @@ qint32 LogPlayer::getLastTow(const DataSource& source)
         if(source.index != -1)
         {
             // A laserscanner-index is defined, so getLastTow() of THAT scanner.
-            Q_ASSERT(source.index > 0 && source.index < mLogsLaser.size());
+            Q_ASSERT(source.index >= 0 && source.index < mLogsLaser.size());
             const int lastPos = mLogsLaser.at(source.index)->data.lastIndexOf(magic);
 
             if(lastPos != -1)
@@ -271,14 +273,14 @@ qint32 LogPlayer::getNextTow(const DataSource& source)
     switch(source.type)
     {
 
-    case LogTypeGnss:
+    case LogTypeIns:
     {
-        if(!mSbfParser->getNextValidPacketInfo(mLogGnss.data, mLogGnss.cursor, 0, &tow))
+        if(!mSbfParser->getNextValidPacketInfo(mLogIns.data, mLogIns.cursor, 0, &tow))
             tow = -1;
     }
     break;
 
-    case LogTypeLaser:
+    case LogTypeLidar:
     {
         const Data nextPacket = getNextPacket(source);
 
@@ -319,27 +321,17 @@ LogPlayer::Data LogPlayer::getNextPacket(const DataSource& source)
 
     switch(source.type)
     {
-    case LogTypeLaser:
+    case LogTypeLidar:
     {
-        if(source.index != -1)
-        {
-            // A laserscanner-index is defined, so getLastTow() of THAT scanner.
-            Q_ASSERT(source.index > 0 && source.index < mLogsLaser.size());
+        // A laserscanner-index is defined, so getLastTow() of THAT scanner.
+        Q_ASSERT(source.index >= 0 && source.index < mLogsLaser.size());
 
-            // If we have no data, just return an empty Data
-            if(mLogsLaser.at(source.index)->cursor < 0)
-                return result;
+        // If we have no data, just return an empty Data
+        if(mLogsLaser.at(source.index)->cursor < 0)
+            return result;
 
-            result.data = mLogsLaser.at(source.index)->data.data() + mLogsLaser.at(source.index)->cursor;
-            result.size = *((quint16*)mLogsLaser.at(source.index)->data.constData() + mLogsLaser.at(source.index)->cursor + 5);
-
-    //        qDebug() << "laser packet size:" << result.size;
-        }
-        else
-        {
-            // No laserscanner index defined!
-            Q_ASSERT(false);
-        }
+        result.data = mLogsLaser.at(source.index)->data.constData() + mLogsLaser.at(source.index)->cursor;
+        result.size = *((quint16*)(mLogsLaser.at(source.index)->data.constData() + mLogsLaser.at(source.index)->cursor + 5));
     }
     break;
 
@@ -377,28 +369,28 @@ LogPlayer::Data LogPlayer::getNextPacket(const DataSource& source)
 LogPlayer::DataSource LogPlayer::getNextDataSource(qint32* tow)
 {
     // Retrieve TOWs from all devices to figure out who to process next
-    qint32 towSbf, towLaser, towFlightController;
+    qint32 towIns, towLidar, towFlightController;
 
-    towSbf = getNextTow(DataSource(LogTypeGnss));
-    towSbf = towSbf < 0 ? towSbf = INT_MAX : towSbf;
+    towIns = getNextTow(DataSource(LogTypeIns, 0));
+    towIns = towIns < 0 ? towIns = INT_MAX : towIns;
 
     towFlightController = getNextTow(DataSource(LogTypeFlightController));
     towFlightController = towFlightController < 0 ? towFlightController = INT_MAX : towFlightController;
 
-    qint32 towMin = std::min(towSbf, towFlightController);
+    qint32 towMin = std::min(towIns, towFlightController);
 
     quint32 laserWithMinTow = 0;
     for(int i=0;i<mLogsLaser.size();i++)
     {
         // Whats the TOW of Laser i?
-        towLaser = getNextTow(DataSource(LogTypeLaser, i));
-        towLaser = towLaser < 0 ? towLaser = INT_MAX : towLaser;
+        towLidar = getNextTow(DataSource(LogTypeLidar, i));
+        towLidar = towLidar < 0 ? towLidar = INT_MAX : towLidar;
 
         // Make sure we remember the laser with the lowest TOW found
-        if(towLaser < towMin)
+        if(towLidar < towMin)
             laserWithMinTow = i;
 
-        towMin = std::min(towMin, towLaser);
+        towMin = std::min(towMin, towLidar);
     }
 
     if(tow) *tow = towMin == INT_MAX ? -1 : towMin;
@@ -411,9 +403,9 @@ LogPlayer::DataSource LogPlayer::getNextDataSource(qint32* tow)
     {
         return DataSource(LogTypeInvalid);
     }
-    else if(towMin == towSbf)
+    else if(towMin == towIns)
     {
-        return DataSource(LogTypeGnss);
+        return DataSource(LogTypeIns);
     }
     else if(towMin == towFlightController)
     {
@@ -421,7 +413,7 @@ LogPlayer::DataSource LogPlayer::getNextDataSource(qint32* tow)
     }
     else
     {
-        return DataSource(LogTypeLaser, laserWithMinTow);
+        return DataSource(LogTypeLidar, laserWithMinTow);
     }
 
     Q_ASSERT(false && "LogPlayer::getNextDataSource(): illegal state!");
@@ -451,25 +443,25 @@ LogPlayer::DataSource LogPlayer::slotStepForward(DataSource source)
 
     switch(source.type)
     {
-    case LogTypeGnss:
+    case LogTypeIns:
     {
         // process SBF
         //qDebug() << "LogPlayer::slotStepForward(): processing" << tow << "sbf";
 
         // If the mLogGnss.data.at(mIndexSbf) doesn't start with $@, we need to search for a SYNC!
         quint32 offsetToValidPacket;
-        mSbfParser->getNextValidPacketInfo(mLogGnss.data, mLogGnss.cursor, &offsetToValidPacket);
-        if(mLogGnss.cursor != offsetToValidPacket && offsetToValidPacket - mLogGnss.cursor != 4)
+        mSbfParser->getNextValidPacketInfo(mLogIns.data, mLogIns.cursor, &offsetToValidPacket);
+        if(mLogIns.cursor != offsetToValidPacket)
         {
-            qDebug() << __PRETTY_FUNCTION__ << "sbf should've started at" << mLogGnss.cursor << "- but did start at" << offsetToValidPacket << "- fixing!";
-            mLogGnss.cursor = offsetToValidPacket;
+            //qDebug() << __PRETTY_FUNCTION__ << "sbf should've started at" << mLogIns.cursor << "- but did start at" << offsetToValidPacket << "- fixing!";
+            mLogIns.cursor = offsetToValidPacket;
         }
 
-        mLogGnss.cursor += mSbfParser->processNextValidPacket(mLogGnss.data, mLogGnss.cursor);
+        mLogIns.cursor += mSbfParser->processNextValidPacket(mLogIns.data, mLogIns.cursor);
     }
     break;
 
-    case LogTypeLaser:
+    case LogTypeLidar:
     {
         // Process laser data. The source.index must be correct!
         Data packet = getNextPacket(source);
@@ -506,7 +498,7 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const LogPlay
 {
     switch(source.type)
     {
-    case LogTypeLaser:
+    case LogTypeLidar:
     {
         qint32 tow = 0;
 
@@ -535,7 +527,7 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const LogPlay
                         rayBytes
                         );
 
-            emit newRayData(&mRelativeLaserPoses[source.index], tow, data);
+            emit rayData(&mRelativeLaserPoses[source.index], tow, data);
             mSensorFuser->slotNewScanData(tow, &mRelativeLaserPoses[source.index], data);
 
         }
@@ -666,7 +658,7 @@ void LogPlayer::slotPlay()
     }
 }
 
-void LogPlayer::slotNewSbfTime(const qint32 tow,const char*,quint16)
+void LogPlayer::slotNewSbfTime(const qint32 tow)
 {
     mProgressBarTow->setFormat("TOW %v G");
     mProgressBarTow->setValue(tow);
@@ -693,13 +685,13 @@ void LogPlayer::slotGoToTow(qint32 towTarget)
     // We want to point all data-cursors to the first packet with TOW >= towTarget.
 
     // First, do SBF:
-    qint32 indexSbf = mLogGnss.data.size() / 2;
+    qint32 indexSbf = mLogIns.data.size() / 2;
     qint32 stepSize = indexSbf / 2;
     qint32 tow0 = -1, tow1 = -1, tow2 = -1;
     qDebug() << "LogPlayer::slotGoToTow(): towTgt is" << towTarget;
-    while(mSbfParser->getNextValidPacketInfo(mLogGnss.data, indexSbf, 0, &tow0))
+    while(mSbfParser->getNextValidPacketInfo(mLogIns.data, indexSbf, 0, &tow0))
     {
-        qDebug() << "LogPlayer::slotGoToTow(): stepsize is" << stepSize << "indexSbf is" << indexSbf << "of" << mLogGnss.data.size();
+        qDebug() << "LogPlayer::slotGoToTow(): stepsize is" << stepSize << "indexSbf is" << indexSbf << "of" << mLogIns.data.size();
 
         // We're done if we reached the target tow OR the tow doesn't change anymore OR we toggle between tow TOWs
         if(tow0 == towTarget || (tow1 != tow0 && tow0 == tow2))
@@ -710,12 +702,12 @@ void LogPlayer::slotGoToTow(qint32 towTarget)
         if(tow0 > towTarget)
         {
             qDebug() << "LogPlayer::slotGoToTow(): back, towSbf is" << tow0;
-            indexSbf = qBound(0, indexSbf - stepSize, mLogGnss.data.size());
+            indexSbf = qBound(0, indexSbf - stepSize, mLogIns.data.size());
         }
         else if(tow0 < towTarget)
         {
             qDebug() << "LogPlayer::slotGoToTow(): frwd, towSbf is" << tow0;
-            indexSbf = qBound(0, indexSbf + stepSize, mLogGnss.data.size());
+            indexSbf = qBound(0, indexSbf + stepSize, mLogIns.data.size());
         }
 
         tow2 = tow1;
@@ -725,8 +717,8 @@ void LogPlayer::slotGoToTow(qint32 towTarget)
         stepSize = std::max(16, stepSize/2);
     }
 
-    mLogGnss.cursor = indexSbf;
-    mSbfParser->getNextValidPacketInfo(mLogGnss.data, mLogGnss.cursor, 0, &tow0);
+    mLogIns.cursor = indexSbf;
+    mSbfParser->getNextValidPacketInfo(mLogIns.data, mLogIns.cursor, 0, &tow0);
     qDebug() << "LogPlayer::slotGoToTow(): SBF: reached TOW" << tow0 << ", targeted was" << towTarget;
 
     // LASER
@@ -738,7 +730,7 @@ void LogPlayer::slotGoToTow(qint32 towTarget)
         tow0 = 0; tow1 = 0; tow2 = 0;
         while(tow0 >= 0)
         {
-            tow0 = getNextTow(LogTypeLaser);
+            tow0 = getNextTow(LogTypeLidar);
 
             // We're done if
             // - we reached the target tow
@@ -842,8 +834,8 @@ void LogPlayer::slotStepDataSourceChanged(const int logType)
 
     switch(mStepUntilLogType)
     {
-        case LogTypeGnss: ui->mPushButtonStepForward->setText("Step/G"); break;
-        case LogTypeLaser: ui->mPushButtonStepForward->setText("Step/L"); break;
+        case LogTypeIns: ui->mPushButtonStepForward->setText("Step/G"); break;
+        case LogTypeLidar: ui->mPushButtonStepForward->setText("Step/L"); break;
         case LogTypeFlightController: ui->mPushButtonStepForward->setText("Step/F"); break;
         case LogTypeInvalid: ui->mPushButtonStepForward->setText("Step/A"); break;
     }

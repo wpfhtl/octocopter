@@ -24,8 +24,8 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
 {
     qDebug() << "GnssDevice::GnssDevice(): Using usb port" << serialDeviceFileUsb << "and com port" << serialDeviceFileCom;
 
-    mLogFileSbf = new LogFile(logFilePrefix + QString("gnssdata.sbf"), LogFile::Encoding::Binary);
-    mLogFileCmd = new LogFile(logFilePrefix + QString("gnsscommands.txt"), LogFile::Encoding::Text);
+    mLogFileSbf = new LogFile(logFilePrefix + QString(".ins"), LogFile::Encoding::Binary);
+    mLogFileCmd = new LogFile(logFilePrefix + QString(".inscmd"), LogFile::Encoding::Text);
 
     mSbfParser = new SbfParser;
     // If our SBF parser has a question to the device, forward it.

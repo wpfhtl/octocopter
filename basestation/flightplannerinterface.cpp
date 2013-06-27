@@ -319,6 +319,12 @@ void FlightPlannerInterface::slotVisualize()
                 i.next();
                 WayPointList *wpl = i.value();
 
+                if(wpl->list()->size() == 0)
+                {
+                    qDebug() << __PRETTY_FUNCTION__ << "waypointlist" << i.key() << "is empty, not drawing...";
+                    continue;
+                }
+
                 mShaderProgramDefault->setUniformValue("fixedColor",
                                                        QVector4D(
                                                            wpl->color().redF(),

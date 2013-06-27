@@ -17,7 +17,7 @@ MessageHandler::MessageHandler(const QString& logFilePrefix)
     std::cout.imbue(*mLocale);
     std::cout << std::setprecision(3) << std::fixed;
 
-    mMasterLogFile = new LogFile(logFilePrefix + QString("console.txt"), LogFile::Encoding::Text);
+    mMasterLogFile = new LogFile(logFilePrefix + QString(".txt"), LogFile::Encoding::Text);
     mMasterLogStream = new QTextStream(mLogMessage);
 
     // To get a thousand group separator of "."

@@ -67,7 +67,7 @@ signals:
 
 private slots:
     void slotShowUserInterface();
-    void slotGenerateWaypoints(quint32 numberOfWaypointsToGenerate = 4);
+    void slotGenerateWaypoints(quint32 numberOfWaypointsToGenerate = 1);
     void slotDenseCloudInsertedPoints(PointCloud*const pointCloudSource, const quint32& firstPointToReadFromSrc, quint32 numberOfPointsToCopy);
 
     // checks waypoint pressure and if higher than threshold, cals slotGenerateWaypoints();

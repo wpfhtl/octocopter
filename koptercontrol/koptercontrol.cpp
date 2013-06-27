@@ -45,11 +45,11 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
         qFatal("KopterControl::KopterControl(): couldn't create log/ subdirectory, please do it for me!");
 
     // Create a logfile-prefix
-    QString logFilePrefix = QString("log/kopterlog-%1-%2-")
+    QString logFilePrefix = QString("log/kopterlog-%1-%2")
             .arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss"))
             .arg(QString::number(QCoreApplication::applicationPid()));
     const QStringList args = QCoreApplication::arguments();
-    if(args.size() == 2) logFilePrefix.append(QString("%1-").arg(args.last()));
+    if(args.size() == 2) logFilePrefix.append(QString("-%1").arg(args.last()));
     qDebug() << "KopterControl::KopterControl(): logfile prefix is" << logFilePrefix;
 
     mMessageHandler = new MessageHandler(logFilePrefix);
