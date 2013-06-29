@@ -14,7 +14,7 @@ class PointCloud : public QObject, public QOpenGLFunctions_4_3_Core
 {
     Q_OBJECT
 protected:
-    QVector3D mBBoxMin, mBBoxMax;
+//    QVector3D mBBoxMin, mBBoxMax;
     bool mAcceptPointsOutsideBoundingBox;
 
 public:
@@ -51,12 +51,12 @@ public:
     PointCloud(const QVector3D &min, const QVector3D &max);
     ~PointCloud();
 
-    const QVector3D& getBoundingBoxMin() const { return mBBoxMin; }
-    const QVector3D& getBoundingBoxMax() const { return mBBoxMax; }
+//    const QVector3D& getBoundingBoxMin() const { return mBBoxMin; }
+//    const QVector3D& getBoundingBoxMax() const { return mBBoxMax; }
 
-    virtual void setBoundingBox(const QVector3D& min, const QVector3D& max) = 0;
+//    virtual void setBoundingBox(const QVector3D& min, const QVector3D& max) = 0;
 
-    QVector3D getWorldSize() const { return mBBoxMax - mBBoxMin; }
+
 
     virtual const QVector<VboInfo>& getVboInfo() const = 0;
 

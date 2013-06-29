@@ -13,6 +13,7 @@ ParticleRenderer::ParticleRenderer()
     mRenderBoundingBox = true;
     mRenderParticles = false;
     mRenderWaypointPressure = false;
+    mRenderOccupancyGrid = false;
 
     mParticleRadius = 0.0f;
     mNumberOfParticles = 0;
@@ -47,13 +48,22 @@ void ParticleRenderer::slotSetVboInfoParticles(const quint32 vboPositions, const
     qDebug() << "ParticleRenderer::slotSetVboInfoParticles(): will render VBO pos" << mVboParticlePositions << "color" << mVboParticleColors << "containing" << mNumberOfParticles << "particles";
 }
 
-void ParticleRenderer::slotSetVboInfoGridWaypointPressure(const quint32 vboPressure, const QVector3D &gridBoundingBoxMin, const QVector3D &gridBoundingBoxMax, const Vector3i &grid)
+void ParticleRenderer::slotSetVboInfoGridWaypointPressure(const quint32 vboPressure, const QVector3D &gridBoundingBoxMin, const QVector3D &gridBoundingBoxMax, const Vector3i &gridCells)
 {
     mVboGridMapOfWayPointPressure = vboPressure;
-    mWaypointGridMin = gridBoundingBoxMin;
-    mWaypointGridMax = gridBoundingBoxMax;
-    mGridCellCount = grid;
+    mGridWaypointPressureMin = gridBoundingBoxMin;
+    mGridWaypointPressureMax = gridBoundingBoxMax;
+    mGridWaypointPressureCellCount = gridCells;
 //    qDebug() << "ParticleRenderer::slotSetVboInfoGridWaypointPressure(): will render VBO pos" << mVboGridMapOfWayPointPressure << "with" << grid.x << grid.y << grid.z << "cells from" << mGridBoundingBoxMin << "to" << mGridBoundingBoxMax;
+}
+
+void ParticleRenderer::slotSetVboInfoGridOccupancy(const quint32 vbo, const QVector3D &gridBoundingBoxMin, const QVector3D &gridBoundingBoxMax, const Vector3i &gridCells)
+{
+    mVboGridMapOfOccupancy = vbo;
+    mGridOccupancyMin = gridBoundingBoxMin;
+    mGridOccupancyMax = gridBoundingBoxMax;
+    mGridOccupancyCellCount = gridCells;
+    qDebug() << "ParticleRenderer::slotSetVboInfoGridWaypointPressure(): will render VBO pos" << mVboGridMapOfOccupancy << "with" << gridCells.x << gridCells.y << gridCells.z << "cells from" << mGridOccupancyMin << "to" << mGridOccupancyMax;
 }
 
 void ParticleRenderer::render()
@@ -137,40 +147,82 @@ void ParticleRenderer::render()
 
     }
 
+    // Render information gain
     if(mVboGridMapOfWayPointPressure != 0 && mRenderWaypointPressure)
     {
         // Draw grid with waypoint pressure
         mShaderProgramGrid->bind();
 
+        mShaderProgramGrid->setUniformValue("fixedColor", QColor(255,0,0));
+        // If we have a value of (quint8)1, that'll be 1/255=0.004 in the shader's float. Amplify this?
+        mShaderProgramGrid->setUniformValue("alphaAmplification", 10.0f);
+
         // Set uniform values in the shader program
         Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMin") != -1);
-        mShaderProgramGrid->setUniformValue("boundingBoxMin", mWaypointGridMin);
+        mShaderProgramGrid->setUniformValue("boundingBoxMin", mGridWaypointPressureMin);
 
         Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMax") != -1);
-        mShaderProgramGrid->setUniformValue("boundingBoxMax", mWaypointGridMax);
-
-//        qDebug() << "bbox from" << mGridBoundingBoxMin << "to" << mGridBoundingBoxMax;
+        mShaderProgramGrid->setUniformValue("boundingBoxMax", mGridWaypointPressureMax);
 
         // gridSize is a uint3, not sure how to set this with qt, so lets do opengl:
         Q_ASSERT(mShaderProgramGrid->uniformLocation("gridCellCount") != -1);
         //mShaderProgramGrid->setUniformValue("gridCellCount", mGridCells);
-        glUniform3i(mShaderProgramGrid->uniformLocation("gridCellCount"), mGridCellCount.x, mGridCellCount.y, mGridCellCount.z);
+        glUniform3i(mShaderProgramGrid->uniformLocation("gridCellCount"), mGridWaypointPressureCellCount.x, mGridWaypointPressureCellCount.y, mGridWaypointPressureCellCount.z);
 
         // Make the contents of this array available at layout position vertexShaderVertexIndex in the vertex shader
         glBindBuffer(GL_ARRAY_BUFFER, mVboGridMapOfWayPointPressure);
-        Q_ASSERT(mShaderProgramGrid->attributeLocation("in_waypointpressure") != -1);
-        //glEnableVertexAttribArray(mShaderProgramGrid->uniformLocation("in_waypointpressure"));
-        mShaderProgramGrid->enableAttributeArray("in_waypointpressure");
-        glVertexAttribPointer(mShaderProgramGrid->attributeLocation("in_waypointpressure"), 1, GL_UNSIGNED_BYTE, GL_TRUE, 0, 0);
+        Q_ASSERT(mShaderProgramGrid->attributeLocation("in_cellvalue") != -1);
+        //glEnableVertexAttribArray(mShaderProgramGrid->uniformLocation("in_cellvalue"));
+        mShaderProgramGrid->enableAttributeArray("in_cellvalue");
+        glVertexAttribPointer(mShaderProgramGrid->attributeLocation("in_cellvalue"), 1, GL_UNSIGNED_BYTE, GL_TRUE, 0, 0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         // Draw using shaders
-        glDrawArrays(GL_POINTS, 0, mGridCellCount.x * mGridCellCount.y * mGridCellCount.z);
+        glDrawArrays(GL_POINTS, 0, mGridWaypointPressureCellCount.x * mGridWaypointPressureCellCount.y * mGridWaypointPressureCellCount.z);
 
-        glDisableVertexAttribArray(mShaderProgramGrid->attributeLocation("in_waypointpressure"));
+        glDisableVertexAttribArray(mShaderProgramGrid->attributeLocation("in_cellvalue"));
 
         mShaderProgramGrid->release();
     }
+
+    // Render occupancy grid
+    if(mVboGridMapOfOccupancy != 0 && mRenderOccupancyGrid)
+    {
+        // Draw grid with waypoint pressure
+        mShaderProgramGrid->bind();
+
+        mShaderProgramGrid->setUniformValue("fixedColor", QColor(255,255,0));
+        // If we have a value of (quint8)1, that'll be 1/255=0.004 in the shader's float. Amplify this?
+        mShaderProgramGrid->setUniformValue("alphaAmplification", 1.0f);
+
+        // Set uniform values in the shader program
+        Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMin") != -1);
+        mShaderProgramGrid->setUniformValue("boundingBoxMin", mGridOccupancyMin);
+
+        Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMax") != -1);
+        mShaderProgramGrid->setUniformValue("boundingBoxMax", mGridOccupancyMax);
+
+        // gridSize is a uint3, not sure how to set this with qt, so lets do opengl:
+        Q_ASSERT(mShaderProgramGrid->uniformLocation("gridCellCount") != -1);
+        //mShaderProgramGrid->setUniformValue("gridCellCount", mGridCells);
+        glUniform3i(mShaderProgramGrid->uniformLocation("gridCellCount"), mGridOccupancyCellCount.x, mGridOccupancyCellCount.y, mGridOccupancyCellCount.z);
+
+        // Make the contents of this array available at layout position vertexShaderVertexIndex in the vertex shader
+        glBindBuffer(GL_ARRAY_BUFFER, mVboGridMapOfOccupancy);
+        Q_ASSERT(mShaderProgramGrid->attributeLocation("in_cellvalue") != -1);
+        //glEnableVertexAttribArray(mShaderProgramGrid->uniformLocation("in_cellvalue"));
+        mShaderProgramGrid->enableAttributeArray("in_cellvalue");
+        glVertexAttribPointer(mShaderProgramGrid->attributeLocation("in_cellvalue"), 1, GL_UNSIGNED_BYTE, GL_TRUE, 0, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        // Draw using shaders
+        glDrawArrays(GL_POINTS, 0, mGridOccupancyCellCount.x * mGridOccupancyCellCount.y * mGridOccupancyCellCount.z);
+
+        glDisableVertexAttribArray(mShaderProgramGrid->attributeLocation("in_cellvalue"));
+
+        mShaderProgramGrid->release();
+    }
+
 
     glDisable(GL_BLEND);
 }

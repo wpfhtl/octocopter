@@ -6,7 +6,7 @@ layout(max_vertices = 4) out;
 
 out vec4 colorGS_to_FS;
 //out vec2 texureCoordinate;
-in float waypointpressure[];
+in float cellvalue[];
 in int gl_PrimitiveIDIn; // the current primitive (=cell) id
 
 // We use a uniform buffer object to store things that multiple shaders need.
@@ -24,6 +24,9 @@ layout(std140) uniform GlobalValues
 uniform vec3 boundingBoxMin;
 uniform vec3 boundingBoxMax;
 uniform ivec3 gridCellCount;
+
+uniform vec4 fixedColor;
+uniform float alphaAmplification;
 
 void main()
 {
@@ -61,22 +64,24 @@ void main()
     vec3 right = normalize(-cross(toCamera, upWorld)) * waypointIndicatorRadius;
     vec3 up = normalize(cross(toCamera, normalize(-right))) * waypointIndicatorRadius;
 
-    float alpha = min(1.0, waypointpressure[0] * 10);
-    //if(waypointpressure[0] > 0) alpha = 1.0;
+    float alpha = min(1.0, cellvalue[0] * alphaAmplification);
+    //if(cellvalue[0] > 0) alpha = 1.0;
+    vec4 outColor = fixedColor;
+    outColor.a = alpha;
 
     // bottom left
     posCenterOfCell -= right;
     posCenterOfCell -= up;
     gl_Position = matModelViewProjection * vec4(posCenterOfCell, 1.0);
     //texureCoordinate = vec2(-1.0, -1.0);
-    colorGS_to_FS = vec4(1.0, 0.0, 0.0, alpha);
+    colorGS_to_FS = outColor;
     EmitVertex();
 
     // top left
     posCenterOfCell += up*2;
     gl_Position = matModelViewProjection * vec4(posCenterOfCell, 1.0);
     //texureCoordinate = vec2(-1.0, 1.0);
-    colorGS_to_FS = vec4(1.0, 0.0, 0.0, alpha);
+    colorGS_to_FS = outColor;
     EmitVertex();
 
     // bottom right
@@ -84,14 +89,14 @@ void main()
     posCenterOfCell += right * 2;
     gl_Position = matModelViewProjection * vec4(posCenterOfCell, 1.0);
     //texureCoordinate = vec2(1.0, -1.0);
-    colorGS_to_FS = vec4(1.0, 0.0, 0.0, alpha);
+    colorGS_to_FS = outColor;
     EmitVertex();
 
     // top right
     posCenterOfCell += up*2;
     gl_Position = matModelViewProjection * vec4(posCenterOfCell, 1.0);
     //texureCoordinate = vec2(1.0, 1.0);
-    colorGS_to_FS = vec4(1.0, 0.0, 0.0, alpha);
+    colorGS_to_FS = outColor;
     EmitVertex();
 
     EndPrimitive();

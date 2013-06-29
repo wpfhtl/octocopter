@@ -1,6 +1,7 @@
 #include "pathplanner.h"
 
 #include <cuda_runtime_api.h>
+#include <openglutilities.h>
 #include "cudahelper.h"
 #include "cudahelper.cuh"
 
@@ -11,19 +12,29 @@ PathPlanner::PathPlanner(QObject *parent) :
 {
     mPointCloudColliders = 0;
 
-    mPointCloudCollidersChanged = true;
+    mRepopulateOccupanccyGrid = true;
 
-    mParametersPathPlanner.grid.cells.x = mParametersPathPlanner.grid.cells.y = mParametersPathPlanner.grid.cells.z = 64;
+    mParametersPathPlanner.grid.cells.x = mParametersPathPlanner.grid.cells.y = mParametersPathPlanner.grid.cells.z = 32;
 
     mHostWaypoints = 0;
 }
 
 PathPlanner::~PathPlanner()
 {
-    cudaSafeCall(cudaFree(mDeviceOccupancyGrid));
+    OpenGlUtilities::deleteVbo(mVboGridOccupancy);
     cudaSafeCall(cudaFree(mDeviceWaypoints));
     delete mHostWaypoints;
 }
+
+/* this info is taken from collidercloud. makes sense to sync it!
+void PathPlanner::slotSetVolume(const QVector3D& min, const QVector3D& max)
+{
+    qDebug() << __PRETTY_FUNCTION__ << "min" << min << "max" << max;
+    mParametersPathPlanner.grid.worldMin = CudaHelper::cudaConvert(min);
+    mParametersPathPlanner.grid.worldMax = CudaHelper::cudaConvert(max);
+    mRepopulateOccupanccyGrid = true;
+}*/
+
 
 void PathPlanner::slotInitialize()
 {
@@ -31,12 +42,21 @@ void PathPlanner::slotInitialize()
 
     const quint32 numberOfCells = mParametersPathPlanner.grid.cells.x * mParametersPathPlanner.grid.cells.y * mParametersPathPlanner.grid.cells.z;
 
-    cudaSafeCall(cudaMalloc((void**)&mDeviceOccupancyGrid, numberOfCells * sizeof(char)));
+    mVboGridOccupancy = OpenGlUtilities::createVbo(numberOfCells * sizeof(char));
+    cudaSafeCall(cudaGraphicsGLRegisterBuffer(&mCudaVboResourceGridOccupancy, mVboGridOccupancy, cudaGraphicsMapFlagsNone));
+
     cudaSafeCall(cudaMalloc((void**)&mDeviceWaypoints, mMaxWaypoints * 4 * sizeof(float)));
 
     cudaSafeCall(cudaStreamCreate(&mCudaStream));
 
     mHostWaypoints = new float[mMaxWaypoints * 4];
+
+    emit vboInfoGridOccupancy(
+                mVboGridOccupancy,
+                QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
+                QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z),
+                Vector3i(mParametersPathPlanner.grid.cells.x, mParametersPathPlanner.grid.cells.y, mParametersPathPlanner.grid.cells.z)
+                );
 }
 
 
@@ -48,13 +68,15 @@ void PathPlanner::slotSetPointCloudColliders(PointCloudCuda* const pcd)
 
 void PathPlanner::slotColliderCloudInsertedPoints()
 {
-    mPointCloudCollidersChanged = true;
+    mRepopulateOccupanccyGrid = true;
 }
 
 void PathPlanner::slotRequestPath(const QVector3D& start, const QVector3D& goal)
 {
     mParametersPathPlanner.start = CudaHelper::cudaConvert(start);
-    mParametersPathPlanner.goal = CudaHelper::cudaConvert(goal);
+    mParametersPathPlanner.goal = CudaHelper::cudaConvert(goal + QVector3D(0,3,0));
+
+    qDebug() << __PRETTY_FUNCTION__ << "computing path from" << CudaHelper::cudaConvert(mParametersPathPlanner.start) << "to" << CudaHelper::cudaConvert(mParametersPathPlanner.goal);
 
     /* threading is hard, as we have no control over mapping the VBO for grid population. I tmight be used for rendering in another thread!
     if(mFuture.isRunning())
@@ -86,25 +108,51 @@ void PathPlanner::slotComputePathOnGpu()
     // This is executed often, so that all cells reachable from start get filled with the
     // distance TO start
 
+    // If the collider cloud's grid changed, copy the grid dimensions (not resolution) and repopulate
+    if(! mParametersPathPlanner.grid.hasSameExtents(mPointCloudColliders->getGrid()))
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "following collider cloud from current"
+                 << CudaHelper::cudaConvert(mParametersPathPlanner.grid.worldMin)
+                 << CudaHelper::cudaConvert(mParametersPathPlanner.grid.worldMin)
+                 << "to"
+                 << CudaHelper::cudaConvert(mPointCloudColliders->getGrid().worldMin)
+                 << CudaHelper::cudaConvert(mPointCloudColliders->getGrid().worldMax);
+
+        mParametersPathPlanner.grid.worldMin = mPointCloudColliders->getGrid().worldMin;
+        mParametersPathPlanner.grid.worldMax = mPointCloudColliders->getGrid().worldMax;
+        mRepopulateOccupanccyGrid = true;
+
+        emit vboInfoGridOccupancy(
+                    mVboGridOccupancy,
+                    QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
+                    QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z),
+                    Vector3i(mParametersPathPlanner.grid.cells.x, mParametersPathPlanner.grid.cells.y, mParametersPathPlanner.grid.cells.z)
+                    );
+    }
+
     copyParametersToGpu(&mParametersPathPlanner);
 
     // Get a pointer to the particle positions in the device by mapping GPU mem into CPU mem
     float *colliderPos = (float*)CudaHelper::mapGLBufferObject(mPointCloudColliders->getCudaGraphicsResource());
+    quint8* grid = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridOccupancy);
 
-    // Only re-create the occupancy grid if the collider cloud changed
-    if(mPointCloudCollidersChanged)
+    // Only re-create the occupancy grid if the collider cloud's content changed
+    if(true || mRepopulateOccupanccyGrid) // always populate, because computePath screws up the occupancy grid!
     {
-        fillOccupancyGrid(mDeviceOccupancyGrid, colliderPos, mPointCloudColliders->getNumberOfPoints(), mParametersPathPlanner.grid.getCellCount(), &mCudaStream);
-        mPointCloudCollidersChanged = false;
+        fillOccupancyGrid(grid, colliderPos, mPointCloudColliders->getNumberOfPoints(), mParametersPathPlanner.grid.getCellCount(), &mCudaStream);
+        mRepopulateOccupanccyGrid = false;
     }
 
     // Now that the occupancy grid is filled, start path planning.
     computePath(
-                mDeviceOccupancyGrid,
+                grid,
                 mParametersPathPlanner.grid.getCellCount(),
                 mDeviceWaypoints,
                 &mCudaStream);
 
+    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridOccupancy, 0);
+
+    qDebug() << mMaxWaypoints;
     cudaMemcpy(
                 (void*)mHostWaypoints,
                 (void*)mDeviceWaypoints,

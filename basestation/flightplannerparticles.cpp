@@ -72,6 +72,13 @@ void FlightPlannerParticles::slotInitialize()
     connect(mParticleSystem, SIGNAL(vboInfoParticles(quint32,quint32,quint32,QVector3D,QVector3D)), mParticleRenderer, SLOT(slotSetVboInfoParticles(quint32,quint32,quint32,QVector3D,QVector3D)));
 
     connect(
+                mPathPlanner,
+                SIGNAL(vboInfoGridOccupancy(quint32,QVector3D,QVector3D,Vector3i)),
+                mParticleRenderer,
+                SLOT(slotSetVboInfoGridOccupancy(quint32,QVector3D,QVector3D,Vector3i))
+                );
+
+    connect(
                 this,
                 SIGNAL(vboInfoGridWaypointPressure(quint32,QVector3D,QVector3D,Vector3i)),
                 mParticleRenderer,
@@ -89,7 +96,12 @@ void FlightPlannerParticles::slotInitialize()
     mParticleSystem->slotSetParticleRadius(1.0f/2.0f); // balance against mOctreeCollisionObjects.setMinimumPointDistance() above
     mParticleSystem->slotSetDefaultParticlePlacement(ParticleSystem::ParticlePlacement::PlacementFillSky);
 
-    connect(mDialog, SIGNAL(deleteWayPoints()), SLOT(slotWayPointsClear()));
+    connect(mDialog, &FlightPlannerParticlesDialog::deleteWayPoints, [=](){
+        QList<WayPoint> wl;
+        slotSetWayPoints(&wl, WayPointListSource::WayPointListSourceFlightPlanner);
+        });
+
+
     connect(mDialog, SIGNAL(generateWayPoints()), SLOT(slotGenerateWaypoints()));
     connect(mDialog, SIGNAL(resetParticles()), mParticleSystem, SLOT(slotResetParticles()));
     connect(mDialog, SIGNAL(resetWaypointPressure()), SLOT(slotClearGridWayPointPressure()));
@@ -98,6 +110,7 @@ void FlightPlannerParticles::slotInitialize()
 //    connect(mDialog, SIGNAL(processPhysicsChanged(bool)), SLOT(slotProcessPhysics(bool)));
     connect(mDialog, SIGNAL(showParticlesChanged(bool)), mParticleRenderer, SLOT(slotSetRenderParticles(bool)));
     connect(mDialog, SIGNAL(showWaypointPressureChanged(bool)), mParticleRenderer, SLOT(slotSetRenderWaypointPressure(bool)));
+    connect(mDialog, SIGNAL(showOccupancyGridChanged(bool)), mParticleRenderer, SLOT(slotSetRenderOccupancyGrid(bool)));
 
     // PathPlanner needs ColliderCloud to initialize!
     mPathPlanner->slotSetPointCloudColliders(mPointCloudColliders);
@@ -140,7 +153,7 @@ void FlightPlannerParticles::slotGenerateWaypoints(quint32 numberOfWaypointsToGe
     }
 
     const quint32 numberOfCells = mSimulationParameters.gridWaypointPressure.getCellCount();
-    QVector<QVector4D> waypoints(std::min((quint32)20, numberOfCells));
+    QVector<QVector4D> waypoints(std::min((quint32)200, numberOfCells));
 
     // Copy waypoint pressure from VBO into mDeviceGridMapWayPointPressureSorted
     quint8* gridMapOfWayPointPressure = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridMapOfWayPointPressure);
@@ -278,6 +291,7 @@ void FlightPlannerParticles::slotVisualize()
 
 void FlightPlannerParticles::slotSetScanVolume(const QVector3D min, const QVector3D max)
 {
+    qDebug() << __PRETTY_FUNCTION__ << "min" << min << "max" << max;
     // We're being told to change the scan-volume - this is NOT the particle system' world's volume!
     slotClearGridWayPointPressure();
 
@@ -333,7 +347,7 @@ void FlightPlannerParticles::slotVehiclePoseChanged(const Pose* const pose)
     // Move the particlesystem with the vehicle if so desired and the vehicle moved X meters
     const QVector3D pos = pose->getPosition();
 
-    if(mDialog->processPhysics() && mParticleSystem && mDialog->followVehicle() && pos.distanceToLine(mLastParticleSystemPositionToFollowVehicle, QVector3D()) > 20.0)
+    if(mParticleSystem && mDialog->followVehicle() && pos.distanceToLine(mLastParticleSystemPositionToFollowVehicle, QVector3D()) > 20.0)
     {
         qDebug() << "FlightPlannerParticles::slotVehiclePoseChanged(): vehicle moved far enough, moving particle system...";
         mLastParticleSystemPositionToFollowVehicle = pos;
@@ -351,8 +365,7 @@ void FlightPlannerParticles::slotVehiclePoseChanged(const Pose* const pose)
         const Box3D particleSystemInScanVolume = desiredParticleSystemExtents.tryToKeepWithin(scanVolume);
 
         mParticleSystem->slotSetVolume(particleSystemInScanVolume.min, particleSystemInScanVolume.max);
-
-//        mParticleSystem->slotResetParticles();
+        //mParticleSystem->slotResetParticles();
     }
 
     // check for collisions?!

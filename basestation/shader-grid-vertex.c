@@ -1,9 +1,11 @@
 #version 420
 
 // use glEnableVertexAttribArray(0) and glVertexAttribPointer(0, ...) to define this input data
-layout(location = 0) in float in_waypointpressure;
+layout(location = 0) in float in_cellvalue;
+// use glEnableVertexAttribArray(1) and glVertexAttribPointer(1, ...) to define this input data
+//layout(location = 1) in vec4 in_color;
 
-out float waypointpressure;
+out float cellvalue;
 //out vec4 color;
 
 // We use a uniform buffer object to store things that multiple shaders need.
@@ -21,7 +23,6 @@ layout(std140) uniform GlobalValues
 void main()
 {
     //color = in_color;
-
     gl_Position = vec4(0,0,0,0);
-    waypointpressure = in_waypointpressure;
+    cellvalue = in_cellvalue;
 }

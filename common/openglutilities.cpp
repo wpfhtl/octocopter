@@ -22,6 +22,11 @@ quint32 OpenGlUtilities::createVbo(quint32 size)
     return vbo;
 }
 
+void OpenGlUtilities::deleteVbo(GLuint vbo)
+{
+    mGlFunctions->glDeleteBuffers(1, &vbo);
+}
+
 
 void OpenGlUtilities::setVboToBoundingBox(const quint32 vbo, const QVector3D& min, const QVector3D& max)
 {

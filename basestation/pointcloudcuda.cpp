@@ -331,6 +331,9 @@ quint32 PointCloudCuda::reducePoints(float* devicePoints, const quint32 numEleme
 
 //    checkCudaSuccess("PointCloudCuda::reducePoints(): CUDA error before reduction");
 
+    float3 originalMin = mParameters.grid.worldMin;
+    float3 originalMax = mParameters.grid.worldMax;
+
     if(createBoundingBox)
     {
         // Determine bounding-box of given points
@@ -405,8 +408,8 @@ quint32 PointCloudCuda::reducePoints(float* devicePoints, const quint32 numEleme
     if(createBoundingBox)
     {
         // Re-set the bounding box back to the whole pointcloud, not just the queued points
-        mParameters.grid.worldMin = make_float3(mBBoxMin.x(), mBBoxMin.y(), mBBoxMin.z());
-        mParameters.grid.worldMax = make_float3(mBBoxMax.x(), mBBoxMax.y(), mBBoxMax.z());
+        mParameters.grid.worldMin = originalMin;
+        mParameters.grid.worldMax = originalMax;
     }
 
     return remainingElements;

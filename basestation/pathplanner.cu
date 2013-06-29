@@ -57,10 +57,9 @@ void fillOccupancyGrid(unsigned char* gridValues, float* colliderPos, unsigned i
 
 
 __device__
-void growCellsD(unsigned char* gridValues, unsigned int numCells)
+void growCellsD(u_int8_t* gridValues, uint numCells, uint cellIndex)
 {
-    uint cellIndex = getThreadIndex1D();
-    if (cellIndex >= numCells) return;
+    if(cellIndex >= numCells) return;
 
     // get grid-cell of particle
     int3 threadGridCellCoordinate = parametersPathPlanner.grid.getCellCoordinate(cellIndex);
@@ -71,47 +70,34 @@ void growCellsD(unsigned char* gridValues, unsigned int numCells)
     // When growing, we do not use the 26 3d-neighbors, but only 6 (up/down, left/right, front/back).
     // This means that we do not grow diagonally, and later do not travel diagonally. Thats better as
     // it keep us from going diagonally between two occupied cells.
-    /*for(int z=-1; z<=1; z++)
-    {
-        for(int y=-1; y<=1; y++)
-        {
-            for(int x=-1; x<=1; x++)
-            {
-                int3 neighbourGridCellCoordinate = threadGridCellCoordinate + make_int3(x, y, z);
-
-                uint neighbourGridCellOffset = parametersPathPlanner.grid.getCellHash(neighbourGridCellCoordinate);
-
-                if(gridValues[neighbourGridCellOffset] < lowestNonNullNeighbor && gridValues[neighbourGridCellOffset] != 0)
-                    lowestNonNullNeighbor = gridValues[neighbourGridCellOffset];
-            }
-        }
-    }*/
-
     int3 neighbors[6];
-    neighbors[0] = make_int3(1, 0, 0);
-    neighbors[1] = make_int3(-1, 0, 0);
+    neighbors[4] = make_int3(1, 0, 0);
+    neighbors[5] = make_int3(-1, 0, 0);
     neighbors[2] = make_int3(0, 1, 0);
     neighbors[3] = make_int3(0, -1, 0);
-    neighbors[4] = make_int3(0, 0, 1);
-    neighbors[5] = make_int3(0, 0, -1);
+    neighbors[0] = make_int3(0, 0, 1);
+    neighbors[1] = make_int3(0, 0, -1);
 
     for(int i=0;i<6;i++)
     {
-        int3 neighbourGridCellCoordinate = threadGridCellCoordinate + neighbors[i];
+        const int3 neighbourGridCellCoordinate = threadGridCellCoordinate + neighbors[i];
+        const uint neighbourGridCellOffset = parametersPathPlanner.grid.getCellHash(neighbourGridCellCoordinate);
+        const uint neighborValue = gridValues[neighbourGridCellOffset];
 
-        uint neighbourGridCellOffset = parametersPathPlanner.grid.getCellHash(neighbourGridCellCoordinate);
-
-        if(gridValues[neighbourGridCellOffset] < lowestNonNullNeighbor && gridValues[neighbourGridCellOffset] != 0)
-            lowestNonNullNeighbor = gridValues[neighbourGridCellOffset];
+        // Find the lowest neighbor that is neither 0 nor 255
+        if(neighborValue < lowestNonNullNeighbor && neighborValue != 0 && neighborValue != 255)
+            lowestNonNullNeighbor = neighborValue;
     }
 
-    // Overwrite our cell's value (0 or the lowest distance to "start" Write into our cell if
-    if(lowestNonNullNeighbor != 1000 && lowestNonNullNeighbor != 255 && (lowestNonNullNeighbor + 1) < ownValue)
-        gridValues[cellIndex] = lowestNonNullNeighbor + 1;
+    // Write our cell's value. A cell first contains a 0, then the neighborCellValue+1. Once it does
+    // contain a value, it will never change. We're only interested in replacing the value with lower
+    // numbers, but since the values spread like a wave, that'll never happen.
+    if(lowestNonNullNeighbor != 1000 && ownValue == 0)
+            gridValues[cellIndex] = lowestNonNullNeighbor + 1;
 }
 
 __global__
-void computePathD(unsigned char* gridValues, unsigned int numCells)
+void computePathD(u_int8_t* gridValues, unsigned int numCells)
 {
     uint cellIndex = getThreadIndex1D();
 
@@ -132,10 +118,11 @@ void computePathD(unsigned char* gridValues, unsigned int numCells)
         uint numIterations = 0;
         do
         {
-            growCellsD(gridValues, numCells);
+            growCellsD(gridValues, numCells, cellIndex);
             numIterations++;
+            __syncthreads();
         }
-        while(gridValues[goalGridCellOffset] == 0 && numIterations < 512);
+        while(gridValues[goalGridCellOffset] == 0 && numIterations < 40);
     }
 }
 
@@ -210,36 +197,6 @@ void retrievePathD(unsigned char* gridValues, float4* waypoints)
                     stepsToStartCell = neighborValue;
                 }
             }
-
-            /*for(int z=-1; z<=1 && !foundNextCellTowardsTarget; z++)
-            {
-                for(int y=1; y>=-1 && !foundNextCellTowardsTarget; y--) // try the higher cells first!
-                {
-                    for(int x=-1; x<=1 && !foundNextCellTowardsTarget; x++)
-                    {
-                        int3 neighbourCellCoordinate = cellCoordinate + make_int3(x, y, z);
-
-                        uint neighbourCellOffset = parametersPathPlanner.grid.getCellHash(neighbourCellCoordinate);
-
-                        uint neighborValue = gridValues[neighbourCellOffset];
-
-                        if(neighborValue < stepsToStartCell)
-                        {
-                            // We found a neighbor with a smaller distance. Use it!
-                            cellCoordinate = neighbourCellCoordinate;
-
-                            // Append our current cell's position to the waypoint list.
-                            waypoints[neighborValue - 1] = make_float4(parametersPathPlanner.grid.getCellCenter(cellCoordinate));
-
-                            // Escape those 3 for-loops to continue searching from this next cell.
-                            foundNextCellTowardsTarget = true;
-
-                            // Update distance to start-position, should be a simple decrement.
-                            stepsToStartCell = neighborValue;
-                        }
-                    }
-                }
-            }*/
         }
         while(stepsToStartCell > 1);
 
@@ -252,7 +209,8 @@ void retrievePathD(unsigned char* gridValues, float4* waypoints)
 void computePath(unsigned char* gridValues, unsigned int numCells, float *waypoints, cudaStream_t *stream)
 {
     uint numThreads, numBlocks;
-    computeExecutionKernelGrid(numCells, 64, numBlocks, numThreads);
+    computeExecutionKernelGrid(numCells, 128, numBlocks, numThreads);
+    //qDebug() << __PRETTY_FUNCTION__ << "computing path in" << numCells << "cells.";
     computePathD<<< numBlocks, numThreads, 0, *stream>>>(gridValues, numCells);
 
     retrievePathD<<< 1, 1, 0, *stream>>>(gridValues, (float4*)waypoints);

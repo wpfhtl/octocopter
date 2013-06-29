@@ -15,6 +15,7 @@ FlightPlannerParticlesDialog::FlightPlannerParticlesDialog(const ParametersParti
     connect(ui->mChkBoxFollowVehicle, SIGNAL(clicked(bool)), SIGNAL(followVehicleChanged(bool)));
     connect(ui->mChkBoxShowParticles, SIGNAL(clicked(bool)), SIGNAL(showParticlesChanged(bool)));
     connect(ui->mChkBoxShowWaypointPressure, SIGNAL(clicked(bool)), SIGNAL(showWaypointPressureChanged(bool)));
+    connect(ui->mChkBoxShowOccupancy, SIGNAL(clicked(bool)), SIGNAL(showOccupancyGridChanged(bool)));
 
     connect(ui->mSpinBoxTimeStepInner, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));
     connect(ui->mSpinBoxTimeStepOuter, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));

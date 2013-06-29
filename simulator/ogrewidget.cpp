@@ -191,7 +191,6 @@ void OgreWidget::keyPressEvent(QKeyEvent *e)
 
 void OgreWidget::mouseMoveEvent(QMouseEvent *e)
 {
-    qDebug() << "OgreWidget::mouseMoveEvent()";
     QMutexLocker locker(&mMutex);
     if(e->buttons().testFlag(Qt::LeftButton) && oldPosL != invalidMousePoint && btnL)
     {
@@ -301,7 +300,7 @@ void OgreWidget::moveEvent(QMoveEvent *e)
 
 void OgreWidget::paintEvent(QPaintEvent* event)
 {
-    qDebug() << __PRETTY_FUNCTION__;
+//    qDebug() << __PRETTY_FUNCTION__;
 
     if(!mOgreRenderWindow)
     {

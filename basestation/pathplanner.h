@@ -25,14 +25,15 @@ private:
 
     ParametersPathPlanner mParametersPathPlanner;
     PointCloudCuda* mPointCloudColliders;
-    bool mPointCloudCollidersChanged;
+    bool mRepopulateOccupanccyGrid;
     cudaStream_t mCudaStream;
-    quint8*  mDeviceOccupancyGrid;
+//    quint8*  mDeviceOccupancyGrid;
     float*  mDeviceWaypoints;
     float* mHostWaypoints;
     QList<WayPoint> mComputedPath;
 
-    struct cudaGraphicsResource *mCudaVboResourceColliderPositions; // handles OpenGL-CUDA exchange
+    GLuint mVboGridOccupancy;
+    struct cudaGraphicsResource *mCudaVboResourceGridOccupancy; // handles OpenGL-CUDA exchange
 
     // When a path is requested, we QtConcurrent::run() the computePath() member function, which uses the
     // GPU. Functions launched in this way cannot be cancelled using QFuture::cancel(). So, when a path is
@@ -46,6 +47,9 @@ public:
     ~PathPlanner();
 
 signals:
+    // To allow others to render our occupancy grid.
+    void vboInfoGridOccupancy(quint32 vboPressure, QVector3D gridBoundingBoxMin, QVector3D gridBoundingBoxMax, Vector3i grid);
+
     // This is ALWAYS emitted after a call to slotRequestPath(). If the list is empty, no path was found.
     // If it is not empty, the first and last elements MUST be start and goal, respectively.
     void pathFound(const QList<WayPoint>* const, WayPointListSource);
@@ -55,6 +59,7 @@ private slots:
 
 public slots:
     void slotInitialize();
+//    void slotSetVolume(const QVector3D& min, const QVector3D& max);
     void slotColliderCloudInsertedPoints();
     void slotSetPointCloudColliders(PointCloudCuda* const);
     void slotRequestPath(const QVector3D& start, const QVector3D& goal);

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>282</width>
-    <height>433</height>
+    <width>299</width>
+    <height>458</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -41,6 +41,23 @@
       <property name="spacing">
        <number>1</number>
       </property>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="mChkBoxFollowVehicle">
+        <property name="text">
+         <string>Follow Vehicle</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QCheckBox" name="mChkBoxShowWaypointPressure">
+        <property name="text">
+         <string>Show Wpt Pressure</string>
+        </property>
+        <property name="checked">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
       <item row="0" column="0">
        <widget class="QCheckBox" name="mChkBoxProcessPhysics">
         <property name="text">
@@ -61,20 +78,10 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
-       <widget class="QCheckBox" name="mChkBoxFollowVehicle">
+      <item row="2" column="1">
+       <widget class="QCheckBox" name="mChkBoxShowOccupancy">
         <property name="text">
-         <string>Follow Vehicle</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QCheckBox" name="mChkBoxShowWaypointPressure">
-        <property name="text">
-         <string>Show Wpt Pressure</string>
-        </property>
-        <property name="checked">
-         <bool>false</bool>
+         <string>Show Occupancy</string>
         </property>
        </widget>
       </item>
@@ -83,6 +90,7 @@
      <zorder>mChkBoxFollowVehicle</zorder>
      <zorder>mChkBoxShowWaypointPressure</zorder>
      <zorder>mChkBoxProcessPhysics</zorder>
+     <zorder>mChkBoxShowOccupancy</zorder>
     </widget>
    </item>
    <item>

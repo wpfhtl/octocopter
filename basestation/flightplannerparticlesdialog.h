@@ -43,6 +43,7 @@ signals:
     void followVehicleChanged(bool);
     void showParticlesChanged(bool);
     void showWaypointPressureChanged(bool);
+    void showOccupancyGridChanged(bool);
 
     void resetParticles();
     void resetWaypointPressure();

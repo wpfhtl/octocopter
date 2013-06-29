@@ -21,6 +21,7 @@ public:
 //    static QVector<float> matrixToOpenGl(const QMatrix4x4 &matrix);
 
     static quint32 createVbo(quint32 size);
+    static void deleteVbo(GLuint vbo);
 
     static void setVboToBoundingBox(const quint32 vbo, const QVector3D& min, const QVector3D& max);
 };

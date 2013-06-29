@@ -19,6 +19,16 @@ struct Grid
         return *this;
     }
 
+    __host__ __device__ bool hasSameExtents(const Grid& other)
+    {
+        return
+                   worldMin.x == other.worldMin.x
+                && worldMin.y == other.worldMin.y
+                && worldMin.z == other.worldMin.z
+                && worldMax.x == other.worldMax.x
+                && worldMax.y == other.worldMax.y
+                && worldMax.z == other.worldMax.z;
+    }
 
     __host__ void initialize()
     {
@@ -48,7 +58,6 @@ struct Grid
     __host__ __device__ float3 getWorldCenter() const;
 
 };
-
 
 void computeMappingFromPointToGridCell(
         unsigned int* gridParticleHash,

@@ -193,7 +193,7 @@ BaseStation::BaseStation() : QMainWindow()
 
         mDiffCorrFetcher = new DiffCorrFetcher(mConnectionDialog->getRtkBaseHostName(), mConnectionDialog->getRtkBasePort(), this);
         connect(mDiffCorrFetcher, SIGNAL(differentialCorrections(QByteArray)), mRoverConnection, SLOT(slotSendDiffCorrToRover(QByteArray)));
-        connect(mDiffCorrFetcher, SIGNAL(connectionStatus(bool)), mControlWidget, SLOT(slotUpdateConnectionRtk(bool)));
+        connect(mDiffCorrFetcher, SIGNAL(connectionStatus(bool)), mControlWidget, SLOT(slotUpdateConnectionDiffCorr(bool)));
 
         menuBar()->addAction("Connect", mRoverConnection, SLOT(slotConnectToRover()));
 
@@ -336,14 +336,17 @@ void BaseStation::slotImportCloud()
 
 void BaseStation::keyPressEvent(QKeyEvent* event)
 {
+    mGlWindow->keyPressEvent(event);
+    mFlightPlanner->keyPressEvent(event);
+//    if(mLogPlayer) mLogPlayer->keyPressEvent(event);
+
     if(event->key() == Qt::Key_P)
         slotToggleViewPointCloudDense();
     else if(event->key() == Qt::Key_C)
         slotClearCloud();
+    else
+        QMainWindow::keyPressEvent(event);
 
-    mGlWindow->keyPressEvent(event);
-    mFlightPlanner->keyPressEvent(event);
-    //if(mLogPlayer) mLogPlayer->keyPressEvent(event);
 }
 
 void BaseStation::slotClearCloud()

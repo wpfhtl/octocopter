@@ -267,7 +267,7 @@ void FlightPlannerInterface::slotVisualize()
 
                 if(wpl->list()->size() == 0)
                 {
-                    qDebug() << __PRETTY_FUNCTION__ << "waypointlist" << i.key() << "is empty, not drawing...";
+                    //qDebug() << __PRETTY_FUNCTION__ << "waypointlist" << i.key() << "is empty, not drawing...";
                     continue;
                 }
 

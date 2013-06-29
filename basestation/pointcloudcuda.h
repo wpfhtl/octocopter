@@ -48,6 +48,8 @@ public:
         mParameters.grid.worldMax = make_float3(max.x(), max.y(), max.z());
     }
 
+    QVector3D getWorldSize() const { return CudaHelper::cudaConvert(mParameters.grid.worldMax) - CudaHelper::cudaConvert(mParameters.grid.worldMax);}
+
     cudaGraphicsResource** getCudaGraphicsResource() { return &mCudaVboResource;}
 
     quint32 getNumberOfPoints(void) const
@@ -61,6 +63,8 @@ public:
         mParameters.grid.cells.y = y;
         mParameters.grid.cells.z = z;
     }
+
+    Grid getGrid() const {return mParameters.grid;}
 
     const QVector<VboInfo>& getVboInfo() const { return mVboInfo; }
 
