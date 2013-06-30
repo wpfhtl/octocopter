@@ -356,7 +356,7 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
                 paramsParticleSystem,                       // input:  The particle system's parameters
                 mParametersSimulation->particleCount);
 
-//    showWaypointPressure();
+//    showInformationGain();
 
 //    qDebug() << "ParticleSystem::update(): 2: integrating system finished at" << startTime.elapsed();
 

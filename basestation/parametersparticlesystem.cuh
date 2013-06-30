@@ -13,7 +13,7 @@ struct ParametersParticleSystem
     // - one grid contains the colliders, its used to find neighbors for keeping it sparse
     Grid gridParticleSystem;
 
-    Grid gridWaypointPressure;
+    Grid gridInformationGain;
 
     unsigned int particleCount;
     unsigned int colliderCountMax;
@@ -39,9 +39,9 @@ struct ParametersParticleSystem
         gridParticleSystem.worldMax = make_float3(32.0f, 60.0f, 32.0f);
         gridParticleSystem.cells = make_uint3(64, 64, 64);
 
-        gridWaypointPressure.worldMin = make_float3(128.0f, -4.0f, 128.0f);
-        gridWaypointPressure.worldMax = make_float3(128.0f, 60.0f, 128.0f);
-        gridWaypointPressure.cells = make_uint3(1024, 64, 1024);
+        gridInformationGain.worldMin = make_float3(128.0f, -4.0f, 128.0f);
+        gridInformationGain.worldMax = make_float3(128.0f, 60.0f, 128.0f);
+        gridInformationGain.cells = make_uint3(1024, 64, 1024);
 
         particleRadius = 0.5f;
         colliderRadius = 0.1f;

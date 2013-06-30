@@ -27,19 +27,24 @@ private:
     PointCloudCuda* mPointCloudColliders;
     bool mRepopulateOccupanccyGrid;
     cudaStream_t mCudaStream;
-//    quint8*  mDeviceOccupancyGrid;
+    quint8*  mHostOccupancyGrid;
     float*  mDeviceWaypoints;
     float* mHostWaypoints;
     QList<WayPoint> mComputedPath;
 
     GLuint mVboGridOccupancy;
+    GLuint mVboGridPathFinder;
     struct cudaGraphicsResource *mCudaVboResourceGridOccupancy; // handles OpenGL-CUDA exchange
+    struct cudaGraphicsResource *mCudaVboResourceGridPathFinder; // handles OpenGL-CUDA exchange
 
     // When a path is requested, we QtConcurrent::run() the computePath() member function, which uses the
     // GPU. Functions launched in this way cannot be cancelled using QFuture::cancel(). So, when a path is
     // requested while a previous computation is still running, we're out of luck.
+    // not true, no extra thread!
     bool mCancelComputation;
     QFuture<void> mFuture;
+
+    void printHostOccupancyGrid(quint8* deviceGridOccupancy);
 
 
 public:
@@ -49,6 +54,7 @@ public:
 signals:
     // To allow others to render our occupancy grid.
     void vboInfoGridOccupancy(quint32 vboPressure, QVector3D gridBoundingBoxMin, QVector3D gridBoundingBoxMax, Vector3i grid);
+    void vboInfoGridPathFinder(quint32 vboPressure, QVector3D gridBoundingBoxMin, QVector3D gridBoundingBoxMax, Vector3i grid);
 
     // This is ALWAYS emitted after a call to slotRequestPath(). If the list is empty, no path was found.
     // If it is not empty, the first and last elements MUST be start and goal, respectively.

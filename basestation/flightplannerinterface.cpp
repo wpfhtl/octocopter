@@ -114,10 +114,11 @@ void FlightPlannerInterface::slotWayPointInsert(const quint16& index, const WayP
 void FlightPlannerInterface::slotSetWayPoints(const QList<WayPoint>* const wayPointList, const WayPointListSource source)
 {
     WayPointList* wpl = mWaypointListMap["ahead"];
-    *(wpl->list()) = *wayPointList;
+    wpl->setList(wayPointList);
 
     // Tell others about our new waypoints!
     emit wayPoints(mWaypointListMap["ahead"]->list(), source);
+    emit suggestVisualization();
 }
 
 void FlightPlannerInterface::slotWayPointReached(const WayPoint& wpt)
@@ -158,6 +159,7 @@ void FlightPlannerInterface::slotVisualize()
     // Initialize shaders and VBO if necessary
     if(mShaderProgramDefault == 0 && mGlWidget != 0)
     {
+        qDebug() << __PRETTY_FUNCTION__ << "initializing opengl...";
         initializeOpenGLFunctions();
         mShaderProgramDefault = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
     }

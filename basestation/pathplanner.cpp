@@ -5,6 +5,8 @@
 #include "cudahelper.h"
 #include "cudahelper.cuh"
 
+#include <iostream>
+
 #include <QtConcurrent/QtConcurrentRun>
 
 PathPlanner::PathPlanner(QObject *parent) :
@@ -22,19 +24,11 @@ PathPlanner::PathPlanner(QObject *parent) :
 PathPlanner::~PathPlanner()
 {
     OpenGlUtilities::deleteVbo(mVboGridOccupancy);
+    OpenGlUtilities::deleteVbo(mVboGridPathFinder);
     cudaSafeCall(cudaFree(mDeviceWaypoints));
     delete mHostWaypoints;
+    delete mHostOccupancyGrid;
 }
-
-/* this info is taken from collidercloud. makes sense to sync it!
-void PathPlanner::slotSetVolume(const QVector3D& min, const QVector3D& max)
-{
-    qDebug() << __PRETTY_FUNCTION__ << "min" << min << "max" << max;
-    mParametersPathPlanner.grid.worldMin = CudaHelper::cudaConvert(min);
-    mParametersPathPlanner.grid.worldMax = CudaHelper::cudaConvert(max);
-    mRepopulateOccupanccyGrid = true;
-}*/
-
 
 void PathPlanner::slotInitialize()
 {
@@ -42,8 +36,16 @@ void PathPlanner::slotInitialize()
 
     const quint32 numberOfCells = mParametersPathPlanner.grid.cells.x * mParametersPathPlanner.grid.cells.y * mParametersPathPlanner.grid.cells.z;
 
-    mVboGridOccupancy = OpenGlUtilities::createVbo(numberOfCells * sizeof(char));
+    mHostOccupancyGrid = new quint8[numberOfCells];
+
+    // The occupancy grid will be built and dilated in this memory
+    mVboGridOccupancy = OpenGlUtilities::createVbo(numberOfCells * sizeof(quint8));
     cudaSafeCall(cudaGraphicsGLRegisterBuffer(&mCudaVboResourceGridOccupancy, mVboGridOccupancy, cudaGraphicsMapFlagsNone));
+
+    // The (dilated) occupancy grid will be copied in here, then the pathplanner fill it. Separate memories
+    // enable re-use of the pre-built occupancy grid.
+    mVboGridPathFinder = OpenGlUtilities::createVbo(numberOfCells * sizeof(quint8));
+    cudaSafeCall(cudaGraphicsGLRegisterBuffer(&mCudaVboResourceGridPathFinder, mVboGridPathFinder, cudaGraphicsMapFlagsNone));
 
     cudaSafeCall(cudaMalloc((void**)&mDeviceWaypoints, mMaxWaypoints * 4 * sizeof(float)));
 
@@ -57,8 +59,14 @@ void PathPlanner::slotInitialize()
                 QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z),
                 Vector3i(mParametersPathPlanner.grid.cells.x, mParametersPathPlanner.grid.cells.y, mParametersPathPlanner.grid.cells.z)
                 );
-}
 
+    emit vboInfoGridPathFinder(
+                mVboGridPathFinder,
+                QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
+                QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z),
+                Vector3i(mParametersPathPlanner.grid.cells.x, mParametersPathPlanner.grid.cells.y, mParametersPathPlanner.grid.cells.z)
+                );
+}
 
 void PathPlanner::slotSetPointCloudColliders(PointCloudCuda* const pcd)
 {
@@ -128,29 +136,60 @@ void PathPlanner::slotComputePathOnGpu()
                     QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z),
                     Vector3i(mParametersPathPlanner.grid.cells.x, mParametersPathPlanner.grid.cells.y, mParametersPathPlanner.grid.cells.z)
                     );
+
+        emit vboInfoGridPathFinder(
+                    mVboGridPathFinder,
+                    QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
+                    QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z),
+                    Vector3i(mParametersPathPlanner.grid.cells.x, mParametersPathPlanner.grid.cells.y, mParametersPathPlanner.grid.cells.z)
+                    );
     }
 
     copyParametersToGpu(&mParametersPathPlanner);
 
-    // Get a pointer to the particle positions in the device by mapping GPU mem into CPU mem
-    float *colliderPos = (float*)CudaHelper::mapGLBufferObject(mPointCloudColliders->getCudaGraphicsResource());
-    quint8* grid = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridOccupancy);
-
+    quint8* gridOccupancy = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridOccupancy);
+    quint8* gridPathFinder = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridPathFinder);
     // Only re-create the occupancy grid if the collider cloud's content changed
-    if(true || mRepopulateOccupanccyGrid) // always populate, because computePath screws up the occupancy grid!
+    if(mRepopulateOccupanccyGrid) // always populate, because computePath screws up the occupancy grid!
     {
-        fillOccupancyGrid(grid, colliderPos, mPointCloudColliders->getNumberOfPoints(), mParametersPathPlanner.grid.getCellCount(), &mCudaStream);
+        // Get a pointer to the particle positions in the device by mapping GPU mem into CPU mem
+        float *colliderPos = (float*)CudaHelper::mapGLBufferObject(mPointCloudColliders->getCudaGraphicsResource());
+        fillOccupancyGrid(gridOccupancy, colliderPos, mPointCloudColliders->getNumberOfPoints(), mParametersPathPlanner.grid.getCellCount(), &mCudaStream);
+        cudaGraphicsUnmapResources(1, mPointCloudColliders->getCudaGraphicsResource(), 0);
+
         mRepopulateOccupanccyGrid = false;
+
+        qDebug() << "grid after filling:";
+        printHostOccupancyGrid(gridOccupancy);
+
+        dilateOccupancyGrid(
+                    gridOccupancy,
+                    mParametersPathPlanner.grid.getCellCount(),
+                    &mCudaStream);
+
+        qDebug() << "grid after dilation:";
+        printHostOccupancyGrid(gridOccupancy);
     }
+
+//    qDebug() << "grid after init:";
+//    printHostOccupancyGrid(grid);
+
+    // Copy the populated and dilated occupancy grid into the PathFinder's domain
+    cudaMemcpy(gridPathFinder, gridOccupancy, mParametersPathPlanner.grid.getCellCount(), cudaMemcpyDeviceToDevice);
+    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridOccupancy, 0);
 
     // Now that the occupancy grid is filled, start path planning.
     computePath(
-                grid,
+                gridPathFinder,
                 mParametersPathPlanner.grid.getCellCount(),
                 mDeviceWaypoints,
                 &mCudaStream);
 
-    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridOccupancy, 0);
+    qDebug() << "grid after computePath:";
+    printHostOccupancyGrid(gridPathFinder);
+
+    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridPathFinder, 0);
+
 
     qDebug() << mMaxWaypoints;
     cudaMemcpy(
@@ -205,11 +244,44 @@ void PathPlanner::slotComputePathOnGpu()
 
         emit pathFound(&mComputedPath, WayPointListSource::WayPointListSourceFlightPlanner);
     }
+}
 
-    // Unmap at end here to avoid unnecessary graphics/CUDA context switch.
-    // Once unmapped, the resource may not be accessed by CUDA until they
-    // are mapped again. This function provides the synchronization guarantee
-    // that any CUDA work issued  before ::cudaGraphicsUnmapResources()
-    // will complete before any subsequently issued graphics work begins.
-    cudaGraphicsUnmapResources(1, mPointCloudColliders->getCudaGraphicsResource(), 0);
+void PathPlanner::printHostOccupancyGrid(quint8* deviceGridOccupancy)
+{
+//    return;
+    cudaMemcpy(mHostOccupancyGrid, deviceGridOccupancy, mParametersPathPlanner.grid.getCellCount(), cudaMemcpyDeviceToHost);
+
+//    qDebug() << __PRETTY_FUNCTION__;
+
+    int3 c;
+    QString separatorLine = QString().rightJustified(5 + 4*mParametersPathPlanner.grid.cells.x, '=');
+    QString header = "    x:";
+    for(int i=0;i<mParametersPathPlanner.grid.cells.x;i++)
+    {
+        QString part = QString::number(i).leftJustified(4, ' ');
+        header.append(part);
+    }
+
+    for(int y = 0;y<mParametersPathPlanner.grid.cells.y;y++)
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "layer y" << y <<":";
+        printf("%s\n", qPrintable(header));
+        printf("%s\n", qPrintable(separatorLine));
+        for(int z = 0;z<mParametersPathPlanner.grid.cells.z;z++)
+        {
+            printf("z%3d| ", z);
+            fflush(stdout);
+            for(int x = 0;x<mParametersPathPlanner.grid.cells.x;x++)
+            {
+                c.x = x; c.y = y; c.z = z;
+                quint8 value = mHostOccupancyGrid[mParametersPathPlanner.grid.getCellHash(c)];
+                printf("%3d ", value);
+                fflush(stdout);
+            }
+            printf("\n");
+            fflush(stdout);
+        }
+    }
+    printf("\n");
+    fflush(stdout);
 }

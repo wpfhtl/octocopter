@@ -49,6 +49,7 @@ private slots:
     void slotWayPointPrepend();
     void slotWayPointAppend();
     void slotWayPointDelete();
+    void slotWayPointClear();
     void slotWayPointChanged(int, int);
 
     void slotWayPointLoad();

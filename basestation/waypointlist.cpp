@@ -105,6 +105,12 @@ void WayPointList::sortToShortestPath(const QVector3D &vehiclePosition)
     //    qDebug() << "FlightPlannerInterface::sortToShortestPath(): total distance between" << wayPoints.size() << "points after:" << distanceAfter;
 }
 
+void WayPointList::setList(const QList<WayPoint>* const wayPointList)
+{
+    mWaypoints = *wayPointList;
+    setVbo();
+}
+
 // Copy all waypoints into our VBO
 void WayPointList::setVbo()
 {
@@ -115,6 +121,7 @@ void WayPointList::setVbo()
     }
 
     QVector<float> vertices;
+    vertices.reserve(mWaypoints.size() * 3);
     foreach (const WayPoint& wpt, mWaypoints)
         vertices << wpt.x() << wpt.y() << wpt.z();
 

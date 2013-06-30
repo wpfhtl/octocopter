@@ -211,7 +211,7 @@ void RoverConnection::processPacket(QByteArray data)
 
         emit wayPoints(&mWayPointList, WayPointListSource::WayPointListSourceRover);
 
-        qDebug() << "process packet: waypointlist from rover!";
+        qDebug() << "process packet: waypointlist with" << mWayPointList.size() << "points from rover!";
     }
     else if(packetType == "logmessage")
     {

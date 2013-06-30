@@ -32,7 +32,7 @@ private:
 
     QVector3D mLastParticleSystemPositionToFollowVehicle;
 
-    QTimer mTimerProcessWaypointPressure;
+    QTimer mTimerProcessInformationGain;
 
     QList<WayPoint> mWayPointsGenerated, mWayPointsDetour;
 
@@ -46,7 +46,7 @@ private:
     // To re-fill our datastructure when the boundingbox has changed.
     bool insertPointsFromNode(const Node* node);
 
-    void showWaypointPressure();
+    void showInformationGain();
 
     ParametersParticleSystem mSimulationParameters;
 
@@ -54,7 +54,7 @@ private:
     // There is a gridmap of waypoint pressure on the GPU. To be useful for processing on the host, we first create a
     // list of QVector4D that corresponds to the cell's positions. Then, we sort the latter list using thrust::sort_by_key
     // (the key being the waypoint pressure) and receive a ranking of QVector4Ds. Hah!
-    float* mDeviceGridMapWaypointPressureCellWorldPositions;
+    float* mDeviceGridMapInformationGainCellWorldPositions;
 
     float* mDeviceGridMapWayPointPressureToBeSorted;
     // A gridmap (same grid as always) containing values from 0 to 255. 0 means no waypoint candidates within, 255 means maximum waypoint pressure.
@@ -63,7 +63,7 @@ private:
     struct cudaGraphicsResource *mCudaVboResourceGridMapOfWayPointPressure; // handles OpenGL-CUDA exchange
 
 signals:
-    void vboInfoGridWaypointPressure(quint32 vboPressure, QVector3D gridBoundingBoxMin, QVector3D gridBoundingBoxMax, Vector3i grid);
+    void vboInfoGridInformationGain(quint32 vboPressure, QVector3D gridBoundingBoxMin, QVector3D gridBoundingBoxMax, Vector3i grid);
 
 private slots:
     void slotShowUserInterface();
@@ -71,7 +71,7 @@ private slots:
     void slotDenseCloudInsertedPoints(PointCloud*const pointCloudSource, const quint32& firstPointToReadFromSrc, quint32 numberOfPointsToCopy);
 
     // checks waypoint pressure and if higher than threshold, cals slotGenerateWaypoints();
-    void slotProcessWaypointPressure(const quint8 threshold = 5);
+    void slotProcessInformationGain(const quint8 threshold = 5);
 
 public slots:
     void slotSetScanVolume(const QVector3D min, const QVector3D max);

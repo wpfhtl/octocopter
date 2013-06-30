@@ -62,7 +62,7 @@ void sortGridMapWayPointPressure(
         unsigned int numWaypointsRequested);
 
 
-uint8_t getMaximumWaypointPressure(
+uint8_t getMaximumInformationGain(
         uint8_t* gridMapOfWayPointPressure,
         unsigned int numberOfCells);
 

@@ -7,15 +7,16 @@ FlightPlannerParticlesDialog::FlightPlannerParticlesDialog(const ParametersParti
     ui->setupUi(this);
 
     connect(ui->mBtnResetParticles, SIGNAL(clicked()), SIGNAL(resetParticles()));
-    connect(ui->mBtnResetWaypointPressure, SIGNAL(clicked()), SIGNAL(resetWaypointPressure()));
+    connect(ui->mBtnResetInformationGain, SIGNAL(clicked()), SIGNAL(resetInformationGain()));
     connect(ui->mBtnGenerateWaypoints, SIGNAL(clicked()), SIGNAL(generateWayPoints()));
     connect(ui->mBtnDeleteWaypoints, SIGNAL(clicked()), SIGNAL(deleteWayPoints()));
 
     connect(ui->mChkBoxProcessPhysics, SIGNAL(clicked(bool)), SIGNAL(processPhysicsChanged(bool)));
     connect(ui->mChkBoxFollowVehicle, SIGNAL(clicked(bool)), SIGNAL(followVehicleChanged(bool)));
     connect(ui->mChkBoxShowParticles, SIGNAL(clicked(bool)), SIGNAL(showParticlesChanged(bool)));
-    connect(ui->mChkBoxShowWaypointPressure, SIGNAL(clicked(bool)), SIGNAL(showWaypointPressureChanged(bool)));
-    connect(ui->mChkBoxShowOccupancy, SIGNAL(clicked(bool)), SIGNAL(showOccupancyGridChanged(bool)));
+    connect(ui->mChkBoxShowInformationGain, SIGNAL(clicked(bool)), SIGNAL(showInformationGainChanged(bool)));
+    connect(ui->mChkBoxShowGridOccupancy, SIGNAL(clicked(bool)), SIGNAL(showOccupancyGridChanged(bool)));
+    connect(ui->mChkBoxShowGridPathFinder, SIGNAL(clicked(bool)), SIGNAL(showPathFinderGridChanged(bool)));
 
     connect(ui->mSpinBoxTimeStepInner, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));
     connect(ui->mSpinBoxTimeStepOuter, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));

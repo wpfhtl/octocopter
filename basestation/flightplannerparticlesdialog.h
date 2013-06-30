@@ -28,7 +28,7 @@ public:
 
     bool followVehicle() const {return ui->mChkBoxFollowVehicle->isChecked();}
     bool showParticles() const {return ui->mChkBoxShowParticles->isChecked();}
-    bool showWaypointPressure() const {return ui->mChkBoxShowWaypointPressure->isChecked();}
+    bool showInformationGain() const {return ui->mChkBoxShowInformationGain->isChecked();}
 
 private slots:
     void slotSimulationParametersChanged();
@@ -42,11 +42,12 @@ signals:
     void processPhysicsChanged(bool);
     void followVehicleChanged(bool);
     void showParticlesChanged(bool);
-    void showWaypointPressureChanged(bool);
+    void showInformationGainChanged(bool);
     void showOccupancyGridChanged(bool);
+    void showPathFinderGridChanged(bool);
 
     void resetParticles();
-    void resetWaypointPressure();
+    void resetInformationGain();
     void generateWayPoints();
     void deleteWayPoints();
 };

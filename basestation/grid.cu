@@ -23,9 +23,32 @@ __host__ __device__ float3 Grid::getWorldCenter() const
 // Calculate a particle's hash value (=address in grid) from its containing cell (clamping to edges)
 __host__ __device__ unsigned int Grid::getCellHash(int3 gridCellCoordinate) const
 {
+//    if(gridCellCoordinate.x >= cells.x || gridCellCoordinate.y >= cells.y || gridCellCoordinate.z >= cells.z)
+//        return -1;
+
+//    if(gridCellCoordinate.x < 0 || gridCellCoordinate.y < 0 || gridCellCoordinate.z < 0)
+//        return -1;
+
     gridCellCoordinate.x = gridCellCoordinate.x & (cells.x-1);  // wrap grid, assumes size is power of 2
     gridCellCoordinate.y = gridCellCoordinate.y & (cells.y-1);
     gridCellCoordinate.z = gridCellCoordinate.z & (cells.z-1);
+
+    return (gridCellCoordinate.z * cells.y) * cells.x
+            + (gridCellCoordinate.y * cells.x)
+            + gridCellCoordinate.x;
+}
+
+__host__ __device__ int Grid::getCellHash2(int3 gridCellCoordinate) const
+{
+    if(gridCellCoordinate.x >= cells.x || gridCellCoordinate.y >= cells.y || gridCellCoordinate.z >= cells.z)
+        return -1;
+
+//    if(gridCellCoordinate.x < 0 || gridCellCoordinate.y < 0 || gridCellCoordinate.z < 0)
+//        return -1;
+
+//    gridCellCoordinate.x = gridCellCoordinate.x & (cells.x-1);  // wrap grid, assumes size is power of 2
+//    gridCellCoordinate.y = gridCellCoordinate.y & (cells.y-1);
+//    gridCellCoordinate.z = gridCellCoordinate.z & (cells.z-1);
 
     return (gridCellCoordinate.z * cells.y) * cells.x
             + (gridCellCoordinate.y * cells.x)
@@ -200,14 +223,18 @@ void computeMappingFromGridCellToParticleD(
     int3 gridPos = grid->getCellCoordinate(make_float3(p.x, p.y, p.z));
 
     // Calculate the particle's hash from the grid-cell. This means particles in the same cell have the same hash
-    uint hash = grid->getCellHash(gridPos);
+    int hash = grid->getCellHash(gridPos);
 
-    // This array is the key-part of the map, mapping cellId (=hash) to particleIndex. The term "map" is not
-    // exactly correct, because there can be multiple keys (because one cell can store many particles)
-    gridParticleHash[index] = hash;
+    // getCellHash() returns -1 if pos is not in grid.
+    if(hash >= 0)
+    {
+        // This array is the key-part of the map, mapping cellId (=hash) to particleIndex. The term "map" is not
+        // exactly correct, because there can be multiple keys (because one cell can store many particles)
+        gridParticleHash[index] = hash;
 
-    // It seems stupid to fill an array like "array[x]=x". But this array is the value-part of a map and will get sorted according to the keys (=gridParticleHash)
-    gridParticleIndex[index] = index;
+        // It seems stupid to fill an array like "array[x]=x". But this array is the value-part of a map and will get sorted according to the keys (=gridParticleHash)
+        gridParticleIndex[index] = index;
+    }
 }
 
 

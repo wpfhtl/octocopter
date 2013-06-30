@@ -728,7 +728,7 @@ void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch
 void FlightController::slotEmitFlightControllerInfo()
 {
     // Usually called from BaseConnection::newConnection(), tell base about us...
-    qDebug() << "FlightController::slotEmitFlightControllerInfo(): emitting flightcontrollervalues, flightstate, controllerweights and waypoints.";
+    qDebug() << "FlightController::slotEmitFlightControllerInfo(): emitting flightcontrollervalues, flightstate, controllerweights and" << mWayPoints.size() << "waypoints.";
     emit flightControllerValues(&mFlightControllerValues);
     emit flightControllerWeightsChanged();
     emit flightStateChanged(&mFlightControllerValues.flightState);

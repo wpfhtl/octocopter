@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>299</width>
-    <height>458</height>
+    <height>480</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -41,23 +41,6 @@
       <property name="spacing">
        <number>1</number>
       </property>
-      <item row="1" column="0">
-       <widget class="QCheckBox" name="mChkBoxFollowVehicle">
-        <property name="text">
-         <string>Follow Vehicle</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QCheckBox" name="mChkBoxShowWaypointPressure">
-        <property name="text">
-         <string>Show Wpt Pressure</string>
-        </property>
-        <property name="checked">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
       <item row="0" column="0">
        <widget class="QCheckBox" name="mChkBoxProcessPhysics">
         <property name="text">
@@ -78,19 +61,44 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="1">
-       <widget class="QCheckBox" name="mChkBoxShowOccupancy">
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="mChkBoxFollowVehicle">
         <property name="text">
-         <string>Show Occupancy</string>
+         <string>Follow Vehicle</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QCheckBox" name="mChkBoxShowGridOccupancy">
+        <property name="text">
+         <string>Show GridOccupancy</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QCheckBox" name="mChkBoxShowInformationGain">
+        <property name="text">
+         <string>Show Inf/Gain</string>
+        </property>
+        <property name="checked">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QCheckBox" name="mChkBoxShowGridPathFinder">
+        <property name="text">
+         <string>Show GridPathFinder</string>
         </property>
        </widget>
       </item>
      </layout>
      <zorder>mChkBoxShowParticles</zorder>
      <zorder>mChkBoxFollowVehicle</zorder>
-     <zorder>mChkBoxShowWaypointPressure</zorder>
+     <zorder>mChkBoxShowInformationGain</zorder>
      <zorder>mChkBoxProcessPhysics</zorder>
-     <zorder>mChkBoxShowOccupancy</zorder>
+     <zorder>mChkBoxShowGridOccupancy</zorder>
+     <zorder>mChkBoxShowGridPathFinder</zorder>
     </widget>
    </item>
    <item>
@@ -429,9 +437,9 @@
       </widget>
      </item>
      <item row="0" column="1">
-      <widget class="QPushButton" name="mBtnResetWaypointPressure">
+      <widget class="QPushButton" name="mBtnResetInformationGain">
        <property name="text">
-        <string>Reset Pressure</string>
+        <string>Reset Inf/Gain</string>
        </property>
       </widget>
      </item>

@@ -26,6 +26,8 @@ public:
 
     void mergeCloseWaypoints(const float minimumDistance);
 
+    void setList(const QList<WayPoint>* const wayPointList);
+
     float getSphereSize() const { return mSphereSize; }
 
     QList<WayPoint>* list() {return &mWaypoints;}

@@ -17,6 +17,7 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
     connect(mBtnWptPrepend, SIGNAL(clicked()), SLOT(slotWayPointPrepend()));
     connect(mBtnWptAppend, SIGNAL(clicked()), SLOT(slotWayPointAppend()));
     connect(mBtnWptDelete, SIGNAL(clicked()), SLOT(slotWayPointDelete()));
+    connect(mBtnWptClear, SIGNAL(clicked()), SLOT(slotWayPointClear()));
     connect(mBtnWptLoad, SIGNAL(clicked()), SLOT(slotWayPointLoad()));
     connect(mBtnWptSave, SIGNAL(clicked()), SLOT(slotWayPointSave()));
 
@@ -337,6 +338,13 @@ void ControlWidget::slotWayPointDelete()
         updateWayPointTable();
         slotEmitWaypoints();
     }
+}
+
+void ControlWidget::slotWayPointClear()
+{
+    mWayPointList.clear();
+    updateWayPointTable();
+    slotEmitWaypoints();
 }
 
 void ControlWidget::slotWayPointChanged(int row, int /*column*/)

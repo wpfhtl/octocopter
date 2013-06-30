@@ -246,7 +246,7 @@ void BaseConnection::slotSetWayPoints(const QList<WayPoint>* const wayPoints)
     QDataStream stream(&data, QIODevice::WriteOnly);
 
     stream << QString("waypointlist");
-    stream << wayPoints;
+    stream << *wayPoints;
 
     slotSendData(data, false);
 }

@@ -80,7 +80,7 @@ struct functorComputeWaypointBenefit
         //volatile uint8_t pressureDst = thrust::get<1>(t);
         volatile unsigned int cellHash = thrust::get<2>(t);
 
-        float3 cellPosition = parametersParticleSystem.gridWaypointPressure.getCellCenter(parametersParticleSystem.gridWaypointPressure.getCellCoordinate(cellHash));
+        float3 cellPosition = parametersParticleSystem.gridInformationGain.getCellCenter(parametersParticleSystem.gridInformationGain.getCellCoordinate(cellHash));
 
         float distance = length(cellPosition - vehiclePosition);
         distance = max(1.0f, distance);
@@ -159,8 +159,8 @@ void integrateSystemD(
         if(particleCollisionPositions[index].w > 0.5f)
         {
             // Find out in what cell the collision occured
-            uint hash = params->gridWaypointPressure.getCellHash(
-                        params->gridWaypointPressure.getCellCoordinate(
+            uint hash = params->gridInformationGain.getCellHash(
+                        params->gridInformationGain.getCellCoordinate(
                             lastCollisionPosition
                             )
                         );
@@ -426,8 +426,8 @@ void fillGridMapCellWorldPositionsD(
                 0.0f
                 );
 */
-    int3 cellCoordinate = parametersParticleSystem.gridWaypointPressure.getCellCoordinate(cellIndex);
-    float3 cellCenter = parametersParticleSystem.gridWaypointPressure.getCellCenter(cellCoordinate);
+    int3 cellCoordinate = parametersParticleSystem.gridInformationGain.getCellCoordinate(cellIndex);
+    float3 cellCenter = parametersParticleSystem.gridInformationGain.getCellCenter(cellCoordinate);
 
 
     gridMapCellWorldPositions[cellIndex] = make_float4(cellCenter, 0.0f);
@@ -550,7 +550,7 @@ void sortGridMapWayPointPressure(float* gridMapWayPointPressureSorted, float* gr
     cudaCheckSuccess("sortGridMapWayPointPressure");
 }
 
-uint8_t getMaximumWaypointPressure(uint8_t* gridMapOfWayPointPressure, unsigned int numberOfCells)
+uint8_t getMaximumInformationGain(uint8_t* gridMapOfWayPointPressure, unsigned int numberOfCells)
 {
     if(numberOfCells > 0)
     {
@@ -559,7 +559,7 @@ uint8_t getMaximumWaypointPressure(uint8_t* gridMapOfWayPointPressure, unsigned 
                     thrust::device_ptr<uint8_t>(gridMapOfWayPointPressure + numberOfCells));
 
         // check if kernel invocation generated an error
-        cudaCheckSuccess("getMaximumWaypointPressure");
+        cudaCheckSuccess("getMaximumInformationGain");
 
         return *result;
     }

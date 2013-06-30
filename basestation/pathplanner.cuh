@@ -8,12 +8,6 @@
 
 void copyParametersToGpu(ParametersPathPlanner *hostParams);
 
-void computePath(
-        unsigned char*  gridValues,
-        unsigned int    numCells,
-        float*          waypoints,
-        cudaStream_t    *stream);
-
 void fillOccupancyGrid(
         unsigned char*  gridValues,
         float*          colliderPos,
@@ -21,5 +15,15 @@ void fillOccupancyGrid(
         unsigned int    numCells,
         cudaStream_t*   stream);
 
+void dilateOccupancyGrid(
+        unsigned char* gridValues,
+        unsigned int numCells,
+        cudaStream_t *stream);
+
+void computePath(
+        unsigned char*  gridValues,
+        unsigned int    numCells,
+        float*          waypoints,
+        cudaStream_t    *stream);
 
 #endif

@@ -65,6 +65,7 @@ void main()
     vec3 up = normalize(cross(toCamera, normalize(-right))) * waypointIndicatorRadius;
 
     float alpha = min(1.0, cellvalue[0] * alphaAmplification);
+    if(alpha < 1.0 && alpha > 0.995) alpha = 0.2; // do not show occupied cells.
     //if(cellvalue[0] > 0) alpha = 1.0;
     vec4 outColor = fixedColor;
     outColor.a = alpha;
