@@ -139,13 +139,6 @@ void ParticleRenderer::render()
         glVertexAttribPointer(glGetAttribLocation(mShaderProgramParticles->programId(), "in_position"), 4, GL_FLOAT, GL_FALSE, 0, 0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-        /* colors abnd their VBO are currently unused
-        glBindBuffer(GL_ARRAY_BUFFER, mVboParticleColors);
-        Q_ASSERT(glGetAttribLocation(mShaderProgramParticles->programId(), "in_color") != -1);
-        glEnableVertexAttribArray(glGetAttribLocation(mShaderProgramParticles->programId(), "in_color"));
-        glVertexAttribPointer(glGetAttribLocation(mShaderProgramParticles->programId(), "in_color"), 4, GL_FLOAT, GL_FALSE, 0, 0);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);*/
-
         // Draw using shaders
         glDrawArrays(GL_POINTS, 0, mNumberOfParticles);
 
@@ -165,7 +158,8 @@ void ParticleRenderer::render()
 
         mShaderProgramGrid->setUniformValue("fixedColor", QColor(255,0,0));
         // If we have a value of (quint8)1, that'll be 1/255=0.004 in the shader's float. Amplify this?
-        mShaderProgramGrid->setUniformValue("alphaAmplification", 10.0f);
+        mShaderProgramGrid->setUniformValue("alphaMultiplication", 30.0f);
+        mShaderProgramGrid->setUniformValue("alphaExponentiation", 1.0f);
 
         // Set uniform values in the shader program
         Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMin") != -1);
@@ -203,7 +197,8 @@ void ParticleRenderer::render()
 
         mShaderProgramGrid->setUniformValue("fixedColor", QColor(255,255,0));
         // If we have a value of (quint8)1, that'll be 1/255=0.004 in the shader's float. Amplify this?
-        mShaderProgramGrid->setUniformValue("alphaAmplification", 1.0f);
+        mShaderProgramGrid->setUniformValue("alphaMultiplication", 1.0f);
+        mShaderProgramGrid->setUniformValue("alphaExponentiation", 1.0f);
 
         // Set uniform values in the shader program
         Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMin") != -1);
@@ -242,7 +237,8 @@ void ParticleRenderer::render()
 
         mShaderProgramGrid->setUniformValue("fixedColor", QColor(0,255,0));
         // If we have a value of (quint8)1, that'll be 1/255=0.004 in the shader's float. Amplify this?
-        mShaderProgramGrid->setUniformValue("alphaAmplification", 2.0f);
+        mShaderProgramGrid->setUniformValue("alphaMultiplication", 1.0f);
+        mShaderProgramGrid->setUniformValue("alphaExponentiation", 3.0f);
 
         // Set uniform values in the shader program
         Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMin") != -1);
@@ -271,7 +267,6 @@ void ParticleRenderer::render()
 
         mShaderProgramGrid->release();
     }
-
 
     glDisable(GL_BLEND);
 }

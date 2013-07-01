@@ -16,7 +16,7 @@ PathPlanner::PathPlanner(QObject *parent) :
 
     mRepopulateOccupanccyGrid = true;
 
-    mParametersPathPlanner.grid.cells.x = mParametersPathPlanner.grid.cells.y = mParametersPathPlanner.grid.cells.z = 32;
+    mParametersPathPlanner.grid.cells.x = mParametersPathPlanner.grid.cells.y = mParametersPathPlanner.grid.cells.z = 8;
 
     mHostWaypoints = 0;
 }
@@ -150,7 +150,7 @@ void PathPlanner::slotComputePathOnGpu()
     quint8* gridOccupancy = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridOccupancy);
     quint8* gridPathFinder = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridPathFinder);
     // Only re-create the occupancy grid if the collider cloud's content changed
-    if(mRepopulateOccupanccyGrid) // always populate, because computePath screws up the occupancy grid!
+    if(true || mRepopulateOccupanccyGrid) // always populate for testing only
     {
         // Get a pointer to the particle positions in the device by mapping GPU mem into CPU mem
         float *colliderPos = (float*)CudaHelper::mapGLBufferObject(mPointCloudColliders->getCudaGraphicsResource());
@@ -162,13 +162,13 @@ void PathPlanner::slotComputePathOnGpu()
         qDebug() << "grid after filling:";
         printHostOccupancyGrid(gridOccupancy);
 
-        dilateOccupancyGrid(
+        /*dilateOccupancyGrid(
                     gridOccupancy,
                     mParametersPathPlanner.grid.getCellCount(),
                     &mCudaStream);
 
         qDebug() << "grid after dilation:";
-        printHostOccupancyGrid(gridOccupancy);
+        printHostOccupancyGrid(gridOccupancy);*/
     }
 
 //    qDebug() << "grid after init:";
@@ -217,10 +217,10 @@ void PathPlanner::slotComputePathOnGpu()
 
             // If this newWayPoint is colinear to the previous two, we can remove the last point in mComputedPath:
             //
-            //     1         2             3
-            //     *---------* - - - - - - *
+            //     1               2             3
+            //     *---------------* - - - - - - *
             //
-            //     ^ mComputedPath         ^ newWayPoint
+            //     ^ mComputedPath ^             ^ newWayPoint
 
             if(mComputedPath.size() >= 2)
             {
@@ -255,7 +255,7 @@ void PathPlanner::printHostOccupancyGrid(quint8* deviceGridOccupancy)
 
     int3 c;
     QString separatorLine = QString().rightJustified(5 + 4*mParametersPathPlanner.grid.cells.x, '=');
-    QString header = "    x:";
+    QString header = "      x:";
     for(int i=0;i<mParametersPathPlanner.grid.cells.x;i++)
     {
         QString part = QString::number(i).leftJustified(4, ' ');

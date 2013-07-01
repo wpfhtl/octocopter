@@ -17,10 +17,8 @@ __constant__ ParametersPathPlanner parametersPathPlanner;
 
 void copyParametersToGpu(ParametersPathPlanner *hostParams)
 {
-    // Copy parameters to constant memory. This was synchronous once, I changed
-    // it to be asynchronous. Shouldn't cause any harm, even if parameters were
-    // applied one frame too late.
-    cudaSafeCall(cudaMemcpyToSymbolAsync(parametersPathPlanner, hostParams, sizeof(ParametersPathPlanner)));
+    // Copy parameters to constant memory.
+    cudaSafeCall(cudaMemcpyToSymbol(parametersPathPlanner, hostParams, sizeof(ParametersPathPlanner)));
 }
 
 __global__
@@ -66,30 +64,16 @@ void dilateOccupancyGridD(u_int8_t* gridValues, unsigned int numCells)
 
                 if(neighbourGridCellIndex >= 0 && gridValues[neighbourGridCellIndex] == 255)
                 {
-                    /*printf("cell %d/%d/%d (index %d/%d) had value %d, but neighbor %d/%d/%d (index %d/%d) was 255, so setting to 255, too.\n",
-                           threadGridCellCoordinate.x, threadGridCellCoordinate.y, threadGridCellCoordinate.z,
-                           cellIndex, numCells, ownValue,
-                           neighbourGridCellCoordinate.x, neighbourGridCellCoordinate.y, neighbourGridCellCoordinate.z,
-                           neighbourGridCellIndex, numCells);*/
                     // Because CUDA works using thread-batches, we cannot just load all cells, then compute and then store all cells.
-                    // This would mean we would dilate a part of the grid, then load the neighboring part and dialte the dilation again,
-                    // making almost all of the grid become occupied.
-                    // For this reason, we say that 255 is occupied and 254 is dialted-occupied. This way, we don't need two grids. Hah!
+                    // Using batches would mean we would dilate a part of the grid, then load the neighboring part and dilate the
+                    // dilation again, making almost all of the grid become occupied.
+                    // For this reason, we say that 255 is occupied and 254 is dilated-occupied. This way, we don't need two grids. Hah!
                     gridValues[cellIndex] = 254;
                     return;
-                }
-                else
-                {
-                    /*printf("cell %d/%d/%d (index %d/%d)'s neighbor %d/%d/%d (index %d/%d) is out of bounds.\n",
-                           threadGridCellCoordinate.x, threadGridCellCoordinate.y, threadGridCellCoordinate.z,
-                           cellIndex, numCells,
-                           neighbourGridCellCoordinate.x, neighbourGridCellCoordinate.y, neighbourGridCellCoordinate.z,
-                           neighbourGridCellIndex, numCells);*/
                 }
             }
         }
     }
-
 }
 
 void fillOccupancyGrid(unsigned char* gridValues, float* colliderPos, unsigned int numColliders, unsigned int numCells, cudaStream_t *stream)
@@ -102,8 +86,8 @@ void fillOccupancyGrid(unsigned char* gridValues, float* colliderPos, unsigned i
     uint numThreads, numBlocks;
     computeExecutionKernelGrid(numColliders, 64, numBlocks, numThreads);
 
-    fillOccupancyGridD<<< numBlocks, numThreads, 0, *stream>>>(gridValues, (float4*)colliderPos, numColliders);
-    cudaCheckSuccess("fillOccupancyGrid");
+//    fillOccupancyGridD<<< numBlocks, numThreads, 0, *stream>>>(gridValues, (float4*)colliderPos, numColliders);
+//    cudaCheckSuccess("fillOccupancyGrid");
 }
 
 void dilateOccupancyGrid(unsigned char* gridValues, unsigned int numCells, cudaStream_t *stream)
@@ -125,9 +109,10 @@ void growCellsD(u_int8_t* gridValues, uint numCells, uint cellIndex)
     // get grid-cell of particle
     int3 threadGridCellCoordinate = parametersPathPlanner.grid.getCellCoordinate(cellIndex);
 
-    unsigned int lowestNonNullNeighbor = 1000; // higher than u_int8_t could ever be
+    u_int8_t lowestNonNullNeighbor = 254; // thats a dilated cell's value
     u_int8_t ownValue = gridValues[cellIndex];
 
+    // Check all neighbors for the lowest value d != 0,254,255 and put d++ into our own cell.
     for(int z=-1;z<=1;z++)
     {
         for(int y=-1;y<=1;y++)
@@ -137,12 +122,13 @@ void growCellsD(u_int8_t* gridValues, uint numCells, uint cellIndex)
                 const int3 neighbourGridCellCoordinate = threadGridCellCoordinate + make_int3(x,y,z);
                 const int neighbourGridCellIndex = parametersPathPlanner.grid.getCellHash2(neighbourGridCellCoordinate);
 
+                // Border-cells might ask for neighbors outside of the grid. getCellHash2() returns -1 in those cases.
                 if(neighbourGridCellIndex >= 0)
                 {
-                    const uint neighborValue = gridValues[neighbourGridCellIndex];
+                    const u_int8_t neighborValue = gridValues[neighbourGridCellIndex];
 
                     // Find the lowest neighbor that is neither 0 nor 255
-                    if(neighborValue < lowestNonNullNeighbor && neighborValue != 0 && neighborValue != 255 && neighborValue != 254)
+                    if(neighborValue < lowestNonNullNeighbor && neighborValue != 0)
                         lowestNonNullNeighbor = neighborValue;
                 }
             }
@@ -152,7 +138,7 @@ void growCellsD(u_int8_t* gridValues, uint numCells, uint cellIndex)
     // Write our cell's value. A cell first contains a 0, then the neighborCellValue+1. Once it does
     // contain a value, it will never change. We're only interested in replacing the value with lower
     // numbers, but since the values spread like a wave, that'll never happen.
-    if(lowestNonNullNeighbor != 1000 && ownValue == 0)
+    if(lowestNonNullNeighbor < 254 && ownValue == 0)
     {
         //printf("found value %d in neighbor, setting cell %d to %d\n", lowestNonNullNeighbor, cellIndex, lowestNonNullNeighbor + 1);
         gridValues[cellIndex] = lowestNonNullNeighbor + 1;
@@ -175,7 +161,7 @@ void computePathD(u_int8_t* gridValues, unsigned int numCells)
     int3 goalGridCellCoordinate = parametersPathPlanner.grid.getCellCoordinate(parametersPathPlanner.goal);
     int goalGridCellIndex = parametersPathPlanner.grid.getCellHash2(goalGridCellCoordinate);
 
-    // Only act if the goal is not occupied and don't use more threads than cells
+    // Only act if the goal is not occupied
     if(gridValues[goalGridCellIndex] == 0 && goalGridCellIndex >= 0)
     {
         // Let the first thread set the cell containing "start" to 1!
@@ -194,10 +180,13 @@ void computePathD(u_int8_t* gridValues, unsigned int numCells)
         {
             // We want to sync all threads after writing. Because all threads need to reach this barrier,
             // we cannot check cellIndex < numCells above and do that in growCells instead.
-            // SyncThreads() before first iteration, so that writing 1 into goalcell has an effect.
+            // syncthreads() before first iteration, so that writing 1 into goalcell has an effect.
             __syncthreads();
 
             growCellsD(gridValues, numCells, cellIndex);
+
+            if(cellIndex == 0)
+                printf("computePathD(): iteration %d, value at goal cell after growing: %d.\n", i, gridValues[goalGridCellIndex]);
         }
     }
 }

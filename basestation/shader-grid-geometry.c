@@ -26,7 +26,8 @@ uniform vec3 boundingBoxMax;
 uniform ivec3 gridCellCount;
 
 uniform vec4 fixedColor;
-uniform float alphaAmplification;
+uniform float alphaMultiplication;
+uniform float alphaExponentiation;
 
 void main()
 {
@@ -64,9 +65,14 @@ void main()
     vec3 right = normalize(-cross(toCamera, upWorld)) * waypointIndicatorRadius;
     vec3 up = normalize(cross(toCamera, normalize(-right))) * waypointIndicatorRadius;
 
-    float alpha = min(1.0, cellvalue[0] * alphaAmplification);
-    if(alpha < 1.0 && alpha > 0.995) alpha = 0.2; // do not show occupied cells.
+    // cellValue[0] is the intensity, in interval [0,1]. Exponentiating that value obviously doesn't give the desired effect.
+    float alpha = cellvalue[0] * 256.0;
+    if(alphaExponentiation != 1.0) alpha = pow(alpha, alphaExponentiation);
+    alpha *= alphaMultiplication;
+    alpha /= 256.0;
+    //if(alpha < 1.0 && alpha > 0.995) alpha = 0.2; // show dilated cells with obvious difference.
     //if(cellvalue[0] > 0) alpha = 1.0;
+
     vec4 outColor = fixedColor;
     outColor.a = alpha;
 
