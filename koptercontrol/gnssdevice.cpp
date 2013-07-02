@@ -121,7 +121,7 @@ quint8 GnssDevice::slotFlushCommandQueue()
     {
         mLastCommandToGnssDevice[mSerialPortOnDeviceUsb] = mCommandQueueUsb.takeFirst();
         qDebug() << "GnssDevice::slotFlushCommandQueue(): no pending replies, sending next command:" << mLastCommandToGnssDevice[mSerialPortOnDeviceUsb].trimmed();
-        if(mReceiveBufferUsb.size()) qDebug() << "GnssDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << SbfParser::readable(mReceiveBufferUsb);
+        if(mReceiveBufferUsb.size() > mDataCursorUsb + 1) qDebug() << "GnssDevice::slotFlushCommandQueue(): WARNING! Receive Buffer still contains:" << SbfParser::readable(mReceiveBufferUsb.mid(mDataCursorUsb));
         //usleep(100000);
         mSerialPortUsb->write(mLastCommandToGnssDevice[mSerialPortOnDeviceUsb]);
 
@@ -573,8 +573,8 @@ bool GnssDevice::parseCommandReply(const QString& portNameOnDevice, const QByteA
     if(!mLastCommandToGnssDevice[portNameOnDevice].isEmpty())
     {
         // Check for command replies before every packet
-        const qint32 positionReplyStart = receiveBuffer->indexOf("$R");
-        qint32 positionReplyStop  = receiveBuffer->indexOf(portNameOnDevice + QChar('>'));
+        const qint32 positionReplyStart = receiveBuffer->indexOf("$R", *dataCursorToAdvance);
+        qint32 positionReplyStop  = receiveBuffer->indexOf(portNameOnDevice + QChar('>'), *dataCursorToAdvance);
         //if(positionReplyStart != -1 && positionReplyStop != -1)
         if(positionReplyStart == 0 && positionReplyStop != -1)
         {
@@ -609,7 +609,7 @@ bool GnssDevice::parseCommandReply(const QString& portNameOnDevice, const QByteA
 //            const int bytesToCut = positionReplyStop - positionReplyStart;
 //            receiveBuffer->remove(positionReplyStart, bytesToCut);
             *dataCursorToAdvance += positionReplyStop;
-            mLastCommandToGnssDevice[portNameOnDevice] = QByteArray();
+            mLastCommandToGnssDevice[portNameOnDevice].clear();
 
             slotFlushCommandQueue();
 
