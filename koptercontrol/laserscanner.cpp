@@ -45,8 +45,7 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFile
     connect(mHokuyo, SIGNAL(finished()), mThreadReadScanner, SLOT(quit()));
 
     connect(mHokuyo, SIGNAL(heightOverGround(float)), SIGNAL(heightOverGround(float)));
-    qDebug() << "LaserScanner::LaserScanner(): connecting singal containing data, qregistermetatype?";
-    connect(mHokuyo, SIGNAL(scanData(qint32,std::vector<quint16>*const)), SIGNAL(scanData(qint32,std::vector<quint16>*const)));
+    connect(mHokuyo, SIGNAL(scanData(qint32,std::vector<quint16>*const)), SLOT(slotNewScanData(qint32,std::vector<quint16>*const)));
 }
 
 LaserScanner::~LaserScanner()
@@ -76,7 +75,6 @@ const bool LaserScanner::isScanning() const
 
 void LaserScanner::slotSetRelativeScannerPose(const Pose& p)
 {
-    qDebug() << __PRETTY_FUNCTION__ << p;
     mRelativeScannerPose = p;
 
     // Write the new relative pose into the logfile. Format is:
@@ -87,7 +85,7 @@ void LaserScanner::slotSetRelativeScannerPose(const Pose& p)
     const QByteArray magic("RPOSE");
 
     QByteArray byteArrayPoseMatrix;
-    QDataStream ds(byteArrayPoseMatrix);
+    QDataStream ds(&byteArrayPoseMatrix, QIODevice::WriteOnly);
     ds << p.getMatrixConst();
 
     quint16 length =
@@ -102,7 +100,6 @@ void LaserScanner::slotSetRelativeScannerPose(const Pose& p)
     mLogFile->write((const char*)&length, sizeof(length));
     mLogFile->write((const char*)&tow, sizeof(tow)); // I hope this lines in well with scanner timestamps...
     mLogFile->write(byteArrayPoseMatrix.constData(), byteArrayPoseMatrix.size());
-    qDebug() << __PRETTY_FUNCTION__ << "done.";
 }
 
 const Pose& LaserScanner::getRelativePose() const

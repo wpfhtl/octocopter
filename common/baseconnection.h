@@ -80,8 +80,8 @@ public slots:
     // called by rover when it has reached a waypoint, notifies basestation
     void slotWayPointReached(const WayPoint&wpt);
 
-    // called by flightcontroller when waypoints are changed (by basestation, just to compare afterwards)
-    void slotSetWayPoints(const QList<WayPoint> *const);
+    // called by flightcontroller when waypoints are changed
+    void slotSetWayPoints(const QList<WayPoint> *const, const WayPointListSource source);
 
     // called by rover to send updated pose to basestation (called frequently)
     void slotNewVehiclePose(const Pose* const pose);

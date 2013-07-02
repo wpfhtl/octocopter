@@ -236,7 +236,7 @@ void BaseConnection::slotSendPingReply()
     slotSendData(data, false);
 }
 
-void BaseConnection::slotSetWayPoints(const QList<WayPoint>* const wayPoints)
+void BaseConnection::slotSetWayPoints(const QList<WayPoint>* const wayPoints, const WayPointListSource source)
 {
     // We're here because the base sent some changes to the rover's waypoint-list, and now
     // we get a chance to send a hash of the rover's list back to the base, so they can compare.

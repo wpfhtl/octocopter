@@ -57,10 +57,10 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     QString networkInterface = "wlan0";
     QString deviceCamera = "/dev/video0";
     QString deviceSerialKopter = "/dev/serial/by-id/usb-FTDI_Dual_RS232-if00-port0";
-    //QString deviceSerialGnssPort1 = "/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device-if00"; // used for one-port mode
-    //QString deviceSerialGnssPort2 = "/dev/serial/by-id/usb-FTDI_Dual_RS232-if01-port0"; // used for one-port mode
-    QString deviceSerialGnssPort1 = "/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device-if01-port0";
-    QString deviceSerialGnssPort2 = "/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device-if03-port0";
+    QString deviceSerialGnssPort1 = "/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device-if00"; // used for one-port mode
+    QString deviceSerialGnssPort2 = "/dev/serial/by-id/usb-FTDI_Dual_RS232-if01-port0"; // used for one-port mode
+    //QString deviceSerialGnssPort1 = "/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device-if01-port0";
+    //QString deviceSerialGnssPort2 = "/dev/serial/by-id/usb-Septentrio_Septentrio_USB_Device-if03-port0";
     QString deviceSerialLidarDown = "/dev/hokuyo_H1004271"; // using udev-rule and hokuyoid program
     QString deviceSerialLidarFrnt = "/dev/hokuyo_H1102762"; // using udev-rule and hokuyoid program
 
@@ -180,12 +180,12 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mFlightController, SIGNAL(flightControllerValues(const FlightControllerValues* const)), mBaseConnection, SLOT(slotNewFlightControllerValues(const FlightControllerValues* const)));
     connect(mFlightController, SIGNAL(flightStateChanged(FlightState*const)), mBaseConnection, SLOT(slotFlightStateChanged(FlightState*const)));
     connect(mFlightController, SIGNAL(wayPointReached(WayPoint)), mBaseConnection, SLOT(slotWayPointReached(WayPoint)));
-    connect(mFlightController, SIGNAL(wayPointInserted(quint16,WayPoint)), mBaseConnection, SLOT(slotRoverWayPointInserted(quint16,WayPoint)));
-    connect(mFlightController, SIGNAL(currentWayPoints(QList<WayPoint>*const)), mBaseConnection, SLOT(slotFlightControllerWayPointsChanged(QList<WayPoint>*const)));
+    connect(mFlightController, SIGNAL(wayPoints(QList<WayPoint>* const, WayPointListSource)), mBaseConnection, SLOT(slotSetWayPoints(QList<WayPoint> *const, WayPointListSource)));
     connect(mFlightController, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mFlightController, SIGNAL(flightControllerWeightsChanged()), mBaseConnection, SLOT(slotFlightControllerWeightsChanged()));
 
     //    WARNING! THIS ENABLES MOTION!
+    connect(mBaseConnection, SIGNAL(motion(const MotionCommand* const)), mKopter, SLOT(slotSetMotion(const MotionCommand* const)));
     connect(mFlightController, SIGNAL(motion(const MotionCommand* const)), mKopter, SLOT(slotSetMotion(const MotionCommand* const)));
 }
 
