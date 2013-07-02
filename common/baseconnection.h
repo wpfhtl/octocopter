@@ -57,8 +57,6 @@ public:
 
 signals:
     // emitted when a new list of waypoints has arrived from the basestation
-    void wayPointInsert(quint16 index, const WayPoint& wayPoint);
-    void wayPointDelete(const quint16& index);
     void wayPoints(const QList<WayPoint>& wayPoints, const WayPointListSource);
 
     // emitted when the basestation wants to send direct ExternalControl motion commands, which is only used for testing.

@@ -16,7 +16,7 @@ PathPlanner::PathPlanner(QObject *parent) :
 
     mRepopulateOccupanccyGrid = true;
 
-    mParametersPathPlanner.grid.cells.x = mParametersPathPlanner.grid.cells.y = mParametersPathPlanner.grid.cells.z = 8;
+    mParametersPathPlanner.grid.cells.x = mParametersPathPlanner.grid.cells.y = mParametersPathPlanner.grid.cells.z = 32;
 
     mHostWaypoints = 0;
 }
@@ -162,13 +162,13 @@ void PathPlanner::slotComputePathOnGpu()
         qDebug() << "grid after filling:";
         printHostOccupancyGrid(gridOccupancy);
 
-        /*dilateOccupancyGrid(
+        dilateOccupancyGrid(
                     gridOccupancy,
                     mParametersPathPlanner.grid.getCellCount(),
                     &mCudaStream);
 
         qDebug() << "grid after dilation:";
-        printHostOccupancyGrid(gridOccupancy);*/
+        printHostOccupancyGrid(gridOccupancy);
     }
 
 //    qDebug() << "grid after init:";

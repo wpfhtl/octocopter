@@ -304,7 +304,7 @@ void Kopter::slotSerialPortDataReady()
 
                 if(ppmChannels->pushButton > 0 != (mLastPushButtonValue == PushButtonValueHigh) && mLastPushButtonValue != PushButtonValueUndefined)
                 {
-                    //qDebug() << "Kopter::slotSerialPortDataReady(): pushbutton toggled from" << mLastPushButtonValue << "to:" << (ppmChannels->pushButton > 0);
+                    qDebug() << "Kopter::slotSerialPortDataReady(): pushbutton toggled from" << mLastPushButtonValue << "to:" << (ppmChannels->pushButton > 0);
                     emit pushButtonToggled();
                 }
                 mLastPushButtonValue = ppmChannels->pushButton > 0 ? PushButtonValueHigh : PushButtonValueLow;

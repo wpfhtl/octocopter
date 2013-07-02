@@ -25,9 +25,6 @@ public:
     NetworkClient(const QString& networkPort);
     ~NetworkClient();
 
-signals:
-    void data(const QByteArray&);
-
 public slots:
     void write(const QByteArray&);
 };

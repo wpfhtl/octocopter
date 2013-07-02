@@ -161,7 +161,7 @@ void Hokuyo::slotStartScanning()
                 emit heightOverGround(distancesToEmit->at(540)/1000.0f + 0.03f);
 
             // With this call, we GIVE UP OWNERSHIP of the data. It might get deleted immediately!
-            emit newScanData(timeStampScanMiddle, distancesToEmit);
+            emit scanData(timeStampScanMiddle, distancesToEmit);
         }
     } while (mState == State::Scanning);
 

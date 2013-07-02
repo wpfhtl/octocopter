@@ -28,7 +28,7 @@ private:
     std::vector<long> mScannedDistances;
 
 private slots:
-    //void slotCaptureScanData();
+    void slotNewScanData(qint32 timestampScanner, std::vector<quint16> * const distances);
 
 public:
     // The pose specifies translation from vehicle frame to the laser source, so the scanner's
@@ -46,18 +46,11 @@ public slots:
     void slotEnableScanning(const bool = true);
     void slotSetRelativeScannerPose(const Pose& p);
 
-//    void slotDisableScanning()
-//    {
-//        qDebug() << "LaserScanner::slotDisableScanning().";
-//        slotEnableScanning(false);
-//    }
-
     // To set the laserscanner's timestamp to the gps time. Hopefully.
     void slotSetScannerTimeStamp(const qint32 timestamp);
 
     void slotThreadStarted();
     void slotThreadFinished();
-    void slotThreadTerminated();
 
 signals:
     // the distance from the vehicle's center to the ground in meters
@@ -67,7 +60,7 @@ signals:
     void message(const LogImportance& importance, const QString&, const QString& message);
 
     // Emits new scan data, allocated on heap. Ownership (of the distances only!) is passed to receiver(s).
-    void newScanData(qint32 timestampScanner, const Pose* const relativeScannerPose, std::vector<quint16> * distances);
+    void scanData(qint32 timestampScanner, const Pose* const relativeScannerPose, std::vector<quint16> * distances);
 };
 
 #endif

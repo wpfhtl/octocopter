@@ -25,6 +25,8 @@ uniform vec3 boundingBoxMin;
 uniform vec3 boundingBoxMax;
 uniform ivec3 gridCellCount;
 
+uniform float quadSizeFactor;
+
 uniform vec4 fixedColor;
 uniform float alphaMultiplication;
 uniform float alphaExponentiation;
@@ -58,12 +60,12 @@ void main()
 
     vec3 toCamera = normalize(cameraPosition.xyz - posCenterOfCell);
 
-    float waypointIndicatorRadius = min(min(cellSize.x/2, cellSize.y/2),cellSize.z/2);
+    float quadSize = min(min(cellSize.x/2, cellSize.y/2),cellSize.z/2) * quadSizeFactor;
 
     vec3 upWorld = vec3(0.0, 1.0, 0.0);
 
-    vec3 right = normalize(-cross(toCamera, upWorld)) * waypointIndicatorRadius;
-    vec3 up = normalize(cross(toCamera, normalize(-right))) * waypointIndicatorRadius;
+    vec3 right = normalize(-cross(toCamera, upWorld)) * quadSize;
+    vec3 up = normalize(cross(toCamera, normalize(-right))) * quadSize;
 
     // cellValue[0] is the intensity, in interval [0,1]. Exponentiating that value obviously doesn't give the desired effect.
     float alpha = cellvalue[0] * 256.0;

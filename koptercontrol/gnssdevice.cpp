@@ -622,6 +622,7 @@ bool GnssDevice::parseCommandReply(const QString& portNameOnDevice, const QByteA
 
 void GnssDevice::slotDataReadyOnCom()
 {
+    qDebug() << __PRETTY_FUNCTION__;
     quint32 offsetToValidPacket;
 
     if(mSerialPortCom->bytesAvailable() < mMinimumDataPacketSize) return;
@@ -669,6 +670,7 @@ void GnssDevice::slotDataReadyOnCom()
 
 void GnssDevice::slotDataReadyOnUsb()
 {
+    qDebug() << __PRETTY_FUNCTION__;
     quint32 offsetToValidPacket;
 
     if(mSerialPortUsb->bytesAvailable() < mMinimumDataPacketSize) return;

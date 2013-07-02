@@ -160,6 +160,7 @@ void ParticleRenderer::render()
         // If we have a value of (quint8)1, that'll be 1/255=0.004 in the shader's float. Amplify this?
         mShaderProgramGrid->setUniformValue("alphaMultiplication", 30.0f);
         mShaderProgramGrid->setUniformValue("alphaExponentiation", 1.0f);
+        mShaderProgramGrid->setUniformValue("quadSizeFactor", 1.0f);
 
         // Set uniform values in the shader program
         Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMin") != -1);
@@ -199,6 +200,7 @@ void ParticleRenderer::render()
         // If we have a value of (quint8)1, that'll be 1/255=0.004 in the shader's float. Amplify this?
         mShaderProgramGrid->setUniformValue("alphaMultiplication", 1.0f);
         mShaderProgramGrid->setUniformValue("alphaExponentiation", 1.0f);
+        mShaderProgramGrid->setUniformValue("quadSizeFactor", 0.2f);
 
         // Set uniform values in the shader program
         Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMin") != -1);
@@ -238,7 +240,8 @@ void ParticleRenderer::render()
         mShaderProgramGrid->setUniformValue("fixedColor", QColor(0,255,0));
         // If we have a value of (quint8)1, that'll be 1/255=0.004 in the shader's float. Amplify this?
         mShaderProgramGrid->setUniformValue("alphaMultiplication", 1.0f);
-        mShaderProgramGrid->setUniformValue("alphaExponentiation", 3.0f);
+        mShaderProgramGrid->setUniformValue("alphaExponentiation", 2.0f);
+        mShaderProgramGrid->setUniformValue("quadSizeFactor", 0.2f);
 
         // Set uniform values in the shader program
         Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMin") != -1);
