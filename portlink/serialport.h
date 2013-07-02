@@ -25,9 +25,6 @@ private slots:
 
 public slots:
     void write(const QByteArray &data);
-
-signals:
-    void data(const QByteArray&);
 };
 
 #endif // SERIALPORT_H
