@@ -39,14 +39,14 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFile
     // after the thread has ended. Weird...
     connect(mThreadReadScanner, SIGNAL(started()), this, SLOT(slotThreadStarted()));
     connect(mThreadReadScanner, SIGNAL(finished()), this, SLOT(slotThreadFinished()));
-    connect(mThreadReadScanner, SIGNAL(terminated()), this, SLOT(slotThreadTerminated()));
+    //not available in qt5: connect(mThreadReadScanner, SIGNAL(terminated()), this, SLOT(slotThreadTerminated()));
 
     connect(mThreadReadScanner, SIGNAL(started()), mHokuyo, SLOT(slotStartScanning()));
     connect(mHokuyo, SIGNAL(finished()), mThreadReadScanner, SLOT(quit()));
 
     connect(mHokuyo, SIGNAL(heightOverGround(float)), SIGNAL(heightOverGround(float)));
     qDebug() << "LaserScanner::LaserScanner(): connecting singal containing data, qregistermetatype?";
-    connect(mHokuyo, SIGNAL(newScanData(qint32,std::vector<quint16>*const)), SIGNAL(newScanData(qint32,std::vector<quint16>*const)));
+    connect(mHokuyo, SIGNAL(scanData(qint32,std::vector<quint16>*const)), SIGNAL(scanData(qint32,std::vector<quint16>*const)));
 }
 
 LaserScanner::~LaserScanner()
@@ -64,6 +64,11 @@ LaserScanner::~LaserScanner()
     qDebug() << "LaserScanner::~LaserScanner(): done.";
 }
 
+void LaserScanner::slotNewScanData(qint32 timestampScanner, std::vector<quint16> * const distances)
+{
+    emit scanData(timestampScanner, &mRelativeScannerPose, distances);
+}
+
 const bool LaserScanner::isScanning() const
 {
 //    return mTimerScan->isActive();
@@ -71,6 +76,7 @@ const bool LaserScanner::isScanning() const
 
 void LaserScanner::slotSetRelativeScannerPose(const Pose& p)
 {
+    qDebug() << __PRETTY_FUNCTION__ << p;
     mRelativeScannerPose = p;
 
     // Write the new relative pose into the logfile. Format is:
@@ -96,6 +102,7 @@ void LaserScanner::slotSetRelativeScannerPose(const Pose& p)
     mLogFile->write((const char*)&length, sizeof(length));
     mLogFile->write((const char*)&tow, sizeof(tow)); // I hope this lines in well with scanner timestamps...
     mLogFile->write(byteArrayPoseMatrix.constData(), byteArrayPoseMatrix.size());
+    qDebug() << __PRETTY_FUNCTION__ << "done.";
 }
 
 const Pose& LaserScanner::getRelativePose() const
@@ -156,7 +163,7 @@ void LaserScanner::slotThreadFinished()
     qDebug() << GnssTime::currentTow() << "LaserScanner::slotThreadFinished() in process" << getpid() << "thread" << pthread_self();
 }
 
-void LaserScanner::slotThreadTerminated()
-{
-    qDebug() << GnssTime::currentTow() << "LaserScanner::slotThreadTerminated() in process" << getpid() << "thread" << pthread_self();
-}
+//void LaserScanner::slotThreadTerminated()
+//{
+//    qDebug() << GnssTime::currentTow() << "LaserScanner::slotThreadTerminated() in process" << getpid() << "thread" << pthread_self();
+//}
