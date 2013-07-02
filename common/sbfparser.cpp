@@ -303,7 +303,7 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
     {
         // IntAttCovEuler
         const Sbf_IntAttCovEuler *block = (Sbf_IntAttCovEuler*)(sbfData.data() + offsetToValidPacket);
-//        qDebug() << "SBF: IntAttCovEuler: covariances for heading, pitch, roll:" << block->Cov_HeadHead << block->Cov_PitchPitch << block->Cov_RollRoll;
+        qDebug() << "SBF: IntAttCovEuler: covariances for heading, pitch, roll:" << block->Cov_HeadHead << block->Cov_PitchPitch << block->Cov_RollRoll;
         float newCovarianceValue = std::max(std::max(block->Cov_HeadHead, block->Cov_PitchPitch), block->Cov_RollRoll);
         if(fabs(mGnssStatus.covariances - newCovarianceValue) > 0.02)
         {
@@ -361,7 +361,7 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
         // IntPVAAGeod
         const Sbf_IntPVAAGeod *block = (Sbf_IntPVAAGeod*)(sbfData.data() + offsetToValidPacket);
 
-//        qDebug() << "SBF: IntPVAAGeod";
+        qDebug() << "SBF: IntPVAAGeod" << block->TOW << block->GNSSPVTMode << block->Alt << block->Heading << block->Pitch << block->Roll;
 
         // Check the Info-field and emit states if it changes
         if(mGnssStatus.info != block->Info)
@@ -602,6 +602,7 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
         {
             // Set system time to gps time. Adding a roundtrip-timer is not a good idea, as the board waits until the
             // second leaps, meaning the time from request to output doesn't equal the time from output to reception.
+            qDebug() << __PRETTY_FUNCTION__ << "emitting time for syncing:" << (qint32)block->TOW;
             emit gnssTimeOfWeekEstablished((qint32)block->TOW);
         }
     }

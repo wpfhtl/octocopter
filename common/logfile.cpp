@@ -93,6 +93,7 @@ void LogFile::flush()
 {
     QByteArray* temp;
 
+    QTime t; t.start();
     qDebug() << "LogFile::flush(): flushing" << mLogFile->fileName() << "...";
 
     // Lock mutex and swap buffers before for flushing...
@@ -111,5 +112,5 @@ void LogFile::flush()
     mLogFile->flush();
     mBufferBeingFlushed->clear();
 
-    qDebug() << "LogFile::flush(): done flushing" << mLogFile->fileName();
+    qDebug() << "LogFile::flush(): done flushing" << mLogFile->fileName() << "after" << t.elapsed() << "ms";
 }

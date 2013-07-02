@@ -65,6 +65,7 @@ LaserScanner::~LaserScanner()
 
 void LaserScanner::slotNewScanData(qint32 timestampScanner, std::vector<quint16> * const distances)
 {
+    qDebug() << __PRETTY_FUNCTION__ << "emitting scanData()";
     emit scanData(timestampScanner, &mRelativeScannerPose, distances);
 }
 

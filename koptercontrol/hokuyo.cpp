@@ -161,6 +161,7 @@ void Hokuyo::slotStartScanning()
                 emit heightOverGround(distancesToEmit->at(540)/1000.0f + 0.03f);
 
             // With this call, we GIVE UP OWNERSHIP of the data. It might get deleted immediately!
+	    qDebug() << __PRETTY_FUNCTION__ << "emitting scanData(qint32, distances)";
             emit scanData(timeStampScanMiddle, distancesToEmit);
         }
     } while (mState == State::Scanning);
