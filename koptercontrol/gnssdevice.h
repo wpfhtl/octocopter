@@ -98,6 +98,7 @@ public slots:
 
 signals:
     void message(const LogImportance& importance, const QString& source, const QString& message);
+    void systemTimeSynchronized();
 };
 
 #endif // GnssDevice_H

@@ -1,10 +1,5 @@
 #include "gnsstime.h"
 
-//GnssTime::GnssTime()
-//{
-//}
-
-
 qint32 GnssTime::currentTow()
 {
     static const QDate today = QDate::currentDate();

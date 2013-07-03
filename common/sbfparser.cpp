@@ -50,8 +50,8 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, const quint32&
             return false;
         }
 
-//        sbfHeader = (Sbf_Header*)(sbfData.data() + offsetToValidPacket);
-        block = (Sbf_PVTCartesian*)(sbfData.data() + offsetToValidPacketLocal);
+//        sbfHeader = (Sbf_Header*)(sbfData.constData() + offsetToValidPacket);
+        block = (Sbf_PVTCartesian*)(sbfData.constData() + offsetToValidPacketLocal);
 
         // If sbfData doesn't hold enough bytes for an SBF block with the specified Length, it can have two reasons:
         //  a) the packet isn't received completely yet
@@ -81,7 +81,7 @@ bool SbfParser::getNextValidPacketInfo(const QByteArray& sbfData, const quint32&
         // Calculate the packet's checksum. For corrupt packets, the Length field might be random, so we bound
         // the bytes-to-be-checksummed to be between 0 and the buffer's remaining bytes after Sync and Crc fields.
         calculatedCrc = computeChecksum(
-                    (void*)(sbfData.data() + offsetToValidPacketLocal + sizeof(block->Header.Sync) + sizeof(block->Header.CRC)),
+                    (void*)(sbfData.constData() + offsetToValidPacketLocal + sizeof(block->Header.Sync) + sizeof(block->Header.CRC)),
                     qBound(
                         (qint32)0,
                         (qint32)(block->Header.Length - sizeof(block->Header.Sync) - sizeof(block->Header.CRC)),
@@ -273,16 +273,16 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
         Q_ASSERT(false);
     }
 
-    const quint16 msgCrc = *(quint16*)(sbfData.data() + offsetToValidPacket + 2);
-    const quint16 msgId = *(quint16*)(sbfData.data() + offsetToValidPacket + 4);
+    const quint16 msgCrc = *(quint16*)(sbfData.constData() + offsetToValidPacket + 2);
+    const quint16 msgId = *(quint16*)(sbfData.constData() + offsetToValidPacket + 4);
     const quint16 msgIdBlock = msgId & 0x1fff;
     const quint16 msgIdRev = msgId >> 13;
-    const quint16 msgLength = *(quint16*)(sbfData.data() + offsetToValidPacket + 6);
+    const quint16 msgLength = *(quint16*)(sbfData.constData() + offsetToValidPacket + 6);
 
     // Save our current gpsStatus in a const place, so we can check whether it changed after processing the whole packet
     const GnssStatus previousGpsStatus = mGnssStatus;
 
-//    qDebug() << "SbfParser::processNextValidPacket(): processing" << sbfData.size() << "bytes SBF data with ID" << msgId << "from TOW" << ((Sbf_PVTCartesian*)sbfData.data())->TOW;
+//    qDebug() << "SbfParser::processNextValidPacket(): processing" << sbfData.size() << "bytes SBF data with ID" << msgId << "from TOW" << ((Sbf_PVTCartesian*)sbfData.constData())->TOW;
 
     // Process the message if we're interested.
     //qDebug() << "received sbf block" << msgIdBlock;
@@ -292,7 +292,7 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
     case 4006:
     {
         // PVTCartesian
-        const Sbf_PVTCartesian *block = (Sbf_PVTCartesian*)(sbfData.data() + offsetToValidPacket);
+        const Sbf_PVTCartesian *block = (Sbf_PVTCartesian*)(sbfData.constData() + offsetToValidPacket);
         // block->MeanCorrAge is quint16 in hundreds of a second
 //        qDebug() << "SBF: PVTCartesian: MeanCorrAge in seconds:" << ((float)block->MeanCorrAge)/100.0;
         mGnssStatus.meanCorrAge = std::min(block->MeanCorrAge / 10, 255);
@@ -302,7 +302,7 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
     case 4072:
     {
         // IntAttCovEuler
-        const Sbf_IntAttCovEuler *block = (Sbf_IntAttCovEuler*)(sbfData.data() + offsetToValidPacket);
+        const Sbf_IntAttCovEuler *block = (Sbf_IntAttCovEuler*)(sbfData.constData() + offsetToValidPacket);
         qDebug() << "SBF: IntAttCovEuler: covariances for heading, pitch, roll:" << block->Cov_HeadHead << block->Cov_PitchPitch << block->Cov_RollRoll;
         float newCovarianceValue = std::max(std::max(block->Cov_HeadHead, block->Cov_PitchPitch), block->Cov_RollRoll);
         if(fabs(mGnssStatus.covariances - newCovarianceValue) > 0.02)
@@ -316,7 +316,7 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
     case 4014:
     {
         // ReceiverStatus
-        const Sbf_ReceiverStatus *block = (Sbf_ReceiverStatus*)(sbfData.data() + offsetToValidPacket);
+        const Sbf_ReceiverStatus *block = (Sbf_ReceiverStatus*)(sbfData.constData() + offsetToValidPacket);
 
 //        qDebug() << "SBF: ReceiverStatus: CPU Load:" << block->CPULoad;
 
@@ -359,7 +359,7 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
     case 4045:
     {
         // IntPVAAGeod
-        const Sbf_IntPVAAGeod *block = (Sbf_IntPVAAGeod*)(sbfData.data() + offsetToValidPacket);
+        const Sbf_IntPVAAGeod *block = (Sbf_IntPVAAGeod*)(sbfData.constData() + offsetToValidPacket);
 
         qDebug() << "SBF: IntPVAAGeod" << block->TOW << block->GNSSPVTMode << block->Alt << block->Heading << block->Pitch << block->Roll;
 
@@ -577,7 +577,7 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
     case 5914:
     {
         // ReceiverTime
-        const Sbf_ReceiverTime *block = (Sbf_ReceiverTime*)(sbfData.data() + offsetToValidPacket);
+        const Sbf_ReceiverTime *block = (Sbf_ReceiverTime*)(sbfData.constData() + offsetToValidPacket);
 
         qDebug() << "SBF: ReceiverTime: TOW:" << block->TOW;
 
@@ -612,7 +612,7 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
     {
         // ExtEvent
         //qDebug() << "SBF: ExtEvent";
-        const Sbf_ExtEvent* const block = (Sbf_ExtEvent* const)(sbfData.data() + offsetToValidPacket);
+        const Sbf_ExtEvent* const block = (Sbf_ExtEvent* const)(sbfData.constData() + offsetToValidPacket);
 
         // Laserscanner sync signal is soldered to both ports, but port 1 is broken. If it ever starts working again, I want to know.
         Q_ASSERT(block->Source == 2);
@@ -688,7 +688,7 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
         if(positionOfNextInfo >= msgLength)
         {
             // construct a string starting at the found position, but make sure not to overrun the buffer-end
-            const QString sync = QString::fromLatin1(sbfData.data() + positionOfNextInfo, std::min(3, sbfData.size() - positionOfNextInfo));
+            const QString sync = QString::fromLatin1(sbfData.constData() + positionOfNextInfo, std::min(3, sbfData.size() - positionOfNextInfo));
             if(sync.left(2) == "$@" || sync == "$R:" || sync == "$R?" || sync == "$R;")
             {
 //                qDebug() << "SbfParser::processNextValidPacket(): nextInfo found at" << positionOfNextInfo << "- breaking.";
@@ -745,7 +745,7 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
 
     // Announce what packet we just processed. Might be used for logging.
     // ExtEvent is generic enough, the TOW is always at the same location
-    const Sbf_ExtEvent * const block = (Sbf_ExtEvent*)sbfData.data();
+    const Sbf_ExtEvent * const block = (Sbf_ExtEvent*)sbfData.constData();
     emit processedPacket((qint32)block->TOW);
 
     //sbfData.remove(0, bytesToRemove);

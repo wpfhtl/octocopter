@@ -45,10 +45,10 @@ Hokuyo::~Hokuyo()
     qDebug() << "Hokuyo::~Hokuyo(): done.";
 }
 
-void Hokuyo::slotSetScannerTimeStamp(const qint32 timestamp)
+void Hokuyo::slotSetScannerTimeStamp()
 {
-    // We were called after the host was synchronized with the GPS clock, so @timestamp
-    // should be pretty much now.
+    // We were called after the host was synchronized with the GPS clock, so we can now use
+    // the system time to set the scanner's time.
     //
     // Because Hokuyo UTM30LX only supports time-stamp values up to 2^24=16M milliseconds and
     // starts with 0 on bootup, it wraps after 4.66 hours. This means we cannot feed the GPS
@@ -61,19 +61,17 @@ void Hokuyo::slotSetScannerTimeStamp(const qint32 timestamp)
     // is unaccounted for and adds another ~4ms delay, while the calculated delay should be
     // halved (its not a roundtrip). So, instead of 4ms RTT, it should be 4msRTT + 2ms = 6ms
     // of delay.
-    //
-    // Whats worse, the clock seems to wrap at arbitrary moments, going from values of e.g.
-    // 73975 to 16852193 between two consecutive scans. When this happens, we could call Urg::
-    // setTimestamp() method, but that would power-cycle the laser and thus cause data loss.
-    // So, we just call this method once and store a second local offset when this happens.
 
     // We only want to set the laserscanner's clock once on startup, because re-setting it
     // means toggling laser power, hence causing data loss when flying. Also, the clock seems
     // to be pretty stable, so that shouldn't be detrimental to data quality
+
+    const qint32 timestamp = GnssTime::currentTow();
+
     if(mOffsetTimeScannerToTow == 0)
     {
         mOffsetTimeScannerToTow = timestamp + 2; // additional delay for buggy UrgCtrl::setTimestamp()
-        qDebug() << "Hokuyo::slotSetScannerTimeStamp(): setting laserscanner time once.";
+        qDebug() << "Hokuyo::slotSetScannerTimeStamp(): setting laserscanner time once to time" << timestamp;
         mScanner.setTimestamp(0);
     }
     else
@@ -161,7 +159,7 @@ void Hokuyo::slotStartScanning()
                 emit heightOverGround(distancesToEmit->at(540)/1000.0f + 0.03f);
 
             // With this call, we GIVE UP OWNERSHIP of the data. It might get deleted immediately!
-	    qDebug() << __PRETTY_FUNCTION__ << "emitting scanData(qint32, distances)";
+            qDebug() << __PRETTY_FUNCTION__ << "emitting scanData(qint32, distances)";
             emit scanData(timeStampScanMiddle, distancesToEmit);
         }
     } while (mState == State::Scanning);

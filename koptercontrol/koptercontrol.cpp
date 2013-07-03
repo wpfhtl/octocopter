@@ -160,8 +160,8 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     connect(mGnssDevice->getSbfParser(), SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
     connect(mGnssDevice, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
-    connect(mGnssDevice->getSbfParser(), SIGNAL(gnssTimeOfWeekEstablished(qint32)), mLaserScannerDown, SLOT(slotSetScannerTimeStamp(qint32)));
-    connect(mGnssDevice->getSbfParser(), SIGNAL(gnssTimeOfWeekEstablished(qint32)), mLaserScannerFrnt, SLOT(slotSetScannerTimeStamp(qint32)));
+    connect(mGnssDevice, SIGNAL(systemTimeSynchronized()), mLaserScannerDown, SLOT(slotSetScannerTimeStamp()));
+    connect(mGnssDevice, SIGNAL(systemTimeSynchronized()), mLaserScannerFrnt, SLOT(slotSetScannerTimeStamp()));
 
     connect(mGnssDevice->getSbfParser(),SIGNAL(status(const GnssStatus* const)), mBaseConnection, SLOT(slotNewGnssStatus(const GnssStatus* const)));
 

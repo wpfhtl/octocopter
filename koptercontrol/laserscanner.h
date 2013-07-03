@@ -47,7 +47,7 @@ public slots:
     void slotSetRelativeScannerPose(const Pose& p);
 
     // To set the laserscanner's timestamp to the gps time. Hopefully.
-    void slotSetScannerTimeStamp(const qint32 timestamp);
+    void slotSetScannerTimeStamp();
 
     void slotThreadStarted();
     void slotThreadFinished();

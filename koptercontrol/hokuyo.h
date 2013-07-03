@@ -50,7 +50,7 @@ public slots:
     void slotStopScanning() { mState = State::StopRequested; }
 
     // To set the laserscanner's timestamp to the gps time. Hopefully.
-    void slotSetScannerTimeStamp(const qint32 timestamp);
+    void slotSetScannerTimeStamp();
 
 signals:
     // emitted when scanning -> stop requested -> stopped

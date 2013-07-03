@@ -34,6 +34,8 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFile
     // This code causes ugly warnings, but we need it to transport the scanned data
     // FIX THIS QT5!
     qRegisterMetaType<std::vector<quint16>*>("std::vector<quint16>*");
+    qRegisterMetaType<std::vector<quint16> >("std::vector<quint16>");
+    //qRegisterMetaType<std::vector<quint16>*const >("std::vector<quint16>*const"); // doesn't compile
 
     // These should come before the worker slot is connected. Otherwise, slotThreadStarted() is called
     // after the thread has ended. Weird...
@@ -45,6 +47,8 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFile
     connect(mHokuyo, SIGNAL(finished()), mThreadReadScanner, SLOT(quit()));
 
     connect(mHokuyo, SIGNAL(heightOverGround(float)), SIGNAL(heightOverGround(float)));
+
+
     connect(mHokuyo, SIGNAL(scanData(qint32,std::vector<quint16>*const)), SLOT(slotNewScanData(qint32,std::vector<quint16>*const)));
 }
 
@@ -108,7 +112,7 @@ const Pose& LaserScanner::getRelativePose() const
     return mRelativeScannerPose;
 }
 
-void LaserScanner::slotSetScannerTimeStamp(const qint32 timestamp)
+void LaserScanner::slotSetScannerTimeStamp()
 {
     // We were called after the host was synchronized with the GPS clock, so @timestamp
     // should be pretty much now.
@@ -125,7 +129,7 @@ void LaserScanner::slotSetScannerTimeStamp(const qint32 timestamp)
     // halved (its not a roundtrip). So, instead of 4ms RTT, it should be 4msRTT + 2ms = 6ms
     // of delay.
 
-    mHokuyo->slotSetScannerTimeStamp(timestamp);
+    mHokuyo->slotSetScannerTimeStamp();
 }
 
 void LaserScanner::slotEnableScanning(const bool value)
