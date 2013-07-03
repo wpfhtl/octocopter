@@ -38,7 +38,7 @@ SensorFuser::~SensorFuser()
              << "nearestneighbor:" << mStatsScansFused[InterpolationMethod::NearestNeighbor]
              << "discarded:"<< mStatsScansDiscarded
              << "missing gnss stamps:" << mNumberOfScansWithMissingGnssTimestamps;
-    qDebug() << "SensorFuser::~SensorFuser(): leftover scanInfos:"  << mScanInformation.size() << "scanGnss:" << mGnssTimeStamps.size() << "poses:"<< mPoses.size();
+    qDebug() << "SensorFuser::~SensorFuser(): leftover scanInfos:"  << mRawScans.size() << "scanGnss:" << mGnssTimeStamps.size() << "poses:"<< mPoses.size();
 
     slotClearData();
 
@@ -74,15 +74,15 @@ void SensorFuser::slotClearData(const qint32 maximumDataAge)
     }
 
     // Remove all gnss timestamps older than maximumAge
-    QMutableListIterator<ScanInformation> k(mScanInformation);
+    QMutableListIterator<RawScan*> k(mRawScans);
     while(k.hasNext())
     {
-        ScanInformation& si = k.next();
+        RawScan* rs = k.next();
         // We check the scanner timestamp, thats precise enough
-        if(si.timeStampScanMiddleScanner + maximumDataAge < mNewestDataTime || maximumDataAge < 0)
+        if(rs->timeStampScanMiddleScanner + maximumDataAge < mNewestDataTime || maximumDataAge < 0)
         {
-            qDebug() << "SensorFuser::slotClearData(): removing old unfused scan from lasertime" << si.timeStampScanMiddleScanner << "gnsstime" << si.timeStampScanMiddleGnss;
-            delete si.ranges;
+            qDebug() << "SensorFuser::slotClearData(): removing old unfused scan from lasertime" << rs->timeStampScanMiddleScanner << "gnsstime" << rs->timeStampScanMiddleGnss;
+            delete rs;
             k.remove();
         }
     }
@@ -122,10 +122,10 @@ void SensorFuser::fuseScans()
     Profiler p(__PRETTY_FUNCTION__);
 
     // Process every scan...
-    QMutableListIterator<ScanInformation> iteratorScanInformation(mScanInformation);
+    QMutableListIterator<RawScan*> iteratorScanInformation(mRawScans);
     while(iteratorScanInformation.hasNext())
     {
-        ScanInformation& scanInfo = iteratorScanInformation.next();
+        RawScan* scanInfo = iteratorScanInformation.next();
 
         // scanInfo can still contain scans with zero timeStampScanMiddleGnss values because they weren't matched/
         // populated from the mGnssTimeStamps vector. This can have two reasons:
@@ -140,12 +140,12 @@ void SensorFuser::fuseScans()
         //
         // To fix b), we DO process scans with a timeStampScanMiddleGnss of 0 IF they are so old that we can trust that
         // their respective timeStampGnss will not come in anymore. In this case, we simply use the scanner's timestamp.
-        if(scanInfo.timeStampScanMiddleGnss == 0)
+        if(scanInfo->timeStampScanMiddleGnss == 0)
         {
-            if(mNewestDataTime - scanInfo.timeStampScanMiddleScanner > 1000 || mFlushRemainingData)
+            if(mNewestDataTime - scanInfo->timeStampScanMiddleScanner > 1000 || mFlushRemainingData)
             {
                 // the scanInfo is relatively old, we give up waiting for a gnssTimestamp and use the scanner's
-                scanInfo.timeStampScanMiddleGnss = scanInfo.timeStampScanMiddleScanner;
+                scanInfo->timeStampScanMiddleGnss = scanInfo->timeStampScanMiddleScanner;
                 mNumberOfScansWithMissingGnssTimestamps++;
             }
             else
@@ -155,12 +155,12 @@ void SensorFuser::fuseScans()
             }
         }
 
-        const qint32 timestampMiddleOfScan = scanInfo.timeStampScanMiddleGnss;
+        const qint32 timestampMiddleOfScan = scanInfo->timeStampScanMiddleGnss;
         //qDebug() << "SensorFuser::fuseScans(): trying to fuse scan from" << timestampMiddleOfScan;
 
         // Which pose(-index) fits best to this scan?
         qint32 bestFitPoseIndex = -1;
-        qint32 bestFitPoseTimeDifference = qint32_max;
+        qint32 bestFitPoseTimeDifference = std::numeric_limits<qint32>::max();
         for(int currentIndexPose = 0; currentIndexPose < mPoses.size(); currentIndexPose++)
         {
             if(abs(mPoses[currentIndexPose].timestamp - timestampMiddleOfScan) < abs(bestFitPoseTimeDifference))
@@ -178,7 +178,7 @@ void SensorFuser::fuseScans()
         }
 
         // If no pose was found, try the next scan.
-        if(bestFitPoseTimeDifference == qint32_max) continue;
+        if(bestFitPoseTimeDifference == std::numeric_limits<qint32>::max()) continue;
 
         // Even when interpolating e.g. cubically, the bestFit pose (not the other ones surrounding
         // the scan) should be as close as required for nearest neighbor. If not, skip this scan.
@@ -283,16 +283,16 @@ void SensorFuser::fuseScans()
             if(allPosesPresent)
             {
                 // We finally have all poses required to fuse this scan. Go!
-                for(qint16 index=0; index < scanInfo.numberOfRanges; index++)
+                for(qint16 index=0; index < scanInfo->numberOfDistances; index++)
                 {
                     // Only process every mStridePoint'th point
                     if(index % mStridePoint != 0) continue;
 
                     // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
-                    if(scanInfo.ranges[index] < 500 || scanInfo.ranges[index] > mMaximumFusableRayLength * 1000.0f) continue;
+                    if(scanInfo->distances[index] < 500 || scanInfo->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
 
                     // Convert millimeters to meters.
-                    const float distance = scanInfo.ranges[index] / 1000.0f;
+                    const float distance = scanInfo->distances[index] / 1000.0f;
 
                     const qint32 timeOfCurrentRay = timestampMiddleOfScan + (qint32)(-9.375f + (((float)index) * 0.01736f));
 
@@ -318,7 +318,7 @@ void SensorFuser::fuseScans()
                                         timeOfCurrentRay);
                         }
 
-                        mLastInterpolatedPose = mLastInterpolatedPose * (*scanInfo.relativeScannerPose);
+                        mLastInterpolatedPose = mLastInterpolatedPose * (*scanInfo->relativeScannerPose);
 
                         emitLastInterpolatedPose();
                     }
@@ -410,16 +410,16 @@ void SensorFuser::fuseScans()
             if(allPosesPresent)
             {
                 // We finally have all poses required to fuse this scan. Go!
-                for(qint16 index=0; index < scanInfo.numberOfRanges; index++)
+                for(qint16 index=0; index < scanInfo->numberOfDistances; index++)
                 {
                     // Only process every mStridePoint'th point
                     if(index % mStridePoint != 0) continue;
 
                     // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
-                    if(scanInfo.ranges[index] < 500 || scanInfo.ranges[index] > mMaximumFusableRayLength * 1000.0f) continue;
+                    if(scanInfo->distances[index] < 500 || scanInfo->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
 
                     // Convert millimeters to meters.
-                    const float distance = scanInfo.ranges[index] / 1000.0f;
+                    const float distance = scanInfo->distances[index] / 1000.0f;
 
                     const qint32 timeOfCurrentRay = timestampMiddleOfScan + (qint32)(-9.375f + (((float)index) * 0.01736f));
 
@@ -465,16 +465,16 @@ void SensorFuser::fuseScans()
 
             emitLastInterpolatedPose();
 
-            for(qint16 index=0; index < scanInfo.numberOfRanges; index++)
+            for(qint16 index=0; index < scanInfo->numberOfDistances; index++)
             {
                 // Only process every mStridePoint'th point
                 if(index % mStridePoint != 0) continue;
 
                 // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
-                if(scanInfo.ranges[index] < 500 || scanInfo.ranges[index] > mMaximumFusableRayLength * 1000.0f) continue;
+                if(scanInfo->distances[index] < 500 || scanInfo->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
 
                 // Convert millimeters to meters.
-                const float distance = scanInfo.ranges[index] / 1000.0f;
+                const float distance = scanInfo->distances[index] / 1000.0f;
 
                 fuseRayWithLastInterpolatedPose(index, distance);
             }
@@ -512,9 +512,9 @@ qint8 SensorFuser::matchTimestamps()
         qint32 smallestTimeDifference = 2147483647; // qint32 MAX, will always be an absolute value
 
         // Iterate through ScanInformation list and find temporally closest entry
-        for(int currentIndexScanInformation=0;currentIndexScanInformation<mScanInformation.size();currentIndexScanInformation++)
+        for(int currentIndexScanInformation=0;currentIndexScanInformation<mRawScans.size();currentIndexScanInformation++)
         {
-            const qint32 timestampScanner = mScanInformation[currentIndexScanInformation].timeStampScanMiddleScanner;
+            const qint32 timestampScanner = mRawScans[currentIndexScanInformation]->timeStampScanMiddleScanner;
             if(abs(timestampScanner - timestampGnss) < smallestTimeDifference)
             {
                 //qDebug() << "SensorFuser::matchTimestamps(): improved match between gnss" <<  timestampGnss << "and scanner timestamp" << timestampScanner << "to" << abs(timestampScanner - timestampGnss) << "msecs";
@@ -532,12 +532,12 @@ qint8 SensorFuser::matchTimestamps()
         // Assign the gnss timestamp G to the scan S if:
         // - S and G are at least as close as mMaximumTimeOffsetBetweenScannerAndGnss
         // - S is not the last scan in the list. Because if it IS, the next scan might fit even better to G.
-        if(smallestTimeDifference <= mMaximumTimeOffsetBetweenScannerAndGnss && (bestFitTimestampScannerIndex < mScanInformation.size() - 1))
+        if(smallestTimeDifference <= mMaximumTimeOffsetBetweenScannerAndGnss && (bestFitTimestampScannerIndex < mRawScans.size() - 1))
         {
 //            qDebug() << "SensorFuser::matchTimestamps(): assigning gnss timestamp" << timestampGnss << "to scanner time" << mScanInformation[bestFitTimestampScannerIndex].timeStampScanMiddleScanner << "- time difference:" << smallestTimeDifference;
 
             // fill ScanInfo with more precise gnss timestamp
-            mScanInformation[bestFitTimestampScannerIndex].timeStampScanMiddleGnss = timestampGnss;
+            mRawScans[bestFitTimestampScannerIndex]->timeStampScanMiddleGnss = timestampGnss;
 
             // remove the gnss timestamp from the vector...
             iteratorGnssTimeStamps.remove();
@@ -589,7 +589,7 @@ void SensorFuser::slotNewVehiclePose(const Pose* const pose)
     // Fuse pose and scans if it was possible to augment at least one lasertimestamp with a gnss timestamp
     // Sometimes, there are no gnss timestamps due to hardware/config problems; in this case, we still try
     // to match using scanner-timestamps only.
-    if(matchTimestamps() || (mScanInformation.size() > 2 && mPoses.size() > 2))
+    if(matchTimestamps() || (mRawScans.size() > 2 && mPoses.size() > 2))
     {
         fuseScans();
     }
@@ -685,36 +685,38 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGnss)
     mLastScanMiddleGnssTow = timestampScanGnss;
 }
 
-void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, const Pose* const relativeScannerPose, quint16* distances, quint16 numberOfRanges)
+void SensorFuser::slotNewScanData(RawScan *scan)
 {
-    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << numberOfRanges << "distance values from scannertime" << timestampScanScanner;
+    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << scan->numberOfDistances << "distance values from scannertime" << scan->timeStampScanMiddleScanner;
 
     //Profiler p(__PRETTY_FUNCTION__);
 
     // Do not store data that we cannot fuse anyway, because there is no pose or its very old (no gnss reception)
-    if(!mPoses.size() || mPoses.last().timestamp < (timestampScanScanner - MaximumFusionTimeOffset::Cubic))
+    if(!mPoses.size() || mPoses.last().timestamp < (scan->timeStampScanMiddleScanner - MaximumFusionTimeOffset::Cubic))
     {
         // We cannot ignore the scandata, we must at least delete() it, because we are the owner.
-        delete distances;
+        delete scan;
         return;
     }
 
-    // Make sure we receive data in order. With multiple scanners, thats not so easy.
-    quint32 indexToInsert
-    if(mScanInformation.size())
+    // Make sure we receive data in order. With multiple scanners, that's not so easy.
+    if(mRawScans.size())
     {
-        quint32 indexToInsert = mScanInformation.size() - 1;
-        while(mScanInformation.at(indexToInsert).timeStampScanMiddleScanner > timestampScanScanner)
-	{
-	    indexToInsert--;
-	}
-	
-	
+        quint32 indexToInsert = mRawScans.size();
+        while(indexToInsert > 0 && mRawScans.at(indexToInsert-1)->timeStampScanMiddleScanner > scan->timeStampScanMiddleScanner)
+        {
+            qDebug() << __PRETTY_FUNCTION__ << "oops, new raw scan from" << scan->timeStampScanMiddleScanner << "is older than rawscan at index" << indexToInsert << "from time" << mRawScans.at(indexToInsert-1)->timeStampScanMiddleScanner;
+            indexToInsert--;
+        }
+        mRawScans.insert(indexToInsert, scan);
+    }
+    else
+    {
+        mRawScans.append(scan);
     }
 
-    mScanInformation.append(ScanInformation(relativeScannerPose, distances, numberOfRanges, timestampScanScanner));
 
-    mNewestDataTime = std::max(mNewestDataTime, timestampScanScanner);
+    mNewestDataTime = std::max(mNewestDataTime, scan->timeStampScanMiddleScanner);
 }
 
 void SensorFuser::emitLastInterpolatedPose()

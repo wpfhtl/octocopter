@@ -54,6 +54,10 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     mMessageHandler = new MessageHandler(logFilePrefix);
 
+    // We need to register this, so we can pass pointers in queued signals and slots
+    qRegisterMetaType<RawScan>("RawScan");
+    qRegisterMetaType<RawScan*>("RawScanPointer");
+
     QString networkInterface = "wlan0";
     QString deviceCamera = "/dev/video0";
     QString deviceSerialKopter = "/dev/serial/by-id/usb-FTDI_Dual_RS232-if00-port0";
@@ -150,7 +154,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mKopter, SIGNAL(pushButtonToggled()), mFlightController, SLOT(slotLiftHoverPosition()));
     connect(mKopter, SIGNAL(flightSpeedChanged(float)), mFlightController, SLOT(slotSetFlightSpeed(float)));
 
-    connect(mLaserScannerDown, SIGNAL(heightOverGround(const float)), mFlightController, SLOT(slotSetHeightOverGround(const float)));
+    connect(mLaserScannerDown, SIGNAL(distanceAtFront(const float)), mFlightController, SLOT(slotSetHeightOverGround(const float)));
     connect(mBaseConnection, SIGNAL(enableScanning(const bool)), mLaserScannerDown, SLOT(slotEnableScanning(const bool)));
     connect(mBaseConnection, SIGNAL(enableScanning(const bool)), mLaserScannerFrnt, SLOT(slotEnableScanning(const bool)));
     connect(mBaseConnection, SIGNAL(differentialCorrections(const QByteArray*const)), mGnssDevice, SLOT(slotSetDifferentialCorrections(const QByteArray* const)));

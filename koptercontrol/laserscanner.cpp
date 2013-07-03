@@ -31,12 +31,6 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFile
     mThreadReadScanner = new QThread;
     mHokuyo->moveToThread(mThreadReadScanner);
 
-    // This code causes ugly warnings, but we need it to transport the scanned data
-    // FIX THIS QT5!
-    //qRegisterMetaType<std::vector<quint16>*>("std::vector<quint16>*");
-    //qRegisterMetaType<std::vector<quint16> >("std::vector<quint16>");
-    //qRegisterMetaType<std::vector<quint16>*const >("std::vector<quint16>*const"); // doesn't compile
-
     // These should come before the worker slot is connected. Otherwise, slotThreadStarted() is called
     // after the thread has ended. Weird...
     connect(mThreadReadScanner, SIGNAL(started()), this, SLOT(slotThreadStarted()));
@@ -46,9 +40,9 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFile
     connect(mThreadReadScanner, SIGNAL(started()), mHokuyo, SLOT(slotStartScanning()));
     connect(mHokuyo, SIGNAL(finished()), mThreadReadScanner, SLOT(quit()));
 
-    connect(mHokuyo, SIGNAL(heightOverGround(float)), SIGNAL(heightOverGround(float)));
+    connect(mHokuyo, SIGNAL(distanceAtFront(float)), SIGNAL(distanceAtFront(float)));
 
-    connect(mHokuyo, SIGNAL(scanData(qint32,quint16*,quint16)), SLOT(slotNewScanData(qint32,quint16*,quint16)));
+    connect(mHokuyo, SIGNAL(scanData(RawScan*)), SLOT(slotNewScanData(RawScan*)));
 }
 
 LaserScanner::~LaserScanner()
@@ -66,10 +60,11 @@ LaserScanner::~LaserScanner()
     qDebug() << "LaserScanner::~LaserScanner(): done.";
 }
 
-void LaserScanner::slotNewScanData(qint32 timestampScanner, quint16* distances, quint16 numberOfDistances)
+void LaserScanner::slotNewScanData(RawScan* rawScan)
 {
-    qDebug() << __PRETTY_FUNCTION__ << "emitting scanData()";
-    emit scanData(timestampScanner, &mRelativeScannerPose, distances, numberOfDistances);
+    qDebug() << __PRETTY_FUNCTION__ << "adding relative sensor pose, then re-emitting scanData(RawScan*)";
+    rawScan->relativeScannerPose = &mRelativeScannerPose;
+    emit scanData(rawScan);
 }
 
 const bool LaserScanner::isScanning() const
@@ -133,7 +128,7 @@ void LaserScanner::slotSetScannerTimeStamp()
     if(mHokuyo->getState() == Hokuyo::State::ScanRequestedButTimeUnknown)
     {
         qDebug() << __PRETTY_FUNCTION__ << "deferred start after time is known...";
-	slotEnableScanning(true);
+        slotEnableScanning(true);
     }
     
 }

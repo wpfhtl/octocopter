@@ -113,11 +113,11 @@ void Hokuyo::slotStartScanning()
             // Emit the scandata and add 12msecs of time. The scanner PROBABLY sets the time to the beginning of
             // each scan -135deg (0deg is front) and our convention is to store the time of the middle of a scan.
 
-
-            qint32 timeStampScanMiddle = mLastScannerTimeStamp + mOffsetTimeScannerToTow + 9;
+            RawScan* rawScan = new RawScan;
+            rawScan->timeStampScanMiddleScanner = mLastScannerTimeStamp + mOffsetTimeScannerToTow + 9;
 
             // Create a copy of the data in a quarter/half the size by using quint16 instead of long (32bit on x86_32, 64bit on x86_64)
-            std::vector<quint16>* distancesToEmit = new std::vector<quint16>(mScannedDistances.begin(), mScannedDistances.end());
+            //std::vector<quint16>* distancesToEmit = new std::vector<quint16>(mScannedDistances.begin(), mScannedDistances.end());
 
             // Always write log data in binary format for later replay. Format is:
             //
@@ -129,44 +129,47 @@ void Hokuyo::slotStartScanning()
             // A usual dataset contains 200 1's at the beginning and 200 1's at the end.
             // We RLE-compress the leading 1s and drop the trailing 1s
             quint16 indexStart = 0;
-            while((*distancesToEmit)[indexStart] == 1)
+            while(mScannedDistances[indexStart] == 1)
                 indexStart++;
 
             quint16 indexStop = numRays-1;
-            while((*distancesToEmit)[indexStop] == 1)
+            while(mScannedDistances[indexStop] == 1)
                 indexStop--;
+
+            // Fill the values in the RawScan. It will allocate memory for the values.
+            rawScan->setDistances(&mScannedDistances, indexStart, indexStop);
 
             // Write the total amount of bytes of this scan into the stream
             quint16 length = 5 // LASER
                     + sizeof(quint16) // length at beginning
-                    + sizeof(qint32) // timeStampScanMiddle
+                    + sizeof(qint32) // RawScan::timeStampScanMiddleScanner
                     + sizeof(quint16) // indexStart
-                    + ((indexStop - indexStart ) + 1) * sizeof(quint16); // number of bytes for the distance-data
+                    + rawScan->numberOfDistances * sizeof(quint16); // number of bytes for the distance-data
 
             const QByteArray magic("LASER");
 
             mLogFile->write(magic.constData(), magic.size());
             mLogFile->write((const char*)&length, sizeof(length));
-            mLogFile->write((const char*)&timeStampScanMiddle, sizeof(timeStampScanMiddle));
+            mLogFile->write((const char*)&rawScan->timeStampScanMiddleScanner, sizeof(rawScan->timeStampScanMiddleScanner));
             mLogFile->write((const char*)&indexStart, sizeof(indexStart));
 
             // Instead of looping through the indices, lets write everything at once.
-            mLogFile->write(
-                        (const char*)(distancesToEmit->data() + indexStart), // where to start writing.
-                        sizeof(quint16) * ((indexStop - indexStart) + 1) // how many bytes to write
-                        );
+            mLogFile->write((const char*)rawScan->distances, sizeof(quint16) * rawScan->numberOfDistances);
+
+
+            //mLogFile->write(
+                        //(const char*)(distancesToEmit->data() + indexStart), // where to start writing.
+                        //sizeof(quint16) * ((indexStop - indexStart) + 1) // how many bytes to write
+                        //);
 
             // Every full moon, emit the distance from vehicle center to the ground in meters (scanner to vehicle center is 3cm)
             if(mHeightOverGroundClockDivisor == 0 && mScannedDistances.size() > 540)
-                emit heightOverGround(distancesToEmit->at(540)/1000.0f + 0.03f);
+                emit distanceAtFront(rawScan->distances[540]/1000.0f + 0.03f);
 
             // With this call, we GIVE UP OWNERSHIP of the data. It might get deleted immediately!
-            qDebug() << __PRETTY_FUNCTION__ << "emitting scanData(qint32, quint16," << distancesToEmit->size() << ")";
-	    
-	    quint16* dists = new quint16[distancesToEmit->size()];
-	    memcpy((void*)dists, (void*)&(*distancesToEmit)[0], distancesToEmit->size() * sizeof(quint16));
-            emit scanData(timeStampScanMiddle, dists, distancesToEmit->size());
-	    delete distancesToEmit;
+            qDebug() << __PRETTY_FUNCTION__ << "emitting scanData(qint32, quint16," << rawScan->numberOfDistances << ")";
+
+            emit scanData(rawScan);
         }
     } while (mState == State::Scanning);
 

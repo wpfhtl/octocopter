@@ -35,6 +35,7 @@ hokuyo
 ../common/flightstate
 ../common/flightstateswitch
 ../common/pose
+../common/rawscan
 ../common/waypoint
 ../common/lidarpoint
 ../common/baseconnection
@@ -64,6 +65,7 @@ hokuyo.h
 ../common/flightstate.h
 ../common/flightstateswitch.h
 ../common/pose.h
+../common/rawscan.h
 ../common/waypoint.h
 ../common/lidarpoint.h
 ../common/baseconnection.h

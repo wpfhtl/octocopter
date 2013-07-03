@@ -28,7 +28,7 @@ private:
     std::vector<long> mScannedDistances;
 
 private slots:
-    void slotNewScanData(qint32 timestampScanner, quint16* distances, quint16 numberOfDistances);
+    void slotNewScanData(RawScan *rawScan);
 
 public:
     // The pose specifies translation from vehicle frame to the laser source, so the scanner's
@@ -54,13 +54,13 @@ public slots:
 
 signals:
     // the distance from the vehicle's center to the ground in meters
-    void heightOverGround(const float&);
+    void distanceAtFront(const float&);
 
     // log/status messages
     void message(const LogImportance& importance, const QString&, const QString& message);
 
     // Emits new scan data, allocated on heap. Ownership (of the distances only!) is passed to receiver(s).
-    void scanData(qint32 timestampScanner, const Pose* const relativeScannerPose, quint16* distances, quint16 numberOfDistances);
+    void scanData(RawScan*);
 };
 
 #endif

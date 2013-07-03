@@ -3,9 +3,7 @@
 
 #include <QtCore>
 #include "pose.h"
-
-#define quint32_max 4294967295
-#define qint32_max 2147483647
+#include "rawscan.h"
 
 class SensorFuser : public QObject
 {
@@ -26,35 +24,11 @@ public:
 
     void setMaximumFusableRayLength(const float& rayLength) {mMaximumFusableRayLength = rayLength;}
 
-//    void setLaserScannerRelativePose(const Pose& pose)
-//    {
-//        mLaserScannerRelativePose = pose;
-
-//         We can assign perfect precision, as it will be
-//         ANDed with the vehicle pose's precision lateron.
-//        mLaserScannerRelativePose.precision = 255;
-//        mLaserScannerRelativePose.covariances = 0.0f;
-//    }
-
     quint8 getStridePoint(void) const {return mStridePoint;}
     void setStridePoint(quint8 stridePoint) {mStridePoint = stridePoint;}
 
     quint8 getStrideScan(void) const {return mStrideScan;}
     void setStrideScan(quint8 strideScan) {mStrideScan = strideScan;}
-
-    struct ScanInformation
-    {
-        //const std::vector<quint16>* ranges;
-	quint16* ranges;
-	quint16 numberOfRanges;
-        qint32 timeStampScanMiddleGnss;
-        qint32 timeStampScanMiddleScanner;
-        const Pose* relativeScannerPose;
-
-        ScanInformation(const Pose* const p, quint16* r, const quint16 n, const qint32 tScanner = 0, const qint32 tGnss = 0) :
-            relativeScannerPose(p), ranges(r), numberOfRanges(n), timeStampScanMiddleScanner(tScanner), timeStampScanMiddleGnss(tGnss)
-        {}
-    };
 
 private:
     struct MaximumFusionTimeOffset
@@ -105,8 +79,8 @@ private:
     // All incoming gnss timestamps will be registered in this vector and then augmented into mScanInformation
     QList<qint32> mGnssTimeStamps;
 
-    // All incoming scans will be registered in this vector of structs, together with their timeStampScanner
-    QList<ScanInformation> mScanInformation;
+    // All incoming scans will be registered in this vector of structs
+    QList<RawScan*> mRawScans;
 
     // These two save the last registration results, which are emitted and processed by others
     float* mRegisteredPoints;
@@ -138,7 +112,7 @@ public slots:
 
     // Used to feed data from the laserscanner. You must guarantee that the scans are supplied
     // in chronological order!
-    void slotNewScanData(const qint32& timestampScanner, const Pose * const relativeScannerPose, quint16* distances, quint16 numberOfRanges);
+    void slotNewScanData(RawScan* scan);
 
     // Clears all poses, gnss timestamps and scans. This is used by LogPlayer when seeking backwards.
     // If it didn't clean our data, there'd be no guarantee data comes in in chronological order.
