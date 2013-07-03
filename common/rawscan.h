@@ -23,8 +23,10 @@ struct RawScan
     void setDistances(const std::vector<long>* distances, const quint16 firstUsableDistance, const quint16 lastUsableDistance);
 
     ~RawScan();
+    
+    QString toString() const;
 
-    bool isConnectedToEventPin() const {return timeStampScanMiddleGnss == -1; }
+    bool isConnectedToEventPin() const {return timeStampScanMiddleGnss != -1; }
 };
 
 Q_DECLARE_METATYPE(RawScan)

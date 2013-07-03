@@ -8,7 +8,7 @@
 
 quint32 LaserScanner::instanceCounter = 0;
 
-LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFilePrefix) :
+LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFilePrefix, bool isConnectedToEventPin) :
     QObject(),
     mDeviceFileName(deviceFileName)
 {
@@ -16,7 +16,7 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFile
 
     mLogFile = new LogFile(logFilePrefix + QString(".ldr") + QString::number(instanceCounter++), LogFile::Encoding::Binary);
 
-    mHokuyo = new Hokuyo(mLogFile);
+    mHokuyo = new Hokuyo(mLogFile, isConnectedToEventPin);
 
     if(mHokuyo->open(mDeviceFileName))
     {

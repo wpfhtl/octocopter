@@ -110,7 +110,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     qDebug() << "KopterControl::KopterControl(): reading RSSI at interface" << networkInterface;
 
     mFlightController = new FlightController(logFilePrefix);
-    mLaserScannerDown = new LaserScanner(deviceSerialLidarDown, logFilePrefix);
+    mLaserScannerDown = new LaserScanner(deviceSerialLidarDown, logFilePrefix, true);
     mLaserScannerDown->slotSetRelativeScannerPose(
                 Pose(
                     QVector3D(      // Offset from vehicle center to Laser Source. In Vehicle Reference Frame: Like OpenGL, red arm forward pointing to screen
@@ -176,8 +176,8 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mGnssDevice->getSbfParser(), SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
     connect(mGnssDevice->getSbfParser(), SIGNAL(gnssDeviceWorkingPrecisely(bool)), mLaserScannerDown, SLOT(slotEnableScanning(bool)));
     connect(mGnssDevice->getSbfParser(), SIGNAL(gnssDeviceWorkingPrecisely(bool)), mLaserScannerFrnt, SLOT(slotEnableScanning(bool)));
-    connect(mLaserScannerDown, SIGNAL(scanData(qint32,Pose*const,quint16*,quint16)), mSensorFuser, SLOT(slotNewScanData(qint32,Pose*const,quint16*,quint16)));
-    connect(mLaserScannerFrnt, SIGNAL(scanData(qint32,Pose*const,quint16*,quint16)), mSensorFuser, SLOT(slotNewScanData(qint32,Pose*const,quint16*,quint16)));
+    connect(mLaserScannerDown, SIGNAL(scanData(RawScan*)), mSensorFuser, SLOT(slotNewScanData(RawScan*)));
+    connect(mLaserScannerFrnt, SIGNAL(scanData(RawScan*)), mSensorFuser, SLOT(slotNewScanData(RawScan*)));
     connect(mSensorFuser, SIGNAL(scanData(float*const,quint32,QVector3D*const)), mBaseConnection, SLOT(slotNewScannedPoints(float*const,quint32,QVector3D*const)));
 
     // Lots of traffic - for what?

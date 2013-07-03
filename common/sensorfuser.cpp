@@ -323,7 +323,7 @@ void SensorFuser::fuseScans()
                         emitLastInterpolatedPose();
                     }
 
-                    fuseRayWithLastInterpolatedPose(index, distance);
+                    fuseRayWithLastInterpolatedPose(index + scanInfo->firstUsableDistance, distance);
                 }
 
                 // This scan was successfully fused. Remove it from our vector
@@ -443,7 +443,7 @@ void SensorFuser::fuseScans()
                         emitLastInterpolatedPose();
                     }
 
-                    fuseRayWithLastInterpolatedPose(index, distance);
+		    fuseRayWithLastInterpolatedPose(index + scanInfo->firstUsableDistance, distance);
                 }
 
                 // This scan was successfully fused. Remove it from our vector
@@ -476,7 +476,7 @@ void SensorFuser::fuseScans()
                 // Convert millimeters to meters.
                 const float distance = scanInfo->distances[index] / 1000.0f;
 
-                fuseRayWithLastInterpolatedPose(index, distance);
+		fuseRayWithLastInterpolatedPose(index + scanInfo->firstUsableDistance, distance);
             }
 
             // This scan was successfully fused. Remove it from our vector
@@ -514,6 +514,11 @@ qint8 SensorFuser::matchTimestamps()
         // Iterate through ScanInformation list and find temporally closest entry
         for(int currentIndexScanInformation=0;currentIndexScanInformation<mRawScans.size();currentIndexScanInformation++)
         {
+	    // Skip RawScans that already have a GNSS timestamps (includes those that
+	    // were set by hokuyos that are not connected to event-pins)
+	    if(mRawScans[currentIndexScanInformation]->timeStampScanMiddleGnss != 0)
+	        continue;
+	      
             const qint32 timestampScanner = mRawScans[currentIndexScanInformation]->timeStampScanMiddleScanner;
             if(abs(timestampScanner - timestampGnss) < smallestTimeDifference)
             {

@@ -2,11 +2,13 @@
 //#include <sys/types.h>
 #include <unistd.h>
 
-Hokuyo::Hokuyo(LogFile* const logFile) : QObject()
+Hokuyo::Hokuyo(LogFile* const logFile, bool isConnectedToEventPin) : QObject()
 {
     qDebug() << "Hokuyo::Hokuyo(): initializing Hokuyo";
 
     mLogFile = logFile;
+    
+    mIsConnectedToEventPin = isConnectedToEventPin;
 
     mLastScannerTimeStamp = 0;
 
@@ -115,6 +117,8 @@ void Hokuyo::slotStartScanning()
 
             RawScan* rawScan = new RawScan;
             rawScan->timeStampScanMiddleScanner = mLastScannerTimeStamp + mOffsetTimeScannerToTow + 9;
+	    // Set the gnss time to the scanner time if we're not connected to an event-pin.
+	    if(!mIsConnectedToEventPin) rawScan->timeStampScanMiddleGnss = rawScan->timeStampScanMiddleScanner;
 
             // Create a copy of the data in a quarter/half the size by using quint16 instead of long (32bit on x86_32, 64bit on x86_64)
             //std::vector<quint16>* distancesToEmit = new std::vector<quint16>(mScannedDistances.begin(), mScannedDistances.end());
@@ -155,7 +159,8 @@ void Hokuyo::slotStartScanning()
 
             // Instead of looping through the indices, lets write everything at once.
             mLogFile->write((const char*)rawScan->distances, sizeof(quint16) * rawScan->numberOfDistances);
-
+	    
+	    qDebug() << "scan from scanner connected to pin:" << mIsConnectedToEventPin << ": indexStart" << indexStart << "indexStop" << indexStop << "tostring:" << rawScan->toString();
 
             //mLogFile->write(
                         //(const char*)(distancesToEmit->data() + indexStart), // where to start writing.
@@ -167,7 +172,7 @@ void Hokuyo::slotStartScanning()
                 emit distanceAtFront(rawScan->distances[540]/1000.0f + 0.03f);
 
             // With this call, we GIVE UP OWNERSHIP of the data. It might get deleted immediately!
-            qDebug() << __PRETTY_FUNCTION__ << "emitting scanData(qint32, quint16," << rawScan->numberOfDistances << ")";
+            qDebug() << __PRETTY_FUNCTION__ << "emitting scanData(qint32, quint16," << rawScan->numberOfDistances << "), connectedToEventPin:" << mIsConnectedToEventPin;
 
             emit scanData(rawScan);
         }

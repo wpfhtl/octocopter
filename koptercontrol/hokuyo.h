@@ -30,6 +30,7 @@ private:
     quint8 mHeightOverGroundClockDivisor;
     qint64 mOffsetTimeScannerToTow;
     qint32 mLastScannerTimeStamp;
+    bool mIsConnectedToEventPin;
 
     std::vector<long> mScannedDistances;
 
@@ -41,7 +42,7 @@ public:
     // physical dimensions are ignored completely. Further down, this class receives high-
     // frequency updates of the vehicle's poses. Using the vehicle-frame poses and its static
     // offset defined in this constructor, it can emit scanpoints in world-coordinates.
-    Hokuyo(LogFile * const logFile);
+    Hokuyo(LogFile * const logFile, bool isConnectedToEventPin = false);
     ~Hokuyo();
 
     bool open(const QString &deviceFilename);
