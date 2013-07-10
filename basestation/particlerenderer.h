@@ -2,6 +2,7 @@
 #define RENDER_PARTICLES_H
 
 #include <QObject>
+#include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLFunctions_4_3_Core>
 
 #include "shaderprogram.h"
@@ -9,7 +10,7 @@
 
 // TODO: Move all of this and some stuff from GlWindow into a Scene-class.
 
-class ParticleRenderer : public QObject, protected QOpenGLFunctions_4_3_Core
+class ParticleRenderer : public QObject, protected OPENGL_FUNCTIONS_CLASS
 {
     Q_OBJECT
 public:

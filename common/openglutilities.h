@@ -2,6 +2,7 @@
 #define OPENGLUTILITIES_H
 
 #include <QColor>
+#include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLFunctions_4_3_Core>
 #include <QVector3D>
 #include <QMatrix4x4>
@@ -11,7 +12,7 @@
 class OpenGlUtilities
 {
 private:
-    static QOpenGLFunctions_4_3_Core* mGlFunctions;
+    static OPENGL_FUNCTIONS_CLASS* mGlFunctions;
 
     explicit OpenGlUtilities();
 

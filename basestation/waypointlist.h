@@ -5,11 +5,12 @@
 #include <QList>
 #include <QColor>
 #include <QVector>
+#include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLFunctions_4_3_Core>
 
 #include "waypoint.h"
 
-class WayPointList : public QOpenGLFunctions_4_3_Core
+class WayPointList : public OPENGL_FUNCTIONS_CLASS
 {
 private:
     QList<WayPoint> mWaypoints;

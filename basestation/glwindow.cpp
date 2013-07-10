@@ -18,16 +18,14 @@ GlWindow::GlWindow(QWindow* parent) :
     // Specify the format and create platform-specific surface
     QSurfaceFormat format;
     format.setDepthBufferSize(24);
-    format.setMajorVersion(4);
-    format.setMinorVersion(3);
+    format.setMajorVersion(OPENGL_VERSION_MAJOR);
+    format.setMinorVersion(OPENGL_VERSION_MINOR);
     format.setSamples(4);
     format.setProfile(QSurfaceFormat::CoreProfile);
     //format.setOption( QSurfaceFormat::DebugContext );
 //    resize(640,480);
     setFormat(format);
     create();
-
-//    setVisible(true);
 
     // Create an OpenGL context
     mOpenGlContext = new QOpenGLContext;

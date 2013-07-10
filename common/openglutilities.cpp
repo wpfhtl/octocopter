@@ -1,11 +1,11 @@
 #include <QFile>
 #include "openglutilities.h"
 
-QOpenGLFunctions_4_3_Core* OpenGlUtilities::mGlFunctions = 0;
+OPENGL_FUNCTIONS_CLASS* OpenGlUtilities::mGlFunctions = 0;
 
 void OpenGlUtilities::init()
 {
-    mGlFunctions = new QOpenGLFunctions_4_3_Core;
+    mGlFunctions = new OPENGL_FUNCTIONS_CLASS;
     mGlFunctions->initializeOpenGLFunctions();
 }
 

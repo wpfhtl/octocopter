@@ -6,6 +6,7 @@
 #include <QWindow>
 #include <QVector>
 #include <QVector3D>
+#include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLFunctions_4_3_Core>
 
 #include <cuda_gl_interop.h>
@@ -20,7 +21,8 @@ class PointCloud;
 
 class FlightPlannerInterface;
 
-class GlWindow : public QWindow, protected QOpenGLFunctions_4_3_Core
+
+class GlWindow : public QWindow, protected OPENGL_FUNCTIONS_CLASS
 {
     Q_OBJECT
 

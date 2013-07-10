@@ -4,13 +4,14 @@
 #include <QVector>
 #include <QVector3D>
 #include <QColor>
+#include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLFunctions_4_3_Core>
 
 #include <plymanager.h> // for saving to .ply files
 
 // This defines the INTERFACE of all pointclouds!
 
-class PointCloud : public QObject, public QOpenGLFunctions_4_3_Core
+class PointCloud : public QObject, public OPENGL_FUNCTIONS_CLASS
 {
     Q_OBJECT
 protected:

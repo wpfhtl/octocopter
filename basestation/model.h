@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QFile>
 #include <QMatrix4x4>
+#include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLFunctions_4_3_Core>
 
 
@@ -21,7 +22,7 @@
   this object NOT showing up doesn't bug me then.
   */
 
-class Model : public QObject, protected QOpenGLFunctions_4_3_Core
+class Model : public QObject, protected OPENGL_FUNCTIONS_CLASS
 {
     Q_OBJECT
 

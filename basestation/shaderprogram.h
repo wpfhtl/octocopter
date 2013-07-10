@@ -5,9 +5,10 @@
 #include <QDir>
 #include <QOpenGLShader>
 #include <QOpenGLShaderProgram>
+#include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLFunctions_4_3_Core>
 
-class ShaderProgram : public QOpenGLShaderProgram, public QOpenGLFunctions_4_3_Core
+class ShaderProgram : public QOpenGLShaderProgram, public OPENGL_FUNCTIONS_CLASS
 {
     Q_OBJECT
 

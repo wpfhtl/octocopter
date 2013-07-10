@@ -2,6 +2,7 @@
 #define FLIGHTPLANNERINTERFACE_H
 
 #include <QMap>
+#include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLFunctions_4_3_Core>
 #include "pointcloud.h"
 #include "openglutilities.h"
@@ -13,7 +14,7 @@ class Pose;
 class GlWindow;
 class BaseStation;
 
-class FlightPlannerInterface : public QObject, protected QOpenGLFunctions_4_3_Core
+class FlightPlannerInterface : public QObject, protected OPENGL_FUNCTIONS_CLASS
 {
     Q_OBJECT
 public:
