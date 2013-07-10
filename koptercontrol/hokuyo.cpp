@@ -129,7 +129,7 @@ void Hokuyo::slotStartScanning()
 
             rawScan->log(mLogFile);
 
-            qDebug() << "scan from scanner connected to pin:" << mIsConnectedToEventPin << ": tostring:" << rawScan->toString();
+            //qDebug() << "scan from scanner connected to pin:" << mIsConnectedToEventPin << ": tostring:" << rawScan->toString();
 
             //mLogFile->write(
                         //(const char*)(distancesToEmit->data() + indexStart), // where to start writing.

@@ -611,8 +611,8 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
     case 5924:
     {
         // ExtEvent
-        //qDebug() << "SBF: ExtEvent";
         const Sbf_ExtEvent* const block = (Sbf_ExtEvent* const)(sbfData.constData() + offsetToValidPacket);
+        qDebug() << "SBF: ExtEvent at" << block->TOW;
 
         // Laserscanner sync signal is soldered to both ports, but port 1 is broken. If it ever starts working again, I want to know.
         Q_ASSERT(block->Source == 2);

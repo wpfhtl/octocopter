@@ -312,7 +312,7 @@ void BaseConnection::slotNewScanFused(const QVector<QVector4D>& points, const QV
 // float4!
 void BaseConnection::slotNewScanFused(const float* const points, const quint32 numPoints, const QVector3D* const scannerPosition)
 {
-//    qDebug() << "sending" << numPoints * 4 << "floats /" << numPoints << "lidarpoints to base";
+    qDebug() << "sending" << numPoints * 4 << "floats /" << numPoints << "lidarpoints to base";
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
