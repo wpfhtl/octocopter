@@ -25,6 +25,7 @@ public:
     };
 
 private:
+    const QMatrix4x4* mRelativeScannerPose;
     LogFile* mLogFile;
     qrk::UrgCtrl mScanner;
     quint8 mHeightOverGroundClockDivisor;
@@ -42,7 +43,7 @@ public:
     // physical dimensions are ignored completely. Further down, this class receives high-
     // frequency updates of the vehicle's poses. Using the vehicle-frame poses and its static
     // offset defined in this constructor, it can emit scanpoints in world-coordinates.
-    Hokuyo(LogFile * const logFile, bool isConnectedToEventPin = false);
+    Hokuyo(LogFile * const logFile, const QMatrix4x4* const relativePose, bool isConnectedToEventPin = false);
     ~Hokuyo();
 
     bool open(const QString &deviceFilename);

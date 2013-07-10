@@ -11,6 +11,7 @@
 #include <cuda_gl_interop.h>
 
 #include "model.h"
+#include "rawscan.h"
 #include "openglutilities.h"
 #include "flightcontrollervalues.h"
 #include "shaderprogram.h"
@@ -42,14 +43,9 @@ class GlWindow : public QWindow, protected QOpenGLFunctions_4_3_Core
     QTime mTimeOfLastRender;
     QTimer* mTimerUpdate;
 
-    // points scanned from further distance than this shouldn't be rendered by the shader!
-    float mMaxPointVisualizationDistance;
-    bool mBackgroundDarkOrBright;
-
     float mRotationPerFrame;
     bool mViewRotating;
     bool mViewZooming;
-    bool mRenderAxisBase, mRenderAxisVehicle, mRenderTrajectory, mRenderVehicle, mRenderRawScanRays;
 
     // Mouse Rotations
     QPoint      mLastMousePosition;
@@ -68,6 +64,7 @@ class GlWindow : public QWindow, protected QOpenGLFunctions_4_3_Core
     GLuint mVboVehiclePath;
 
     QMatrix4x4 mRayVisualizationRelativeScannerMatrix;
+    quint16 mRayVisualizationUsableDistanceIndexFirst, mRayVisualizationUsableDistanceIndexLast;
 
     GLuint mUboId;
     unsigned int mUboSize;
@@ -98,6 +95,15 @@ public:
     void moveCamera(const QVector3D &pos);
     void keyPressEvent(QKeyEvent *event);
     bool isPointCloudRegistered(PointCloud* p);
+    void reloadShaders();
+
+    // Shouldn't be public, I know....
+    bool mRenderAxisBase, mRenderAxisVehicle, mRenderTrajectory, mRenderVehicle, mRenderRawScanRays;
+    // points scanned from further distance than this shouldn't be rendered by the shader!
+    float mMaxPointVisualizationDistance;
+    float mBackgroundBrightness;
+    float mPointCloudPointSize;
+    float mPointCloudPointAlpha;
 
 signals:
     void initializingInGlContext();
@@ -127,7 +133,7 @@ public slots:
     void slotSetFlightControllerValues(const FlightControllerValues *const fcv);
 
     // Called from logplayer, for debugging unfused laser data. Copy it to OpenGL-Buffer if you need it.
-    void slotNewRayData(const Pose* const relativeScannerPose, const qint32& timestampScanScanner, std::vector<quint16> * const distances);
+    void slotNewRawScan(const RawScan * const rawScan);
 
     void slotNewVehiclePose(const Pose *const);
     void slotClearVehicleTrajectory();

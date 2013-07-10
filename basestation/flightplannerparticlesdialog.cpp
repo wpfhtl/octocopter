@@ -11,6 +11,8 @@ FlightPlannerParticlesDialog::FlightPlannerParticlesDialog(const ParametersParti
     connect(ui->mBtnGenerateWaypoints, SIGNAL(clicked()), SIGNAL(generateWayPoints()));
     connect(ui->mBtnDeleteWaypoints, SIGNAL(clicked()), SIGNAL(deleteWayPoints()));
 
+    connect(ui->mBtnReduceColliderCloud, SIGNAL(clicked()), SIGNAL(reduceColliderCloud()));
+
     connect(ui->mChkBoxProcessPhysics, SIGNAL(clicked(bool)), SIGNAL(processPhysicsChanged(bool)));
     connect(ui->mChkBoxFollowVehicle, SIGNAL(clicked(bool)), SIGNAL(followVehicleChanged(bool)));
     connect(ui->mChkBoxShowParticles, SIGNAL(clicked(bool)), SIGNAL(showParticlesChanged(bool)));
@@ -77,4 +79,16 @@ void FlightPlannerParticlesDialog::slotSimulationParametersChanged()
     mSimulationParameters.gravity.z = ui->mSpinBoxGravityZ->value();
 
     emit simulationParameters(&mSimulationParameters);
+}
+
+void FlightPlannerParticlesDialog::slotSetPointCloudSizeDense(const quint32 size)
+{
+    static QLocale locale(QLocale::English, QLocale::UnitedStates);
+    ui->mLabelPointCloudSizeDense->setText(locale.toString(size));
+}
+
+void FlightPlannerParticlesDialog::slotSetPointCloudSizeSparse(const quint32 size)
+{
+    static QLocale locale(QLocale::English, QLocale::UnitedStates);
+    ui->mLabelPointCloudSizeSparse->setText(locale.toString(size));
 }

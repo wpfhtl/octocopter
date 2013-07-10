@@ -35,6 +35,8 @@ private slots:
 
 public slots:
     void slotSetInitialValues(const ParametersParticleSystem* const sp);
+    void slotSetPointCloudSizeDense(const quint32 size);
+    void slotSetPointCloudSizeSparse(const quint32 size);
 
 signals:
     void simulationParameters(const ParametersParticleSystem*);
@@ -46,6 +48,7 @@ signals:
     void showOccupancyGridChanged(bool);
     void showPathFinderGridChanged(bool);
 
+    void reduceColliderCloud();
     void resetParticles();
     void resetInformationGain();
     void generateWayPoints();

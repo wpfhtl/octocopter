@@ -39,8 +39,10 @@ GlWindow::GlWindow(QWindow* parent) :
     mVboVehiclePathBytesMaximum = (3600 * 50 * mVboVehiclePathElementSize); // For a flight time of one hour
     mVboVehiclePathBytesCurrent = 0;
 
+    mBackgroundBrightness = 0.2f;
     mMaxPointVisualizationDistance = 1000.0f;
-    mBackgroundDarkOrBright = true;
+    mPointCloudPointSize = 1.0;
+    mPointCloudPointAlpha = 1.0;
 
     mFramesRenderedThisSecond = 0;
 
@@ -58,14 +60,14 @@ GlWindow::GlWindow(QWindow* parent) :
     mViewRotating = false;
     mViewZooming = false;
 
-    mRenderRawScanRays = false;
+    mRenderRawScanRays = true;
     mRenderAxisBase = true;
     mRenderAxisVehicle = true;
     mRenderTrajectory = true;
     mRenderVehicle = true;
 
     mTimerUpdate = new QTimer(this);
-    mTimerUpdate->setInterval(1000 / 60);
+    mTimerUpdate->setInterval(1000 / 50);
     connect(mTimerUpdate, SIGNAL(timeout()), SLOT(slotRenderLater()));
 }
 
@@ -172,9 +174,7 @@ void GlWindow::slotInitialize()
     glDepthRange(0.0f, 1.0f);
     glClearDepth(1.0f);
 
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);					// Black Background
-    glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// White Background
-//    glClearColor(0.2f, 0.2f, 0.2f, 0.0f);					// Gray  Background
+    glClearColor(mBackgroundBrightness, mBackgroundBrightness, mBackgroundBrightness, 0.0f);
 
     // Set Line Antialiasing
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
@@ -262,11 +262,7 @@ void GlWindow::slotRenderNow()
         mCameraRotation.setY(mCameraRotation.y() + 180 * mRotationPerFrame);
 
     // Clear color buffer and depth buffer
-    if(mBackgroundDarkOrBright)
-        glClearColor(0.2f, 0.2f, 0.2f, 0.0f);					// Dark Background
-    else
-        glClearColor(1.0f, 1.0f, 1.0f, 0.0f);					// White Background
-
+    glClearColor(mBackgroundBrightness, mBackgroundBrightness, mBackgroundBrightness, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     const QVector3D camLookAt = mCamLookAtOffset + (mLastKnownVehiclePose ? mLastKnownVehiclePose->getPosition() : QVector3D());
@@ -301,7 +297,7 @@ void GlWindow::slotRenderNow()
     else
     {
         // Stop zooming, lower framerate
-        mTimerUpdate->setInterval(1000 / 60);
+        mTimerUpdate->setInterval(1000 / 50);
         mViewZooming = false;
     }
 
@@ -309,6 +305,7 @@ void GlWindow::slotRenderNow()
     {
         mShaderProgramPointCloud->bind();
         mShaderProgramPointCloud->setUniformValue("maxPointVisualizationDistance", (GLfloat)pow(mMaxPointVisualizationDistance, 2.0)); // distances are squared in the point cloud, too!
+        mShaderProgramPointCloud->setUniformValue("pointcloudPointAlpha", mPointCloudPointAlpha);
         for(int i=0;i<mPointCloudsToRender.size();i++)
         {
             const QVector<PointCloud::VboInfo>& vboInfoList = mPointCloudsToRender.at(i)->getVboInfo();
@@ -330,6 +327,7 @@ void GlWindow::slotRenderNow()
                 glBindBuffer(GL_ARRAY_BUFFER, vboInfo.vbo);
                 glEnableVertexAttribArray(0);
                 glVertexAttribPointer(0, vboInfo.elementSize, GL_FLOAT, GL_FALSE, vboInfo.stride, 0);
+                glPointSize(mPointCloudPointSize);
                 glDrawArrays(GL_POINTS, 0, vboInfo.size); // Number of elements, not bytes
                 glDisableVertexAttribArray(0);
                 glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -349,6 +347,7 @@ void GlWindow::slotRenderNow()
 
             mShaderProgramRawScanRays->setUniformValue("useFixedColor", false);
             mShaderProgramRawScanRays->setUniformValue("useMatrixExtra", true);
+            mShaderProgramRawScanRays->setUniformValue("firstUsableDistance", mRayVisualizationUsableDistanceIndexFirst);
             mShaderProgramRawScanRays->setUniformValue("matrixExtra", lidarMatrix * mRayVisualizationRelativeScannerMatrix);
 
             glBindBuffer(GL_ARRAY_BUFFER, mVboRawScanRays);
@@ -360,7 +359,9 @@ void GlWindow::slotRenderNow()
                         GL_TRUE,    // normalize to float [0-1]
                         (rayStride+1) * sizeof(quint16),          // bytes stride, not ray stride
                         0);         // no offset
-            glDrawArrays(GL_POINTS, 0, 1080 / (rayStride+1)); // 1080 rays from hokuyo...
+            // There's 1081 rays from hokuyo, but we get only from first to last usable rays delivered. We could reconstruct the other
+            // one, but it doesn't look good and is expensive.
+            glDrawArrays(GL_POINTS, 0, (mRayVisualizationUsableDistanceIndexLast-mRayVisualizationUsableDistanceIndexFirst) / (rayStride+1));
             glDisableVertexAttribArray(0);
             glBindBuffer(GL_ARRAY_BUFFER, 0);
             mShaderProgramRawScanRays->release();
@@ -776,7 +777,7 @@ void GlWindow::wheelEvent(QWheelEvent *event)
     event->delta() > 0 ? mZoomFactorTarget *= 1.5f : mZoomFactorTarget *= 0.5f;
     mZoomFactorTarget = qBound(0.002f, (float)mZoomFactorTarget, 1.0f);
     mViewZooming = true;
-    mTimerUpdate->setInterval(1000 / 60);
+    mTimerUpdate->setInterval(1000 / 50);
     mTimerUpdate->start();
     slotRenderLater();
 }
@@ -792,12 +793,6 @@ void GlWindow::keyPressEvent(QKeyEvent *event)
     {
         mRotationPerFrame += 0.0005f;
         slotEnableTimerRotation(true);
-    }
-    else if(event->key() == Qt::Key_L)
-    {
-        mBackgroundDarkOrBright = !mBackgroundDarkOrBright;
-        emit message(LogImportance::Information, "GlWidget::keyPressEvent()", "toggling background brightness");
-        slotRenderLater();
     }
     else if(event->key() == Qt::Key_V)
     {
@@ -922,19 +917,28 @@ void GlWindow::slotSetFlightControllerValues(const FlightControllerValues* const
     slotNewVehiclePose(&fcv->lastKnownPose);
 }
 
-void GlWindow::slotNewRayData(const Pose* const relativeScannerPose, const qint32& timestampScanScanner, std::vector<quint16> * const distances)
+void GlWindow::slotNewRawScan(const RawScan* const rawScan)
 {
     if(mRenderRawScanRays)
     {
-        mRayVisualizationRelativeScannerMatrix = relativeScannerPose->getMatrixConst();
+        mRayVisualizationRelativeScannerMatrix = *(rawScan->relativeScannerPose);
+        mRayVisualizationUsableDistanceIndexFirst = rawScan->firstUsableDistance;
+        mRayVisualizationUsableDistanceIndexLast = rawScan->firstUsableDistance + rawScan->numberOfDistances - 1;
 
         // If needed, create a VBO for the scan rays
         if(!mVboRawScanRays) glGenBuffers(1, &mVboRawScanRays);
 
         glBindBuffer(GL_ARRAY_BUFFER, mVboRawScanRays);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(quint16) * distances->size(), distances->data(), GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quint16) * rawScan->numberOfDistances, rawScan->distances, GL_STATIC_DRAW);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         slotRenderLater();
     }
+}
+
+void GlWindow::reloadShaders()
+{
+    mShaderProgramDefault->initialize();
+    mShaderProgramPointCloud->initialize();
+    mShaderProgramRawScanRays->initialize();
 }

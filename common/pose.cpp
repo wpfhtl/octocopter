@@ -208,6 +208,16 @@ Pose::Pose(const QMatrix4x4& matrix, const qint32& timestamp)
     rotation = 0.0f;
 }
 
+Pose::Pose(const Pose* const p)
+{
+    mTransform = p->getMatrixConst();
+    timestamp = p->timestamp;
+
+    mVelocity = QVector3D();
+    acceleration = 0.0f;
+    rotation = 0.0f;
+}
+
 Pose::Pose(const QVector3D &position, const float &yawDegrees, const float &pitchDegrees, const float &rollDegrees, const qint32& timestamp)
 {
     mTransform.setToIdentity();
@@ -306,14 +316,14 @@ Pose Pose::extrapolateLinear(const Pose &p1, const Pose &p2, const qint32 &timeI
     return p;
 }
 
-Pose Pose::interpolateLinear(const Pose &p0, const Pose &p1, const qint32& time)
+Pose Pose::interpolateLinear(const Pose* const p0, const Pose* const p1, const qint32& time)
 {
     // recreate mu from time argument
-    const float mu = (((float)(time - p0.timestamp)) / ((float)(p1.timestamp - p0.timestamp)));
+    const float mu = (((float)(time - p0->timestamp)) / ((float)(p1->timestamp - p0->timestamp)));
     Q_ASSERT(mu >= 0.0 && mu <= 1.0);
 
-    const QVector3D position = p0.getPosition() * (1.0 - mu) + p1.getPosition() * mu;
-    const QQuaternion orientation = QQuaternion::nlerp(p0.getOrientation(), p1.getOrientation(), mu);
+    const QVector3D position = p0->getPosition() * (1.0 - mu) + p1->getPosition() * mu;
+    const QQuaternion orientation = QQuaternion::nlerp(p0->getOrientation(), p1->getOrientation(), mu);
 
     QMatrix4x4 m;
     m.translate(position);
@@ -322,13 +332,13 @@ Pose Pose::interpolateLinear(const Pose &p0, const Pose &p1, const qint32& time)
     Pose p;
     p.setMatrix(m);
 
-    p.covariances = p0.covariances * (1.0f - mu) + p1.covariances * mu;
-    p.precision = p0.precision & p1.precision; // yes, thats a logic AND
+    p.covariances = p0->covariances * (1.0f - mu) + p1->covariances * mu;
+    p.precision = p0->precision & p1->precision; // yes, thats a logic AND
     p.timestamp = time;
 
-    p.rotation = p0.rotation * (1.0f - mu) + p1.rotation * mu;
-    p.mVelocity = p0.mVelocity * (1.0f - mu) + p1.mVelocity * mu;
-    p.acceleration = p0.acceleration * (1.0f - mu) + p1.acceleration * mu;
+    p.rotation = p0->rotation * (1.0f - mu) + p1->rotation * mu;
+    p.mVelocity = p0->mVelocity * (1.0f - mu) + p1->mVelocity * mu;
+    p.acceleration = p0->acceleration * (1.0f - mu) + p1->acceleration * mu;
 
     return p;
 }

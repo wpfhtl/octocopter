@@ -11,6 +11,7 @@
 
 class Pose;
 class GlWindow;
+class BaseStation;
 
 class FlightPlannerInterface : public QObject, protected QOpenGLFunctions_4_3_Core
 {
@@ -20,11 +21,11 @@ public:
 protected:
     QVector3D mScanVolumeMin, mScanVolumeMax;
     QVector<Pose> mVehiclePoses;
-    GlWindow* mGlWidget;
-    QWidget* mParentWidget;
+    GlWindow* mGlWindow;
+    BaseStation* mBaseStation;
     PointCloud* mPointCloudDense;
 
-    bool mShowBoundingBox, mShowWayPoints;
+    bool mRenderGlobalBoundingBox, mRenderLocalBoundingBox, mRenderWayPoints;
 
     //QList<WayPoint>* mWayPointsAhead, *mWayPointsPassed;
     // A map, mapping from name to waypointlist. Names are e.g. waypoints_ahead, waypoints_passed etc.
@@ -39,7 +40,7 @@ protected:
 
 public:
     // Here, basestation passes its own pointcloud. Its up to the implementation to use it.
-    FlightPlannerInterface(QWidget* widget, GlWindow *glWidget, PointCloud* pointcloud);
+    FlightPlannerInterface(BaseStation* basestation, GlWindow *glWidget, PointCloud* pointcloud);
     virtual ~FlightPlannerInterface();
 
 //    void setGlWidget(GlWidget* glWidget) {mGlWidget = glWidget;}
@@ -70,12 +71,12 @@ public:
                     ) + getScanVolumeSize() / 2.0f;
     }
 
-    // For e.g. glWidget to send some user-key-strokes (e.g. for visualization)
-    virtual void keyPressEvent(QKeyEvent *event);
+
+    virtual void keyPressEvent(QKeyEvent* event) = 0;
 
 public slots:
     // Called by LogPlayer or RoverConnection when new scanData arrives. @points must be float4!
-    virtual void slotNewScanData(const float* const points, const quint32& count, const QVector3D* const scannerPosition) = 0;
+    virtual void slotNewScanFused(const float* const points, const quint32& count, const QVector3D* const scannerPosition) = 0;
 
     // Called by UI to clear the drawn trajectory
     void slotClearVehicleTrajectory();
@@ -107,6 +108,12 @@ public slots:
     virtual void slotVisualize();
 
     void slotVehiclePoseChanged(const Pose *const pose);
+
+
+    void slotSetRenderLocalBoundingBox(const bool enable) { mRenderLocalBoundingBox = enable; }
+    void slotSetRenderGlobalBoundingBox(const bool enable) { mRenderGlobalBoundingBox = enable; }
+    void slotSetRenderWayPoints(const bool enable) { mRenderWayPoints = enable; }
+
 
 signals:
     void message(const LogImportance& importance, const QString& source, const QString& message);

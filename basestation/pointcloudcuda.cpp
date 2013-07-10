@@ -194,6 +194,7 @@ bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint
     {
         emit pointsInserted(this, mParameters.elementCount, mParameters.elementQueueCount);
         slotReduce();
+        emit numberOfPoints(getNumberOfPoints());
     }
 
     return true;
@@ -274,6 +275,7 @@ void PointCloudCuda::slotInsertPoints(PointCloud *const pointCloudSource, const 
     qDebug() << "PointCloudCuda::slotInsertPoints(): took" << time.elapsed() << "ms.";
 
     emit pointsInserted(this, numberOfPointsBeforeCopy, getNumberOfPoints() - numberOfPointsBeforeCopy);
+    emit numberOfPoints(getNumberOfPoints());
 }
 
 void PointCloudCuda::slotReduce()

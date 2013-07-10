@@ -53,7 +53,7 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     connect(mProgressBarTow, SIGNAL(seekToTow(qint32)), SLOT(slotGoToTow(qint32)));
 
     // emit fused lidarpoints
-    connect(mSensorFuser, SIGNAL(scanData(float*const,quint32,QVector3D*const)), SIGNAL(scanData(float*const,quint32,QVector3D*const)));
+    connect(mSensorFuser, SIGNAL(scanFused(float*const,quint32,QVector3D*const)), SIGNAL(scanFused(float*const,quint32,QVector3D*const)));
 
     // For visualizing interpolated poses - disabled by default
     connect(mSensorFuser, SIGNAL(vehiclePose(Pose*const)), SIGNAL(vehiclePose(Pose*const)));
@@ -146,11 +146,12 @@ bool LogPlayer::slotOpenLogFiles()
                                             -0.04,      // From vehicle up/down to laser, negative is down to laser
                                             -0.14),     // From vehicle 14cm forward, towards the front arm.
                             +000.0,         // No yawing
-                            -090.0,         // 90 deg pitched down
+                            -091.0,         // 91 deg pitched down
                             +000.0,         // No rolling
                             10             // Use 10 msec TOW, so that the relative pose is always older than whatever new pose coming in. Don't use 0, as that would be set to current TOW, which might be newer due to clock offsets.
-                            )
+                            ).getMatrixCopy()
                         );
+
         }
         lidarNumber++;
     } while(!logFileNameLidar.isNull());
@@ -504,31 +505,34 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const LogPlay
 
         if(QByteArray(packet.data, 5) == QByteArray("LASER"))
         {
-            // LASER PacketLengthInBytes(quint16) TOW(qint32) StartIndex(quint16) N-DISTANCES(quint16)
+            // LASER PacketLengthInBytes(quint16) TOW-LIDAR(qint32) TOW-GNSS(qint32) StartIndex(quint16) N-DISTANCES(quint16)
 
             const quint16 length = *((quint16*)(packet.data + 5));
 
-            tow = *((qint32*)(packet.data + 5 + sizeof(length)));
+            tow            = *((qint32*)(packet.data + 5 + sizeof(length)));
+            qint32 towGnss = *((qint32*)(packet.data + 5 + sizeof(length) + sizeof(tow)));
 
-            const quint16 indexStart = *((quint16*)(packet.data + 5 + sizeof(length) + sizeof(tow)));
+            const quint16 indexStart = *((quint16*)(packet.data + 5 + sizeof(length) + sizeof(tow) + sizeof(towGnss)));
 
             const quint16 rayBytes = length
                     - 5               // LASER
                     - sizeof(quint16) // length of whole packet
                     - sizeof(qint32)  // tow
+                    - sizeof(qint32)  // towGnss
                     - sizeof(quint16);// indexStart
 
-            std::vector<quint16>* data = new std::vector<quint16>(indexStart + (rayBytes / sizeof(quint16)), 1);
+            RawScan* rawScan = new RawScan;
+            rawScan->firstUsableDistance = indexStart;
+            rawScan->timeStampScanMiddleScanner = tow;
+            rawScan->timeStampScanMiddleGnss = towGnss;
+            rawScan->relativeScannerPose = &mRelativeLaserPoses[source.index];
+            rawScan->setDistances(
+                        (quint16*)(packet.data + 5 + sizeof(length) + sizeof(tow) + sizeof(towGnss) + sizeof(indexStart)),
+                        indexStart,
+                        indexStart + rayBytes/sizeof(quint16) - 1);
 
-            // Copy the distances from the packet to the vector
-            memcpy(
-                        &data->at(indexStart),
-                        packet.data + 5 + sizeof(length) + sizeof(tow) + sizeof(indexStart),
-                        rayBytes
-                        );
-
-            emit rayData(&mRelativeLaserPoses[source.index], tow, data);
-            mSensorFuser->slotNewScanData(tow, &mRelativeLaserPoses[source.index], data);
+            emit scanRaw(rawScan);
+            mSensorFuser->slotNewRawScan(rawScan);
 
         }
         else if(QByteArray(packet.data, 5) == QByteArray("RPOSE"))
@@ -542,11 +546,9 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const LogPlay
                         packet.data + 5 + sizeof(length) + sizeof(tow),
                         length - 5 - sizeof(length) - sizeof(tow));
 
-            QMatrix4x4 matrixRelativePose;
             QDataStream ds(byteArrayStreamedPoseMatrix);
-            ds >> matrixRelativePose;
-            qDebug() << "reconstructed relative scanner" << source.index << "pose" << matrixRelativePose;
-            mRelativeLaserPoses[source.index] = Pose(matrixRelativePose, tow);
+            ds >> mRelativeLaserPoses[source.index];
+            qDebug() << "reconstructed relative scanner" << source.index << "pose" << mRelativeLaserPoses[source.index];
         }
 
         mProgressBarTow->setFormat("TOW %v L");
@@ -730,7 +732,7 @@ void LogPlayer::slotGoToTow(qint32 towTarget)
         tow0 = 0; tow1 = 0; tow2 = 0;
         while(tow0 >= 0)
         {
-            tow0 = getNextTow(LogTypeLidar);
+            tow0 = getNextTow(DataSource(LogTypeLidar, i));
 
             // We're done if
             // - we reached the target tow

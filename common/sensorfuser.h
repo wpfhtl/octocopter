@@ -54,8 +54,6 @@ private:
 
     quint32 mNumberOfScansWithMissingGnssTimestamps;
 
-    Pose mLaserScannerRelativePose;
-
     Pose mLastInterpolatedPose;
 
     QMap<InterpolationMethod,quint16> mStatsScansFused;
@@ -74,7 +72,7 @@ private:
     qint32 mLastScanMiddleGnssTow; // the last time the GNSS told us about the TOW of a scanSweepMiddle.
 
     // All incoming poses will be registered in this vector
-    QList<Pose> mPoses;
+    QList<Pose*> mPoses;
 
     // All incoming gnss timestamps will be registered in this vector and then augmented into mScanInformation
     QList<qint32> mGnssTimeStamps;
@@ -112,7 +110,7 @@ public slots:
 
     // Used to feed data from the laserscanner. You must guarantee that the scans are supplied
     // in chronological order!
-    void slotNewScanData(RawScan* scan);
+    void slotNewRawScan(RawScan* scan);
 
     // Clears all poses, gnss timestamps and scans. This is used by LogPlayer when seeking backwards.
     // If it didn't clean our data, there'd be no guarantee data comes in in chronological order.
@@ -125,7 +123,7 @@ public slots:
 signals:
     // Emits a pointer to a vector of registered points. The data is always owned by SensorFuser!
 //    void newScannedPoints(const QVector<QVector3D>* const, const QVector3D* const scanPosition);
-    void scanData(const float* const points, const quint32& numberOfPoints, const QVector3D* const scannerPosition);
+    void scanFused(const float* const points, const quint32& numberOfPoints, const QVector3D* const scannerPosition);
 
     // For debugging/visualizing the interpolated poses
     void vehiclePose(const Pose* const);

@@ -572,12 +572,12 @@ bool GnssDevice::parseCommandReply(const QString& portNameOnDevice, const QByteA
 {
     if(!mLastCommandToGnssDevice[portNameOnDevice].isEmpty())
     {
-        qDebug() << "GnssDevice::parseCommandReply(): last command to" << portNameOnDevice << "was" << mLastCommandToGnssDevice[portNameOnDevice] << "looking for reply in recBuf of" << receiveBuffer->size() << "bytes, cursor is at" << *dataCursorToAdvance << "and following bytes are:" << SbfParser::readable(receiveBuffer->mid(*dataCursorToAdvance));
+        //qDebug() << "GnssDevice::parseCommandReply(): last command to" << portNameOnDevice << "was" << mLastCommandToGnssDevice[portNameOnDevice] << "looking for reply in recBuf of" << receiveBuffer->size() << "bytes, cursor is at" << *dataCursorToAdvance << "and following bytes are:" << SbfParser::readable(receiveBuffer->mid(*dataCursorToAdvance));
         // Check for command replies before every packet
         const qint32 positionReplyStart = receiveBuffer->indexOf("$R", *dataCursorToAdvance);
         qint32 positionReplyStop  = receiveBuffer->indexOf(portNameOnDevice + QChar('>'), *dataCursorToAdvance);
         //if(positionReplyStart != -1 && positionReplyStop != -1)
-	qDebug() << "GnssDevice::parseCommandReply(): replyStart" << positionReplyStart << "stop" << positionReplyStop;
+        //qDebug() << "GnssDevice::parseCommandReply(): replyStart" << positionReplyStart << "stop" << positionReplyStop;
         if(positionReplyStart == *dataCursorToAdvance && positionReplyStop != -1)
         {
             positionReplyStop += portNameOnDevice.length() + 1; // make sure we also include the "USB1>" at the end!
@@ -624,7 +624,7 @@ bool GnssDevice::parseCommandReply(const QString& portNameOnDevice, const QByteA
 
 void GnssDevice::slotDataReadyOnCom()
 {
-    qDebug() << __PRETTY_FUNCTION__ << mSerialPortCom->bytesAvailable() << "bytes available. We need" << mMinimumDataPacketSize;
+//    qDebug() << __PRETTY_FUNCTION__ << mSerialPortCom->bytesAvailable() << "bytes available. We need" << mMinimumDataPacketSize;
     quint32 offsetToValidPacket;
 
     if(mSerialPortCom->bytesAvailable() < 24) return; // ReceiverTime has only 24!
@@ -634,7 +634,7 @@ void GnssDevice::slotDataReadyOnCom()
         // Move all new bytes into our SBF buffer
         mReceiveBufferCom.append(mSerialPortCom->readAll());
 	
-	qDebug() << __PRETTY_FUNCTION__ << "com buffer contains:" << mReceiveBufferCom;
+        //qDebug() << __PRETTY_FUNCTION__ << "com buffer contains:" << mReceiveBufferCom;
 
         // If we're waiting for a command-reply, try to find and parse it. When done, advance the dataCursor.
         while(parseCommandReply(mSerialPortOnDeviceCom, &mReceiveBufferCom, &mDataCursorCom));
@@ -666,7 +666,7 @@ void GnssDevice::slotDataReadyOnCom()
         }
         else
         {
-//            qDebug() << "GnssDevice::slotDataReadyOnCom():" << mReceiveBufferCom.size() << "bytes left after parsing, but this is no valid packet yet:" << SbfParser::readable(mReceiveBufferCom);
+            //qDebug() << "GnssDevice::slotDataReadyOnCom():" << mReceiveBufferCom.size() - mDataCursorCom << "bytes left after parsing, but this is no valid packet yet:" << SbfParser::readable(mReceiveBufferCom);
             return;
         }
     }
@@ -674,7 +674,7 @@ void GnssDevice::slotDataReadyOnCom()
 
 void GnssDevice::slotDataReadyOnUsb()
 {
-    qDebug() << __PRETTY_FUNCTION__;
+    //qDebug() << __PRETTY_FUNCTION__;
     quint32 offsetToValidPacket;
 
     if(mSerialPortUsb->bytesAvailable() < mMinimumDataPacketSize) return;
@@ -697,7 +697,7 @@ void GnssDevice::slotDataReadyOnUsb()
             }
 
             // Process the SBF
-            qDebug() << __PRETTY_FUNCTION__ << "processing sbf starting at" << offsetToValidPacket << "of" << mReceiveBufferUsb.size();
+            //qDebug() << __PRETTY_FUNCTION__ << "processing sbf starting at" << offsetToValidPacket << "of" << mReceiveBufferUsb.size();
             const quint32 bytesProcessed = mSbfParser->processNextValidPacket(mReceiveBufferUsb, offsetToValidPacket);
 
             // Log the processed packet
@@ -715,7 +715,7 @@ void GnssDevice::slotDataReadyOnUsb()
         }
         else
         {
-            qDebug() << "GnssDevice::slotDataReadyOnUsb():" << mReceiveBufferUsb.size() << "bytes left after parsing, but this is no valid packet yet:" << SbfParser::readable(mReceiveBufferUsb.mid(mDataCursorUsb));
+            //qDebug() << "GnssDevice::slotDataReadyOnUsb():" << mReceiveBufferUsb.size() - mDataCursorUsb << "bytes left after parsing, but this is no valid packet yet:" << SbfParser::readable(mReceiveBufferUsb.mid(mDataCursorUsb));
             return;
         }
     }

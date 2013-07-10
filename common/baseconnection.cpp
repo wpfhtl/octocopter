@@ -304,26 +304,13 @@ void BaseConnection::slotFlightStateChanged(const FlightState* const fs)
 }
 
 // called by rover to send lidarpoints to the basestation
-void BaseConnection::slotNewScannedPoints(const QVector<QVector4D>& points, const QVector3D& scannerPosition)
+void BaseConnection::slotNewScanFused(const QVector<QVector4D>& points, const QVector3D& scannerPosition)
 {
-    slotNewScannedPoints((float*)points.constData(), points.size(), &scannerPosition);
+    slotNewScanFused((float*)points.constData(), points.size(), &scannerPosition);
 }
 
-// called by rover to send lidarpoints to the basestation - old and slow
-/*void BaseConnection::slotNewScannedPoints(const QVector<QVector3D>* const points, const QVector3D* const scannerPosition)
-{
-//    qDebug() << "sending" << points.size() << "new lidarpoints to base";
-    QByteArray data;
-    QDataStream stream(&data, QIODevice::WriteOnly);
-
-    stream << QString("lidarpoints");
-    stream << *points;
-    stream << *scannerPosition;
-    slotSendData(data, false);
-}*/
-
 // float4!
-void BaseConnection::slotNewScannedPoints(const float* const points, const quint32 numPoints, const QVector3D* const scannerPosition)
+void BaseConnection::slotNewScanFused(const float* const points, const quint32 numPoints, const QVector3D* const scannerPosition)
 {
 //    qDebug() << "sending" << numPoints * 4 << "floats /" << numPoints << "lidarpoints to base";
     QByteArray data;

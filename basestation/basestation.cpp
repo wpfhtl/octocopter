@@ -2,6 +2,7 @@
 #include <QMenu>
 #include <QMenuBar>
 
+
 BaseStation::BaseStation() : QMainWindow()
 {
     qDebug() << "BaseStation::BaseStation()";
@@ -51,7 +52,6 @@ BaseStation::BaseStation() : QMainWindow()
 
     mLogWidget = new LogWidget(this);
     addDockWidget(Qt::BottomDockWidgetArea, mLogWidget);
-    mMenuFile->addAction("Save Log", mLogWidget, SLOT(save()));
     mMenuWindowList->addAction("Log Viewer", this, SLOT(slotToggleLogWidget()));
 
     mGlWindow = new GlWindow;
@@ -100,26 +100,115 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mControlWidget, SIGNAL(wayPoints(QList<WayPoint>*const,WayPointListSource)), mFlightPlanner, SLOT(slotSetWayPoints(QList<WayPoint>*const,WayPointListSource)));
     connect(mFlightPlanner, SIGNAL(wayPoints(QList<WayPoint>*const,WayPointListSource)), mControlWidget, SLOT(slotSetWayPoints(QList<WayPoint>*const,WayPointListSource)));
 
-    mMenuFile->addAction("Save Cloud", this, SLOT(slotExportCloud()));
-    mMenuFile->addAction("Load Cloud", this, SLOT(slotImportCloud()));
-    mMenuFile->addAction("Clear Cloud", this, SLOT(slotClearCloud()));
-
     connect(mGlWindow, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
     connect(mGlWindow, SIGNAL(visualizeNow()), mPtuController, SLOT(slotVisualize()));
     connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWindow, SLOT(slotRenderLater()));
 
-    mMenuView->addAction("Dense PointCloud", this, SLOT(slotToggleViewPointCloudDense()));
-    mMenuView->addAction("ViewFromSide", mGlWindow, SLOT(slotViewFromSide()));
-    mMenuView->addAction("ViewFromTop", mGlWindow, SLOT(slotViewFromTop()));
-    mMenuView->addAction("Clear Trajectory", mFlightPlanner, SLOT(slotClearVehicleTrajectory()));
+    mMenuFile->addAction("Load Cloud", this, SLOT(slotImportCloud()));
+    mMenuFile->addAction("Save Cloud", this, SLOT(slotExportCloud()));
+    mMenuFile->addAction("Save Log", mLogWidget, SLOT(save()));
 
-    QAction* actionRotateView = new QAction("Rotate View", this);
-    actionRotateView->setCheckable(true);
-    connect(actionRotateView, SIGNAL(triggered(bool)), mGlWindow, SLOT(slotEnableTimerRotation(bool)));
-    connect(mGlWindow, SIGNAL(rotating(bool)), actionRotateView, SLOT(setChecked(bool)));
-    mMenuView->addAction(actionRotateView);
+    // Setup actions in menus
+    QAction* action;
 
-    mActionEnableAudio = new QAction("AudioOut", this);
+    action = new QAction("Reload Shaders", this);
+    mMenuView->addAction(action);
+    connect(action, &QAction::triggered, [=]() {mGlWindow->reloadShaders(); mGlWindow->slotRenderLater();});
+
+    action = new QAction("Clear Dense Cloud", this);
+    mMenuView->addAction(action);
+    connect(action, &QAction::triggered, [=]() {mPointCloud->slotReset(); mGlWindow->slotRenderLater();});
+
+    action = new QAction("Clear Trajectory", this);
+    mMenuView->addAction(action);
+    connect(action, &QAction::triggered, [=]() {mGlWindow->slotClearVehicleTrajectory(); mGlWindow->slotRenderLater();});
+
+
+    action = new QAction("Rotate View", this);
+    mMenuView->addAction(action);
+    action->setCheckable(true);
+    action->setChecked(false);
+    connect(mGlWindow, SIGNAL(rotating(bool)), action, SLOT(setChecked(bool)));
+    connect(action, &QAction::triggered, [=](const bool &checked) {
+        mGlWindow->slotEnableTimerRotation(checked);
+    });
+
+    mMenuView->insertSeparator(action);
+
+    action = new QAction("Show Dense Cloud", this);
+    mMenuView->addAction(action);
+    action->setCheckable(true);
+    action->setChecked(true);
+    connect(action, &QAction::triggered, [=](const bool &checked) {
+        if(checked) mGlWindow->slotPointCloudRegister(mPointCloud);
+        else mGlWindow->slotPointCloudUnregister(mPointCloud);
+        mGlWindow->slotRenderLater();
+    });
+
+    action = new QAction("Show Axes Base", this);
+    mMenuView->addAction(action);
+    action->setCheckable(true);
+    action->setChecked(true);
+    connect(action, &QAction::triggered, [=](const bool &checked) {mGlWindow->mRenderAxisBase = checked; mGlWindow->slotRenderLater();});
+
+    action = new QAction("Show Axes Vehicle", this);
+    mMenuView->addAction(action);
+    action->setCheckable(true);
+    action->setChecked(true);
+    connect(action, &QAction::triggered, [=](const bool &checked) {mGlWindow->mRenderAxisVehicle = checked; mGlWindow->slotRenderLater();});
+
+    action = new QAction("Show Vehicle", this);
+    mMenuView->addAction(action);
+    action->setCheckable(true);
+    action->setChecked(true);
+    connect(action, &QAction::triggered, [=](const bool &checked) {mGlWindow->mRenderVehicle = checked; mGlWindow->slotRenderLater();});
+
+    action = new QAction("Show Global BBox", this);
+    mMenuView->addAction(action);
+    action->setCheckable(true);
+    action->setChecked(true);
+    connect(action, &QAction::triggered, [=](const bool &checked) {mFlightPlanner->slotSetRenderGlobalBoundingBox(checked); mGlWindow->slotRenderLater();});
+
+    action = new QAction("Show Local BBox", this);
+    mMenuView->addAction(action);
+    action->setCheckable(true);
+    action->setChecked(true);
+    connect(action, &QAction::triggered, [=](const bool &checked) {mFlightPlanner->slotSetRenderLocalBoundingBox(checked); mGlWindow->slotRenderLater();});
+
+    action = new QAction("Show Raw Scan", this);
+    mMenuView->addAction(action);
+    action->setCheckable(true);
+    action->setChecked(true);
+    connect(action, &QAction::triggered, [=](const bool &checked) {mGlWindow->mRenderRawScanRays = checked; mGlWindow->slotRenderLater();});
+
+    action = new QAction("Show Trajectory", this);
+    mMenuView->addAction(action);
+    action->setCheckable(true);
+    action->setChecked(true);
+    connect(action, &QAction::triggered, [=](const bool &checked) {mGlWindow->mRenderTrajectory = checked; mGlWindow->slotRenderLater();});
+
+
+    MenuSlider* menuSlider;
+
+    menuSlider = new MenuSlider("BG Brightness", 0, 0.2, 1.0, this);
+    connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlWindow->mBackgroundBrightness = value; mGlWindow->slotRenderLater();});
+    mMenuView->addAction(menuSlider);
+
+    mMenuView->insertSeparator(action);
+
+    menuSlider = new MenuSlider("Distance Threshold", 0, 30, 30, this);
+    connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlWindow->mMaxPointVisualizationDistance = value; mGlWindow->slotRenderLater();});
+    mMenuView->addAction(menuSlider);
+
+    menuSlider = new MenuSlider("Point Size", 0.1f, 1.0f, 10.0f, this);
+    connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlWindow->mPointCloudPointSize = value; mGlWindow->slotRenderLater();});
+    mMenuView->addAction(menuSlider);
+
+    menuSlider = new MenuSlider("Point Alpha", 0.01f, 0.3f, 1.0f, this);
+    connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlWindow->mPointCloudPointAlpha = value; mGlWindow->slotRenderLater();});
+    mMenuView->addAction(menuSlider);
+
+    mActionEnableAudio = new QAction("Speech", this);
     mActionEnableAudio->setCheckable(true);
     mActionEnableAudio->setChecked(true);
     menuBar()->addAction(mActionEnableAudio);
@@ -211,15 +300,15 @@ BaseStation::BaseStation() : QMainWindow()
         addDockWidget(Qt::BottomDockWidgetArea, mLogPlayer);
         mMenuWindowList->addAction("Log Player", this, SLOT(slotToggleLogPlayer()));
         connect(mLogPlayer, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
-        connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mControlWidget, SLOT(slotUpdatePose(const Pose* const)));
-        connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mFlightPlanner, SLOT(slotVehiclePoseChanged(const Pose* const)));
-        connect(mLogPlayer, SIGNAL(rayData(Pose*const,qint32,std::vector<quint16>*const)), mGlWindow, SLOT(slotNewRayData(Pose*const,qint32,std::vector<quint16>*const)));
+        connect(mLogPlayer, SIGNAL(vehiclePose(Pose*const)), mControlWidget, SLOT(slotUpdatePose(Pose* const)));
+        connect(mLogPlayer, SIGNAL(vehiclePose(Pose* const)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose* const)));
+        connect(mLogPlayer, SIGNAL(scanRaw(RawScan*const)), mGlWindow, SLOT(slotNewRawScan(RawScan*const)));
 
         //connect(mLogPlayer, SIGNAL(vehiclePoseLowFreq(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mPtuController, SLOT(slotVehiclePoseChanged(const Pose* const)));
 
         connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mGlWindow, SLOT(slotNewVehiclePose(const Pose* const)));
-        connect(mLogPlayer, SIGNAL(scanData(float*const, quint32, QVector3D*const)), mFlightPlanner, SLOT(slotNewScanData(float*const,quint32,QVector3D*const)));
+        connect(mLogPlayer, SIGNAL(scanFused(float*const, quint32, QVector3D*const)), mFlightPlanner, SLOT(slotNewScanFused(float*const,quint32,QVector3D*const)));
     //    connect(mLogPlayer, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
         connect(mLogPlayer, SIGNAL(gnssStatus(const GnssStatus* const)), mControlWidget, SLOT(slotUpdateGnssStatus(const GnssStatus* const)));
 
@@ -336,24 +425,18 @@ void BaseStation::slotImportCloud()
 
 void BaseStation::keyPressEvent(QKeyEvent* event)
 {
-    mGlWindow->keyPressEvent(event);
     mFlightPlanner->keyPressEvent(event);
 //    if(mLogPlayer) mLogPlayer->keyPressEvent(event);
 
-    if(event->key() == Qt::Key_P)
-        slotToggleViewPointCloudDense();
-    else if(event->key() == Qt::Key_C)
-        slotClearCloud();
-    else
-        QMainWindow::keyPressEvent(event);
+      QMainWindow::keyPressEvent(event);
 
 }
 
-void BaseStation::slotClearCloud()
-{
-    mPointCloud->slotReset();
-    mGlWindow->slotRenderNow();
-}
+//void BaseStation::slotClearCloud()
+//{
+//    mPointCloud->slotReset();
+//    mGlWindow->slotRenderNow();
+//}
 
 void BaseStation::slotSpeakGnssStatus(const GnssStatus* const status)
 {

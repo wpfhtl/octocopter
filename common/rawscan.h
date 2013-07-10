@@ -5,6 +5,7 @@
 #include <QMetaType>
 
 #include "pose.h"
+#include "logfile.h"
 
 struct RawScan
 {
@@ -14,19 +15,19 @@ struct RawScan
     quint16 firstUsableDistance; // At which index was the first suable distance? Oftentimes, the first ~100 distances have a length of 1mm.
     qint32 timeStampScanMiddleGnss;
     qint32 timeStampScanMiddleScanner;
-    const Pose* relativeScannerPose; // we're NOT owner of this pose!
+    const QMatrix4x4* relativeScannerPose; // we're NOT owner of this pose!
 
     RawScan();
-
     RawScan(const RawScan& other);
 
-    void setDistances(const std::vector<long>* distances, const quint16 firstUsableDistance, const quint16 lastUsableDistance);
-
     ~RawScan();
-    
-    QString toString() const;
 
-    bool isConnectedToEventPin() const {return timeStampScanMiddleGnss != -1; }
+    void setDistances(const std::vector<long> &distances);
+    void setDistances(const quint16* distances, const quint16 firstUsableDistance, const quint16 lastUsableDistance);
+
+    void log(LogFile* const logFile);
+
+    QString toString() const;
 };
 
 Q_DECLARE_METATYPE(RawScan)

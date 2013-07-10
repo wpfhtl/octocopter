@@ -2,11 +2,13 @@
 //#include <sys/types.h>
 #include <unistd.h>
 
-Hokuyo::Hokuyo(LogFile* const logFile, bool isConnectedToEventPin) : QObject()
+Hokuyo::Hokuyo(LogFile* const logFile, const QMatrix4x4 * const relativePose, bool isConnectedToEventPin) : QObject()
 {
     qDebug() << "Hokuyo::Hokuyo(): initializing Hokuyo";
 
     mLogFile = logFile;
+
+    mRelativeScannerPose = relativePose;
     
     mIsConnectedToEventPin = isConnectedToEventPin;
 
@@ -101,66 +103,33 @@ void Hokuyo::slotStartScanning()
         mHeightOverGroundClockDivisor++;
         mHeightOverGroundClockDivisor %= 20; // Emit heightOverGround every 20 scans, so thats 2Hz
 
-        long timestampScanner = 0;
-        const int numRays = mScanner.capture(mScannedDistances, &timestampScanner);
         // TODO: handle wrapping of lasertime after 4.66 hours!
-        mLastScannerTimeStamp = timestampScanner;
-
-        if(numRays <= 0)
+        long timestampScanner = 0;
+        if(mScanner.capture(mScannedDistances, &timestampScanner) <= 0)
         {
              qWarning() << "Hokuyo::slotScanFinished(): weird, less than 1 samples received from lidar";
         }
         else
         {
-            // Emit the scandata and add 12msecs of time. The scanner PROBABLY sets the time to the beginning of
-            // each scan -135deg (0deg is front) and our convention is to store the time of the middle of a scan.
+            mLastScannerTimeStamp = timestampScanner;
+
 
             RawScan* rawScan = new RawScan;
+
+            rawScan->relativeScannerPose = mRelativeScannerPose;
+
+            // Emit the scandata and add 12msecs of time. The scanner PROBABLY sets the time to the beginning of
+            // each scan -135deg (0deg is front) and our convention is to store the time of the middle of a scan.
             rawScan->timeStampScanMiddleScanner = mLastScannerTimeStamp + mOffsetTimeScannerToTow + 9;
-	    // Set the gnss time to the scanner time if we're not connected to an event-pin.
-	    if(!mIsConnectedToEventPin) rawScan->timeStampScanMiddleGnss = rawScan->timeStampScanMiddleScanner;
-
-            // Create a copy of the data in a quarter/half the size by using quint16 instead of long (32bit on x86_32, 64bit on x86_64)
-            //std::vector<quint16>* distancesToEmit = new std::vector<quint16>(mScannedDistances.begin(), mScannedDistances.end());
-
-            // Always write log data in binary format for later replay. Format is:
-            //
-            // LASER PacketLengthInBytes(quint16) TOW(qint32) StartIndex(quint16) N-DISTANCES(quint16)
-            //
-            // PacketLengthInBytes is ALL bytes of this packet
-            // StartIndex denotes the start of usable data (not 1s)
-
-            // A usual dataset contains 200 1's at the beginning and 200 1's at the end.
-            // We RLE-compress the leading 1s and drop the trailing 1s
-            quint16 indexStart = 0;
-            while(mScannedDistances[indexStart] == 1)
-                indexStart++;
-
-            quint16 indexStop = numRays-1;
-            while(mScannedDistances[indexStop] == 1)
-                indexStop--;
+            // Set the gnss time to the scanner time if we're not connected to an event-pin.
+            if(!mIsConnectedToEventPin) rawScan->timeStampScanMiddleGnss = rawScan->timeStampScanMiddleScanner;
 
             // Fill the values in the RawScan. It will allocate memory for the values.
-            rawScan->setDistances(&mScannedDistances, indexStart, indexStop);
+            rawScan->setDistances(mScannedDistances);
 
-            // Write the total amount of bytes of this scan into the stream
-            quint16 length = 5 // LASER
-                    + sizeof(quint16) // length at beginning
-                    + sizeof(qint32) // RawScan::timeStampScanMiddleScanner
-                    + sizeof(quint16) // indexStart
-                    + rawScan->numberOfDistances * sizeof(quint16); // number of bytes for the distance-data
+            rawScan->log(mLogFile);
 
-            const QByteArray magic("LASER");
-
-            mLogFile->write(magic.constData(), magic.size());
-            mLogFile->write((const char*)&length, sizeof(length));
-            mLogFile->write((const char*)&rawScan->timeStampScanMiddleScanner, sizeof(rawScan->timeStampScanMiddleScanner));
-            mLogFile->write((const char*)&indexStart, sizeof(indexStart));
-
-            // Instead of looping through the indices, lets write everything at once.
-            mLogFile->write((const char*)rawScan->distances, sizeof(quint16) * rawScan->numberOfDistances);
-	    
-	    qDebug() << "scan from scanner connected to pin:" << mIsConnectedToEventPin << ": indexStart" << indexStart << "indexStop" << indexStop << "tostring:" << rawScan->toString();
+            qDebug() << "scan from scanner connected to pin:" << mIsConnectedToEventPin << ": tostring:" << rawScan->toString();
 
             //mLogFile->write(
                         //(const char*)(distancesToEmit->data() + indexStart), // where to start writing.

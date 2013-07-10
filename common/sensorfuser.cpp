@@ -20,6 +20,10 @@ SensorFuser::SensorFuser(const quint8& stridePoint, const quint8& strideScan) : 
 
     mBestInterpolationMethodToUse = InterpolationMethod::Linear;
 
+    // We need to register one of them, so we can pass pointers in queued signals and slots
+    qRegisterMetaType<RawScan>("RawScan");
+    qRegisterMetaType<RawScan*>("RawScanPointer");
+
     mPoseDynamicsLogFile = new QFile("/tmp/posedynamics.dat");
     if(!mPoseDynamicsLogFile->open(QIODevice::WriteOnly | QIODevice::Truncate))
         qFatal("cannot open pose dynamics logfile for writing!");
@@ -52,12 +56,13 @@ SensorFuser::~SensorFuser()
 void SensorFuser::slotClearData(const qint32 maximumDataAge)
 {
     // Remove all poses older than maximumDataAge
-    QMutableListIterator<Pose> i(mPoses);
+    QMutableListIterator<Pose*> i(mPoses);
     while(i.hasNext())
     {
-        const qint32 timestamp = i.next().timestamp;
+        const qint32 timestamp = i.next()->timestamp;
         if(timestamp + maximumDataAge < mNewestDataTime || maximumDataAge < 0)
         {
+            delete i.value();
             i.remove();
         }
     }
@@ -111,9 +116,6 @@ void SensorFuser::fuseRayWithLastInterpolatedPose(const qint16 index, const floa
     mRegisteredPoints[mNumberOfPointsFusedInThisScan * 4 + 2] = p.z();
     mRegisteredPoints[mNumberOfPointsFusedInThisScan * 4 + 3] = vectorScannerToPoint.lengthSquared(); // squared distance to point
     mNumberOfPointsFusedInThisScan++;
-
-//    static quint32 pointNum = 0;
-//    *(mPoseDynamicsStream) << pointNum++ << "\t" << mLastInterpolatedPose.velocity * 100.0f << "\t" << mLastInterpolatedPose.acceleration * 100.0f << "\t" << mLastInterpolatedPose.rotation << "\n";
 }
 
 // According to mInterpolationmethod, we set each ScanInfo' object 's poses-list to be the 1(nn) / 2(linear) / 3(linear) / 4(cubic) / 5(cubic) best poses to interpolate
@@ -122,10 +124,10 @@ void SensorFuser::fuseScans()
     Profiler p(__PRETTY_FUNCTION__);
 
     // Process every scan...
-    QMutableListIterator<RawScan*> iteratorScanInformation(mRawScans);
-    while(iteratorScanInformation.hasNext())
+    QMutableListIterator<RawScan*> iteratorRawScans(mRawScans);
+    while(iteratorRawScans.hasNext())
     {
-        RawScan* scanInfo = iteratorScanInformation.next();
+        RawScan* rawScan = iteratorRawScans.next();
 
         // scanInfo can still contain scans with zero timeStampScanMiddleGnss values because they weren't matched/
         // populated from the mGnssTimeStamps vector. This can have two reasons:
@@ -140,12 +142,12 @@ void SensorFuser::fuseScans()
         //
         // To fix b), we DO process scans with a timeStampScanMiddleGnss of 0 IF they are so old that we can trust that
         // their respective timeStampGnss will not come in anymore. In this case, we simply use the scanner's timestamp.
-        if(scanInfo->timeStampScanMiddleGnss == 0)
+        if(rawScan->timeStampScanMiddleGnss == 0)
         {
-            if(mNewestDataTime - scanInfo->timeStampScanMiddleScanner > 1000 || mFlushRemainingData)
+            if(mNewestDataTime - rawScan->timeStampScanMiddleScanner > 1000 || mFlushRemainingData)
             {
                 // the scanInfo is relatively old, we give up waiting for a gnssTimestamp and use the scanner's
-                scanInfo->timeStampScanMiddleGnss = scanInfo->timeStampScanMiddleScanner;
+                rawScan->timeStampScanMiddleGnss = rawScan->timeStampScanMiddleScanner;
                 mNumberOfScansWithMissingGnssTimestamps++;
             }
             else
@@ -155,20 +157,20 @@ void SensorFuser::fuseScans()
             }
         }
 
-        const qint32 timestampMiddleOfScan = scanInfo->timeStampScanMiddleGnss;
-        //qDebug() << "SensorFuser::fuseScans(): trying to fuse scan from" << timestampMiddleOfScan;
+        //qDebug() << "SensorFuser::fuseScans(): trying to fuse scan from" << rawScan->timeStampScanMiddleGnss;
 
         // Which pose(-index) fits best to this scan?
         qint32 bestFitPoseIndex = -1;
         qint32 bestFitPoseTimeDifference = std::numeric_limits<qint32>::max();
-        for(int currentIndexPose = 0; currentIndexPose < mPoses.size(); currentIndexPose++)
+        for(int currentPoseIndex = 0; currentPoseIndex < mPoses.size(); currentPoseIndex++)
         {
-            if(abs(mPoses[currentIndexPose].timestamp - timestampMiddleOfScan) < abs(bestFitPoseTimeDifference))
+            const Pose* const currentPose = mPoses[currentPoseIndex];
+            if(abs(currentPose->timestamp - rawScan->timeStampScanMiddleGnss) < abs(bestFitPoseTimeDifference))
             {
-                bestFitPoseIndex = currentIndexPose;
+                bestFitPoseIndex = currentPoseIndex;
 
                 // negative value means the pose was before the scan
-                bestFitPoseTimeDifference = mPoses[currentIndexPose].timestamp - timestampMiddleOfScan;
+                bestFitPoseTimeDifference = currentPose->timestamp - rawScan->timeStampScanMiddleGnss;
             }
             else
             {
@@ -271,7 +273,7 @@ void SensorFuser::fuseScans()
                     allPosesPresent = false;
                     if(mFlushRemainingData) im = InterpolationMethod::Linear;
                 }
-                else if(abs(mPoses[poseIndex].timestamp - timestampMiddleOfScan) > MaximumFusionTimeOffset::Cubic)
+                else if(abs(mPoses[poseIndex]->timestamp - rawScan->timeStampScanMiddleGnss) > MaximumFusionTimeOffset::Cubic)
                 {
                     // mPoses[poseIndex] exists, but it is too far away time-wise. This means there are missing poses,
                     // so we should try degrading the interpolation-method
@@ -283,56 +285,55 @@ void SensorFuser::fuseScans()
             if(allPosesPresent)
             {
                 // We finally have all poses required to fuse this scan. Go!
-                for(qint16 index=0; index < scanInfo->numberOfDistances; index++)
+                for(qint16 index=0; index < rawScan->numberOfDistances; index++)
                 {
                     // Only process every mStridePoint'th point
                     if(index % mStridePoint != 0) continue;
 
                     // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
-                    if(scanInfo->distances[index] < 500 || scanInfo->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
+                    if(rawScan->distances[index] < 500 || rawScan->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
 
                     // Convert millimeters to meters.
-                    const float distance = scanInfo->distances[index] / 1000.0f;
+                    const float distance = rawScan->distances[index] / 1000.0f;
 
-                    const qint32 timeOfCurrentRay = timestampMiddleOfScan + (qint32)(-9.375f + (((float)index) * 0.01736f));
+                    const qint32 timeOfCurrentRay = rawScan->timeStampScanMiddleGnss + (qint32)(-9.375f + (((float)index) * 0.01736f));
 
                     if(mLastInterpolatedPose.timestamp != timeOfCurrentRay)
                     {
                         // TODO: chek this form 20 and 50 Hz poses using yellow paper!
-                        if(mPoses[poseIndicesToUse[2]].timestamp > timeOfCurrentRay)
+                        if(mPoses[poseIndicesToUse[2]]->timestamp > timeOfCurrentRay)
                         {
                             mLastInterpolatedPose = Pose::interpolateCubic(
-                                        &mPoses[poseIndicesToUse[0]],
-                                        &mPoses[poseIndicesToUse[1]],
-                                        &mPoses[poseIndicesToUse[2]],
-                                        &mPoses[poseIndicesToUse[3]],
+                                        mPoses[poseIndicesToUse[0]],
+                                        mPoses[poseIndicesToUse[1]],
+                                        mPoses[poseIndicesToUse[2]],
+                                        mPoses[poseIndicesToUse[3]],
                                         timeOfCurrentRay);
                         }
                         else
                         {
                             mLastInterpolatedPose = Pose::interpolateCubic(
-                                        &mPoses[poseIndicesToUse[1]],
-                                        &mPoses[poseIndicesToUse[2]],
-                                        &mPoses[poseIndicesToUse[3]],
-                                        &mPoses[poseIndicesToUse[4]],
+                                        mPoses[poseIndicesToUse[1]],
+                                        mPoses[poseIndicesToUse[2]],
+                                        mPoses[poseIndicesToUse[3]],
+                                        mPoses[poseIndicesToUse[4]],
                                         timeOfCurrentRay);
                         }
 
-                        mLastInterpolatedPose = mLastInterpolatedPose * (*scanInfo->relativeScannerPose);
-
+                        mLastInterpolatedPose.transform(rawScan->relativeScannerPose);
                         emitLastInterpolatedPose();
                     }
 
-                    fuseRayWithLastInterpolatedPose(index + scanInfo->firstUsableDistance, distance);
+                    fuseRayWithLastInterpolatedPose(index + rawScan->firstUsableDistance, distance);
                 }
 
                 // This scan was successfully fused. Remove it from our vector
-                iteratorScanInformation.remove();
+                iteratorRawScans.remove();
 
                 mStatsScansFused[InterpolationMethod::Cubic]++;
 
-                mLastScannerPosition = mPoses[poseIndicesToUse[2]].getPosition();
-                emit scanData(mRegisteredPoints, mNumberOfPointsFusedInThisScan, &mLastScannerPosition);
+                mLastScannerPosition = mPoses[poseIndicesToUse[2]]->getPosition();
+                emit scanFused(mRegisteredPoints, mNumberOfPointsFusedInThisScan, &mLastScannerPosition);
             }
         }
 
@@ -398,7 +399,7 @@ void SensorFuser::fuseScans()
                     allPosesPresent = false;
                     if(mFlushRemainingData) im = InterpolationMethod::NearestNeighbor;
                 }
-                else if(abs(mPoses[poseIndex].timestamp - timestampMiddleOfScan) > MaximumFusionTimeOffset::Linear)
+                else if(abs(mPoses[poseIndex]->timestamp - rawScan->timeStampScanMiddleGnss) > MaximumFusionTimeOffset::Linear)
                 {
                     // mPoses[poseIndex] exists, but it is too far away time-wise. This means there are missing poses,
                     // so we should try degrading the interpolation-method
@@ -410,22 +411,22 @@ void SensorFuser::fuseScans()
             if(allPosesPresent)
             {
                 // We finally have all poses required to fuse this scan. Go!
-                for(qint16 index=0; index < scanInfo->numberOfDistances; index++)
+                for(qint16 index=0; index < rawScan->numberOfDistances; index++)
                 {
                     // Only process every mStridePoint'th point
                     if(index % mStridePoint != 0) continue;
 
                     // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
-                    if(scanInfo->distances[index] < 500 || scanInfo->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
+                    if(rawScan->distances[index] < 500 || rawScan->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
 
                     // Convert millimeters to meters.
-                    const float distance = scanInfo->distances[index] / 1000.0f;
+                    const float distance = rawScan->distances[index] / 1000.0f;
 
-                    const qint32 timeOfCurrentRay = timestampMiddleOfScan + (qint32)(-9.375f + (((float)index) * 0.01736f));
+                    const qint32 timeOfCurrentRay = rawScan->timeStampScanMiddleGnss + (qint32)(-9.375f + (((float)index) * 0.01736f));
 
                     if(mLastInterpolatedPose.timestamp != timeOfCurrentRay)
                     {
-                        if(mPoses[poseIndicesToUse[1]].timestamp > timeOfCurrentRay)
+                        if(mPoses[poseIndicesToUse[1]]->timestamp > timeOfCurrentRay)
                         {
                             mLastInterpolatedPose = Pose::interpolateLinear(
                                         mPoses[poseIndicesToUse[0]],
@@ -441,18 +442,21 @@ void SensorFuser::fuseScans()
                         }
 
                         emitLastInterpolatedPose();
+                        //qDebug() << "pose source" << mPoses[poseIndicesToUse[1]]->toString();
+                        mLastInterpolatedPose.transform(rawScan->relativeScannerPose);
+                        //qDebug() << "pose done: " << mLastInterpolatedPose.toString();
                     }
 
-		    fuseRayWithLastInterpolatedPose(index + scanInfo->firstUsableDistance, distance);
+                    fuseRayWithLastInterpolatedPose(index + rawScan->firstUsableDistance, distance);
                 }
 
                 // This scan was successfully fused. Remove it from our vector
-                iteratorScanInformation.remove();
+                iteratorRawScans.remove();
 
                 mStatsScansFused[InterpolationMethod::Linear]++;
 
-                mLastScannerPosition = mPoses[poseIndicesToUse[1]].getPosition();
-                emit scanData(mRegisteredPoints, mNumberOfPointsFusedInThisScan, &mLastScannerPosition);
+                mLastScannerPosition = mPoses[poseIndicesToUse[1]]->getPosition();
+                emit scanFused(mRegisteredPoints, mNumberOfPointsFusedInThisScan, &mLastScannerPosition);
             }
         }
 
@@ -461,31 +465,32 @@ void SensorFuser::fuseScans()
             // Skip this scan if no good pose was found
             if(abs(bestFitPoseTimeDifference) > MaximumFusionTimeOffset::NearestNeighbor) continue;
 
-            mLastInterpolatedPose = mPoses[bestFitPoseIndex];
+            mLastInterpolatedPose = *mPoses[bestFitPoseIndex];
+            mLastInterpolatedPose.transform(rawScan->relativeScannerPose);
 
             emitLastInterpolatedPose();
 
-            for(qint16 index=0; index < scanInfo->numberOfDistances; index++)
+            for(qint16 index=0; index < rawScan->numberOfDistances; index++)
             {
                 // Only process every mStridePoint'th point
                 if(index % mStridePoint != 0) continue;
 
                 // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
-                if(scanInfo->distances[index] < 500 || scanInfo->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
+                if(rawScan->distances[index] < 500 || rawScan->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
 
                 // Convert millimeters to meters.
-                const float distance = scanInfo->distances[index] / 1000.0f;
+                const float distance = rawScan->distances[index] / 1000.0f;
 
-		fuseRayWithLastInterpolatedPose(index + scanInfo->firstUsableDistance, distance);
+                fuseRayWithLastInterpolatedPose(index + rawScan->firstUsableDistance, distance);
             }
 
             // This scan was successfully fused. Remove it from our vector
-            iteratorScanInformation.remove();
+            iteratorRawScans.remove();
 
             mStatsScansFused[InterpolationMethod::NearestNeighbor]++;
 
-            mLastScannerPosition = mPoses[bestFitPoseIndex].getPosition();
-            emit scanData(mRegisteredPoints, mNumberOfPointsFusedInThisScan, &mLastScannerPosition);
+            mLastScannerPosition = mPoses[bestFitPoseIndex]->getPosition();
+            emit scanFused(mRegisteredPoints, mNumberOfPointsFusedInThisScan, &mLastScannerPosition);
         }
     }
 }
@@ -571,23 +576,23 @@ void SensorFuser::slotNewVehiclePose(const Pose* const pose)
             pose->covariances < Pose::maximumUsableCovariance
             ))
     {
-        qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received pose is not precise enough for fusing, ignoring it";
+        //qDebug() << t() << "SensorFuser::slotNewVehiclePose(): received pose is not precise enough for fusing, ignoring it";
         return;
     }
 
     //Profiler p(__PRETTY_FUNCTION__);
 
-    qDebug() << "SensorFuser::slotNewVehiclePose(): received a usable" << *pose;
+    //qDebug() << "SensorFuser::slotNewVehiclePose(): received a usable" << *pose;
 
     // Make sure we receive data in order
-    if(mPoses.size() && mPoses.last().timestamp > pose->timestamp)
+    if(mPoses.size() && mPoses.last()->timestamp > pose->timestamp)
     {
-        qDebug() << __PRETTY_FUNCTION__ << "last known pose t" << mPoses.last().timestamp << "new pose t" << pose->timestamp;
+        qDebug() << __PRETTY_FUNCTION__ << "last known pose t" << mPoses.last()->timestamp << "new pose t" << pose->timestamp;
         return;
     }
 
     // Append pose to our list
-    mPoses.append(*pose);
+    mPoses.append(new Pose(pose));
 
     mNewestDataTime = std::max(mNewestDataTime, pose->timestamp);
 
@@ -600,7 +605,7 @@ void SensorFuser::slotNewVehiclePose(const Pose* const pose)
     }
 
     // clear all data older than 2 seconds
-    slotClearData(2000);
+    if(mPoses.size() > 10) slotClearData(2000);
 }
 
 void SensorFuser::slotFlushData()
@@ -657,7 +662,7 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGnss)
     if(mLastScanMiddleGnssTow >= timestampScanGnss) return;
 
     // Do not store data that we cannot fuse anyway, because the newest pose is very old (no gnss reception)
-    if(!mPoses.size() || mPoses.last().timestamp < (timestampScanGnss - 1000))
+    if(!mPoses.size() || mPoses.last()->timestamp < (timestampScanGnss - 1000))
     {
         //qDebug() << t() << "SensorFuser::slotScanFinished(): " << mPoses.size() << "/old poses, ignoring scanfinished gnss signal for scantime" << timestampScanGnss;
         return;
@@ -690,16 +695,16 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGnss)
     mLastScanMiddleGnssTow = timestampScanGnss;
 }
 
-void SensorFuser::slotNewScanData(RawScan *scan)
+void SensorFuser::slotNewRawScan(RawScan *scan)
 {
-    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << scan->numberOfDistances << "distance values from scannertime" << scan->timeStampScanMiddleScanner;
+    //qDebug() << t() << "SensorFuser::slotNewRawScan(): received" << scan->numberOfDistances << "distance values from scannertime" << scan->timeStampScanMiddleScanner;
 
     //Profiler p(__PRETTY_FUNCTION__);
 
     // Do not store data that we cannot fuse anyway, because there is no pose or its very old (no gnss reception)
-    if(!mPoses.size() || mPoses.last().timestamp < (scan->timeStampScanMiddleScanner - MaximumFusionTimeOffset::Cubic))
+    if(!mPoses.size() || mPoses.last()->timestamp < (scan->timeStampScanMiddleScanner - MaximumFusionTimeOffset::Cubic))
     {
-        // We cannot ignore the scandata, we must at least delete() it, because we are the owner.
+        // We cannot ignore the scan, as it was new()d somewhere!
         delete scan;
         return;
     }

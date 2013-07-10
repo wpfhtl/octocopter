@@ -16,7 +16,7 @@ PathPlanner::PathPlanner(QObject *parent) :
 
     mRepopulateOccupanccyGrid = true;
 
-    mParametersPathPlanner.grid.cells.x = mParametersPathPlanner.grid.cells.y = mParametersPathPlanner.grid.cells.z = 32;
+    mParametersPathPlanner.grid.cells.x = mParametersPathPlanner.grid.cells.y = mParametersPathPlanner.grid.cells.z = 64;
 
     mHostWaypoints = 0;
 }
@@ -115,6 +115,8 @@ void PathPlanner::slotComputePathOnGpu()
     // a value other than 0 or 255, the current cell is set to min(neighbor)+1.
     // This is executed often, so that all cells reachable from start get filled with the
     // distance TO start
+
+    QTime t;t.start();
 
     // If the collider cloud's grid changed, copy the grid dimensions (not resolution) and repopulate
     if(! mParametersPathPlanner.grid.hasSameExtents(mPointCloudColliders->getGrid()))
@@ -244,11 +246,13 @@ void PathPlanner::slotComputePathOnGpu()
 
         emit pathFound(&mComputedPath, WayPointListSource::WayPointListSourceFlightPlanner);
     }
+
+    qDebug() << __PRETTY_FUNCTION__ << "took" << t.elapsed() << "ms.";
 }
 
 void PathPlanner::printHostOccupancyGrid(quint8* deviceGridOccupancy)
 {
-//    return;
+    return;
     cudaMemcpy(mHostOccupancyGrid, deviceGridOccupancy, mParametersPathPlanner.grid.getCellCount(), cudaMemcpyDeviceToHost);
 
 //    qDebug() << __PRETTY_FUNCTION__;

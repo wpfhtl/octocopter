@@ -13,15 +13,16 @@
 class FlightPlannerParticlesDialog;
 
 class PointCloudCuda;
+class BaseStation;
 
 class FlightPlannerParticles : public FlightPlannerInterface
 {
     Q_OBJECT
 public:
-    FlightPlannerParticles(QWidget* parentWidget, GlWindow* glWidget, PointCloud* pointcloud);
+    FlightPlannerParticles(BaseStation* baseStation, GlWindow* glWidget, PointCloud* pointcloud);
     ~FlightPlannerParticles();
 
-    void keyPressEvent(QKeyEvent *event);
+    virtual void keyPressEvent(QKeyEvent *event);
 
 private:
     FlightPlannerParticlesDialog* mDialog;
@@ -67,7 +68,7 @@ signals:
 
 private slots:
     void slotShowUserInterface();
-    void slotGenerateWaypoints(quint32 numberOfWaypointsToGenerate = 1);
+    void slotGenerateWaypoints(quint32 numberOfWaypointsToGenerate = 10);
     void slotDenseCloudInsertedPoints(PointCloud*const pointCloudSource, const quint32& firstPointToReadFromSrc, quint32 numberOfPointsToCopy);
 
     // checks waypoint pressure and if higher than threshold, cals slotGenerateWaypoints();
@@ -76,7 +77,7 @@ private slots:
 public slots:
     void slotSetScanVolume(const QVector3D min, const QVector3D max);
 
-    void slotNewScanData(const float* const points, const quint32& count, const QVector3D* const scannerPosition);
+    void slotNewScanFused(const float* const points, const quint32& count, const QVector3D* const scannerPosition);
 
     // Inserts detour-waypoints between vehicle position and next waypoint if necessary.
     // Returns true if path was found, else false.

@@ -1,15 +1,16 @@
 #include "glwindow.h"
 #include "flightplannerinterface.h"
 
-FlightPlannerInterface::FlightPlannerInterface(QWidget* widget, GlWindow* glWidget, PointCloud *pointcloud) : QObject()
+FlightPlannerInterface::FlightPlannerInterface(BaseStation *basestation, GlWindow* glWidget, PointCloud *pointcloud) : QObject()
 {
-    mGlWidget = glWidget;
-    mParentWidget = widget;
+    mGlWindow = glWidget;
+    mBaseStation = basestation;
     mShaderProgramDefault = mShaderProgramSpheres = 0;
     mVboBoundingBox = 0;
     mVboWayPointConnections = 0;
-    mShowWayPoints = true;
-    mShowBoundingBox = true;
+    mRenderWayPoints = true;
+    mRenderGlobalBoundingBox = true;
+    mRenderLocalBoundingBox = true;
 
     mVehiclePoses.reserve(25 * 60 * 20); // enough poses for 20 minutes with 25Hz
 
@@ -38,9 +39,8 @@ void FlightPlannerInterface::slotSetScanVolume(const QVector3D minBox, const QVe
 void FlightPlannerInterface::slotClearVehicleTrajectory()
 {
     mVehiclePoses.clear();
-    if(mGlWidget) mGlWidget->slotClearVehicleTrajectory();
-
-    emit suggestVisualization();
+//    if(mGlWindow) mGlWindow->slotClearVehicleTrajectory();
+//    emit suggestVisualization();
 }
 
 const Pose FlightPlannerInterface::getLastKnownVehiclePose(void) const
@@ -49,15 +49,6 @@ const Pose FlightPlannerInterface::getLastKnownVehiclePose(void) const
         return mVehiclePoses.last();
     else
         return Pose();
-}
-
-void FlightPlannerInterface::keyPressEvent(QKeyEvent *event)
-{
-    if(event->key() == Qt::Key_B && !(event->modifiers() & Qt::ShiftModifier))
-    {
-        qDebug() << "FlightPlannerInterface::keyPressEvent(): b, toggling bounding box visualization";
-        mShowBoundingBox = !mShowBoundingBox;
-    }
 }
 
 void FlightPlannerInterface::slotVehiclePoseChanged(const Pose* const pose)
@@ -157,7 +148,7 @@ void FlightPlannerInterface::slotVisualize()
 {
     // Bounding Box
     // Initialize shaders and VBO if necessary
-    if(mShaderProgramDefault == 0 && mGlWidget != 0)
+    if(mShaderProgramDefault == 0 && mGlWindow != 0)
     {
         qDebug() << __PRETTY_FUNCTION__ << "initializing opengl...";
         initializeOpenGLFunctions();
@@ -170,7 +161,7 @@ void FlightPlannerInterface::slotVisualize()
         OpenGlUtilities::setVboToBoundingBox(mVboBoundingBox, mScanVolumeMin, mScanVolumeMax);
     }
 
-    if(mShowBoundingBox && mShaderProgramDefault != 0)
+    if(mRenderGlobalBoundingBox && mShaderProgramDefault != 0)
     {
         mShaderProgramDefault->bind();
         mShaderProgramDefault->setUniformValue("useFixedColor", true);
@@ -254,7 +245,7 @@ void FlightPlannerInterface::slotVisualize()
         mShaderProgramSpheres->release();
     }*/
 
-    if(mShowWayPoints && mShaderProgramDefault != 0)
+    if(mRenderWayPoints && mShaderProgramDefault != 0)
     {
         mShaderProgramDefault->bind();
         mShaderProgramDefault->setUniformValue("useFixedColor", true);

@@ -188,13 +188,13 @@ void SbfParser::setPose(const Sbf_IntPVAAGeod* block, const GnssStatus& gnssStat
     {
         const QVector3D velocity = QVector3D(block->Veast, block->Vup, -block->Vnorth);
         mLastPose.setVelocity(velocity / 1000.0f);
-        qDebug() << "SbfParser::setPose(): ENU velocities" << block->Veast << block->Vnorth << block->Vup << "are valid, velocity:" << mLastPose.getVelocity();
+        //qDebug() << "SbfParser::setPose(): ENU velocities" << block->Veast << block->Vnorth << block->Vup << "are valid, velocity:" << mLastPose.getVelocity();
     }
     else
     {
         const QVector3D velocity = (mLastPose.getPosition() - previousPosePosition) / timeSinceLastPose;
         mLastPose.setVelocity(velocity);
-        qDebug() << "SbfParser::setPose(): ENU velocities" << block->Veast << block->Vnorth << block->Vup << "are either DO-NOT-USE or all zero (=buggy), computing velocities using previous pose:" << mLastPose.getVelocity();
+        //qDebug() << "SbfParser::setPose(): ENU velocities" << block->Veast << block->Vnorth << block->Vup << "are either DO-NOT-USE or all zero (=buggy), computing velocities using previous pose:" << mLastPose.getVelocity();
     }
 
     // Determine acceleration magnitude
@@ -361,7 +361,7 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
         // IntPVAAGeod
         const Sbf_IntPVAAGeod *block = (Sbf_IntPVAAGeod*)(sbfData.constData() + offsetToValidPacket);
 
-        qDebug() << "SBF: IntPVAAGeod" << block->TOW << block->GNSSPVTMode << block->Alt << block->Heading << block->Pitch << block->Roll;
+        //qDebug() << "SBF: IntPVAAGeod" << block->TOW << block->GNSSPVTMode << block->Alt << block->Heading << block->Pitch << block->Roll;
 
         // Check the Info-field and emit states if it changes
         if(mGnssStatus.info != block->Info)

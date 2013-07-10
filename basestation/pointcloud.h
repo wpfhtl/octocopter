@@ -106,6 +106,7 @@ signals:
     // to be fired whenever there are new points (e.g. after every scan), because that would cause a lot of signals.
     // Instead, the pointcloud is free to define larger intervals between signals.
     void pointsInserted(PointCloud* const pointcloud, const quint32& firstPoint, const quint32& numPoints);
+    void numberOfPoints(quint32 numberOfPoints);
 };
 
 #endif

@@ -166,13 +166,13 @@ void PlyManager::loadPly4D(float* points, const quint32 startPoint, const quint3
                 {
                     points[numberOfVerticesProcessed*4 + 0] = values.at(0).toDouble();
 
-#ifdef FALSE // junhao: use z as height and mirror y axis
+                    // junhao: use z as height and mirror y axis
                     points[numberOfVerticesProcessed*4 + 1] = values.at(2).toDouble();
                     points[numberOfVerticesProcessed*4 + 2] = -values.at(1).toDouble();
-#else
-                    points[numberOfVerticesProcessed*4 + 1] = values.at(1).toDouble();
-                    points[numberOfVerticesProcessed*4 + 2] = values.at(2).toDouble();
-#endif
+
+//                    points[numberOfVerticesProcessed*4 + 1] = values.at(1).toDouble();
+//                    points[numberOfVerticesProcessed*4 + 2] = values.at(2).toDouble();
+
                     points[numberOfVerticesProcessed*4 + 3] = 1.0;
                     numberOfVerticesProcessed++;
                     if(mProgressDialog && numberOfVerticesProcessed % 20000 == 0) mProgressDialog->setValue(numberOfVerticesProcessed);

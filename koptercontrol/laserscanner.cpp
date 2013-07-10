@@ -16,7 +16,7 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFile
 
     mLogFile = new LogFile(logFilePrefix + QString(".ldr") + QString::number(instanceCounter++), LogFile::Encoding::Binary);
 
-    mHokuyo = new Hokuyo(mLogFile, isConnectedToEventPin);
+    mHokuyo = new Hokuyo(mLogFile, &mRelativeScannerPose, isConnectedToEventPin);
 
     if(mHokuyo->open(mDeviceFileName))
     {
@@ -35,7 +35,6 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFile
     // after the thread has ended. Weird...
     connect(mThreadReadScanner, SIGNAL(started()), this, SLOT(slotThreadStarted()));
     connect(mThreadReadScanner, SIGNAL(finished()), this, SLOT(slotThreadFinished()));
-    //not available in qt5: connect(mThreadReadScanner, SIGNAL(terminated()), this, SLOT(slotThreadTerminated()));
 
     connect(mThreadReadScanner, SIGNAL(started()), mHokuyo, SLOT(slotStartScanning()));
     connect(mHokuyo, SIGNAL(finished()), mThreadReadScanner, SLOT(quit()));
@@ -60,32 +59,23 @@ LaserScanner::~LaserScanner()
     qDebug() << "LaserScanner::~LaserScanner(): done.";
 }
 
-void LaserScanner::slotNewScanData(RawScan* rawScan)
-{
-    qDebug() << __PRETTY_FUNCTION__ << "adding relative sensor pose, then re-emitting scanData(RawScan*)";
-    rawScan->relativeScannerPose = &mRelativeScannerPose;
-    emit scanData(rawScan);
-}
-
-const bool LaserScanner::isScanning() const
-{
-//    return mTimerScan->isActive();
-}
-
 void LaserScanner::slotSetRelativeScannerPose(const Pose& p)
 {
-    mRelativeScannerPose = p;
+    mRelativeScannerPose = p.getMatrixCopy();
 
     // Write the new relative pose into the logfile. Format is:
     // RPOSE PacketLengthInBytes(quint16) TOW(qint32) QDataStreamedPoseMatrix
     //
     // PacketLengthInBytes is ALL bytes of this packet
 
+    // LogFile is thread-safe, so its ok for us to write an RPOSE while
+    // Hokuyo writes its scans!
+
     const QByteArray magic("RPOSE");
 
     QByteArray byteArrayPoseMatrix;
     QDataStream ds(&byteArrayPoseMatrix, QIODevice::WriteOnly);
-    ds << p.getMatrixConst();
+    ds << mRelativeScannerPose;
 
     quint16 length =
             magic.size()                    // size of MAGIC bytes
@@ -99,11 +89,6 @@ void LaserScanner::slotSetRelativeScannerPose(const Pose& p)
     mLogFile->write((const char*)&length, sizeof(length));
     mLogFile->write((const char*)&tow, sizeof(tow)); // I hope this lines in well with scanner timestamps...
     mLogFile->write(byteArrayPoseMatrix.constData(), byteArrayPoseMatrix.size());
-}
-
-const Pose& LaserScanner::getRelativePose() const
-{
-    return mRelativeScannerPose;
 }
 
 void LaserScanner::slotSetScannerTimeStamp()
@@ -165,8 +150,3 @@ void LaserScanner::slotThreadFinished()
 {
     qDebug() << GnssTime::currentTow() << "LaserScanner::slotThreadFinished() in process" << getpid() << "thread" << pthread_self();
 }
-
-//void LaserScanner::slotThreadTerminated()
-//{
-//    qDebug() << GnssTime::currentTow() << "LaserScanner::slotThreadTerminated() in process" << getpid() << "thread" << pthread_self();
-//}

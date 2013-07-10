@@ -15,20 +15,16 @@ class LaserScanner : public QObject
     Q_OBJECT
 
 private:
-//    LogFile* mLogFile;
     static quint32 instanceCounter;
     QThread* mThreadReadScanner;
     QString mDeviceFileName;
     Hokuyo* mHokuyo;
-    Pose mRelativeScannerPose; // The scanner's pose relative to the vehicle frame
+    QMatrix4x4 mRelativeScannerPose; // The scanner's pose relative to the vehicle frame
     qint64 mOffsetTimeScannerToTow;
     qint32 mLastScannerTimeStamp;
     LogFile* mLogFile;
 
     std::vector<long> mScannedDistances;
-
-private slots:
-    void slotNewScanData(RawScan *rawScan);
 
 public:
     // The pose specifies translation from vehicle frame to the laser source, so the scanner's
@@ -39,8 +35,7 @@ public:
 
     ~LaserScanner();
 
-    const bool isScanning() const;
-    const Pose& getRelativePose() const;
+    Hokuyo* getHokuyo() const {return mHokuyo;}
 
 public slots:
     void slotEnableScanning(const bool = true);
@@ -58,9 +53,6 @@ signals:
 
     // log/status messages
     void message(const LogImportance& importance, const QString&, const QString& message);
-
-    // Emits new scan data, allocated on heap. Ownership (of the distances only!) is passed to receiver(s).
-    void scanData(RawScan*);
 };
 
 #endif

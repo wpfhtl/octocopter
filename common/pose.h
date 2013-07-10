@@ -56,6 +56,7 @@ public:
     Pose(const QVector3D &position, const float &yawDegrees, const float &pitchDegrees, const float &rollDegrees, const qint32& timestamp = 0);
     Pose(const QMatrix4x4& matrix, const qint32& timestamp = 0);
     Pose(const QString& poseString);
+    explicit Pose(const Pose* const p);
     Pose();
 
     // untested!
@@ -73,7 +74,7 @@ public:
     float rotation; // deg/s
 
     // Usually, maximum covariances converge to about 0.02.
-    static constexpr float maximumUsableCovariance = 0.55f;
+    static constexpr float maximumUsableCovariance = 1.2f;
 
     void setVelocity(const QVector3D& velocity)
     {
@@ -106,7 +107,7 @@ public:
 
     static Pose extrapolateLinear(const Pose &p1, const Pose &p2, const qint32 &timeInFuture);
 
-    static Pose interpolateLinear(const Pose &p0, const Pose &p1, const qint32 &time);
+    static Pose interpolateLinear(const Pose * const p0, const Pose * const p1, const qint32 &time);
 
     // Returns a pose between @before and @after, also needs @first and @last, as its bicubic. @mu specifies the position between @before and @after.
 //    static Pose interpolateCubic(const Pose * const p0, const Pose * const p1, const Pose * const p2, const Pose * const p3, const float &mu);
@@ -139,6 +140,11 @@ public:
         r.precision = precision;
 
         return r;
+    }
+
+    void transform(const QMatrix4x4* const m)
+    {
+        mTransform = mTransform * *m;
     }
 
     static void rotationToAngleAxis(const QQuaternion &q, float& angleDegrees, QVector3D& axis);

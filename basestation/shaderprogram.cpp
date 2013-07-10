@@ -1,32 +1,43 @@
 #include "shaderprogram.h"
 
-ShaderProgram::ShaderProgram(QObject *parent, const QString& shaderVertex, const QString& shaderGeometry, const QString& shaderFragment) : QOpenGLShaderProgram(parent)
+ShaderProgram::ShaderProgram(QObject *parent, const QString& shaderVertex, const QString& shaderGeometry, const QString& shaderFragment) :
+    QOpenGLShaderProgram(parent),
+    mNameShaderVertex(shaderVertex),
+    mNameShaderGeometry(shaderGeometry),
+    mNameShaderFragment(shaderFragment)
 {
+    initializeOpenGLFunctions();
+
+    initialize();
+}
+
+bool ShaderProgram::initialize()
+{
+    removeAllShaders();
+
     QDir shaderPath = QDir::current();
     shaderPath.cdUp(); // because we're in the build/ subdir
 
-    initializeOpenGLFunctions();
-
-    if(!shaderVertex.isEmpty())
+    if(!mNameShaderVertex.isEmpty())
     {
-    if(!addShaderFromSourceFile(QOpenGLShader::Vertex, shaderPath.absolutePath() + "/" + shaderVertex))
-        qDebug() << "ShaderProgram::ShaderProgram(): compiling vertex shader" << shaderVertex << "failed, log:" << log();
+    if(!addShaderFromSourceFile(QOpenGLShader::Vertex, shaderPath.absolutePath() + "/" + mNameShaderVertex))
+        qDebug() << "ShaderProgram::ShaderProgram(): compiling vertex shader" << mNameShaderVertex << "failed, log:" << log();
 //    else
 //        qDebug() << "ShaderProgram::ShaderProgram(): compiling vertex shader" << shaderVertex << "succeeded, log:" << log();
     }
 
-    if(!shaderGeometry.isEmpty())
+    if(!mNameShaderGeometry.isEmpty())
     {
-        if(!addShaderFromSourceFile(QOpenGLShader::Geometry, shaderPath.absolutePath() + "/" + shaderGeometry))
-            qDebug() << "ShaderProgram::ShaderProgram(): compiling geometry shader" << shaderGeometry << "failed, log:" << log();
+        if(!addShaderFromSourceFile(QOpenGLShader::Geometry, shaderPath.absolutePath() + "/" + mNameShaderGeometry))
+            qDebug() << "ShaderProgram::ShaderProgram(): compiling geometry shader" << mNameShaderGeometry << "failed, log:" << log();
 //        else
 //            qDebug() << "ShaderProgram::ShaderProgram(): compiling geometry shader" << shaderGeometry << "succeeded, log:" << log();
     }
 
-    if(!shaderFragment.isEmpty())
+    if(!mNameShaderFragment.isEmpty())
     {
-        if(!addShaderFromSourceFile(QOpenGLShader::Fragment, shaderPath.absolutePath() + "/" + shaderFragment))
-            qDebug() << "ShaderProgram::ShaderProgram(): compiling fragment shader" << shaderFragment << "failed, log:" << log();
+        if(!addShaderFromSourceFile(QOpenGLShader::Fragment, shaderPath.absolutePath() + "/" + mNameShaderFragment))
+            qDebug() << "ShaderProgram::ShaderProgram(): compiling fragment shader" << mNameShaderFragment << "failed, log:" << log();
 //        else
 //            qDebug() << "ShaderProgram::ShaderProgram(): compiling fragment shader" << shaderFragment << "succeeded, log:" << log();
     }
@@ -39,7 +50,7 @@ ShaderProgram::ShaderProgram(QObject *parent, const QString& shaderVertex, const
         glGetProgramiv(programId(), GL_ACTIVE_ATTRIBUTES, &numberOfActiveAttributes);
         glGetProgramiv(programId(), GL_ACTIVE_UNIFORMS, &numberOfActiveUniforms);
 
-        if(!shaderGeometry.isEmpty())
+        if(!mNameShaderGeometry.isEmpty())
             glGetProgramiv(programId(), GL_GEOMETRY_VERTICES_OUT, &numberOfGeometryVerticesOut);
 
 //        qDebug() << "ShaderProgram::ShaderProgram(): shader program has" << numberOfAttachedShaders<< "shaders and" << numberOfGeometryVerticesOut << "vertices geometry shader output.";
@@ -84,9 +95,14 @@ ShaderProgram::ShaderProgram(QObject *parent, const QString& shaderVertex, const
         // This is so universal that we try to make this onnection for every shader program. If it
         // fails because there is no such uniform, thats fine by me.
         bindUniformBlockToPoint("GlobalValues", blockBindingPointGlobalMatrices);
+
+        return true;
     }
     else
+    {
         qDebug() << "ShaderProgram::ShaderProgram(): linking shader program failed, log:" << log();
+        return false;
+    }
 }
 
 ShaderProgram::~ShaderProgram()

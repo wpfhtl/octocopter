@@ -54,10 +54,6 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     mMessageHandler = new MessageHandler(logFilePrefix);
 
-    // We need to register this, so we can pass pointers in queued signals and slots
-    qRegisterMetaType<RawScan>("RawScan");
-    qRegisterMetaType<RawScan*>("RawScanPointer");
-
     QString networkInterface = "wlan0";
     QString deviceCamera = "/dev/video0";
     QString deviceSerialKopter = "/dev/serial/by-id/usb-FTDI_Dual_RS232-if00-port0";
@@ -176,9 +172,9 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mGnssDevice->getSbfParser(), SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
     connect(mGnssDevice->getSbfParser(), SIGNAL(gnssDeviceWorkingPrecisely(bool)), mLaserScannerDown, SLOT(slotEnableScanning(bool)));
     connect(mGnssDevice->getSbfParser(), SIGNAL(gnssDeviceWorkingPrecisely(bool)), mLaserScannerFrnt, SLOT(slotEnableScanning(bool)));
-    connect(mLaserScannerDown, SIGNAL(scanData(RawScan*)), mSensorFuser, SLOT(slotNewScanData(RawScan*)));
-    connect(mLaserScannerFrnt, SIGNAL(scanData(RawScan*)), mSensorFuser, SLOT(slotNewScanData(RawScan*)));
-    connect(mSensorFuser, SIGNAL(scanData(float*const,quint32,QVector3D*const)), mBaseConnection, SLOT(slotNewScannedPoints(float*const,quint32,QVector3D*const)));
+    connect(mLaserScannerDown->getHokuyo(), SIGNAL(scanRaw(RawScan*)), mSensorFuser, SLOT(slotNewRawScan(RawScan*)));
+    connect(mLaserScannerFrnt->getHokuyo(), SIGNAL(scanRaw(RawScan*)), mSensorFuser, SLOT(slotNewRawScan(RawScan*)));
+    connect(mSensorFuser, SIGNAL(scanFused(float*const,quint32,QVector3D*const)), mBaseConnection, SLOT(slotNewScanFused(float*const,quint32,QVector3D*const)));
 
     // Lots of traffic - for what?
     connect(mFlightController, SIGNAL(flightControllerValues(const FlightControllerValues* const)), mBaseConnection, SLOT(slotNewFlightControllerValues(const FlightControllerValues* const)));

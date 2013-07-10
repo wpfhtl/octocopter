@@ -115,7 +115,7 @@ private:
     // TODO: Use a QMap<DataSource, LogData> for all(!) logfiles.
     LogData mLogIns, mLogFlightController;
     QVector<LogData*> mLogsLaser;
-    QVector<Pose> mRelativeLaserPoses;
+    QVector<QMatrix4x4> mRelativeLaserPoses;
 
     // Stuff needed for realtime-playback
     QTimer* mTimerAnimation;
@@ -164,15 +164,17 @@ signals:
     void message(const LogImportance& importance, const QString& source, const QString& message);
 
     void vehiclePose(const Pose* const);
-    void scanData(const float* const points, const quint32& count, const QVector3D* const scannerPosition);
     void vehicleStatus(const VehicleStatus* const);
     void gnssStatus(const GnssStatus* const);
     void flightControllerValues(const FlightControllerValues* const);
     void flightControllerWeightsChanged();
 
+    // Emits fused points
+    void scanFused(const float* const points, const quint32& count, const QVector3D* const scannerPosition);
+
     // Emits the raw distances, like the ones being fed into sensorfuser. You are NOT owner of this data, sensorfuser
     // is and it will probably delete it. So, if you need it, copy it!
-    void rayData(const Pose* const, qint32 timestampScanner, std::vector<quint16> * const distances);
+    void scanRaw(const RawScan* const);
 };
 
 #endif // LOGPLAYER_H

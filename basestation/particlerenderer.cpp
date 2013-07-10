@@ -196,11 +196,11 @@ void ParticleRenderer::render()
         // Draw grid with waypoint pressure
         mShaderProgramGrid->bind();
 
-        mShaderProgramGrid->setUniformValue("fixedColor", QColor(255,255,0));
+        mShaderProgramGrid->setUniformValue("fixedColor", QColor(64,64,64));
         // If we have a value of (quint8)1, that'll be 1/255=0.004 in the shader's float. Amplify this?
         mShaderProgramGrid->setUniformValue("alphaMultiplication", 1.0f);
         mShaderProgramGrid->setUniformValue("alphaExponentiation", 1.0f);
-        mShaderProgramGrid->setUniformValue("quadSizeFactor", 0.2f);
+        mShaderProgramGrid->setUniformValue("quadSizeFactor", 0.6f);
 
         // Set uniform values in the shader program
         Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMin") != -1);

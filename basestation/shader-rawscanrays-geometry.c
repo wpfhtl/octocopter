@@ -22,6 +22,7 @@ layout(std140) uniform GlobalValues
 uniform mat4 matrixExtra;
 uniform bool useMatrixExtra;
 uniform int rayStride;
+uniform int firstUsableDistance;
 
 void main()
 {
@@ -31,20 +32,22 @@ void main()
     if(useMatrixExtra)
         matModelViewProjection = matModelViewProjection * matrixExtra;
 
+    // Emit first point at scanner origin
     gl_Position = matModelViewProjection * vec4(0.0, 0.0, 0.0, 1.0);
     EmitVertex();
 
+    // Compute the position of the second point
     float distance = raylength[0] * 65.536;
-    if(distance < 0.1)
-    {
-        distance = 40.0;
-        color = vec4(1.0, 1.0, 1.0, 0.3);
-    }
+//    if(distance < 0.1)
+//    {
+//        distance = 40.0;
+//        color = vec4(1.0, 1.0, 1.0, 0.3);
+//    }
 
     vec4 vectorScannerToPoint = vec4(
-                sin(-0.0043633231299858238686 * ((rayStride+1) * gl_PrimitiveIDIn - 540)) * distance,
-                -cos(0.0043633231299858238686 * ((rayStride+1) * gl_PrimitiveIDIn - 540)) * distance,
+                sin(-0.0043633231299858238686 * ((rayStride+1) * gl_PrimitiveIDIn - 540 + firstUsableDistance)) * distance,
                 0.0,
+                -cos(0.0043633231299858238686 * ((rayStride+1) * gl_PrimitiveIDIn - 540 + firstUsableDistance)) * distance,
                 1.0);
 
     gl_Position = matModelViewProjection * vectorScannerToPoint;

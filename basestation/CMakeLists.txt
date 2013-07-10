@@ -58,6 +58,8 @@ set(SRC_FILES
     #bulletdebugdrawergl
     shaderprogram
     ../common/profiler
+    ../common/rawscan
+    ../common/logfile
     ../common/motioncommand
     ../common/joystick
     ../common/sbfparser
@@ -118,6 +120,8 @@ set(INC_FILES
     #bulletdebugdrawergl.h
     shaderprogram.h
     ../common/profiler.h
+    ../common/rawscan.h
+    ../common/logfile.h
     ../common/motioncommand.h
     ../common/joystick.h
     ../common/sbfparser.h

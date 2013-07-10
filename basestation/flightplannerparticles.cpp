@@ -3,8 +3,9 @@
 #include "particlesystem.cuh"
 #include "pointcloudcuda.h"
 #include "cudahelper.cuh"
+#include "basestation.h"
 
-FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWindow *glWidget, PointCloud *pointcloud) : FlightPlannerInterface(parentWidget, glWidget, pointcloud)
+FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindow *glWidget, PointCloud *pointcloud) : FlightPlannerInterface(baseStation, glWidget, pointcloud)
 {
     mParticleSystem = 0;
     mPathPlanner = 0;
@@ -13,18 +14,18 @@ FlightPlannerParticles::FlightPlannerParticles(QWidget* parentWidget, GlWindow *
     mDeviceGridMapInformationGainCellWorldPositions = 0;
 
     mPointCloudColliders = new PointCloudCuda(
-                QVector3D(-32.0f, -4.0f, -32.0f),
-                QVector3D(32.0f, 28.0f, 32.0f),
+                QVector3D(-56.0f, -8.0f, -50.0f),
+                QVector3D(8.0f, 26.0f, 14.0f),
                 64 * 1024);
 
-    mPointCloudColliders->setMinimumPointDistance(0.4f);
+    mPointCloudColliders->setMinimumPointDistance(0.3f);
 
     mPointCloudColliders->setColor(QColor(0,0,255,120));
 
-    mGlWidget->slotPointCloudRegister(mPointCloudColliders);
+    mGlWindow->slotPointCloudRegister(mPointCloudColliders);
 
     mSimulationParameters.initialize();
-    mDialog = new FlightPlannerParticlesDialog(&mSimulationParameters, parentWidget);
+    mDialog = new FlightPlannerParticlesDialog(&mSimulationParameters, (QWidget*)baseStation);
 
     mPathPlanner = new PathPlanner;
     connect(mPathPlanner, SIGNAL(pathFound(QList<WayPoint>*const,WayPointListSource)), SLOT(slotSetWayPoints(QList<WayPoint>*const,WayPointListSource)));
@@ -38,7 +39,7 @@ void FlightPlannerParticles::slotInitialize()
 
     mSimulationParameters.initialize();
     mSimulationParameters.gridInformationGain.cells = make_uint3(256, 32, 256);
-    slotSetScanVolume(QVector3D(-32, -4, -32), QVector3D(32, 28, 32));
+    slotSetScanVolume(QVector3D(-56, -8, -50), QVector3D(8, 26, 14));
 
     const quint32 numberOfCellsInScanVolume = mSimulationParameters.gridInformationGain.getCellCount();
 
@@ -119,6 +120,10 @@ void FlightPlannerParticles::slotInitialize()
     connect(mDialog, SIGNAL(showInformationGainChanged(bool)), mParticleRenderer, SLOT(slotSetRenderInformationGain(bool)));
     connect(mDialog, SIGNAL(showOccupancyGridChanged(bool)), mParticleRenderer, SLOT(slotSetRenderOccupancyGrid(bool)));
     connect(mDialog, SIGNAL(showPathFinderGridChanged(bool)), mParticleRenderer, SLOT(slotSetRenderPathFinderGrid(bool)));
+    connect(mDialog, SIGNAL(reduceColliderCloud()), mPointCloudColliders, SLOT(slotReduce()));
+
+    connect(mPointCloudDense, SIGNAL(numberOfPoints(quint32)), mDialog, SLOT(slotSetPointCloudSizeDense(quint32)));
+    connect(mPointCloudColliders, SIGNAL(numberOfPoints(quint32)), mDialog, SLOT(slotSetPointCloudSizeSparse(quint32)));
 
     // PathPlanner needs ColliderCloud to initialize!
     mPathPlanner->slotSetPointCloudColliders(mPointCloudColliders);
@@ -127,21 +132,13 @@ void FlightPlannerParticles::slotInitialize()
 
 void FlightPlannerParticles::keyPressEvent(QKeyEvent *event)
 {
-    FlightPlannerInterface::keyPressEvent(event);
-
     if(event->key() == Qt::Key_F)
     {
         qDebug() << "FlightPlannerParticles::keyPressEvent(): f, toggling collider cloud visualization";
-        if(mGlWidget->isPointCloudRegistered(mPointCloudColliders))
-            mGlWidget->slotPointCloudUnregister(mPointCloudColliders);
+        if(mGlWindow->isPointCloudRegistered(mPointCloudColliders))
+            mGlWindow->slotPointCloudUnregister(mPointCloudColliders);
         else
-            mGlWidget->slotPointCloudRegister(mPointCloudColliders);
-    }
-    if(event->key() == Qt::Key_B && event->modifiers() & Qt::ShiftModifier)
-    {
-        qDebug() << "FlightPlannerParticles::keyPressEvent(): B, toggling particle system bounding box visualization";
-        if(mParticleRenderer)
-            mParticleRenderer->slotSetRenderBoundingBox(!mParticleRenderer->getRenderBoundingBox());
+            mGlWindow->slotPointCloudRegister(mPointCloudColliders);
     }
 
     emit suggestVisualization();
@@ -262,7 +259,7 @@ FlightPlannerParticles::~FlightPlannerParticles()
 }
 
 
-void FlightPlannerParticles::slotNewScanData(const float* const points, const quint32& count, const QVector3D* const scannerPosition)
+void FlightPlannerParticles::slotNewScanFused(const float* const points, const quint32& count, const QVector3D* const scannerPosition)
 {
     // Insert all points into mPointCloudDense
     mPointCloudDense->slotInsertPoints4(points, count);
@@ -292,6 +289,7 @@ void FlightPlannerParticles::slotVisualize()
             cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfWayPointPressure, 0);
         }
 
+        mParticleRenderer->slotSetRenderBoundingBox(mRenderLocalBoundingBox);
         mParticleRenderer->render();
     }
 
@@ -300,7 +298,7 @@ void FlightPlannerParticles::slotVisualize()
 void FlightPlannerParticles::slotSetScanVolume(const QVector3D min, const QVector3D max)
 {
     qDebug() << __PRETTY_FUNCTION__ << "min" << min << "max" << max;
-    // We're being told to change the scan-volume - this is NOT the particle system' world's volume!
+    // We're being told to change the particle system volume - this is NOT the particle system' world's volume!
     slotClearGridWayPointPressure();
 
     FlightPlannerInterface::slotSetScanVolume(min, max);

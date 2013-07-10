@@ -19,6 +19,7 @@ layout(std140) uniform GlobalValues
     mat4 matrixCameraToClip;
 };
 
+uniform float pointcloudPointAlpha;
 uniform mat4 matrixExtra;
 uniform bool useMatrixExtra;
 uniform float maxPointVisualizationDistance;
@@ -27,7 +28,7 @@ void main()
 {
     //color = in_color;
 
-    vec4 colorTemp = vec4(1.0, 1.0, 1.0, 0.3); // a is alpha, 1.0 is visible
+    vec4 colorTemp = vec4(1.0, 1.0, 1.0, pointcloudPointAlpha); // a is alpha, 1.0 is visible
 
     // the w-component stores the squared distance. For rendering, lets set it to 1.0.
     vec4 pos = in_position;
@@ -41,8 +42,8 @@ void main()
     else
       gl_Position = matrixCameraToClip * matrixModelToCamera * pos;
 
-    float vmin = -2;
-    float vmax = 18.0; // colormap repeats every 10 height-meters
+    float vmin = -1;
+    float vmax = 12.0; // colormap repeats every 10 height-meters
     float dv = vmax - vmin;
     //float colorValue = abs(pos.y); // colormap repeats every 10 height-meters
     // ben: max 10m, repeat cycle (use mod())

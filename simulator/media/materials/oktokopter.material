@@ -5,8 +5,8 @@ material ArmRed
 	{
 		pass
 		{
-			ambient 0.564706 0.117647 0.117647 1
-			diffuse 0.564706 0.117647 0.117647 1
+			ambient 1 1 1 1
+			diffuse 1 1 1 1
 			specular 0.18 0.18 0.18 1 30
 		}
 
@@ -22,9 +22,9 @@ material FlightCtrl
 	{
 		pass
 		{
-			ambient 0.888235 0.888235 0.888235 1
-			diffuse 0.888235 0.888235 0.888235 1
-			specular 0 0 0 1 10
+			ambient 1 1 1 1
+			diffuse 1 1 1 1
+			specular 1 1 1 1 10
 			scene_blend one one_minus_src_alpha
 
 			texture_unit
@@ -62,8 +62,8 @@ material CFKSmooth
 	{
 		pass
 		{
-			ambient 0.0901961 0.0901961 0.0901961 1
-			diffuse 0.0901961 0.0901961 0.0901961 1
+			ambient 0.9 0.9 0.9 1
+			diffuse 0.9 0.9 0.9 1
 			specular 0 0 0 1 10
 		}
 
@@ -79,8 +79,8 @@ material CFKTexturedBasePlate
 	{
 		pass
 		{
-			ambient 0.588235 0.588235 0.588235 1
-			diffuse 0.588235 0.588235 0.588235 1
+			ambient 0.9 0.9 0.9 1
+			diffuse 0.9 0.9 0.9 1
 			specular 0 0 0 1 10
 
 			texture_unit
@@ -158,8 +158,8 @@ material BrushlessControllers
 	{
 		pass
 		{
-			ambient 0.888235 0.888235 0.888235 1
-			diffuse 0.888235 0.888235 0.888235 1
+			ambient 1 1 1 1
+			diffuse 1 1 1 1
 			specular 0 0 0 1 10
 			scene_blend one one_minus_src_alpha
 
@@ -182,8 +182,8 @@ material Motors
 	{
 		pass
 		{
-			ambient 0.85098 0.85098 0.85098 1
-			diffuse 0.85098 0.85098 0.85098 1
+			ambient 1 1 1 1
+			diffuse 1 1 1 1
 			specular 0.45 0.45 0.45 1 10
 
 			texture_unit

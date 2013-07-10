@@ -761,7 +761,7 @@ void OgreWidget::configureTerrainDefaults(Ogre::Light* light)
     //matProfile->setLightmapEnabled(false);
     // Important to set these so that the terrain knows what to use for derived (non-realtime) data
     mTerrainGlobals->setLightMapDirection(light->getDerivedDirection());
-    //    mTerrainGlobals->setCompositeMapAmbient(mSceneManager->getAmbientLight());
+    mTerrainGlobals->setCompositeMapAmbient(mSceneManager->getAmbientLight());
     mTerrainGlobals->setCompositeMapDiffuse(light->getDiffuseColour());
 
     // Configure default import settings for if we use imported image
@@ -775,6 +775,8 @@ void OgreWidget::configureTerrainDefaults(Ogre::Light* light)
 
     // Set up the textures
     defaultimp.layerList.resize(3);
+    /* broken since qt5
+    defaultimp.layerList.resize(3);
     defaultimp.layerList[0].worldSize = 100;
     defaultimp.layerList[0].textureNames.push_back("dirt_grayrocky_diffusespecular.dds");
     defaultimp.layerList[0].textureNames.push_back("dirt_grayrocky_normalheight.dds");
@@ -783,7 +785,17 @@ void OgreWidget::configureTerrainDefaults(Ogre::Light* light)
     defaultimp.layerList[1].textureNames.push_back("grass_green-01_normalheight.dds");
     defaultimp.layerList[2].worldSize = 100;
     defaultimp.layerList[2].textureNames.push_back("growth_weirdfungus-03_diffusespecular.dds");
-    defaultimp.layerList[2].textureNames.push_back("growth_weirdfungus-03_normalheight.dds");
+    defaultimp.layerList[2].textureNames.push_back("growth_weirdfungus-03_normalheight.dds");*/
+
+    defaultimp.layerList[0].worldSize = 3;
+    defaultimp.layerList[0].textureNames.push_back("terrain4.dds");
+    defaultimp.layerList[0].textureNames.push_back("terrain4.dds");
+    defaultimp.layerList[1].worldSize = 120;
+    defaultimp.layerList[1].textureNames.push_back("terrain2.dds");
+    defaultimp.layerList[1].textureNames.push_back("terrain2.dds");
+    defaultimp.layerList[2].worldSize = 25;
+    defaultimp.layerList[2].textureNames.push_back("terrain3.dds");
+    defaultimp.layerList[2].textureNames.push_back("terrain3.dds");
 }
 
 void OgreWidget::defineTerrain(long x, long y, bool flat)
