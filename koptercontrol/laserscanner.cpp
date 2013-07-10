@@ -40,8 +40,6 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFile
     connect(mHokuyo, SIGNAL(finished()), mThreadReadScanner, SLOT(quit()));
 
     connect(mHokuyo, SIGNAL(distanceAtFront(float)), SIGNAL(distanceAtFront(float)));
-
-    connect(mHokuyo, SIGNAL(scanData(RawScan*)), SLOT(slotNewScanData(RawScan*)));
 }
 
 LaserScanner::~LaserScanner()

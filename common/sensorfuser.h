@@ -110,7 +110,7 @@ public slots:
 
     // Used to feed data from the laserscanner. You must guarantee that the scans are supplied
     // in chronological order!
-    void slotNewRawScan(RawScan* scan);
+    void slotNewScanRaw(RawScan* scan);
 
     // Clears all poses, gnss timestamps and scans. This is used by LogPlayer when seeking backwards.
     // If it didn't clean our data, there'd be no guarantee data comes in in chronological order.

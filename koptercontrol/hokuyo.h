@@ -71,7 +71,7 @@ signals:
     void message(const LogImportance& importance, const QString&, const QString& message);
 
     // Emits new scan data, allocated on heap. Ownership is passed to receiver(s).
-    void scanData(RawScan*);
+    void scanRaw(RawScan*);
 };
 
 #endif

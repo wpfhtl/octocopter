@@ -143,7 +143,7 @@ void Hokuyo::slotStartScanning()
             // With this call, we GIVE UP OWNERSHIP of the data. It might get deleted immediately!
             qDebug() << __PRETTY_FUNCTION__ << "emitting scanData(qint32, quint16," << rawScan->numberOfDistances << "), connectedToEventPin:" << mIsConnectedToEventPin;
 
-            emit scanData(rawScan);
+            emit scanRaw(rawScan);
         }
     } while (mState == State::Scanning);
 

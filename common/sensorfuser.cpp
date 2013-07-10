@@ -695,7 +695,7 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGnss)
     mLastScanMiddleGnssTow = timestampScanGnss;
 }
 
-void SensorFuser::slotNewRawScan(RawScan *scan)
+void SensorFuser::slotNewScanRaw(RawScan *scan)
 {
     //qDebug() << t() << "SensorFuser::slotNewRawScan(): received" << scan->numberOfDistances << "distance values from scannertime" << scan->timeStampScanMiddleScanner;
 
