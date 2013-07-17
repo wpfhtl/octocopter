@@ -145,7 +145,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mLaserScannerDown, &LaserScanner::message, mBaseConnection, &BaseConnection::slotNewLogMessage);
     connect(mLaserScannerFrnt, &LaserScanner::message, mBaseConnection, &BaseConnection::slotNewLogMessage);
     connect(mKopter, &Kopter::vehicleStatus, mBaseConnection, &BaseConnection::slotNewVehicleStatus);
-    connect(mKopter, &Kopter::flightStateSwitchValueChanged, mFlightController, &FlightController::slotFlightStateSwitchValueChanged);
+    connect(mKopter, &Kopter::flightStateRestrictionChanged, mFlightController, &FlightController::slotFlightStateRestrictionChanged);
     connect(mKopter, &Kopter::pushButtonToggled, mFlightController, &FlightController::slotLiftHoverPosition);
     connect(mKopter, &Kopter::flightSpeedChanged, mFlightController, &FlightController::slotSetFlightSpeed);
 

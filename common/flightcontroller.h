@@ -217,7 +217,7 @@ public slots:
     void slotLiftHoverPosition();
 
     // This signal comes from Kopter (the MK's serial connection), and we use it only to derive the flightstate from the RemoteControl's flightstate-switch
-    void slotFlightStateSwitchValueChanged(const FlightStateSwitch *const fssv);
+    void slotFlightStateRestrictionChanged(const FlightStateRestriction *const fsr);
 
     // Called regularly by our parent, we compute the motion commands then and emit motion(...).
     void slotComputeMotionCommands();

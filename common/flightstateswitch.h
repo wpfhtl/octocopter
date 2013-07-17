@@ -3,57 +3,57 @@
 
 #include <QtCore>
 
-struct FlightStateSwitch
+struct FlightStateRestriction
 {
-    enum class Value
+    enum class Restriction
     {
-        UserControl,       // ~-129
-        Hover,             // ~22
-        ApproachWayPoint   // ~+184
+        RestrictionUserControl, // ~-129
+        RestrictionHover,       // ~22
+        RestrictionNone         // ~+184
     };
 
     // The actual value of the switch
-    Value value;
+    Restriction restriction;
 
-    FlightStateSwitch()
+    FlightStateRestriction()
     {
-        value = Value::UserControl;
+        restriction = Restriction::RestrictionUserControl;
     }
 
-    FlightStateSwitch(const qint16 ppmValue)
+    FlightStateRestriction(const qint16 ppmValue)
     {
         if(ppmValue <= -80)
-            value = Value::UserControl;
+            restriction = Restriction::RestrictionUserControl;
         else if(ppmValue > -80 && ppmValue < 80)
-            value = Value::Hover;
+            restriction = Restriction::RestrictionHover;
         else
-            value = Value::ApproachWayPoint;
+            restriction = Restriction::RestrictionNone;
+    }
+/*
+    FlightStateRestriction(const FlightStateRestriction::Restriction restriction)
+    {
+        this->restriction = restriction;
     }
 
-    FlightStateSwitch(const FlightStateSwitch::Value fssw)
+*/
+    bool operator!=(const FlightStateRestriction& b) const
     {
-        value = fssw;
+        return b.restriction != restriction;
     }
-
-
-    bool operator!=(const FlightStateSwitch& b) const
+    /*
+    FlightStateRestriction& operator=(const FlightStateRestriction& other)
     {
-        return b.value != value;
-    }
-
-    FlightStateSwitch& operator=(const FlightStateSwitch& other)
-    {
-        value = other.value;
+        restriction = other.restriction;
         return *this;
-    }
+    }*/
 
     QString toString() const
     {
-        switch(value)
+        switch(restriction)
         {
-        case Value::UserControl: return "UserControl"; break;
-        case Value::Hover: return "Hover"; break;
-        case Value::ApproachWayPoint: return "ApproachWayPoint"; break;
+        case Restriction::RestrictionUserControl: return "RestrictionUserControl"; break;
+        case Restriction::RestrictionHover: return "RestrictionHover"; break;
+        case Restriction::RestrictionNone: return "RestrictionNone"; break;
         }
 
         return QString("undefined Value");

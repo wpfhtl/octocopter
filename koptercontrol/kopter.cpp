@@ -12,8 +12,6 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     mSerialPortFlightCtrl->setStopBits(QSerialPort::OneStop);
     mSerialPortFlightCtrl->setFlowControl(QSerialPort::NoFlowControl);
 
-
-    mLastFlightStateSwitch.value = FlightStateSwitch::Value::UserControl;
     mLastPushButtonValue = PushButtonValueUndefined;
     mStructExternControl.Frame = 0;
 
@@ -292,14 +290,14 @@ void Kopter::slotSerialPortDataReady()
 
                 qDebug() << "Kopter::slotSerialPortDataReady():" << ppmChannels->toString();
 
-                FlightStateSwitch fssv(ppmChannels->externalControl);
+                FlightStateRestriction fsr(ppmChannels->externalControl);
 //                qDebug() << "Kopter::slotSerialPortDataReady(): flightstate switch value" << ppmChannels->externalControl << "is state:" << fssv.toString();
 
-                if(mLastFlightStateSwitch != fssv)
+                if(mLastFlightStateRestriction != fsr)
                 {
-                    mLastFlightStateSwitch = fssv;
-                    qDebug() << "Kopter::slotSerialPortDataReady(): flighstate switch changed to" << fssv.toString();
-                    emit flightStateSwitchValueChanged(&mLastFlightStateSwitch);
+                    mLastFlightStateRestriction = fsr;
+                    qDebug() << "Kopter::slotSerialPortDataReady(): flighstate switch changed to" << fsr.toString();
+                    emit flightStateRestrictionChanged(&mLastFlightStateRestriction);
                 }
 
                 if(ppmChannels->pushButton > 0 != (mLastPushButtonValue == PushButtonValueHigh) && mLastPushButtonValue != PushButtonValueUndefined)

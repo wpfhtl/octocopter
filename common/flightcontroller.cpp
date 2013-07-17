@@ -627,26 +627,26 @@ void FlightController::ensureSafeFlightAfterWaypointsChanged()
     }
 }
 
-void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch* const fssv)
+void FlightController::slotFlightStateRestrictionChanged(const FlightStateRestriction* const fsr)
 {
     // This method does nothing more than some sanity checks and verbose flightstae switching.
 
-    qDebug() << "FlightController::slotFlightStateSwitchValueChanged(): flightstate" << mFlightControllerValues.flightState.toString() << "FlightStateSwitch changed to:" << fssv->toString();
+    qDebug() << __PRETTY_FUNCTION__ << "flightstate" << mFlightControllerValues.flightState.toString() << "FlightStateRestriction changed to:" << fsr->toString();
 
     switch(mFlightControllerValues.flightState.state)
     {
     case FlightState::Value::UserControl:
-        switch(fssv->value)
-        {
-        case FlightStateSwitch::Value::UserControl:
+        switch(fsr->restriction)
+        {asd
+        case FlightStateRestriction::Restriction::RestrictionUserControl:
             // This is an illegal state: We are already in UserControl, and now we're
             // told that the user has disabled computerControl. Thats impossible.
             Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in UserControl and now user switched to UserControl. Error.");
             break;
-        case FlightStateSwitch::Value::Hover:
+        case FlightStateRestriction::Restriction::RestrictionHover:
             setFlightState(FlightState::Value::Hover);
             break;
-        case FlightStateSwitch::Value::ApproachWayPoint:
+        case FlightStateRestriction::Restriction::RestrictionNone:
             // We are in UserControl, but switching to ComputerControl.
             setFlightState(FlightState::Value::ApproachWayPoint);
             break;
@@ -657,16 +657,16 @@ void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch
         break;
 
     case FlightState::Value::ApproachWayPoint:
-        switch(fssv->value)
+        switch(fsr->restriction)
         {
-        case FlightStateSwitch::Value::UserControl:
+        case FlightStateRestriction::Restriction::RestrictionUserControl:
             // We are approaching waypoints, but the user wants to take over control. Ok.
             setFlightState(FlightState::Value::UserControl);
             break;
-        case FlightStateSwitch::Value::Hover:
+        case FlightStateRestriction::Restriction::RestrictionHover:
             setFlightState(FlightState::Value::Hover);
             break;
-        case FlightStateSwitch::Value::ApproachWayPoint:
+        case FlightStateRestriction::Restriction::RestrictionNone:
             // We are approaching waypoints, and now the user changed to ComputerControl?
             // Thats impossible, because we are already in ComputerControl (ApproachWayPoint)
             Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in ApproachWayPoint and now user switched to ApproachWayPoint. Error.");
@@ -678,16 +678,16 @@ void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch
         break;
 
     case FlightState::Value::Hover:
-        switch(fssv->value)
+        switch(fsr->restriction)
         {
-        case FlightStateSwitch::Value::UserControl:
+        case FlightStateRestriction::Restriction::RestrictionUserControl:
             // We are approaching waypoints, but the user wants to take over control. Ok.
             setFlightState(FlightState::Value::UserControl);
             break;
-        case FlightStateSwitch::Value::Hover:
+        case FlightStateRestriction::Restriction::RestrictionHover:
             Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in Hover and now user switched to Hover. Error.");
             break;
-        case FlightStateSwitch::Value::ApproachWayPoint:
+        case FlightStateRestriction::Restriction::RestrictionNone:
             setFlightState(FlightState::Value::ApproachWayPoint);
             break;
         default:
@@ -697,18 +697,18 @@ void FlightController::slotFlightStateSwitchValueChanged(const FlightStateSwitch
         break;
 
     case FlightState::Value::Idle:
-        switch(fssv->value)
+        switch(fsr->restriction)
         {
-        case FlightStateSwitch::Value::UserControl:
+        case FlightStateRestriction::Restriction::RestrictionUserControl:
             // We are idling, but the user wants to take over control. Ok.
             setFlightState(FlightState::Value::UserControl);
             break;
-        case FlightStateSwitch::Value::Hover:
+        case FlightStateRestriction::Restriction::RestrictionHover:
             // We are idling, but the user wants us to hover. Hovering on the ground is not healthy!
             qDebug() << "FlightController::slotFlightStateSwitchValueChanged(): going from idle to hover, this doesn't seem like a good idea, as the current height will be kept.";
             setFlightState(FlightState::Value::Hover);
             break;
-        case FlightStateSwitch::Value::ApproachWayPoint:
+        case FlightStateRestriction::Restriction::RestrictionNone:
             // We are in UserControl, but switching to ComputerControl.
             setFlightState(FlightState::Value::ApproachWayPoint);
             break;

@@ -144,7 +144,7 @@ private:
     QTimer* mTimerPpmChannelPublisher;
 
     VehicleStatus mVehicleStatus;
-    FlightStateSwitch mLastFlightStateSwitch;
+    FlightStateRestriction mLastFlightStateRestriction;
     PushButtonValue mLastPushButtonValue;
     qint8 mLastFlightSpeed; // maps to CTRL7, used to set ApproachWaypoint flightspeed in meters per second
 
@@ -169,7 +169,7 @@ public slots:
 signals:
     void vehicleStatus(const VehicleStatus* const vs);
     // Mikrokopter calls control from non-remote-control sources "ExternalControl". This reflects SW1 on the RC.
-    void flightStateSwitchValueChanged(const FlightStateSwitch* const fss);
+    void flightStateRestrictionChanged(const FlightStateRestriction* const fss);
     void pushButtonToggled();
 
     void flightSpeedChanged(const float speed);
