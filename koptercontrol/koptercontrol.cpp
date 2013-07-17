@@ -108,7 +108,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     qDebug() << "KopterControl::KopterControl(): reading RSSI at interface" << networkInterface;
 
     mFlightController = new FlightController(logFilePrefix);
-    mLaserScannerDown = new LaserScanner(deviceSerialLidarDown, logFilePrefix, true);
+    mLaserScannerDown = new LaserScanner(deviceSerialLidarDown, logFilePrefix);
     mLaserScannerDown->slotSetRelativeScannerPose(
                 Pose(
                     QVector3D(      // Offset from vehicle center to Laser Source. In Vehicle Reference Frame: Like OpenGL, red arm forward pointing to screen
