@@ -532,7 +532,7 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const LogPlay
                         indexStart + rayBytes/sizeof(quint16) - 1);
 
             emit scanRaw(rawScan);
-            mSensorFuser->slotNewRawScan(rawScan);
+            mSensorFuser->slotNewScanRaw(rawScan);
 
         }
         else if(QByteArray(packet.data, 5) == QByteArray("RPOSE"))

@@ -3,16 +3,17 @@
 
 #include <QtCore>
 
-class FlightStateSwitch
+struct FlightStateSwitch
 {
-public:
-
     enum class Value
     {
         UserControl,       // ~-129
         Hover,             // ~22
         ApproachWayPoint   // ~+184
     };
+
+    // The actual value of the switch
+    Value value;
 
     FlightStateSwitch()
     {
@@ -34,8 +35,6 @@ public:
         value = fssw;
     }
 
-    // The actual value of the switch
-    Value value;
 
     bool operator!=(const FlightStateSwitch& b) const
     {

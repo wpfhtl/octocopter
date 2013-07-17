@@ -7,8 +7,6 @@ SbfParser::SbfParser(QObject *parent) : QObject(parent)
     mOriginLatitude = 10e20;
     mOriginElevation = 10e20;
 
-    mTimeStampStartup = QDateTime::currentDateTime();
-
     mPacketErrorCount = 0;
 
     mMaxCovariances = 1.0f;
@@ -590,13 +588,7 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
                         QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                         QString("GPS Receiver TOW is at its do-not-use-value, give it time to initialize."));
 
-            qWarning() << "SbfParser::processNextValidPacket(): GPS Receiver TOW is at its do-not-use-value, give it time to initialize.";
-
-            if(mTimeStampStartup.secsTo(QDateTime::currentDateTime()) < 15)
-            {
-                qWarning() << "SbfParser::processNextValidPacket(): GPS Receiver TOW is at its do-not-use-value during startup - quitting.";
-                //QCoreApplication::quit();
-            }
+            emit insError("SbfParser::processNextValidPacket(): GPS Receiver TOW is at its do-not-use-value, give it time to initialize.");
         }
         else
         {

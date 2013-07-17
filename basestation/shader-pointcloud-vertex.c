@@ -20,6 +20,8 @@ layout(std140) uniform GlobalValues
 };
 
 uniform float pointcloudPointAlpha;
+uniform float pointcloudColorLow;
+uniform float pointcloudColorHigh;
 uniform mat4 matrixExtra;
 uniform bool useMatrixExtra;
 uniform float maxPointVisualizationDistance;
@@ -42,8 +44,8 @@ void main()
     else
       gl_Position = matrixCameraToClip * matrixModelToCamera * pos;
 
-    float vmin = -1;
-    float vmax = 12.0; // colormap repeats every 10 height-meters
+    float vmin = pointcloudColorLow;
+    float vmax = pointcloudColorHigh;
     float dv = vmax - vmin;
     //float colorValue = abs(pos.y); // colormap repeats every 10 height-meters
     // ben: max 10m, repeat cycle (use mod())

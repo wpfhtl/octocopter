@@ -42,6 +42,9 @@ GlWindow::GlWindow(QWindow* parent) :
     mPointCloudPointSize = 1.0;
     mPointCloudPointAlpha = 1.0;
 
+    mPointCloudColorLow = 0.0f;
+    mPointCloudColorHigh = 10.0f;
+
     mFramesRenderedThisSecond = 0;
 
     mVboRawScanRays = 0;
@@ -304,6 +307,8 @@ void GlWindow::slotRenderNow()
         mShaderProgramPointCloud->bind();
         mShaderProgramPointCloud->setUniformValue("maxPointVisualizationDistance", (GLfloat)pow(mMaxPointVisualizationDistance, 2.0)); // distances are squared in the point cloud, too!
         mShaderProgramPointCloud->setUniformValue("pointcloudPointAlpha", mPointCloudPointAlpha);
+        mShaderProgramPointCloud->setUniformValue("pointcloudColorLow", mPointCloudColorLow);
+        mShaderProgramPointCloud->setUniformValue("pointcloudColorHigh", mPointCloudColorHigh);
         for(int i=0;i<mPointCloudsToRender.size();i++)
         {
             const QVector<PointCloud::VboInfo>& vboInfoList = mPointCloudsToRender.at(i)->getVboInfo();

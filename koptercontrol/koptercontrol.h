@@ -36,6 +36,9 @@ public:
 public slots:
     void slotHandleSignal();
 
+private slots:
+    void slotInsError(const QString& message);
+
 private:
     // We use this pipe for all signals.
     static int signalFd[2];
@@ -49,7 +52,7 @@ private:
     GnssDevice *mGnssDevice;
     LaserScanner *mLaserScannerFrnt, *mLaserScannerDown;
     BaseConnection *mBaseConnection;
-//    VisualOdometry* mVisualOdometry;
+    QDateTime mTimestampStartup;
 
     QSocketNotifier *snSignalPipe;
 };

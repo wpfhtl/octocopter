@@ -16,7 +16,9 @@ PathPlanner::PathPlanner(QObject *parent) :
 
     mRepopulateOccupanccyGrid = true;
 
-    mParametersPathPlanner.grid.cells.x = mParametersPathPlanner.grid.cells.y = mParametersPathPlanner.grid.cells.z = 64;
+    mParametersPathPlanner.grid.cells.x = 32;
+    mParametersPathPlanner.grid.cells.y = 32;
+    mParametersPathPlanner.grid.cells.z = 32;
 
     mHostWaypoints = 0;
 }
@@ -152,7 +154,7 @@ void PathPlanner::slotComputePathOnGpu()
     quint8* gridOccupancy = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridOccupancy);
     quint8* gridPathFinder = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridPathFinder);
     // Only re-create the occupancy grid if the collider cloud's content changed
-    if(true || mRepopulateOccupanccyGrid) // always populate for testing only
+    if(mRepopulateOccupanccyGrid)
     {
         // Get a pointer to the particle positions in the device by mapping GPU mem into CPU mem
         float *colliderPos = (float*)CudaHelper::mapGLBufferObject(mPointCloudColliders->getCudaGraphicsResource());
@@ -191,7 +193,6 @@ void PathPlanner::slotComputePathOnGpu()
     printHostOccupancyGrid(gridPathFinder);
 
     cudaGraphicsUnmapResources(1, &mCudaVboResourceGridPathFinder, 0);
-
 
     qDebug() << mMaxWaypoints;
     cudaMemcpy(

@@ -54,6 +54,8 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     mMessageHandler = new MessageHandler(logFilePrefix);
 
+    mTimestampStartup = QDateTime::currentDateTime();
+
     QString networkInterface = "wlan0";
     QString deviceCamera = "/dev/video0";
     QString deviceSerialKopter = "/dev/serial/by-id/usb-FTDI_Dual_RS232-if00-port0";
@@ -140,53 +142,53 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     mBaseConnection = new BaseConnection(networkInterface);
     mKopter = new Kopter(deviceSerialKopter, this);
 
-    // For testing motion with a joystick from basestation
-    //connect(mBaseConnection, SIGNAL(motion(quint8,qint8,qint8,qint8,qint8)), mKopter, SLOT(slotSetMotion(quint8,qint8,qint8,qint8,qint8)));
+    connect(mLaserScannerDown, &LaserScanner::message, mBaseConnection, &BaseConnection::slotNewLogMessage);
+    connect(mLaserScannerFrnt, &LaserScanner::message, mBaseConnection, &BaseConnection::slotNewLogMessage);
+    connect(mKopter, &Kopter::vehicleStatus, mBaseConnection, &BaseConnection::slotNewVehicleStatus);
+    connect(mKopter, &Kopter::flightStateSwitchValueChanged, mFlightController, &FlightController::slotFlightStateSwitchValueChanged);
+    connect(mKopter, &Kopter::pushButtonToggled, mFlightController, &FlightController::slotLiftHoverPosition);
+    connect(mKopter, &Kopter::flightSpeedChanged, mFlightController, &FlightController::slotSetFlightSpeed);
 
-    connect(mLaserScannerDown, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
-    connect(mLaserScannerFrnt, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
-    connect(mKopter, SIGNAL(vehicleStatus(const VehicleStatus* const)), mBaseConnection, SLOT(slotNewVehicleStatus(const VehicleStatus* const)));
-    connect(mKopter, SIGNAL(flightStateSwitchValueChanged(const FlightStateSwitch* const)), mFlightController, SLOT(slotFlightStateSwitchValueChanged(const FlightStateSwitch* const)));
-    connect(mKopter, SIGNAL(pushButtonToggled()), mFlightController, SLOT(slotLiftHoverPosition()));
-    connect(mKopter, SIGNAL(flightSpeedChanged(float)), mFlightController, SLOT(slotSetFlightSpeed(float)));
+    connect(mLaserScannerDown, &LaserScanner::distanceAtFront, mFlightController, &FlightController::slotSetHeightOverGround);
+    connect(mBaseConnection, &BaseConnection::enableScanning, mLaserScannerDown, &LaserScanner::slotEnableScanning);
+    connect(mBaseConnection, &BaseConnection::enableScanning, mLaserScannerFrnt, &LaserScanner::slotEnableScanning);
+    connect(mBaseConnection, &BaseConnection::differentialCorrections, mGnssDevice, &GnssDevice::slotSetDifferentialCorrections);
+    connect(mBaseConnection, &BaseConnection::wayPoints, mFlightController, &FlightController::slotSetWayPoints);
+    connect(mBaseConnection, &BaseConnection::newConnection, mFlightController, &FlightController::slotEmitFlightControllerInfo);
+    connect(mBaseConnection, &BaseConnection::controllerWeights, mFlightController, &FlightController::slotSetControllerWeights);
 
-    connect(mLaserScannerDown, SIGNAL(distanceAtFront(const float)), mFlightController, SLOT(slotSetHeightOverGround(const float)));
-    connect(mBaseConnection, SIGNAL(enableScanning(const bool)), mLaserScannerDown, SLOT(slotEnableScanning(const bool)));
-    connect(mBaseConnection, SIGNAL(enableScanning(const bool)), mLaserScannerFrnt, SLOT(slotEnableScanning(const bool)));
-    connect(mBaseConnection, SIGNAL(differentialCorrections(const QByteArray*const)), mGnssDevice, SLOT(slotSetDifferentialCorrections(const QByteArray* const)));
-    connect(mBaseConnection, SIGNAL(wayPoints(QList<WayPoint>,WayPointListSource)), mFlightController, SLOT(slotSetWayPoints(QList<WayPoint>,WayPointListSource)));
-    connect(mBaseConnection, SIGNAL(newConnection()), mFlightController, SLOT(slotEmitFlightControllerInfo()));
-    connect(mBaseConnection, SIGNAL(controllerWeights(const QString* const,const QMap<QChar,float>* const)), mFlightController, SLOT(slotSetControllerWeights(const QString* const,const QMap<QChar,float>* const)));
+    connect(mGnssDevice->getSbfParser(), &SbfParser::message, mBaseConnection, &BaseConnection::slotNewLogMessage);
+    connect(mGnssDevice, &GnssDevice::message, mBaseConnection, &BaseConnection::slotNewLogMessage);
 
-    connect(mGnssDevice->getSbfParser(), SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
-    connect(mGnssDevice, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
-    connect(mGnssDevice, SIGNAL(systemTimeSynchronized()), mLaserScannerDown, SLOT(slotSetScannerTimeStamp()));
-    connect(mGnssDevice, SIGNAL(systemTimeSynchronized()), mLaserScannerFrnt, SLOT(slotSetScannerTimeStamp()));
+    connect(mGnssDevice, &GnssDevice::systemTimeSynchronized, mLaserScannerDown, &LaserScanner::slotSetScannerTimeStamp);
+    connect(mGnssDevice, &GnssDevice::systemTimeSynchronized, mLaserScannerFrnt, &LaserScanner::slotSetScannerTimeStamp);
 
-    connect(mGnssDevice->getSbfParser(),SIGNAL(status(const GnssStatus* const)), mBaseConnection, SLOT(slotNewGnssStatus(const GnssStatus* const)));
+    connect(mGnssDevice->getSbfParser(),&SbfParser::status, mBaseConnection, &BaseConnection::slotNewGnssStatus);
+    connect(mGnssDevice->getSbfParser(), &SbfParser::insError, this, &KopterControl::slotInsError);
 
     // distribute poses from gnssdevice
-    connect(mGnssDevice->getSbfParser(), SIGNAL(newVehiclePose(const Pose* const)), mFlightController, SLOT(slotNewVehiclePose(const Pose* const)));
-    connect(mGnssDevice->getSbfParser(), SIGNAL(newVehiclePoseSensorFuser(const Pose* const)), mSensorFuser, SLOT(slotNewVehiclePose(const Pose* const)));
-    connect(mGnssDevice->getSbfParser(), SIGNAL(newVehiclePoseStatus(const Pose* const)), mBaseConnection, SLOT(slotNewVehiclePose(const Pose* const)));
-    connect(mGnssDevice->getSbfParser(), SIGNAL(scanFinished(quint32)), mSensorFuser, SLOT(slotScanFinished(quint32)));
-    connect(mGnssDevice->getSbfParser(), SIGNAL(gnssDeviceWorkingPrecisely(bool)), mLaserScannerDown, SLOT(slotEnableScanning(bool)));
-    connect(mGnssDevice->getSbfParser(), SIGNAL(gnssDeviceWorkingPrecisely(bool)), mLaserScannerFrnt, SLOT(slotEnableScanning(bool)));
-    connect(mLaserScannerDown->getHokuyo(), SIGNAL(scanRaw(RawScan*)), mSensorFuser, SLOT(slotNewScanRaw(RawScan*)));
-    connect(mLaserScannerFrnt->getHokuyo(), SIGNAL(scanRaw(RawScan*)), mSensorFuser, SLOT(slotNewScanRaw(RawScan*)));
+    connect(mGnssDevice->getSbfParser(), &SbfParser::newVehiclePose, mFlightController, &FlightController::slotNewVehiclePose);
+    connect(mGnssDevice->getSbfParser(), &SbfParser::newVehiclePoseSensorFuser, mSensorFuser, &SensorFuser::slotNewVehiclePose);
+    connect(mGnssDevice->getSbfParser(), &SbfParser::newVehiclePoseStatus, mBaseConnection, &BaseConnection::slotNewVehiclePose);
+
+    connect(mGnssDevice->getSbfParser(), &SbfParser::scanFinished, mSensorFuser, &SensorFuser::slotScanFinished);
+    connect(mGnssDevice->getSbfParser(), &SbfParser::gnssDeviceWorkingPrecisely, mLaserScannerDown, &LaserScanner::slotEnableScanning);
+    connect(mGnssDevice->getSbfParser(), &SbfParser::gnssDeviceWorkingPrecisely, mLaserScannerFrnt, &LaserScanner::slotEnableScanning);
+    connect(mLaserScannerDown->getHokuyo(), &Hokuyo::scanRaw, mSensorFuser, &SensorFuser::slotNewScanRaw);
+    connect(mLaserScannerFrnt->getHokuyo(), &Hokuyo::scanRaw, mSensorFuser, &SensorFuser::slotNewScanRaw);
     connect(mSensorFuser, SIGNAL(scanFused(float*const,quint32,QVector3D*const)), mBaseConnection, SLOT(slotNewScanFused(float*const,quint32,QVector3D*const)));
 
     // Lots of traffic - for what?
-    connect(mFlightController, SIGNAL(flightControllerValues(const FlightControllerValues* const)), mBaseConnection, SLOT(slotNewFlightControllerValues(const FlightControllerValues* const)));
-    connect(mFlightController, SIGNAL(flightStateChanged(FlightState*const)), mBaseConnection, SLOT(slotFlightStateChanged(FlightState*const)));
-    connect(mFlightController, SIGNAL(wayPointReached(WayPoint)), mBaseConnection, SLOT(slotWayPointReached(WayPoint)));
-    connect(mFlightController, SIGNAL(wayPoints(QList<WayPoint>* const, WayPointListSource)), mBaseConnection, SLOT(slotSetWayPoints(QList<WayPoint> *const, WayPointListSource)));
-    connect(mFlightController, SIGNAL(message(LogImportance,QString,QString)), mBaseConnection, SLOT(slotNewLogMessage(LogImportance,QString,QString)));
-    connect(mFlightController, SIGNAL(flightControllerWeightsChanged()), mBaseConnection, SLOT(slotFlightControllerWeightsChanged()));
+    connect(mFlightController, &FlightController::flightControllerValues, mBaseConnection, &BaseConnection::slotNewFlightControllerValues);
+    connect(mFlightController, &FlightController::flightStateChanged, mBaseConnection, &BaseConnection::slotFlightStateChanged);
+    connect(mFlightController, &FlightController::wayPointReached, mBaseConnection, &BaseConnection::slotWayPointReached);
+    connect(mFlightController, &FlightController::wayPoints, mBaseConnection, &BaseConnection::slotSetWayPoints);
+    connect(mFlightController, &FlightController::message, mBaseConnection, &BaseConnection::slotNewLogMessage);
+    connect(mFlightController, &FlightController::flightControllerWeightsChanged, mBaseConnection, &BaseConnection::slotFlightControllerWeightsChanged);
 
     //    WARNING! THIS ENABLES MOTION!
-    connect(mBaseConnection, SIGNAL(motion(const MotionCommand* const)), mKopter, SLOT(slotSetMotion(const MotionCommand* const)));
-    connect(mFlightController, SIGNAL(motion(const MotionCommand* const)), mKopter, SLOT(slotSetMotion(const MotionCommand* const)));
+    connect(mBaseConnection, &BaseConnection::motion, mKopter, &Kopter::slotSetMotion);
+    connect(mFlightController, &FlightController::motion, mKopter, &Kopter::slotSetMotion);
 }
 
 KopterControl::~KopterControl()
@@ -233,6 +235,16 @@ void KopterControl::signalHandler(int signal)
     {
         qDebug() << "KopterControl::signalHandler(): received signal" << signal << "for" << abortCounter << "times, comitting suicide now.";
         exit(1);
+    }
+}
+
+void KopterControl::slotInsError(const QString& message)
+{
+    qDebug() << message;
+
+    if(mTimestampStartup.msecsTo(QDateTime::currentDateTime()) < 20000)
+    {
+        qFatal("Error during startup, quitting.");
     }
 }
 

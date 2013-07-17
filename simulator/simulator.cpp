@@ -35,36 +35,36 @@ Simulator::Simulator(void) :
 
     mJoystick = new Joystick;
     if(!mJoystick->isValid()) QMessageBox::warning(this, "Joystick not found", "Joystick initialization failed, using manual control will be impossible.");
-    connect(mJoystick, SIGNAL(buttonStateChanged(quint8,bool)), SLOT(slotJoystickButtonChanged(quint8, bool)));
+    connect(mJoystick, &Joystick::buttonStateChanged, this, &Simulator::slotJoystickButtonChanged);
     mJoystickEnabled = true;
 
-    connect(mOgreWidget, SIGNAL(setupFinished()), SLOT(slotOgreInitialized()), Qt::QueuedConnection);
+    connect(mOgreWidget, &OgreWidget::setupFinished, this, &Simulator::slotOgreInitialized);
 
     mBattery = new Battery(this, 16.8, 5.0);
     mBattery->charge();
 
     mUpdateTimer = new QTimer(this);
-    connect(mUpdateTimer, SIGNAL(timeout()), SLOT(slotUpdate()));
+    connect(mUpdateTimer, &QTimer::timeout, this, &Simulator::slotUpdate);
 
     // Make it create logfiles!
     mFlightController = new FlightController(QString("simulator-%1").arg(QDateTime::currentDateTime().toString("yyyy-MM-dd-HHmmsszzz")));
 
     mBaseConnection = new BaseConnection("eth0");
-    connect(mBaseConnection, SIGNAL(wayPoints(QList<WayPoint>,WayPointListSource)), mFlightController, SLOT(slotSetWayPoints(QList<WayPoint>,WayPointListSource)));
-    connect(mBaseConnection, SIGNAL(controllerWeights(const QString* const,const QMap<QChar,float>* const)), mFlightController, SLOT(slotSetControllerWeights(const QString* const, const QMap<QChar,float>* const)));
-    connect(mBaseConnection, SIGNAL(newConnection()), SLOT(slotNewConnection()));
+    connect(mBaseConnection, &BaseConnection::wayPoints, mFlightController, &FlightController::slotSetWayPoints);
+    connect(mBaseConnection, &BaseConnection::controllerWeights, mFlightController, &FlightController::slotSetControllerWeights);
+    connect(mBaseConnection, &BaseConnection::newConnection, this, &Simulator::slotNewConnection);
 
-    connect(mFlightController, SIGNAL(wayPointReached(WayPoint)), mBaseConnection, SLOT(slotWayPointReached(WayPoint)));
-    connect(mFlightController, SIGNAL(wayPoints(QList<WayPoint>*const,WayPointListSource)), mBaseConnection, SLOT(slotSetWayPoints(const QList<WayPoint>*const)));
-    connect(mFlightController, SIGNAL(flightStateChanged(FlightState*const)), mBaseConnection, SLOT(slotFlightStateChanged(FlightState*const)));
-    connect(mFlightController, SIGNAL(flightControllerValues(const FlightControllerValues* const)), mBaseConnection, SLOT(slotNewFlightControllerValues(const FlightControllerValues* const)));
+    connect(mFlightController, &FlightController::wayPointReached, mBaseConnection, &BaseConnection::slotWayPointReached);
+    connect(mFlightController, &FlightController::wayPoints, mBaseConnection, &BaseConnection::slotSetWayPoints);
+    connect(mFlightController, &FlightController::flightStateChanged, mBaseConnection, &BaseConnection::slotFlightStateChanged);
+    connect(mFlightController, &FlightController::flightControllerValues, mBaseConnection, &BaseConnection::slotNewFlightControllerValues);
 
     mStatusWidget = new StatusWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mStatusWidget);
-    connect(mStatusWidget, SIGNAL(simulationStart()), SLOT(slotSimulationStart()));
-    connect(mStatusWidget, SIGNAL(simulationPause()), SLOT(slotSimulationPause()));
-    connect(mStatusWidget, SIGNAL(timeFactorChanged(double)), SLOT(slotSetTimeFactor(double)));
-    connect(mOgreWidget, SIGNAL(currentRenderStatistics(QSize,int,float)), mStatusWidget, SLOT(slotUpdateVisualization(QSize, int, float)));
+    connect(mStatusWidget, &StatusWidget::simulationStart, this, &Simulator::slotSimulationStart);
+    connect(mStatusWidget, &StatusWidget::simulationPause, this, &Simulator::slotSimulationPause);
+    connect(mStatusWidget, &StatusWidget::timeFactorChanged, this, &Simulator::slotSetTimeFactor);
+    connect(mOgreWidget, &OgreWidget::currentRenderStatistics, mStatusWidget, &StatusWidget::slotUpdateVisualization);
 
     mTimeFactor = mStatusWidget->getTimeFactor();
     qDebug() << "Simulator::Simulator(): setting timeFactor to" << mTimeFactor;
@@ -112,16 +112,16 @@ void Simulator::slotOgreInitialized(void)
     // Vehicle creates SceneNode and Entity in OgreWidget. But OgreWidget is not initialized after instatiation, but only when
     // the window is initialized. Thus, vehicle needs to be created after ogreWidget initialization.
     mPhysics = new Physics(this, mOgreWidget);
-    connect(mPhysics, SIGNAL(newVehiclePose(const Pose* const)), mStatusWidget, SLOT(slotUpdatePose(const Pose* const)));
-    connect(mPhysics, SIGNAL(newVehiclePose(const Pose* const)), mFlightController, SLOT(slotNewVehiclePose(const Pose* const)));
+    connect(mPhysics, &Physics::newVehiclePose, mStatusWidget, &StatusWidget::slotUpdatePose);
+    connect(mPhysics, &Physics::newVehiclePose, mFlightController, &FlightController::slotNewVehiclePose);
 
-    connect(mStatusWidget, SIGNAL(windDetailChanged(bool,float)), mPhysics, SLOT(slotSetWindSetting(bool, float)));
+    connect(mStatusWidget, &StatusWidget::windDetailChanged, mPhysics, &Physics::slotSetWindSetting);
 
     // Only one of the two objects will emit motion signals depending on mJoystickEnabled
     // FlightController's motion should go through a clampToSafeLimits, while the joystickmotion is sent directly.
-//    connect(mFlightController, SIGNAL(motion(const MotionCommand* const)), this, SLOT(slotSetClampedMotion(const MotionCommand* const)));
-    connect(mFlightController, SIGNAL(motion(const MotionCommand* const)), mPhysics, SLOT(slotSetMotion(const MotionCommand* const)));
-    connect(mJoystick, SIGNAL(motion(const MotionCommand* const)), mPhysics, SLOT(slotSetMotion(const MotionCommand* const)));
+//    connect(mFlightController, &FlightController::motion(const MotionCommand* const)), this, SLOT(slotSetClampedMotion(const MotionCommand* const)));
+    connect(mFlightController, &FlightController::motion, mPhysics, &Physics::slotSetMotion);
+    connect(mJoystick, &Joystick::motion, mPhysics, &Physics::slotSetMotion);
 
     // Same thing for StatusWidget, which has the configuration window. Tell it to read the config only after ogre
     // is initialized, so it can create cameras and laserscanners.
