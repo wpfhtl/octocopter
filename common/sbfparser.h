@@ -74,8 +74,6 @@ private:
 
     GnssStatus mGnssStatus;
 
-    QDateTime mTimeStampStartup; // to determine runtime and clock skew at the end.
-
     double mOriginLongitude, mOriginLatitude, mOriginElevation;
     float mMaxCovariances;
 
@@ -301,6 +299,8 @@ signals:
     void scanFinished(const quint32& timestamp);
 
     void gnssTimeOfWeekEstablished(qint32 timestamp);
+
+    void insError(const QString&);
 
 public slots:
     // Can be called on rover by GpsDevice to ensure base is up to date even when few things change in the fields

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>184</width>
+    <width>198</width>
     <height>677</height>
    </rect>
   </property>
@@ -18,8 +18,8 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>184</width>
-    <height>641</height>
+    <width>198</width>
+    <height>677</height>
    </size>
   </property>
   <property name="maximumSize">
@@ -46,13 +46,13 @@
      <number>0</number>
     </property>
     <property name="leftMargin">
-     <number>0</number>
+     <number>2</number>
     </property>
     <property name="topMargin">
      <number>0</number>
     </property>
     <property name="rightMargin">
-     <number>2</number>
+     <number>1</number>
     </property>
     <property name="bottomMargin">
      <number>0</number>
@@ -90,7 +90,7 @@
        <item row="0" column="0">
         <widget class="QLabel" name="label_12">
          <property name="text">
-          <string>Time</string>
+          <string>Flighttime</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -133,7 +133,7 @@
        <item row="1" column="0">
         <widget class="QLabel" name="label_5">
          <property name="text">
-          <string>Baro</string>
+          <string>Barometer</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -176,7 +176,7 @@
        <item row="2" column="0">
         <widget class="QLabel" name="label">
          <property name="text">
-          <string>Vltg</string>
+          <string>Voltage</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -225,7 +225,14 @@
          </property>
         </widget>
        </item>
-       <item row="3" column="0">
+       <item row="3" column="3">
+        <widget class="QLabel" name="mLabelFlightState">
+         <property name="text">
+          <string>-</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="2">
         <widget class="QLabel" name="label_26">
          <property name="text">
           <string>State</string>
@@ -235,10 +242,17 @@
          </property>
         </widget>
        </item>
-       <item row="3" column="1">
-        <widget class="QLabel" name="mLabelFlightState">
+       <item row="3" column="0">
+        <widget class="QLabel" name="label_14">
          <property name="text">
-          <string>Undefined</string>
+          <string>Restriction</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QLabel" name="mLabelFlightStateRestriction">
+         <property name="text">
+          <string>-</string>
          </property>
         </widget>
        </item>

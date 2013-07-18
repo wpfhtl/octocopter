@@ -51,7 +51,7 @@ public:
     QList<Camera*> *mCameras;
 
     FlightController* mFlightController;
-    FlightStateSwitch mFlightStateSwitch;
+    FlightStateRestriction mFlightStateRestriction;
     VehicleStatus mVehicleStatus;
 
 

@@ -303,6 +303,17 @@ void BaseConnection::slotFlightStateChanged(const FlightState* const fs)
     slotSendData(data, false);
 }
 
+void BaseConnection::slotFlightStateRestrictionChanged(const FlightStateRestriction* const fsr)
+{
+    qDebug() << "BaseConnection::slotFlightStateRestrictionChanged(): sending flightstaterestriction" << fsr->toString() << "to base";
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    stream << QString("flightstaterestriction");
+    stream << *fsr;
+    slotSendData(data, false);
+}
+
 // called by rover to send lidarpoints to the basestation
 void BaseConnection::slotNewScanFused(const QVector<QVector4D>& points, const QVector3D& scannerPosition)
 {
@@ -312,7 +323,7 @@ void BaseConnection::slotNewScanFused(const QVector<QVector4D>& points, const QV
 // float4!
 void BaseConnection::slotNewScanFused(const float* const points, const quint32 numPoints, const QVector3D* const scannerPosition)
 {
-//    qDebug() << "sending" << numPoints * 4 << "floats /" << numPoints << "lidarpoints to base";
+    qDebug() << "sending" << numPoints * 4 << "floats /" << numPoints << "lidarpoints to base";
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 

@@ -5,6 +5,7 @@
 #include <QtNetwork>
 #include <common.h>
 #include <flightstate.h>
+#include <flightstaterestriction.h>
 #include <gnssstatus.h>
 #include <flightcontrollervalues.h>
 #include <waypoint.h>
@@ -30,13 +31,12 @@ private:
     QTimer mTimerConnectionWatchdog;
     QTime mTimeOfLastPacket;
 
-//    QTimer mTimerRetryConnect;
-
     // This class keeps instances of objects that are updated from the rover. After they are,
     // we simply emit pointers to this data.
     GnssStatus mGnssStatus;
     FlightControllerValues mFlightControllerValues;
     FlightState mFlightState;
+    FlightStateRestriction mFlightStateRestriction;
     Pose mPose;
     QList<WayPoint> mWayPointList;
     float* mRegisteredPointsFloat;
@@ -64,6 +64,7 @@ signals:
     void flightControllerValues(const FlightControllerValues* const fcv);
     void flightControllerWeightsChanged();
     void flightState(const FlightState* const);
+    void flightStateRestriction(const FlightStateRestriction* const);
 
     // When the rover has reached a waypoint
     void wayPointReachedByRover(const WayPoint& wpt);

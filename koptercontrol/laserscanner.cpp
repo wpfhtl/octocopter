@@ -33,11 +33,11 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFile
 
     // These should come before the worker slot is connected. Otherwise, slotThreadStarted() is called
     // after the thread has ended. Weird...
-    connect(mThreadReadScanner, SIGNAL(started()), this, SLOT(slotThreadStarted()));
-    connect(mThreadReadScanner, SIGNAL(finished()), this, SLOT(slotThreadFinished()));
+    connect(mThreadReadScanner, &QThread::started, this, &LaserScanner::slotThreadStarted);
+    connect(mThreadReadScanner, &QThread::finished, this, &LaserScanner::slotThreadFinished);
 
-    connect(mThreadReadScanner, SIGNAL(started()), mHokuyo, SLOT(slotStartScanning()));
-    connect(mHokuyo, SIGNAL(finished()), mThreadReadScanner, SLOT(quit()));
+    connect(mThreadReadScanner, &QThread::started, mHokuyo, &Hokuyo::slotStartScanning);
+    connect(mHokuyo, &Hokuyo::finished, mThreadReadScanner, &QThread::quit);
 
     connect(mHokuyo, SIGNAL(distanceAtFront(float)), SIGNAL(distanceAtFront(float)));
 }

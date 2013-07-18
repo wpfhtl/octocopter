@@ -106,6 +106,7 @@ public:
     float mBackgroundBrightness;
     float mPointCloudPointSize;
     float mPointCloudPointAlpha;
+    float mPointCloudColorLow, mPointCloudColorHigh;
 
 signals:
     void initializingInGlContext();

@@ -162,8 +162,11 @@ void DialogConfiguration::slotReadConfigurationLaserScanner()
 
         laserScanners->append(newLaserScanner);
 
-        connect(newLaserScanner, SIGNAL(newLidarPoints(QVector<QVector4D>,QVector3D)), mSimulator->mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector4D>,QVector3D)));
-        connect(newLaserScanner, SIGNAL(heightOverGround(float)), mSimulator->mFlightController, SLOT(slotSetHeightOverGround(float)));
+        connect(newLaserScanner, SIGNAL(newLidarPoints(QVector<QVector4D>,QVector3D)), mSimulator->mBaseConnection, SLOT(slotNewScanFused(QVector<QVector4D>,QVector3D)));
+
+        // only do this for scanners pointing down!
+        if(fabs(mSettings.value("rotPitch", 0.0).toReal()) > 85.0f && fabs(mSettings.value("rotPitch", 0.0).toReal()) < 95.0f)
+            connect(newLaserScanner, &LaserScanner::heightOverGround, mSimulator->mFlightController, &FlightController::slotSetHeightOverGround);
 
         // Now create a row in the LaserScannerTable
         mTableWidgetLaserScanners->blockSignals(true);
@@ -439,8 +442,8 @@ void DialogConfiguration::slotLaserScannerAdd()
     mTableWidgetLaserScanners->setItem(row, 10,new QTableWidgetItem("0.25"));
     mTableWidgetLaserScanners->blockSignals(false);
 
-    connect(newLaserScanner, SIGNAL(newLidarPoints(QVector<QVector4D>,QVector3D)), mSimulator->mBaseConnection, SLOT(slotNewScannedPoints(QVector<QVector4D>,QVector3D)));
-    connect(newLaserScanner, SIGNAL(heightOverGround(float)), mSimulator->mFlightController, SLOT(slotSetHeightOverGround(float)));
+    connect(newLaserScanner, SIGNAL(newLidarPoints(QVector<QVector4D>,QVector3D)), mSimulator->mBaseConnection, SLOT(slotNewScanFused(QVector<QVector4D>,QVector3D)));
+    //connect(newLaserScanner, &LaserScanner::heightOverGround, mSimulator->mFlightController, &FlightController::slotSetHeightOverGround);
 
     newLaserScanner->start();
     mOgreWidget->update();

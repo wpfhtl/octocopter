@@ -7,6 +7,7 @@
 #include "helper_math.h"
 
 #include "parameterspathplanner.cuh"
+#include "pathplanner.cuh"
 
 // only for printf debugging
 #include <stdlib.h>
@@ -164,22 +165,19 @@ void computePathD(u_int8_t* gridValues, unsigned int numCells)
     // Only act if the goal is not occupied
     if(gridValues[cellIndexGoal] == 0 && cellIndexGoal >= 0)
     {
+        // Thats a quite random choice :|
+        uint maxIterations = max(max(parametersPathPlanner.grid.cells.x, parametersPathPlanner.grid.cells.y), parametersPathPlanner.grid.cells.z) * 50;
+
         // Let the first thread set the cell containing "start" to 1!
         if(cellIndex == 0)
         {
             int3 cellCoordinateStart = parametersPathPlanner.grid.getCellCoordinate(parametersPathPlanner.start);
             int cellIndexStart = parametersPathPlanner.grid.getCellHash2(cellCoordinateStart);
-            //printf("setting start cell %d to 1, monitoring goal cell %d\n", startGridCellIndex, goalGridCellIndex);
+            printf("setting start cell %d to 1, monitoring goal cell %d for %d iterations\n", cellIndexStart, cellIndexGoal, maxIterations);
             gridValues[cellIndexStart] = 1;
         }
 
-        // We iterate 2 times the longest straight way through the grid. Thats a quite random choice :|
-        uint maxIterations = max(max(parametersPathPlanner.grid.cells.x, parametersPathPlanner.grid.cells.y), parametersPathPlanner.grid.cells.z) * 50;
-
-//        int allCellsReached = 0;
-
-        for(int i=0;i<maxIterations*2 /*&& gridValues[cellIndexGoal] == 0*/; i++)
-//        while(!allCellsReached)
+        for(int i=0;i<maxIterations; i++)
         {
             // We want to sync all threads after writing. Because all threads need to reach this barrier,
             // we cannot check cellIndex < numCells above and do that in growCells instead.
@@ -227,11 +225,11 @@ void computePathD(u_int8_t* gridValues, unsigned int numCells)
                 // numbers, but since the values spread like a wave, that'll never happen.
                 if(lowestNonNullNeighbor < 254 && ownValue == 0)
                 {
-                    printf("cell (%d/%d/%d) found value %d in neighbor (%d/%d/%d), setting cell %d to %d\n",
+                    /*printf("cell (%d/%d/%d) found value %d in neighbor (%d/%d/%d), setting cell %d to %d\n",
                            cellCoordinateThread.x, cellCoordinateThread.y, cellCoordinateThread.z,
                            lowestNonNullNeighbor,
                            cellCoordinateMinimum.x, cellCoordinateMinimum.y, cellCoordinateMinimum.z,
-                           cellIndex, lowestNonNullNeighbor + 1);
+                           cellIndex, lowestNonNullNeighbor + 1);*/
 
                     gridValues[cellIndex] = lowestNonNullNeighbor + 1;
                 }
@@ -250,7 +248,88 @@ void computePathD(u_int8_t* gridValues, unsigned int numCells)
                        gridValues[cellIndexGoal]);*/
         }
     }
+    else
+    {
+        printf("computePathD(): goal cell (%d/%d/%d) is occupied: %d.\n",
+               cellCoordinateGoal.x,
+               cellCoordinateGoal.y,
+               cellCoordinateGoal.z,
+               gridValues[cellIndexGoal]);
+    }
 }
+
+
+
+__global__
+void checkGoalCellD(unsigned char* gridValues, unsigned int numCells, unsigned int searchRange, unsigned int *status)
+{
+    int3 goalGridCellCoordinate = parametersPathPlanner.grid.getCellCoordinate(parametersPathPlanner.goal);
+    int goalGridCellOffset = parametersPathPlanner.grid.getCellHash2(goalGridCellCoordinate);
+
+    uint valueInGoalCell = gridValues[goalGridCellOffset];
+
+    printf("checkGoalCellD(): value in goal cell at %.2f/%.2f/%.2f is %d.\n",
+           parametersPathPlanner.goal.x,
+           parametersPathPlanner.goal.y,
+           parametersPathPlanner.goal.z,
+           valueInGoalCell);
+
+    if(valueInGoalCell < 254)
+    {
+        return;
+    }
+    else
+    {
+        // Cell is occupied or dilated-occupied! Try to find an empty neighbor!
+
+        // With searchRange = 3, create an array {1,-1,2,-2,3,-3}
+        float *neighborsSearchOrder = new float[searchRange * 2];
+        for(int i=1;i<=searchRange;i++)
+        {
+            neighborsSearchOrder[2*i-2] = i;
+            neighborsSearchOrder[2*i-1] = -i;
+        }
+
+        //for(...)
+
+        delete neighborsSearchOrder;
+    }
+}
+
+
+// This method checks whether the goal cell is occupied. If so, it tries
+// to find a free neighboring cell that can be used instead.
+GoalCellStatus checkGoalCell(unsigned char* gridValues, unsigned int numCells, unsigned int searchRange, cudaStream_t *stream)
+{
+    if(numCells == 0) return GoalCellBlocked;
+
+//    uint numThreads, numBlocks;
+//    computeExecutionKernelGrid(numCells, 64, numBlocks, numThreads);
+
+    u_int32_t* statusDevice;
+    cudaSafeCall(cudaMalloc((void**)statusDevice, sizeof(u_int32_t)));
+
+    checkGoalCellD<<< 1, 1, 0, *stream>>>(gridValues, numCells, searchRange, statusDevice);
+    cudaCheckSuccess("checkGoalCell");
+
+    u_int32_t statusHost;
+    cudaSafeCall(cudaMemcpy(&statusHost, statusDevice, sizeof(u_int32_t), cudaMemcpyDeviceToHost));
+
+    if(statusHost == 0)
+    {
+        return GoalCellFree;
+    }
+    else if(statusHost == 1)
+    {
+        return GoalCellMoved;
+    }
+    else
+    {
+        return GoalCellBlocked;
+    }
+}
+
+
 
 __global__
 void retrievePathD(unsigned char* gridValues, float4* waypoints)

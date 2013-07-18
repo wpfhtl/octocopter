@@ -7,6 +7,7 @@
 #include "dialogconfiguration.h"
 #include "ui_statuswidget.h"
 #include "battery.h"
+#include "flightstaterestriction.h"
 #include <pose.h>
 
 #define QT_USE_FAST_CONCATENATION
@@ -33,10 +34,10 @@ public slots:
     void slotSetButtonStartEnabled(bool);
     void slotSetButtonPauseEnabled(bool);
     void slotUpdatePose(const Pose *const pose);
+    void slotUpdateVisualization(QSize windowSize, int triangles, float fps);
 
 private slots:
     void slotUpdateBattery(const int chargeStateInPercent);
-    void slotUpdateVisualization(QSize windowSize, int triangles, float fps);
     void slotSimulationStarted();
     void slotSimulationPaused();
     void slotShowConfiguration();

@@ -12,8 +12,6 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     mSerialPortFlightCtrl->setStopBits(QSerialPort::OneStop);
     mSerialPortFlightCtrl->setFlowControl(QSerialPort::NoFlowControl);
 
-
-    mLastFlightStateSwitch.value = FlightStateSwitch::Value::UserControl;
     mLastPushButtonValue = PushButtonValueUndefined;
     mStructExternControl.Frame = 0;
 
@@ -21,11 +19,11 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
 
     qDebug() << "Kopter::Kopter(): Opening serial port" << serialDeviceFile << "succeeded, flowControl is" << mSerialPortFlightCtrl->flowControl();
 
-    connect(mSerialPortFlightCtrl, SIGNAL(readyRead()), SLOT(slotSerialPortDataReady()));
+    connect(mSerialPortFlightCtrl, &QSerialPort::readyRead, this, &Kopter::slotSerialPortDataReady);
 
     mTimerPpmChannelPublisher = new QTimer(this);
     mTimerPpmChannelPublisher->start(500);
-    connect(mTimerPpmChannelPublisher, SIGNAL(timeout()), SLOT(slotGetPpmChannelValues()));
+    connect(mTimerPpmChannelPublisher, &QTimer::timeout, this, &Kopter::slotGetPpmChannelValues);
 
     mLastFlightSpeed = 0.0f;
 
@@ -66,10 +64,10 @@ void Kopter::slotFlushMessageQueue()
 
     if(!mPendingReply.isNull())
     {
-//        qDebug() << "Kopter::slotFlushMessageQueue(): pending reply:" << mPendingReply << "-" << mSendMessageQueue.size() << "messages to send.";
+//        qDebug() << __PRETTY_FUNCTION__ << "pending reply:" << mPendingReply << "-" << mSendMessageQueue.size() << "messages to send.";
         if(mLastSendTime.msecsTo(QTime::currentTime()) > 100)
         {
-            qDebug() << "Kopter::slotFlushMessageQueue(): pending reply" << mPendingReply << "is" << mLastSendTime.msecsTo(QTime::currentTime()) << "ms old, deleting and trying again.";
+            qDebug() << __PRETTY_FUNCTION__ << "pending reply" << mPendingReply << "is" << mLastSendTime.msecsTo(QTime::currentTime()) << "ms old, deleting and trying again.";
             mPendingReply = QChar();
             slotFlushMessageQueue();
         }
@@ -79,13 +77,15 @@ void Kopter::slotFlushMessageQueue()
         // There is no outstanding reply for this queued packet, we can send.
         KopterMessage msg = mSendMessageQueue.takeFirst();
 
-        while(mLastSendTime.msecsTo(QTime::currentTime()) < 10)
+        qint32 timeSinceLastCommand = mLastSendTime.msecsTo(QTime::currentTime());
+        // This seems unnecessarily complex, why not wait as long as the time was less than 10ms?
+        // Because koptercontrol syncs time on startup, this can be a false offset, leading to a seemingly infinite loop.
+        while(timeSinceLastCommand < 10 && timeSinceLastCommand > 0)
         {
-            qDebug() << "KopterMessage::slotFlushMessageQueue(): waiting 5ms for serial port to clear send-queue consisting of" << mSendMessageQueue.size() << "messages";
+            qDebug() << __PRETTY_FUNCTION__ << "waiting 5ms for serial port to clear send-queue consisting of" << mSendMessageQueue.size() << "messages";
             usleep(5000);
         }
 
-        //qDebug() << "KopterMessage::slotFlushMessageQueue(): no pending replies - now sending packet" << msg.getId();
         msg.send(mSerialPortFlightCtrl);
         mPendingReply = msg.getId().toUpper();
         mLastSendTime = QTime::currentTime();
@@ -292,14 +292,14 @@ void Kopter::slotSerialPortDataReady()
 
                 qDebug() << "Kopter::slotSerialPortDataReady():" << ppmChannels->toString();
 
-                FlightStateSwitch fssv(ppmChannels->externalControl);
+                FlightStateRestriction fsr(ppmChannels->externalControl);
 //                qDebug() << "Kopter::slotSerialPortDataReady(): flightstate switch value" << ppmChannels->externalControl << "is state:" << fssv.toString();
 
-                if(mLastFlightStateSwitch != fssv)
+                if(mLastFlightStateRestriction != fsr)
                 {
-                    mLastFlightStateSwitch = fssv;
-                    qDebug() << "Kopter::slotSerialPortDataReady(): flighstate switch changed to" << fssv.toString();
-                    emit flightStateSwitchValueChanged(&mLastFlightStateSwitch);
+                    mLastFlightStateRestriction = fsr;
+                    qDebug() << "Kopter::slotSerialPortDataReady(): flighstate switch changed to" << fsr.toString();
+                    emit flightStateRestrictionChanged(&mLastFlightStateRestriction);
                 }
 
                 if(ppmChannels->pushButton > 0 != (mLastPushButtonValue == PushButtonValueHigh) && mLastPushButtonValue != PushButtonValueUndefined)

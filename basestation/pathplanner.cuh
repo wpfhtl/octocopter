@@ -6,6 +6,13 @@
 #include "vector_functions.h"
 #include "parameterspathplanner.cuh"
 
+enum GoalCellStatus
+{
+    GoalCellFree,       // The goal cell was checked and is free in the occupancy grid
+    GoalCellMoved,      // The goal cell was checked and occupied, but a neighboring free cell was found
+    GoalCellBlocked     // The goal cell was checked and occupied. No free neighbors were found in range
+};
+
 void copyParametersToGpu(ParametersPathPlanner *hostParams);
 
 void fillOccupancyGrid(

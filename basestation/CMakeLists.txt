@@ -69,6 +69,7 @@ set(SRC_FILES
     ../common/flightcontrollervalues
     ../common/pidcontroller
     ../common/flightstate
+    ../common/flightstaterestriction
     ../common/lidarpoint
     ../common/waypoint
     ../common/gnsstime
@@ -131,6 +132,7 @@ set(INC_FILES
     ../common/flightcontrollervalues.h
     ../common/pidcontroller.h
     ../common/flightstate.h
+    ../common/flightstaterestriction.h
     ../common/lidarpoint.h
     ../common/waypoint.h
     ../common/gnsstime.h
@@ -163,10 +165,8 @@ set(RESOURCE_FILES
 
 execute_process(COMMAND glxinfo COMMAND grep "OpenGL version string" COMMAND cut -d " " -f 4 COMMAND cut -d "." -f 1 OUTPUT_VARIABLE openglversion_major OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND glxinfo COMMAND grep "OpenGL version string" COMMAND cut -d " " -f 4 COMMAND cut -d "." -f 2 OUTPUT_VARIABLE openglversion_minor OUTPUT_STRIP_TRAILING_WHITESPACE)
-message("Using OpenGl version \"${openglversion_major}.${openglversion_minor}\"")
+message(STATUS "Using OpenGl version \"${openglversion_major}.${openglversion_minor}\" and class \"QOpenGLFunctions_${openglversion_major}_${openglversion_minor}_Core\"")
 add_definitions(-DOPENGL_FUNCTIONS_CLASS=QOpenGLFunctions_${openglversion_major}_${openglversion_minor}_Core -DOPENGL_VERSION_MAJOR=${openglversion_major} -DOPENGL_VERSION_MINOR=${openglversion_minor})
-message("Using OpenGl class \"QOpenGLFunctions_${openglversion_major}_${openglversion_minor}Core\"")
-
 
 list(APPEND CUDA_NVCC_FLAGS -gencode=arch=compute_30,code=sm_30)
 #list(APPEND CUDA_NVCC_FLAGS -G -g -gencode=arch=compute_30,code=sm_30)

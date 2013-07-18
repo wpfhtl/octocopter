@@ -18,6 +18,7 @@
 
 class Simulator;
 class MotionCommand;
+class FlightStateRestriction;
 
 class BaseConnection : public QObject
 {
@@ -88,6 +89,9 @@ public slots:
 
     // called by rover when the flightstate changes
     void slotFlightStateChanged(const FlightState* const fs);
+
+    // called by rover when the flightstaterestriction changes
+    void slotFlightStateRestrictionChanged(const FlightStateRestriction* const fsr);
 
     // called by rover when flightcontroller's pidcontroller-weights have been changed (due to a request from basestation)
     void slotFlightControllerWeightsChanged();

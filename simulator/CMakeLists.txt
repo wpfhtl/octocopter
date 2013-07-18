@@ -21,7 +21,7 @@ find_package(Qt5OpenGL REQUIRED)
 find_package(Qt5Widgets REQUIRED)
 find_package(OGRE REQUIRED)
 find_package(Bullet REQUIRED)
-#find_package(Boost 1.49.0 COMPONENTS system)
+find_package(Boost 1.53.0 COMPONENTS system)
 
 set(SRC_FILES
     main
@@ -40,6 +40,7 @@ set(SRC_FILES
     ../common/baseconnection
     ../common/logfile
     ../common/flightstate
+    ../common/flightstaterestriction
     ../common/flightcontroller
     ../common/pidcontroller
     ../common/flightcontrollervalues
@@ -73,6 +74,7 @@ set(INC_FILES
     ../common/baseconnection.h
     ../common/logfile.h
     ../common/flightstate.h
+    ../common/flightstaterestriction.h
     ../common/flightcontroller.h
     ../common/pidcontroller.h
     ../common/flightcontrollervalues.h

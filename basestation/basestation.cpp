@@ -43,8 +43,8 @@ BaseStation::BaseStation() : QMainWindow()
     addDockWidget(Qt::RightDockWidgetArea, mControlWidget);
     mMenuWindowList->addAction("Control Widget", this, SLOT(slotToggleControlWidget()));
 
-    mWirelessDevice = new WirelessDevice("wlan0");
-//    connect(mWirelessDevice, SIGNAL(rssi(qint8)), mControlWidget, SLOT(slotUpdateWirelessRssi(qint8)));
+//    mWirelessDevice = new WirelessDevice("wlan0");
+//    connect(mWirelessDevice, &WirelessDevice::rssi, mControlWidget, &ControlWidget::slotUpdateWirelessRssi);
 
     mSatelliteWidget = new SatelliteWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mSatelliteWidget);
@@ -58,12 +58,12 @@ BaseStation::BaseStation() : QMainWindow()
     QWidget* glContainer = QWidget::createWindowContainer(mGlWindow, this);
     glContainer->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
     setCentralWidget(glContainer);
-    connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mGlWindow, SLOT(slotRenderLater()));
+    connect(mControlWidget, &ControlWidget::setScanVolume, mGlWindow, &GlWindow::slotRenderLater);
 
 //    mPointCloud = new PointCloudCuda(QVector3D(-64, -2, -64), QVector3D(64, 30, 64)/*, 250000*/);
     mPointCloud = new PointCloudCuda(QVector3D(-50, 0, -50), QVector3D(50, 30, 50)/*, 250000*/);
-    connect(mGlWindow, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
-    connect(mGlWindow, SIGNAL(initializingInGlContext()), mPointCloud, SLOT(slotInitialize()));
+    connect(mGlWindow, &GlWindow::message, mLogWidget, &LogWidget::log);
+    connect(mGlWindow, &GlWindow::initializingInGlContext, mPointCloud, &PointCloudCuda::slotInitialize);
     // After connecting consumers of initializingInGlContext(), initialze glWindow, which will emit the signal.
     mGlWindow->slotInitialize();
 
@@ -80,7 +80,7 @@ BaseStation::BaseStation() : QMainWindow()
     addDockWidget(Qt::BottomDockWidgetArea, mPtuController);
     mPtuController->setVisible(false);
     mMenuWindowList->addAction("PTU Controller", this, SLOT(slotTogglePtuControllerWidget()));
-    connect(mPtuController, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
+    connect(mPtuController, &PtuController::message, mLogWidget, &LogWidget::log);
 
     if(mPtuController->isOpened())
     {
@@ -91,18 +91,18 @@ BaseStation::BaseStation() : QMainWindow()
         mLogWidget->log(Information, "BaseStation::BaseStation()", "Enabling PtuController with dummy PTU.");
     }
 
-    connect(mFlightPlanner, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
+    connect(mFlightPlanner, &FlightPlannerInterface::message, mLogWidget, &LogWidget::log);
 
-    connect(mControlWidget, SIGNAL(setScanVolume(QVector3D,QVector3D)), mFlightPlanner, SLOT(slotSetScanVolume(QVector3D, QVector3D)));
-    connect(mControlWidget, SIGNAL(showUserInterface()), mFlightPlanner, SLOT(slotShowUserInterface()));
+    connect(mControlWidget, &ControlWidget::setScanVolume, mFlightPlanner, &FlightPlannerInterface::slotSetScanVolume);
+    connect(mControlWidget, &ControlWidget::showUserInterface, mFlightPlanner, &FlightPlannerInterface::slotShowUserInterface);
 
     // Connect ControlWidget and FlightPlanner
-    connect(mControlWidget, SIGNAL(wayPoints(QList<WayPoint>*const,WayPointListSource)), mFlightPlanner, SLOT(slotSetWayPoints(QList<WayPoint>*const,WayPointListSource)));
-    connect(mFlightPlanner, SIGNAL(wayPoints(QList<WayPoint>*const,WayPointListSource)), mControlWidget, SLOT(slotSetWayPoints(QList<WayPoint>*const,WayPointListSource)));
+    connect(mControlWidget, &ControlWidget::wayPoints, mFlightPlanner, &FlightPlannerInterface::slotSetWayPoints);
+    connect(mFlightPlanner, &FlightPlannerInterface::wayPoints, mControlWidget, &ControlWidget::slotSetWayPoints);
 
-    connect(mGlWindow, SIGNAL(visualizeNow()), mFlightPlanner, SLOT(slotVisualize()));
-    connect(mGlWindow, SIGNAL(visualizeNow()), mPtuController, SLOT(slotVisualize()));
-    connect(mFlightPlanner, SIGNAL(suggestVisualization()), mGlWindow, SLOT(slotRenderLater()));
+    connect(mGlWindow, &GlWindow::visualizeNow, mFlightPlanner, &FlightPlannerInterface::slotVisualize);
+    connect(mGlWindow, &GlWindow::visualizeNow, mPtuController, &PtuController::slotVisualize);
+    connect(mFlightPlanner, &FlightPlannerInterface::suggestVisualization, mGlWindow, &GlWindow::slotRenderLater);
 
     mMenuFile->addAction("Load Cloud", this, SLOT(slotImportCloud()));
     mMenuFile->addAction("Save Cloud", this, SLOT(slotExportCloud()));
@@ -128,7 +128,7 @@ BaseStation::BaseStation() : QMainWindow()
     mMenuView->addAction(action);
     action->setCheckable(true);
     action->setChecked(false);
-    connect(mGlWindow, SIGNAL(rotating(bool)), action, SLOT(setChecked(bool)));
+    connect(mGlWindow, &GlWindow::rotating, action, &QAction::setChecked);
     connect(action, &QAction::triggered, [=](const bool &checked) {
         mGlWindow->slotEnableTimerRotation(checked);
     });
@@ -208,6 +208,14 @@ BaseStation::BaseStation() : QMainWindow()
     connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlWindow->mPointCloudPointAlpha = value; mGlWindow->slotRenderLater();});
     mMenuView->addAction(menuSlider);
 
+    menuSlider = new MenuSlider("Color Low", -5.0f, 0.0f, 10.0f, this);
+    connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlWindow->mPointCloudColorLow = value; mGlWindow->slotRenderLater();});
+    mMenuView->addAction(menuSlider);
+
+    menuSlider = new MenuSlider("Color High", 0.0f, 10.0f, 30.0f, this);
+    connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlWindow->mPointCloudColorHigh = value; mGlWindow->slotRenderLater();});
+    mMenuView->addAction(menuSlider);
+
     mActionEnableAudio = new QAction("Speech", this);
     mActionEnableAudio->setCheckable(true);
     mActionEnableAudio->setChecked(true);
@@ -248,46 +256,45 @@ BaseStation::BaseStation() : QMainWindow()
         }
         else
         {
-            connect(mJoystick, SIGNAL(motion(const MotionCommand* const)), mRoverConnection, SLOT(slotSendMotionToKopter(const MotionCommand* const)));
-            connect(mJoystick, SIGNAL(buttonStateChanged(quint8,bool)), SLOT(slotManageJoystick(quint8,bool)));
+            connect(mJoystick, &Joystick::motion, mRoverConnection, &RoverConnection::slotSendMotionToKopter);
+            connect(mJoystick, &Joystick::buttonStateChanged, this, &BaseStation::slotManageJoystick);
             mTimerJoystick = new QTimer(this);
-            connect(mTimerJoystick, SIGNAL(timeout()), mJoystick, SLOT(slotEmitMotionCommands()));
+            connect(mTimerJoystick, &QTimer::timeout, mJoystick, &Joystick::slotEmitMotionCommands);
         }
 
-        connect(mPidControllerWidget, SIGNAL(controllerWeight(QString, QMap<QChar,float>)), mRoverConnection, SLOT(slotSendControllerWeights(QString, QMap<QChar,float>)));
-//        connect(mRoverConnection, SIGNAL(flightControllerWeightsChanged()), mPidControllerWidget, SLOT(slotRebuild()));
+        connect(mPidControllerWidget, &PidControllerWidget::controllerWeight, mRoverConnection, &RoverConnection::slotSendControllerWeights);
+        connect(mRoverConnection, &RoverConnection::flightState, mControlWidget, &ControlWidget::slotFlightStateChanged);
+        connect(mRoverConnection, &RoverConnection::flightStateRestriction, mControlWidget, &ControlWidget::slotFlightStateRestrictionChanged);
 
-        connect(mRoverConnection, SIGNAL(flightState(FlightState*const)), mControlWidget, SLOT(slotFlightStateChanged(FlightState*const)));
+        connect(mRoverConnection, &RoverConnection::message, mLogWidget, &LogWidget::log);
 
-        connect(mRoverConnection, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
+        connect(mRoverConnection, &RoverConnection::vehiclePose, mControlWidget, &ControlWidget::slotUpdatePose);
+        connect(mRoverConnection, &RoverConnection::vehiclePose, mFlightPlanner, &FlightPlannerInterface::slotVehiclePoseChanged);
 
-        connect(mRoverConnection, SIGNAL(vehiclePose(const Pose* const)), mControlWidget, SLOT(slotUpdatePose(const Pose* const)));
-        connect(mRoverConnection, SIGNAL(vehiclePose(const Pose* const)), mFlightPlanner, SLOT(slotVehiclePoseChanged(const Pose* const)));
+        connect(mRoverConnection, &RoverConnection::vehiclePose, mPtuController, &PtuController::slotVehiclePoseChanged);
 
-        connect(mRoverConnection, SIGNAL(vehiclePose(const Pose* const)), mPtuController, SLOT(slotVehiclePoseChanged(const Pose* const)));
+        connect(mRoverConnection, &RoverConnection::vehiclePose, mGlWindow, &GlWindow::slotNewVehiclePose);
 
-        connect(mRoverConnection, SIGNAL(vehiclePose(const Pose* const)), mGlWindow, SLOT(slotNewVehiclePose(const Pose* const)));
+        connect(mRoverConnection, &RoverConnection::connectionStatusRover, mControlWidget, &ControlWidget::slotUpdateConnectionRover);
 
-        connect(mRoverConnection, SIGNAL(connectionStatusRover(const bool)), mControlWidget, SLOT(slotUpdateConnectionRover(const bool)));
+        connect(mRoverConnection, &RoverConnection::scanData, mFlightPlanner, &FlightPlannerInterface::slotNewScanFused);
+        connect(mRoverConnection, &RoverConnection::vehicleStatus, mControlWidget, &ControlWidget::slotUpdateVehicleStatus);
+        connect(mRoverConnection, &RoverConnection::gnssStatus, mControlWidget, &ControlWidget::slotUpdateGnssStatus);
+        connect(mRoverConnection, &RoverConnection::flightControllerValues, this, &BaseStation::slotSetFlightControllerValues);
 
-        connect(mRoverConnection, SIGNAL(scanData(float*const, quint32, QVector3D*const)), mFlightPlanner, SLOT(slotNewScanFused(float*const,quint32,QVector3D*const)));
-        connect(mRoverConnection, SIGNAL(vehicleStatus(const VehicleStatus* const)), mControlWidget, SLOT(slotUpdateVehicleStatus(const VehicleStatus* const)));
-        connect(mRoverConnection, SIGNAL(gnssStatus(const GnssStatus* const)), mControlWidget, SLOT(slotUpdateGnssStatus(const GnssStatus* const)));
-        connect(mRoverConnection, SIGNAL(flightControllerValues(const FlightControllerValues* const)), SLOT(slotSetFlightControllerValues(const FlightControllerValues* const)));
+        connect(mRoverConnection, &RoverConnection::wayPointReachedByRover, mFlightPlanner, &FlightPlannerInterface::slotWayPointReached);
 
-        connect(mRoverConnection, SIGNAL(wayPointReachedByRover(WayPoint)), mFlightPlanner, SLOT(slotWayPointReached(WayPoint)));
-
-        connect(mRoverConnection, SIGNAL(wayPoints(QList<WayPoint>*const,WayPointListSource)), mFlightPlanner, SLOT(slotSetWayPoints(QList<WayPoint>*const,WayPointListSource)));
-        connect(mFlightPlanner, SIGNAL(wayPoints(QList<WayPoint>*const,WayPointListSource)), mRoverConnection, SLOT(slotSetWayPoints(QList<WayPoint>*const,WayPointListSource)));
+        connect(mRoverConnection, &RoverConnection::wayPoints, mFlightPlanner, &FlightPlannerInterface::slotSetWayPoints);
+        connect(mFlightPlanner, &FlightPlannerInterface::wayPoints, mRoverConnection, &RoverConnection::slotSetWayPoints);
 
         mDiffCorrFetcher = new DiffCorrFetcher(mConnectionDialog->getRtkBaseHostName(), mConnectionDialog->getRtkBasePort(), this);
-        connect(mDiffCorrFetcher, SIGNAL(differentialCorrections(QByteArray)), mRoverConnection, SLOT(slotSendDiffCorrToRover(QByteArray)));
-        connect(mDiffCorrFetcher, SIGNAL(connectionStatus(bool)), mControlWidget, SLOT(slotUpdateConnectionDiffCorr(bool)));
+        connect(mDiffCorrFetcher, &DiffCorrFetcher::differentialCorrections, mRoverConnection, &RoverConnection::slotSendDiffCorrToRover);
+        connect(mDiffCorrFetcher, &DiffCorrFetcher::connectionStatus, mControlWidget, &ControlWidget::slotUpdateConnectionDiffCorr);
 
         menuBar()->addAction("Connect", mRoverConnection, SLOT(slotConnectToRover()));
 
         mAudioPlayer = new AudioPlayer;
-        connect(mRoverConnection, SIGNAL(gnssStatus(const GnssStatus* const)), this, SLOT(slotSpeakGnssStatus(const GnssStatus* const)));
+        connect(mRoverConnection, &RoverConnection::gnssStatus, this, &BaseStation::slotSpeakGnssStatus);
         mActionEnableAudio->setChecked(true); // enable audio out by default when in the field
 
         mRoverConnection->slotConnectToRover();
@@ -299,28 +306,24 @@ BaseStation::BaseStation() : QMainWindow()
         mLogPlayer->setAllowedAreas(Qt::AllDockWidgetAreas);
         addDockWidget(Qt::BottomDockWidgetArea, mLogPlayer);
         mMenuWindowList->addAction("Log Player", this, SLOT(slotToggleLogPlayer()));
-        connect(mLogPlayer, SIGNAL(message(LogImportance,QString,QString)), mLogWidget, SLOT(log(LogImportance,QString,QString)));
-        connect(mLogPlayer, SIGNAL(vehiclePose(Pose*const)), mControlWidget, SLOT(slotUpdatePose(Pose* const)));
-        connect(mLogPlayer, SIGNAL(vehiclePose(Pose* const)), mFlightPlanner, SLOT(slotVehiclePoseChanged(Pose* const)));
-        connect(mLogPlayer, SIGNAL(scanRaw(RawScan*const)), mGlWindow, SLOT(slotNewRawScan(RawScan*const)));
+        connect(mLogPlayer, &LogPlayer::message, mLogWidget, &LogWidget::log);
+        connect(mLogPlayer, &LogPlayer::vehiclePose, mControlWidget, &ControlWidget::slotUpdatePose);
+        connect(mLogPlayer, &LogPlayer::vehiclePose, mFlightPlanner, &FlightPlannerInterface::slotVehiclePoseChanged);
+        connect(mLogPlayer, &LogPlayer::scanRaw, mGlWindow, &GlWindow::slotNewRawScan);
 
-        //connect(mLogPlayer, SIGNAL(vehiclePoseLowFreq(Pose)), mPtuController, SLOT(slotVehiclePoseChanged(Pose)));
-        connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mPtuController, SLOT(slotVehiclePoseChanged(const Pose* const)));
+        connect(mLogPlayer, &LogPlayer::vehiclePose, mPtuController, &PtuController::slotVehiclePoseChanged);
 
-        connect(mLogPlayer, SIGNAL(vehiclePose(const Pose* const)), mGlWindow, SLOT(slotNewVehiclePose(const Pose* const)));
-        connect(mLogPlayer, SIGNAL(scanFused(float*const, quint32, QVector3D*const)), mFlightPlanner, SLOT(slotNewScanFused(float*const,quint32,QVector3D*const)));
-    //    connect(mLogPlayer, SIGNAL(vehicleStatus(quint32,float,qint16,qint8)), this, SLOT(slotNewVehicleStatus(quint32,float,qint16,qint8)));
-        connect(mLogPlayer, SIGNAL(gnssStatus(const GnssStatus* const)), mControlWidget, SLOT(slotUpdateGnssStatus(const GnssStatus* const)));
+        connect(mLogPlayer, &LogPlayer::vehiclePose, mGlWindow, &GlWindow::slotNewVehiclePose);
+        connect(mLogPlayer, &LogPlayer::scanFused, mFlightPlanner, &FlightPlannerInterface::slotNewScanFused);
+        connect(mLogPlayer, &LogPlayer::gnssStatus, mControlWidget, &ControlWidget::slotUpdateGnssStatus);
 
         mAudioPlayer = new AudioPlayer;
-        connect(mLogPlayer, SIGNAL(gnssStatus(const GnssStatus* const)), this, SLOT(slotSpeakGnssStatus(const GnssStatus* const)));
+        connect(mLogPlayer, &LogPlayer::gnssStatus, this, &BaseStation::slotSpeakGnssStatus);
 
         mPidControllerWidget->setEnabled(false); // do not allow changes to PID values while playing a recorded flight.
         mPidControllerWidget->setControllers(mLogPlayer->getFlightControllerValues()); // set this once. Table is rebuilt when signal from roverconnection comes in
-//        connect(mLogPlayer, SIGNAL(flightControllerWeightsChanged()), mPidControllerWidget, SLOT(slotRebuild()));
 
-
-        connect(mLogPlayer, SIGNAL(flightControllerValues(const FlightControllerValues* const)), SLOT(slotSetFlightControllerValues(const FlightControllerValues* const)));
+        connect(mLogPlayer, &LogPlayer::flightControllerValues, this, &BaseStation::slotSetFlightControllerValues);
 
         mLogWidget->log(Information, "BaseStation::BaseStation()", "Working offline, disabling RoverConnection+RtkFetcher, enabling LogPlayer.");
     }
@@ -342,7 +345,7 @@ BaseStation::~BaseStation()
     delete mDiffCorrFetcher;
     delete mTimerJoystick;
     delete mGlWindow;
-    delete mWirelessDevice;
+    //delete mWirelessDevice;
     delete mAudioPlayer;
     delete mPointCloud;
 }

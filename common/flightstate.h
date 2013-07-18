@@ -9,7 +9,7 @@ class FlightState
 {
 public:
 
-    enum class Value
+    enum class State
     {
         UserControl,
         Hover,
@@ -18,19 +18,19 @@ public:
         Undefined
     };
 
-    FlightState() : state(Value::Undefined) {}
-    FlightState(const Value s) : state(s) {}
+    FlightState() : state(State::Undefined) {}
+    FlightState(const State s) : state(s) {}
 //    FlightState(const QString s) {state = FlightState::fromString(s);}
 
-    Value state;
+    State state;
 
     QString toString() const {return FlightState::toString(state);}
 
     bool operator==(FlightState const& other) const {return other.state == state;}
     bool operator!=(FlightState const& other) const {return other.state != state;}
 
-    bool operator==(FlightState::Value const& other) const {return other == state;}
-    bool operator!=(FlightState::Value const& other) const {return other != state;}
+    bool operator==(FlightState::State const& other) const {return other == state;}
+    bool operator!=(FlightState::State const& other) const {return other != state;}
 
 
     FlightState &operator=(const FlightState& other);
