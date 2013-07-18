@@ -1,4 +1,5 @@
 #include "controlwidget.h"
+#include "flightstaterestriction.h"
 #include <QFileDialog>
 #include <QMessageBox>
 
@@ -108,7 +109,13 @@ void ControlWidget::slotFlightStateChanged(const FlightState* const fs)
 {
     qDebug() << "ControlWidget::slotFlightStateChanged(): flightstate changed to" << fs->toString();
     mLabelFlightState->setText(fs->toString());
-    if(fs->state != FlightState::Value::Undefined) mLabelFlightState->setStyleSheet(""); else mLabelFlightState->setStyleSheet(getBackgroundCss(true, false));
+    if(fs->state != FlightState::State::Undefined) mLabelFlightState->setStyleSheet(""); else mLabelFlightState->setStyleSheet(getBackgroundCss(true, false));
+}
+
+void ControlWidget::slotFlightStateRestrictionChanged(const FlightStateRestriction* const fsr)
+{
+    qDebug() << "ControlWidget::slotFlightStateRestrictionChanged(): flightstaterestriction changed to" << fsr->toString();
+    mLabelFlightStateRestriction->setText(fsr->toString().replace("Restriction", ""));
 }
 
 void ControlWidget::slotUpdatePose(const Pose * const pose)

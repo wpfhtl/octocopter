@@ -276,7 +276,7 @@ void checkGoalCellD(unsigned char* gridValues, unsigned int numCells, unsigned i
 
     if(valueInGoalCell < 254)
     {
-        return 0;
+        return;
     }
     else
     {
@@ -290,7 +290,7 @@ void checkGoalCellD(unsigned char* gridValues, unsigned int numCells, unsigned i
             neighborsSearchOrder[2*i-1] = -i;
         }
 
-        for(...)
+        //for(...)
 
         delete neighborsSearchOrder;
     }
@@ -323,7 +323,7 @@ GoalCellStatus checkGoalCell(unsigned char* gridValues, unsigned int numCells, u
     {
         return GoalCellMoved;
     }
-    if(statusHost == 2)
+    else
     {
         return GoalCellBlocked;
     }

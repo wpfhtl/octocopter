@@ -9,7 +9,7 @@
 #include "gnsstime.h"
 #include "logfile.h"
 #include "flightstate.h"
-#include "flightstateswitch.h"
+#include "flightstaterestriction.h"
 #include "flightcontrollervalues.h"
 #include <laserscanner.h>
 #include "pose.h"
@@ -150,7 +150,7 @@ private:
 
     // A structure mapping for each flightstate: controller => weights.
     QMap<
-        FlightState::Value,
+        FlightState::State,
         QMap<
             PidController*,
             QMap<

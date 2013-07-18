@@ -4,10 +4,10 @@ QString FlightState::toString(const FlightState& fs)
 {
     switch(fs.state)
     {
-    case FlightState::Value::UserControl: return "UserControl"; break;
-    case FlightState::Value::ApproachWayPoint: return "ApproachWayPoint"; break;
-    case FlightState::Value::Hover: return "Hover"; break;
-    case FlightState::Value::Idle: return "Idle"; break;
+    case FlightState::State::UserControl: return "UserControl"; break;
+    case FlightState::State::ApproachWayPoint: return "ApproachWayPoint"; break;
+    case FlightState::State::Hover: return "Hover"; break;
+    case FlightState::State::Idle: return "Idle"; break;
     default:
         qDebug() << "FlightState::toString(): WARNING, state" << (quint8)fs.state << "is undefined!";
         return "Undefined";
@@ -19,15 +19,15 @@ QString FlightState::toString(const FlightState& fs)
 FlightState FlightState::fromString(const QString& flightStateString)
 {
     if(flightStateString == "UserControl")
-        return FlightState(FlightState::Value::UserControl);
+        return FlightState(FlightState::State::UserControl);
     else if(flightStateString == "ApproachWayPoint")
-        return FlightState(FlightState::Value::ApproachWayPoint);
+        return FlightState(FlightState::State::ApproachWayPoint);
     if(flightStateString == "Hover")
-        return FlightState(FlightState::Value::Hover);
+        return FlightState(FlightState::State::Hover);
     if(flightStateString == "Idle")
-        return FlightState(FlightState::Value::Idle);
+        return FlightState(FlightState::State::Idle);
     if(flightStateString == "Undefined")
-        return FlightState(FlightState::Value::Undefined);
+        return FlightState(FlightState::State::Undefined);
 
     qDebug() << "FlightState::fromString(): undefined flightstate string:" << flightStateString;
 }
@@ -49,6 +49,6 @@ QDataStream& operator>>(QDataStream &in, FlightState& fs)
 {
     quint8 state;
     in >> state;
-    fs.state = static_cast<FlightState::Value>(state);
+    fs.state = static_cast<FlightState::State>(state);
     return in;
 }

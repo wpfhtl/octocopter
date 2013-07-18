@@ -40,6 +40,7 @@ set(SRC_FILES
     ../common/baseconnection
     ../common/logfile
     ../common/flightstate
+    ../common/flightstaterestriction
     ../common/flightcontroller
     ../common/pidcontroller
     ../common/flightcontrollervalues
@@ -73,6 +74,7 @@ set(INC_FILES
     ../common/baseconnection.h
     ../common/logfile.h
     ../common/flightstate.h
+    ../common/flightstaterestriction.h
     ../common/flightcontroller.h
     ../common/pidcontroller.h
     ../common/flightcontrollervalues.h

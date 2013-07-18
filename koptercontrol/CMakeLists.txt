@@ -33,7 +33,7 @@ hokuyo
 ../common/common
 ../common/motioncommand
 ../common/flightstate
-../common/flightstateswitch
+../common/flightstaterestriction
 ../common/pose
 ../common/rawscan
 ../common/waypoint
@@ -63,7 +63,7 @@ hokuyo.h
 ../common/common.h
 ../common/motioncommand.h
 ../common/flightstate.h
-../common/flightstateswitch.h
+../common/flightstaterestriction.h
 ../common/pose.h
 ../common/rawscan.h
 ../common/waypoint.h

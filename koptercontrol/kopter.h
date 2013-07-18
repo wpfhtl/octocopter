@@ -8,7 +8,7 @@
 #include <QDebug>
 
 #include "koptermessage.h"
-#include "flightstateswitch.h"
+#include "flightstaterestriction.h"
 #include "motioncommand.h"
 #include "vehiclestatus.h"
 #include "common.h"

@@ -36,8 +36,8 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
     weights.insert('d', 10.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerPitch, weights);
     controllerWeights.insert(&mFlightControllerValues.controllerRoll, weights);
-    mFlightControllerWeights.insert(FlightState::Value::Hover, controllerWeights);
-    mFlightControllerWeights.insert(FlightState::Value::ApproachWayPoint, controllerWeights);
+    mFlightControllerWeights.insert(FlightState::State::Hover, controllerWeights);
+    mFlightControllerWeights.insert(FlightState::State::ApproachWayPoint, controllerWeights);
 
     // If we don't use a laserscanner (for whatever reason, during testing),
     // set mFlightControllerValues.lastKnownHeightOverGround to 1.0 so it doesn't prevent pitch/roll
@@ -45,7 +45,7 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
 
     mMaxFlightVelPerAxis = 1.0f;
 
-    setFlightState(FlightState(FlightState::Value::UserControl));
+    setFlightState(FlightState(FlightState::State::UserControl));
 }
 
 FlightController::~FlightController()
@@ -62,7 +62,7 @@ FlightController::~FlightController()
 void FlightController::slotComputeBackupMotion()
 {
     qDebug() << "FlightController::slotComputeBackupMotion(): no pose for" << mBackupTimerComputeMotion->interval() << "ms, flightstate" << mFlightControllerValues.flightState.toString() << ": starting backup motion computation.";
-    Q_ASSERT(mFlightControllerValues.flightState != FlightState::Value::UserControl && "FlightController::slotComputeBackupMotion(): i was called in FlightState UserControl");
+    Q_ASSERT(mFlightControllerValues.flightState != FlightState::State::UserControl && "FlightController::slotComputeBackupMotion(): i was called in FlightState UserControl");
     slotComputeMotionCommands();
 }
 
@@ -71,15 +71,15 @@ void FlightController::slotComputeBackupMotion()
 // the helicopter to start bouncing in the air. We need to test this!
 void FlightController::slotComputeMotionCommands()
 {
-    Q_ASSERT(mFlightControllerValues.flightState != FlightState::Value::UserControl && "FlightController::slotComputeMotionCommands(): i was called in FlightState UserControl");
-    Q_ASSERT(mFlightControllerValues.flightState != FlightState::Value::Undefined && "FlightController::slotComputeMotionCommands(): i was called in FlightState Undefined");
+    Q_ASSERT(mFlightControllerValues.flightState != FlightState::State::UserControl && "FlightController::slotComputeMotionCommands(): i was called in FlightState UserControl");
+    Q_ASSERT(mFlightControllerValues.flightState != FlightState::State::Undefined && "FlightController::slotComputeMotionCommands(): i was called in FlightState Undefined");
 
-    if(mFlightControllerValues.flightState.state == FlightState::Value::Idle)
+    if(mFlightControllerValues.flightState.state == FlightState::State::Idle)
     {
         qDebug() << "FlightController::slotComputeMotionCommands(): FlightState: Idle, emitting idle-thrust.";
         mFlightControllerValues.motionCommand = MotionCommand((quint8)90, 0.0f, 0.0f, 0.0f);
     }
-    else if(mFlightControllerValues.flightState.state == FlightState::Value::ApproachWayPoint || mFlightControllerValues.flightState.state == FlightState::Value::Hover)
+    else if(mFlightControllerValues.flightState.state == FlightState::State::ApproachWayPoint || mFlightControllerValues.flightState.state == FlightState::State::Hover)
     {
         // Can be overridden with better non-default values below
         mFlightControllerValues.motionCommand = MotionCommand(MotionCommand::thrustHover, 0.0f, 0.0f, 0.0f);
@@ -93,7 +93,7 @@ void FlightController::slotComputeMotionCommands()
 
             // See how we can reach hoverPosition by pitching and rolling
 
-            if(mFlightControllerValues.flightState.state == FlightState::Value::ApproachWayPoint)
+            if(mFlightControllerValues.flightState.state == FlightState::State::ApproachWayPoint)
             {
                 // positionStart has been set already, lets define positionGoal. As that may change in-flight,
                 // we re-set it here in every iteration.
@@ -111,7 +111,7 @@ void FlightController::slotComputeMotionCommands()
                             mFlightControllerValues.lastKnownPose.getPosition(),
                             2.0f);
             }
-            else if(mFlightControllerValues.flightState.state == FlightState::Value::Hover)
+            else if(mFlightControllerValues.flightState.state == FlightState::State::Hover)
             {
                 // We want to point exactly away from the origin, because thats probably where the user is
                 // standing - steering is easier if the vehicle's forward arm points away from the user.
@@ -218,7 +218,7 @@ void FlightController::slotComputeMotionCommands()
             mFlightControllerValues.motionCommand = MotionCommand(outputThrust, outputYaw, outputPitch, outputRoll);
 
             // See whether we've reached the waypoint
-            if(mFlightControllerValues.flightState.state == FlightState::Value::ApproachWayPoint && mFlightControllerValues.lastKnownPose.getPosition().distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < 0.80f) // close to wp
+            if(mFlightControllerValues.flightState.state == FlightState::State::ApproachWayPoint && mFlightControllerValues.lastKnownPose.getPosition().distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < 0.80f) // close to wp
             {
                 nextWayPointReached();
             }
@@ -288,7 +288,7 @@ void FlightController::slotLiftHoverPosition()
 {
     //mImuOffsets.doCalibration();
     // raise the hoverpos by 1.5m to start the flight.
-    if(mFlightControllerValues.flightState == FlightState::Value::Hover)
+    if(mFlightControllerValues.flightState == FlightState::State::Hover)
     {
         qDebug() << "FlightController::slotLiftHoverPosition(): hovering, raising hoverpos and trajectorygoal by 1.5m - please step back!";
         mFlightControllerValues.hoverPosition  += QVector3D(0.0f, 1.5f, 0.0f);
@@ -298,7 +298,7 @@ void FlightController::slotLiftHoverPosition()
 
 void FlightController::nextWayPointReached()
 {
-    Q_ASSERT(mFlightControllerValues.flightState == FlightState::Value::ApproachWayPoint && "FlightController::nextWayPointReached(): reached waypoint, but am not in ApproachWayPoint state. Expect trouble!");
+    Q_ASSERT(mFlightControllerValues.flightState == FlightState::State::ApproachWayPoint && "FlightController::nextWayPointReached(): reached waypoint, but am not in ApproachWayPoint state. Expect trouble!");
 
     mTrajectoryProgress = 0.0f;
 
@@ -326,15 +326,18 @@ void FlightController::slotSetWayPoints(const QList<WayPoint>& wayPoints, const 
         mWayPoints = wayPoints;
 
         // Just in case we were idle before...
-        if(mFlightControllerValues.flightState == FlightState::Value::Idle && mWayPoints.size())
+        if(mFlightControllerValues.flightState == FlightState::State::Idle && mWayPoints.size() && mFlightControllerValues.flightStateRestriction.allowsFlightState(FlightState::State::ApproachWayPoint))
         {
-            qDebug() << "FlightController::slotSetWayPoints(): we were idle and got new waypoints, switching to ApproachWayPoint";
-            setFlightState(FlightState::Value::ApproachWayPoint);
+            qDebug() << "FlightController::slotSetWayPoints(): we were idle, got new waypoints and FlightStateRestriction" << mFlightControllerValues.flightStateRestriction.toString() << "allows it, switching to ApproachWayPoint";
+            setFlightState(FlightState::State::ApproachWayPoint);
         }
 
-        // The list might now be empty, so we might have to land.
-        if(mFlightControllerValues.flightState == FlightState::Value::ApproachWayPoint)
+        // The list might now be empty, so we might have to hover.
+        if(mFlightControllerValues.flightState == FlightState::State::ApproachWayPoint)
+        {
+            qDebug() << "FlightController::slotSetWayPoints(): we are in ApproachWayPoint, we need to ensureSafeFlightAfterWaypointsChanged()...";
             ensureSafeFlightAfterWaypointsChanged();
+        }
     }
 }
 
@@ -354,7 +357,7 @@ void FlightController::slotNewVehiclePose(const Pose* const pose)
 
     switch(mFlightControllerValues.flightState.state)
     {
-    case FlightState::Value::UserControl:
+    case FlightState::State::UserControl:
     {
         // Keep ourselves disabled in UserControl.
         // why should we logFlightControllerValues(); ???
@@ -362,7 +365,7 @@ void FlightController::slotNewVehiclePose(const Pose* const pose)
         break;
     }
 
-    case FlightState::Value::Idle:
+    case FlightState::State::Idle:
     {
         // Lets compute motion (although its really simple in this case)
         slotComputeMotionCommands();
@@ -371,7 +374,7 @@ void FlightController::slotNewVehiclePose(const Pose* const pose)
         break;
     }
 
-    case FlightState::Value::ApproachWayPoint:
+    case FlightState::State::ApproachWayPoint:
     {
         Q_ASSERT(mBackupTimerComputeMotion->interval() == backupTimerIntervalFast && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): ApproachWayPoint has inactive backup timer or wrong interval!");
 
@@ -390,7 +393,7 @@ void FlightController::slotNewVehiclePose(const Pose* const pose)
         break;
     }
 
-    case FlightState::Value::Hover:
+    case FlightState::State::Hover:
     {
         Q_ASSERT(mBackupTimerComputeMotion->interval() == backupTimerIntervalFast && mBackupTimerComputeMotion->isActive() && "FlightController::slotNewVehiclePose(): Hover has inactive backup timer or wrong interval!");
 
@@ -419,6 +422,12 @@ void FlightController::setFlightState(FlightState newFlightState)
 {
     qDebug() << "FlightController::setFlightState():" << mFlightControllerValues.flightState.toString() << "=>" << newFlightState.toString();
 
+    if(!mFlightControllerValues.flightStateRestriction.allowsFlightState(newFlightState.state))
+    {
+        qDebug() << "FlightController::setFlightState(): restriction" << mFlightControllerValues.flightStateRestriction.toString() << "does not allow flightstate" << newFlightState.toString();
+        Q_ASSERT(false);
+    }
+
     if(mFlightControllerValues.flightState == newFlightState)
     {
         qDebug() << "FlightController::setFlightState(): switching to same flightstate doesn't make much sense, returning.";
@@ -444,7 +453,6 @@ void FlightController::setFlightState(FlightState newFlightState)
         mFlightControllerValues.controllerPitch.setWeights(0.0f, 0.0f, 0.0f);
         mFlightControllerValues.controllerRoll.setWeights(0.0f, 0.0f, 0.0f);
     }
-    
 
     // When switching from ApproachWaypoint or Hover to something manual, we want these members to be cleared for easier debugging.
     mFlightControllerValues.controllerThrust.reset();
@@ -459,9 +467,8 @@ void FlightController::setFlightState(FlightState newFlightState)
 
     switch(newFlightState.state)
     {
-    case FlightState::Value::ApproachWayPoint:
+    case FlightState::State::ApproachWayPoint:
     {
-
         // Set the new flightstate, even if we possibly revert that next.
         mFlightControllerValues.flightState = newFlightState;
 
@@ -471,7 +478,7 @@ void FlightController::setFlightState(FlightState newFlightState)
 
             // It is important that flightstate was already set to ApproachWaypoint above. If it was
             // still left in e.g. Hover, then calling setFlightState(Hover) could cause problems.
-            setFlightState(FlightState::Value::Hover);
+            setFlightState(FlightState::State::Hover);
             return;
         }
 
@@ -485,11 +492,10 @@ void FlightController::setFlightState(FlightState newFlightState)
 
         // We're going to use the controllers, so make sure to initialize them.
         initializeControllers();
-
         break;
     }
 
-    case FlightState::Value::Hover:
+    case FlightState::State::Hover:
     {
         // When going to hover, we want the vehicle to stay almost at its current position, but just a little below.
         // This is to ease the start-procedure: When in UserControl on the ground, we switch to hover, setting the
@@ -516,7 +522,7 @@ void FlightController::setFlightState(FlightState newFlightState)
         break;
     }
 
-    case FlightState::Value::UserControl:
+    case FlightState::State::UserControl:
     {
         // We don't need the timer, as the remote control will overrule our output anyway.
         qDebug() << "FlightController::setFlightState(): disabling backup motion timer.";
@@ -525,7 +531,7 @@ void FlightController::setFlightState(FlightState newFlightState)
         break;
     }
 
-    case FlightState::Value::Idle:
+    case FlightState::State::Idle:
     {
         qDebug() << "FlightController::setFlightState(): setting backup motion timer to low-freq";
         mBackupTimerComputeMotion->start(backupTimerIntervalSlow);
@@ -586,13 +592,12 @@ bool FlightController::isHeightOverGroundValueRecent() const
 //  - descend slowly if heightOverGround is unknown
 void FlightController::ensureSafeFlightAfterWaypointsChanged()
 {
-
-    Q_ASSERT(mFlightControllerValues.flightState == FlightState::Value::ApproachWayPoint && "FlightController::ensureSafeFlightAfterWaypointsChanged(): flightstate is NOT ApproachWayPoint!");
+    Q_ASSERT(mFlightControllerValues.flightState == FlightState::State::ApproachWayPoint && "FlightController::ensureSafeFlightAfterWaypointsChanged(): flightstate is NOT ApproachWayPoint!");
 
     if(mWayPoints.size() == 0)
     {
         qDebug() << "FlightController::ensureSafeFlightAfterWaypointsChanged(): wpt list is empty, going to hover";
-        setFlightState(FlightState::Value::Hover);
+        setFlightState(FlightState::State::Hover);
 
         /* Landing and shutdown - still too untested
         // The method has debug output, so call it just once for now.
@@ -629,91 +634,113 @@ void FlightController::ensureSafeFlightAfterWaypointsChanged()
 
 void FlightController::slotFlightStateRestrictionChanged(const FlightStateRestriction* const fsr)
 {
-    // This method does nothing more than some sanity checks and verbose flightstae switching.
+    // This method adapts the flightstate to the new restriction coming in from the user
 
-    qDebug() << __PRETTY_FUNCTION__ << "flightstate" << mFlightControllerValues.flightState.toString() << "FlightStateRestriction changed to:" << fsr->toString();
+    qDebug() << __PRETTY_FUNCTION__ << "flightstate" << mFlightControllerValues.flightState.toString() << ": restriction changed from" << mFlightControllerValues.flightStateRestriction.toString() << "to:" << fsr->toString();
+
+    mFlightControllerValues.flightStateRestriction.restriction = fsr->restriction;
 
     switch(mFlightControllerValues.flightState.state)
     {
-    case FlightState::Value::UserControl:
+    case FlightState::State::UserControl:
         switch(fsr->restriction)
-        {asd
+        {
         case FlightStateRestriction::Restriction::RestrictionUserControl:
             // This is an illegal state: We are already in UserControl, and now we're
-            // told that the user has disabled computerControl. Thats impossible.
-            Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in UserControl and now user switched to UserControl. Error.");
+            // told that the user restricts us to UserControl. Thats impossible.
+            Q_ASSERT(false && "We're in FlightState UserControl and now user restricts us to UserControl. Error.");
             break;
         case FlightStateRestriction::Restriction::RestrictionHover:
-            setFlightState(FlightState::Value::Hover);
+            qDebug() << __PRETTY_FUNCTION__ << "going to flightstate hover";
+            setFlightState(FlightState::State::Hover);
             break;
         case FlightStateRestriction::Restriction::RestrictionNone:
-            // We are in UserControl, but switching to ComputerControl.
-            setFlightState(FlightState::Value::ApproachWayPoint);
+            // We are in UserControl, but restrictions have been lifted. If we have waypoints, approach them. Else, hover.
+            if(mWayPoints.size())
+            {
+                qDebug() << __PRETTY_FUNCTION__ << "no restrictions, waypoints present. Going to ApproachWaypoint.";
+                setFlightState(FlightState::State::ApproachWayPoint);
+            }
+            else
+            {
+                qDebug() << __PRETTY_FUNCTION__ << "no restrictions, no waypoints. Going to Hover.";
+                setFlightState(FlightState::State::Hover);
+            }
             break;
         default:
-            Q_ASSERT("FlightController::slotFlightStateSwitchValueChanged(): Undefined FlightStateSwitchValue!");
+            Q_ASSERT("FlightController::slotFlightStateSwitchValueChanged(): Undefined Restriction!");
             break;
         }
         break;
 
-    case FlightState::Value::ApproachWayPoint:
+    case FlightState::State::ApproachWayPoint:
         switch(fsr->restriction)
         {
         case FlightStateRestriction::Restriction::RestrictionUserControl:
             // We are approaching waypoints, but the user wants to take over control. Ok.
-            setFlightState(FlightState::Value::UserControl);
+            qDebug() << __PRETTY_FUNCTION__ << "Restriction to UserControl, going to FlightState UserControl";
+            setFlightState(FlightState::State::UserControl);
             break;
         case FlightStateRestriction::Restriction::RestrictionHover:
-            setFlightState(FlightState::Value::Hover);
+            qDebug() << __PRETTY_FUNCTION__ << "Restriction to Hover, going to FlightState Hover";
+            setFlightState(FlightState::State::Hover);
             break;
         case FlightStateRestriction::Restriction::RestrictionNone:
             // We are approaching waypoints, and now the user changed to ComputerControl?
             // Thats impossible, because we are already in ComputerControl (ApproachWayPoint)
-            Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in ApproachWayPoint and now user switched to ApproachWayPoint. Error.");
+            Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in ApproachWayPoint and now user removed restrictions. Error.");
             break;
         default:
-            Q_ASSERT("FlightController::slotFlightStateSwitchValueChanged(): Undefined FlightStateSwitchValue!");
+            Q_ASSERT("FlightController::slotFlightStateSwitchValueChanged(): Undefined Restriction!");
             break;
         }
         break;
 
-    case FlightState::Value::Hover:
+    case FlightState::State::Hover:
         switch(fsr->restriction)
         {
         case FlightStateRestriction::Restriction::RestrictionUserControl:
             // We are approaching waypoints, but the user wants to take over control. Ok.
-            setFlightState(FlightState::Value::UserControl);
+            qDebug() << __PRETTY_FUNCTION__ << "Restriction to UserControl, going from Hover to FlightState UserControl";
+            setFlightState(FlightState::State::UserControl);
             break;
         case FlightStateRestriction::Restriction::RestrictionHover:
-            Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): we're in Hover and now user switched to Hover. Error.");
+            qDebug() << __PRETTY_FUNCTION__ << "Restriction to Hover, staying in FlightState Hover";
             break;
         case FlightStateRestriction::Restriction::RestrictionNone:
-            setFlightState(FlightState::Value::ApproachWayPoint);
+            if(mWayPoints.size())
+            {
+                qDebug() << __PRETTY_FUNCTION__ << "no restrictions, waypoints present. Going to ApproachWaypoint.";
+                setFlightState(FlightState::State::ApproachWayPoint);
+            }
+            else
+            {
+                qDebug() << __PRETTY_FUNCTION__ << "no restrictions, no waypoints. Staying in Hover.";
+            }
             break;
         default:
-            Q_ASSERT("FlightController::slotFlightStateSwitchValueChanged(): Undefined FlightStateSwitchValue!");
+            Q_ASSERT("FlightController::slotFlightStateSwitchValueChanged(): Undefined Restriction!");
             break;
         }
         break;
 
-    case FlightState::Value::Idle:
+    case FlightState::State::Idle:
         switch(fsr->restriction)
         {
         case FlightStateRestriction::Restriction::RestrictionUserControl:
             // We are idling, but the user wants to take over control. Ok.
-            setFlightState(FlightState::Value::UserControl);
+            qDebug() << __PRETTY_FUNCTION__ << "Restriction to UserControl, going from Idle to FlightState UserControl";
+            setFlightState(FlightState::State::UserControl);
             break;
         case FlightStateRestriction::Restriction::RestrictionHover:
             // We are idling, but the user wants us to hover. Hovering on the ground is not healthy!
-            qDebug() << "FlightController::slotFlightStateSwitchValueChanged(): going from idle to hover, this doesn't seem like a good idea, as the current height will be kept.";
-            setFlightState(FlightState::Value::Hover);
+            qDebug() << __PRETTY_FUNCTION__ << "Restriction to Hover. Thats fine, staying in Idle";
             break;
         case FlightStateRestriction::Restriction::RestrictionNone:
-            // We are in UserControl, but switching to ComputerControl.
-            setFlightState(FlightState::Value::ApproachWayPoint);
+            qDebug() << __PRETTY_FUNCTION__ << "No Restriction. Thats fine, staying in Idle";
             break;
         default:
-            Q_ASSERT("FlightController::slotFlightStateSwitchValueChanged(): Undefined FlightStateSwitchValue!");
+            Q_ASSERT("FlightController::slotFlightStateSwitchValueChanged(): Undefined Restriction!");
             break;
         }
         break;
@@ -722,7 +749,7 @@ void FlightController::slotFlightStateRestrictionChanged(const FlightStateRestri
         Q_ASSERT(false && "FlightController::slotFlightStateSwitchValueChanged(): illegal flightstate!");
     }
 
-    qDebug() << "FlightController::slotFlightStateSwitchValueChanged(): done, new flightstate" << mFlightControllerValues.flightState.toString();
+    qDebug() << __PRETTY_FUNCTION__ << "done, new flightstate" << mFlightControllerValues.flightState.toString();
 }
 
 void FlightController::slotEmitFlightControllerInfo()
@@ -741,12 +768,12 @@ void FlightController::slotSetControllerWeights(const QString* const controllerN
 
 //    QMap<PidController*, QMap<QChar,float> > controllerWeights;
 
-    FlightState::Value assignedFlightState;
+    FlightState::State assignedFlightState;
 
     // To which flightstate do we want to assing the new weights? By default, we assign to
     // the current flightstate - if we're in usercontrol or idle, assign to ApprochWayPoint
-    if(mFlightControllerValues.flightState.state == FlightState::Value::UserControl || mFlightControllerValues.flightState.state == FlightState::Value::Idle)
-        assignedFlightState = FlightState::Value::ApproachWayPoint;
+    if(mFlightControllerValues.flightState.state == FlightState::State::UserControl || mFlightControllerValues.flightState.state == FlightState::State::Idle)
+        assignedFlightState = FlightState::State::ApproachWayPoint;
     else
         assignedFlightState = mFlightControllerValues.flightState.state;
 

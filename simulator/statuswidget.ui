@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>183</width>
-    <height>905</height>
+    <width>184</width>
+    <height>476</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,16 +16,16 @@
   <widget class="QWidget" name="dockWidgetContents">
    <layout class="QVBoxLayout" name="verticalLayout_2">
     <property name="spacing">
-     <number>0</number>
+     <number>1</number>
     </property>
     <property name="leftMargin">
-     <number>0</number>
+     <number>2</number>
     </property>
     <property name="topMargin">
      <number>0</number>
     </property>
     <property name="rightMargin">
-     <number>2</number>
+     <number>1</number>
     </property>
     <property name="bottomMargin">
      <number>0</number>

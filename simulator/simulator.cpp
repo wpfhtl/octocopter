@@ -166,7 +166,7 @@ void Simulator::slotSimulationStart(void)
         QMetaObject::invokeMethod(mCameras->at(i), "slotStart", Qt::QueuedConnection);
     }
 
-    if(mFlightController->getFlightState() == FlightState::Value::Hover || mFlightController->getFlightState() == FlightState::Value::ApproachWayPoint)
+    if(mFlightController->getFlightState() == FlightState::State::Hover || mFlightController->getFlightState() == FlightState::State::ApproachWayPoint)
     mFlightController->slotSetPause(false);
 
     // Set the timer to update mOgreWidget every 25th of a second.
@@ -327,11 +327,12 @@ void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enab
     case 7:
     {
         // coolie->left, Hover
-        slotShowMessage("Disabling Joystick control, setting FlightController to Hover");
-        if(mFlightController->getFlightState().state != FlightState::Value::Hover)
+        if(mFlightStateRestriction.restriction != FlightStateRestriction::Restriction::RestrictionHover)
         {
-            mFlightStateSwitch.value = FlightStateSwitch::Value::Hover;
-            mFlightController->slotFlightStateSwitchValueChanged(&mFlightStateSwitch);
+            slotShowMessage("Coolie left, setting FlightStateRestriction to Hover");
+            mFlightStateRestriction.restriction = FlightStateRestriction::Restriction::RestrictionHover;
+            mFlightController->slotFlightStateRestrictionChanged(&mFlightStateRestriction);
+            mBaseConnection->slotFlightStateRestrictionChanged(&mFlightStateRestriction);
         }
         mJoystickEnabled = false;
         break;
@@ -340,11 +341,12 @@ void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enab
     case 8:
     {
         // coolie->down, UserControl
-        slotShowMessage("Enabling Joystick control, setting FlightController to UserControl");
-        if(mFlightController->getFlightState().state != FlightState::Value::UserControl)
+        if(mFlightStateRestriction.restriction != FlightStateRestriction::Restriction::RestrictionUserControl)
         {
-            mFlightStateSwitch.value = FlightStateSwitch::Value::UserControl;
-            mFlightController->slotFlightStateSwitchValueChanged(&mFlightStateSwitch);
+            slotShowMessage("Coolie down, setting FlightStateRestriction to UserControl");
+            mFlightStateRestriction.restriction = FlightStateRestriction::Restriction::RestrictionUserControl;
+            mFlightController->slotFlightStateRestrictionChanged(&mFlightStateRestriction);
+            mBaseConnection->slotFlightStateRestrictionChanged(&mFlightStateRestriction);
         }
         mJoystickEnabled = true;
         break;
@@ -353,11 +355,12 @@ void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enab
     case 9:
     {
         // coolie->up, ApproachWayPoint
-        slotShowMessage("Disabling Joystick control, setting FlightController to ApproachWayPoint");
-        if(mFlightController->getFlightState().state != FlightState::Value::ApproachWayPoint)
+        if(mFlightStateRestriction.restriction != FlightStateRestriction::Restriction::RestrictionNone)
         {
-            mFlightStateSwitch.value = FlightStateSwitch::Value::ApproachWayPoint;
-            mFlightController->slotFlightStateSwitchValueChanged(&mFlightStateSwitch);
+            slotShowMessage("Coolie up, setting FlightStateRestriction to None");
+            mFlightStateRestriction.restriction = FlightStateRestriction::Restriction::RestrictionNone;
+            mFlightController->slotFlightStateRestrictionChanged(&mFlightStateRestriction);
+            mBaseConnection->slotFlightStateRestrictionChanged(&mFlightStateRestriction);
         }
         mJoystickEnabled = false;
         break;
@@ -427,7 +430,7 @@ void Simulator::slotNewConnection()
 {
     // feed new data to basestation
     mFlightController->slotEmitFlightControllerInfo();
-    //mBaseConnection->slotNewVehiclePose(mFlightController->getLastKnownPose());
+    mBaseConnection->slotFlightStateRestrictionChanged(&mFlightStateRestriction);
     mBaseConnection->slotNewVehicleStatus(&mVehicleStatus);
 }
 

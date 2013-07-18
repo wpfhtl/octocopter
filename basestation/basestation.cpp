@@ -264,6 +264,7 @@ BaseStation::BaseStation() : QMainWindow()
 
         connect(mPidControllerWidget, &PidControllerWidget::controllerWeight, mRoverConnection, &RoverConnection::slotSendControllerWeights);
         connect(mRoverConnection, &RoverConnection::flightState, mControlWidget, &ControlWidget::slotFlightStateChanged);
+        connect(mRoverConnection, &RoverConnection::flightStateRestriction, mControlWidget, &ControlWidget::slotFlightStateRestrictionChanged);
 
         connect(mRoverConnection, &RoverConnection::message, mLogWidget, &LogWidget::log);
 

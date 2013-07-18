@@ -7,6 +7,7 @@
 #include "dialogconfiguration.h"
 #include "ui_statuswidget.h"
 #include "battery.h"
+#include "flightstaterestriction.h"
 #include <pose.h>
 
 #define QT_USE_FAST_CONCATENATION

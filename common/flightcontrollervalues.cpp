@@ -5,6 +5,7 @@ FlightControllerValues::FlightControllerValues()
     // Initialize, so we have clean logdata.
     timestamp = 0;
     flightState = FlightState();
+    flightStateRestriction = FlightStateRestriction();
     motionCommand = MotionCommand();
     trajectoryStart = trajectoryGoal = hoverPosition = QVector3D();
     lastKnownPose = Pose();
@@ -23,6 +24,7 @@ QDataStream& operator<<(QDataStream &out, const FlightControllerValues &fcv)
             << fcv.lastKnownPose
             << fcv.motionCommand
             << fcv.flightState
+            << fcv.flightStateRestriction
             << fcv.trajectoryStart
             << fcv.trajectoryGoal
             << fcv.hoverPosition
@@ -42,6 +44,7 @@ QDataStream& operator>>(QDataStream &in, FlightControllerValues& fcv)
     in >> fcv.lastKnownPose;
     in >> fcv.motionCommand;
     in >> fcv.flightState;
+    in >> fcv.flightStateRestriction;
     in >> fcv.trajectoryStart;
     in >> fcv.trajectoryGoal;
     in >> fcv.hoverPosition;

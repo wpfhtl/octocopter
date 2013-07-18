@@ -2,6 +2,7 @@
 #define FLIGHTSTATESWITCH_H
 
 #include <QtCore>
+#include "flightstate.h"
 
 struct FlightStateRestriction
 {
@@ -17,6 +18,7 @@ struct FlightStateRestriction
 
     FlightStateRestriction()
     {
+        // By default, be strict!
         restriction = Restriction::RestrictionUserControl;
     }
 
@@ -29,6 +31,29 @@ struct FlightStateRestriction
         else
             restriction = Restriction::RestrictionNone;
     }
+
+    bool allowsFlightState(const FlightState::State& fs)
+    {
+        if(restriction == Restriction::RestrictionNone)
+        {
+            if(fs == FlightState::State::Hover || fs == FlightState::State::Idle || fs == FlightState::State::ApproachWayPoint)
+                return true;
+        }
+        else if(restriction == Restriction::RestrictionHover)
+        {
+            if(fs == FlightState::State::Hover)
+                return true;
+        }
+        else if(restriction == Restriction::RestrictionUserControl)
+        {
+            if(fs == FlightState::State::UserControl)
+                return true;
+        }
+
+        qDebug() << __PRETTY_FUNCTION__ << "flightstate" << FlightState(fs).toString() << "is not allowed due to restriction" << toString();
+        return false;
+    }
+
 /*
     FlightStateRestriction(const FlightStateRestriction::Restriction restriction)
     {
@@ -59,5 +84,9 @@ struct FlightStateRestriction
         return QString("undefined Value");
     }
 };
+
+// for streaming
+QDataStream& operator<<(QDataStream &out, const FlightStateRestriction &fs);
+QDataStream& operator>>(QDataStream &in, FlightStateRestriction &fs);
 
 #endif // FLIGHTSTATESWITCH_H

@@ -5,6 +5,7 @@
 #include "motioncommand.h"
 #include "pose.h"
 #include "flightstate.h"
+#include "flightstaterestriction.h"
 #include "pidcontroller.h"
 
 // This class/struct just contains a set of values that flightcontroller consumes and produces.
@@ -19,6 +20,7 @@ public:
     PidController controllerThrust, controllerYaw, controllerPitch, controllerRoll;
     MotionCommand motionCommand;
     FlightState flightState;
+    FlightStateRestriction flightStateRestriction;
     QVector3D trajectoryStart;
     QVector3D trajectoryGoal;
     QVector3D hoverPosition;

@@ -69,6 +69,7 @@ set(SRC_FILES
     ../common/flightcontrollervalues
     ../common/pidcontroller
     ../common/flightstate
+    ../common/flightstaterestriction
     ../common/lidarpoint
     ../common/waypoint
     ../common/gnsstime
@@ -131,6 +132,7 @@ set(INC_FILES
     ../common/flightcontrollervalues.h
     ../common/pidcontroller.h
     ../common/flightstate.h
+    ../common/flightstaterestriction.h
     ../common/lidarpoint.h
     ../common/waypoint.h
     ../common/gnsstime.h
