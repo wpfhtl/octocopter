@@ -270,7 +270,7 @@ BaseStation::BaseStation() : QMainWindow()
 
         connect(mRoverConnection, SIGNAL(connectionStatusRover(const bool)), mControlWidget, SLOT(slotUpdateConnectionRover(const bool)));
 
-        connect(mRoverConnection, SIGNAL(scanData(float*const, quint32, QVector3D*const)), mFlightPlanner, SLOT(slotNewScanData(float*const,quint32,QVector3D*const)));
+        connect(mRoverConnection, SIGNAL(scanData(float*const, quint32, QVector3D*const)), mFlightPlanner, SLOT(slotNewScanFused(float*const,quint32,QVector3D*const)));
         connect(mRoverConnection, SIGNAL(vehicleStatus(const VehicleStatus* const)), mControlWidget, SLOT(slotUpdateVehicleStatus(const VehicleStatus* const)));
         connect(mRoverConnection, SIGNAL(gnssStatus(const GnssStatus* const)), mControlWidget, SLOT(slotUpdateGnssStatus(const GnssStatus* const)));
         connect(mRoverConnection, SIGNAL(flightControllerValues(const FlightControllerValues* const)), SLOT(slotSetFlightControllerValues(const FlightControllerValues* const)));
