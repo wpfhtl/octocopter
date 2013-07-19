@@ -359,7 +359,7 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
         // IntPVAAGeod
         const Sbf_IntPVAAGeod *block = (Sbf_IntPVAAGeod*)(sbfData.constData() + offsetToValidPacket);
 
-        //qDebug() << "SBF: IntPVAAGeod" << block->TOW << block->GNSSPVTMode << block->Alt << block->Heading << block->Pitch << block->Roll;
+        qDebug() << "SBF: IntPVAAGeod" << block->TOW << block->GNSSPVTMode << block->Alt << block->Heading << block->Pitch << block->Roll;
 
         // Check the Info-field and emit states if it changes
         if(mGnssStatus.info != block->Info)

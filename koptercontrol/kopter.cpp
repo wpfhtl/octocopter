@@ -82,8 +82,9 @@ void Kopter::slotFlushMessageQueue()
         // Because koptercontrol syncs time on startup, this can be a false offset, leading to a seemingly infinite loop.
         while(timeSinceLastCommand < 10 && timeSinceLastCommand > 0)
         {
-            qDebug() << __PRETTY_FUNCTION__ << "waiting 5ms for serial port to clear send-queue consisting of" << mSendMessageQueue.size() << "messages";
+            qDebug() << __PRETTY_FUNCTION__ << "waiting 5ms" << timeSinceLastCommand << "for serial port to clear send-queue consisting of" << mSendMessageQueue.size() << "messages";
             usleep(5000);
+	    timeSinceLastCommand = mLastSendTime.msecsTo(QTime::currentTime());
         }
 
         msg.send(mSerialPortFlightCtrl);
