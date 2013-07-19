@@ -454,7 +454,7 @@ void BaseStation::slotSpeakGnssStatus(const GnssStatus* const status)
         else if(status->covariances > Pose::maximumUsableCovariance)
             mAudioPlayer->setSound(QString("../media/ins_covariances_too_high.ogg"));
         else if(status->meanCorrAge > 50)
-            mAudioPlayer->setSound(QString("../media/ins_covariances_too_high.ogg"));
+            mAudioPlayer->setSound(QString("../media/gnss_differential_corrections_missing.ogg"));
         else
             mAudioPlayer->setSound(QString("../media/ins_nominal.ogg"));
     }
