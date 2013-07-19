@@ -19,7 +19,7 @@ public:
     enum class State
     {
         Scanning,
-	ScanRequestedButTimeUnknown,
+        ScanRequestedButTimeUnknown,
         StopRequested,
         Stopped
     };
@@ -50,6 +50,11 @@ public:
     
     State getState() const {return mState;}
 
+    bool isTimeSynchronized() const {return mOffsetTimeScannerToTow != 0;}
+
+    // Returns true on the first call, when scanner is actually synchronized. Returns false on all next calls.
+    bool synchronizeScannerTime();
+
 public slots:
     // This will not return, but run endlessly, so start it in a new thread!
     void slotStartScanning();
@@ -58,7 +63,6 @@ public slots:
     void slotStopScanning() { mState = State::StopRequested; }
 
     // To set the laserscanner's timestamp to the gps time. Hopefully.
-    void slotSetScannerTimeStamp();
 
 signals:
     // emitted when scanning -> stop requested -> stopped

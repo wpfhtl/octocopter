@@ -279,7 +279,7 @@ BaseStation::BaseStation() : QMainWindow()
 
         connect(mRoverConnection, &RoverConnection::scanData, mFlightPlanner, &FlightPlannerInterface::slotNewScanFused);
         connect(mRoverConnection, &RoverConnection::vehicleStatus, mControlWidget, &ControlWidget::slotUpdateVehicleStatus);
-        connect(mRoverConnection, &RoverConnection::gnssStatus, mControlWidget, &ControlWidget::slotUpdateGnssStatus);
+        connect(mRoverConnection, &RoverConnection::gnssStatus, mControlWidget, &ControlWidget::slotUpdateInsStatus);
         connect(mRoverConnection, &RoverConnection::flightControllerValues, this, &BaseStation::slotSetFlightControllerValues);
 
         connect(mRoverConnection, &RoverConnection::wayPointReachedByRover, mFlightPlanner, &FlightPlannerInterface::slotWayPointReached);
@@ -315,7 +315,7 @@ BaseStation::BaseStation() : QMainWindow()
 
         connect(mLogPlayer, &LogPlayer::vehiclePose, mGlWindow, &GlWindow::slotNewVehiclePose);
         connect(mLogPlayer, &LogPlayer::scanFused, mFlightPlanner, &FlightPlannerInterface::slotNewScanFused);
-        connect(mLogPlayer, &LogPlayer::gnssStatus, mControlWidget, &ControlWidget::slotUpdateGnssStatus);
+        connect(mLogPlayer, &LogPlayer::gnssStatus, mControlWidget, &ControlWidget::slotUpdateInsStatus);
 
         mAudioPlayer = new AudioPlayer;
         connect(mLogPlayer, &LogPlayer::gnssStatus, this, &BaseStation::slotSpeakGnssStatus);

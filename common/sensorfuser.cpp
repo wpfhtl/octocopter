@@ -592,7 +592,7 @@ void SensorFuser::slotNewVehiclePose(const Pose* const pose)
                 pose->covariances < Pose::maximumUsableCovariance
                 ))
     {
-        qDebug() << "SensorFuser::slotNewVehiclePose(): received pose is not precise enough for fusing:" << *pose;
+        qDebug() << "SensorFuser::slotNewVehiclePose(): received pose is not precise enough for fusing:" << pose->toString(true);
         return;
     }
 

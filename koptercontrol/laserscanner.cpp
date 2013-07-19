@@ -61,6 +61,16 @@ void LaserScanner::slotSetRelativeScannerPose(const Pose& p)
 {
     mRelativeScannerPose = p.getMatrixCopy();
 
+    // Write the packet only if system time is synchronized to GNSS time.
+    // This must be true when the laserscanner is synrchonized.
+    if(mHokuyo->isTimeSynchronized())
+    {
+        writeRelativeScannerPoseToLogFile();
+    }
+}
+
+void LaserScanner::writeRelativeScannerPoseToLogFile()
+{
     // Write the new relative pose into the logfile. Format is:
     // RPOSE PacketLengthInBytes(quint16) TOW(qint32) QDataStreamedPoseMatrix
     //
@@ -82,10 +92,11 @@ void LaserScanner::slotSetRelativeScannerPose(const Pose& p)
             + byteArrayPoseMatrix.size();   // size of streamed pose
 
     const qint32 tow = GnssTime::currentTow();
+    qDebug() << __PRETTY_FUNCTION__ << "writing the relative scanner pose to logfile TOW" << tow;
 
     mLogFile->write(magic.constData(), magic.size());
-    mLogFile->write((const char*)&length, sizeof(length));
-    mLogFile->write((const char*)&tow, sizeof(tow)); // I hope this lines in well with scanner timestamps...
+    mLogFile->write((const char*)&length, sizeof(quint16));
+    mLogFile->write((const char*)&tow, sizeof(qint32)); // I hope this lines in well with scanner timestamps...
     mLogFile->write(byteArrayPoseMatrix.constData(), byteArrayPoseMatrix.size());
 }
 
@@ -106,14 +117,18 @@ void LaserScanner::slotSetScannerTimeStamp()
     // halved (its not a roundtrip). So, instead of 4ms RTT, it should be 4msRTT + 2ms = 6ms
     // of delay.
 
-    mHokuyo->slotSetScannerTimeStamp();
+    const bool timeWasSynchronizedForTheFirstTime = mHokuyo->synchronizeScannerTime();
+    if(timeWasSynchronizedForTheFirstTime)
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "scanner time was synchronized successfully, now writing the relative scanner pose to logfile";
+        writeRelativeScannerPoseToLogFile();
+    }
     
     if(mHokuyo->getState() == Hokuyo::State::ScanRequestedButTimeUnknown)
     {
         qDebug() << __PRETTY_FUNCTION__ << "deferred start after time is known...";
         slotEnableScanning(true);
     }
-    
 }
 
 void LaserScanner::slotEnableScanning(const bool value)

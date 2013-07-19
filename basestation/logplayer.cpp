@@ -13,7 +13,7 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     //setMaximumSize(minimumSize());
 
     mTimerAnimation = new QTimer(this);
-    connect(mTimerAnimation, SIGNAL(timeout()), SLOT(slotPlay()));
+    connect(mTimerAnimation, &QTimer::timeout, this, &LogPlayer::slotPlay);
 
     mSensorFuser = new SensorFuser(1);
     //mSensorFuser->setMaximumFusableRayLength(20.0f);
@@ -44,13 +44,13 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     connect(mStepSignalMapper, SIGNAL(mapped(int)), this, SLOT(slotStepDataSourceChanged(int)));
 
     // Connect UI...
-    connect(ui->mPushButtonOpenLogs, SIGNAL(clicked()), SLOT(slotOpenLogFiles()));
-    connect(ui->mPushButtonRewind, SIGNAL(clicked()), SLOT(slotRewind()));
-    connect(ui->mPushButtonGoTo, SIGNAL(clicked()), SLOT(slotGoToTow()));
-    connect(ui->mPushButtonPlay, SIGNAL(clicked()), SLOT(slotPlay()));
-    connect(ui->mPushButtonStepForward, SIGNAL(clicked()), SLOT(slotStepUntilDataSourceProcessed()));
+    connect(ui->mPushButtonOpenLogs, &QPushButton::clicked, this, &LogPlayer::slotOpenLogFiles);
+    connect(ui->mPushButtonRewind, &QPushButton::clicked, this, &LogPlayer::slotRewind);
+    connect(ui->mPushButtonGoTo, &QPushButton::clicked, this, &LogPlayer::slotGoToTow);
+    connect(ui->mPushButtonPlay, &QPushButton::clicked, this, &LogPlayer::slotPlay);
+    connect(ui->mPushButtonStepForward, &QPushButton::clicked, this, &LogPlayer::slotStepUntilDataSourceProcessed);
 
-    connect(mProgressBarTow, SIGNAL(seekToTow(qint32)), SLOT(slotGoToTow(qint32)));
+    connect(mProgressBarTow, &ProgressBar::seekToTow, this, &LogPlayer::slotGoToTow);
 
     // emit fused lidarpoints
     connect(mSensorFuser, SIGNAL(scanFused(float*const,quint32,QVector3D*const)), SIGNAL(scanFused(float*const,quint32,QVector3D*const)));
@@ -61,9 +61,10 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     connect(mSbfParser, SIGNAL(status(const GnssStatus* const)), SIGNAL(gnssStatus(const GnssStatus* const)));
     connect(mSbfParser, SIGNAL(message(LogImportance,QString,QString)), SIGNAL(message(LogImportance,QString,QString)));
     connect(mSbfParser, SIGNAL(newVehiclePose(const Pose* const)), SIGNAL(vehiclePose(const Pose* const)));
-    connect(mSbfParser, SIGNAL(newVehiclePoseSensorFuser(const Pose* const)), mSensorFuser, SLOT(slotNewVehiclePose(const Pose* const)));
-    connect(mSbfParser, SIGNAL(processedPacket(qint32)), SLOT(slotNewSbfTime(qint32)));
-    connect(mSbfParser, SIGNAL(scanFinished(const quint32&)), mSensorFuser, SLOT(slotScanFinished(const quint32&)));
+
+    connect(mSbfParser, &SbfParser::newVehiclePoseSensorFuser, mSensorFuser, &SensorFuser::slotNewVehiclePose);
+    connect(mSbfParser, &SbfParser::processedPacket, this, &LogPlayer::slotNewSbfTime);
+    connect(mSbfParser, &SbfParser::scanFinished, mSensorFuser, &SensorFuser::slotScanFinished);
 }
 
 LogPlayer::~LogPlayer()
@@ -347,13 +348,13 @@ LogPlayer::Data LogPlayer::getNextPacket(const DataSource& source)
             return result;
 
         // We can be called with ESTIMATED mIndexFlightController-values. So, search for the next packet's beginning
-//        qint32 oldIndex = mIndexFlightController;
+        //qint32 oldIndex = mIndexFlightController;
         mLogFlightController.cursor = mLogFlightController.data.indexOf("FLTCLR", mLogFlightController.cursor);
         // search for packet-end right after its beginning, otherwise we find out own beginning.
         const qint32 posPacketEnd = mLogFlightController.data.indexOf("FLTCLR", mLogFlightController.cursor + 1);
-//        qDebug() << "LogPlayer::getNextPacket(): FLT, index was" <<oldIndex << "found packet from" << mIndexFlightController << "to" << posPacketEnd;
+        //qDebug() << "LogPlayer::getNextPacket(): FLT, index was" <<oldIndex << "found packet from" << mIndexFlightController << "to" << posPacketEnd;
 
-//        result = mLogFlightController.data.mid(mIndexFlightController, posPacketEnd - mIndexFlightController);
+        //result = mLogFlightController.data.mid(mIndexFlightController, posPacketEnd - mIndexFlightController);
         result.data = mLogFlightController.data.data() + mLogFlightController.cursor;
         result.size = posPacketEnd - mLogFlightController.cursor;
     }

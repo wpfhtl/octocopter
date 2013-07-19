@@ -173,7 +173,7 @@ QString ControlWidget::getBackgroundCss(const bool& error, const bool& dark)
     return QString("background-color:%1;").arg(bgColor.name());
 }
 
-void ControlWidget::slotUpdateGnssStatus(const GnssStatus* const gnssStatus)
+void ControlWidget::slotUpdateInsStatus(const GnssStatus* const gnssStatus)
 {
     mLabelGnssMode->setText(gnssStatus->getPvtMode());
     if(gnssStatus->pvtMode == GnssStatus::PvtMode::RtkFixed) mLabelGnssMode->setStyleSheet(""); else mLabelGnssMode->setStyleSheet(getBackgroundCss());
@@ -201,7 +201,7 @@ void ControlWidget::slotUpdateGnssStatus(const GnssStatus* const gnssStatus)
     mLabelInsCpuLoad->setText(QString::number(gnssStatus->cpuLoad));
     if(gnssStatus->cpuLoad < 80) mLabelInsCpuLoad->setStyleSheet(""); else mLabelInsCpuLoad->setStyleSheet(getBackgroundCss());
 
-    mLabelInsCovariances->setText(QString::number(gnssStatus->covariances, 'f', 2));
+    mLabelInsCovariances->setText(QString::number(gnssStatus->covariances, 'f', 4));
     if(gnssStatus->covariances < 1.0) mLabelInsCovariances->setStyleSheet(""); else mLabelInsCovariances->setStyleSheet(getBackgroundCss());
 }
 

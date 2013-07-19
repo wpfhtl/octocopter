@@ -26,6 +26,13 @@ private:
 
     std::vector<long> mScannedDistances;
 
+    // slotSetRelativeScannerPose() cannot write the pose directly into the LogFile as an RPOSE entry,
+    // because it is called on startup, when the TOW is still unknown and the system time isn't synced
+    // yet. Thus, it caches the relative scanner pose (which needs to be done anyway for Hokyuo to emit
+    // meaningful ScanRaws). Then, when the time is known (in slotSetScannerTimeStamp), we write it to
+    // the logile using this method. Whew.
+    void writeRelativeScannerPoseToLogFile();
+
 public:
     // The pose specifies translation from vehicle frame to the laser source, so the scanner's
     // physical dimensions are ignored completely. Further down, this class receives high-

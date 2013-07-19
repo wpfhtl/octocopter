@@ -85,6 +85,9 @@
       </item>
       <item>
        <widget class="QDoubleSpinBox" name="mSpinBoxTimeFactor">
+        <property name="singleStep">
+         <double>0.100000000000000</double>
+        </property>
         <property name="value">
          <double>0.000000000000000</double>
         </property>

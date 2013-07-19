@@ -49,7 +49,7 @@ Hokuyo::~Hokuyo()
     qDebug() << "Hokuyo::~Hokuyo(): done.";
 }
 
-void Hokuyo::slotSetScannerTimeStamp()
+bool Hokuyo::synchronizeScannerTime()
 {
     // We were called after the host was synchronized with the GPS clock, so we can now use
     // the system time to set the scanner's time.
@@ -77,10 +77,12 @@ void Hokuyo::slotSetScannerTimeStamp()
         mOffsetTimeScannerToTow = timestamp + 2; // additional delay for buggy UrgCtrl::setTimestamp()
         qDebug() << "Hokuyo::slotSetScannerTimeStamp(): setting laserscanner time once to time" << timestamp;
         mScanner.setTimestamp(0);
+        return true;
     }
     else
     {
         qDebug() << "Hokuyo::slotSetScannerTimeStamp(): not setting laserscanner time again.";
+        return false;
     }
 }
 
