@@ -15,18 +15,18 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
     // To enable colored text
     mLabelInsInfo->setTextFormat(Qt::RichText);
 
-    connect(mBtnWptPrepend, SIGNAL(clicked()), SLOT(slotWayPointPrepend()));
-    connect(mBtnWptAppend, SIGNAL(clicked()), SLOT(slotWayPointAppend()));
-    connect(mBtnWptDelete, SIGNAL(clicked()), SLOT(slotWayPointDelete()));
-    connect(mBtnWptClear, SIGNAL(clicked()), SLOT(slotWayPointClear()));
-    connect(mBtnWptLoad, SIGNAL(clicked()), SLOT(slotWayPointLoad()));
-    connect(mBtnWptSave, SIGNAL(clicked()), SLOT(slotWayPointSave()));
+    connect(mBtnWptPrepend, &QPushButton::clicked, this, &ControlWidget::slotWayPointPrepend);
+    connect(mBtnWptAppend, &QPushButton::clicked, this, &ControlWidget::slotWayPointAppend);
+    connect(mBtnWptDelete, &QPushButton::clicked, this, &ControlWidget::slotWayPointDelete);
+    connect(mBtnWptClear, &QPushButton::clicked, this, &ControlWidget::slotWayPointClear);
+    connect(mBtnWptLoad, &QPushButton::clicked, this, &ControlWidget::slotWayPointLoad);
+    connect(mBtnWptSave, &QPushButton::clicked, this, &ControlWidget::slotWayPointSave);
 
-    connect(mWayPointTable, SIGNAL(cellChanged(int,int)), SLOT(slotWayPointChanged(int, int)));
+    connect(mWayPointTable, &QTableWidget::cellChanged, this, &ControlWidget::slotWayPointChanged);
 
     connect(mBtnGenerateWaypoints, SIGNAL(clicked()), SIGNAL(showUserInterface()));
 
-    connect(mBtnSetScanVolume, SIGNAL(clicked()), SLOT(slotSetScanVolume()));
+    connect(mBtnSetScanVolume, &QPushButton::clicked, this, &ControlWidget::slotSetScanVolume);
 
 //    mStyle = new QPlastiqueStyle;
 //    mCompass->setStyle(mStyle);

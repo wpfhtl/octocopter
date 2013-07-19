@@ -37,7 +37,7 @@ public slots:
     void slotHandleSignal();
 
 private slots:
-    void slotInsError(const QString& message);
+    void slotFatalError(const QString& message);
 
 private:
     // We use this pipe for all signals.

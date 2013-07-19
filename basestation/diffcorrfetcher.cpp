@@ -18,8 +18,9 @@ DiffCorrFetcher::DiffCorrFetcher(const QString &hostName, const uint &port, QObj
 
       mTcpSocket = new QTcpSocket(this);
 
-      connect(mTcpSocket, SIGNAL(readyRead()), SLOT(slotSocketDataReady()));
-      connect(mTcpSocket, SIGNAL(stateChanged(QAbstractSocket::SocketState)), SLOT(slotSocketStateChanged(QAbstractSocket::SocketState)));
+      connect(mTcpSocket, &QTcpSocket::readyRead, this, &DiffCorrFetcher::slotSocketDataReady);
+      connect(mTcpSocket, &QTcpSocket::stateChanged, this, &DiffCorrFetcher::slotSocketStateChanged);
+      //connect(mTcpSocket, &QTcpSocket::error, this, &DiffCorrFetcher::slotSocketError);
       connect(mTcpSocket, SIGNAL(error(QAbstractSocket::SocketError)), SLOT(slotSocketError(QAbstractSocket::SocketError)));
 
       slotConnectToRtkBase();

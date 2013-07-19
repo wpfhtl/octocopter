@@ -300,7 +300,7 @@ signals:
 
     void gnssTimeOfWeekEstablished(qint32 timestamp);
 
-    void insError(const QString&);
+    void fatalError(const QString&);
 
 public slots:
     // Can be called on rover by GpsDevice to ensure base is up to date even when few things change in the fields

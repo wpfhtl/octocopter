@@ -183,11 +183,14 @@ signals:
     // emitted when a waypoint is reached
     void wayPointReached(const WayPoint&);
 
-    // emitted when the flightState changed
-    void flightStateChanged(const FlightState* const fs);
+    // emitted when the flightState changed AND on request (e.g. when a new client connects)
+    void flightState(const FlightState* const fs);
+
+    // emitted when the fsr changed AND on request (e.g. when a new client connects)
+    void flightStateRestriction(const FlightStateRestriction* const fsr);
 
     // The weights themselves are part of FlightControllerValues
-    void flightControllerWeightsChanged();
+    void flightControllerWeights();
 
     // Emitted when FLightController changes the list. Thats currently not implemented
     void wayPoints(const QList<WayPoint>* const wpt, WayPointListSource);

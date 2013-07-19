@@ -54,10 +54,11 @@ Simulator::Simulator(void) :
     connect(mBaseConnection, &BaseConnection::controllerWeights, mFlightController, &FlightController::slotSetControllerWeights);
     connect(mBaseConnection, &BaseConnection::newConnection, this, &Simulator::slotNewConnection);
 
-    connect(mFlightController, &FlightController::wayPointReached, mBaseConnection, &BaseConnection::slotWayPointReached);
-    connect(mFlightController, &FlightController::wayPoints, mBaseConnection, &BaseConnection::slotSetWayPoints);
-    connect(mFlightController, &FlightController::flightStateChanged, mBaseConnection, &BaseConnection::slotFlightStateChanged);
-    connect(mFlightController, &FlightController::flightControllerValues, mBaseConnection, &BaseConnection::slotNewFlightControllerValues);
+    connect(mFlightController, &FlightController::wayPointReached, mBaseConnection, &BaseConnection::slotSendWayPointReached);
+    connect(mFlightController, &FlightController::wayPoints, mBaseConnection, &BaseConnection::slotSendWayPoints);
+    connect(mFlightController, &FlightController::flightState, mBaseConnection, &BaseConnection::slotSendFlightState);
+    connect(mFlightController, &FlightController::flightStateRestriction, mBaseConnection, &BaseConnection::slotSendFlightStateRestriction);
+    connect(mFlightController, &FlightController::flightControllerValues, mBaseConnection, &BaseConnection::slotSendFlightControllerValues);
 
     mStatusWidget = new StatusWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mStatusWidget);
@@ -332,7 +333,7 @@ void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enab
             slotShowMessage("Coolie left, setting FlightStateRestriction to Hover");
             mFlightStateRestriction.restriction = FlightStateRestriction::Restriction::RestrictionHover;
             mFlightController->slotFlightStateRestrictionChanged(&mFlightStateRestriction);
-            mBaseConnection->slotFlightStateRestrictionChanged(&mFlightStateRestriction);
+            mBaseConnection->slotSendFlightStateRestriction(&mFlightStateRestriction);
         }
         mJoystickEnabled = false;
         break;
@@ -346,7 +347,7 @@ void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enab
             slotShowMessage("Coolie down, setting FlightStateRestriction to UserControl");
             mFlightStateRestriction.restriction = FlightStateRestriction::Restriction::RestrictionUserControl;
             mFlightController->slotFlightStateRestrictionChanged(&mFlightStateRestriction);
-            mBaseConnection->slotFlightStateRestrictionChanged(&mFlightStateRestriction);
+            mBaseConnection->slotSendFlightStateRestriction(&mFlightStateRestriction);
         }
         mJoystickEnabled = true;
         break;
@@ -360,7 +361,7 @@ void Simulator::slotJoystickButtonChanged(const quint8& button, const bool& enab
             slotShowMessage("Coolie up, setting FlightStateRestriction to None");
             mFlightStateRestriction.restriction = FlightStateRestriction::Restriction::RestrictionNone;
             mFlightController->slotFlightStateRestrictionChanged(&mFlightStateRestriction);
-            mBaseConnection->slotFlightStateRestrictionChanged(&mFlightStateRestriction);
+            mBaseConnection->slotSendFlightStateRestriction(&mFlightStateRestriction);
         }
         mJoystickEnabled = false;
         break;
@@ -413,8 +414,8 @@ void Simulator::slotUpdate()
         mVehicleStatus.missionRunTime = getSimulationTime();
         mVehicleStatus.barometricHeight = mFlightController->getLastKnownPose()->getPosition().y();
         mVehicleStatus.batteryVoltage = mBattery->voltageCurrent();
-        mBaseConnection->slotNewVehicleStatus(&mVehicleStatus);
-        mBaseConnection->slotNewVehiclePose(mFlightController->getLastKnownPose());
+        mBaseConnection->slotSendVehicleStatus(&mVehicleStatus);
+        mBaseConnection->slotSendVehiclePose(mFlightController->getLastKnownPose());
     }
 
     // At last, re-render
@@ -430,8 +431,8 @@ void Simulator::slotNewConnection()
 {
     // feed new data to basestation
     mFlightController->slotEmitFlightControllerInfo();
-    mBaseConnection->slotFlightStateRestrictionChanged(&mFlightStateRestriction);
-    mBaseConnection->slotNewVehicleStatus(&mVehicleStatus);
+    mBaseConnection->slotSendFlightStateRestriction(&mFlightStateRestriction);
+    mBaseConnection->slotSendVehicleStatus(&mVehicleStatus);
 }
 
 /*void Simulator::slotSetClampedMotion(const MotionCommand* const mc)

@@ -26,6 +26,7 @@ Kopter::Kopter(QString &serialDeviceFile, QObject *parent) : QObject(parent)
     connect(mTimerPpmChannelPublisher, &QTimer::timeout, this, &Kopter::slotGetPpmChannelValues);
 
     mLastFlightSpeed = 0.0f;
+    mFlightStateRestrictionSwitchHasBeenRead = false;
 
     slotRequestVersion();
 
@@ -294,12 +295,23 @@ void Kopter::slotSerialPortDataReady()
                 qDebug() << "Kopter::slotSerialPortDataReady():" << ppmChannels->toString();
 
                 FlightStateRestriction fsr(ppmChannels->externalControl);
-//                qDebug() << "Kopter::slotSerialPortDataReady(): flightstate switch value" << ppmChannels->externalControl << "is state:" << fssv.toString();
+//                qDebug() << "Kopter::slotSerialPortDataReady(): flighstaterestriction switch value" << ppmChannels->externalControl << "is state:" << fssv.toString();
+
+                // If this is the first time that the switch value has been read (=on startup), make
+                // sure its set to UserControl. We don't want to start in hover or autonomous modes!
+                if(!mFlightStateRestrictionSwitchHasBeenRead)
+                {
+                    mFlightStateRestrictionSwitchHasBeenRead = true;
+                    if(fsr.restriction != FlightStateRestriction::Restriction::RestrictionUserControl)
+                    {
+                        emit fatalError("detected flightstate restriciton switch in non-usercontrol position at first reading! Should quit!");
+                    }
+                }
 
                 if(mLastFlightStateRestriction != fsr)
                 {
                     mLastFlightStateRestriction = fsr;
-                    qDebug() << "Kopter::slotSerialPortDataReady(): flighstate switch changed to" << fsr.toString();
+                    qDebug() << "Kopter::slotSerialPortDataReady(): flighstaterestriction switch changed to" << fsr.toString();
                     emit flightStateRestrictionChanged(&mLastFlightStateRestriction);
                 }
 

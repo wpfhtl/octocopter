@@ -453,6 +453,8 @@ void BaseStation::slotSpeakGnssStatus(const GnssStatus* const status)
             mAudioPlayer->setSound(QString("../media/gnss_mode_%1.ogg").arg(status->getPvtMode().toLower().replace(' ', '_')));
         else if(status->covariances > Pose::maximumUsableCovariance)
             mAudioPlayer->setSound(QString("../media/ins_covariances_too_high.ogg"));
+        else if(status->meanCorrAge > 50)
+            mAudioPlayer->setSound(QString("../media/ins_covariances_too_high.ogg"));
         else
             mAudioPlayer->setSound(QString("../media/ins_nominal.ogg"));
     }

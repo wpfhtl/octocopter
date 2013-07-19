@@ -19,21 +19,22 @@ SatelliteWidget::SatelliteWidget(QWidget* widget) : QDockWidget(widget)
     mAlmanac = new Almanac(this);
 
     mTimerUpdate = new QTimer(this);
-    connect(mTimerUpdate, SIGNAL(timeout()), SLOT(slotUpdateTable()));
-    connect(mTimerUpdate, SIGNAL(timeout()), SLOT(slotUpdatePolarPlot()));
+    connect(mTimerUpdate, &QTimer::timeout, this, &SatelliteWidget::slotUpdateTable);
+    connect(mTimerUpdate, &QTimer::timeout, this, &SatelliteWidget::slotUpdatePolarPlot);
     mTimerUpdate->start(10000);
 
-    connect(mBtnFetchTles, SIGNAL(clicked()), SLOT(slotFetchTles()));
+    connect(mAlmanac, &Almanac::dataChanged, this, &SatelliteWidget::slotUpdatePolarPlot);
+    connect(mAlmanac, &Almanac::dataChanged, this, &SatelliteWidget::slotUpdateTable);
 
-    connect(mAlmanac, SIGNAL(dataChanged()), SLOT(slotUpdateTable()));
-    connect(mAlmanac, SIGNAL(dataChanged()), SLOT(slotUpdatePolarPlot()));
+    connect(mBtnFetchTles, &QPushButton::clicked, this, &SatelliteWidget::slotFetchTles);
 
-    connect(mBtnEnableGps, SIGNAL(clicked()), SLOT(slotUpdateTable()));
-    connect(mBtnEnableGps, SIGNAL(clicked()), SLOT(slotUpdatePolarPlot()));
-    connect(mBtnEnableGlo, SIGNAL(clicked()), SLOT(slotUpdateTable()));
-    connect(mBtnEnableGlo, SIGNAL(clicked()), SLOT(slotUpdatePolarPlot()));
-    connect(mBtnEnableGal, SIGNAL(clicked()), SLOT(slotUpdateTable()));
-    connect(mBtnEnableGal, SIGNAL(clicked()), SLOT(slotUpdatePolarPlot()));
+
+    connect(mBtnEnableGps, &QPushButton::clicked, this, &SatelliteWidget::slotUpdateTable);
+    connect(mBtnEnableGps, &QPushButton::clicked, this, &SatelliteWidget::slotUpdatePolarPlot);
+    connect(mBtnEnableGlo, &QPushButton::clicked, this, &SatelliteWidget::slotUpdateTable);
+    connect(mBtnEnableGlo, &QPushButton::clicked, this, &SatelliteWidget::slotUpdatePolarPlot);
+    connect(mBtnEnableGal, &QPushButton::clicked, this, &SatelliteWidget::slotUpdateTable);
+    connect(mBtnEnableGal, &QPushButton::clicked, this, &SatelliteWidget::slotUpdatePolarPlot);
 
     slotFetchTles();
 }
@@ -166,7 +167,7 @@ void SatelliteWidget::slotUpdatePolarPlot()
         if(s.getElevation() > 0.0f)
         {
             GraphicSatelliteItem* item = new GraphicSatelliteItem(&s, this);
-            connect(item, SIGNAL(message(QString)), SLOT(slotShowMessage(QString)));
+            connect(item, &GraphicSatelliteItem::message, this, &SatelliteWidget::slotShowMessage);
             mGraphicsScene->addItem(item);
 //            QGraphicsTextItem* satName = mGraphicsScene->addText(s.getShortName());
 

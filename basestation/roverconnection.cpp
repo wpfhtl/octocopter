@@ -16,10 +16,11 @@ RoverConnection::RoverConnection(const QString& hostName, const quint16& port, Q
     mIncomingDataBuffer.clear();
 
     mTcpSocket = new QTcpSocket(this);
-    connect(mTcpSocket, SIGNAL(readyRead()), SLOT(slotReadSocket()));
+    connect(mTcpSocket, &QTcpSocket::readyRead, this, &RoverConnection::slotReadSocket);
+    connect(mTcpSocket, &QTcpSocket::connected, this, &RoverConnection::slotSocketConnected);
+    connect(mTcpSocket, &QTcpSocket::disconnected, this, &RoverConnection::slotSocketDisconnected);
+    //connect(mTcpSocket, &QTcpSocket::error, this, &RoverConnection::slotSocketError);
     connect(mTcpSocket, SIGNAL(error(QAbstractSocket::SocketError)), SLOT(slotSocketError(QAbstractSocket::SocketError)));
-    connect(mTcpSocket, SIGNAL(connected()), SLOT(slotSocketConnected()));
-    connect(mTcpSocket, SIGNAL(disconnected()), SLOT(slotSocketDisconnected()));
 }
 
 RoverConnection::~RoverConnection()

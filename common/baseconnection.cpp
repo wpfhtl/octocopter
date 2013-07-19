@@ -236,10 +236,8 @@ void BaseConnection::slotSendPingReply()
     slotSendData(data, false);
 }
 
-void BaseConnection::slotSetWayPoints(const QList<WayPoint>* const wayPoints, const WayPointListSource source)
+void BaseConnection::slotSendWayPoints(const QList<WayPoint>* const wayPoints, const WayPointListSource source)
 {
-    // We're here because the base sent some changes to the rover's waypoint-list, and now
-    // we get a chance to send a hash of the rover's list back to the base, so they can compare.
     qDebug() << "BaseConnection::slotFlightControllerWayPointsChanged(): number of waypoints" << wayPoints->size();
 
     QByteArray data;
@@ -251,7 +249,7 @@ void BaseConnection::slotSetWayPoints(const QList<WayPoint>* const wayPoints, co
     slotSendData(data, false);
 }
 
-void BaseConnection::slotFlightControllerWeightsChanged()
+void BaseConnection::slotSendFlightControllerWeights()
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
@@ -265,7 +263,7 @@ void BaseConnection::slotFlightControllerWeightsChanged()
 // The basestation is responsible for deducing that the last waypoint thus
 // needs to be removed from the waypoint-list. Otherwise, the soon-to-follow
 // waypoints-hash-list from rover will not match.
-void BaseConnection::slotWayPointReached(const WayPoint& wpt)
+void BaseConnection::slotSendWayPointReached(const WayPoint& wpt)
 {
     qDebug() << "BaseConnection::slotWayPointReached(): reached" << wpt;
 
@@ -279,7 +277,7 @@ void BaseConnection::slotWayPointReached(const WayPoint& wpt)
 }
 
 // called by rover to send updated pose to basestation (called frequently)
-void BaseConnection::slotNewVehiclePose(const Pose *const pose)
+void BaseConnection::slotSendVehiclePose(const Pose *const pose)
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
@@ -292,7 +290,7 @@ void BaseConnection::slotNewVehiclePose(const Pose *const pose)
 //    qDebug() << "BaseConnection::slotNewVehiclePose(): sent" << *pose;
 }
 
-void BaseConnection::slotFlightStateChanged(const FlightState* const fs)
+void BaseConnection::slotSendFlightState(const FlightState* const fs)
 {
     qDebug() << "BaseConnection::slotFlightStateChanged(): sending flightstate" << fs->toString() << "to base";
     QByteArray data;
@@ -303,7 +301,7 @@ void BaseConnection::slotFlightStateChanged(const FlightState* const fs)
     slotSendData(data, false);
 }
 
-void BaseConnection::slotFlightStateRestrictionChanged(const FlightStateRestriction* const fsr)
+void BaseConnection::slotSendFlightStateRestriction(const FlightStateRestriction* const fsr)
 {
     qDebug() << "BaseConnection::slotFlightStateRestrictionChanged(): sending flightstaterestriction" << fsr->toString() << "to base";
     QByteArray data;
@@ -315,13 +313,13 @@ void BaseConnection::slotFlightStateRestrictionChanged(const FlightStateRestrict
 }
 
 // called by rover to send lidarpoints to the basestation
-void BaseConnection::slotNewScanFused(const QVector<QVector4D>& points, const QVector3D& scannerPosition)
+void BaseConnection::slotSendScanFused(const QVector<QVector4D>& points, const QVector3D& scannerPosition)
 {
-    slotNewScanFused((float*)points.constData(), points.size(), &scannerPosition);
+    slotSendScanFused((float*)points.constData(), points.size(), &scannerPosition);
 }
 
 // float4!
-void BaseConnection::slotNewScanFused(const float* const points, const quint32 numPoints, const QVector3D* const scannerPosition)
+void BaseConnection::slotSendScanFused(const float* const points, const quint32 numPoints, const QVector3D* const scannerPosition)
 {
     qDebug() << "sending" << numPoints * 4 << "floats /" << numPoints << "lidarpoints to base";
     QByteArray data;
@@ -336,7 +334,7 @@ void BaseConnection::slotNewScanFused(const float* const points, const quint32 n
 }
 
 // called by rover to send new vehicle status to basestation
-void BaseConnection::slotNewVehicleStatus(const VehicleStatus* const vs)
+void BaseConnection::slotSendVehicleStatus(const VehicleStatus* const vs)
 {
     const qint8 wirelessRssi = -1;//mWirelessDevice->getRssi();
 
@@ -349,7 +347,7 @@ void BaseConnection::slotNewVehicleStatus(const VehicleStatus* const vs)
 }
 
 // called by rover to send new gnss status to basestation
-void BaseConnection::slotNewGnssStatus(const GnssStatus *const gs)
+void BaseConnection::slotSendGnssStatus(const GnssStatus *const gs)
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
@@ -359,7 +357,7 @@ void BaseConnection::slotNewGnssStatus(const GnssStatus *const gs)
     slotSendData(data, false);
 }
 
-void BaseConnection::slotNewFlightControllerValues(const FlightControllerValues* const fcv)
+void BaseConnection::slotSendFlightControllerValues(const FlightControllerValues* const fcv)
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
@@ -371,7 +369,7 @@ void BaseConnection::slotNewFlightControllerValues(const FlightControllerValues*
 }
 
 // called by rover to send new image to basestation
-void BaseConnection::slotNewCameraImage(const QString& name, const QSize& imageSize, const Pose& pose, const QByteArray* compressedImage)
+void BaseConnection::slotSendCameraImage(const QString& name, const QSize& imageSize, const Pose& pose, const QByteArray* compressedImage)
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
@@ -389,7 +387,7 @@ void BaseConnection::slotNewCameraImage(const QString& name, const QSize& imageS
 }
 
 // called by rover to send new log message to basestation
-void BaseConnection::slotNewLogMessage(const LogImportance& importance, const QString& source, const QString& text)
+void BaseConnection::slotSendLogMessage(const LogImportance& importance, const QString& source, const QString& text)
 {
     qDebug() << "NewLogMsg:" << source << importance << text;
 

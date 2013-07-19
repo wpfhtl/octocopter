@@ -79,43 +79,43 @@ signals:
 
 public slots:
     // called by rover when it has reached a waypoint, notifies basestation
-    void slotWayPointReached(const WayPoint&wpt);
+    void slotSendWayPointReached(const WayPoint&wpt);
 
     // called by flightcontroller when waypoints are changed
-    void slotSetWayPoints(const QList<WayPoint> *const, const WayPointListSource source);
+    void slotSendWayPoints(const QList<WayPoint> *const, const WayPointListSource source);
 
     // called by rover to send updated pose to basestation (called frequently)
-    void slotNewVehiclePose(const Pose* const pose);
+    void slotSendVehiclePose(const Pose* const pose);
 
     // called by rover when the flightstate changes
-    void slotFlightStateChanged(const FlightState* const fs);
+    void slotSendFlightState(const FlightState* const fs);
 
     // called by rover when the flightstaterestriction changes
-    void slotFlightStateRestrictionChanged(const FlightStateRestriction* const fsr);
+    void slotSendFlightStateRestriction(const FlightStateRestriction* const fsr);
 
     // called by rover when flightcontroller's pidcontroller-weights have been changed (due to a request from basestation)
-    void slotFlightControllerWeightsChanged();
+    void slotSendFlightControllerWeights();
 
     // called by rover to send lidarpoints (float4!) to the basestation
     // in the simulator, send the data instead, because the laserscanner lives in another thread
-    void slotNewScanFused(const QVector<QVector4D>& points, const QVector3D& scannerPosition);
+    void slotSendScanFused(const QVector<QVector4D>& points, const QVector3D& scannerPosition);
     // for the rover, its fine to send a pointer, because sender and receiver live in the same thread
-    void slotNewScanFused(const float* const points, const quint32 numPoints, const QVector3D* const scannerPosition);
+    void slotSendScanFused(const float* const points, const quint32 numPoints, const QVector3D* const scannerPosition);
 
     // called by rover to send new vehicle status to basestation
-    void slotNewVehicleStatus(const VehicleStatus* const vs);
+    void slotSendVehicleStatus(const VehicleStatus* const vs);
 
     // called by rover to send new gnss status to basestation
-    void slotNewGnssStatus(const GnssStatus* const gs);
+    void slotSendGnssStatus(const GnssStatus* const gs);
 
     // called by flightcontroller to send its output to basestation for debugging purposes
-    void slotNewFlightControllerValues(const FlightControllerValues* const fcv);
+    void slotSendFlightControllerValues(const FlightControllerValues* const fcv);
 
     // called by rover to send new image to basestation
-    void slotNewCameraImage(const QString& name, const QSize& imageSize, const Pose& pose, const QByteArray* image);
+    void slotSendCameraImage(const QString& name, const QSize& imageSize, const Pose& pose, const QByteArray* image);
 
     // called by rover to send new log message to basestation
-    void slotNewLogMessage(const LogImportance& importance, const QString& source, const QString& text);
+    void slotSendLogMessage(const LogImportance& importance, const QString& source, const QString& text);
 };
 
 #endif

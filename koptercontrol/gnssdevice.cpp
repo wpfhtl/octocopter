@@ -29,9 +29,9 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
 
     mSbfParser = new SbfParser;
     // If our SBF parser has a question to the device, forward it.
-    connect(mSbfParser, SIGNAL(receiverCommand(QString)), SLOT(slotQueueCommand(QString)));
-    connect(mSbfParser, SIGNAL(gnssTimeOfWeekEstablished(qint32)), SLOT(slotSetSystemTime(qint32)));
-    connect(mSbfParser, SIGNAL(gnssDeviceWorkingPrecisely(bool)), SLOT(slotSetPoseFrequency(bool)));
+    connect(mSbfParser, &SbfParser::receiverCommand, this, &GnssDevice::slotQueueCommand);
+    connect(mSbfParser, &SbfParser::gnssTimeOfWeekEstablished, this, &GnssDevice::slotSetSystemTime);
+    connect(mSbfParser, &SbfParser::gnssDeviceWorkingPrecisely, this, &GnssDevice::slotSetPoseFrequency);
 
     mGnssDeviceIsConfigured = false;
     mDiffCorrDataCounter = 0;
@@ -45,9 +45,9 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
 
     // We use the USB port to talk to the GNSS receiver and receive poses
     mSerialPortUsb = new QSerialPort(serialDeviceFileUsb, this);
-    //    mSerialPortUsb->enableEmitStatus(true);
-    //    connect(mSerialPortUsb, SIGNAL(signalStatus(QString,QDateTime)), SLOT(slotSerialPortStatusChanged(QString,QDateTime)));
-//    mSerialPortUsb->setDeviceName(serialDeviceFileUsb);
+    //mSerialPortUsb->enableEmitStatus(true);
+    //connect(mSerialPortUsb, &QSerialPort::signalStatus, this, &GnssDevice::slotSerialPortStatusChanged);
+    //mSerialPortUsb->setDeviceName(serialDeviceFileUsb);
     if(!mSerialPortUsb->open(QIODevice::ReadWrite))
     {
         mSerialPortUsb->close();
@@ -61,9 +61,9 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
 
     // We use the COM port to feed the device RTK correction data
     mSerialPortCom = new QSerialPort(serialDeviceFileCom, this);
-    //    mSerialPortCom->enableEmitStatus(true);
-    //    connect(mSerialPortCom, SIGNAL(signalStatus(QString,QDateTime)), SLOT(slotSerialPortStatusChanged(QString,QDateTime)));
-//    mSerialPortCom->setDeviceName(serialDeviceFileCom);
+    //mSerialPortCom->enableEmitStatus(true);
+    //connect(mSerialPortCom, &QSerialPort::signalStatus, this, &GnssDevice::slotSerialPortStatusChanged);
+    //mSerialPortCom->setDeviceName(serialDeviceFileCom);
     if(!mSerialPortCom->open(QIODevice::ReadWrite))
     {
         mSerialPortCom->close();
@@ -76,7 +76,7 @@ GnssDevice::GnssDevice(const QString &serialDeviceFileUsb, const QString &serial
     mSerialPortCom->setFlowControl(QSerialPort::NoFlowControl);
 
     mStatusTimer = new QTimer(this);
-    connect(mStatusTimer, SIGNAL(timeout()), mSbfParser, SLOT(slotEmitCurrentGnssStatus()));
+    connect(mStatusTimer, &QTimer::timeout, mSbfParser, &SbfParser::slotEmitCurrentGnssStatus);
     mStatusTimer->start(2000); // emit status signal periodically.
 
     // initialize the device whenever we get time to do this. By doing it asynchronously, we can give our creator time to connect our signals and fetch them.
@@ -312,8 +312,8 @@ void GnssDevice::slotDetermineSerialPortsOnDevice()
     // Now that we know what the ports are named, we can setup the board. We connect this signal not in the c'tor but here,
     // because we don't want the slot to be called for answers to requests made in this method.
     qDebug() << "GnssDevice::determineSerialPortOnDevice(): ports are" << mSerialPortOnDeviceCom << mSerialPortOnDeviceUsb << ": activating GNSS device output parsing.";
-    connect(mSerialPortUsb, SIGNAL(readyRead()), SLOT(slotDataReadyOnUsb()));
-    connect(mSerialPortCom, SIGNAL(readyRead()), SLOT(slotDataReadyOnCom()));
+    connect(mSerialPortUsb, &QSerialPort::readyRead, this, &GnssDevice::slotDataReadyOnUsb);
+    connect(mSerialPortCom, &QSerialPort::readyRead, this, &GnssDevice::slotDataReadyOnCom);
 
     if(mGnssDeviceIsConfigured)
     {
@@ -778,9 +778,10 @@ void GnssDevice::slotSetSystemTime(const qint32& tow)
         system.tv_usec = offsetHostToGnss * 1000;
         if(adjtime(&system, NULL) < 0)
         {
-            if(errno == EINVAL) qDebug("GnssDevice::slotSetSystemTime(): couldn't adjust system time, values invalid.");
-            else if(errno == EPERM) qDebug("GnssDevice::slotSetSystemTime(): couldn't adjust system time, insufficient permissions.");
-            else qDebug("GnssDevice::slotSetSystemTime(): couldn't adjust system time, no idea why, error %d.", errno);
+            qDebug() << __PRETTY_FUNCTION__ << "adjtime failed, tried to set to" << system.tv_sec << "s and" << system.tv_usec << "usecs";
+            if(errno == EINVAL) qFatal("couldn't adjust system time, values invalid.");
+            else if(errno == EPERM) qFatal("couldn't adjust system time, insufficient permissions.");
+            else qFatal("couldn't adjust system time, no idea why, error %d.", errno);
         }
     }
     else
@@ -798,10 +799,11 @@ void GnssDevice::slotSetSystemTime(const qint32& tow)
 
         if(settimeofday(&system, NULL) < 0)
         {
-            if(errno == EFAULT) qDebug("GnssDevice::slotSetSystemTime(): couldn't set system time, values outside of range.");
-            else if(errno == EINVAL) qDebug("GnssDevice::slotSetSystemTime(): couldn't set system time, values invalid.");
-            else if(errno == EPERM) qDebug("GnssDevice::slotSetSystemTime(): couldn't set system time, insufficient permissions.");
-            else qDebug("GnssDevice::slotSetSystemTime(): couldn't set system time, no idea why, error %d.", errno);
+            qDebug() << __PRETTY_FUNCTION__ << "settimeofday failed, tried to set to" << system.tv_sec << "s and" << system.tv_usec << "usecs";
+            if(errno == EFAULT) qFatal("couldn't set system time, values outside of range.");
+            else if(errno == EINVAL) qFatal("couldn't set system time, values invalid.");
+            else if(errno == EPERM) qFatal("couldn't set system time, insufficient permissions.");
+            else qFatal("couldn't set system time, no idea why, error %d.", errno);
         }
     }
 

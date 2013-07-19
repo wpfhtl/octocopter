@@ -24,7 +24,7 @@ LogFile::LogFile(const QString& fileName, const Encoding encoding, QObject *pare
     mBufferBeingFlushed = new QByteArray();
     mBufferBeingFlushed->reserve(mBuffer->capacity());
 
-    connect(&mTimer, SIGNAL(timeout()), SLOT(slotCheckFlush()));
+    connect(&mTimer, &QTimer::timeout, this, &LogFile::slotCheckFlush);
     mTimer.start(3000);
 
     mTimeOfLastWrite = QTime::currentTime();

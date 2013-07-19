@@ -39,7 +39,7 @@ Joystick::Joystick() : QObject()
     mButtons = (char *) calloc( numButtons, sizeof( char ) );
 
     mPollTimer = new QTimer;
-    connect(mPollTimer, SIGNAL(timeout()), SLOT(updateValues()));
+    connect(mPollTimer, &QTimer::timeout, this, &Joystick::updateValues);
     mPollTimer->start(200);
 
     // use non-blocking mode

@@ -546,8 +546,8 @@ void FlightController::setFlightState(FlightState newFlightState)
         Q_ASSERT(false && "FlightController::setFlightState(): undefined flightstate");
     }
 
-    emit flightStateChanged(&mFlightControllerValues.flightState);
-    emit flightControllerWeightsChanged();
+    emit flightState(&mFlightControllerValues.flightState);
+    emit flightControllerWeights();
 }
 
 void FlightController::initializeControllers()
@@ -755,10 +755,11 @@ void FlightController::slotFlightStateRestrictionChanged(const FlightStateRestri
 void FlightController::slotEmitFlightControllerInfo()
 {
     // Usually called from BaseConnection::newConnection(), tell base about us...
-    qDebug() << "FlightController::slotEmitFlightControllerInfo(): emitting flightcontrollervalues, flightstate, controllerweights and" << mWayPoints.size() << "waypoints.";
+    qDebug() << "FlightController::slotEmitFlightControllerInfo(): emitting flightcontrollervalues, flightstate, flightstaterestriction, controllerweights and" << mWayPoints.size() << "waypoints.";
     emit flightControllerValues(&mFlightControllerValues);
-    emit flightControllerWeightsChanged();
-    emit flightStateChanged(&mFlightControllerValues.flightState);
+    emit flightControllerWeights();
+    emit flightState(&mFlightControllerValues.flightState);
+    emit flightStateRestriction(&mFlightControllerValues.flightStateRestriction);
     emit wayPoints(&mWayPoints, WayPointListSource::WayPointListSourceRover);
 }
 
@@ -800,7 +801,7 @@ void FlightController::slotSetControllerWeights(const QString* const controllerN
 
     qDebug() << "FlightController::slotSetControllerWeights(): weights changed, emitting new flightcontrollervalues and then the changed signal.";
     emit flightControllerValues(&mFlightControllerValues);
-    emit flightControllerWeightsChanged();
+    emit flightControllerWeights();
 }
 
 // Get the position of the carrot (=hoverPosition) that the mule shall follow...

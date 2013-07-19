@@ -69,7 +69,7 @@ GlWindow::GlWindow(QWindow* parent) :
 
     mTimerUpdate = new QTimer(this);
     mTimerUpdate->setInterval(1000 / 50);
-    connect(mTimerUpdate, SIGNAL(timeout()), SLOT(slotRenderLater()));
+    connect(mTimerUpdate, &QTimer::timeout, this, &GlWindow::slotRenderLater);
 }
 
 void GlWindow::slotInitialize()

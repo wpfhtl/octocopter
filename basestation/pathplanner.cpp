@@ -73,7 +73,8 @@ void PathPlanner::slotInitialize()
 void PathPlanner::slotSetPointCloudColliders(PointCloudCuda* const pcd)
 {
     mPointCloudColliders = pcd;
-    connect(mPointCloudColliders, SIGNAL(pointsInserted(PointCloud*const,quint32,quint32)), SLOT(slotColliderCloudInsertedPoints()));
+    //connect(mPointCloudColliders, SIGNAL(pointsInserted(PointCloud*const,quint32,quint32)), SLOT(slotColliderCloudInsertedPoints()));
+    connect(mPointCloudColliders, &PointCloudCuda::pointsInserted, this, &PathPlanner::slotColliderCloudInsertedPoints);
 }
 
 void PathPlanner::slotColliderCloudInsertedPoints()

@@ -144,9 +144,14 @@ private:
     QTimer* mTimerPpmChannelPublisher;
 
     VehicleStatus mVehicleStatus;
-    FlightStateRestriction mLastFlightStateRestriction;
     PushButtonValue mLastPushButtonValue;
     qint8 mLastFlightSpeed; // maps to CTRL7, used to set ApproachWaypoint flightspeed in meters per second
+
+    // We manage the switch and pass its value to others, but: we want to quite when starting up
+    // with the restriction set to anything else but RestrictionUserControl! For this reason, we
+    // have a boolean to help recognize when the first reading takes place
+    bool mFlightStateRestrictionSwitchHasBeenRead;
+    FlightStateRestriction mLastFlightStateRestriction;
 
     void send(const KopterMessage& message);
 
@@ -171,9 +176,9 @@ signals:
     // Mikrokopter calls control from non-remote-control sources "ExternalControl". This reflects SW1 on the RC.
     void flightStateRestrictionChanged(const FlightStateRestriction* const fss);
     void pushButtonToggled();
-
     void flightSpeedChanged(const float speed);
 
+    void fatalError(const QString&);
 };
 
 #endif // Kopter_H

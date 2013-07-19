@@ -142,13 +142,13 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     mBaseConnection = new BaseConnection(networkInterface);
     mKopter = new Kopter(deviceSerialKopter, this);
 
-    connect(mLaserScannerDown, &LaserScanner::message, mBaseConnection, &BaseConnection::slotNewLogMessage);
-    connect(mLaserScannerFrnt, &LaserScanner::message, mBaseConnection, &BaseConnection::slotNewLogMessage);
-    connect(mKopter, &Kopter::vehicleStatus, mBaseConnection, &BaseConnection::slotNewVehicleStatus);
-    connect(mKopter, &Kopter::flightStateRestrictionChanged, mBaseConnection, &BaseConnection::slotFlightStateRestrictionChanged);
+    connect(mLaserScannerDown, &LaserScanner::message, mBaseConnection, &BaseConnection::slotSendLogMessage);
+    connect(mLaserScannerFrnt, &LaserScanner::message, mBaseConnection, &BaseConnection::slotSendLogMessage);
+    connect(mKopter, &Kopter::vehicleStatus, mBaseConnection, &BaseConnection::slotSendVehicleStatus);
     connect(mKopter, &Kopter::flightStateRestrictionChanged, mFlightController, &FlightController::slotFlightStateRestrictionChanged);
     connect(mKopter, &Kopter::pushButtonToggled, mFlightController, &FlightController::slotLiftHoverPosition);
     connect(mKopter, &Kopter::flightSpeedChanged, mFlightController, &FlightController::slotSetFlightSpeed);
+    connect(mKopter, &Kopter::fatalError, this, &KopterControl::slotFatalError);
 
     connect(mLaserScannerDown, &LaserScanner::distanceAtFront, mFlightController, &FlightController::slotSetHeightOverGround);
     connect(mBaseConnection, &BaseConnection::enableScanning, mLaserScannerDown, &LaserScanner::slotEnableScanning);
@@ -156,21 +156,22 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mBaseConnection, &BaseConnection::differentialCorrections, mGnssDevice, &GnssDevice::slotSetDifferentialCorrections);
     connect(mBaseConnection, &BaseConnection::wayPoints, mFlightController, &FlightController::slotSetWayPoints);
     connect(mBaseConnection, &BaseConnection::newConnection, mFlightController, &FlightController::slotEmitFlightControllerInfo);
+
     connect(mBaseConnection, &BaseConnection::controllerWeights, mFlightController, &FlightController::slotSetControllerWeights);
 
-    connect(mGnssDevice->getSbfParser(), &SbfParser::message, mBaseConnection, &BaseConnection::slotNewLogMessage);
-    connect(mGnssDevice, &GnssDevice::message, mBaseConnection, &BaseConnection::slotNewLogMessage);
+    connect(mGnssDevice->getSbfParser(), &SbfParser::message, mBaseConnection, &BaseConnection::slotSendLogMessage);
+    connect(mGnssDevice, &GnssDevice::message, mBaseConnection, &BaseConnection::slotSendLogMessage);
 
     connect(mGnssDevice, &GnssDevice::systemTimeSynchronized, mLaserScannerDown, &LaserScanner::slotSetScannerTimeStamp);
     connect(mGnssDevice, &GnssDevice::systemTimeSynchronized, mLaserScannerFrnt, &LaserScanner::slotSetScannerTimeStamp);
 
-    connect(mGnssDevice->getSbfParser(),&SbfParser::status, mBaseConnection, &BaseConnection::slotNewGnssStatus);
-    connect(mGnssDevice->getSbfParser(), &SbfParser::insError, this, &KopterControl::slotInsError);
+    connect(mGnssDevice->getSbfParser(),&SbfParser::status, mBaseConnection, &BaseConnection::slotSendGnssStatus);
+    connect(mGnssDevice->getSbfParser(), &SbfParser::fatalError, this, &KopterControl::slotFatalError);
 
     // distribute poses from gnssdevice
     connect(mGnssDevice->getSbfParser(), &SbfParser::newVehiclePose, mFlightController, &FlightController::slotNewVehiclePose);
     connect(mGnssDevice->getSbfParser(), &SbfParser::newVehiclePoseSensorFuser, mSensorFuser, &SensorFuser::slotNewVehiclePose);
-    connect(mGnssDevice->getSbfParser(), &SbfParser::newVehiclePoseStatus, mBaseConnection, &BaseConnection::slotNewVehiclePose);
+    connect(mGnssDevice->getSbfParser(), &SbfParser::newVehiclePoseStatus, mBaseConnection, &BaseConnection::slotSendVehiclePose);
 
     connect(mGnssDevice->getSbfParser(), &SbfParser::scanFinished, mSensorFuser, &SensorFuser::slotScanFinished);
     connect(mGnssDevice->getSbfParser(), &SbfParser::gnssDeviceWorkingPrecisely, mLaserScannerDown, &LaserScanner::slotEnableScanning);
@@ -180,12 +181,13 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mSensorFuser, SIGNAL(scanFused(float*const,quint32,QVector3D*const)), mBaseConnection, SLOT(slotNewScanFused(float*const,quint32,QVector3D*const)));
 
     // Lots of traffic - for what?
-    connect(mFlightController, &FlightController::flightControllerValues, mBaseConnection, &BaseConnection::slotNewFlightControllerValues);
-    connect(mFlightController, &FlightController::flightStateChanged, mBaseConnection, &BaseConnection::slotFlightStateChanged);
-    connect(mFlightController, &FlightController::wayPointReached, mBaseConnection, &BaseConnection::slotWayPointReached);
-    connect(mFlightController, &FlightController::wayPoints, mBaseConnection, &BaseConnection::slotSetWayPoints);
-    connect(mFlightController, &FlightController::message, mBaseConnection, &BaseConnection::slotNewLogMessage);
-    connect(mFlightController, &FlightController::flightControllerWeightsChanged, mBaseConnection, &BaseConnection::slotFlightControllerWeightsChanged);
+    connect(mFlightController, &FlightController::flightControllerValues, mBaseConnection, &BaseConnection::slotSendFlightControllerValues);
+    connect(mFlightController, &FlightController::flightState, mBaseConnection, &BaseConnection::slotSendFlightState);
+    connect(mFlightController, &FlightController::flightStateRestriction, mBaseConnection, &BaseConnection::slotSendFlightStateRestriction);
+    connect(mFlightController, &FlightController::wayPointReached, mBaseConnection, &BaseConnection::slotSendWayPointReached);
+    connect(mFlightController, &FlightController::wayPoints, mBaseConnection, &BaseConnection::slotSendWayPoints);
+    connect(mFlightController, &FlightController::message, mBaseConnection, &BaseConnection::slotSendLogMessage);
+    connect(mFlightController, &FlightController::flightControllerWeights, mBaseConnection, &BaseConnection::slotSendFlightControllerWeights);
 
     //    WARNING! THIS ENABLES MOTION!
     connect(mBaseConnection, &BaseConnection::motion, mKopter, &Kopter::slotSetMotion);
@@ -239,13 +241,18 @@ void KopterControl::signalHandler(int signal)
     }
 }
 
-void KopterControl::slotInsError(const QString& message)
+void KopterControl::slotFatalError(const QString& message)
 {
     qDebug() << message;
 
     if(mTimestampStartup.msecsTo(QDateTime::currentDateTime()) < 20000)
     {
-        qFatal("Error during startup, quitting.");
+        qFatal("Fatal error during startup, quitting.");
+    }
+    else
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "fatal error during flight, prepare for the worst!!!";
+        mBaseConnection->slotSendLogMessage(LogImportance::Desaster, "", message);
     }
 }
 
