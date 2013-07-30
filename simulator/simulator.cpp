@@ -120,7 +120,6 @@ void Simulator::slotOgreInitialized(void)
 
     // Only one of the two objects will emit motion signals depending on mJoystickEnabled
     // FlightController's motion should go through a clampToSafeLimits, while the joystickmotion is sent directly.
-//    connect(mFlightController, &FlightController::motion(const MotionCommand* const)), this, SLOT(slotSetClampedMotion(const MotionCommand* const)));
     connect(mFlightController, &FlightController::motion, mPhysics, &Physics::slotSetMotion);
     connect(mJoystick, &Joystick::motion, mPhysics, &Physics::slotSetMotion);
 

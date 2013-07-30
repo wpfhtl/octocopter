@@ -152,7 +152,7 @@ void RoverConnection::processPacket(QByteArray data)
         // read the points!
         stream.readRawData((char*)mRegisteredPointsFloat, numPoints * sizeof(float) * 4);
 
-        qDebug() << "received" << numPoints << "points from rover";
+        //qDebug() << "received" << numPoints << "points from rover";
         emit scanData(mRegisteredPointsFloat, numPoints, &mScannerPosition);
     }
     else if(packetType == "image")

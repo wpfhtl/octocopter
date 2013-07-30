@@ -28,47 +28,47 @@ void OpenGlUtilities::deleteVbo(GLuint vbo)
 }
 
 
-void OpenGlUtilities::setVboToBoundingBox(const quint32 vbo, const QVector3D& min, const QVector3D& max)
+void OpenGlUtilities::setVboToBoundingBox(const quint32 vbo, const Box3D& box)
 {
     QVector<float> vertices;
 
     // Fill the vertices buffer with vertices for quads and lines
     vertices
             // 1 back
-            << min.x() << min.y() << min.z() << 1.0f
-            << max.x() << min.y() << min.z() << 1.0f
-            << max.x() << max.y() << min.z() << 1.0f
-            << min.x() << max.y() << min.z() << 1.0f
+            << box.min.x() << box.min.y() << box.min.z() << 1.0f
+            << box.max.x() << box.min.y() << box.min.z() << 1.0f
+            << box.max.x() << box.max.y() << box.min.z() << 1.0f
+            << box.min.x() << box.max.y() << box.min.z() << 1.0f
 
             // 2 front
-            << max.x() << min.y() << max.z() << 1.0f
-            << min.x() << min.y() << max.z() << 1.0f
-            << min.x() << max.y() << max.z() << 1.0f
-            << max.x() << max.y() << max.z() << 1.0f
+            << box.max.x() << box.min.y() << box.max.z() << 1.0f
+            << box.min.x() << box.min.y() << box.max.z() << 1.0f
+            << box.min.x() << box.max.y() << box.max.z() << 1.0f
+            << box.max.x() << box.max.y() << box.max.z() << 1.0f
 
             // 3 left
-            << min.x() << min.y() << max.z() << 1.0f
-            << min.x() << min.y() << min.z() << 1.0f
-            << min.x() << max.y() << min.z() << 1.0f
-            << min.x() << max.y() << max.z() << 1.0f
+            << box.min.x() << box.min.y() << box.max.z() << 1.0f
+            << box.min.x() << box.min.y() << box.min.z() << 1.0f
+            << box.min.x() << box.max.y() << box.min.z() << 1.0f
+            << box.min.x() << box.max.y() << box.max.z() << 1.0f
 
             // 4 right
-            << max.x() << min.y() << min.z() << 1.0f
-            << max.x() << min.y() << max.z() << 1.0f
-            << max.x() << max.y() << max.z() << 1.0f
-            << max.x() << max.y() << min.z() << 1.0f
+            << box.max.x() << box.min.y() << box.min.z() << 1.0f
+            << box.max.x() << box.min.y() << box.max.z() << 1.0f
+            << box.max.x() << box.max.y() << box.max.z() << 1.0f
+            << box.max.x() << box.max.y() << box.min.z() << 1.0f
 
             // 6 top
-            << min.x() << max.y() << min.z() << 1.0f
-            << max.x() << max.y() << min.z() << 1.0f
-            << max.x() << max.y() << max.z() << 1.0f
-            << min.x() << max.y() << max.z() << 1.0f
+            << box.min.x() << box.max.y() << box.min.z() << 1.0f
+            << box.max.x() << box.max.y() << box.min.z() << 1.0f
+            << box.max.x() << box.max.y() << box.max.z() << 1.0f
+            << box.min.x() << box.max.y() << box.max.z() << 1.0f
 
             // 5 bottom
-            << min.x() << min.y() << max.z() << 1.0f
-            << max.x() << min.y() << max.z() << 1.0f
-            << max.x() << min.y() << min.z() << 1.0f
-            << min.x() << min.y() << min.z() << 1.0f;
+            << box.min.x() << box.min.y() << box.max.z() << 1.0f
+            << box.max.x() << box.min.y() << box.max.z() << 1.0f
+            << box.max.x() << box.min.y() << box.min.z() << 1.0f
+            << box.min.x() << box.min.y() << box.min.z() << 1.0f;
 
     mGlFunctions->glBindBuffer(GL_ARRAY_BUFFER, vbo);
     mGlFunctions->glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), NULL, GL_STATIC_DRAW);

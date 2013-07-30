@@ -18,12 +18,19 @@ private:
     QColor mColor;
     float mSphereSize;
 
-    void setVbo();
+    void updateVbo();
 
 public:
     WayPointList();
     WayPointList(const QColor& color);
     ~WayPointList();
+
+    QString toString() const;
+
+    bool isEmpty() const
+    {
+        return mWaypoints.isEmpty();
+    }
 
     void mergeCloseWaypoints(const float minimumDistance);
 
@@ -31,15 +38,17 @@ public:
 
     float getSphereSize() const { return mSphereSize; }
 
-    QList<WayPoint>* list() {return &mWaypoints;}
+    const QList<WayPoint>* list() const {return &mWaypoints;}
     const quint32 vbo() const {return mVbo;}
     const QColor color() const {return mColor;}
 
+    void prepend(const WayPoint& wp);
     void append(const WayPoint& wp);
     void append(const QList<WayPoint>& wps);
     void append(const WayPointList* wpl);
     void insert(const quint16& index, const WayPoint& wp);
     void remove(const quint16& index);
+    void removeLast() {mWaypoints.removeLast();}
     WayPoint takeAt(const int index);
     int size() const {return mWaypoints.size();}
     void clear();
@@ -47,8 +56,17 @@ public:
 
     void sortToShortestPath(const QVector3D &vehiclePosition);
 
+    void setWayPoint(const int index, const WayPoint& wpt)
+    {
+        mWaypoints[index] = wpt;
+        updateVbo();
+    }
+
     const WayPoint& at(const int index) const {return mWaypoints.at(index);}
     const WayPoint& first() const {return mWaypoints.first();}
+
+    bool saveToFile(const QString& fileName) const;
+    bool loadFromFile(const QString& fileName);
 };
 
 #endif // WAYPOINTLIST_H

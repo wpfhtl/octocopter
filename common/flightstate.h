@@ -12,9 +12,9 @@ public:
     enum class State
     {
         UserControl,
+        Idle,
         Hover,
         ApproachWayPoint,
-        Idle,
         Undefined
     };
 

@@ -25,6 +25,9 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
     connect(mWayPointTable, &QTableWidget::cellChanged, this, &ControlWidget::slotWayPointChanged);
 
     connect(mBtnGenerateWaypoints, SIGNAL(clicked()), SIGNAL(showUserInterface()));
+    connect(mWayPointTable, SIGNAL(cellActivated(int,int)), SIGNAL(wayPointSelected(int)));
+    connect(mWayPointTable, SIGNAL(cellClicked(int,int)), SIGNAL(wayPointSelected(int)));
+    connect(mWayPointTable, SIGNAL(cellEntered(int,int)), SIGNAL(wayPointSelected(int)));
 
     connect(mBtnSetScanVolume, &QPushButton::clicked, this, &ControlWidget::slotSetScanVolume);
 
@@ -105,16 +108,16 @@ void ControlWidget::slotUpdateConnectionDiffCorr(const bool working)
     }
 }
 
-void ControlWidget::slotFlightStateChanged(const FlightState* const fs)
+void ControlWidget::slotSetFlightState(const FlightState* const fs)
 {
-    qDebug() << "ControlWidget::slotFlightStateChanged(): flightstate changed to" << fs->toString();
+    qDebug() << "ControlWidget::slotSetFlightState(): flightstate changed to" << fs->toString();
     mLabelFlightState->setText(fs->toString());
     if(fs->state != FlightState::State::Undefined) mLabelFlightState->setStyleSheet(""); else mLabelFlightState->setStyleSheet(getBackgroundCss(true, false));
 }
 
-void ControlWidget::slotFlightStateRestrictionChanged(const FlightStateRestriction* const fsr)
+void ControlWidget::slotSetFlightStateRestriction(const FlightStateRestriction* const fsr)
 {
-    qDebug() << "ControlWidget::slotFlightStateRestrictionChanged(): flightstaterestriction changed to" << fsr->toString();
+    qDebug() << "ControlWidget::slotSetFlightStateRestriction(): flightstaterestriction changed to" << fsr->toString();
     mLabelFlightStateRestriction->setText(fsr->toString().replace("Restriction", ""));
 }
 
@@ -208,8 +211,9 @@ void ControlWidget::slotUpdateInsStatus(const GnssStatus* const gnssStatus)
 void ControlWidget::slotSetScanVolume()
 {
     emit setScanVolume(
-                QVector3D(mSpinBoxScanVolumeMinX->value(), mSpinBoxScanVolumeMinY->value(), mSpinBoxScanVolumeMinZ->value()),
-                QVector3D(mSpinBoxScanVolumeMaxX->value(), mSpinBoxScanVolumeMaxY->value(), mSpinBoxScanVolumeMaxZ->value())
+                Box3D(
+                    QVector3D(mSpinBoxScanVolumeMinX->value(), mSpinBoxScanVolumeMinY->value(), mSpinBoxScanVolumeMinZ->value()),
+                    QVector3D(mSpinBoxScanVolumeMaxX->value(), mSpinBoxScanVolumeMaxY->value(), mSpinBoxScanVolumeMaxZ->value()))
                 );
 }
 
@@ -217,42 +221,20 @@ void ControlWidget::slotSetScanVolume()
 void ControlWidget::slotWayPointLoad()
 {
     const QString fileName = QFileDialog::getOpenFileName(this, "Load WayPoints");
-    if(!fileName.isNull())
+    if(!mWayPointList.loadFromFile(fileName))
     {
-        QFile file(fileName);
-        if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
-        {
-            QMessageBox::critical(this, "File Error", "Couldn't open file for reading!");
-            return;
-        }
-
-        while (!file.atEnd())
-        {
-            const QString line(file.readLine());
-            const QStringList values = line.split(";", QString::SkipEmptyParts);
-
-            if(values.size() != 3)
-            {
-                QMessageBox::warning(this, "File Format Error", QString("Not three numbers in line!"));
-                return;
-            }
-
-            const WayPoint wpt(
-                        QVector3D(
-                            values.at(0).toFloat(),
-                            values.at(1).toFloat(),
-                            values.at(2).toFloat()
-                            )
-                        );
-
-            mWayPointList.append(wpt);
-        }
-
-        file.close();
+        QMessageBox::critical(this, "File Error", "Couldn't read file!");
     }
 
     updateWayPointTable();
     slotEmitWaypoints();
+}
+
+void ControlWidget::slotWayPointSave()
+{
+    const QString fileName = QFileDialog::getSaveFileName(this, "Save WayPoints");
+    if(!mWayPointList.saveToFile(fileName))
+            QMessageBox::critical(this, "File Error", "Couldn't open file for writing!");
 }
 
 // Sets the table to the contents of mWayPointList
@@ -280,35 +262,9 @@ void ControlWidget::updateWayPointTable()
     mGroupBoxWayPoints->setTitle(QString("%1 Waypoints").arg(mWayPointTable->rowCount()));
 }
 
-void ControlWidget::slotWayPointSave()
-{
-    const QString fileName = QFileDialog::getSaveFileName(this, "Save WayPoints");
-    if(!fileName.isNull())
-    {
-        QFile file(fileName);
-        if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
-        {
-            QMessageBox::critical(this, "File Error", "Couldn't open file for writing!");
-            return;
-        }
-
-        QTextStream out(&file);
-
-        for(int i=0;i<mWayPointList.size();i++)
-        {
-            out << mWayPointList.at(i).x() << ";";
-            out << mWayPointList.at(i).y() << ";";
-            out << mWayPointList.at(i).z();
-            out << "\n";
-        }
-
-        file.close();
-    }
-}
-
 void ControlWidget::slotEmitWaypoints()
 {
-    emit wayPoints(&mWayPointList, WayPointListSource::WayPointListSourceControlWidget);
+    emit wayPoints(mWayPointList.list(), WayPointListSource::WayPointListSourceControlWidget);
 }
 
 
@@ -341,7 +297,7 @@ void ControlWidget::slotWayPointDelete()
     if(items.size())
     {
         const quint32 index = items.at(0)->row();
-        mWayPointList.removeAt(index);
+        mWayPointList.remove(index);
         updateWayPointTable();
         slotEmitWaypoints();
     }
@@ -365,7 +321,7 @@ void ControlWidget::slotWayPointChanged(int row, int /*column*/)
     if(okX && okY && okZ)
     {
         // If all cells could be parsed, update waypoint list and emit
-        mWayPointList[row] = wpt;
+        mWayPointList.setWayPoint(row, wpt);
         slotEmitWaypoints();
     }
     else
@@ -386,7 +342,7 @@ void ControlWidget::slotSetWayPoints(const QList<WayPoint>* const wayPoints, con
 {
     if(source != WayPointListSource::WayPointListSourceControlWidget)
     {
-        mWayPointList = *wayPoints;
+        mWayPointList.setList(wayPoints);
         updateWayPointTable();
     }
 }

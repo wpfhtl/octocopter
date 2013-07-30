@@ -3,6 +3,11 @@
 
 #include "cudahelper.cuh"
 
+__host__ __device__ bool operator==(const int3 a, const int3 b)
+{
+    return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
 __device__ unsigned int getThreadIndex1D(void)
 {
   return blockIdx.x * blockDim.x + threadIdx.x;
@@ -21,17 +26,6 @@ __host__ __device__ unsigned int nextHigherPowerOfTwo(unsigned int v)
     v |= v >> 16;
     return v + 1;
 }
-
-__host__ __device__ unsigned int cudaBound(const unsigned int min, const unsigned int value, const unsigned int max)
-{
-    if(value < min)
-        return min;
-    else if(value > max)
-        return max;
-    else
-        return value;
-}
-
 __host__ __device__ uint /*CudaHelper::*/iDivUp(uint a, uint b)
 {
     return (a % b != 0) ? (a / b + 1) : (a / b);

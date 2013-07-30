@@ -1,15 +1,10 @@
 #include "physics.h"
 #include "motioncommand.h"
 
-Physics::Physics(Simulator *simulator, OgreWidget *ogreWidget) :
-//        QThread(simulator),
-        QObject(simulator),
-        mMutex(QMutex::NonRecursive)
+Physics::Physics(Simulator *simulator, OgreWidget *ogreWidget) : QObject(simulator)
 {
     mSimulator = simulator;
     mOgreWidget = ogreWidget;
-
-    mTotalVehicleWeight = 2.250;
 
     initializeWind();
 
@@ -366,7 +361,7 @@ void Physics::slotSetMotion(const MotionCommand* const motionCommand)
     // http://gallery.mikrokopter.de/main.php/v/tech/Okto2_5000_Payload.gif.html?g2_imageViewsIndex=1,
 
     // Apply general thrust. A value of 255 means 100% thrust, which means around 4.5A per single motor at full battery
-    const float thrustCurrent = (((float)motionCommand->thrust) / 255.0f) * 5.5f * (mSimulator->mBattery->voltageCurrent() / mSimulator->mBattery->voltageMax());
+    const float thrustCurrent = (((float)motionCommand->thrust) / 255.0f) * 4.5f * (mSimulator->mBattery->voltageCurrent() / mSimulator->mBattery->voltageMax());
     const float thrustScalar = mEngine.calculateThrust(thrustCurrent) * 8.0f;
     const Ogre::Vector3 thrustVectorOgre = mVehicleNode->_getDerivedOrientation() * Ogre::Vector3(0, thrustScalar, 0.0f);
     mVehicleBody->applyCentralForce(btVector3(thrustVectorOgre.x, thrustVectorOgre.y, thrustVectorOgre.z));
@@ -391,7 +386,7 @@ void Physics::slotSetMotion(const MotionCommand* const motionCommand)
 
     float timeDiffDelme = (mSimulator->getSimulationTime() - mTimeOfLastControllerUpdate) / 1000.0f;
     const float timeDiff = qBound(0.01f, (float)(mSimulator->getSimulationTime() - mTimeOfLastControllerUpdate) / 1000.0f, 0.3f); // elapsed time since last call in seconds
-    qDebug() << thrustVectorOgre.x << thrustVectorOgre.y << thrustVectorOgre.z << timeDiffDelme << "bound:" << timeDiff;
+    qDebug() << "Physics::slotSetMotion():" << thrustVectorOgre.x << thrustVectorOgre.y << thrustVectorOgre.z << timeDiffDelme << "bound:" << timeDiff;
     mTimeOfLastControllerUpdate = mSimulator->getSimulationTime();
 
     const float mikrokopterPitchRollP = 6.0f;
@@ -504,13 +499,13 @@ void Physics::slotUpdatePhysics(void)
     const int simulationTime = mSimulator->getSimulationTime(); // milliseconds
     const btScalar deltaS = qBound(0.0f, (simulationTime - mTimeOfLastPhysicsUpdate) / 1000.0f, 0.1f); // elapsed time since last call in seconds
     const int maxSubSteps = 20;
-    const btScalar fixedTimeStep = 1.0 / 60.0;
+    const btScalar fixedTimeStep = 1.0f / 60.0f;
     qDebug() << "Physics::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
     slotUpdateWind();
 
     mVehicleBody->applyDamping(deltaS);
 
-    //Q_ASSERT(deltaS < maxSubSteps * fixedTimeStep); // http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
+    Q_ASSERT(deltaS < maxSubSteps * fixedTimeStep); // http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
 //    mVehicleBody->applyForce(btVector3(0, 20, 0), btVector3(0, 0, 0));
     mBtWorld->stepSimulation(deltaS, maxSubSteps, fixedTimeStep);
 //    mVehicleBody->applyForce(btVector3(0, 20, 0), btVector3(0, 0, 0));
@@ -531,7 +526,7 @@ void Physics::slotUpdatePhysics(void)
         ls->slotSetScannerPose(scannerNode->_getDerivedPosition(), scannerNode->_getDerivedOrientation());
     }
 
-    mVehiclePose = mVehicleState->getPose();
+    mVehicleState->getPose(mVehiclePose);
     emit newVehiclePose(&mVehiclePose);
 }
 
@@ -545,11 +540,6 @@ QVector3D Physics::getVehicleAngularVelocity() const
 {
     const btVector3 vA = mVehicleBody->getAngularVelocity();
     return QVector3D(vA.x(), vA.y(), vA.z());
-}
-
-void Physics::slotSetTotalVehicleWeight(const float& weight)
-{
-    mTotalVehicleWeight = weight;
 }
 
 void Physics::slotRescueVehicle()

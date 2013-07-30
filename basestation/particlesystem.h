@@ -7,6 +7,7 @@
 #include <QDebug>
 #include <QVector3D>
 #include <QVector4D>
+#include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLFunctions_4_3_Core>
 
 #include "common.h"
@@ -16,7 +17,7 @@ class PointCloudCuda;
 
 // See http://forums.nvidia.com/index.php?showtopic=173696
 
-class ParticleSystem : public QObject, public QOpenGLFunctions_4_3_Core
+class ParticleSystem : public QObject, protected OPENGL_FUNCTIONS_CLASS
 {
     Q_OBJECT
 public:
@@ -36,11 +37,6 @@ public:
     Vector3i gridCells(const Grid& g)
     {
         return Vector3i(g.cells.x, g.cells.y, g.cells.z);
-    }
-
-    QVector3D getVector(const float3& p) const
-    {
-        return QVector3D(p.x, p.y, p.z);
     }
 
 private slots:
@@ -92,14 +88,14 @@ public slots:
         mParametersSimulation->gravity.z = gravity.z();
     }
 
-    void slotSetVolume(const QVector3D& min, const QVector3D& max);
+    void slotSetVolume(const Box3D &boundingBox);
 
     void slotResetParticles();
 
 
 signals:
     void particleRadiusChanged(float);
-    void vboInfoParticles(quint32 vboPositions, quint32 vboColor, quint32 particleCount, QVector3D particleSystemWorldMin, QVector3D particleSystemWorldMax);
+    void vboInfoParticles(quint32 vboPositions, quint32 vboColor, quint32 particleCount, Box3D particleSystemBoundingBox);
 
 protected:
     ParametersParticleSystem* mParametersSimulation;

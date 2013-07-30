@@ -39,7 +39,7 @@ ParticleSystem::ParticleSystem(PointCloudCuda *const pointCloudDense, PointCloud
     // vector will be initialized with 0x777777 once on startup
     mUpdateMappingFromColliderToGridCell = true;
 
-    mParametersSimulation->gridParticleSystem.worldMin = make_float3(-56.0f, -8.0f, -50.0f);
+    mParametersSimulation->gridParticleSystem.worldMin = make_float3(-56.0f, -6.0f, -50.0f);
     mParametersSimulation->gridParticleSystem.worldMax = make_float3(8.0f, 26.0f, 14.0f);
 
     connect(mPointCloudColliders, SIGNAL(pointsInserted(PointCloud*const,quint32,quint32)), SLOT(slotNewCollidersInserted()));
@@ -52,7 +52,6 @@ void ParticleSystem::slotNewCollidersInserted()
 
 void ParticleSystem::setNullPointers()
 {
-    //return;
     mHostParticlePos = 0;
     mHostParticleVel = 0;
     mDeviceParticleVel = 0;
@@ -68,20 +67,18 @@ void ParticleSystem::setNullPointers()
     mDeviceColliderCellEnd = 0;
     mVboParticlePositions = 0;
     mVboParticleColors = 0;
-
     mDeviceParticleCollisionPositions = 0;
     mVboColliderPositions = 0;
     mDeviceColliderSortedPos = 0;
 }
 
-void ParticleSystem::slotSetVolume(const QVector3D& min, const QVector3D& max)
+void ParticleSystem::slotSetVolume(const Box3D& boundingBox)
 {
     // Set the new volume, and re-set some parts of the datastructure only if
     // the size has changed. Otherwise, we can simply move the whole system.
-    mParametersSimulation->gridParticleSystem.worldMin = make_float3(min.x(), min.y(), min.z());
-    mParametersSimulation->gridParticleSystem.worldMax = make_float3(max.x(), max.y(), max.z());
-
-    mPointCloudColliders->setBoundingBox(min, max);
+    mParametersSimulation->gridParticleSystem.worldMin = CudaHelper::cudaConvert(boundingBox.min);
+    mParametersSimulation->gridParticleSystem.worldMax = CudaHelper::cudaConvert(boundingBox.max);
+    mPointCloudColliders->setBoundingBox(boundingBox);
 
     // TODO: re-initialize when size changes!
 
@@ -100,8 +97,10 @@ void ParticleSystem::slotSetVolume(const QVector3D& min, const QVector3D& max)
                 mVboParticlePositions,
                 mVboParticleColors,
                 mParametersSimulation->particleCount,
-                getVector(mParametersSimulation->gridParticleSystem.worldMin),
-                getVector(mParametersSimulation->gridParticleSystem.worldMax)
+                Box3D(
+                    CudaHelper::cudaConvert(mParametersSimulation->gridParticleSystem.worldMin),
+                    CudaHelper::cudaConvert(mParametersSimulation->gridParticleSystem.worldMax)
+                    )
                 );
 }
 
@@ -153,8 +152,8 @@ void ParticleSystem::initialize()
 
     const quint32 numberOfCells = mParametersSimulation->gridParticleSystem.cells.x * mParametersSimulation->gridParticleSystem.cells.y * mParametersSimulation->gridParticleSystem.cells.z;
     //    m_params.cellSize = make_float3(worldSize.x / m_gridSize.x, worldSize.y / m_gridSize.y, worldSize.z / m_gridSize.z);
-//    float cellSize = mSimulationParameters->particleRadius * 2.0f;  // cell size equal to particle diameter
-//    mSimulationParameters->cellSize = make_float3(cellSize, cellSize, cellSize);
+    //    float cellSize = mSimulationParameters->particleRadius * 2.0f;  // cell size equal to particle diameter
+    //    mSimulationParameters->cellSize = make_float3(cellSize, cellSize, cellSize);
 
     // allocate host storage for particle positions and velocities, then set them to zero
     mHostParticlePos = new float[mParametersSimulation->particleCount * 4];
@@ -178,8 +177,10 @@ void ParticleSystem::initialize()
                 mVboParticlePositions,
                 mVboParticleColors,
                 mParametersSimulation->particleCount,
-                getVector(mParametersSimulation->gridParticleSystem.worldMin),
-                getVector(mParametersSimulation->gridParticleSystem.worldMax)
+                Box3D(
+                    CudaHelper::cudaConvert(mParametersSimulation->gridParticleSystem.worldMin),
+                    CudaHelper::cudaConvert(mParametersSimulation->gridParticleSystem.worldMax)
+                    )
                 );
 
     // Create VBO with collider positions. This is later given to particle renderer for visualization
@@ -328,7 +329,7 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
 
     if(!mIsInitialized) initialize();
 
-//    cudaDeviceSynchronize();
+    //    cudaDeviceSynchronize();
 
     QTime startTime = QTime::currentTime();
     startTime.start();
@@ -336,12 +337,12 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
     // Get a pointer to the particle positions in the device by mapping GPU mem into CPU mem
     float *deviceParticlePositions = (float*)CudaHelper::mapGLBufferObject(&mCudaVboResourceParticlePositions);
 
-//    qDebug() << "ParticleSystem::update(): 0: getting pointer finished at" << startTime.elapsed();
+    //    qDebug() << "ParticleSystem::update(): 0: getting pointer finished at" << startTime.elapsed();
 
     // Update constants
     copyParametersToGpu(mParametersSimulation);
 
-//    qDebug() << "ParticleSystem::update(): 1: setting parameters finished at" << startTime.elapsed();
+    //    qDebug() << "ParticleSystem::update(): 1: setting parameters finished at" << startTime.elapsed();
 
     // Get a pointer to the "__constant__ ParametersParticleSystem parametersParticleSystem" on the device
     ParametersParticleSystem* paramsParticleSystem;
@@ -356,9 +357,9 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
                 paramsParticleSystem,                       // input:  The particle system's parameters
                 mParametersSimulation->particleCount);
 
-//    showInformationGain();
+    //    showInformationGain();
 
-//    qDebug() << "ParticleSystem::update(): 2: integrating system finished at" << startTime.elapsed();
+    //    qDebug() << "ParticleSystem::update(): 2: integrating system finished at" << startTime.elapsed();
 
     // Now that particles have been moved, they might be contained in different grid cells. So recompute the
     // mapping gridCell => particleIndex. This will allow fast neighbor searching in the grid during collision phase.
@@ -369,12 +370,12 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
                 &paramsParticleSystem->gridParticleSystem,
                 mParametersSimulation->particleCount);       // input:  The number of particles, one thread per particle
 
-//    qDebug() << "ParticleSystem::update(): 3: computing particle spatial hash table finished at" << startTime.elapsed();
+    //    qDebug() << "ParticleSystem::update(): 3: computing particle spatial hash table finished at" << startTime.elapsed();
 
     // Sort the mapping gridCell => particleId on gridCell
     sortGridOccupancyMap(mDeviceParticleMapGridCell, mDeviceParticleMapIndex, mParametersSimulation->particleCount);
 
-//    qDebug() << "ParticleSystem::update(): 4: sorting particle spatial hash table finished at" << startTime.elapsed();
+    //    qDebug() << "ParticleSystem::update(): 4: sorting particle spatial hash table finished at" << startTime.elapsed();
 
     // Reorder particle arrays into sorted order and find start and end of each cell. The ordering of the particles is useful
     // only for the particle/particle-collisions. The collision code writes the post-collision velocities back into the
@@ -392,7 +393,7 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
                 mParametersSimulation->gridParticleSystem.getCellCount()  // input: Number of grid cells
                 );
 
-//    qDebug() << "ParticleSystem::update(): 5: computing particle navigation tables and sorting particles finished at" << startTime.elapsed();
+    //    qDebug() << "ParticleSystem::update(): 5: computing particle navigation tables and sorting particles finished at" << startTime.elapsed();
 
     // Same for colliders
     if(mUpdateMappingFromColliderToGridCell)
@@ -405,13 +406,13 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
                     deviceColliderPositions,                    // input:  The collider positions (no integration), unsorted and possibly colliding with particles
                     &paramsParticleSystem->gridParticleSystem,
                     mPointCloudColliders->getVboInfo()[0].size  // input:  The number of colliders, one thread per particle
-                    );
+                );
 
-//        qDebug() << "ParticleSystem::update(): 6: computing collider spatial hash table finished at" << startTime.elapsed();
+        //        qDebug() << "ParticleSystem::update(): 6: computing collider spatial hash table finished at" << startTime.elapsed();
 
         sortGridOccupancyMap(mDeviceColliderMapGridCell, mDeviceColliderMapIndex, mPointCloudColliders->getVboInfo()[0].size);
 
-//        qDebug() << "ParticleSystem::update(): 7: sorting collider spatial hash table finished at" << startTime.elapsed();
+        //        qDebug() << "ParticleSystem::update(): 7: sorting collider spatial hash table finished at" << startTime.elapsed();
 
         sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
                     mDeviceColliderCellStart,                   // output: At which index in mDeviceMapColliderIndex does cell X start?
@@ -423,15 +424,15 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
                     deviceColliderPositions,                    // input:  The particle-positions, unsorted
                     0,                                          // input:  The particle-velocities, unsorted / they have no vel, so pass 0
                     mPointCloudColliders->getVboInfo()[0].size, // input:  The number of colliders
-                    mParametersSimulation->gridParticleSystem.cells.x * mParametersSimulation->gridParticleSystem.cells.y * mParametersSimulation->gridParticleSystem.cells.z  // input: Number of grid cells
-                    );
+                mParametersSimulation->gridParticleSystem.cells.x * mParametersSimulation->gridParticleSystem.cells.y * mParametersSimulation->gridParticleSystem.cells.z  // input: Number of grid cells
+                );
 
         cudaGraphicsUnmapResources(1, &mCudaVboResourceColliderPositions, 0);
 
         mUpdateMappingFromColliderToGridCell = false;
     }
 
-//    qDebug() << "ParticleSystem::update(): 8: computing collider navigation tables and sorting particles finished at" << startTime.elapsed();
+    //    qDebug() << "ParticleSystem::update(): 8: computing collider navigation tables and sorting particles finished at" << startTime.elapsed();
 
     // process collisions between particles
     collideParticlesWithParticlesAndColliders(
@@ -454,9 +455,9 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
                 mParametersSimulation->gridParticleSystem.cells.x * mParametersSimulation->gridParticleSystem.cells.y * mParametersSimulation->gridParticleSystem.cells.z  // input: Number of grid cells
                 );
 
-//    showCollisionPositions();
+    //    showCollisionPositions();
 
-//    qDebug() << "ParticleSystem::update(): 9: colliding particles finished at" << startTime.elapsed();
+    //    qDebug() << "ParticleSystem::update(): 9: colliding particles finished at" << startTime.elapsed();
 
     // Unmap at end here to avoid unnecessary graphics/CUDA context switch.
     // Once unmapped, the resource may not be accessed by CUDA until they
@@ -465,7 +466,7 @@ void ParticleSystem::update(quint8 *deviceGridMapOfWayPointPressure)
     // will complete before any subsequently issued graphics work begins.
     cudaGraphicsUnmapResources(1, &mCudaVboResourceParticlePositions, 0);
 
-//    cudaDeviceSynchronize();
+    //    cudaDeviceSynchronize();
 
     size_t memTotal, memFree;
     cudaMemGetInfo(&memFree, &memTotal);
@@ -535,7 +536,7 @@ void ParticleSystem::slotResetParticles()
         int p = 0, v = 0;
 
         qDebug() << "ParticleSystem::reset(): world min" << mParametersSimulation->gridParticleSystem.worldMin.x << mParametersSimulation->gridParticleSystem.worldMin.y << mParametersSimulation->gridParticleSystem.worldMin.z <<
-        "max" << mParametersSimulation->gridParticleSystem.worldMax.x << mParametersSimulation->gridParticleSystem.worldMax.y << mParametersSimulation->gridParticleSystem.worldMax.z;
+                    "max" << mParametersSimulation->gridParticleSystem.worldMax.x << mParametersSimulation->gridParticleSystem.worldMax.y << mParametersSimulation->gridParticleSystem.worldMax.z;
 
         for(unsigned int i=0; i < mParametersSimulation->particleCount; i++)
         {
@@ -611,7 +612,7 @@ void ParticleSystem::slotResetParticles()
                     z <= mParametersSimulation->gridParticleSystem.worldMax.z - mParametersSimulation->particleRadius && particleNumber < mParametersSimulation->particleCount;
                     z += spacing)
                 {
-//                    qDebug() << "moving particle" << particleNumber << "to" << x << y << z;
+                    //                    qDebug() << "moving particle" << particleNumber << "to" << x << y << z;
                     mHostParticlePos[particleNumber*4+0] = x + (frand()-0.5) * jitter;
                     mHostParticlePos[particleNumber*4+1] = y + (frand()-0.5) * jitter;
                     mHostParticlePos[particleNumber*4+2] = z + (frand()-0.5) * jitter;

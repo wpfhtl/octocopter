@@ -193,7 +193,7 @@ void FlightController::slotComputeMotionCommands()
 
             QVector3D horizontalVelocity(mFlightControllerValues.lastKnownPose.getPosition());
             horizontalVelocity.setY(0.0f);
-
+/*
             qDebug() << "FlightController::slotComputeMotionCommands():" << getFlightState().toString() << mFlightControllerValues.lastKnownPose
                      << "maxVelPerAxis:" << mMaxFlightVelPerAxis
                      << "horVel" << horizontalVelocity.length()
@@ -202,7 +202,7 @@ void FlightController::slotComputeMotionCommands()
                      << "offset pitchToGoal" << lateralOffsetPitchToTrajectoryGoal << "rollToTraj" << lateralOffsetRollToTrajectory
                      << "velPitchVal" << velOverPitchValue << "velPitchDes" << velOverPitchDesired
                      << "velRollVal" << velOverRollValue << "velRollDes" << velOverRollDesired;
-
+*/
             // speedPitch denotes the vehicle's translation speed forward/backward. This speed goes along its Z-axis,
             // which points backwards. A positive speed thus means moving backwards. Positive pitch-control values
             // also mean bending backwards, so this matches.
@@ -275,7 +275,7 @@ float FlightController::getLateralOffsetOnVehicleRollAxisToPosition(const QVecto
 
 void FlightController::logFlightControllerValues()
 {
-    qDebug() << "FlightController::logFlightControllerValues(): logging" << mFlightControllerValues.lastKnownPose << "at fcvtime" << mFlightControllerValues.timestamp;
+    //qDebug() << "FlightController::logFlightControllerValues(): logging" << mFlightControllerValues.lastKnownPose << "at fcvtime" << mFlightControllerValues.timestamp;
 
     QByteArray data("FLTCLR"); // start with the magic bytes
     QDataStream ds(&data, QIODevice::WriteOnly);
@@ -323,28 +323,38 @@ void FlightController::slotSetWayPoints(const QList<WayPoint>& wayPoints, const 
 {
     if(source != WayPointListSource::WayPointListSourceRover)
     {
+        qDebug() << "FlightController::slotSetWayPoints(): accepting" << wayPoints.size() << "waypoints...";
+
         mWayPoints = wayPoints;
 
-        // Just in case we were idle before...
-        if(mFlightControllerValues.flightState == FlightState::State::Idle && mWayPoints.size() && mFlightControllerValues.flightStateRestriction.allowsFlightState(FlightState::State::ApproachWayPoint))
+        if(mWayPoints.size())
         {
-            qDebug() << "FlightController::slotSetWayPoints(): we were idle, got new waypoints and FlightStateRestriction" << mFlightControllerValues.flightStateRestriction.toString() << "allows it, switching to ApproachWayPoint";
-            setFlightState(FlightState::State::ApproachWayPoint);
-        }
+            // New waypoints arrived!
 
-        // The list might now be empty, so we might have to hover.
-        if(mFlightControllerValues.flightState == FlightState::State::ApproachWayPoint)
+            if((mFlightControllerValues.flightState == FlightState::State::Idle || mFlightControllerValues.flightState == FlightState::State::Hover) && mFlightControllerValues.flightStateRestriction.allowsFlightState(FlightState::State::ApproachWayPoint))
+            {
+                qDebug() << "FlightController::slotSetWayPoints(): we were idle or hovering, got new waypoints and FlightStateRestriction" << mFlightControllerValues.flightStateRestriction.toString() << "allows it, switching to ApproachWayPoint";
+                setFlightState(FlightState::State::ApproachWayPoint);
+            }
+        }
+        else
         {
-            qDebug() << "FlightController::slotSetWayPoints(): we are in ApproachWayPoint, we need to ensureSafeFlightAfterWaypointsChanged()...";
-            ensureSafeFlightAfterWaypointsChanged();
+            // no waypoints present. they were possibly deleted.
+            if(mFlightControllerValues.flightState == FlightState::State::ApproachWayPoint)
+            {
+                qDebug() << "FlightController::slotSetWayPoints(): we are in ApproachWayPoint, we need to ensureSafeFlightAfterWaypointsChanged()...";
+                ensureSafeFlightAfterWaypointsChanged();
+            }
         }
     }
+    else
+        qDebug() << "FlightController::slotSetWayPoints(): ignoring" << wayPoints.size() << "waypoints, as source is Rover!";
 }
 
 void FlightController::slotNewVehiclePose(const Pose* const pose)
 {
     //Profiler p(__PRETTY_FUNCTION__);
-    qDebug() << "FlightController::slotNewVehiclePose(): flightstate:" << mFlightControllerValues.flightState.toString() << pose->toString(true) << "age" <<pose->getAge();
+    //qDebug() << "FlightController::slotNewVehiclePose(): flightstate:" << mFlightControllerValues.flightState.toString() << pose->toString(true) << "age" <<pose->getAge();
 
     // Whatever precision and flightstate, save the pose. We also save unprecise poses here,
     // which might come in handy later.

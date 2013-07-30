@@ -32,7 +32,7 @@ class PointCloudCuda : public PointCloud
     Q_OBJECT
 
 public:
-    PointCloudCuda(const QVector3D &min, const QVector3D &max, const quint32 maximumElementCount = 8 * 1024 * 1024); // 8 million points capacity
+    PointCloudCuda(const Box3D &boundingBox, const quint32 maximumElementCount = 8 * 1024 * 1024); // 8 million points capacity
     ~PointCloudCuda();
 
     void updateVbo();
@@ -41,11 +41,11 @@ public:
     void setMinimumPointDistance(const float &distance);
     float getMinimumPointDistance() const { return mParameters.minimumDistance; }
 
-    void setBoundingBox(const QVector3D& min, const QVector3D& max)
+    void setBoundingBox(const Box3D& box)
     {
         // We do not use the Base-Classes' mBBoxMin and mBBoxMax!
-        mParameters.grid.worldMin = make_float3(min.x(), min.y(), min.z());
-        mParameters.grid.worldMax = make_float3(max.x(), max.y(), max.z());
+        mParameters.grid.worldMin = make_float3(box.min.x(), box.min.y(), box.min.z());
+        mParameters.grid.worldMax = make_float3(box.max.x(), box.max.y(), box.max.z());
     }
 
     QVector3D getWorldSize() const { return CudaHelper::cudaConvert(mParameters.grid.worldMax) - CudaHelper::cudaConvert(mParameters.grid.worldMax);}
@@ -102,13 +102,10 @@ private:
     struct cudaGraphicsResource *mCudaVboResource; // handles OpenGL-CUDA exchange
 
     quint32 reducePoints(float* devicePoints, const quint32 numElements, const bool createBoundingBox);
-
     void freeResources();
-
     void initializeGrid();
 
 public slots:
-
     // Tell the cloud to insert the given points. As you can see, the cloud may not change or even own the points.
     bool slotInsertPoints(const QVector<QVector3D>* const pointList);
     bool slotInsertPoints(const QVector<QVector4D>* const pointList);
@@ -118,11 +115,7 @@ public slots:
     // Insert points from another PointCloudCuda
     void slotInsertPoints(PointCloud *const pointCloudSource, const quint32& firstPointToReadFromSrc = 0, quint32 numberOfPointsToCopy = 0);
 
-    // deprecated! Uses OpenGl BufferCopy. Might be faster than CUDA-copy, but doesn't support filtering points in bbox
-//    bool slotInsertPoints(const VboInfo* const vboInfo, const quint32& firstPoint, const quint32& numPoints);
-
     void slotInitialize();
-
 
     // Clears the datastructure, but does not destruct it. Points can still be inserted afterwards.
     void slotReset();

@@ -57,15 +57,19 @@ void PathPlanner::slotInitialize()
 
     emit vboInfoGridOccupancy(
                 mVboGridOccupancy,
-                QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
-                QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z),
+                Box3D(
+                    QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
+                    QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z)
+                    ),
                 Vector3i(mParametersPathPlanner.grid.cells.x, mParametersPathPlanner.grid.cells.y, mParametersPathPlanner.grid.cells.z)
                 );
 
     emit vboInfoGridPathFinder(
                 mVboGridPathFinder,
-                QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
-                QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z),
+                Box3D(
+                    QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
+                    QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z)
+                    ),
                 Vector3i(mParametersPathPlanner.grid.cells.x, mParametersPathPlanner.grid.cells.y, mParametersPathPlanner.grid.cells.z)
                 );
 }
@@ -82,33 +86,22 @@ void PathPlanner::slotColliderCloudInsertedPoints()
     mRepopulateOccupanccyGrid = true;
 }
 
-void PathPlanner::slotRequestPath(const QVector3D& start, const QVector3D& goal)
+void PathPlanner::slotRequestPath(const QVector3D& vehiclePosition, const WayPointList& wayPointList)
 {
-    mParametersPathPlanner.start = CudaHelper::cudaConvert(start);
-    mParametersPathPlanner.goal = CudaHelper::cudaConvert(goal + QVector3D(0,3,0));
+    Q_ASSERT(!wayPointList.isEmpty());
 
-    qDebug() << __PRETTY_FUNCTION__ << "computing path from" << CudaHelper::cudaConvert(mParametersPathPlanner.start) << "to" << CudaHelper::cudaConvert(mParametersPathPlanner.goal);
+    mWayPointListForRequestedPath = wayPointList;
+    mWayPointListForRequestedPath.prepend(WayPoint(vehiclePosition, 0, WayPoint::Purpose::DETOUR));
 
-    /* threading is hard, as we have no control over mapping the VBO for grid population. I tmight be used for rendering in another thread!
-    if(mFuture.isRunning())
-    {
-        qDebug() << __PRETTY_FUNCTION__ << ": still computing previous request, cancelling...";
-        mCancelComputation = true;
-        mFuture.waitForFinished();
-        qDebug() << __PRETTY_FUNCTION__ << ": done cancelling.";
-        mCancelComputation = false;
-    }
+    qDebug() << __PRETTY_FUNCTION__ << "computing path for waypointlist" << mWayPointListForRequestedPath.toString();
 
-    mFuture = QtConcurrent::run(this, &PathPlanner::slotComputePathOnGpu);
-    */
+    mWayPointListForRequestedPath.saveToFile("/tmp/wpl_path_comp_input");
 
     QTimer::singleShot(0, this, SLOT(slotComputePathOnGpu()));
 }
 
 void PathPlanner::slotComputePathOnGpu()
 {
-    qDebug() << __PRETTY_FUNCTION__ << "now computing path";
-
     // TODO: use pinned host memory for asynchronous transfers!
 
     // mDeviceOccupancyGrid points to device memory filled with grid-values of quint8.
@@ -137,15 +130,19 @@ void PathPlanner::slotComputePathOnGpu()
 
         emit vboInfoGridOccupancy(
                     mVboGridOccupancy,
-                    QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
-                    QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z),
+                    Box3D(
+                        QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
+                        QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z)
+                        ),
                     Vector3i(mParametersPathPlanner.grid.cells.x, mParametersPathPlanner.grid.cells.y, mParametersPathPlanner.grid.cells.z)
                     );
 
         emit vboInfoGridPathFinder(
                     mVboGridPathFinder,
-                    QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
-                    QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z),
+                    Box3D(
+                        QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
+                        QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z)
+                        ),
                     Vector3i(mParametersPathPlanner.grid.cells.x, mParametersPathPlanner.grid.cells.y, mParametersPathPlanner.grid.cells.z)
                     );
     }
@@ -164,90 +161,122 @@ void PathPlanner::slotComputePathOnGpu()
 
         mRepopulateOccupanccyGrid = false;
 
-        qDebug() << "grid after filling:";
-        printHostOccupancyGrid(gridOccupancy);
-
         dilateOccupancyGrid(
                     gridOccupancy,
                     mParametersPathPlanner.grid.getCellCount(),
                     &mCudaStream);
-
-        qDebug() << "grid after dilation:";
-        printHostOccupancyGrid(gridOccupancy);
     }
-
-//    qDebug() << "grid after init:";
-//    printHostOccupancyGrid(grid);
-
-    // Copy the populated and dilated occupancy grid into the PathFinder's domain
-    cudaMemcpy(gridPathFinder, gridOccupancy, mParametersPathPlanner.grid.getCellCount(), cudaMemcpyDeviceToDevice);
-    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridOccupancy, 0);
-
-    // Now that the occupancy grid is filled, start path planning.
-    computePath(
-                gridPathFinder,
-                mParametersPathPlanner.grid.getCellCount(),
-                mDeviceWaypoints,
-                &mCudaStream);
-
-    qDebug() << "grid after computePath:";
-    printHostOccupancyGrid(gridPathFinder);
-
-    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridPathFinder, 0);
-
-    qDebug() << mMaxWaypoints;
-    cudaMemcpy(
-                (void*)mHostWaypoints,
-                (void*)mDeviceWaypoints,
-                4 * mMaxWaypoints * sizeof(float),
-                cudaMemcpyDeviceToHost);
 
     mComputedPath.clear();
 
-    if(fabs(mHostWaypoints[0]) < 0.001 && fabs(mHostWaypoints[1]) < 0.001 && fabs(mHostWaypoints[2]) < 0.001)
+    // Find a path between every pair of waypoints
+    quint32 indexWayPointStart = 0;
+    quint32 indexWayPointGoal = 1;
+    quint32 pathNumber = 0;
+    do
     {
-        qDebug() << __PRETTY_FUNCTION__ << "found NO path!";
-        emit pathFound(&mComputedPath, WayPointListSource::WayPointListSourceFlightPlanner);
-    }
-    else
-    {
-        // The first waypoint isn't one, it only contains the number of waypoints
-        for(int i=1;i<=mHostWaypoints[0];i++)
+        mParametersPathPlanner.start = CudaHelper::cudaConvert(mWayPointListForRequestedPath.at(indexWayPointStart));
+        mParametersPathPlanner.goal = CudaHelper::cudaConvert(mWayPointListForRequestedPath.at(indexWayPointGoal));
+        qDebug() << __PRETTY_FUNCTION__ << "now computing path from" << indexWayPointStart << ":" << mWayPointListForRequestedPath.at(indexWayPointStart).toString() << "to" << indexWayPointGoal << ":" << mWayPointListForRequestedPath.at(indexWayPointGoal).toString();
+
+        copyParametersToGpu(&mParametersPathPlanner);
+
+        // Copy the populated and dilated occupancy grid into the PathFinder's domain
+        cudaMemcpy(gridPathFinder, gridOccupancy, mParametersPathPlanner.grid.getCellCount(), cudaMemcpyDeviceToDevice);
+
+        // Now that the occupancy grid is filled, start path planning.
+        markStartCell(gridPathFinder, &mCudaStream);
+
+        growGrid(
+                    gridPathFinder,
+                    &mParametersPathPlanner,
+                    &mCudaStream);
+
+        retrievePath(
+                    gridPathFinder,
+                    mDeviceWaypoints,
+                    &mCudaStream);
+
+        cudaMemcpy(
+                    (void*)mHostWaypoints,
+                    (void*)mDeviceWaypoints,
+                    4 * mMaxWaypoints * sizeof(float),
+                    cudaMemcpyDeviceToHost);
+
+        if(fabs(mHostWaypoints[0]) < 0.001 && fabs(mHostWaypoints[1]) < 0.001 && fabs(mHostWaypoints[2]) < 0.001)
         {
-            QVector3D newWayPoint(
-                        mHostWaypoints[4*i+0],
-                        mHostWaypoints[4*i+1],
-                        mHostWaypoints[4*i+2]);
+            qDebug() << __PRETTY_FUNCTION__ << "found NO path from" << indexWayPointStart << ":" << mWayPointListForRequestedPath.at(indexWayPointStart).toString() << "to" << indexWayPointGoal << ":" << mWayPointListForRequestedPath.at(indexWayPointGoal).toString();
+            // When no path was found, we try to find a path to the next waypoint, skipping the problematic one.
+            indexWayPointGoal++;
+        }
+        else
+        {
 
-            // If this newWayPoint is colinear to the previous two, we can remove the last point in mComputedPath:
-            //
-            //     1               2             3
-            //     *---------------* - - - - - - *
-            //
-            //     ^ mComputedPath ^             ^ newWayPoint
-
-            if(mComputedPath.size() >= 2)
+            // The first waypoint isn't one, it only contains the number of waypoints
+            for(int i=1;i<=mHostWaypoints[0];i++)
             {
-                if(newWayPoint.distanceToLine(
-                            mComputedPath.at(mComputedPath.size()-2),
-                            mComputedPath.at(mComputedPath.size()-1)) < 0.01f)
+                WayPoint newWayPoint;
+
+                if(i == 1)
                 {
-                    qDebug() << __PRETTY_FUNCTION__ << "removing colinear waypoint!";
-                    mComputedPath.takeLast();
+                    newWayPoint = mWayPointListForRequestedPath.at(indexWayPointStart);
+                }
+                else if(i == (int)mHostWaypoints[0])
+                {
+                    newWayPoint = mWayPointListForRequestedPath.at(indexWayPointGoal);
+                }
+                else
+                {
+                    newWayPoint = WayPoint(
+                                QVector3D(
+                                    mHostWaypoints[4*i+0],
+                                    mHostWaypoints[4*i+1],
+                                    mHostWaypoints[4*i+2]
+                            ),
+                            0,
+                            WayPoint::Purpose::DETOUR);
+                }
+
+                /*
+                // If this newWayPoint is colinear to the previous two, we can remove the last point in mComputedPath:
+                //
+                //     1               2             3
+                //     *---------------* - - - - - - *
+                //
+                //     ^ mComputedPath ^             ^ newWayPoint
+
+                if(mComputedPath.size() >= 2)
+                {
+                    if(newWayPoint.distanceToLine(
+                                mComputedPath.at(mComputedPath.size()-2),
+                                mComputedPath.at(mComputedPath.size()-1)) < 0.01f)
+                    {
+                        qDebug() << __PRETTY_FUNCTION__ << "removing colinear waypoint!";
+                        mComputedPath.takeLast();
+                    }
+                }
+                */
+
+                // Append all points of the first path, and then only starting at the second point of the following paths.
+                // Otherwise, we have the end of path A and the beginning of path B in the list, although they're the same.
+                if(pathNumber == 0 || i > 1)
+                {
+                    mComputedPath.append(newWayPoint);
                 }
             }
 
-            mComputedPath.append(
-                        WayPoint(
-                            newWayPoint,
-                            0,
-                            i == mHostWaypoints[0] ? WayPoint::Purpose::SCAN : WayPoint::Purpose::DETOUR));
+            qDebug() << __PRETTY_FUNCTION__ << "found path between" << mWayPointListForRequestedPath.at(indexWayPointStart).toString() << "and" << mWayPointListForRequestedPath.at(indexWayPointGoal).toString() << ":" << mComputedPath.toString();
+
+            pathNumber++;
+            indexWayPointStart = indexWayPointGoal;
+            indexWayPointGoal++;
         }
+    } while(indexWayPointGoal < mWayPointListForRequestedPath.size() - 1);
 
-        qDebug() << __PRETTY_FUNCTION__ << "found path:" << mComputedPath;
+    emit pathFound(mComputedPath.list(), WayPointListSource::WayPointListSourceFlightPlanner);
 
-        emit pathFound(&mComputedPath, WayPointListSource::WayPointListSourceFlightPlanner);
-    }
+    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridPathFinder, 0);
+    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridOccupancy, 0);
 
     qDebug() << __PRETTY_FUNCTION__ << "took" << t.elapsed() << "ms.";
 }

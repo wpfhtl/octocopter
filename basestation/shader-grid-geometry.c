@@ -73,6 +73,7 @@ void main()
     alpha *= alphaMultiplication;
     alpha /= 256.0;
     if(alpha < 1.0 && alpha > 0.995) alpha = 0.2; // show dilated cells with obvious difference.
+    if(alpha > 1.0) alpha = 1.0;
     //if(cellvalue[0] > 0) alpha = 1.0;
 
     vec4 outColor = fixedColor;

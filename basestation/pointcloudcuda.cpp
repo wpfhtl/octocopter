@@ -3,7 +3,7 @@
 #include "cudahelper.cuh"
 #include "pointcloudcuda.h"
 
-PointCloudCuda::PointCloudCuda(const QVector3D &min, const QVector3D &max, const quint32 maximumElementCount) : PointCloud(min, max)
+PointCloudCuda::PointCloudCuda(const Box3D& boundingBox, const quint32 maximumElementCount) : PointCloud(boundingBox)
 {
     mVboInfo.append(VboInfo());
 
@@ -30,7 +30,7 @@ PointCloudCuda::PointCloudCuda(const QVector3D &min, const QVector3D &max, const
     mNewPointsBuffer = (float*)malloc(sizeof(QVector4D) * 4096);
     std::fill(mNewPointsBuffer + 0, mNewPointsBuffer + (4 * 4096), 1.0f);
 
-    setBoundingBox(min, max);
+    setBoundingBox(boundingBox);
 }
 
 PointCloudCuda::~PointCloudCuda()
@@ -125,16 +125,19 @@ void PointCloudCuda::setMinimumPointDistance(const float &distance)
 
 bool PointCloudCuda::slotInsertPoints(const QVector<QVector3D>* const pointList)
 {
+    Q_ASSERT(false);
     return slotInsertPoints3((float*)pointList->constData(), pointList->size());
 }
 
 bool PointCloudCuda::slotInsertPoints(const QVector<QVector4D>* const pointList)
 {
+    Q_ASSERT(false);
     return slotInsertPoints4((float*)pointList->constData(), pointList->size());
 }
 
 bool PointCloudCuda::slotInsertPoints3(const float* const pointList, const quint32 numPoints)
 {
+    Q_ASSERT(false);
     Q_ASSERT(numPoints < 4096); // max capacity of mNewPoints
 
     float* val = mNewPointsBuffer + (mNewPointsBufferCursor * 4);

@@ -12,15 +12,6 @@ BaseStation::BaseStation() : QMainWindow()
 //    widgetFont.setPointSize(7);
 //    QApplication::setFont(widgetFont);
 
-//    mOctree = new Octree(
-//                QVector3D(-100, -100, -100), // min
-//                QVector3D(100, 100, 100),  // max
-//                1000, // maxItemsPerLeaf
-//                2000000 // maxExpectedSize
-//                );
-//    mOctree->mPointColor = QColor(128,128,128, 128);
-
-//    mPlotWidget = 0;
     mTimerJoystick = 0;
     mLogPlayer = 0;
     mPtuController = 0;
@@ -28,7 +19,7 @@ BaseStation::BaseStation() : QMainWindow()
     mDiffCorrFetcher = 0;
 
     // Allow focusing this by tabbing and clicking
-    setFocusPolicy(Qt::StrongFocus);
+    //setFocusPolicy(Qt::StrongFocus);
 
     mMenuFile = menuBar()->addMenu("File");
     mMenuView = menuBar()->addMenu("View");
@@ -37,14 +28,9 @@ BaseStation::BaseStation() : QMainWindow()
     mConnectionDialog = new ConnectionDialog(this);
     mConnectionDialog->exec();
 
-//    mOctree->setMinimumPointDistance(.02f);
-
     mControlWidget = new ControlWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mControlWidget);
     mMenuWindowList->addAction("Control Widget", this, SLOT(slotToggleControlWidget()));
-
-//    mWirelessDevice = new WirelessDevice("wlan0");
-//    connect(mWirelessDevice, &WirelessDevice::rssi, mControlWidget, &ControlWidget::slotUpdateWirelessRssi);
 
     mSatelliteWidget = new SatelliteWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mSatelliteWidget);
@@ -60,8 +46,7 @@ BaseStation::BaseStation() : QMainWindow()
     setCentralWidget(glContainer);
     connect(mControlWidget, &ControlWidget::setScanVolume, mGlWindow, &GlWindow::slotRenderLater);
 
-//    mPointCloud = new PointCloudCuda(QVector3D(-64, -2, -64), QVector3D(64, 30, 64)/*, 250000*/);
-    mPointCloud = new PointCloudCuda(QVector3D(-50, 0, -50), QVector3D(50, 30, 50)/*, 250000*/);
+    mPointCloud = new PointCloudCuda(Box3D(QVector3D(-50, 0, -50), QVector3D(50, 30, 50))/*, 250000*/);
     connect(mGlWindow, &GlWindow::message, mLogWidget, &LogWidget::log);
     connect(mGlWindow, &GlWindow::initializingInGlContext, mPointCloud, &PointCloudCuda::slotInitialize);
     // After connecting consumers of initializingInGlContext(), initialze glWindow, which will emit the signal.
@@ -70,10 +55,6 @@ BaseStation::BaseStation() : QMainWindow()
     // register dense pointcloud for rendering.
     mGlWindow->slotPointCloudRegister(mPointCloud);
 
-    // Choose your weapon!
-//    mFlightPlanner = new FlightPlannerCuda(this, mGlWidget, mPointCloud);
-//    mFlightPlanner = new FlightPlannerPhysics(this, mGlWidget, mPointCloud);
-//    mFlightPlanner->slotSetScanVolume(QVector3D(-10, -10, -10), QVector3D(10, 10, 10));
     mFlightPlanner = new FlightPlannerParticles(this, mGlWindow, mPointCloud);
 
     mPtuController = new PtuController("/dev/serial/by-id/usb-Hjelmslund_Electronics_USB485_ISO4W_HEVGI92A-if00-port0", this);
@@ -91,18 +72,19 @@ BaseStation::BaseStation() : QMainWindow()
         mLogWidget->log(Information, "BaseStation::BaseStation()", "Enabling PtuController with dummy PTU.");
     }
 
-    connect(mFlightPlanner, &FlightPlannerInterface::message, mLogWidget, &LogWidget::log);
+    connect(mFlightPlanner, &FlightPlannerParticles::message, mLogWidget, &LogWidget::log);
 
-    connect(mControlWidget, &ControlWidget::setScanVolume, mFlightPlanner, &FlightPlannerInterface::slotSetScanVolume);
-    connect(mControlWidget, &ControlWidget::showUserInterface, mFlightPlanner, &FlightPlannerInterface::slotShowUserInterface);
+    connect(mControlWidget, &ControlWidget::setScanVolume, mFlightPlanner, &FlightPlannerParticles::slotSetScanVolume);
+    connect(mControlWidget, &ControlWidget::showUserInterface, mFlightPlanner, &FlightPlannerParticles::slotShowUserInterface);
+    connect(mControlWidget, &ControlWidget::wayPointSelected, mFlightPlanner, &FlightPlannerParticles::slotSetActiveWayPoint); // this should be in GlWindow...
 
     // Connect ControlWidget and FlightPlanner
-    connect(mControlWidget, &ControlWidget::wayPoints, mFlightPlanner, &FlightPlannerInterface::slotSetWayPoints);
-    connect(mFlightPlanner, &FlightPlannerInterface::wayPoints, mControlWidget, &ControlWidget::slotSetWayPoints);
+    connect(mControlWidget, &ControlWidget::wayPoints, mFlightPlanner, &FlightPlannerParticles::slotSetWayPoints);
+    connect(mFlightPlanner, &FlightPlannerParticles::wayPoints, mControlWidget, &ControlWidget::slotSetWayPoints);
 
-    connect(mGlWindow, &GlWindow::visualizeNow, mFlightPlanner, &FlightPlannerInterface::slotVisualize);
+    connect(mGlWindow, &GlWindow::visualizeNow, mFlightPlanner, &FlightPlannerParticles::slotVisualize);
     connect(mGlWindow, &GlWindow::visualizeNow, mPtuController, &PtuController::slotVisualize);
-    connect(mFlightPlanner, &FlightPlannerInterface::suggestVisualization, mGlWindow, &GlWindow::slotRenderLater);
+    connect(mFlightPlanner, &FlightPlannerParticles::suggestVisualization, mGlWindow, &GlWindow::slotRenderLater);
 
     mMenuFile->addAction("Load Cloud", this, SLOT(slotImportCloud()));
     mMenuFile->addAction("Save Cloud", this, SLOT(slotExportCloud()));
@@ -122,16 +104,6 @@ BaseStation::BaseStation() : QMainWindow()
     action = new QAction("Clear Trajectory", this);
     mMenuView->addAction(action);
     connect(action, &QAction::triggered, [=]() {mGlWindow->slotClearVehicleTrajectory(); mGlWindow->slotRenderLater();});
-
-
-    action = new QAction("Rotate View", this);
-    mMenuView->addAction(action);
-    action->setCheckable(true);
-    action->setChecked(false);
-    connect(mGlWindow, &GlWindow::rotating, action, &QAction::setChecked);
-    connect(action, &QAction::triggered, [=](const bool &checked) {
-        mGlWindow->slotEnableTimerRotation(checked);
-    });
 
     mMenuView->insertSeparator(action);
 
@@ -167,13 +139,13 @@ BaseStation::BaseStation() : QMainWindow()
     mMenuView->addAction(action);
     action->setCheckable(true);
     action->setChecked(true);
-    connect(action, &QAction::triggered, [=](const bool &checked) {mFlightPlanner->slotSetRenderGlobalBoundingBox(checked); mGlWindow->slotRenderLater();});
+    connect(action, &QAction::triggered, [=](const bool &checked) {mFlightPlanner->slotSetRenderScanVolume(checked); mGlWindow->slotRenderLater();});
 
     action = new QAction("Show Local BBox", this);
     mMenuView->addAction(action);
     action->setCheckable(true);
     action->setChecked(true);
-    connect(action, &QAction::triggered, [=](const bool &checked) {mFlightPlanner->slotSetRenderLocalBoundingBox(checked); mGlWindow->slotRenderLater();});
+    connect(action, &QAction::triggered, [=](const bool &checked) {mFlightPlanner->slotSetRenderDetectionVolume(checked); mGlWindow->slotRenderLater();});
 
     action = new QAction("Show Raw Scan", this);
     mMenuView->addAction(action);
@@ -187,14 +159,17 @@ BaseStation::BaseStation() : QMainWindow()
     action->setChecked(true);
     connect(action, &QAction::triggered, [=](const bool &checked) {mGlWindow->mRenderTrajectory = checked; mGlWindow->slotRenderLater();});
 
-
     MenuSlider* menuSlider;
+
+    menuSlider = new MenuSlider("Rotate View", -1.0, 0.0, 1.0, this, 0.1f);
+    connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlWindow->slotSetCameraRotation(value);});
+    mMenuView->addAction(menuSlider);
+
+    mMenuView->insertSeparator(menuSlider);
 
     menuSlider = new MenuSlider("BG Brightness", 0, 0.2, 1.0, this);
     connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlWindow->mBackgroundBrightness = value; mGlWindow->slotRenderLater();});
     mMenuView->addAction(menuSlider);
-
-    mMenuView->insertSeparator(action);
 
     menuSlider = new MenuSlider("Distance Threshold", 0, 30, 30, this);
     connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlWindow->mMaxPointVisualizationDistance = value; mGlWindow->slotRenderLater();});
@@ -225,23 +200,6 @@ BaseStation::BaseStation() : QMainWindow()
     addDockWidget(Qt::BottomDockWidgetArea, mPidControllerWidget);
     mMenuWindowList->addAction("PID Controllers", this, SLOT(slotTogglePidControllerWidget()));
 
-/*
-    mPlotWidget = new PlotWidget(this);
-    mPlotWidget->setAllowedAreas(Qt::AllDockWidgetAreas);
-    mPlotWidget->setVisible(false);
-    addDockWidget(Qt::LeftDockWidgetArea, mPlotWidget);
-
-    mPlotWidget->createCurve("cPitch");
-    mPlotWidget->createCurve("cRoll");
-    mPlotWidget->createCurve("cThrust");
-    mPlotWidget->createCurve("cYaw");
-
-    mPlotWidget->createCurve("pPitch");
-    mPlotWidget->createCurve("pRoll");
-    mPlotWidget->createCurve("pYaw");
-    menuBar()->addAction("TogglePlot", this, SLOT(slotTogglePlotWidget()));
-*/
-
     // Only start RTK fetcher, RoverConnection, PtuController etc. if we're working online
     if(mConnectionDialog->result() == QDialog::Accepted)
     {
@@ -263,13 +221,13 @@ BaseStation::BaseStation() : QMainWindow()
         }
 
         connect(mPidControllerWidget, &PidControllerWidget::controllerWeight, mRoverConnection, &RoverConnection::slotSendControllerWeights);
-        connect(mRoverConnection, &RoverConnection::flightState, mControlWidget, &ControlWidget::slotFlightStateChanged);
-        connect(mRoverConnection, &RoverConnection::flightStateRestriction, mControlWidget, &ControlWidget::slotFlightStateRestrictionChanged);
+        connect(mRoverConnection, &RoverConnection::flightState, mControlWidget, &ControlWidget::slotSetFlightState);
+        connect(mRoverConnection, &RoverConnection::flightStateRestriction, mControlWidget, &ControlWidget::slotSetFlightStateRestriction);
 
         connect(mRoverConnection, &RoverConnection::message, mLogWidget, &LogWidget::log);
 
         connect(mRoverConnection, &RoverConnection::vehiclePose, mControlWidget, &ControlWidget::slotUpdatePose);
-        connect(mRoverConnection, &RoverConnection::vehiclePose, mFlightPlanner, &FlightPlannerInterface::slotVehiclePoseChanged);
+        connect(mRoverConnection, &RoverConnection::vehiclePose, mFlightPlanner, &FlightPlannerParticles::slotVehiclePoseChanged);
 
         connect(mRoverConnection, &RoverConnection::vehiclePose, mPtuController, &PtuController::slotVehiclePoseChanged);
 
@@ -277,15 +235,15 @@ BaseStation::BaseStation() : QMainWindow()
 
         connect(mRoverConnection, &RoverConnection::connectionStatusRover, mControlWidget, &ControlWidget::slotUpdateConnectionRover);
 
-        connect(mRoverConnection, &RoverConnection::scanData, mFlightPlanner, &FlightPlannerInterface::slotNewScanFused);
+        connect(mRoverConnection, &RoverConnection::scanData, mFlightPlanner, &FlightPlannerParticles::slotNewScanFused);
         connect(mRoverConnection, &RoverConnection::vehicleStatus, mControlWidget, &ControlWidget::slotUpdateVehicleStatus);
         connect(mRoverConnection, &RoverConnection::gnssStatus, mControlWidget, &ControlWidget::slotUpdateInsStatus);
         connect(mRoverConnection, &RoverConnection::flightControllerValues, this, &BaseStation::slotSetFlightControllerValues);
 
-        connect(mRoverConnection, &RoverConnection::wayPointReachedByRover, mFlightPlanner, &FlightPlannerInterface::slotWayPointReached);
+        connect(mRoverConnection, &RoverConnection::wayPointReachedByRover, mFlightPlanner, &FlightPlannerParticles::slotWayPointReached);
 
-        connect(mRoverConnection, &RoverConnection::wayPoints, mFlightPlanner, &FlightPlannerInterface::slotSetWayPoints);
-        connect(mFlightPlanner, &FlightPlannerInterface::wayPoints, mRoverConnection, &RoverConnection::slotSetWayPoints);
+        connect(mRoverConnection, &RoverConnection::wayPoints, mFlightPlanner, &FlightPlannerParticles::slotSetWayPoints);
+        connect(mFlightPlanner, &FlightPlannerParticles::wayPoints, mRoverConnection, &RoverConnection::slotSetWayPoints);
 
         mDiffCorrFetcher = new DiffCorrFetcher(mConnectionDialog->getRtkBaseHostName(), mConnectionDialog->getRtkBasePort(), this);
         connect(mDiffCorrFetcher, &DiffCorrFetcher::differentialCorrections, mRoverConnection, &RoverConnection::slotSendDiffCorrToRover);
@@ -308,13 +266,13 @@ BaseStation::BaseStation() : QMainWindow()
         mMenuWindowList->addAction("Log Player", this, SLOT(slotToggleLogPlayer()));
         connect(mLogPlayer, &LogPlayer::message, mLogWidget, &LogWidget::log);
         connect(mLogPlayer, &LogPlayer::vehiclePose, mControlWidget, &ControlWidget::slotUpdatePose);
-        connect(mLogPlayer, &LogPlayer::vehiclePose, mFlightPlanner, &FlightPlannerInterface::slotVehiclePoseChanged);
+        connect(mLogPlayer, &LogPlayer::vehiclePose, mFlightPlanner, &FlightPlannerParticles::slotVehiclePoseChanged);
         connect(mLogPlayer, &LogPlayer::scanRaw, mGlWindow, &GlWindow::slotNewRawScan);
 
         connect(mLogPlayer, &LogPlayer::vehiclePose, mPtuController, &PtuController::slotVehiclePoseChanged);
 
         connect(mLogPlayer, &LogPlayer::vehiclePose, mGlWindow, &GlWindow::slotNewVehiclePose);
-        connect(mLogPlayer, &LogPlayer::scanFused, mFlightPlanner, &FlightPlannerInterface::slotNewScanFused);
+        connect(mLogPlayer, &LogPlayer::scanFused, mFlightPlanner, &FlightPlannerParticles::slotNewScanFused);
         connect(mLogPlayer, &LogPlayer::gnssStatus, mControlWidget, &ControlWidget::slotUpdateInsStatus);
 
         mAudioPlayer = new AudioPlayer;
@@ -338,14 +296,12 @@ BaseStation::BaseStation() : QMainWindow()
 BaseStation::~BaseStation()
 {
     delete mPtuController;
-//    delete mPlotWidget;
     delete mPidControllerWidget;
     delete mLogPlayer;
     delete mFlightPlanner;
     delete mDiffCorrFetcher;
     delete mTimerJoystick;
     delete mGlWindow;
-    //delete mWirelessDevice;
     delete mAudioPlayer;
     delete mPointCloud;
 }
@@ -426,21 +382,6 @@ void BaseStation::slotImportCloud()
     }
 }
 
-void BaseStation::keyPressEvent(QKeyEvent* event)
-{
-    mFlightPlanner->keyPressEvent(event);
-//    if(mLogPlayer) mLogPlayer->keyPressEvent(event);
-
-      QMainWindow::keyPressEvent(event);
-
-}
-
-//void BaseStation::slotClearCloud()
-//{
-//    mPointCloud->slotReset();
-//    mGlWindow->slotRenderNow();
-//}
-
 void BaseStation::slotSpeakGnssStatus(const GnssStatus* const status)
 {
     if(mAudioPlayer && mActionEnableAudio->isChecked())
@@ -464,10 +405,5 @@ void BaseStation::slotSetFlightControllerValues(const FlightControllerValues* co
 {
     // visualize pose and controller values
     mGlWindow->slotSetFlightControllerValues(fcv);
-
-    mControlWidget->slotFlightStateChanged(&fcv->flightState);
-
-//    if(!mPidControllerWidget->isPopulated()) mPidControllerWidget->slotUpdateWeights();
-
     mPidControllerWidget->slotUpdateValues();
 }

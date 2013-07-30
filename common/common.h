@@ -129,6 +129,9 @@ struct Box3D
     }
 };
 
+// for using qDebug()
+QDebug operator<<(QDebug dbg, const Box3D &box);
+
 
 //bool isBitSet(quint8 number, quint8 bit);
 bool testBit(quint16 number, quint8 bit);

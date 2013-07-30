@@ -27,10 +27,17 @@ void dilateOccupancyGrid(
         unsigned int numCells,
         cudaStream_t *stream);
 
-void computePath(
-        unsigned char*  gridValues,
-        unsigned int    numCells,
+void retrievePath(unsigned char*  gridValues,
         float*          waypoints,
         cudaStream_t    *stream);
+
+void markStartCell(
+        unsigned char* gridValues,
+        cudaStream_t *stream);
+
+void growGrid(
+        unsigned char* gridValues,
+        ParametersPathPlanner* parameters,
+        cudaStream_t *stream);
 
 #endif

@@ -37,10 +37,10 @@ void getDeviceAddressOfParametersParticleSystem(ParametersParticleSystem** ptr)
 // Used to copy the waypoint pressure from a uint8_t vector to the w-components of the cell-position-float4-vector.
 // When extracting waypoints form device vectors, this is done, then the cell-positions are sorted DESC according
 // to the w component, then the N first waypoints are extracted.
-struct copy_functor
+struct copyInformationGainToStructure4D_functor
 {
     __host__ __device__
-    copy_functor() {}
+    copyInformationGainToStructure4D_functor() {}
 
     template <typename Tuple>
     //__host__ otherwise we get warnings that params (global mem) cannot be read directly in a host function
@@ -51,7 +51,8 @@ struct copy_functor
         volatile float4 cellWorldPosition = thrust::get<1>(t);
 
         // store new position and velocity
-        thrust::get<1>(t) = make_float4(cellWorldPosition.x, cellWorldPosition.y, cellWorldPosition.z, pressure);
+        //thrust::get<1>(t) = make_float4(cellWorldPosition.x, cellWorldPosition.y, cellWorldPosition.z, pressure);
+        thrust::get<1>(t).w = pressure;
     }
 };
 
@@ -76,13 +77,17 @@ struct functorComputeWaypointBenefit
     __device__
     void operator()(Tuple t)
     {
+        // directly copy uint8 to float
+        //thrust::get<1>(t) = thrust::get<0>(t);
+
         volatile uint8_t pressureSrc = thrust::get<0>(t);
         //volatile uint8_t pressureDst = thrust::get<1>(t);
         volatile unsigned int cellHash = thrust::get<2>(t);
 
-        float3 cellPosition = parametersParticleSystem.gridInformationGain.getCellCenter(parametersParticleSystem.gridInformationGain.getCellCoordinate(cellHash));
 
-        float distance = length(cellPosition - vehiclePosition);
+        float3 cellCenter = parametersParticleSystem.gridInformationGain.getCellCenter(parametersParticleSystem.gridInformationGain.getCellCoordinate(cellHash));
+
+        float distance = length(cellCenter - vehiclePosition);
         distance = max(1.0f, distance);
 
         // store waypoint benefit
@@ -406,29 +411,9 @@ void fillGridMapCellWorldPositionsD(
 {
     uint cellIndex = getThreadIndex1D();
     if(cellIndex >= numberOfCells) return;
-/*
-    float3 gridCellCoordinate = make_float3(
-                floor(fmod((double)cellIndex, (double)(params.gridWaypointPressure.cells.x))),
-                floor(fmod((double)cellIndex, (double)(params.gridParticleSystem.cells.x * params.gridParticleSystem.cells.y)) / params.gridParticleSystem.cells.x),
-                floor(fmod((double)cellIndex, (double)(params.gridParticleSystem.cells.x * params.gridParticleSystem.cells.y * params.gridParticleSystem.cells.z)) / (params.gridParticleSystem.cells.x * params.gridParticleSystem.cells.y))
-                );
 
-    float3 cellSize;
-    cellSize.x = (params.gridParticleSystem.worldMax.x - params.gridParticleSystem.worldMin.x) / params.gridParticleSystem.cells.x;
-    cellSize.y = (params.gridParticleSystem.worldMax.y - params.gridParticleSystem.worldMin.y) / params.gridParticleSystem.cells.y;
-    cellSize.z = (params.gridParticleSystem.worldMax.z - params.gridParticleSystem.worldMin.z) / params.gridParticleSystem.cells.z;
-
-
-    gridMapCellWorldPositions[cellIndex] = make_float4(
-                params.gridParticleSystem.worldMin.x + (cellSize.x * gridCellCoordinate.x) + (cellSize.x / 2.0),
-                params.gridParticleSystem.worldMin.y + (cellSize.y * gridCellCoordinate.y) + (cellSize.y / 2.0),
-                params.gridParticleSystem.worldMin.z + (cellSize.z * gridCellCoordinate.z) + (cellSize.z / 2.0),
-                0.0f
-                );
-*/
     int3 cellCoordinate = parametersParticleSystem.gridInformationGain.getCellCoordinate(cellIndex);
     float3 cellCenter = parametersParticleSystem.gridInformationGain.getCellCenter(cellCoordinate);
-
 
     gridMapCellWorldPositions[cellIndex] = make_float4(cellCenter, 0.0f);
 }
@@ -527,23 +512,23 @@ void fillGridMapCellWorldPositions(float* gridMapCellWorldPositions, uint numCel
 }
 
 // Sort mDeviceGridMapWayPointPressureSorted => mDeviceGridMapCellWorldPositions according to the keys DESC
-void sortGridMapWayPointPressure(float* gridMapWayPointPressureSorted, float* gridMapCellWorldPositions, uint numberOfCells, uint numWaypointsRequested)
+void sortGridMapWayPointPressureAndCopyInformationGain(float* gridMapWayPointPressure, float* gridMapCellWorldPositions, uint numberOfCells, uint numWaypointsRequested)
 {
     if(numberOfCells > 0)
     {
-        thrust::sort_by_key(thrust::device_ptr<float>(gridMapWayPointPressureSorted),             // KeysBeginning
-                            thrust::device_ptr<float>(gridMapWayPointPressureSorted + numberOfCells),  // KeysEnd
+        thrust::sort_by_key(thrust::device_ptr<float>(gridMapWayPointPressure),             // KeysBeginning
+                            thrust::device_ptr<float>(gridMapWayPointPressure + numberOfCells),  // KeysEnd
                             thrust::device_ptr<float4>((float4*)gridMapCellWorldPositions),         // ValuesBeginning
                             thrust::greater<float>());                                                // In descending order
 
-        // Now we want to copy the waypointpressure-value for all requested waypoints from gridMapWayPointPressureSorted(quint8) to gridMapCellWorldPositions.w(float)
+        // Now we want to copy the waypointpressure-value for all requested waypoints from gridMapWayPointPressureSorted(uint8) to gridMapCellWorldPositions.w(float)
         thrust::device_ptr<float4>  d_cwp((float4*)gridMapCellWorldPositions);
-        thrust::device_ptr<float> d_wpp((float*)gridMapWayPointPressureSorted);
+        thrust::device_ptr<float> d_wpp((float*)gridMapWayPointPressure);
 
         thrust::for_each(
                     thrust::make_zip_iterator(thrust::make_tuple(d_wpp, d_cwp)),
                     thrust::make_zip_iterator(thrust::make_tuple(d_wpp + numWaypointsRequested, d_cwp + numWaypointsRequested)),
-                    copy_functor());
+                    copyInformationGainToStructure4D_functor());
     }
 
     // check if kernel invocation generated an error

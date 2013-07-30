@@ -57,8 +57,7 @@ GlWindow::GlWindow(QWindow* parent) :
     mCameraRotation.setX(-30.0f);
 
     // Timed Animation
-    mRotationPerFrame = 0.001f;
-    mViewRotating = false;
+    mRotationPerFrame = 0.0f;
     mViewZooming = false;
 
     mRenderRawScanRays = true;
@@ -259,8 +258,8 @@ void GlWindow::slotRenderNow()
 
     mTimeOfLastRender = currentTime;
 
-    if(mViewRotating)
-        mCameraRotation.setY(mCameraRotation.y() + 180 * mRotationPerFrame);
+    if(fabs(mRotationPerFrame) > 0.00001)
+        mCameraRotation.setY(mCameraRotation.y() + mRotationPerFrame);
 
     // Clear color buffer and depth buffer
     glClearColor(mBackgroundBrightness, mBackgroundBrightness, mBackgroundBrightness, 0.0f);
@@ -734,68 +733,26 @@ void GlWindow::slotClearVehicleTrajectory()
     mVboVehiclePathBytesCurrent = 0;
 }
 
-void GlWindow::slotEnableTimerRotation(const bool& enable)
+void GlWindow::slotSetCameraRotation(const float rotation)
 {
-    if(mViewRotating == enable) return;
-
-    mViewRotating = enable;
+    mRotationPerFrame = rotation;
 
     // Enable the timer if we want to rotate and its not running already
-    if(mViewRotating && !mViewZooming)
+    if(fabs(mRotationPerFrame) > 0.00001 && !mViewZooming)
         mTimerUpdate->start();
-
-    emit rotating(enable);
-}
-void GlWindow::mousePressEvent(QMouseEvent *event)
-{
-    mLastMousePosition = event->pos();
 }
 
-void GlWindow::mouseMoveEvent(QMouseEvent *event)
-{
-    const float deltaX = -float(event->x()-mLastMousePosition.x())/width();
-    const float deltaY = -float(event->y()-mLastMousePosition.y())/height();
+//void GlWindow::slotEnableTimerRotation(const bool& enable){}
 
-    if(event->buttons() & Qt::LeftButton)
-    {
-        mCameraRotation.setX(qBound(-89.9f, float(mCameraRotation.x() + 180.0f * deltaY), 89.9f));
-        mCameraRotation.setY(fmod(mCameraRotation.y() + 180 * deltaX, 360.0f));
-    }
-    else if(event->buttons() & Qt::MiddleButton)
-    {
-        mCamLookAtOffset.setZ(mCamLookAtOffset.z() + 180.0f * deltaY);
-        mCamLookAtOffset.setX(mCamLookAtOffset.x() + 180.0f * deltaX);
-    }
-
-    mLastMousePosition = event->pos();
-
-    //qDebug() << "mCamLookAtOffset: " << mCamLookAtOffset << "rotXYZ:" << rotX << rotY << rotZ;
-
-    // update();
-    slotRenderLater();
-}
-
-void GlWindow::wheelEvent(QWheelEvent *event)
-{
-    event->delta() > 0 ? mZoomFactorTarget *= 1.5f : mZoomFactorTarget *= 0.5f;
-    mZoomFactorTarget = qBound(0.002f, (float)mZoomFactorTarget, 1.0f);
-    mViewZooming = true;
-    mTimerUpdate->setInterval(1000 / 50);
-    mTimerUpdate->start();
-    slotRenderLater();
-}
-
-void GlWindow::keyPressEvent(QKeyEvent *event)
+/*void GlWindow::keyPressEvent(QKeyEvent *event)
 {
     if(event->key() == Qt::Key_Q)
     {
-        mRotationPerFrame -= 0.0005f;
-        slotEnableTimerRotation(true);
+        slotSetCameraRotation(mRotationPerFrame - 0.0005f);
     }
     else if(event->key() == Qt::Key_W)
     {
-        mRotationPerFrame += 0.0005f;
-        slotEnableTimerRotation(true);
+        slotSetCameraRotation(mRotationPerFrame + 0.0005f);
     }
     else if(event->key() == Qt::Key_V)
     {
@@ -842,6 +799,47 @@ void GlWindow::keyPressEvent(QKeyEvent *event)
     else
         QWindow::keyPressEvent(event);
 }
+*/
+
+void GlWindow::mousePressEvent(QMouseEvent *event)
+{
+    mLastMousePosition = event->pos();
+}
+
+void GlWindow::mouseMoveEvent(QMouseEvent *event)
+{
+    const float deltaX = -float(event->x()-mLastMousePosition.x())/width();
+    const float deltaY = -float(event->y()-mLastMousePosition.y())/height();
+
+    if(event->buttons() & Qt::LeftButton)
+    {
+        mCameraRotation.setX(qBound(-89.9f, float(mCameraRotation.x() + 180.0f * deltaY), 89.9f));
+        mCameraRotation.setY(fmod(mCameraRotation.y() + 180 * deltaX, 360.0f));
+    }
+    else if(event->buttons() & Qt::MiddleButton)
+    {
+        mCamLookAtOffset.setZ(mCamLookAtOffset.z() + 180.0f * deltaY);
+        mCamLookAtOffset.setX(mCamLookAtOffset.x() + 180.0f * deltaX);
+    }
+
+    mLastMousePosition = event->pos();
+
+    //qDebug() << "mCamLookAtOffset: " << mCamLookAtOffset << "rotXYZ:" << rotX << rotY << rotZ;
+
+    // update();
+    slotRenderLater();
+}
+
+void GlWindow::wheelEvent(QWheelEvent *event)
+{
+    event->delta() > 0 ? mZoomFactorTarget *= 1.5f : mZoomFactorTarget *= 0.5f;
+    mZoomFactorTarget = qBound(0.002f, (float)mZoomFactorTarget, 1.0f);
+    mViewZooming = true;
+    mTimerUpdate->setInterval(1000 / 50);
+    mTimerUpdate->start();
+    slotRenderLater();
+}
+
 
 void GlWindow::slotRenderLater()
 {
@@ -852,7 +850,7 @@ void GlWindow::slotRenderLater()
     {
         slotRenderNow();
 
-        if(!mViewRotating && !mViewZooming)
+        if(!fabs(mRotationPerFrame) > 0.00001 && !mViewZooming)
             mTimerUpdate->stop();
     }
     else

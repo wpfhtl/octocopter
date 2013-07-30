@@ -79,7 +79,7 @@ class RigidBodyState : public QObject, public btMotionState
             }
         }
 
-        const Pose getPose()
+        const void getPose(Pose &p)
         {
             Ogre::Matrix3 mat;
             mNode->_getDerivedOrientation().ToRotationMatrix(mat);
@@ -99,7 +99,7 @@ class RigidBodyState : public QObject, public btMotionState
 
             mPreviousPosePosition = posePosition;
 
-            Pose p(
+            p = Pose(
                         QVector3D(posePosition.x(), posePosition.y(), posePosition.z()),
                         //fmod(yaw.valueRadians() + Ogre::Degree(360.0).valueRadians(), 360.0*M_PI/180.0),
                         fmod(yaw.valueDegrees() + Ogre::Degree(360.0).valueDegrees(), 360.0),
@@ -112,12 +112,13 @@ class RigidBodyState : public QObject, public btMotionState
             // Whee, we are precise!!
             p.precision = Pose::AttitudeAvailable | Pose::HeadingFixed | Pose::RtkFixed | Pose::CorrectionAgeLow;
 
-            // Every second pose is integrated. I'd prefer to update the counter in setTRansform(), but that is called
+            // Every second pose is integrated. I'd prefer to update the counter in setTransform(), but that is called
             // multiple times per physics iteration. Often, its two times, making this mechanism useless.
-            if(mPoseCounter++ % 2 == 0) p.precision |= Pose::ModeIntegrated;
 
-
-            return p;
+            // Addendum: FlightController won't process non-integrated poses and thus won't emit motion() to physics.
+            // This means that mVehicleBody->applyForce() is called half as often as when using the joystick, making
+            // the vehicle behave different (=fall from the sky). So, emit only integrated poses!
+            /*if(mPoseCounter++ % 2 == 0)*/ p.precision |= Pose::ModeIntegrated;
         }
 
         Ogre::Vector3 getPosition(void) const

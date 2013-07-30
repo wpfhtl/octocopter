@@ -32,21 +32,19 @@ class Physics : public QObject//QThread
     Q_OBJECT
 
 private:
-    mutable QMutex mMutex;
-//    QTimer *mTimerUpdateGps;
-    quint32 mTimeOfLastPhysicsUpdate; // the last simulationtime from simulator. Needed, as the physics engine needs deltas.
     Simulator *mSimulator;
     OgreWidget* mOgreWidget;
+    quint32 mTimeOfLastPhysicsUpdate; // the last simulationtime from simulator. Needed, as the physics engine needs deltas.
+    quint32 mTimeOfLastControllerUpdate;
     Engine mEngine;
     QList<Ogre::SceneNode*> mEngineNodes;
-    float mTotalVehicleWeight;
+    static constexpr float mTotalVehicleWeight = 2.450f;
     QVector<btVector3> mVectorWind;
     Pose mVehiclePose;
 
     // for the pitch/roll-low-level-controller
     float mErrorIntegralPitch, mErrorIntegralRoll;
     float mPrevErrorPitch, mPrevErrorRoll;
-    quint32 mTimeOfLastControllerUpdate;
 
     bool mWindEnable;
     float mWindFactor;
@@ -65,7 +63,6 @@ protected:
     Ogre::SceneNode *mVehicleNode;
     Ogre::Entity *mVehicleEntity;
     btRigidBody *mVehicleBody;
-//    btConvexHullShape *mVehicleShape;
     btBoxShape *mVehicleShape;
     BtOgre::RigidBodyState *mVehicleState;
 
@@ -82,18 +79,13 @@ public:
     float getHeightAboveGround();
     const Pose* const getVehiclePose() {return &mVehiclePose;}
 
-//    FlightController* mFlightController;
-
 signals:
     void newVehiclePose(const Pose* const);
     void windInitialized(const bool&);
 
 public slots:
-//    void start(void);
-//    void stop(void);
     void slotSetMotion(const MotionCommand *const mc);
     void slotSetWindSetting(const bool& enable, const float& factor);
-    void slotSetTotalVehicleWeight(const float&);
     void slotUpdatePhysics(void);
 
     void slotRescueVehicle();

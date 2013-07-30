@@ -8,6 +8,7 @@
 #include <QMatrix4x4>
 #include <QString>
 #include <QByteArray>
+#include "common.h"
 
 class OpenGlUtilities
 {
@@ -24,7 +25,7 @@ public:
     static quint32 createVbo(quint32 size);
     static void deleteVbo(GLuint vbo);
 
-    static void setVboToBoundingBox(const quint32 vbo, const QVector3D& min, const QVector3D& max);
+    static void setVboToBoundingBox(const quint32 vbo, const Box3D &box);
 };
 
 #endif // OPENGLUTILITIES_H

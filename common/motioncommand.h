@@ -51,7 +51,7 @@ public:
     // - without metal hood (95g) lets try 126
     // - without metal hood (95g) and with external wlan (75),  we stay at 127
     static const quint8 thrustMin = 50;
-    static const quint8 thrustHover = 127;
+    static const quint8 thrustHover = 137;
     static const quint8 thrustMax = 200;
 
     // A yaw of 15 rotates by about 15 degrees per second, which is slooow

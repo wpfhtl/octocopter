@@ -1,13 +1,15 @@
 #ifndef CUDA_CUH
 #define CUDA_CUH
 
-#include  <iostream>
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <iostream>
 
 // was 64
 #define KERNEL_LAUNCH_BLOCKSIZE 256
 
 
-#define CUDA_ERROR_CHECK
+//#define CUDA_ERROR_CHECK
 #define cudaSafeCall(err) __cudaSafeCall( err, __FILE__, __LINE__ )
 #define cudaCheckSuccess(src)  __cudaCheckSuccess( src, __FILE__, __LINE__ )
 
@@ -59,6 +61,18 @@ __device__ unsigned int getThreadIndex1D(void);
 // compute the next higher power of 2 of 32-bit v
 __host__ __device__ unsigned int nextHigherPowerOfTwo(unsigned int v);
 
-__host__ __device__ unsigned int cudaBound(const unsigned int min, const unsigned int value, const unsigned int max);
+//__host__ __device__  int cudaBound(const int min, const int value, const int max);
+template<typename T1, typename T2, typename T3>
+__host__ __device__ int cudaBound(const T1 min, const T2 value, const T3 max)
+{
+    if(value < min)
+        return (int)min;
+    else if(value > max)
+        return (int)max;
+    else
+        return (int)value;
+}
+
+__host__ __device__ bool operator==(const int3 a, const int3 b);
 
 #endif

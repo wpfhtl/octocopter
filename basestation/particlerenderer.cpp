@@ -38,40 +38,37 @@ ParticleRenderer::~ParticleRenderer()
     mShaderProgramGrid->deleteLater();
 }
 
-void ParticleRenderer::slotSetVboInfoParticles(const quint32 vboPositions, const quint32 vboColors, const quint32 count, const QVector3D particleSystemWorldMin, const QVector3D particleSystemWorldMax)
+void ParticleRenderer::slotSetVboInfoParticles(const quint32 vboPositions, const quint32 vboColors, const quint32 count, const Box3D particleSystemBoundingBox)
 {
     mVboParticleColors = vboColors;
     mVboParticlePositions = vboPositions;
     mNumberOfParticles = count;
 
-    OpenGlUtilities::setVboToBoundingBox(mVboParticleSystemBoundingBox, particleSystemWorldMin, particleSystemWorldMax);
+    OpenGlUtilities::setVboToBoundingBox(mVboParticleSystemBoundingBox, particleSystemBoundingBox);
 
     qDebug() << "ParticleRenderer::slotSetVboInfoParticles(): will render VBO pos" << mVboParticlePositions << "color" << mVboParticleColors << "containing" << mNumberOfParticles << "particles";
 }
 
-void ParticleRenderer::slotSetVboInfoGridInformationGain(const quint32 vboPressure, const QVector3D &gridBoundingBoxMin, const QVector3D &gridBoundingBoxMax, const Vector3i &gridCells)
+void ParticleRenderer::slotSetVboInfoGridInformationGain(const quint32 vboPressure, const Box3D& gridBoundingBox, const Vector3i &gridCells)
 {
     mVboGridMapOfInformationGain = vboPressure;
-    mGridInformationGainMin = gridBoundingBoxMin;
-    mGridInformationGainMax = gridBoundingBoxMax;
+    mBoundingBoxGridInformationGain = gridBoundingBox;
     mGridInformationGainCellCount = gridCells;
 //    qDebug() << "ParticleRenderer::slotSetVboInfoGridInformationGain(): will render VBO pos" << mVboGridMapOfWayPointPressure << "with" << grid.x << grid.y << grid.z << "cells from" << mGridBoundingBoxMin << "to" << mGridBoundingBoxMax;
 }
 
-void ParticleRenderer::slotSetVboInfoGridOccupancy(const quint32 vbo, const QVector3D &gridBoundingBoxMin, const QVector3D &gridBoundingBoxMax, const Vector3i &gridCells)
+void ParticleRenderer::slotSetVboInfoGridOccupancy(const quint32 vbo, const Box3D& gridBoundingBox, const Vector3i &gridCells)
 {
     mVboGridMapOfOccupancy = vbo;
-    mGridOccupancyMin = gridBoundingBoxMin;
-    mGridOccupancyMax = gridBoundingBoxMax;
+    mBoundingBoxGridOccupancy = gridBoundingBox;
     mGridOccupancyCellCount = gridCells;
 //    qDebug() << "ParticleRenderer::slotSetVboInfoGridOccupancyGain(): will render VBO pos" << mVboGridMapOfOccupancy << "with" << gridCells.x << gridCells.y << gridCells.z << "cells from" << mGridOccupancyMin << "to" << mGridOccupancyMax;
 }
 
-void ParticleRenderer::slotSetVboInfoGridPathFinder(const quint32 vbo, const QVector3D &gridBoundingBoxMin, const QVector3D &gridBoundingBoxMax, const Vector3i &gridCells)
+void ParticleRenderer::slotSetVboInfoGridPathFinder(const quint32 vbo, const Box3D& gridBoundingBox, const Vector3i &gridCells)
 {
     mVboGridMapOfPathFinder = vbo;
-    mGridPathFinderMin = gridBoundingBoxMin;
-    mGridPathFinderMax = gridBoundingBoxMax;
+    mBoundingBoxGridPathFinder = gridBoundingBox;
     mGridPathFinderCellCount = gridCells;
 //    qDebug() << "ParticleRenderer::slotSetVboInfoGridPathFinder(): will render VBO pos" << mVboGridMapOfPathFinder << "with" << gridCells.x << gridCells.y << gridCells.z << "cells from" << mGridPathFinderMin << "to" << mGridPathFinderMax;
 }
@@ -164,10 +161,10 @@ void ParticleRenderer::render()
 
         // Set uniform values in the shader program
         Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMin") != -1);
-        mShaderProgramGrid->setUniformValue("boundingBoxMin", mGridInformationGainMin);
+        mShaderProgramGrid->setUniformValue("boundingBoxMin", mBoundingBoxGridInformationGain.min);
 
         Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMax") != -1);
-        mShaderProgramGrid->setUniformValue("boundingBoxMax", mGridInformationGainMax);
+        mShaderProgramGrid->setUniformValue("boundingBoxMax", mBoundingBoxGridInformationGain.max);
 
         // gridSize is a uint3, not sure how to set this with qt, so lets do opengl:
         Q_ASSERT(mShaderProgramGrid->uniformLocation("gridCellCount") != -1);
@@ -204,10 +201,10 @@ void ParticleRenderer::render()
 
         // Set uniform values in the shader program
         Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMin") != -1);
-        mShaderProgramGrid->setUniformValue("boundingBoxMin", mGridOccupancyMin);
+        mShaderProgramGrid->setUniformValue("boundingBoxMin", mBoundingBoxGridOccupancy.min);
 
         Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMax") != -1);
-        mShaderProgramGrid->setUniformValue("boundingBoxMax", mGridOccupancyMax);
+        mShaderProgramGrid->setUniformValue("boundingBoxMax", mBoundingBoxGridOccupancy.max);
 
         // gridSize is a uint3, not sure how to set this with qt, so lets do opengl:
         Q_ASSERT(mShaderProgramGrid->uniformLocation("gridCellCount") != -1);
@@ -245,10 +242,10 @@ void ParticleRenderer::render()
 
         // Set uniform values in the shader program
         Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMin") != -1);
-        mShaderProgramGrid->setUniformValue("boundingBoxMin", mGridPathFinderMin);
+        mShaderProgramGrid->setUniformValue("boundingBoxMin", mBoundingBoxGridPathFinder.min);
 
         Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMax") != -1);
-        mShaderProgramGrid->setUniformValue("boundingBoxMax", mGridPathFinderMax);
+        mShaderProgramGrid->setUniformValue("boundingBoxMax", mBoundingBoxGridPathFinder.max);
 
         // gridSize is a uint3, not sure how to set this with qt, so lets do opengl:
         Q_ASSERT(mShaderProgramGrid->uniformLocation("gridCellCount") != -1);

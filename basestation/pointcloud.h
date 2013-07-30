@@ -6,16 +6,14 @@
 #include <QColor>
 #include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLFunctions_4_3_Core>
-
 #include <plymanager.h> // for saving to .ply files
+#include <common.h>
 
 // This defines the INTERFACE of all pointclouds!
-
 class PointCloud : public QObject, public OPENGL_FUNCTIONS_CLASS
 {
     Q_OBJECT
 protected:
-//    QVector3D mBBoxMin, mBBoxMax;
     bool mAcceptPointsOutsideBoundingBox;
 
 public:
@@ -49,15 +47,8 @@ public:
         }
     };
 
-    PointCloud(const QVector3D &min, const QVector3D &max);
+    PointCloud(const Box3D &boundingBox);
     ~PointCloud();
-
-//    const QVector3D& getBoundingBoxMin() const { return mBBoxMin; }
-//    const QVector3D& getBoundingBoxMax() const { return mBBoxMax; }
-
-//    virtual void setBoundingBox(const QVector3D& min, const QVector3D& max) = 0;
-
-
 
     virtual const QVector<VboInfo>& getVboInfo() const = 0;
 
@@ -69,26 +60,6 @@ public:
 
     virtual bool exportToPly(const QString& fileName, QWidget* widget = 0) = 0;
     virtual bool importFromPly(const QString& fileName, QWidget* widget = 0) = 0;
-
-
-    /*
-    // Returns the N nearest neighbors of a given point in space. Result is not sorted by distance to @point.
-    QList<const QVector4D*> findNearestNeighbors(const QVector4D &point, const quint8 count) const;
-
-    // Returns a list of QVector4Ds in @radius of @point.
-    QList<const QVector4D*> findNeighborsWithinRadius(const QVector4D &point, const float radius) const;
-
-    // Returns only the number of points in @radius of @point. More efficient than the methods above
-    // if you're not interested in the points themselves
-    quint32 numberOfNeighborsWithinRadius(const QVector4D &point, const float radius) const;
-
-    // Yet more efficient: check whether there is AT LEAST ONE point within @radius of@point
-    bool isNeighborWithinRadius(const QVector4D &point, const float radius) const;
-
-    // Sort @list of points according to distance to @point
-    void sortPointList(const QVector4D &point, QList<const QVector4D*>* list) const;
-    */
-
 
 public slots:
     // Clears the datastructure, but does not destruct it. Points can still be inserted afterwards.

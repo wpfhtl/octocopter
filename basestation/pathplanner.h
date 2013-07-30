@@ -7,6 +7,7 @@
 #include "common.h"
 #include "waypoint.h"
 #include "grid.cuh"
+#include "waypointlist.h"
 #include "pointcloudcuda.h"
 #include "pathplanner.cuh"
 #include "parameterspathplanner.cuh"
@@ -21,8 +22,10 @@ class PathPlanner : public QObject
 {
     Q_OBJECT
 private:
-    static const int mMaxWaypoints = 5000; // should be more than enough
+    static const int mMaxWaypoints = 100; // should be more than enough
 
+    WayPointList mWayPointListForRequestedPath;
+    WayPointList mComputedPath;
     ParametersPathPlanner mParametersPathPlanner;
     PointCloudCuda* mPointCloudColliders;
     bool mRepopulateOccupanccyGrid;
@@ -30,7 +33,6 @@ private:
     quint8*  mHostOccupancyGrid;
     float*  mDeviceWaypoints;
     float* mHostWaypoints;
-    QList<WayPoint> mComputedPath;
 
     GLuint mVboGridOccupancy;
     GLuint mVboGridPathFinder;
@@ -53,8 +55,8 @@ public:
 
 signals:
     // To allow others to render our occupancy grid.
-    void vboInfoGridOccupancy(quint32 vboPressure, QVector3D gridBoundingBoxMin, QVector3D gridBoundingBoxMax, Vector3i grid);
-    void vboInfoGridPathFinder(quint32 vboPressure, QVector3D gridBoundingBoxMin, QVector3D gridBoundingBoxMax, Vector3i grid);
+    void vboInfoGridOccupancy(quint32 vboPressure, Box3D gridBoundingBox, Vector3i grid);
+    void vboInfoGridPathFinder(quint32 vboPressure, Box3D gridBoundingBox, Vector3i grid);
 
     // This is ALWAYS emitted after a call to slotRequestPath(). If the list is empty, no path was found.
     // If it is not empty, the first and last elements MUST be start and goal, respectively.
@@ -68,7 +70,7 @@ public slots:
 //    void slotSetVolume(const QVector3D& min, const QVector3D& max);
     void slotColliderCloudInsertedPoints();
     void slotSetPointCloudColliders(PointCloudCuda* const);
-    void slotRequestPath(const QVector3D& start, const QVector3D& goal);
+    void slotRequestPath(const QVector3D& vehiclePosition, const WayPointList &wayPointList);
 };
 
 #endif // PATHPLANNER_H

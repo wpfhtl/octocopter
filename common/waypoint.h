@@ -16,12 +16,11 @@ public:
     enum class Purpose {SCAN, DETOUR};
 
     Purpose purpose;
-    quint8 informationGain;
+    float informationGain;
 
     WayPoint();
     WayPoint(const WayPoint& other);
-    WayPoint(const QVector3D& vector, const quint8 informationGain = 0, Purpose = Purpose::SCAN);
-    WayPoint(const QString& string);
+    WayPoint(const QVector3D& vector, const float informationGain = 0, Purpose = Purpose::SCAN);
 
     QString toString() const;
 
@@ -30,5 +29,10 @@ public:
     static QString hash(const QList<WayPoint> *const list);
     QVector2D getPositionOnPlane() const;
 };
+
+
+// for streaming
+QDataStream& operator<<(QDataStream &out, const WayPoint &wpt);
+QDataStream& operator>>(QDataStream &in, WayPoint &wpt);
 
 #endif

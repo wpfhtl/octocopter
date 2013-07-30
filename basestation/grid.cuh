@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "vector_types.h"
 #include "vector_functions.h"
+#include "cudahelper.cuh"
 
 struct Grid
 {
@@ -30,16 +31,32 @@ struct Grid
                 && worldMax.z == other.worldMax.z;
     }
 
+    __host__ __device__ int3 clampCellCoordinate(const int3 c)
+    {
+        int3 result;
+        result.x = cudaBound(0, c.x, cells.x-1);
+        result.y = cudaBound(0, c.y, cells.y-1);
+        result.z = cudaBound(0, c.z, cells.z-1);
+        return result;
+    }
+
     __host__ void initialize()
     {
         cells.x = cells.y = cells.z = 0;
+    }
+
+    __host__ __device__ unsigned int getLongestSideCellCount() const
+    {
+        if(cells.x >= cells.y && cells.x >= cells.z) return cells.x;
+        else if(cells.y >= cells.x && cells.y >= cells.z) return cells.y;
+        else return cells.z;
     }
 
     // Calculate a particle's hash value (=address in grid) from its containing cell (clamping to edges)
     __host__ __device__ unsigned int getCellHash(int3 gridCellCoordinate) const;
     __host__ __device__ int getCellHash2(int3 gridCellCoordinate) const; // returns -1 for an outside-cell
 
-    uint32_t getCellCount() const {return cells.x * cells.y * cells.z;}
+    __host__ __device__ uint32_t getCellCount() const {return cells.x * cells.y * cells.z;}
 
     // If the Grid bounds are defined by worldMin and worldMax, then what is the best cells-configuration
     // given a fixed @minDist? result would be e.g. 256x32x256 cells.

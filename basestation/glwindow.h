@@ -37,7 +37,6 @@ class GlWindow : public QWindow, protected OPENGL_FUNCTIONS_CLASS
 
     const Pose* mLastKnownVehiclePose;
 
-
     // Set by slotSetFlightControllerValues(), then visualized for FligthController debugging
     const FlightControllerValues* mLastFlightControllerValues;
 
@@ -46,7 +45,6 @@ class GlWindow : public QWindow, protected OPENGL_FUNCTIONS_CLASS
     QTimer* mTimerUpdate;
 
     float mRotationPerFrame;
-    bool mViewRotating;
     bool mViewZooming;
 
     // Mouse Rotations
@@ -95,7 +93,7 @@ class GlWindow : public QWindow, protected OPENGL_FUNCTIONS_CLASS
 public:
     GlWindow(QWindow *parent = 0/*, FlightPlannerInterface* flightPlanner*/);
     void moveCamera(const QVector3D &pos);
-    void keyPressEvent(QKeyEvent *event);
+    //void keyPressEvent(QKeyEvent *event);
     bool isPointCloudRegistered(PointCloud* p);
     void reloadShaders();
 
@@ -111,13 +109,14 @@ public:
 signals:
     void initializingInGlContext();
     void visualizeNow();
-    void rotating(bool);
     void showOnlyPointsScannedFromLessThan(float);
     void message(const LogImportance& importance, const QString& source, const QString& message);
 
 public slots:
     // This will init opengl and emit initializingInGlContext()
     void slotInitialize();
+
+    void slotSetCameraRotation(const float rotation);
 
     // When this is called, we take note of the time of last external update. Because when zooming/rotating
     // is also active, the redraws caused by those actions overlap with the external redraws, causing
@@ -141,7 +140,6 @@ public slots:
     void slotNewVehiclePose(const Pose *const);
     void slotClearVehicleTrajectory();
 
-    void slotEnableTimerRotation(const bool& enable);
     void slotViewFromTop();
     void slotViewFromSide();
 };

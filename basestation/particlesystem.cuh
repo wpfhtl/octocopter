@@ -55,7 +55,7 @@ void fillGridMapCellWorldPositions(
         float* gridMapCellWorldPositions,
         unsigned int numCells);
 
-void sortGridMapWayPointPressure(
+void sortGridMapWayPointPressureAndCopyInformationGain(
         float* gridMapWayPointPressureSorted,
         float* gridMapCellWorldPositions,
         unsigned int numCells,

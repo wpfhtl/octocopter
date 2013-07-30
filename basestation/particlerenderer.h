@@ -34,11 +34,10 @@ public slots:
 
     void slotSetParticleRadius(float r) { mParticleRadius = r; }
 
-    void slotSetVboInfoGridInformationGain(const quint32 vboPressure, const QVector3D& gridBoundingBoxMin, const QVector3D& gridBoundingBoxMax, const Vector3i& gridCells);
-    void slotSetVboInfoGridOccupancy(const quint32 vbo, const QVector3D& gridBoundingBoxMin, const QVector3D& gridBoundingBoxMax, const Vector3i& gridCells);
-    void slotSetVboInfoGridPathFinder(const quint32 vbo, const QVector3D &gridBoundingBoxMin, const QVector3D &gridBoundingBoxMax, const Vector3i &gridCells);
-
-    void slotSetVboInfoParticles(const quint32 vboPositions, const quint32 vboColors, const quint32 count, const QVector3D particleSystemWorldMin, const QVector3D particleSystemWorldMax);
+    void slotSetVboInfoGridInformationGain(const quint32 vboPressure, const Box3D& boundingBoxGrid, const Vector3i& gridCells);
+    void slotSetVboInfoGridOccupancy(const quint32 vbo, const Box3D& gridBoundingBox, const Vector3i& gridCells);
+    void slotSetVboInfoGridPathFinder(const quint32 vbo, const Box3D &gridBoundingBox, const Vector3i &gridCells);
+    void slotSetVboInfoParticles(const quint32 vboPositions, const quint32 vboColors, const quint32 count, const Box3D particleSystemBoundingBox);
 
 private:
     bool mIsInitialized;
@@ -47,13 +46,13 @@ private:
     ShaderProgram *mShaderProgramDefault, *mShaderProgramParticles, *mShaderProgramGrid;
     quint32 mNumberOfParticles;
 
-    QVector3D mGridInformationGainMin, mGridInformationGainMax;
+    Box3D mBoundingBoxGridInformationGain;
     Vector3i mGridInformationGainCellCount;
 
-    QVector3D mGridOccupancyMin, mGridOccupancyMax;
+    Box3D mBoundingBoxGridOccupancy;
     Vector3i mGridOccupancyCellCount;
 
-    QVector3D mGridPathFinderMin, mGridPathFinderMax;
+    Box3D mBoundingBoxGridPathFinder;
     Vector3i mGridPathFinderCellCount;
 
     float mParticleRadius;

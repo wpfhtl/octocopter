@@ -26,16 +26,15 @@ private:
     void initWayPointTable();
     QStyle* mStyle; // so we can delete it later, else valgrind starts bitching.
 
-    // We don't use WayPointList, as that uses OpenGL stuff that we don't need here.
-    QList<WayPoint> mWayPointList;
+    WayPointList mWayPointList;
 
 public:
     ControlWidget(QWidget *widget);
     ~ControlWidget();
 
 public slots:
-    void slotFlightStateChanged(const FlightState *const fs);
-    void slotFlightStateRestrictionChanged(const FlightStateRestriction *const fsr);
+    void slotSetFlightState(const FlightState *const fs);
+    void slotSetFlightStateRestriction(const FlightStateRestriction *const fsr);
     void slotUpdatePose(const Pose *const pose);
     void slotUpdateVehicleStatus(const VehicleStatus* const vs);
     void slotUpdateInsStatus(const GnssStatus* const gnssStatus);
@@ -63,7 +62,8 @@ private slots:
     void slotSetScanVolume();
 
 signals:
-    void setScanVolume(QVector3D, QVector3D);
+    void setScanVolume(Box3D);
+    void wayPointSelected(int);
     void showUserInterface();
 
     // These signals are emitted when the controlwidget wants waypoints to be changed

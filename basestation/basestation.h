@@ -17,10 +17,6 @@
 #include "diffcorrfetcher.h"
 #include "pidcontrollerwidget.h"
 #include "lidarpoint.h"
-#include "flightplannerinterface.h"
-//#include "flightplannerbasic.h"
-//#include "flightplannerphysics.h"
-//#include "flightplannercuda.h"
 #include "flightplannerparticles.h"
 #include "camerawidget.h"
 #include "connectiondialog.h"
@@ -43,6 +39,7 @@ class MenuSlider : public QWidgetAction
     Q_OBJECT
 
     float mMin, mMax, mStartValue;
+    float mTickInterval;
     QString mLabelString;
     QHBoxLayout* mLayout;
     QWidget* mWidget;
@@ -50,13 +47,14 @@ class MenuSlider : public QWidgetAction
     QSlider* mSlider;
 
 public:
-    MenuSlider(const QString& label, const float min, const float startValue, const float max, QWidget* parent) : QWidgetAction(parent)
+    MenuSlider(const QString& label, const float min, const float startValue, const float max, QWidget* parent, const float tickInterval = 0) : QWidgetAction(parent)
     {
         mWidget = 0;
         mMin = min;
         mMax = max;
         mStartValue = qBound(mMin, startValue, mMax);
         mLabelString = label;
+        mTickInterval = tickInterval;
     }
 
 protected:
@@ -70,6 +68,11 @@ protected:
             mLabel = new QLabel(mLabelString, parent);
             mLabel->setMinimumWidth(100);
             mSlider = new QSlider(Qt::Horizontal, parent);
+            if(fabs(mTickInterval) > 0.00001f)
+            {
+                qDebug() << "tickinterval" << mTickInterval << mTickInterval * 1000;
+                mSlider->setTickInterval(mTickInterval * 1000);
+            }
             mSlider->setMinimumWidth(190);
             mSlider->setRange(mMin * 1000.0f, mMax * 1000.0f);
             mSlider->setValue(mStartValue * 1000.0f);
@@ -118,7 +121,7 @@ private:
     WirelessDevice* mWirelessDevice;
     ConnectionDialog* mConnectionDialog;
     RoverConnection* mRoverConnection;
-    FlightPlannerInterface* mFlightPlanner;
+    FlightPlannerParticles* mFlightPlanner;
     Joystick* mJoystick;
     DiffCorrFetcher* mDiffCorrFetcher;
     ControlWidget* mControlWidget;
@@ -135,8 +138,6 @@ private:
     PointCloudCuda* mPointCloud;
 
     GlWindow *mGlWindow;
-
-    void keyPressEvent(QKeyEvent* event);
 
     void processIncomingPoints();
     void processIncomingImages();

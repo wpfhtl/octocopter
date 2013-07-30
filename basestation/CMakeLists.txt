@@ -42,7 +42,7 @@ set(SRC_FILES
     camerawidget
     waypointlist
     pathplanner
-    flightplannerinterface
+    #flightplannerinterface
     #flightplannerbasic
     #flightplannercuda
     flightplannerparticles
@@ -105,7 +105,7 @@ set(INC_FILES
     camerawidget.h
     waypointlist.h
     pathplanner.h
-    flightplannerinterface.h
+    #flightplannerinterface.h
     #flightplannerbasic.h
     #flightplannercuda.h
     flightplannerparticles.h
