@@ -15,6 +15,8 @@ enum GoalCellStatus
 
 void copyParametersToGpu(ParametersPathPlanner *hostParams);
 
+void testWayPointCellOccupancy(unsigned char*  gridValues, float* upcomingWayPoints, unsigned int numberOfWayPoints, cudaStream_t *stream);
+
 void fillOccupancyGrid(
         unsigned char*  gridValues,
         float*          colliderPos,

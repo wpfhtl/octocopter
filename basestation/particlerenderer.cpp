@@ -86,6 +86,10 @@ void ParticleRenderer::render()
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
 
+    // In the geometry shader (e.g. grid rendering), the quads are sometimes oriented away from the camera.
+    // Thus, we need to do two-sided rendering!
+    glDisable(GL_CULL_FACE);
+
     if(mRenderBoundingBox && mShaderProgramDefault != 0)
     {
         mShaderProgramDefault->bind();
@@ -269,4 +273,5 @@ void ParticleRenderer::render()
     }
 
     glDisable(GL_BLEND);
+    glEnable(GL_CULL_FACE);
 }

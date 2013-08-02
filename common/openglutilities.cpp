@@ -1,4 +1,4 @@
-#include <QFile>
+//#include <QFile>
 #include "openglutilities.h"
 
 OPENGL_FUNCTIONS_CLASS* OpenGlUtilities::mGlFunctions = 0;

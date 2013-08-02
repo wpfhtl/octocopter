@@ -512,7 +512,7 @@ void fillGridMapCellWorldPositions(float* gridMapCellWorldPositions, uint numCel
 }
 
 // Sort mDeviceGridMapWayPointPressureSorted => mDeviceGridMapCellWorldPositions according to the keys DESC
-void sortGridMapWayPointPressureAndCopyInformationGain(float* gridMapWayPointPressure, float* gridMapCellWorldPositions, uint numberOfCells, uint numWaypointsRequested)
+void sortGridMapInformationGainAndCopyInformationGain(float* gridMapWayPointPressure, float* gridMapCellWorldPositions, uint numberOfCells, uint numWaypointsRequested)
 {
     if(numberOfCells > 0)
     {

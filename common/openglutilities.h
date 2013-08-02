@@ -20,8 +20,6 @@ private:
 public:
     static void init();
 
-//    static QVector<float> matrixToOpenGl(const QMatrix4x4 &matrix);
-
     static quint32 createVbo(quint32 size);
     static void deleteVbo(GLuint vbo);
 

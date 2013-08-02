@@ -2,13 +2,11 @@
 
 WayPoint::WayPoint() : QVector3D()
 {
-    purpose = Purpose::SCAN;
     informationGain = 0.0f;
 }
 
 WayPoint::WayPoint(const WayPoint& other) : QVector3D()
 {
-    purpose = other.purpose;
     informationGain = other.informationGain;
 
     setX(other.x());
@@ -16,9 +14,8 @@ WayPoint::WayPoint(const WayPoint& other) : QVector3D()
     setZ(other.z());
 }
 
-WayPoint::WayPoint(const QVector3D& vector, const float informationGain, Purpose purpose) : QVector3D()
+WayPoint::WayPoint(const QVector3D& vector, const float informationGain) : QVector3D()
 {
-    this->purpose = purpose;
     this->informationGain = informationGain;
     setX(vector.x());
     setY(vector.y());
@@ -27,7 +24,6 @@ WayPoint::WayPoint(const QVector3D& vector, const float informationGain, Purpose
 
 WayPoint& WayPoint::operator=(const WayPoint& other)
 {
-    purpose = other.purpose;
     informationGain = other.informationGain;
     setX(other.x());
     setY(other.y());
@@ -67,25 +63,20 @@ QDataStream& operator<<(QDataStream &out, const WayPoint &wpt)
     out << wpt.y();
     out << wpt.z();
     out << wpt.informationGain;
-    out << static_cast<quint8>(wpt.purpose);
     return out;
 }
 
 QDataStream& operator>>(QDataStream &in, WayPoint &wpt)
 {
     float x,y,z;
-    quint8 purpose;
     in >> x;
     in >> y;
     in >> z;
     in >> wpt.informationGain;
-    in >> purpose;
 
     wpt.setX(x);
     wpt.setY(y);
     wpt.setZ(z);
-
-    wpt.purpose = static_cast<WayPoint::Purpose>(purpose);
 
     return in;
 }

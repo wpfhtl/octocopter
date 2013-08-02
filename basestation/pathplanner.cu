@@ -276,122 +276,6 @@ void growGrid(unsigned char* gridValues, ParametersPathPlanner* parameters, cuda
     }
 }
 
-/*
-__global__
-void computePathD(u_int8_t* gridValues, unsigned int numCells)
-{
-    uint cellIndex = getThreadIndex1D();
-
-    int3 cellCoordinateGoal = parametersPathPlanner.grid.getCellCoordinate(parametersPathPlanner.goal);
-    int cellIndexGoal = parametersPathPlanner.grid.getCellHash2(cellCoordinateGoal);
-
-    // Only act if the goal is not occupied
-    if(gridValues[cellIndexGoal] == 0 && cellIndexGoal >= 0)
-    {
-        // We populate cells from the start to the goal and stop when the goal receives a value.
-        // Thus, we must never iterate longer than the longest side of the grid.
-        const uint maxIterations = max(max(parametersPathPlanner.grid.cells.x, parametersPathPlanner.grid.cells.y), parametersPathPlanner.grid.cells.z);
-
-        int3 cellCoordinateStart = parametersPathPlanner.grid.getCellCoordinate(parametersPathPlanner.start);
-        int cellIndexStart = parametersPathPlanner.grid.getCellHash2(cellCoordinateStart);
-
-        // Let the first thread set the cell containing "start" to 1!
-        if(cellIndex == 0)
-        {
-            printf("setting start cell %d to 1, monitoring goal cell %d for %d iterations\n", cellIndexStart, cellIndexGoal, maxIterations);
-            gridValues[cellIndexStart] = 1;
-        }
-
-        for(int i=0;i<=maxIterations; i++)
-        {
-            // We want to sync all threads after writing. Because all threads need to reach this barrier,
-            // we cannot check cellIndex < numCells above and do that in growCells instead.
-            // syncthreads() before first iteration, so that writing 1 into goalcell has an effect.
-            __syncthreads();
-
-            // The first cube around the start cell will have a side length of 3.
-            const unsigned int outerWaveCubeSideLength = i+3;
-
-            // The number of cells in the next layer around the currently grown cube.
-            const unsigned int numberOfCellsInNextGrowStep = pow(outerWaveCubeSideLength, 3) - pow(outerWaveCubeSideLength-2, 3);
-
-            if(cellIndex < numberOfCellsInNextGrowStep-1)
-            {
-                int3 currentCell = cellCoordinateStart + make_int3();
-                // get grid-cell of particle
-                int3 cellCoordinateThread = parametersPathPlanner.grid.getCellCoordinate(cellIndex);
-
-                u_int8_t lowestNonNullNeighbor = 254; // thats a dilated cell's value
-                u_int8_t ownValue = gridValues[cellIndex];
-
-                // Check all neighbors for the lowest value d != 0,254,255 and put d++ into our own cell.
-
-                int3 cellCoordinateMinimum = make_int3(-1, -1, -1);
-                for(int z=-1;z<=1;z++)
-                {
-                    for(int y=-1;y<=1;y++)
-                    {
-                        for(int x=-1;x<=1;x++)
-                        {
-                            const int3 cellCoordinateNeighbor = cellCoordinateThread + make_int3(x,y,z);
-                            const int neighbourGridCellIndex = parametersPathPlanner.grid.getCellHash2(cellCoordinateNeighbor);
-
-                            // Border-cells might ask for neighbors outside of the grid. getCellHash2() returns -1 in those cases.
-                            if(neighbourGridCellIndex >= 0)
-                            {
-                                const u_int8_t neighborValue = gridValues[neighbourGridCellIndex];
-
-                                // Find the lowest neighbor that is neither 0 nor 255
-                                if(neighborValue < lowestNonNullNeighbor && neighborValue != 0)
-                                {
-                                    cellCoordinateMinimum = cellCoordinateNeighbor;
-                                    lowestNonNullNeighbor = neighborValue;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Write our cell's value. A cell first contains a 0, then the neighborCellValue+1. Once it does
-                // contain a value, it will never change. We're only interested in replacing the value with lower
-                // numbers, but since the values spread like a wave, that'll never happen.
-                if(lowestNonNullNeighbor < 254 && ownValue == 0)
-                {
-                    printf("cell (%d/%d/%d) found value %d in neighbor (%d/%d/%d), setting cell %d to %d\n",
-                           cellCoordinateThread.x, cellCoordinateThread.y, cellCoordinateThread.z,
-                           lowestNonNullNeighbor,
-                           cellCoordinateMinimum.x, cellCoordinateMinimum.y, cellCoordinateMinimum.z,
-                           cellIndex, lowestNonNullNeighbor + 1);
-
-                    gridValues[cellIndex] = lowestNonNullNeighbor + 1;
-                }
-
-                // finish if ALL threads say that they have a non-null value.
-//                allCellsReached = __all(gridValues[cellIndex] != 0);
-            }
-
-
-            if(cellIndex == 0)
-                printf("computePathD(): iteration %d, value at goal cell (%d/%d/%d) after growing: %d.\n",
-                       i,
-                       cellCoordinateGoal.x,
-                       cellCoordinateGoal.y,
-                       cellCoordinateGoal.z,
-                       gridValues[cellIndexGoal]);
-        }
-    }
-    else
-    {
-        printf("computePathD(): goal cell (%d/%d/%d) is occupied: %d.\n",
-               cellCoordinateGoal.x,
-               cellCoordinateGoal.y,
-               cellCoordinateGoal.z,
-               gridValues[cellIndexGoal]);
-    }
-}*/
-
-
-
 __global__
 void checkGoalCellD(unsigned char* gridValues, unsigned int numCells, unsigned int searchRange, unsigned int *status)
 {
@@ -434,9 +318,6 @@ void checkGoalCellD(unsigned char* gridValues, unsigned int numCells, unsigned i
 GoalCellStatus checkGoalCell(unsigned char* gridValues, unsigned int numCells, unsigned int searchRange, cudaStream_t *stream)
 {
     if(numCells == 0) return GoalCellBlocked;
-
-//    uint numThreads, numBlocks;
-//    computeExecutionKernelGrid(numCells, 64, numBlocks, numThreads);
 
     u_int32_t* statusDevice;
     cudaSafeCall(cudaMalloc((void**)statusDevice, sizeof(u_int32_t)));
@@ -608,7 +489,10 @@ void retrievePathD(unsigned char* gridValues, float4* waypoints)
                                 // Append our current cell's position to the waypoint list.
                                 float3 cellCenter = parametersPathPlanner.grid.getCellCenter(cellCoordinate);
                                 //printf("retrievePathD(): found next cell towards start at %.2f/%.2f/%.2f%d.\n", cellCenter.x, cellCenter.y, cellCenter.z);
-                                waypoints[neighborValue] = make_float4(cellCenter);
+
+                                // The w-component doesn't matter here, so set to zero. Later on, the w-component
+                                // will be set to 1 if it turns out that the waypoint is in a now-occupied cell.
+                                waypoints[neighborValue] = make_float4(cellCenter, 0.0);
 
                                 // Escape those 3 for-loops to continue searching from this next cell.
                                 foundNextCellTowardsTarget = true;
@@ -636,4 +520,35 @@ void retrievePath(unsigned char* gridValues, float *waypoints, cudaStream_t *str
     cudaCheckSuccess("retrievePathD");
 }
 
+__global__ void testWayPointCellOccupancyD(unsigned char*  gridValues, float4* upcomingWayPoints, unsigned int numberOfWayPoints)
+{
+    uint waypointIndex = getThreadIndex1D();
+    if(waypointIndex >= numberOfWayPoints) return;
 
+    float4 waypoint = upcomingWayPoints[waypointIndex];
+
+    const int3 gridCellCoordinate = parametersPathPlanner.grid.getCellCoordinate(make_float3(waypoint.x, waypoint.y, waypoint.z));
+    const int gridCellHash = parametersPathPlanner.grid.getCellHash2(gridCellCoordinate);
+
+    if(gridCellHash < 0 || gridCellHash > parametersPathPlanner.grid.getCellCount())
+        printf("testWayPointCellOccupancyD(): bug!!!\n");
+
+    if(gridValues[gridCellHash] > 253)
+    {
+        waypoint.w = 1.0;
+        upcomingWayPoints[waypointIndex] = waypoint;
+    }
+}
+
+void testWayPointCellOccupancy(unsigned char*  gridValues, float* upcomingWayPoints, unsigned int numberOfWayPoints, cudaStream_t *stream)
+{
+    // We take the grid values and the float4-waypoints (with the first element defining the waypoint-count) and set conflicting
+
+    // The number of waypoints available is in upcomingWayPoints[0], but thats in device memory space. So,
+    // just start a sufficient number of threads and let the superfuous ones hang out for a while.
+    uint numThreads, numBlocks;
+    computeExecutionKernelGrid(numberOfWayPoints, 64, numBlocks, numThreads);
+
+    testWayPointCellOccupancyD<<< numBlocks, numThreads, 0, *stream>>>(gridValues, (float4*)upcomingWayPoints, numberOfWayPoints);
+    cudaCheckSuccess("fillOccupancyGrid");
+}

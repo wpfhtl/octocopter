@@ -6,7 +6,7 @@
 
 GlWindow::GlWindow(QWindow* parent) :
     QWindow(parent),
-    mShaderProgramDefault(0),
+    mShaderProgramDefault(nullptr),
     mShaderProgramPointCloud(0),
     mShaderProgramRawScanRays(0),
     mLastFlightControllerValues(0),
@@ -279,7 +279,7 @@ void GlWindow::slotRenderNow()
     glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, 64, matrixModelToCamera.constData());
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
-    //    qDebug() << "GlWidget::slotRenderNow(): camPos" << camPos << "lookAt" << camLookAt << "modelToCamera:" << matrixModelToCamera << matrixModelToCamera.inverted() * QVector3D();
+    //qDebug() << "GlWidget::slotRenderNow(): camPos" << camPos << "lookAt" << camLookAt << "modelToCamera:" << matrixModelToCamera << matrixModelToCamera.inverted() * QVector3D();
 
     // Here we make mZoomFactorCurrent converge to mZoomFactorTarget for smooth zooming
     float step = 0.0f;
@@ -314,6 +314,8 @@ void GlWindow::slotRenderNow()
             for(int j=0;j<vboInfoList.size();j++)
             {
                 const PointCloud::VboInfo& vboInfo = vboInfoList.at(j);
+
+                if(vboInfo.size == 0) continue;
 
                 // If the pointcloud has a color set, use it. Otherwise, use the jet colormap.
                 if(vboInfo.color.isValid())
@@ -371,7 +373,7 @@ void GlWindow::slotRenderNow()
 
         mShaderProgramDefault->bind();
         {
-            if(mRenderTrajectory)
+            if(mRenderTrajectory && mVboVehiclePathBytesCurrent > 0)
             {
                 // Render the vehicle's path - same shader, but variable color
                 mShaderProgramDefault->setUniformValue("useFixedColor", false);

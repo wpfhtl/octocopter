@@ -195,5 +195,5 @@ set(CUDA_SEPARABLE_COMPILATION ON)
 set(CMAKE_AUTOMOC ON)
 
 cuda_add_executable(basestation ${SRC_FILES} ${UI_SRCS} ${RESOURCE_SRCS} OPTIONS -gencode=arch=compute_30,code=sm_30) # those are the nvcc options only for linking
+qt5_use_modules(basestation Widgets Gui Core Concurrent Network SerialPort OpenGL)
 target_link_libraries(basestation ${LIBRARIES})
-qt5_use_modules(basestation Widgets Gui Core Concurrent Network SerialPort)

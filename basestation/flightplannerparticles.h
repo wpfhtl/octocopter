@@ -97,7 +97,7 @@ public slots:
 
     void slotNewScanFused(const float* const points, const quint32& count, const QVector3D* const scannerPosition);
 
-    void slotClearGridWayPointPressure();
+    void slotClearGridOfInformationGain();
 
     // Used in CUDA flightplanner, might be useful to others. Will be called
     // soon after construction, but maybe after the first call to slotVisualize().

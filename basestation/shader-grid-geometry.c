@@ -67,7 +67,9 @@ void main()
     vec3 right = normalize(-cross(toCamera, upWorld)) * quadSize;
     vec3 up = normalize(cross(toCamera, normalize(-right))) * quadSize;
 
-    // cellValue[0] is the intensity, in interval [0,1]. Exponentiating that value obviously doesn't give the desired effect.
+    // Don't draw completely transparent boxes. For some reason, this also fixes the problem of the quads disappearing at certain viewing-angles.
+    if(cellvalue[0] == 0.0) return;
+    
     float alpha = cellvalue[0] * 256.0;
     if(alphaExponentiation != 1.0) alpha = pow(alpha, alphaExponentiation);
     alpha *= alphaMultiplication;
