@@ -2,18 +2,13 @@
 #define PATHPLANNER_H
 
 #include <QObject>
-#include <QFuture>
-#include <QTimer>
 
-#include "common.h"
 #include "waypoint.h"
 #include "grid.cuh"
 #include "waypointlist.h"
 #include "pointcloudcuda.h"
 #include "pathplanner.cuh"
 #include "parameterspathplanner.cuh"
-
-//#include <QAbstractOpenGLFunctions>
 
 class PathPlanner : public QObject
 {

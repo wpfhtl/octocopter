@@ -1,11 +1,9 @@
 #include "pathplanner.h"
 
-#include <cuda_runtime_api.h>
+//#include <cuda_runtime_api.h>
 #include <openglutilities.h>
-#include "cudahelper.h"
-#include "cudahelper.cuh"
-
-//#include <iostream>
+//#include "cudahelper.h"
+//#include "cudahelper.cuh"
 
 PathPlanner::PathPlanner(QObject *parent) :
     QObject(parent)

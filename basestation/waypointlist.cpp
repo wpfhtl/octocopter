@@ -4,18 +4,26 @@
 #include <QString>
 #include <QTextStream>
 
-WayPointList::WayPointList()
+WayPointList::WayPointList() : QObject()
 {
     mVbo = 0;
-    mSphereSize = 1.0f;
+//    mSphereSize = 1.0f;
 }
 
-WayPointList::WayPointList(const QColor& color)
+WayPointList::WayPointList(const QColor& color) : QObject()
 {
     mVbo = 0;
     mColor = color;
     mWaypoints.clear();
-    mSphereSize = 1.0f;
+//    mSphereSize = 1.0f;
+}
+
+WayPointList::WayPointList(const WayPointList& other) : QObject()
+{
+    mVbo = other.mVbo;
+    mColor = other.mColor;
+    mWaypoints = other.mWaypoints;
+//    mSphereSize = other.mSphereSize;
 }
 
 WayPointList::~WayPointList()

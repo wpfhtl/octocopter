@@ -10,19 +10,20 @@
 
 #include "waypoint.h"
 
-class WayPointList : public OPENGL_FUNCTIONS_CLASS
+class WayPointList : public QObject, protected OPENGL_FUNCTIONS_CLASS
 {
 private:
     QList<WayPoint> mWaypoints;
     quint32 mVbo;
     QColor mColor;
-    float mSphereSize;
+//    float mSphereSize;
 
     void updateVbo();
 
 public:
     WayPointList();
     WayPointList(const QColor& color);
+    WayPointList(const WayPointList& other);
     ~WayPointList();
 
     QString toString() const;
@@ -36,7 +37,7 @@ public:
 
     void setList(const QList<WayPoint>* const wayPointList);
 
-    float getSphereSize() const { return mSphereSize; }
+//    float getSphereSize() const { return mSphereSize; }
 
     const QList<WayPoint>* list() const {return &mWaypoints;}
     const quint32 vbo() const {return mVbo;}
