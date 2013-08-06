@@ -164,18 +164,22 @@ void PathPlanner::checkWayPointSafety(const QVector3D& vehiclePosition, const Wa
         if(occupiedWayPoints.size())
         {
             emit message(LogImportance::Warning, "PathPlanner", "waypoints are now colliding with geometry. Stopping rover and replanning path.");
-            WayPointList wayPointsWithHighInformationGain;
 
-            // Use the empty list above to emit an empty path, so we stop the rover!
-            emit path(wayPointsWithHighInformationGain.list(), WayPointListSource::WayPointListSourceFlightPlanner);
+            // wayPointsAhead is a pointer to flightplanner's real list. As soon as we emit an empty path,
+            // it will also become empty! So, create a copy.
+            WayPointList wayPointsWithHighInformationGain(*wayPointsAhead);
 
-            for(int i=0;i<wayPointsAhead->size();i++)
+            // Create an empty list to emit an empty path, so we stop the rover!
+            QList<WayPoint> wpl;
+            emit path(&wpl, WayPointListSource::WayPointListSourceFlightPlanner);
+
+            for(int i=wayPointsWithHighInformationGain.size()-1;i>=0;i--)
             {
-                const WayPoint wpt = wayPointsAhead->at(i);
+                const WayPoint wpt = wayPointsWithHighInformationGain.at(i);
 
                 // If this waypoint has information gain AND is not one of the occupied ones, re-use it!
-                if(wpt.informationGain > 0.0f && !occupiedWayPoints.contains(i))
-                    wayPointsWithHighInformationGain.append(wpt);
+                if(wpt.informationGain <= 0.0f || occupiedWayPoints.contains(i))
+                    wayPointsWithHighInformationGain.remove(i);
             }
 
             // compute a new path through the same waypoints
@@ -247,6 +251,7 @@ void PathPlanner::slotComputePath(const QVector3D& vehiclePosition, const WayPoi
     // Only re-create the occupancy grid if the collider cloud's content changed
     if(mRepopulateOccupanccyGrid)
     {
+        qDebug() << "(re)populating occupanc grid.";
         populateOccupancyGrid(gridOccupancy);
         mRepopulateOccupanccyGrid = false;
     }
@@ -296,7 +301,7 @@ void PathPlanner::slotComputePath(const QVector3D& vehiclePosition, const WayPoi
         }
         else
         {
-
+            qDebug() << __PRETTY_FUNCTION__ << "found path with" << waypointsHost[0] << "waypoints";
             // The first waypoint isn't one, it only contains the number of waypoints
             for(int i=1;i<=waypointsHost[0];i++)
             {
@@ -349,7 +354,7 @@ void PathPlanner::slotComputePath(const QVector3D& vehiclePosition, const WayPoi
             indexWayPointStart = indexWayPointGoal;
             indexWayPointGoal++;
         }
-    } while(indexWayPointGoal < wayPointsWithHighInformationGain.size() - 1);
+    } while(indexWayPointGoal < wayPointsWithHighInformationGain.size());
 
     delete waypointsHost;
 

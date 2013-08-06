@@ -353,11 +353,11 @@ void retrievePathD(unsigned char* gridValues, float4* waypoints)
     int3 gridCellCoordinateStart = parametersPathPlanner.grid.getCellCoordinate(parametersPathPlanner.start);
 
     uint valueInGoalCell = gridValues[gridCellOffsetGoal];
-    /*printf("retrievePathD(): value in goal cell at %.2f/%.2f/%.2f is %d.\n",
+    printf("retrievePathD(): value in goal cell at %.2f/%.2f/%.2f is %d.\n",
            parametersPathPlanner.goal.x,
            parametersPathPlanner.goal.y,
            parametersPathPlanner.goal.z,
-           valueInGoalCell);*/
+           valueInGoalCell);
 
     if(valueInGoalCell == 0)
     {
@@ -384,7 +384,7 @@ void retrievePathD(unsigned char* gridValues, float4* waypoints)
         int3 cellCoordinate = gridCellCoordinateGoal;
 
         // Saves the direction/offset that we step to get to the next cell.
-        int3 cellOffset;
+        int3 lastCellOffset;
 
         do
         {
@@ -399,7 +399,7 @@ void retrievePathD(unsigned char* gridValues, float4* waypoints)
                 // in certain directions first. To prevent this, we first search the cell towards the
                 // direction of the goal...
 
-                cellOffset = make_int3(
+                int3 cellOffset = make_int3(
                             cudaBound(-1, gridCellCoordinateStart.x - cellCoordinate.x, 1),
                             cudaBound(-1, gridCellCoordinateStart.y - cellCoordinate.y, 1),
                             cudaBound(-1, gridCellCoordinateStart.z - cellCoordinate.z, 1));
@@ -412,10 +412,13 @@ void retrievePathD(unsigned char* gridValues, float4* waypoints)
 
                 if(neighborValue < stepsToStartCell)
                 {
-                    printf("retrievePathD(): found next cell by steppig towards target: %d/%d/%d\n", cellOffset.x, cellOffset.y, cellOffset.z);
+                    printf("retrievePathD(): found next cell by stepping towards target: %d/%d/%d\n", cellOffset.x, cellOffset.y, cellOffset.z);
 
                     // We found a neighbor with a smaller distance. Use it!
                     cellCoordinate = neighbourCellCoordinate;
+
+                    // Save this step for the next iteration!
+                    lastCellOffset = cellOffset;
 
                     // Append our current cell's position to the waypoint list.
                     float3 cellCenter = parametersPathPlanner.grid.getCellCenter(cellCoordinate);
@@ -432,73 +435,103 @@ void retrievePathD(unsigned char* gridValues, float4* waypoints)
 
             if(!foundNextCellTowardsTarget)
             {
-                // ...if that doesn't work, we search in the same direction that we came
-                // from in the last step. This will at least give a straight path.
-
-                int3 neighbourCellCoordinate = cellCoordinate + cellOffset;
-                int neighbourCellIndex = parametersPathPlanner.grid.getCellHash2(neighbourCellCoordinate);
-
-                // by simply repeating the last step, we might walk out of the grid. In that case, try the next method.
-                if(neighbourCellIndex < 0) break;
-
-                u_int8_t neighborValue = gridValues[neighbourCellIndex];
-
-                if(neighborValue < stepsToStartCell)
+                // Ok, the direct step didn't work.
+                // Define search order. First try to repeat the last step. If that fails, at least try to keep the height.
+                int searchOrderX[3];
+                if(lastCellOffset.x == 0)
                 {
-                    printf("retrievePathD(): found next cell by repeating last step: %d/%d/%d\n", cellOffset.x, cellOffset.y, cellOffset.z);
-
-                    // We found a neighbor with a smaller distance. Use it!
-                    cellCoordinate = neighbourCellCoordinate;
-
-                    // Append our current cell's position to the waypoint list.
-                    float3 cellCenter = parametersPathPlanner.grid.getCellCenter(cellCoordinate);
-                    //printf("retrievePathD(): found next cell towards start at %.2f/%.2f/%.2f%d.\n", cellCenter.x, cellCenter.y, cellCenter.z);
-                    waypoints[neighborValue] = make_float4(cellCenter);
-
-                    // Escape those 3 for-loops to continue searching from this next cell.
-                    foundNextCellTowardsTarget = true;
-
-                    // Update distance to start-position, should be a simple decrement.
-                    stepsToStartCell = neighborValue;
+                    searchOrderX[0] = lastCellOffset.x;
+                    searchOrderX[1] = -1;
+                    searchOrderX[2] = +1;
                 }
-            }
-
-            // now try the brute-force approach...
-            for(int z=-1;z<=1 && !foundNextCellTowardsTarget;z++)
-            {
-                for(int y=-1;y<=1 && !foundNextCellTowardsTarget;y++) // check lower paths first
+                else
                 {
-                    for(int x=-1;x<=1 && !foundNextCellTowardsTarget;x++)
+                    searchOrderX[0] = lastCellOffset.x;
+                    searchOrderX[1] = +0;
+                    searchOrderX[2] = -lastCellOffset.x;
+                }
+
+                int searchOrderY[3];
+                if(lastCellOffset.y == 0)
+                {
+                    searchOrderY[0] = lastCellOffset.y;
+                    searchOrderY[1] = -1;
+                    searchOrderY[2] = +1;
+                }
+                else
+                {
+                    searchOrderY[0] = lastCellOffset.y;
+                    searchOrderY[1] = +0;
+                    searchOrderY[2] = -lastCellOffset.y;
+                }
+
+                int searchOrderZ[3];
+                if(lastCellOffset.z == 0)
+                {
+                    searchOrderZ[0] = lastCellOffset.z;
+                    searchOrderZ[1] = -1;
+                    searchOrderZ[2] = +1;}
+                else
+                {
+                    searchOrderZ[0] = lastCellOffset.z;
+                    searchOrderZ[1] = +0;
+                    searchOrderZ[2] = -lastCellOffset.z;
+                }
+
+                /*searchOrderX[0] = 0;
+                searchOrderX[1] = 1;
+                searchOrderX[2] = -1;
+
+                searchOrderY[0] = 0;
+                searchOrderY[1] = 1;
+                searchOrderY[2] = -1;
+
+                searchOrderZ[0] = 0;
+                searchOrderZ[1] = 1;
+                searchOrderZ[2] = -1;*/
+
+                // now search the neighbors in the given order.
+                for(int z=0; z<3 && !foundNextCellTowardsTarget; z++)
+                {
+                    for(int y=0; y<3 && !foundNextCellTowardsTarget; y++) // check lower paths first
                     {
-                        cellOffset = make_int3(x,y,z);
-                        int3 neighbourCellCoordinate = cellCoordinate + cellOffset;
-
-                        int neighbourCellIndex = parametersPathPlanner.grid.getCellHash2(neighbourCellCoordinate);
-
-                        if(neighbourCellIndex >= 0)
+                        for(int x=0; x<3 && !foundNextCellTowardsTarget; x++)
                         {
-                            u_int8_t neighborValue = gridValues[neighbourCellIndex];
+                            int3 cellOffset = make_int3(searchOrderX[x], searchOrderY[y], searchOrderZ[z]);
+                            int3 neighbourCellCoordinate = cellCoordinate + cellOffset;
 
-                            if(neighborValue < stepsToStartCell)
+                            int neighbourCellIndex = parametersPathPlanner.grid.getCellHash2(neighbourCellCoordinate);
+
+                            if(neighbourCellIndex >= 0)
                             {
-                                printf("retrievePathD(): found next cell using all neighbors: %d/%d/%d\n", cellOffset.x, cellOffset.y, cellOffset.z);
+                                u_int8_t neighborValue = gridValues[neighbourCellIndex];
 
-                                // We found a neighbor with a smaller distance. Use it!
-                                cellCoordinate = neighbourCellCoordinate;
+                                if(neighborValue < stepsToStartCell)
+                                {
+                                    if(x+y+z == 0)
+                                        printf("retrievePathD(): x%d y%d z%d - found next cell by repeating last step: %d/%d/%d\n", x,y,z, cellOffset.x, cellOffset.y, cellOffset.z);
+                                    else
+                                        printf("retrievePathD(): x%d y%d z%d - found next cell using all neighbors: %d/%d/%d\n", x,y,z, cellOffset.x, cellOffset.y, cellOffset.z);
 
-                                // Append our current cell's position to the waypoint list.
-                                float3 cellCenter = parametersPathPlanner.grid.getCellCenter(cellCoordinate);
-                                //printf("retrievePathD(): found next cell towards start at %.2f/%.2f/%.2f%d.\n", cellCenter.x, cellCenter.y, cellCenter.z);
+                                    // We found a neighbor with a smaller distance. Use it!
+                                    cellCoordinate = neighbourCellCoordinate;
 
-                                // The w-component doesn't matter here, so set to zero. Later on, the w-component
-                                // will be set to 1 if it turns out that the waypoint is in a now-occupied cell.
-                                waypoints[neighborValue] = make_float4(cellCenter, 0.0);
+                                    lastCellOffset = cellOffset;
 
-                                // Escape those 3 for-loops to continue searching from this next cell.
-                                foundNextCellTowardsTarget = true;
+                                    // Append our current cell's position to the waypoint list.
+                                    float3 cellCenter = parametersPathPlanner.grid.getCellCenter(cellCoordinate);
+                                    //printf("retrievePathD(): found next cell towards start at %.2f/%.2f/%.2f%d.\n", cellCenter.x, cellCenter.y, cellCenter.z);
 
-                                // Update distance to start-position, should be a simple decrement.
-                                stepsToStartCell = neighborValue;
+                                    // The w-component doesn't matter here, so set to zero. Later on, the w-component
+                                    // will be set to 1 if it turns out that the waypoint is in a now-occupied cell.
+                                    waypoints[neighborValue] = make_float4(cellCenter, 0.0);
+
+                                    // Escape those 3 for-loops to continue searching from this next cell.
+                                    foundNextCellTowardsTarget = true;
+
+                                    // Update distance to start-position, should be a simple decrement.
+                                    stepsToStartCell = neighborValue;
+                                }
                             }
                         }
                     }

@@ -53,7 +53,7 @@ QString WayPoint::hash(const QList<WayPoint>* const list)
 
 QString WayPoint::toString() const
 {
-    return QString("wpt gain %1: %2 %3 %4").arg(informationGain, 1).arg(x(), 7).arg(y(), 7).arg(z(), 7);
+    return QString("wpt gain %1: %2 %3 %4").arg(informationGain, 1).arg(x(), 2).arg(y(), 2).arg(z(), 2);
 }
 
 

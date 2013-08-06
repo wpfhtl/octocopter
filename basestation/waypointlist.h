@@ -16,7 +16,7 @@ private:
     QList<WayPoint> mWaypoints;
     quint32 mVbo;
     QColor mColor;
-//    float mSphereSize;
+    bool mVboDirty;
 
     void updateVbo();
 
@@ -37,10 +37,8 @@ public:
 
     void setList(const QList<WayPoint>* const wayPointList);
 
-//    float getSphereSize() const { return mSphereSize; }
-
     const QList<WayPoint>* list() const {return &mWaypoints;}
-    const quint32 vbo() const {return mVbo;}
+    const quint32 vbo() {if(mVboDirty) updateVbo(); return mVbo;}
     const QColor color() const {return mColor;}
 
     void prepend(const WayPoint& wp);

@@ -2,28 +2,31 @@
 #include <QFile>
 #include <QDebug>
 #include <QString>
+#include <QTime>
 #include <QTextStream>
 
-WayPointList::WayPointList() : QObject()
+#include <tsp/graph.h>
+
+WayPointList::WayPointList() : QObject(), OPENGL_FUNCTIONS_CLASS()
 {
     mVbo = 0;
-//    mSphereSize = 1.0f;
+    mVboDirty = false;
 }
 
-WayPointList::WayPointList(const QColor& color) : QObject()
+WayPointList::WayPointList(const QColor& color) : QObject(), OPENGL_FUNCTIONS_CLASS()
 {
     mVbo = 0;
+    mVboDirty = false;
     mColor = color;
     mWaypoints.clear();
-//    mSphereSize = 1.0f;
 }
 
-WayPointList::WayPointList(const WayPointList& other) : QObject()
+WayPointList::WayPointList(const WayPointList& other) : QObject(), OPENGL_FUNCTIONS_CLASS()
 {
-    mVbo = other.mVbo;
+    mVbo = 0; // don't clone someone else's vbo, create your own!
+    mVboDirty = false;
     mColor = other.mColor;
     mWaypoints = other.mWaypoints;
-//    mSphereSize = other.mSphereSize;
 }
 
 WayPointList::~WayPointList()
@@ -31,18 +34,18 @@ WayPointList::~WayPointList()
     if(mVbo) glDeleteBuffers(1, &mVbo);
 }
 
-void WayPointList::prepend(const WayPoint& wp) {mWaypoints.prepend(wp); updateVbo();}
-void WayPointList::append(const WayPoint& wp) {mWaypoints.append(wp); updateVbo();}
-void WayPointList::append(const QList<WayPoint>& wps) {mWaypoints.append(wps); updateVbo();}
-void WayPointList::append(const WayPointList* wpl) {mWaypoints.append(wpl->mWaypoints); updateVbo();}
-void WayPointList::remove(const quint16& index) {mWaypoints.removeAt(index); updateVbo();}
-void WayPointList::clear() {mWaypoints.clear(); updateVbo();}
-void WayPointList::insert(const quint16& index, const WayPoint& wp) {mWaypoints.insert(index, wp); updateVbo();}
+void WayPointList::prepend(const WayPoint& wp) {mWaypoints.prepend(wp); mVboDirty = true;}
+void WayPointList::append(const WayPoint& wp) {mWaypoints.append(wp); mVboDirty = true;}
+void WayPointList::append(const QList<WayPoint>& wps) {mWaypoints.append(wps); mVboDirty = true;}
+void WayPointList::append(const WayPointList* wpl) {mWaypoints.append(wpl->mWaypoints); mVboDirty = true;}
+void WayPointList::remove(const quint16& index) {mWaypoints.removeAt(index); mVboDirty = true;}
+void WayPointList::clear() {mWaypoints.clear(); mVboDirty = true;}
+void WayPointList::insert(const quint16& index, const WayPoint& wp) {mWaypoints.insert(index, wp); mVboDirty = true;}
 
 WayPoint WayPointList::takeAt(const int index)
 {
     const WayPoint wpt = mWaypoints.takeAt(index);
-    updateVbo();
+    mVboDirty = true;
     return wpt;
 }
 
@@ -80,7 +83,7 @@ void WayPointList::mergeCloseWaypoints(const float minimumDistance)
         }
     }
 
-    updateVbo();
+    mVboDirty = true;
 }
 
 QString WayPointList::toString() const
@@ -88,60 +91,40 @@ QString WayPointList::toString() const
     QString result = QString("WayPointList with %1 elements:\n").arg(mWaypoints.size());
 
     for(int i=0;i<mWaypoints.size();i++)
-        result.append(QString("%1: %2\n").arg(i, 2).arg(mWaypoints.at(i).toString()));
+        result.append(QString("wpt %1, gain %2, %3 %4 %5\n").arg(i, 2).arg(mWaypoints[i].informationGain, 2).arg(mWaypoints[i].x(), 7).arg(mWaypoints[i].y(), 7).arg(mWaypoints[i].z(), 7));
 
     return result;
 }
 
 void WayPointList::sortToShortestPath(const QVector3D &vehiclePosition)
 {
-    //    qDebug() << "FlightPlannerInterface::sortToShortestPath(): vehicle is at" << currentVehiclePosition;
+    qDebug() << "FlightPlannerInterface::sortToShortestPath(): vehicle is at" << vehiclePosition << "waypointlist contains" << mWaypoints.size() << "waypoints";
 
-    float distanceBefore = 0;
+    QTime t;t.start();
 
-//    for(int i=1;i<mWaypoints.size();i++) distanceBefore += mWaypoints.at(i-1).distanceToLine(mWaypoints.at(i), QVector3D());
-//    qDebug() << "FlightPlannerInterface::sortToShortestPath(): total distance between" << mWaypoints.size() << "points before:" << distanceBefore;
+    Graph g;
 
-    QList<WayPoint> wps(mWaypoints);
-//    float distanceBeforewps = 0;
-//    for(int i=1;i<wps.size();i++) distanceBeforewps += wps.at(i-1).distanceToLine(wps.at(i), QVector3D());
-//    qDebug() << "FlightPlannerInterface::sortToShortestPath(): wps total distance between" << wps.size() << "points before:" << distanceBeforewps;
+    QList<WayPoint> wpl(mWaypoints);
+    wpl.prepend(vehiclePosition);
+    g.setWayPointList(&wpl);
+
+    Path p = g.optTSP();
 
     mWaypoints.clear();
-    mWaypoints.append(vehiclePosition);
 
-    while(wps.size())
-    {
-        float closestNeighborDistance = 9999999999999999.0f;
-        int indexOfClosestNeighbor = -1;
+    // Do not use the first and the last point, they're both at the vehicle's position!
+    for(int i=1;i<p.vertices.size();i++)
+        mWaypoints.append(wpl.at(p.vertices[i]));
 
-        for(int i=0;i<wps.size();i++)
-        {
-            const float currentDistance = mWaypoints.last().distanceToLine(wps.at(i), QVector3D());
-            if(currentDistance < closestNeighborDistance)
-            {
-                closestNeighborDistance = currentDistance;
-                indexOfClosestNeighbor = i;
-            }
-        }
+    mVboDirty = true;
 
-        mWaypoints.append(wps.at(indexOfClosestNeighbor));
-        wps.removeAt(indexOfClosestNeighbor);
-    }
-
-    mWaypoints.takeFirst();
-
-    updateVbo();
-
-//    float distanceAfter = 0;
-//    for(int i=1;i<mWaypoints.size();i++) distanceAfter += mWaypoints.at(i-1).distanceToLine(mWaypoints.at(i), QVector3D());
-    //    qDebug() << "FlightPlannerInterface::sortToShortestPath(): total distance between" << wayPoints.size() << "points after:" << distanceAfter;
+    qDebug() << "FlightPlannerInterface::sortToShortestPath(): done after" << t.elapsed() << "ms - waypointlist contains" << mWaypoints.size() << "waypoints";
 }
 
 void WayPointList::setList(const QList<WayPoint>* const wayPointList)
 {
     mWaypoints = *wayPointList;
-    updateVbo();
+    mVboDirty = true;
 }
 
 // Copy all waypoints into our VBO
@@ -149,7 +132,7 @@ void WayPointList::updateVbo()
 {
     if(!mVbo)
     {
-        initializeOpenGLFunctions();
+        if(!initializeOpenGLFunctions()) qFatal("couldn't init opengl functions!");
         glGenBuffers(1, &mVbo);
     }
 
@@ -200,7 +183,7 @@ bool WayPointList::loadFromFile(const QString& fileName)
     }
 
     file.close();
-    updateVbo();
+    mVboDirty = true;
     return true;
 }
 

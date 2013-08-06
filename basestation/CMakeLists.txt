@@ -42,12 +42,7 @@ set(SRC_FILES
     camerawidget
     waypointlist
     pathplanner
-    #flightplannerinterface
-    #flightplannerbasic
-    #flightplannercuda
     flightplannerparticles
-    #flightplannerphysics
-    #flightplannerphysicsdialog
     flightplannerparticlesdialog
     diffcorrfetcher
     model
@@ -55,7 +50,6 @@ set(SRC_FILES
     satellitewidget
     connectiondialog
     roverconnection
-    #bulletdebugdrawergl
     shaderprogram
     ../common/profiler
     ../common/rawscan
@@ -75,24 +69,24 @@ set(SRC_FILES
     ../common/gnsstime
     ../common/pose
     ../common/common
-    #../common/plotwidget
     ../common/gnssstatus
     ../common/wirelessdevice
     ../common/vehiclestatus
     ../common/satellite
     ../common/almanac
+    ../common/tsp/fasttsp
+    ../common/tsp/graph
+    ../common/tsp/path
+    ../common/tsp/opttsp
+    ../common/tsp/pathinfo
     particlerenderer
     pointcloud
-    #pointcloudoctree
-    #pointcloudoctreenode
 )
 
 set(INC_FILES
     cudahelper.h
     pointcloud.h
     pointcloudcuda.h
-    #pointcloudoctree.h
-    #pointcloudoctreenode.h
     particlesystem.h
     particlerenderer.h
     basestation.h
@@ -105,12 +99,7 @@ set(INC_FILES
     camerawidget.h
     waypointlist.h
     pathplanner.h
-    #flightplannerinterface.h
-    #flightplannerbasic.h
-    #flightplannercuda.h
     flightplannerparticles.h
-    #flightplannerphysics.h
-    #flightplannerphysicsdialog.h
     flightplannerparticlesdialog.h
     diffcorrfetcher.h
     model.h
@@ -118,7 +107,6 @@ set(INC_FILES
     satellitewidget.h
     connectiondialog.h
     roverconnection.h
-    #bulletdebugdrawergl.h
     shaderprogram.h
     ../common/profiler.h
     ../common/rawscan.h
@@ -138,12 +126,15 @@ set(INC_FILES
     ../common/gnsstime.h
     ../common/pose.h
     ../common/common.h
-    #../common/plotwidget.h
     ../common/gnssstatus.h
     ../common/wirelessdevice.h
     ../common/vehiclestatus.h
     ../common/satellite.h
     ../common/almanac.h
+    ../common/tsp/path.h
+    ../common/tsp/graph.h
+    ../common/tsp/matrix.h
+    ../common/tsp/pathinfo.h
 )
 
 set(UI_FILES
@@ -154,7 +145,6 @@ set(UI_FILES
     connectiondialog.ui
     pidcontrollerwidget.ui
     satellitewidget.ui
-    #flightplannerphysicsdialog.ui
     flightplannerparticlesdialog.ui
 )
 
