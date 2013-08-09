@@ -127,6 +127,7 @@ void ParticleSystem::showCollisionPositions()
 
 void ParticleSystem::initialize()
 {
+    qDebug() << __PRETTY_FUNCTION__;
     Q_ASSERT(!mIsInitialized);
 
     // This needs to be called only once, but here it might get called more often. Shouldn't be a problem.

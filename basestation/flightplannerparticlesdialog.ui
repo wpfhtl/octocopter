@@ -509,13 +509,6 @@
       </widget>
      </item>
      <item row="2" column="0">
-      <widget class="QPushButton" name="mBtnDeleteWaypoints">
-       <property name="text">
-        <string>Delete Wpts</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="0">
       <widget class="QPushButton" name="mBtnReduceColliderCloud">
        <property name="text">
         <string>Reduce Colliders</string>

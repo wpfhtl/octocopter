@@ -24,7 +24,7 @@ public:
     ParametersParticleSystem getSimulationParameters() const {return mSimulationParameters;}
 
     bool processPhysics() const {return ui->mChkBoxProcessPhysics->isChecked();}
-    void setProcessPhysics(bool state) {ui->mChkBoxProcessPhysics->setChecked(state);}
+    void setProcessPhysics(bool state) {ui->mChkBoxProcessPhysics->setChecked(state); emit processPhysicsChanged(state);}
 
     bool followVehicle() const {return ui->mChkBoxFollowVehicle->isChecked();}
     bool showParticles() const {return ui->mChkBoxShowParticles->isChecked();}
@@ -52,7 +52,6 @@ signals:
     void resetParticles();
     void resetInformationGain();
     void generateWayPoints();
-    void deleteWayPoints();
 };
 
 #endif // FLIGHTPLANNERPARTICLESDIALOG_H

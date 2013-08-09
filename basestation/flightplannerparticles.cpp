@@ -38,6 +38,7 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
                     ),
                 64 * 1024);
 
+
     mPointCloudColliders->setMinimumPointDistance(0.3f);
     mPointCloudColliders->setColor(QColor(0,0,255,120));
 
@@ -51,6 +52,11 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
     connect(mPathPlanner, SIGNAL(message(LogImportance,QString,QString)), this, SIGNAL(message(LogImportance,QString,QString)));
 
     connect(&mTimerProcessInformationGain, SIGNAL(timeout()), this, SLOT(slotProcessInformationGain()));
+
+    // When the dialog dis/enables physics processing, start/stop the timer
+    mTimerStepSimulation.setInterval(1);
+    connect(&mTimerStepSimulation, &QTimer::timeout, this, &FlightPlannerParticles::slotStepSimulation);
+    connect(mDialog, &FlightPlannerParticlesDialog::processPhysicsChanged, [=](const bool enable) {if(enable) mTimerStepSimulation.start(); else mTimerStepSimulation.stop();});
 }
 
 void FlightPlannerParticles::slotInitialize()
@@ -112,11 +118,6 @@ void FlightPlannerParticles::slotInitialize()
     mParticleSystem->slotSetParticleRadius(1.0f/2.0f); // balance against mOctreeCollisionObjects.setMinimumPointDistance() above
     mParticleSystem->slotSetDefaultParticlePlacement(ParticleSystem::ParticlePlacement::PlacementFillSky);
 
-    connect(mDialog, &FlightPlannerParticlesDialog::deleteWayPoints, [=](){
-        QList<WayPoint> wl;
-        slotSetWayPoints(&wl, WayPointListSource::WayPointListSourceFlightPlanner);
-    });
-
     connect(mDialog, SIGNAL(generateWayPoints()), SLOT(slotGenerateWaypoints()));
     connect(mDialog, SIGNAL(resetParticles()), mParticleSystem, SLOT(slotResetParticles()));
     connect(mDialog, SIGNAL(resetInformationGain()), SLOT(slotClearGridOfInformationGain()));
@@ -154,8 +155,8 @@ void FlightPlannerParticles::slotProcessInformationGain(const quint8 threshold)
     const quint32 numberOfCells = mSimulationParameters.gridInformationGain.getCellCount();
 
     // Copy waypoint pressure from VBO into mDeviceGridMapinformationGainSorted
-    quint8* gridMapOfinformationGain = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridMapOfInformationGainBytes);
-    const quint8 maxPressure = getMaximumInformationGain(gridMapOfinformationGain, numberOfCells);
+    quint8* gridMapOfInformationGain = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridMapOfInformationGainBytes);
+    const quint8 maxPressure = getMaximumInformationGain(gridMapOfInformationGain, numberOfCells);
     cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfInformationGainBytes, 0);
 
     if(maxPressure >= threshold)
@@ -594,21 +595,38 @@ void FlightPlannerParticles::slotVisualize()
 
     if(mParticleSystem)
     {
-        if(mDialog->processPhysics())
-        {
-            // Provide the particle system a pointer to our waypoint-pressure-gridmap (in device address space)
-            quint8 *deviceGridMapOfinformationGain = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridMapOfInformationGainBytes);
-
-            for(float timeStepped = 0.0f; timeStepped < mSimulationParameters.timeStepOuter; timeStepped += mSimulationParameters.timeStepInner)
-            {
-                mParticleSystem->update(deviceGridMapOfinformationGain);
-            }
-
-            cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfInformationGainBytes, 0);
-        }
-
         mParticleRenderer->slotSetRenderBoundingBox(mRenderDetectionVolume);
         mParticleRenderer->render();
     }
 
+}
+
+void FlightPlannerParticles::slotStepSimulation()
+{
+    if(!mParticleSystem && CudaHelper::isDeviceSupported)
+    {
+        mParticleSystem->slotResetParticles();
+        slotInitialize();
+    }
+
+    if(mPointCloudColliders->getNumberOfPoints() < 1)
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "will not collide particles against 0 colliders, disablig particle simulation";
+        mDialog->setProcessPhysics(false);
+        return;
+    }
+
+    // Provide the particle system a pointer to our waypoint-pressure-gridmap (in device address space)
+    quint8 *deviceGridMapOfinformationGain = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridMapOfInformationGainBytes);
+
+    for(float timeStepped = 0.0f; timeStepped < mSimulationParameters.timeStepOuter; timeStepped += mSimulationParameters.timeStepInner)
+    {
+        mParticleSystem->update(deviceGridMapOfinformationGain);
+    }
+
+    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfInformationGainBytes, 0);
+
+    static int iteration = 0;
+    if(iteration++ % 100 == 0)
+        emit suggestVisualization();
 }

@@ -44,9 +44,6 @@ private:
     bool mRenderScanVolume, mRenderDetectionVolume, mRenderWayPoints;
 
     WayPointList mWayPointsAhead, mWayPointsPassed;
-    // A map, mapping from name to waypointlist. Names are e.g. waypoints_ahead, waypoints_passed etc.
-//    QMap<QString, WayPointList*> mWaypointListMap;
-
     unsigned int mVboBoundingBox, mVboWayPointConnections;
 
     ShaderProgram *mShaderProgramDefault, *mShaderProgramWaypoint;
@@ -58,6 +55,7 @@ private:
     PathPlanner* mPathPlanner;
     QVector3D mLastParticleSystemPositionToFollowVehicle;
     QTimer mTimerProcessInformationGain;
+    QTimer mTimerStepSimulation;
     QList<WayPoint> mWayPointsGenerated, mWayPointsDetour;
     ParticleSystem* mParticleSystem;
     ParticleRenderer* mParticleRenderer;
@@ -89,6 +87,8 @@ private slots:
 
     // checks waypoint pressure and if higher than threshold, cals slotGenerateWaypoints();
     void slotProcessInformationGain(const quint8 threshold = 5);
+
+    void slotStepSimulation();
 
 public slots:
     void slotShowUserInterface();

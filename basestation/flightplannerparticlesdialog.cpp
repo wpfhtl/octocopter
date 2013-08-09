@@ -9,7 +9,6 @@ FlightPlannerParticlesDialog::FlightPlannerParticlesDialog(const ParametersParti
     connect(ui->mBtnResetParticles, SIGNAL(clicked()), SIGNAL(resetParticles()));
     connect(ui->mBtnResetInformationGain, SIGNAL(clicked()), SIGNAL(resetInformationGain()));
     connect(ui->mBtnGenerateWaypoints, SIGNAL(clicked()), SIGNAL(generateWayPoints()));
-    connect(ui->mBtnDeleteWaypoints, SIGNAL(clicked()), SIGNAL(deleteWayPoints()));
 
     connect(ui->mBtnReduceColliderCloud, SIGNAL(clicked()), SIGNAL(reduceColliderCloud()));
 

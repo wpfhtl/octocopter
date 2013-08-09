@@ -11,7 +11,7 @@ PointCloudCuda::PointCloudCuda(const Box3D& boundingBox, const quint32 maximumEl
 
     mParameters.initialize();
     mParameters.grid.cells = make_uint3(256, 32, 256);
-    mParameters.minimumDistance = 0.04f;
+    mParameters.minimumDistance = 0.02f;
     mParameters.capacity = maximumElementCount;
 
     mDevicePointPos = 0;

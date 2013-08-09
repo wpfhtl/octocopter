@@ -112,6 +112,12 @@ void WayPointList::sortToShortestPath(const QVector3D &vehiclePosition)
 
     mWaypoints.clear();
 
+    QStringList wayPointIndexOrder;
+    for(int i=0;i<p.vertices.size();i++)
+        wayPointIndexOrder.append(QString::number(p.vertices.at(i)));
+
+    qDebug() << "FlightPlannerInterface::sortToShortestPath(): vertex index order will be:" << wayPointIndexOrder.join(", ");
+
     // Do not use the first and the last point, they're both at the vehicle's position!
     for(int i=1;i<p.vertices.size();i++)
         mWaypoints.append(wpl.at(p.vertices[i]));
