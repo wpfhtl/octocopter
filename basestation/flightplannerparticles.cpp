@@ -39,8 +39,8 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
                 64 * 1024);
 
 
-    mPointCloudColliders->setMinimumPointDistance(0.3f);
-    mPointCloudColliders->setColor(QColor(0,0,255,120));
+    mPointCloudColliders->setMinimumPointDistance(0.2f);
+    //mPointCloudColliders->setColor(QColor(0,0,255,255));
 
     mGlWindow->slotPointCloudRegister(mPointCloudColliders);
 
@@ -192,7 +192,7 @@ void FlightPlannerParticles::slotGenerateWaypoints(quint32 numberOfWaypointsToGe
     cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfInformationGainBytes, 0);
 
     // To debug, we make sure that Bytes and Floats are still in sync
-    float* gvFloat = new float[numberOfCells];
+    /*float* gvFloat = new float[numberOfCells];
     quint8* gvByte = new quint8[numberOfCells];
     cudaMemcpy(gvFloat, gridMapOfinformationGainFloat, sizeof(float) * numberOfCells, cudaMemcpyDeviceToHost);
     cudaMemcpy(gvByte, gridMapOfinformationGainBytes, sizeof(quint8) * numberOfCells, cudaMemcpyDeviceToHost);
@@ -208,7 +208,7 @@ void FlightPlannerParticles::slotGenerateWaypoints(quint32 numberOfWaypointsToGe
     // copy the bytes into the float array on device
     cudaMemcpy(gridMapOfinformationGainFloat, gvFloat, sizeof(float) * numberOfCells, cudaMemcpyHostToDevice);
     delete gvFloat;
-    delete gvByte;
+    delete gvByte;*/
 
     // Fill mDeviceGridMapCellWorldPositions - this might be done only once and then copied lateron (just like the waypoint pressure above)
     // The w-component is set to 0.0 here
@@ -240,7 +240,7 @@ void FlightPlannerParticles::slotGenerateWaypoints(quint32 numberOfWaypointsToGe
     }
 
     // Merge waypoints if they're closer than X meters
-    wayPointsWithHighInformationGain.mergeCloseWaypoints(5.0f);
+    wayPointsWithHighInformationGain.mergeCloseWaypoints(7.5f);
 
     // Reduce them to the desired number
     while(wayPointsWithHighInformationGain.size() > numberOfWaypointsToGenerate)
@@ -460,11 +460,14 @@ void FlightPlannerParticles::showInformationGain()
 
 void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloud*const pointCloudSource, const quint32& firstPointToReadFromSrc, quint32 numberOfPointsToCopy)
 {
+    // Son, we shouldn't mess with CUDA while rendering is in progress
+    Q_ASSERT(!mGlWindow->mIsCurrentlyRendering);
+
     mPointCloudColliders->slotInsertPoints(pointCloudSource, firstPointToReadFromSrc, numberOfPointsToCopy);
 
-    if(firstPointToReadFromSrc == 0)
+    if(firstPointToReadFromSrc == 0 && mWayPointsAhead.size() == 0)
     {
-        // This is the first time that points were inserted - start the physics processing!
+        // This is the first time that points were inserted (and we have no waypoints) - start the physics processing!
         mDialog->setProcessPhysics(true);
         mParticleSystem->slotResetParticles();
         mTimerProcessInformationGain.start(5000);

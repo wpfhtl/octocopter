@@ -10,7 +10,8 @@ GlWindow::GlWindow(QWindow* parent) :
     mShaderProgramPointCloud(0),
     mShaderProgramRawScanRays(0),
     mLastFlightControllerValues(0),
-    mLastKnownVehiclePose(0)
+    mLastKnownVehiclePose(0),
+    mIsCurrentlyRendering(false)
 {
     // Tell Qt we will use OpenGL for this window
     setSurfaceType(QWindow::OpenGLSurface);
@@ -23,7 +24,6 @@ GlWindow::GlWindow(QWindow* parent) :
     format.setSamples(4);
     format.setProfile(QSurfaceFormat::CoreProfile);
     //format.setOption( QSurfaceFormat::DebugContext );
-//    resize(640,480);
     setFormat(format);
     create();
 
@@ -243,6 +243,8 @@ void GlWindow::slotRenderNow()
 
         // Make the context current
     //    qDebug() << __PRETTY_FUNCTION__ << "making context current.";
+    Q_ASSERT(mIsCurrentlyRendering == false);
+    mIsCurrentlyRendering = true;
     mOpenGlContext->makeCurrent(this);
 
     mFramesRenderedThisSecond++;
@@ -600,6 +602,7 @@ void GlWindow::slotRenderNow()
     }
 
     mOpenGlContext->swapBuffers(this);
+    mIsCurrentlyRendering = false;
 }
 
 void GlWindow::renderController(const QMatrix4x4& transform, const PidController* const controller)

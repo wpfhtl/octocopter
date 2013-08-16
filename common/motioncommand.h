@@ -55,7 +55,7 @@ public:
     static const quint8 thrustMax = 200;
 
     // A yaw of 15 rotates by about 15 degrees per second, which is slooow
-    static const qint8 yawMax = 60;
+    static const qint8 yawMax = 30;
 
     // Lets limit to 25 for testing, this seems plenty
     static const qint8 rollMax = 25;

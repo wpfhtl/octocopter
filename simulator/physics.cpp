@@ -386,7 +386,7 @@ void Physics::slotSetMotion(const MotionCommand* const motionCommand)
 
     float timeDiffDelme = (mSimulator->getSimulationTime() - mTimeOfLastControllerUpdate) / 1000.0f;
     const float timeDiff = qBound(0.01f, (float)(mSimulator->getSimulationTime() - mTimeOfLastControllerUpdate) / 1000.0f, 0.3f); // elapsed time since last call in seconds
-    qDebug() << "Physics::slotSetMotion():" << thrustVectorOgre.x << thrustVectorOgre.y << thrustVectorOgre.z << timeDiffDelme << "bound:" << timeDiff;
+    //qDebug() << "Physics::slotSetMotion():" << thrustVectorOgre.x << thrustVectorOgre.y << thrustVectorOgre.z << timeDiffDelme << "bound:" << timeDiff;
     mTimeOfLastControllerUpdate = mSimulator->getSimulationTime();
 
     const float mikrokopterPitchRollP = 6.0f;
@@ -500,7 +500,7 @@ void Physics::slotUpdatePhysics(void)
     const btScalar deltaS = qBound(0.0f, (simulationTime - mTimeOfLastPhysicsUpdate) / 1000.0f, 0.1f); // elapsed time since last call in seconds
     const int maxSubSteps = 20;
     const btScalar fixedTimeStep = 1.0f / 60.0f;
-    qDebug() << "Physics::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
+    //qDebug() << "Physics::slotUpdatePhysics(): stepping physics, time is" << simulationTime << "delta" << deltaS;
     slotUpdateWind();
 
     mVehicleBody->applyDamping(deltaS);

@@ -2,6 +2,7 @@
 
 qint32 GnssTime::currentTow()
 {
+    // Uhhhhhh.... don't you fly at midnight!
     static const QDate today = QDate::currentDate();
     static const QDateTime beginningOfWeek(today.addDays(-(today.dayOfWeek() % 7)), QTime(0, 0, 0, 0));
 

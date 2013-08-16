@@ -8,9 +8,10 @@ struct FlightStateRestriction
 {
     enum class Restriction
     {
-        RestrictionUserControl, // ~-129
-        RestrictionHover,       // ~22
-        RestrictionNone         // ~+184
+        // The values don't have a real meaning, just set to something special for debugging values.
+        RestrictionUserControl = 131, // ~-129
+        RestrictionHover       = 132, // ~22
+        RestrictionNone        = 133  // ~+184
     };
 
     // The actual value of the switch

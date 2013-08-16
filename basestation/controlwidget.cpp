@@ -31,9 +31,6 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
 
     connect(mBtnSetScanVolume, &QPushButton::clicked, this, &ControlWidget::slotSetScanVolume);
 
-//    mStyle = new QPlastiqueStyle;
-//    mCompass->setStyle(mStyle);
-
     mBarWirelessRssi->setRange(0, 100);
 
     QTimer::singleShot(0, this, SLOT(slotResizeToMinimum()));

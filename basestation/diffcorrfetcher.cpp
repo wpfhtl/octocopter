@@ -230,7 +230,7 @@ void DiffCorrFetcher::rtkOutputStop()
 {
     usleep(100000);
 //    mSerialPort->write("SSSSSSSSSS");
-    QCoreApplication::processEvents();
+//    QCoreApplication::processEvents();
 //    sleep(11);
 
     qDebug() << "DiffCorrFetcher::rtkOutputStop(): sending rtk output init commands from rtk-stop.txt";

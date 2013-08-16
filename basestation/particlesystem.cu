@@ -90,8 +90,10 @@ struct functorComputeWaypointBenefit
         float distance = length(cellCenter - vehiclePosition);
         distance = max(1.0f, distance);
 
-        // store waypoint benefit
-        thrust::get<1>(t) = (pressureSrc * pressureSrc * pressureSrc) / sqrtf(distance);
+        // store waypoint benefit incorporating the distance
+        //thrust::get<1>(t) = (pressureSrc * pressureSrc * pressureSrc) / sqrtf(distance);
+        // or just keep values (do not make waypoints far away less desireable)
+        thrust::get<1>(t) = pressureSrc;
     }
 };
 
