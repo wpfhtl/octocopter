@@ -87,6 +87,9 @@ void fillOccupancyGrid(unsigned char* gridValues, float* colliderPos, unsigned i
     uint numThreads, numBlocks;
     computeExecutionKernelGrid(numColliders, 64, numBlocks, numThreads);
 
+    printf("using %d colliders at %p to fill occupancy grid with %d cells at %p.\n",
+           numColliders, colliderPos, numCells, gridValues);
+
     fillOccupancyGridD<<< numBlocks, numThreads, 0, *stream>>>(gridValues, (float4*)colliderPos, numColliders);
     cudaCheckSuccess("fillOccupancyGrid");
 }

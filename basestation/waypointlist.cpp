@@ -148,8 +148,12 @@ void WayPointList::sortToShortestPath(const QVector3D &vehiclePosition)
     const float distLastBecomesFirst = getDistance(&wplLastBecomesFirst, vehiclePosition, WayPointList::TravelDirection::TravelDirectionForward);
     if(distLastBecomesFirst < distNormal)
     {
-        qDebug() << "put last wpt to beginning, saving" << (distNormal - distLastBecomesFirst);
+        qDebug() << "putting last wpt first saves" << (distNormal - distLastBecomesFirst);
         mWaypoints = wplLastBecomesFirst;
+    }
+    else
+    {
+        qDebug() << "putting last wpt first adds length:" << -(distNormal - distLastBecomesFirst);
     }
 
     mVboDirty = true;
