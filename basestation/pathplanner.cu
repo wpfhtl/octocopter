@@ -567,7 +567,8 @@ __global__ void testWayPointCellOccupancyD(unsigned char*  gridValues, float4* u
     const int gridCellHash = parametersPathPlanner.grid.getCellHash2(gridCellCoordinate);
 
     if(gridCellHash < 0 || gridCellHash > parametersPathPlanner.grid.getCellCount())
-        printf("testWayPointCellOccupancyD(): bug!!!\n");
+        printf("testWayPointCellOccupancyD(): bug, waypoint %d is supposedly at %.2f/%.2f/%.2f/%.2f in cell hash %d\n",
+               waypointIndex, waypoint.x, waypoint.y, waypoint.z, waypoint.w, gridCellHash);
 
     if(gridValues[gridCellHash] > 253)
     {

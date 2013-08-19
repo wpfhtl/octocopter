@@ -104,6 +104,7 @@ void PathPlanner::populateOccupancyGrid(quint8* gridOccupancy)
 void PathPlanner::checkWayPointSafety(const QVector3D& vehiclePosition, const WayPointList* const wayPointsAhead)
 {
     // The collider cloud inserted some points. Let's check whether our waypoint-cells are now occupied. In that case, we'd have to re-plan!
+    qDebug() << "PathPlanner::checkWayPointSafety(): checking safety of" << wayPointsAhead->size() << "waypoints...";
     if(wayPointsAhead->size())
     {
         copyParametersToGpu(&mParametersPathPlanner);
@@ -183,7 +184,16 @@ void PathPlanner::checkWayPointSafety(const QVector3D& vehiclePosition, const Wa
             }
 
             // compute a new path through the same waypoints
-            slotComputePath(vehiclePosition, wayPointsWithHighInformationGain);
+            if(wayPointsWithHighInformationGain.size())
+            {
+                slotComputePath(vehiclePosition, wayPointsWithHighInformationGain);
+            }
+            else
+            {
+                // There are no waypoints left to compute a path. Generate new waypoints!
+                qDebug() << "PathPlanner::checkWayPointSafety(): no waypoitns left to compute path!";
+                emit generateNewWayPoints();
+            }
         }
     }
 }

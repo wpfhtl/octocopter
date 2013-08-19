@@ -49,6 +49,7 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
 
     mPathPlanner = new PathPlanner;
     connect(mPathPlanner, &PathPlanner::path, this, &FlightPlannerParticles::slotSetWayPoints);
+    connect(mPathPlanner, &PathPlanner::generateNewWayPoints, this, &FlightPlannerParticles::slotStartWayPointGeneration);
     connect(mPathPlanner, SIGNAL(message(LogImportance,QString,QString)), this, SIGNAL(message(LogImportance,QString,QString)));
 
     connect(&mTimerProcessInformationGain, SIGNAL(timeout()), this, SLOT(slotProcessInformationGain()));
@@ -368,22 +369,27 @@ void FlightPlannerParticles::slotWayPointReached(const WayPoint& wpt)
     // When no waypoints are left, start testing for water-leaks!
     if(mWayPointsAhead.isEmpty())
     {
-        qDebug() << "FlightPlannerParticles::slotWayPointReached(): no waypoints left, restarting generation!";
-
-        // This will first copy points to collider (which will reduce), then reduce the dense cloud.
-        ((PointCloudCuda*)mPointCloudDense)->slotReduce();
-
-        slotClearGridOfInformationGain();
-
-        mDialog->setProcessPhysics(true);
-
-        const Pose p = mVehiclePoses.last();
-        slotVehiclePoseChanged(&p);
-
-        mParticleSystem->slotResetParticles();
-
-        mTimerProcessInformationGain.start(5000);
+        slotStartWayPointGeneration();
     }
+}
+
+void FlightPlannerParticles::slotStartWayPointGeneration()
+{
+    qDebug() << __PRETTY_FUNCTION__ << "starting generation!";
+
+    // This will first copy points to collider (which will reduce), then reduce the dense cloud.
+    ((PointCloudCuda*)mPointCloudDense)->slotReduce();
+
+    slotClearGridOfInformationGain();
+
+    mDialog->setProcessPhysics(true);
+
+    const Pose p = mVehiclePoses.last();
+    slotVehiclePoseChanged(&p);
+
+    mParticleSystem->slotResetParticles();
+
+    mTimerProcessInformationGain.start(5000);
 }
 
 void FlightPlannerParticles::slotVehiclePoseChanged(const Pose* const pose)
@@ -468,9 +474,7 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloud*const point
     if(firstPointToReadFromSrc == 0 && mWayPointsAhead.size() == 0)
     {
         // This is the first time that points were inserted (and we have no waypoints) - start the physics processing!
-        mDialog->setProcessPhysics(true);
-        mParticleSystem->slotResetParticles();
-        mTimerProcessInformationGain.start(5000);
+        slotStartWayPointGeneration();
     }
     else if(mWayPointsAhead.size())
     {

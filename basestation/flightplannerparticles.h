@@ -90,6 +90,8 @@ private slots:
 
     void slotStepSimulation();
 
+    void slotStartWayPointGeneration();
+
 public slots:
     void slotShowUserInterface();
     void slotSetScanVolume(const Box3D scanVolume);

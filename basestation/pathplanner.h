@@ -48,8 +48,11 @@ signals:
     // This is ALWAYS emitted after a call to slotRequestPath(). If the list is empty, no path was found.
     // If it is not empty, the first and last elements MUST be start and goal, respectively.
     //
-    // Can also be emitted after checkWayPointSafety() foud an unsafe waypoint and the path was re-planned.
+    // Can also be emitted after checkWayPointSafety() found an unsafe waypoint and the path was re-planned.
     void path(const QList<WayPoint>* const, WayPointListSource);
+
+    // Is emitted when checkWayPointSafety() finds out that the path must be deleted completely.
+    void generateNewWayPoints();
 
     void message(const LogImportance& importance, const QString& source, const QString& message);
 
