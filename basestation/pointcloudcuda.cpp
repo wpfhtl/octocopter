@@ -285,7 +285,7 @@ void PointCloudCuda::slotReduce()
 {
     if(!CudaHelper::isDeviceSupported)
     {
-        qDebug() << "PointCloudCuda::slotReduce(): device not supported, not reducing points.";
+//        qDebug() << "PointCloudCuda::slotReduce(): device not supported, not reducing points.";
         return;
     }
 

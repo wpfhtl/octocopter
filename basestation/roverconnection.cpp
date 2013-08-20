@@ -42,7 +42,7 @@ void RoverConnection::slotWatchdogTimerFired()
 
     if(mTcpSocket->state() != QAbstractSocket::ConnectedState || mTimeOfLastPacket.msecsTo(QTime::currentTime()) > 2.5f * mTimerConnectionWatchdog.interval())
     {
-        qDebug() << "RoverConnection::slotWatchdogTimerFired(): emitting broken connection, attempting reconnect...";
+        //qDebug() << "RoverConnection::slotWatchdogTimerFired(): emitting broken connection, attempting reconnect...";
         emit connectionStatusRover(false);
         slotConnectToRover();
     }
@@ -54,7 +54,7 @@ void RoverConnection::slotWatchdogTimerFired()
 
 void RoverConnection::slotSocketDisconnected()
 {
-    qDebug() << "RoverConnection::slotSocketDisconnected()";
+//    qDebug() << "RoverConnection::slotSocketDisconnected()";
 
     emit message(
                 Warning,
@@ -80,7 +80,7 @@ void RoverConnection::slotSocketConnected()
 void RoverConnection::slotConnectToRover()
 {
     Q_ASSERT(!mHostName.isEmpty() && mPort != 0 && "RoverConnection::slotConnectToRover(): hostname or port not set.");
-    qDebug() << "RoverConnection::slotConnectToRover(): abort()ing connection, then reconnecting...";
+    //qDebug() << "RoverConnection::slotConnectToRover(): abort()ing connection, then reconnecting...";
 
     mTcpSocket->abort();
     mTcpSocket->connectToHost(mHostName, mPort);
@@ -234,7 +234,7 @@ void RoverConnection::processPacket(QByteArray data)
     else if(packetType == "flightstaterestriction")
     {
         stream >> mFlightStateRestriction;
-        qDebug() << "RoverConnection::processPacket: emitting flightstaterestriction" << mFlightStateRestriction.toString();
+        qDebug() << "RoverConnection::processPacket: received and emitting flightstaterestriction" << mFlightStateRestriction.toString();
         emit flightStateRestriction(&mFlightStateRestriction);
     }
     else if(packetType == "flightcontrollervalues")

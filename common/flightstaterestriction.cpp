@@ -18,6 +18,6 @@ QDataStream& operator>>(QDataStream &in, FlightStateRestriction& fsr)
     quint8 restriction;
     in >> restriction;
     fsr.restriction = static_cast<FlightStateRestriction::Restriction>(restriction);
-    qDebug() << "reconstructed fsr" << fsr.toString() << "from quint8" << restriction;
+//    qDebug() << "reconstructed fsr" << fsr.toString() << "from quint8" << restriction;
     return in;
 }
