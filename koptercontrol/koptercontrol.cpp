@@ -178,7 +178,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mGnssDevice->getSbfParser(), &SbfParser::gnssDeviceWorkingPrecisely, mLaserScannerFrnt, &LaserScanner::slotEnableScanning);
     connect(mLaserScannerDown->getHokuyo(), &Hokuyo::scanRaw, mSensorFuser, &SensorFuser::slotNewScanRaw);
     connect(mLaserScannerFrnt->getHokuyo(), &Hokuyo::scanRaw, mSensorFuser, &SensorFuser::slotNewScanRaw);
-    connect(mSensorFuser, SIGNAL(scanFused(float*const,quint32,QVector3D*const)), mBaseConnection, SLOT(slotNewScanFused(float*const,quint32,QVector3D*const)));
+    connect(mSensorFuser, SIGNAL(scanFused(const float*const,const quint32,const QVector3D*const)), mBaseConnection, SLOT(slotSendScanFused(const float*const,const quint32,const QVector3D*const)));
 
     // Lots of traffic - for what?
     connect(mFlightController, &FlightController::flightControllerValues, mBaseConnection, &BaseConnection::slotSendFlightControllerValues);
