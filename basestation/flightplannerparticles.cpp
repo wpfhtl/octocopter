@@ -471,7 +471,7 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloud*const point
 
     mPointCloudColliders->slotInsertPoints(pointCloudSource, firstPointToReadFromSrc, numberOfPointsToCopy);
 
-    if(firstPointToReadFromSrc == 0 && mWayPointsAhead.size() == 0)
+    if(/*firstPointToReadFromSrc == 0 && */mWayPointsAhead.size() == 0 && !mTimerStepSimulation.isActive() && !mTimerProcessInformationGain.isActive())
     {
         // This is the first time that points were inserted (and we have no waypoints) - start the physics processing!
         slotStartWayPointGeneration();
