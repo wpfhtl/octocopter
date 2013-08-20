@@ -96,9 +96,12 @@ QString WayPointList::toString() const
     return result;
 }
 
+// Finds the shortest Hamiltonian cycle starting and ending at vehiclePosition.
+// INstead, we want:
+// Finds the shortest Hamiltonian cycle starting /*and ending*/ at vehiclePosition.
 void WayPointList::sortToShortestPath(const QVector3D &vehiclePosition)
 {
-    qDebug() << "FlightPlannerInterface::sortToShortestPath(): vehicle is at" << vehiclePosition << "waypointlist contains" << mWaypoints.size() << "waypoints";
+    qDebug() << "WayPointList::sortToShortestPath(): vehicle is at" << vehiclePosition << "waypointlist contains" << mWaypoints.size() << "waypoints";
 
     QTime t;t.start();
 
@@ -112,25 +115,112 @@ void WayPointList::sortToShortestPath(const QVector3D &vehiclePosition)
 
     mWaypoints.clear();
 
-    QStringList wayPointIndexOrder;
-    for(int i=0;i<p.vertices.size();i++)
-        wayPointIndexOrder.append(QString::number(p.vertices.at(i)));
+    // Debugging only
+//    QStringList wayPointIndexOrder;
+//    for(int i=0;i<p.vertices.size();i++) wayPointIndexOrder.append(QString::number(p.vertices.at(i)));
+//    qDebug() << "WayPointList::sortToShortestPath(): vertex index order will be:" << wayPointIndexOrder.join(", ");
 
-    qDebug() << "FlightPlannerInterface::sortToShortestPath(): vertex index order will be:" << wayPointIndexOrder.join(", ");
-
-    // Do not use the first and the last point, they're both at the vehicle's position!
+    // Do not use the first point, it's at the vehicle's position!
+    qDebug() << "WayPointList::sortToShortestPath(): ignoring first point:" << wpl.at(p.vertices[0]);
     for(int i=1;i<p.vertices.size();i++)
         mWaypoints.append(wpl.at(p.vertices[i]));
 
-    mVboDirty = true;
+    qDebug() << "WayPointList::sortToShortestPath(): TSP done after" << t.elapsed() << "ms - waypointlist contains" << mWaypoints.size() << "waypoints:\n" << toString();
 
-    qDebug() << "FlightPlannerInterface::sortToShortestPath(): done after" << t.elapsed() << "ms - waypointlist contains" << mWaypoints.size() << "waypoints";
+    // The code above gives us the shortest hamiltonian cycle starting and ending at vehiclePosition. We ignore the last
+    // waypoint (which isn't given back above anyway) as we don't want to come back to the vehicle's starting position
+    // after traversing all waypoints. Imagine waypoints being laid out in a U-shape, with the vehicle-poition being the
+    // right dot of an Ü. Since the code above computes a cycle through all waypoints, it doesn't matter if the vehicle
+    // drives down the left or right wing of the U. Because we don't use the whole cycle, but only parts of it, it's
+    // important that we fly down the right wing of the U, leading to a much shorter path.
+    // In short, check to see whether it's better to go through the path backwards!
+    const float distForward = getDistance(&mWaypoints, vehiclePosition, WayPointList::TravelDirection::TravelDirectionForward);
+    const float distBackward = getDistance(&mWaypoints, vehiclePosition, WayPointList::TravelDirection::TravelDirectionBackward);
+    if(distBackward < distForward)
+    {
+        reverseWayPoints();
+        qDebug() << "after reversion, wpl looks like this:\n" << toString();
+    }
+
+    QList<WayPoint> wplLastBecomesFirst = mWaypoints;
+    wplLastBecomesFirst.prepend(wplLastBecomesFirst.takeLast());
+    const float distNormal = getDistance(&mWaypoints, vehiclePosition, WayPointList::TravelDirection::TravelDirectionForward);
+    const float distLastBecomesFirst = getDistance(&wplLastBecomesFirst, vehiclePosition, WayPointList::TravelDirection::TravelDirectionForward);
+    if(distLastBecomesFirst < distNormal)
+    {
+        qDebug() << "putting last wpt first saves" << (distNormal - distLastBecomesFirst);
+        mWaypoints = wplLastBecomesFirst;
+    }
+    else
+    {
+        qDebug() << "putting last wpt first adds length:" << -(distNormal - distLastBecomesFirst);
+    }
+
+    mVboDirty = true;
 }
 
 void WayPointList::setList(const QList<WayPoint>* const wayPointList)
 {
     mWaypoints = *wayPointList;
     mVboDirty = true;
+}
+
+void WayPointList::reverseWayPoints()
+{
+    qDebug() << __PRETTY_FUNCTION__;
+
+    for(int k=0; k<(mWaypoints.size()/2); k++)
+        mWaypoints.swap(k,mWaypoints.size()-(1+k));
+
+    mVboDirty = true;
+}
+
+float WayPointList::getDistance(const QList<WayPoint>* const wpl, const QVector3D &startingFrom, const WayPointList::TravelDirection& direction)
+{
+    QString debugString("distance of going %1 through %2...(%3)...%4 is %5");
+    debugString = debugString.arg(direction == WayPointList::TravelDirection::TravelDirectionForward ? "forward" : "backward");
+
+    float distance = 0.0f;
+
+    if(direction == WayPointList::TravelDirection::TravelDirectionForward)
+    {
+        if(wpl->size())
+        {
+            debugString = debugString.arg(wpl->first().toString());
+            debugString = debugString.arg(wpl->size()-2);
+            debugString = debugString.arg(wpl->last().toString());
+        }
+
+        for(int i=0;i<wpl->size();i++)
+        {
+            // On the first iteration, add distance from @startingFrom to first waypoint
+            if(i == 0) distance += startingFrom.distanceToLine(wpl->at(i), QVector3D());
+
+            // If there is a next waypoint, add the distance from current to next
+            if(i+1 < wpl->size()) distance += wpl->at(i).distanceToLine(wpl->at(i+1), QVector3D());
+        }
+    }
+    else if(direction == WayPointList::TravelDirection::TravelDirectionBackward)
+    {
+        if(wpl->size())
+        {
+            debugString = debugString.arg(wpl->last().toString());
+            debugString = debugString.arg(wpl->size()-2);
+            debugString = debugString.arg(wpl->first().toString());
+        }
+
+        for(int i=wpl->size()-1;i>0;i--)
+        {
+            // On the first iteration, add distance from @startingFrom to first waypoint
+            if(i == wpl->size()-1) distance += startingFrom.distanceToLine(wpl->at(i), QVector3D());
+
+            // If there is a next waypoint, add the distance from current to next
+            if(i-1 >= 0) distance += wpl->at(i).distanceToLine(wpl->at(i-1), QVector3D());
+        }
+    }
+
+    qDebug() << "WayPointList::getDistance()" << debugString.arg(distance);
+    return distance;
 }
 
 // Copy all waypoints into our VBO

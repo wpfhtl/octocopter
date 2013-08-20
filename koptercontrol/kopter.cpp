@@ -304,7 +304,7 @@ void Kopter::slotSerialPortDataReady()
                     mFlightStateRestrictionSwitchHasBeenRead = true;
                     if(fsr.restriction != FlightStateRestriction::Restriction::RestrictionUserControl)
                     {
-                        emit fatalError("detected flightstate restriciton switch in non-usercontrol position at first reading! Should quit!");
+                        emit fatalError("detected flightstate restriction switch in non-usercontrol position at first reading! Should quit!");
                     }
                 }
 

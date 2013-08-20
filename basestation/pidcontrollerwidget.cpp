@@ -177,11 +177,13 @@ void PidControllerWidget::slotUpdateValues()
 
 void PidControllerWidget::slotCellActivated(const int& row, const int& column)
 {
+    qDebug() << "PidControllerWidget::slotCellActivated(row, column)" << row << column;
     mActiveItem = ui->mTableControllerValues->item(row, column);
 }
 
 void PidControllerWidget::slotCellChanged(const int& row, const int& column)
 {
+    qDebug() << "PidControllerWidget::slotCellChanged(row, column)" << row << column;
     Q_ASSERT(mActiveItem = ui->mTableControllerValues->item(row, column));
 
     bool success = true;
@@ -220,7 +222,8 @@ void PidControllerWidget::slotCellChanged(const int& row, const int& column)
 
 //    qDebug() << "PidControllerWidget::slotWeightChanged(): controller" << name << "changed to" << p << i << d;
 
-    mActiveItem = 0;
+    // Its still the active item, right?
+    //mActiveItem = 0;
 
     emit controllerWeight(name, weights);
 

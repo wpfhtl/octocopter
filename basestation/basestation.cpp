@@ -101,11 +101,15 @@ BaseStation::BaseStation() : QMainWindow()
     mMenuView->addAction(action);
     connect(action, &QAction::triggered, [=]() {mPointCloud->slotReset(); mGlWindow->slotRenderLater();});
 
+    mMenuView->insertSeparator(action);
+
     action = new QAction("Clear Trajectory", this);
     mMenuView->addAction(action);
     connect(action, &QAction::triggered, [=]() {mGlWindow->slotClearVehicleTrajectory(); mGlWindow->slotRenderLater();});
 
-    mMenuView->insertSeparator(action);
+    action = new QAction("Clear Passed Waypoints", this);
+    mMenuView->addAction(action);
+    connect(action, &QAction::triggered, [=]() {mFlightPlanner->slotClearWayPointsPassed(); mGlWindow->slotRenderLater();});
 
     action = new QAction("Show Dense Cloud", this);
     mMenuView->addAction(action);
@@ -116,6 +120,8 @@ BaseStation::BaseStation() : QMainWindow()
         else mGlWindow->slotPointCloudUnregister(mPointCloud);
         mGlWindow->slotRenderLater();
     });
+
+    mMenuView->insertSeparator(action);
 
     action = new QAction("Show Axes Base", this);
     mMenuView->addAction(action);

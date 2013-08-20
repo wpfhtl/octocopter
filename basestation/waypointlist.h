@@ -33,7 +33,18 @@ public:
         return mWaypoints.isEmpty();
     }
 
+    enum class TravelDirection
+    {
+        TravelDirectionForward,
+        TravelDirectionBackward
+    };
+
+    // returns distance in meters when starting at @startingFrom and then traveling through @wpl forwards or backwards
+    static float getDistance(const QList<WayPoint>* const wpl, const QVector3D &startingFrom, const WayPointList::TravelDirection& direction);
+
     void mergeCloseWaypoints(const float minimumDistance);
+
+    void reverseWayPoints();
 
     void setList(const QList<WayPoint>* const wayPointList);
 

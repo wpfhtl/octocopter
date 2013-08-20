@@ -56,7 +56,7 @@ private:
     QVector3D mLastParticleSystemPositionToFollowVehicle;
     QTimer mTimerProcessInformationGain;
     QTimer mTimerStepSimulation;
-    QList<WayPoint> mWayPointsGenerated, mWayPointsDetour;
+    //QList<WayPoint> mWayPointsGenerated, mWayPointsDetour;
     ParticleSystem* mParticleSystem;
     ParticleRenderer* mParticleRenderer;
     cudaError_t mCudaError;
@@ -90,6 +90,8 @@ private slots:
 
     void slotStepSimulation();
 
+    void slotStartWayPointGeneration();
+
 public slots:
     void slotShowUserInterface();
     void slotSetScanVolume(const Box3D scanVolume);
@@ -109,6 +111,8 @@ public slots:
     // Called by UI to clear the drawn trajectory
     void slotClearVehicleTrajectory();
 
+    void slotClearWayPointsPassed() {mWayPointsPassed.clear();}
+
 
     // Called to set the waypoint-list. There are at least 3 entities reading and writing those lists:
     //
@@ -127,7 +131,7 @@ public slots:
 
     void slotWayPointReached(const WayPoint&);
 
-    void slotGenerateWaypoints(quint32 numberOfWaypointsToGenerate = 10);
+    void slotGenerateWaypoints(quint32 numberOfWaypointsToGenerate = 15);
     void slotVisualize();
 
     void slotSetRenderDetectionVolume(const bool enable) { mRenderDetectionVolume = enable; }

@@ -47,26 +47,10 @@ public:
 private:
     LogFile* mLogFile;
 
-//    Pose mPreviousPose;
     float mMaxFlightVelPerAxis;
 
     FlightControllerValues mFlightControllerValues;
-/*
-    // When approaching waypoints, we first yaw until we point towards the target. As soon as
-    // that's done, we activate the roll to keep the vehicle on the virtual line between vehicle
-    // and target. If we didn't do this, wind would make the kopter drift, causing it to constantly
-    // re-yaw to point to the target, making the vehicle circle around the target. See e.g.
-    // kopterlog-20120813-133812-1621-bernd1 for an example of this behaviour.
-    enum struct ApproachPhase
-    {
-        OrientTowardsTarget,
-        ApproachTarget
-    };
 
-    ApproachPhase mApproachPhase;
-
-    // 2013-04-17: Don't. Simply hover towards the waypoint
-*/
     // Motion is computed whenever a new pose comes in, so we don't need a timer - except
     // when the GPS board fails to deliver useful poses, we'll need to compute safe values
     // to emit. Thus, when Poses are planned to come in every 100ms, we start this timer
@@ -95,8 +79,9 @@ private:
     float mTrajectoryProgress;
 
 //    QVector3D getClosestPointOnTrajectory(const QVector3D& trajectoryStart, const QVector3D& trajectoryGoal, const QVector3D& point);
-    QVector3D getHoverPosition(const QVector3D& trajectoryStart, const QVector3D& trajectoryGoal, const QVector3D& vehiclePosition, const float& desiredDistanceToHoverPosition);
+    QVector3D getHoverPosition(const QVector3D& trajectoryStart, const QVector3D& trajectoryGoal, const QVector3D& vehiclePosition);
 
+    /*
     class ImuOffsets {
     private:
         static const quint8 numberOfMeasurementsToAverage = 10;
@@ -146,7 +131,7 @@ private:
         bool needsMoreMeasurements() const {return mDoCalibration && mNumberOfMeasurementsAveraged < numberOfMeasurementsToAverage;}
     };
 
-    ImuOffsets mImuOffsets;
+    ImuOffsets mImuOffsets;*/
 
     // A structure mapping for each flightstate: controller => weights.
     QMap<

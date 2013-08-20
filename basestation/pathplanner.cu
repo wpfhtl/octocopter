@@ -87,6 +87,9 @@ void fillOccupancyGrid(unsigned char* gridValues, float* colliderPos, unsigned i
     uint numThreads, numBlocks;
     computeExecutionKernelGrid(numColliders, 64, numBlocks, numThreads);
 
+    printf("using %d colliders at %p to fill occupancy grid with %d cells at %p.\n",
+           numColliders, colliderPos, numCells, gridValues);
+
     fillOccupancyGridD<<< numBlocks, numThreads, 0, *stream>>>(gridValues, (float4*)colliderPos, numColliders);
     cudaCheckSuccess("fillOccupancyGrid");
 }
@@ -564,7 +567,8 @@ __global__ void testWayPointCellOccupancyD(unsigned char*  gridValues, float4* u
     const int gridCellHash = parametersPathPlanner.grid.getCellHash2(gridCellCoordinate);
 
     if(gridCellHash < 0 || gridCellHash > parametersPathPlanner.grid.getCellCount())
-        printf("testWayPointCellOccupancyD(): bug!!!\n");
+        printf("testWayPointCellOccupancyD(): bug, waypoint %d is supposedly at %.2f/%.2f/%.2f/%.2f in cell hash %d\n",
+               waypointIndex, waypoint.x, waypoint.y, waypoint.z, waypoint.w, gridCellHash);
 
     if(gridValues[gridCellHash] > 253)
     {

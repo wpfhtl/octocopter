@@ -17,7 +17,7 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
     controllerWeights.clear();
     // Hover - Thrust
     weights.clear();
-    weights.insert('p', 50.0f);
+    weights.insert('p', 100.0f);
     weights.insert('i', 0.0f);
     weights.insert('d', 20.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerThrust, weights);
@@ -31,9 +31,9 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
 
     // Hover - Pitch / Roll
     weights.clear();
-    weights.insert('p', 30.0f);
+    weights.insert('p', 20.0f);
     weights.insert('i', 0.0f);
-    weights.insert('d', 10.0f);
+    weights.insert('d', 0.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerPitch, weights);
     controllerWeights.insert(&mFlightControllerValues.controllerRoll, weights);
     mFlightControllerWeights.insert(FlightState::State::Hover, controllerWeights);
@@ -102,14 +102,18 @@ void FlightController::slotComputeMotionCommands()
                 // Yaw: We want the vehicle to look NOT towards positionGoal, but always look in the same direction as the line from start to goal - even if it has drifted off that line!
                 // Corrections will be done by rolling
                 const QVector3D trajectory = mFlightControllerValues.trajectoryGoal - mFlightControllerValues.trajectoryStart;
-                angleToYawDegrees = RAD2DEG(Pose::getShortestTurnRadians(-Pose::getShortestTurnRadians(- atan2(-trajectory.x(), -trajectory.z())) - mFlightControllerValues.lastKnownPose.getYawRadians()));
+                angleToYawDegrees = RAD2DEG(
+                            Pose::getShortestTurnRadians(
+                                -Pose::getShortestTurnRadians(- atan2(-trajectory.x(), -trajectory.z()))
+                                - mFlightControllerValues.lastKnownPose.getYawRadians()
+                                )
+                            );
 
                 // If we're close to it, move the hoverPosition towards trajectoryGoal
                 mFlightControllerValues.hoverPosition = getHoverPosition(
                             mFlightControllerValues.trajectoryStart,
                             mFlightControllerValues.trajectoryGoal,
-                            mFlightControllerValues.lastKnownPose.getPosition(),
-                            2.0f);
+                            mFlightControllerValues.lastKnownPose.getPosition());
             }
             else if(mFlightControllerValues.flightState.state == FlightState::State::Hover)
             {
@@ -119,25 +123,15 @@ void FlightController::slotComputeMotionCommands()
                 // hover. If the vehicle hovers around the origin, it starts turning quickly, which sucks.
                 // To prevent this, we don't consider the vehicle's current position, but rather the chosen
                 // hover position.
-                const QVector3D vectorHoverPositionToOrigin = -mFlightControllerValues.hoverPosition;
+                const QVector3D vectorOriginToHoverPosition = mFlightControllerValues.hoverPosition;
 
                 angleToYawDegrees = RAD2DEG(
                             Pose::getShortestTurnRadians(
-                                atan2(-vectorHoverPositionToOrigin.x(), -vectorHoverPositionToOrigin.z())
+                                atan2(vectorOriginToHoverPosition.x(), vectorOriginToHoverPosition.z())
                                 - DEG2RAD(180.0f)
                                 - mFlightControllerValues.lastKnownPose.getYawRadians()
                                 )
                             );
-
-                /*angleToYawDegrees = RAD2DEG(
-                            Pose::getShortestTurnRadians(
-                                -Pose::getShortestTurnRadians(
-                                    DEG2RAD(180.0f)
-                                    - atan2(-vectorHoverPositionToOrigin.x(), -vectorHoverPositionToOrigin.z())
-                                    )
-                                - mFlightControllerValues.lastKnownPose.getYawRadians()
-                                )
-                            );*/
             }
 
             // angleToYawDegrees needs some tuning: When using a p(d) controller and a range of 0 to (-)180, the vehicle
@@ -168,10 +162,17 @@ void FlightController::slotComputeMotionCommands()
             // when angleToYawDegrees is still large (orientation in progress). But pitching to trajectoryGoal behind you while yawing isn't
             // good, as it causes weird behaviour (kopterlog-20130430-105341-1120-normandienstagnoadjust-gnssdata.sbf, 212210600).
             // To fix this, we pitch towards the hoverposition while orientation is in progress and towards trajectorygoal after that.
+            // Of course, we need to fade this to prevent abrupt changes.
+//            const QVector3D hoverPosToGoal = mFlightControllerValues.trajectoryGoal - mFlightControllerValues.hoverPosition;
+
+            QVector3D pitchTarget = mFlightControllerValues.flightState.state == FlightState::State::ApproachWayPoint ? mFlightControllerValues.trajectoryGoal : mFlightControllerValues.hoverPosition;
+
             float lateralOffsetPitchToTrajectoryGoal = getLateralOffsetOnVehiclePitchAxisToPosition(
                         mFlightControllerValues.lastKnownPose.getPosition(),
                         mFlightControllerValues.lastKnownPose.getYawRadians(),
-                        fabs(angleToYawDegrees) < 15.0f ? mFlightControllerValues.trajectoryGoal : mFlightControllerValues.hoverPosition);
+                        pitchTarget);
+
+            lateralOffsetPitchToTrajectoryGoal /= qBound(1.0, sqrt(fabs(angleToYawDegrees)), 100.0);
 
             // We want the offset to the trajectory over the roll axis
             float lateralOffsetRollToTrajectory = getLateralOffsetOnVehicleRollAxisToPosition(
@@ -187,12 +188,37 @@ void FlightController::slotComputeMotionCommands()
             const float velOverPitchValue = -cos(angleFromVehicleFrontToSpeedVector) * worldFrameSpeedValue.length();
             const float velOverRollValue  = -sin(angleFromVehicleFrontToSpeedVector) * worldFrameSpeedValue.length();
 
-            const float velOverPitchDesired = qBound(-mMaxFlightVelPerAxis, lateralOffsetPitchToTrajectoryGoal, mMaxFlightVelPerAxis);
-            // Do not bound desired speed over roll, we want to correct quickly.
-            const float velOverRollDesired  = /*qBound(-mMaxFlightVelPerAxis,*/ lateralOffsetRollToTrajectory/*, mMaxFlightVelPerAxis)*/;
+            float velOverPitchDesired = qBound(-mMaxFlightVelPerAxis, lateralOffsetPitchToTrajectoryGoal, mMaxFlightVelPerAxis);
 
-            QVector3D horizontalVelocity(mFlightControllerValues.lastKnownPose.getPosition());
-            horizontalVelocity.setY(0.0f);
+            // If we're approaching the goal waypoint, there's no need to slow if the next wpt is straight ahead
+            float angleBetweenTrajectories = 0.0f;
+            if(mWayPoints.size() > 1)
+            {
+                const QVector3D trajectoryPre = mFlightControllerValues.trajectoryGoal - mFlightControllerValues.trajectoryStart;
+                const QVector3D trajectoryPost = mWayPoints.at(1) - mFlightControllerValues.trajectoryGoal;
+                angleBetweenTrajectories = -RAD2DEG(Pose::getShortestTurnRadians(atan2(trajectoryPre.x(), trajectoryPre.z()) - atan2(trajectoryPost.x(), trajectoryPost.z())));
+
+                // If we're supposed to fly forward and we're oriented correctly (thats the case when we've departed trajectoryStart) and the upcoming path is straight, then don't brake shortly before reaching the goal!
+                if(velOverPitchDesired < 0 && fabs(angleBetweenTrajectories) < 90.0f)
+                {
+                    float lateralOffsetPitchToNextGoal = getLateralOffsetOnVehiclePitchAxisToPosition(
+                                mFlightControllerValues.lastKnownPose.getPosition(),
+                                mFlightControllerValues.lastKnownPose.getYawRadians(),
+                                mWayPoints.at(1));
+
+                    const float velOverPitchDesiredTowardsNextWayPoint = qBound(-mMaxFlightVelPerAxis, lateralOffsetPitchToNextGoal, mMaxFlightVelPerAxis);
+                    // Only fly towards the next (not current) wpt if that also means flying forward!
+                    if(velOverPitchDesiredTowardsNextWayPoint < 0)
+                        velOverPitchDesired = velOverPitchDesiredTowardsNextWayPoint;
+                }
+            }
+            qDebug() << "angle to yaw" << angleToYawDegrees << "- anglebetween trajectories" << angleBetweenTrajectories << "pitchOffset:" << lateralOffsetPitchToTrajectoryGoal << "velOverPitchDesired:" << velOverPitchDesired << "velOverPitchValue" << velOverPitchValue;
+
+            // Do not bound desired speed over roll, we want to correct quickly.
+            const float velOverRollDesired  = /*qBound(-mMaxFlightVelPerAxis,*/ 2.0f * lateralOffsetRollToTrajectory/*, mMaxFlightVelPerAxis)*/;
+
+//            QVector3D horizontalVelocity(mFlightControllerValues.lastKnownPose.getPosition());
+//            horizontalVelocity.setY(0.0f);
 /*
             qDebug() << "FlightController::slotComputeMotionCommands():" << getFlightState().toString() << mFlightControllerValues.lastKnownPose
                      << "maxVelPerAxis:" << mMaxFlightVelPerAxis
@@ -217,11 +243,19 @@ void FlightController::slotComputeMotionCommands()
 
             mFlightControllerValues.motionCommand = MotionCommand(outputThrust, outputYaw, outputPitch, outputRoll);
 
-            // See whether we've reached the waypoint
-            if(mFlightControllerValues.flightState.state == FlightState::State::ApproachWayPoint && mFlightControllerValues.lastKnownPose.getPosition().distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < 0.80f) // close to wp
+            // See whether we've reached the waypoint. Here, we check that not the vehicle, but the hoverposition is close to the waypoint.
+            // If the hoverpos is 40cm in front of the goal and we switched to the next waypoint, the hoverposition would jump. This is not
+            // good for a D-controller.
+            if(
+                    mFlightControllerValues.flightState.state == FlightState::State::ApproachWayPoint
+                    && mFlightControllerValues.hoverPosition.distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < 0.1f // hoverpos close to wp
+                    && mFlightControllerValues.lastKnownPose.getPosition().distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < 0.3f) // vehicle close to wp
             {
                 nextWayPointReached();
             }
+
+            // REMOVE! TODO BEN
+            //mFlightControllerValues.hoverPosition = pitchTarget;
         }
         else
         {
@@ -363,7 +397,7 @@ void FlightController::slotNewVehiclePose(const Pose* const pose)
     // use it for flight control!
     mFlightControllerValues.lastKnownPose = *pose;
 
-    if(mImuOffsets.needsMoreMeasurements()) mImuOffsets.calibrate(pose);
+    //if(mImuOffsets.needsMoreMeasurements()) mImuOffsets.calibrate(pose);
 
     switch(mFlightControllerValues.flightState.state)
     {
@@ -815,8 +849,11 @@ void FlightController::slotSetControllerWeights(const QString* const controllerN
 }
 
 // Get the position of the carrot (=hoverPosition) that the mule shall follow...
-// Fix: Start (0,1.0,0) -> (0,0.2,0)
-QVector3D FlightController::getHoverPosition(const QVector3D& trajectoryStart, const QVector3D& trajectoryGoal, const QVector3D& vehiclePosition, const float& desiredDistanceToHoverPosition)
+// When the vehicle goes straight down (trajectoryUnitVector is (0,-X,0), then the projection of the vehicle's
+// position on the path will give us a trajectoryProgress of 0, thereby NOT sinking the hover-position. This
+// is a theoretical problem, as the helicopter never is a 100% over the goal. With wind in simulation, it works.
+// I'll have to cdouble-check what happens outside when
+QVector3D FlightController::getHoverPosition(const QVector3D& trajectoryStart, const QVector3D& trajectoryGoal, const QVector3D& vehiclePosition)
 {
     const QVector3D trajectoryUnitVector = (trajectoryGoal-trajectoryStart).normalized();
     const QVector3D vectorFromTrajectoryStartToVehicle = vehiclePosition - trajectoryStart;
@@ -824,6 +861,16 @@ QVector3D FlightController::getHoverPosition(const QVector3D& trajectoryStart, c
 
     // If we project the vehicle's position on the trajectory, how far along are we? We bound to between 0 and trajectory-length.
     const float projectedTrajectoryProgress = qBound(0.0f, (float)QVector3D::dotProduct(trajectoryUnitVector, vectorFromTrajectoryStartToVehicle), trajectoryLength);
+
+    QVector3D leftToGo = trajectoryGoal - vehiclePosition;
+    const float leftToGoVertically = leftToGo.y();
+    leftToGo.setY(0.0f);
+    const float leftToGoHorizontally = leftToGo.length();
+    if(leftToGoHorizontally < 0.1f && fabs(leftToGoVertically) > 0.1)
+    {
+        qDebug() << "just need to go up or down, horizontally fine. artificially moving raspberry by 1cm";
+        mTrajectoryProgress += 0.01;
+    }
 
     mTrajectoryProgress = std::max(mTrajectoryProgress, projectedTrajectoryProgress);
 
