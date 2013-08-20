@@ -14,10 +14,12 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
     QMap<QChar, float> weights;
     QMap<PidController*, QMap<QChar, float> > controllerWeights;
 
+    // 2013-08-20: thrust 40/0/20   yaw 1/0/0   pitchRoll 10/0/5 seem nice.
+    
     controllerWeights.clear();
     // Hover - Thrust
     weights.clear();
-    weights.insert('p', 100.0f);
+    weights.insert('p', 40.0f);
     weights.insert('i', 0.0f);
     weights.insert('d', 20.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerThrust, weights);
@@ -31,9 +33,9 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
 
     // Hover - Pitch / Roll
     weights.clear();
-    weights.insert('p', 20.0f);
+    weights.insert('p', 10.0f);
     weights.insert('i', 0.0f);
-    weights.insert('d', 0.0f);
+    weights.insert('d', 6.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerPitch, weights);
     controllerWeights.insert(&mFlightControllerValues.controllerRoll, weights);
     mFlightControllerWeights.insert(FlightState::State::Hover, controllerWeights);
@@ -248,8 +250,8 @@ void FlightController::slotComputeMotionCommands()
             // good for a D-controller.
             if(
                     mFlightControllerValues.flightState.state == FlightState::State::ApproachWayPoint
-                    && mFlightControllerValues.hoverPosition.distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < 0.1f // hoverpos close to wp
-                    && mFlightControllerValues.lastKnownPose.getPosition().distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < 0.3f) // vehicle close to wp
+                    && mFlightControllerValues.hoverPosition.distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < 0.2f // hoverpos close to wp
+                    && mFlightControllerValues.lastKnownPose.getPosition().distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < 0.4f) // vehicle close to wp
             {
                 nextWayPointReached();
             }
@@ -270,7 +272,7 @@ void FlightController::slotComputeMotionCommands()
 
     //mFlightControllerValues.motionCommand.adjustThrustToPitchAndRoll();
 
-    qDebug() << "FlightController::slotComputeMotionCommands(): emitting motion:" << mFlightControllerValues.motionCommand;
+    qDebug() << "FlightController::slotComputeMotionCommands(): emitting motion:" << mFlightControllerValues.motionCommand << "and fsr" << mFlightControllerValues.flightStateRestriction.toString();
     emit motion(&mFlightControllerValues.motionCommand);
 
     mFlightControllerValues.timestamp = GnssTime::currentTow();
@@ -590,6 +592,7 @@ void FlightController::setFlightState(FlightState newFlightState)
         Q_ASSERT(false && "FlightController::setFlightState(): undefined flightstate");
     }
 
+    emit flightControllerValues(&mFlightControllerValues);
     emit flightState(&mFlightControllerValues.flightState);
     emit flightControllerWeights();
 }
@@ -794,6 +797,7 @@ void FlightController::slotFlightStateRestrictionChanged(const FlightStateRestri
     }
 
     qDebug() << __PRETTY_FUNCTION__ << "done, new flightstate" << mFlightControllerValues.flightState.toString();
+    emit flightControllerValues(&mFlightControllerValues);
 }
 
 void FlightController::slotEmitFlightControllerInfo()
@@ -866,7 +870,7 @@ QVector3D FlightController::getHoverPosition(const QVector3D& trajectoryStart, c
     const float leftToGoVertically = leftToGo.y();
     leftToGo.setY(0.0f);
     const float leftToGoHorizontally = leftToGo.length();
-    if(leftToGoHorizontally < 0.1f && fabs(leftToGoVertically) > 0.1)
+    if(leftToGoHorizontally < 0.2f && fabs(leftToGoVertically) > 0.2)
     {
         qDebug() << "just need to go up or down, horizontally fine. artificially moving raspberry by 1cm";
         mTrajectoryProgress += 0.01;

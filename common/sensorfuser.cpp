@@ -609,7 +609,7 @@ void SensorFuser::slotNewVehiclePose(const Pose* const pose)
 
     // Append pose to our list
     mPoses.append(new Pose(pose));
-    qDebug() << __PRETTY_FUNCTION__ << "appended new pose from" << pose->timestamp;
+    //qDebug() << __PRETTY_FUNCTION__ << "appended new pose from" << pose->timestamp;
 
     mNewestDataTime = std::max(mNewestDataTime, pose->timestamp);
 
@@ -736,7 +736,7 @@ void SensorFuser::slotNewScanRaw(RawScan *scan)
             qDebug() << __PRETTY_FUNCTION__ << "oops, new raw scan from" << scan->timeStampScanMiddleScanner << "is older than rawscan at index" << indexToInsert << "from time" << mRawScans.at(indexToInsert-1)->timeStampScanMiddleScanner;
             indexToInsert--;
         }
-        qDebug() << __PRETTY_FUNCTION__ << "inserting scan from" << scan->timeStampScanMiddleScanner << "to index" << indexToInsert;
+        //qDebug() << __PRETTY_FUNCTION__ << "inserting scan from" << scan->timeStampScanMiddleScanner << "to index" << indexToInsert;
         mRawScans.insert(indexToInsert, scan);
     }
     else
