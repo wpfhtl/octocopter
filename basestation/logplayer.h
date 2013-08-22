@@ -142,6 +142,8 @@ private:
     // we simply emit pointers to this data.
     GnssStatus mGnssStatus;
     FlightControllerValues mFlightControllerValues;
+    FlightState mFlightState;
+    FlightStateRestriction mFlightStateRestriction;
     Pose mPose; // is also within FlightControllerValues!?
     QVector<QVector3D> mRegisteredPoints;
     QVector3D mScannerPosition;
@@ -168,6 +170,8 @@ signals:
     void gnssStatus(const GnssStatus* const);
     void flightControllerValues(const FlightControllerValues* const);
     void flightControllerWeightsChanged();
+    void flightState(const FlightState* const);
+    void flightStateRestriction(const FlightStateRestriction* const);
 
     // Emits fused points
     void scanFused(const float* const points, const quint32& count, const QVector3D* const scannerPosition);

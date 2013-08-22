@@ -759,6 +759,8 @@ void GnssDevice::slotSerialPortStatusChanged(const QString& status, const QDateT
 
 void GnssDevice::slotSetSystemTime(const qint32& tow)
 {
+    const qint32 currentHostTow = GnssTime::currentTow();
+
     // First, what time is it now?
     struct timeval system;
     gettimeofday(&system, NULL);
@@ -767,8 +769,8 @@ void GnssDevice::slotSetSystemTime(const qint32& tow)
     const quint32 secondsToRollOver = (7 * 86400) - (tow / 1000);
 
     // Apply 16000ms = 16 leapseconds offset? Only when we really sync to UTC, which we don't.
-    const qint32 offsetHostToGnss = tow - GnssTime::currentTow() + 7; // Oscilloscope indicates 7ms offset is a good value.
-    qDebug() << "GnssDevice::slotSetSystemTime(): time rollover in" << ((float)secondsToRollOver)/86400.0f << "d, offset host time" << GnssTime::currentTow() << "to gnss time" << tow << "is" << offsetHostToGnss/1000 << "s and" << (offsetHostToGnss%1000) << "ms";
+    const qint32 offsetHostToGnss = tow - currentHostTow + 7; // Oscilloscope indicates 7ms offset is a good value.
+    qDebug() << "GnssDevice::slotSetSystemTime(): time rollover in" << ((float)secondsToRollOver)/86400.0f << "d, offset host time" << currentHostTow << "to gnss time" << tow << "is" << offsetHostToGnss/1000 << "s and" << (offsetHostToGnss%1000) << "ms";
 
     // For small clock drifts, adjust clock. Else, set clock
     if(abs(offsetHostToGnss) < 10)

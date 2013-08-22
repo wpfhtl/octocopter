@@ -338,6 +338,8 @@ void SensorFuser::fuseScans()
                     }
 
                     fuseRayWithLastInterpolatedPose(index + rawScan->firstUsableDistance, distance);
+                    // Skip angles when distance is close
+                    if(distance < 1.0f) index += 3; else if(distance < 2.0f) index += 2; else if(distance < 3.0f) index += 1;
                 }
 
                 // This scan was successfully fused. Remove it from our vector
@@ -463,6 +465,8 @@ void SensorFuser::fuseScans()
                     }
 
                     fuseRayWithLastInterpolatedPose(index + rawScan->firstUsableDistance, distance);
+                    // Skip angles when distance is close
+                    if(distance < 1.0f) index += 3; else if(distance < 2.0f) index += 2; else if(distance < 3.0f) index += 1;
                 }
 
                 // This scan was successfully fused. Remove it from our vector
@@ -498,6 +502,9 @@ void SensorFuser::fuseScans()
                 const float distance = rawScan->distances[index] / 1000.0f;
 
                 fuseRayWithLastInterpolatedPose(index + rawScan->firstUsableDistance, distance);
+
+                // Skip angles when distance is close
+                if(distance < 1.0f) index += 3; else if(distance < 2.0f) index += 2; else if(distance < 3.0f) index += 1;
             }
 
             // This scan was successfully fused. Remove it from our vector

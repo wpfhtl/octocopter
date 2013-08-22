@@ -51,6 +51,8 @@ private:
 
     FlightControllerValues mFlightControllerValues;
 
+    static constexpr float mDistanceWayPointReached = 0.6f;
+
     // Motion is computed whenever a new pose comes in, so we don't need a timer - except
     // when the GPS board fails to deliver useful poses, we'll need to compute safe values
     // to emit. Thus, when Poses are planned to come in every 100ms, we start this timer

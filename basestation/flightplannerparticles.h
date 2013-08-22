@@ -34,6 +34,8 @@ public:
         return &mScanVolume;
     }
 
+    PointCloudCuda* getPointCloudColliders() {return mPointCloudColliders;}
+
 private:
     Box3D mScanVolume;
     QVector<Pose> mVehiclePoses;
@@ -41,7 +43,7 @@ private:
     BaseStation* mBaseStation;
     PointCloud* mPointCloudDense;
 
-    bool mRenderScanVolume, mRenderDetectionVolume, mRenderWayPoints;
+    bool mRenderScanVolume, mRenderDetectionVolume, mRenderWayPointsAhead, mRenderWayPointsPassed;
 
     WayPointList mWayPointsAhead, mWayPointsPassed;
     unsigned int mVboBoundingBox, mVboWayPointConnections;
@@ -136,7 +138,8 @@ public slots:
 
     void slotSetRenderDetectionVolume(const bool enable) { mRenderDetectionVolume = enable; }
     void slotSetRenderScanVolume(const bool enable) { mRenderScanVolume = enable; }
-    void slotSetRenderWayPoints(const bool enable) { mRenderWayPoints = enable; }
+    void slotSetRenderWayPointsAhead(const bool enable) { mRenderWayPointsAhead = enable; }
+    void slotSetRenderWayPointsPassed(const bool enable) { mRenderWayPointsPassed = enable; }
 
 
 signals:

@@ -115,6 +115,17 @@ class BaseStation : public QMainWindow
 {
     Q_OBJECT
 
+public:
+    BaseStation(void);
+    ~BaseStation();
+
+    enum class OperatingMode
+    {
+        OperatingOnline,    // connected to simulator or kopter
+        OperatingOffline    // using LogPlayer
+    };
+    OperatingMode getOperatingMode() {return mOperatingMode;}
+
 private:
     QMenu *mMenuWindowList, *mMenuFile, *mMenuView;
     QTimer* mTimerJoystick;
@@ -139,12 +150,11 @@ private:
 
     GlWindow *mGlWindow;
 
-    void processIncomingPoints();
-    void processIncomingImages();
-
     QMap<QString, CameraWidget*> mCameraWidgets;
 
     void closeEvent(QCloseEvent *event);
+
+    OperatingMode mOperatingMode;
 
 signals:
 
@@ -172,9 +182,6 @@ private slots:
 //    void slotNewScanData(const QVector<QVector3D> *const pointList, const QVector3D *const scannerPosition);
     void slotNewImage(const QString& cameraName, const QSize& imageSize, const Pose& cameraPose, const QByteArray& imageData);
 
-public:
-    BaseStation(void);
-    ~BaseStation();
 };
 
 #endif

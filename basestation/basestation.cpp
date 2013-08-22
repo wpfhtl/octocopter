@@ -123,6 +123,28 @@ BaseStation::BaseStation() : QMainWindow()
 
     mMenuView->insertSeparator(action);
 
+    action = new QAction("Show Sparse Cloud", this);
+    mMenuView->addAction(action);
+    action->setCheckable(true);
+    action->setChecked(true);
+    connect(action, &QAction::triggered, [=](const bool &checked) {
+        if(checked) mGlWindow->slotPointCloudRegister(mFlightPlanner->getPointCloudColliders());
+        else mGlWindow->slotPointCloudUnregister(mFlightPlanner->getPointCloudColliders());
+        mGlWindow->slotRenderLater();
+    });
+
+    action = new QAction("Show WayPoints Ahead", this);
+    mMenuView->addAction(action);
+    action->setCheckable(true);
+    action->setChecked(true);
+    connect(action, &QAction::triggered, [=](const bool &checked) {mFlightPlanner->slotSetRenderWayPointsAhead(checked); mGlWindow->slotRenderLater();});
+
+    action = new QAction("Show WayPoints Passed", this);
+    mMenuView->addAction(action);
+    action->setCheckable(true);
+    action->setChecked(true);
+    connect(action, &QAction::triggered, [=](const bool &checked) {mFlightPlanner->slotSetRenderWayPointsPassed(checked); mGlWindow->slotRenderLater();});
+
     action = new QAction("Show Axes Base", this);
     mMenuView->addAction(action);
     action->setCheckable(true);
@@ -189,11 +211,11 @@ BaseStation::BaseStation() : QMainWindow()
     connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlWindow->mPointCloudPointAlpha = value; mGlWindow->slotRenderLater();});
     mMenuView->addAction(menuSlider);
 
-    menuSlider = new MenuSlider("Color Low", -5.0f, 0.0f, 10.0f, this);
+    menuSlider = new MenuSlider("Color Low", -5.0f, 0.0f, 20.0f, this);
     connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlWindow->mPointCloudColorLow = value; mGlWindow->slotRenderLater();});
     mMenuView->addAction(menuSlider);
 
-    menuSlider = new MenuSlider("Color High", 0.0f, 10.0f, 30.0f, this);
+    menuSlider = new MenuSlider("Color High", -5.0f, 10.0f, 20.0f, this);
     connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlWindow->mPointCloudColorHigh = value; mGlWindow->slotRenderLater();});
     mMenuView->addAction(menuSlider);
 
@@ -209,6 +231,7 @@ BaseStation::BaseStation() : QMainWindow()
     // Only start RTK fetcher, RoverConnection, PtuController etc. if we're working online
     if(mConnectionDialog->result() == QDialog::Accepted)
     {
+        mOperatingMode = BaseStation::OperatingMode::OperatingOnline;
         mRoverConnection = new RoverConnection(mConnectionDialog->getRoverHostName(), mConnectionDialog->getRoverPort(), this);
 
         mPidControllerWidget->setControllers(mRoverConnection->getFlightControllerValues()); // set this once. Table is rebuilt when signal from roverconnection comes in
@@ -241,7 +264,7 @@ BaseStation::BaseStation() : QMainWindow()
 
         connect(mRoverConnection, &RoverConnection::connectionStatusRover, mControlWidget, &ControlWidget::slotUpdateConnectionRover);
 
-//        connect(mRoverConnection, &RoverConnection::scanData, mFlightPlanner, &FlightPlannerParticles::slotNewScanFused);
+        connect(mRoverConnection, &RoverConnection::scanData, mFlightPlanner, &FlightPlannerParticles::slotNewScanFused);
         connect(mRoverConnection, &RoverConnection::vehicleStatus, mControlWidget, &ControlWidget::slotUpdateVehicleStatus);
         connect(mRoverConnection, &RoverConnection::gnssStatus, mControlWidget, &ControlWidget::slotUpdateInsStatus);
         connect(mRoverConnection, &RoverConnection::flightControllerValues, this, &BaseStation::slotSetFlightControllerValues);
@@ -266,6 +289,7 @@ BaseStation::BaseStation() : QMainWindow()
     }
     else
     {
+        mOperatingMode = BaseStation::OperatingMode::OperatingOffline;
         mLogPlayer = new LogPlayer(this);
         mLogPlayer->setAllowedAreas(Qt::AllDockWidgetAreas);
         addDockWidget(Qt::BottomDockWidgetArea, mLogPlayer);
@@ -280,6 +304,9 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mLogPlayer, &LogPlayer::vehiclePose, mGlWindow, &GlWindow::slotNewVehiclePose);
         connect(mLogPlayer, &LogPlayer::scanFused, mFlightPlanner, &FlightPlannerParticles::slotNewScanFused);
         connect(mLogPlayer, &LogPlayer::gnssStatus, mControlWidget, &ControlWidget::slotUpdateInsStatus);
+        connect(mLogPlayer, &LogPlayer::flightState, mControlWidget, &ControlWidget::slotSetFlightState);
+        connect(mLogPlayer, &LogPlayer::flightStateRestriction, mControlWidget, &ControlWidget::slotSetFlightStateRestriction);
+
 
         mAudioPlayer = new AudioPlayer;
         connect(mLogPlayer, &LogPlayer::gnssStatus, this, &BaseStation::slotSpeakGnssStatus);

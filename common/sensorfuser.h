@@ -22,7 +22,10 @@ public:
 
     void setInterpolationMethod(const InterpolationMethod im) {mBestInterpolationMethodToUse = im;}
 
-    void setMaximumFusableRayLength(const float& rayLength) {mMaximumFusableRayLength = rayLength;}
+    void setMaximumFusableRayLength(const float& rayLength)
+    {
+        mMaximumFusableRayLength = rayLength;
+    }
 
     quint8 getStridePoint(void) const {return mStridePoint;}
     void setStridePoint(quint8 stridePoint) {mStridePoint = stridePoint;}

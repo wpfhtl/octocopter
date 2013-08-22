@@ -25,7 +25,7 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
     mVboBoundingBox = 0;
     mVboWayPointConnections = 0;
 
-    mRenderWayPoints = true;
+    mRenderWayPointsAhead = mRenderWayPointsPassed = true;
     mRenderScanVolume = true;
     mRenderDetectionVolume = true;
 
@@ -471,7 +471,7 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloud*const point
 
     mPointCloudColliders->slotInsertPoints(pointCloudSource, firstPointToReadFromSrc, numberOfPointsToCopy);
 
-    if(/*firstPointToReadFromSrc == 0 && */mWayPointsAhead.size() == 0 && !mTimerStepSimulation.isActive() && !mTimerProcessInformationGain.isActive())
+    if(mBaseStation->getOperatingMode() == BaseStation::OperatingMode::OperatingOnline && mWayPointsAhead.size() == 0 && !mTimerStepSimulation.isActive() && !mTimerProcessInformationGain.isActive())
     {
         // This is the first time that points were inserted (and we have no waypoints) - start the physics processing!
         slotStartWayPointGeneration();
@@ -532,13 +532,13 @@ void FlightPlannerParticles::slotVisualize()
         mShaderProgramDefault->release();
     }
 
-    if(mRenderWayPoints && mShaderProgramDefault != 0 && mShaderProgramWaypoint != 0)
+    if(mShaderProgramDefault != 0 && mShaderProgramWaypoint != 0)
     {
 
         glEnable(GL_BLEND);
         glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
         {
-                if(!mWayPointsAhead.isEmpty())
+                if(mRenderWayPointsAhead && !mWayPointsAhead.isEmpty())
                 {
                     const QColor c = mWayPointsAhead.color();
                     mShaderProgramDefault->bind();
@@ -566,7 +566,7 @@ void FlightPlannerParticles::slotVisualize()
                     glBindBuffer(GL_ARRAY_BUFFER, 0);
                 }
 
-                if(!mWayPointsPassed.isEmpty())
+                if(mRenderWayPointsPassed && !mWayPointsPassed.isEmpty())
                 {
                     const QColor c = mWayPointsPassed.color();
                     mShaderProgramDefault->bind();

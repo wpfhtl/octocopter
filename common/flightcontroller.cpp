@@ -14,8 +14,7 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
     QMap<QChar, float> weights;
     QMap<PidController*, QMap<QChar, float> > controllerWeights;
 
-    // 2013-08-20: thrust 40/0/20   yaw 1/0/0   pitchRoll 10/0/5 seem nice.
-    
+    // 2013-08-20: thrust 40/0/20   yaw 1/0/0   pitchRoll 10/0/6 seem nice.
     controllerWeights.clear();
     // Hover - Thrust
     weights.clear();
@@ -250,8 +249,8 @@ void FlightController::slotComputeMotionCommands()
             // good for a D-controller.
             if(
                     mFlightControllerValues.flightState.state == FlightState::State::ApproachWayPoint
-                    && mFlightControllerValues.hoverPosition.distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < 0.2f // hoverpos close to wp
-                    && mFlightControllerValues.lastKnownPose.getPosition().distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < 0.4f) // vehicle close to wp
+                    && mFlightControllerValues.hoverPosition.distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < mDistanceWayPointReached // hoverpos close to wp
+                    && mFlightControllerValues.lastKnownPose.getPosition().distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < mDistanceWayPointReached) // vehicle close to wp
             {
                 nextWayPointReached();
             }
@@ -592,9 +591,11 @@ void FlightController::setFlightState(FlightState newFlightState)
         Q_ASSERT(false && "FlightController::setFlightState(): undefined flightstate");
     }
 
-    emit flightControllerValues(&mFlightControllerValues);
+    qDebug() << "FlightController::setFlightState(): emitting flightcontrollervalues, flightstate and weights...";
+    //emit flightControllerValues(&mFlightControllerValues);
     emit flightState(&mFlightControllerValues.flightState);
     emit flightControllerWeights();
+    qDebug() << "...done";
 }
 
 void FlightController::initializeControllers()
@@ -797,7 +798,7 @@ void FlightController::slotFlightStateRestrictionChanged(const FlightStateRestri
     }
 
     qDebug() << __PRETTY_FUNCTION__ << "done, new flightstate" << mFlightControllerValues.flightState.toString();
-    emit flightControllerValues(&mFlightControllerValues);
+    emit flightStateRestriction(&mFlightControllerValues.flightStateRestriction);
 }
 
 void FlightController::slotEmitFlightControllerInfo()
@@ -866,14 +867,15 @@ QVector3D FlightController::getHoverPosition(const QVector3D& trajectoryStart, c
     // If we project the vehicle's position on the trajectory, how far along are we? We bound to between 0 and trajectory-length.
     const float projectedTrajectoryProgress = qBound(0.0f, (float)QVector3D::dotProduct(trajectoryUnitVector, vectorFromTrajectoryStartToVehicle), trajectoryLength);
 
+    // If the vehicle is directly above or below a waypoint, then the projection above won't help. Manually advance hoverPosition in that case.
     QVector3D leftToGo = trajectoryGoal - vehiclePosition;
-    const float leftToGoVertically = leftToGo.y();
+    //const float leftToGoVertically = leftToGo.y();
     leftToGo.setY(0.0f);
     const float leftToGoHorizontally = leftToGo.length();
-    if(leftToGoHorizontally < 0.2f && fabs(leftToGoVertically) > 0.2)
+    if(leftToGoHorizontally < mDistanceWayPointReached)
     {
-        qDebug() << "just need to go up or down, horizontally fine. artificially moving raspberry by 1cm";
-        mTrajectoryProgress += 0.01;
+        qDebug() << "just need to go up or down, horizontally fine. artificially moving raspberry by 3cm";
+        mTrajectoryProgress += 0.03;
     }
 
     mTrajectoryProgress = std::max(mTrajectoryProgress, projectedTrajectoryProgress);

@@ -3,6 +3,7 @@
 #include <QMenu>
 #include <QMatrix4x4>
 #include <QDataStream>
+#include <QDoubleSpinBox>
 
 LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlayer)
 {
@@ -16,7 +17,7 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     connect(mTimerAnimation, &QTimer::timeout, this, &LogPlayer::slotPlay);
 
     mSensorFuser = new SensorFuser(1);
-    //mSensorFuser->setMaximumFusableRayLength(20.0f);
+    mSensorFuser->setMaximumFusableRayLength(30.0f);
     mSbfParser = new SbfParser(this);
 
     // Allow user to choose to step until a specific datasource was processed
@@ -50,6 +51,8 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     connect(ui->mPushButtonPlay, &QPushButton::clicked, this, &LogPlayer::slotPlay);
     connect(ui->mPushButtonStepForward, &QPushButton::clicked, this, &LogPlayer::slotStepUntilDataSourceProcessed);
 
+    connect(ui->mSpinBoxMaximumDistance, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), [=](double distance) {mSensorFuser->setMaximumFusableRayLength(distance);});
+
     connect(mProgressBarTow, &ProgressBar::seekToTow, this, &LogPlayer::slotGoToTow);
 
     // emit fused lidarpoints
@@ -61,10 +64,10 @@ LogPlayer::LogPlayer(QWidget *parent) : QDockWidget(parent), ui(new Ui::LogPlaye
     connect(mSbfParser, SIGNAL(status(const GnssStatus* const)), SIGNAL(gnssStatus(const GnssStatus* const)));
     connect(mSbfParser, SIGNAL(message(LogImportance,QString,QString)), SIGNAL(message(LogImportance,QString,QString)));
     connect(mSbfParser, SIGNAL(newVehiclePose(const Pose* const)), SIGNAL(vehiclePose(const Pose* const)));
-
-    connect(mSbfParser, &SbfParser::newVehiclePoseSensorFuser, mSensorFuser, &SensorFuser::slotNewVehiclePose);
     connect(mSbfParser, &SbfParser::processedPacket, this, &LogPlayer::slotNewSbfTime);
-    connect(mSbfParser, &SbfParser::scanFinished, mSensorFuser, &SensorFuser::slotScanFinished);
+
+    connect(mSbfParser, &SbfParser::newVehiclePoseSensorFuser, [=](const Pose* const p) {if(ui->mPushButtonFusion->isChecked()) mSensorFuser->slotNewVehiclePose(p);});
+    connect(mSbfParser, &SbfParser::scanFinished, [=](const quint32& tow) {if(ui->mPushButtonFusion->isChecked()) mSensorFuser->slotScanFinished(tow);});
 }
 
 LogPlayer::~LogPlayer()
@@ -533,7 +536,11 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const LogPlay
                         indexStart + rayBytes/sizeof(quint16) - 1);
 
             emit scanRaw(rawScan);
-            mSensorFuser->slotNewScanRaw(rawScan);
+            if(ui->mPushButtonFusion->isChecked())
+            {
+                rawScan->timeStampScanMiddleScanner += ui->mSpinBoxFusionTimeOffset->value();
+                mSensorFuser->slotNewScanRaw(rawScan);
+            }
 
         }
         else if(QByteArray(packet.data, 5) == QByteArray("RPOSE"))
@@ -578,6 +585,18 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const LogPlay
             // mFlightControllerValues needs to be set before emitting!
             mFlightControllerValues = fcv;
             emit flightControllerWeightsChanged();
+        }
+
+        if(mFlightState != fcv.flightState)
+        {
+            mFlightState = fcv.flightState;
+            emit flightState(&mFlightState);
+        }
+
+        if(mFlightStateRestriction != fcv.flightStateRestriction)
+        {
+            mFlightStateRestriction = fcv.flightStateRestriction;
+            emit flightStateRestriction(&mFlightStateRestriction);
         }
 
         mFlightControllerValues = fcv;
