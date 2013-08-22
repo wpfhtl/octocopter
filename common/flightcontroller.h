@@ -44,6 +44,8 @@ public:
 
     const FlightState& getFlightState(void) const { return mFlightControllerValues.flightState; }
 
+    static float blend(const float v1, const float v2, const float value, const float valueToBlend1, const float valueToBlend2);
+
 private:
     LogFile* mLogFile;
 

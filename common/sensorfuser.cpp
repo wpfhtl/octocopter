@@ -9,7 +9,7 @@ SensorFuser::SensorFuser(const quint8& stridePoint, const quint8& strideScan) : 
 
     mFlushRemainingData = false;
     mNewestDataTime = 0;
-    mMaximumFusableRayLength = 60.0f;
+    mMaximumFusableRayLength = 5.0f;
     mStatsScansDiscarded = 0;
     mLastScanMiddleGnssTow = 0;
     mNumberOfScansWithMissingGnssTimestamps = 0;

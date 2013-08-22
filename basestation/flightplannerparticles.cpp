@@ -33,8 +33,8 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
 
     mPointCloudColliders = new PointCloudCuda(
                 Box3D(
-                    QVector3D(-56.0f, -6.0f, -50.0f),
-                    QVector3D(8.0f, 26.0f, 14.0f)
+                    QVector3D(-32.0f, -6.0f, -32.0f),
+                    QVector3D(32.0f, 26.0f, 32.0f)
                     ),
                 64 * 1024);
 
@@ -66,7 +66,7 @@ void FlightPlannerParticles::slotInitialize()
 
     mSimulationParameters.initialize();
     mSimulationParameters.gridInformationGain.cells = make_uint3(256, 32, 256);
-    slotSetScanVolume(Box3D(QVector3D(-56, -6, -50), QVector3D(8, 26, 14)));
+    slotSetScanVolume(Box3D(QVector3D(-32, -6, -32), QVector3D(32, 26, 32)));
 
     const quint32 numberOfCellsInGridInformationGain = mSimulationParameters.gridInformationGain.getCellCount();
 
@@ -236,7 +236,7 @@ void FlightPlannerParticles::slotGenerateWaypoints(quint32 numberOfWaypointsToGe
         if(wp.w() > 0.1f)
         {
             //qDebug() << __PRETTY_FUNCTION__ << "using waypoint" << wp;
-            wayPointsWithHighInformationGain.append(WayPoint(wp.toVector3D() + QVector3D(0.0f, 4.0f, 0.0f), wp.w()));
+            wayPointsWithHighInformationGain.append(WayPoint(wp.toVector3D() + QVector3D(0.0f, 1.0f, 0.0f), wp.w()));
         }
     }
 

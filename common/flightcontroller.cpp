@@ -90,7 +90,8 @@ void FlightController::slotComputeMotionCommands()
         {
             // When hovering, we want to look away from the origin. When approaching a waypoint, we want to look at the hoverPosition.
             // This variable shall hold the desired yaw angle.
-            float angleToYawDegrees = 0.0f;
+            float angleToYawDegreesNow = 0.0f;
+            float angleToYawDegreesAfterNextWaypoint = 0.0f;
 
             // See how we can reach hoverPosition by pitching and rolling
 
@@ -103,12 +104,23 @@ void FlightController::slotComputeMotionCommands()
                 // Yaw: We want the vehicle to look NOT towards positionGoal, but always look in the same direction as the line from start to goal - even if it has drifted off that line!
                 // Corrections will be done by rolling
                 const QVector3D trajectory = mFlightControllerValues.trajectoryGoal - mFlightControllerValues.trajectoryStart;
-                angleToYawDegrees = RAD2DEG(
+                angleToYawDegreesNow = RAD2DEG(
                             Pose::getShortestTurnRadians(
                                 -Pose::getShortestTurnRadians(- atan2(-trajectory.x(), -trajectory.z()))
                                 - mFlightControllerValues.lastKnownPose.getYawRadians()
                                 )
                             );
+
+                if(mWayPoints.size() > 1)
+                {
+                    const QVector3D trajectory = mWayPoints.at(1) - mFlightControllerValues.trajectoryGoal;
+                    angleToYawDegreesAfterNextWaypoint = RAD2DEG(
+                                Pose::getShortestTurnRadians(
+                                    -Pose::getShortestTurnRadians(- atan2(-trajectory.x(), -trajectory.z()))
+                                    - mFlightControllerValues.lastKnownPose.getYawRadians()
+                                    )
+                                );
+                }
 
                 // If we're close to it, move the hoverPosition towards trajectoryGoal
                 mFlightControllerValues.hoverPosition = getHoverPosition(
@@ -126,13 +138,21 @@ void FlightController::slotComputeMotionCommands()
                 // hover position.
                 const QVector3D vectorOriginToHoverPosition = mFlightControllerValues.hoverPosition;
 
-                angleToYawDegrees = RAD2DEG(
+                angleToYawDegreesNow = RAD2DEG(
                             Pose::getShortestTurnRadians(
                                 atan2(vectorOriginToHoverPosition.x(), vectorOriginToHoverPosition.z())
                                 - DEG2RAD(180.0f)
                                 - mFlightControllerValues.lastKnownPose.getYawRadians()
                                 )
                             );
+            }
+
+            const float distanceToGoal = mFlightControllerValues.lastKnownPose.getPosition().distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D());
+
+            // If we're close to the upcoming waypoint, already start orienting towards the next!
+            if(angleToYawDegreesAfterNextWaypoint != 0.0f)
+            {
+                angleToYawDegreesNow = blend(1.0, 0.0, distanceToGoal, angleToYawDegreesNow, angleToYawDegreesAfterNextWaypoint);
             }
 
             // angleToYawDegrees needs some tuning: When using a p(d) controller and a range of 0 to (-)180, the vehicle
@@ -142,7 +162,7 @@ void FlightController::slotComputeMotionCommands()
             // As it turns out (by asking Manfred :), both arctan and (X/1+abs(x)) are exactly what we need. The latter
             // seems cheaper to compute, so we use that one.
             const float aggressiveness = 0.2f; // how quickly to reach MotionCommand::yawMax when abs(angleToYawDegrees) rises
-            const float angleToYawDegreesAdjusted = MotionCommand::yawMax * ((aggressiveness * angleToYawDegrees) / (1.0f + fabs(aggressiveness * angleToYawDegrees)));
+            const float angleToYawDegreesAdjusted = MotionCommand::yawMax * ((aggressiveness * angleToYawDegreesNow) / (1.0f + fabs(aggressiveness * angleToYawDegreesNow)));
 
             // If we give the yaw controller our current yaw (e.g. -170 deg) and our desired value (e.g. +170),
             // it would compute an error of 340 degrees - making the kopter turn 340 degrees left. Instead, we
@@ -173,8 +193,6 @@ void FlightController::slotComputeMotionCommands()
                         mFlightControllerValues.lastKnownPose.getYawRadians(),
                         pitchTarget);
 
-            lateralOffsetPitchToTrajectoryGoal /= qBound(1.0, sqrt(fabs(angleToYawDegrees)), 100.0);
-
             // We want the offset to the trajectory over the roll axis
             float lateralOffsetRollToTrajectory = getLateralOffsetOnVehicleRollAxisToPosition(
                         mFlightControllerValues.lastKnownPose.getPosition(),
@@ -189,31 +207,45 @@ void FlightController::slotComputeMotionCommands()
             const float velOverPitchValue = -cos(angleFromVehicleFrontToSpeedVector) * worldFrameSpeedValue.length();
             const float velOverRollValue  = -sin(angleFromVehicleFrontToSpeedVector) * worldFrameSpeedValue.length();
 
-            float velOverPitchDesired = qBound(-mMaxFlightVelPerAxis, lateralOffsetPitchToTrajectoryGoal, mMaxFlightVelPerAxis);
+            // Slow down when orientation is wrong. In general, only slow down when really close to wp (the 3.0 factor)!
+            float velOverPitchDesired = (3.0f * lateralOffsetPitchToTrajectoryGoal) / qBound(1.0, sqrt(fabs(angleToYawDegreesNow)), 15.0);
+            velOverPitchDesired = qBound(-mMaxFlightVelPerAxis, velOverPitchDesired, mMaxFlightVelPerAxis);
 
-            // If we're approaching the goal waypoint, there's no need to slow if the next wpt is straight ahead
-            float angleBetweenTrajectories = 0.0f;
-            if(mWayPoints.size() > 1)
+            // If we're approaching the goal waypoint, there's no need to slow if the next wpt is ahead (less than 90deg turn)
+            /*float angleBetweenTrajectories = 0.0f;
+            if(false && mWayPoints.size() > 1)
             {
                 const QVector3D trajectoryPre = mFlightControllerValues.trajectoryGoal - mFlightControllerValues.trajectoryStart;
                 const QVector3D trajectoryPost = mWayPoints.at(1) - mFlightControllerValues.trajectoryGoal;
                 angleBetweenTrajectories = -RAD2DEG(Pose::getShortestTurnRadians(atan2(trajectoryPre.x(), trajectoryPre.z()) - atan2(trajectoryPost.x(), trajectoryPost.z())));
 
                 // If we're supposed to fly forward and we're oriented correctly (thats the case when we've departed trajectoryStart) and the upcoming path is straight, then don't brake shortly before reaching the goal!
-                if(velOverPitchDesired < 0 && fabs(angleBetweenTrajectories) < 90.0f)
+                if(fabs(angleBetweenTrajectories) < 90.0f)
                 {
-                    float lateralOffsetPitchToNextGoal = getLateralOffsetOnVehiclePitchAxisToPosition(
+                    float lateralOffsetPitchToNextWayPoint = getLateralOffsetOnVehiclePitchAxisToPosition(
                                 mFlightControllerValues.lastKnownPose.getPosition(),
                                 mFlightControllerValues.lastKnownPose.getYawRadians(),
                                 mWayPoints.at(1));
 
-                    const float velOverPitchDesiredTowardsNextWayPoint = qBound(-mMaxFlightVelPerAxis, lateralOffsetPitchToNextGoal, mMaxFlightVelPerAxis);
+                    // Pitch less when orientation is still wrong!
+                    float velOverPitchDesiredToNextWaypoint = qBound(
+                                -mMaxFlightVelPerAxis,
+                                (float)(lateralOffsetPitchToNextWayPoint / qBound(1.0, sqrt(fabs(angleToYawDegreesNow)), 15.0)), // Pitch less when orientation is still wrong!
+                                mMaxFlightVelPerAxis);
+
+                    velOverPitchDesired = blend(1, -1, lateralOffsetPitchToTrajectoryGoal, velOverPitchDesired, velOverPitchDesiredToNextWaypoint);
+
+                    velOverPitchDesired = qBound(-mMaxFlightVelPerAxis, velOverPitchDesired, mMaxFlightVelPerAxis);
+
+                    // DO pitch towards the next waypoint (not current), but only if roll-offset and angleToYaw are small!
+
+                    //velOverPitchDesired = std::max(velOverPitchDesired, qBound(-mMaxFlightVelPerAxis, velOverPitchDesired2, mMaxFlightVelPerAxis));
+                    //const float velOverPitchDesiredTowardsNextWayPoint = qBound(-mMaxFlightVelPerAxis, lateralOffsetPitchToNextWayPoint, mMaxFlightVelPerAxis);
                     // Only fly towards the next (not current) wpt if that also means flying forward!
-                    if(velOverPitchDesiredTowardsNextWayPoint < 0)
-                        velOverPitchDesired = velOverPitchDesiredTowardsNextWayPoint;
+                    //if(velOverPitchDesiredTowardsNextWayPoint < 0)
                 }
             }
-            qDebug() << "angle to yaw" << angleToYawDegrees << "- anglebetween trajectories" << angleBetweenTrajectories << "pitchOffset:" << lateralOffsetPitchToTrajectoryGoal << "velOverPitchDesired:" << velOverPitchDesired << "velOverPitchValue" << velOverPitchValue;
+            qDebug() << "angle to yaw" << angleToYawDegreesNow << "- anglebetween trajectories" << angleBetweenTrajectories << "pitchOffset:" << lateralOffsetPitchToTrajectoryGoal << "velOverPitchDesired:" << velOverPitchDesired << "velOverPitchValue" << velOverPitchValue;*/
 
             // Do not bound desired speed over roll, we want to correct quickly.
             const float velOverRollDesired  = /*qBound(-mMaxFlightVelPerAxis,*/ 2.0f * lateralOffsetRollToTrajectory/*, mMaxFlightVelPerAxis)*/;
@@ -277,6 +309,26 @@ void FlightController::slotComputeMotionCommands()
     mFlightControllerValues.timestamp = GnssTime::currentTow();
     emit flightControllerValues(&mFlightControllerValues);
     logFlightControllerValues();
+}
+
+// blend between valueToBlend1 and valueToBlend2, depending on the position of value between v1 and v2
+// -1, 1, 0, 10, 20:    15
+// 10, 20, 9, 0, 1:     0
+// 20, 10, 9, 0, 1:     1
+float FlightController::blend(const float v1, const float v2, const float value, const float valueToBlend1, const float valueToBlend2)
+{
+    float diff = v2 - v1;
+    float advance = value - v1;
+
+    if(fabs(diff) < 0.00001) diff = copysign(0.00001, diff);
+    float factor = advance / diff;
+
+    float result = valueToBlend1  + (valueToBlend2 - valueToBlend1) * factor;
+
+    if(valueToBlend1 > valueToBlend2)
+        return qBound(valueToBlend2, result, valueToBlend1);
+    else
+        return qBound(valueToBlend1, result, valueToBlend2);
 }
 
 // Positive values mean that the target is along the direction of the vehicle coordinate system's respective axes.
@@ -872,7 +924,7 @@ QVector3D FlightController::getHoverPosition(const QVector3D& trajectoryStart, c
     //const float leftToGoVertically = leftToGo.y();
     leftToGo.setY(0.0f);
     const float leftToGoHorizontally = leftToGo.length();
-    if(leftToGoHorizontally < mDistanceWayPointReached)
+    if(leftToGoHorizontally < mDistanceWayPointReached && mTrajectoryProgress < trajectoryLength)
     {
         qDebug() << "just need to go up or down, horizontally fine. artificially moving raspberry by 3cm";
         mTrajectoryProgress += 0.03;

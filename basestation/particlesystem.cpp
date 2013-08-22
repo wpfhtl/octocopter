@@ -39,8 +39,8 @@ ParticleSystem::ParticleSystem(PointCloudCuda *const pointCloudDense, PointCloud
     // vector will be initialized with 0x777777 once on startup
     mUpdateMappingFromColliderToGridCell = true;
 
-    mParametersSimulation->gridParticleSystem.worldMin = make_float3(-56.0f, -6.0f, -50.0f);
-    mParametersSimulation->gridParticleSystem.worldMax = make_float3(8.0f, 26.0f, 14.0f);
+    mParametersSimulation->gridParticleSystem.worldMin = make_float3(-32.0f, -6.0f, -32.0f);
+    mParametersSimulation->gridParticleSystem.worldMax = make_float3(32.0f, 26.0f, 32.0f);
 
     connect(mPointCloudColliders, SIGNAL(pointsInserted(PointCloud*const,quint32,quint32)), SLOT(slotNewCollidersInserted()));
 }
