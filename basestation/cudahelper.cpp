@@ -72,5 +72,5 @@ void CudaHelper::copyArrayFromDevice(void* host, const void* device, struct cuda
     if(cuda_vbo_resource) cudaSafeCall(cudaGraphicsUnmapResources(1, cuda_vbo_resource, 0));
 }
 
-QVector3D CudaHelper::cudaConvert(const float3& p) { return QVector3D(p.x, p.y, p.z); }
-float3 CudaHelper::cudaConvert(const QVector3D& p) { return make_float3(p.x(), p.y(), p.z()); }
+QVector3D CudaHelper::convert(const float3& p) { return QVector3D(p.x, p.y, p.z); }
+float3 CudaHelper::convert(const QVector3D& p) { return make_float3(p.x(), p.y(), p.z()); }

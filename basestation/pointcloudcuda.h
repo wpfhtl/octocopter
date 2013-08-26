@@ -48,7 +48,7 @@ public:
         mParameters.grid.worldMax = make_float3(box.max.x(), box.max.y(), box.max.z());
     }
 
-    QVector3D getWorldSize() const { return CudaHelper::cudaConvert(mParameters.grid.worldMax) - CudaHelper::cudaConvert(mParameters.grid.worldMax);}
+    QVector3D getWorldSize() const { return CudaHelper::convert(mParameters.grid.worldMax) - CudaHelper::convert(mParameters.grid.worldMax);}
 
     cudaGraphicsResource** getCudaGraphicsResource() { return &mCudaVboResource;}
 

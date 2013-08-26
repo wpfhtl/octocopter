@@ -31,14 +31,15 @@ private:
     struct cudaGraphicsResource *mCudaVboResourceGridPathFinder; // handles OpenGL-CUDA exchange
 
     void populateOccupancyGrid(quint8 *gridOccupancy = nullptr);
-    //void printHostOccupancyGrid(quint8* deviceGridOccupancy);
 
+    void alignPathPlannerGridToColliderCloud();
 
 public:
     explicit PathPlanner(QObject *parent = 0);
     ~PathPlanner();
 
     void checkWayPointSafety(const QVector3D &vehiclePosition, const WayPointList* const wayPointsAhead);
+    void moveWayPointsToSafety(WayPointList* wayPointList);
 
 signals:
     // To allow others to render our occupancy grid.

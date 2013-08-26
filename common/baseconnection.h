@@ -63,7 +63,8 @@ signals:
     // emitted when the basestation wants to send direct ExternalControl motion commands, which is only used for testing.
     void motion(const MotionCommand* const mc);
 
-    void enableScanning(const bool enable);
+    // enable/disable laserscanners
+    void scannerState(const bool enable);
 
     // emitted to indicate saturation of connection. Idea is to send less
     // lidar-data when link is saturated. TODO: combine with RSSI?

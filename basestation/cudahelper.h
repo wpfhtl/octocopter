@@ -26,8 +26,8 @@ public:
     //Round a / b to nearest higher integer value
 //    static uint iDivUp(uint a, uint b);
 
-    static QVector3D cudaConvert(const float3& p);
-    static float3 cudaConvert(const QVector3D& p);
+    static QVector3D convert(const float3& p);
+    static float3 convert(const QVector3D& p);
 };
 
 #endif

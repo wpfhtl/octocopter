@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>198</width>
+    <width>206</width>
     <height>677</height>
    </rect>
   </property>
@@ -18,7 +18,7 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>198</width>
+    <width>206</width>
     <height>677</height>
    </size>
   </property>
@@ -193,35 +193,10 @@
        <item row="2" column="2">
         <widget class="QLabel" name="label_3">
          <property name="text">
-          <string>RSSI</string>
+          <string>Scanners</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="3">
-        <widget class="QProgressBar" name="mBarWirelessRssi">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>50</width>
-           <height>0</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>30</width>
-           <height>10</height>
-          </size>
-         </property>
-         <property name="value">
-          <number>24</number>
          </property>
         </widget>
        </item>
@@ -253,6 +228,37 @@
         <widget class="QLabel" name="mLabelFlightStateRestriction">
          <property name="text">
           <string>-</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="3">
+        <widget class="QPushButton" name="mBtnEnableScanning">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>20</width>
+           <height>12</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>50</width>
+           <height>10</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Enabled</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
          </property>
         </widget>
        </item>

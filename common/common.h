@@ -31,6 +31,12 @@ enum class WayPointListSource
     WayPointListSourceUnknown
 };
 
+enum class OperatingMode
+{
+    OperatingOnline,    // connected to simulator or kopter
+    OperatingOffline    // using LogPlayer
+};
+
 struct Box3D
 {
     QVector3D min,max;

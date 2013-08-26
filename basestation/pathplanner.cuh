@@ -25,21 +25,34 @@ void fillOccupancyGrid(
         cudaStream_t*   stream);
 
 void dilateOccupancyGrid(
-        unsigned char* gridValues,
-        unsigned int numCells,
-        cudaStream_t *stream);
+        unsigned char*  gridValues,
+        unsigned int    numCells,
+        cudaStream_t*   stream);
+
+void clearOccupancyGridAboveVehiclePosition(
+        unsigned char*  gridValues,
+        float           vehicleX,
+        float           vehicleY,
+        float           vehicleZ,
+        cudaStream_t*   stream);
+
+void moveWayPointsToSafetyGpu(
+        unsigned char*  gridOccupancy,
+        float*          mDeviceWaypoints,
+        unsigned int    numberOfWayPoints,
+        cudaStream_t*   stream);
 
 void retrievePath(unsigned char*  gridValues,
         float*          waypoints,
-        cudaStream_t    *stream);
+        cudaStream_t*   stream);
 
 void markStartCell(
-        unsigned char* gridValues,
-        cudaStream_t *stream);
+        unsigned char*  gridValues,
+        cudaStream_t*   stream);
 
 void growGrid(
-        unsigned char* gridValues,
+        unsigned char*  gridValues,
         ParametersPathPlanner* parameters,
-        cudaStream_t *stream);
+        cudaStream_t*   stream);
 
 #endif

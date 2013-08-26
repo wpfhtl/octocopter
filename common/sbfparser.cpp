@@ -162,10 +162,10 @@ void SbfParser::setPose(const Sbf_IntPVAAGeod* block, const GnssStatus& gnssStat
     if(block->Mode == 2) // integrated solution, not sensor-only or GNSS-only
         mLastPose.precision |= Pose::ModeIntegrated;
 
-    if((block->GNSSPVTMode & 15) == 4) // Thats RTK Fixed, see GpsStatusInformation::getGnssMode().
+    if((block->GNSSPVTMode & 15) == 4) // That's RTK Fixed, see GpsStatusInformation::getGnssMode().
         mLastPose.precision |= Pose::RtkFixed;
 
-    if(gnssStatus.meanCorrAge < 100) // Thats ten seconds
+    if(gnssStatus.meanCorrAge < 150) // That's fifteen seconds
         mLastPose.precision |= Pose::CorrectionAgeLow;
 
     // Move the pose from the ARP/Marker that IntPVAAGeod outputs to the vehicle's center

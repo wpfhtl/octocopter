@@ -260,6 +260,23 @@ void RoverConnection::processPacket(QByteArray data)
     }
 }
 
+void RoverConnection::slotSendScannerState(const bool enabled)
+{
+    qDebug() << __PRETTY_FUNCTION__ << enabled;
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    stream << QString("setscannerstate");
+    stream << enabled;
+
+    /*emit message(
+                Information,
+                QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
+                QString("Transmitting motion values to rover"));*/
+
+    slotSendData(data);
+}
+
 void RoverConnection::slotSendMotionToKopter(const MotionCommand* const mc)
 {
     return;

@@ -119,11 +119,6 @@ public:
     BaseStation(void);
     ~BaseStation();
 
-    enum class OperatingMode
-    {
-        OperatingOnline,    // connected to simulator or kopter
-        OperatingOffline    // using LogPlayer
-    };
     OperatingMode getOperatingMode() {return mOperatingMode;}
 
 private:

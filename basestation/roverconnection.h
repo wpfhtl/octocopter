@@ -77,6 +77,8 @@ public slots:
 
     void slotSendControllerWeights(QString name, QMap<QChar,float> weights);
 
+    void slotSendScannerState(const bool enabled);
+
     // To set waypoints on rover
     void slotSetWayPoints(const QList<WayPoint>* const wayPointList, const WayPointListSource source);
 

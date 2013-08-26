@@ -231,8 +231,10 @@ BaseStation::BaseStation() : QMainWindow()
     // Only start RTK fetcher, RoverConnection, PtuController etc. if we're working online
     if(mConnectionDialog->result() == QDialog::Accepted)
     {
-        mOperatingMode = BaseStation::OperatingMode::OperatingOnline;
+        mOperatingMode = OperatingMode::OperatingOnline;
+        mControlWidget->slotSetOperatingMode(mOperatingMode);
         mRoverConnection = new RoverConnection(mConnectionDialog->getRoverHostName(), mConnectionDialog->getRoverPort(), this);
+        connect(mControlWidget, &ControlWidget::setScannerState, mRoverConnection, &RoverConnection::slotSendScannerState);
 
         mPidControllerWidget->setControllers(mRoverConnection->getFlightControllerValues()); // set this once. Table is rebuilt when signal from roverconnection comes in
 
@@ -289,7 +291,8 @@ BaseStation::BaseStation() : QMainWindow()
     }
     else
     {
-        mOperatingMode = BaseStation::OperatingMode::OperatingOffline;
+        mOperatingMode = OperatingMode::OperatingOffline;
+        mControlWidget->slotSetOperatingMode(mOperatingMode);
         mLogPlayer = new LogPlayer(this);
         mLogPlayer->setAllowedAreas(Qt::AllDockWidgetAreas);
         addDockWidget(Qt::BottomDockWidgetArea, mLogPlayer);

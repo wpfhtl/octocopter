@@ -76,8 +76,8 @@ void ParticleSystem::slotSetVolume(const Box3D& boundingBox)
 {
     // Set the new volume, and re-set some parts of the datastructure only if
     // the size has changed. Otherwise, we can simply move the whole system.
-    mParametersSimulation->gridParticleSystem.worldMin = CudaHelper::cudaConvert(boundingBox.min);
-    mParametersSimulation->gridParticleSystem.worldMax = CudaHelper::cudaConvert(boundingBox.max);
+    mParametersSimulation->gridParticleSystem.worldMin = CudaHelper::convert(boundingBox.min);
+    mParametersSimulation->gridParticleSystem.worldMax = CudaHelper::convert(boundingBox.max);
     mPointCloudColliders->setBoundingBox(boundingBox);
 
     // TODO: re-initialize when size changes!
@@ -98,8 +98,8 @@ void ParticleSystem::slotSetVolume(const Box3D& boundingBox)
                 mVboParticleColors,
                 mParametersSimulation->particleCount,
                 Box3D(
-                    CudaHelper::cudaConvert(mParametersSimulation->gridParticleSystem.worldMin),
-                    CudaHelper::cudaConvert(mParametersSimulation->gridParticleSystem.worldMax)
+                    CudaHelper::convert(mParametersSimulation->gridParticleSystem.worldMin),
+                    CudaHelper::convert(mParametersSimulation->gridParticleSystem.worldMax)
                     )
                 );
 }
@@ -118,7 +118,7 @@ void ParticleSystem::showCollisionPositions()
         {
             qDebug() << "last collision of particle" << i << "was in cell" <<
                         //getGridCellHash(mSimulationParameters->gridParticleSystem, getGridCellCoordinate(mSimulationParameters->gridParticleSystem, collisionPositionsHost[i].toVector3D())) << "at" << collisionPositionsHost[i];
-                        mParametersSimulation->gridParticleSystem.getCellHash(mParametersSimulation->gridParticleSystem.getCellCoordinate(CudaHelper::cudaConvert(collisionPositionsHost[i].toVector3D()))) << "at" << collisionPositionsHost[i];
+                        mParametersSimulation->gridParticleSystem.getCellHash(mParametersSimulation->gridParticleSystem.getCellCoordinate(CudaHelper::convert(collisionPositionsHost[i].toVector3D()))) << "at" << collisionPositionsHost[i];
         }
     }
 
@@ -143,7 +143,7 @@ void ParticleSystem::initialize()
 
     // Using less (larger) cells is possible, it means less memory being used for the grid, but more search being done when searching for neighbors
     // because more particles now occupy a single grid cell. This might not hurt performance as long as we do not cross an unknown threshold (kernel swap size)?!
-    const QVector3D particleSystemWorldSize = CudaHelper::cudaConvert(mParametersSimulation->gridParticleSystem.getWorldSize());
+    const QVector3D particleSystemWorldSize = CudaHelper::convert(mParametersSimulation->gridParticleSystem.getWorldSize());
     mParametersSimulation->gridParticleSystem.cells.x = nextHigherPowerOfTwo((uint)ceil(particleSystemWorldSize.x() / (mParametersSimulation->particleRadius * 2.0f)))/* / 8.0*/;
     mParametersSimulation->gridParticleSystem.cells.y = nextHigherPowerOfTwo((uint)ceil(particleSystemWorldSize.y() / (mParametersSimulation->particleRadius * 2.0f)))/* / 8.0*/;
     mParametersSimulation->gridParticleSystem.cells.z = nextHigherPowerOfTwo((uint)ceil(particleSystemWorldSize.z() / (mParametersSimulation->particleRadius * 2.0f)))/* / 8.0*/;
@@ -179,8 +179,8 @@ void ParticleSystem::initialize()
                 mVboParticleColors,
                 mParametersSimulation->particleCount,
                 Box3D(
-                    CudaHelper::cudaConvert(mParametersSimulation->gridParticleSystem.worldMin),
-                    CudaHelper::cudaConvert(mParametersSimulation->gridParticleSystem.worldMax)
+                    CudaHelper::convert(mParametersSimulation->gridParticleSystem.worldMin),
+                    CudaHelper::convert(mParametersSimulation->gridParticleSystem.worldMax)
                     )
                 );
 
@@ -243,7 +243,7 @@ void ParticleSystem::initialize()
     }
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    qDebug() << "ParticleSystem::initialize(): worldsize" << CudaHelper::cudaConvert(mParametersSimulation->gridParticleSystem.getWorldSize()) << "and particle radius" << mParametersSimulation->particleRadius << ": created system with" << mParametersSimulation->particleCount << "particles and" << mParametersSimulation->gridParticleSystem.cells.x << "*" << mParametersSimulation->gridParticleSystem.cells.y << "*" << mParametersSimulation->gridParticleSystem.cells.z << "cells";
+    qDebug() << "ParticleSystem::initialize(): worldsize" << CudaHelper::convert(mParametersSimulation->gridParticleSystem.getWorldSize()) << "and particle radius" << mParametersSimulation->particleRadius << ": created system with" << mParametersSimulation->particleCount << "particles and" << mParametersSimulation->gridParticleSystem.cells.x << "*" << mParametersSimulation->gridParticleSystem.cells.y << "*" << mParametersSimulation->gridParticleSystem.cells.z << "cells";
     qDebug() << "ParticleSystem::initialize(): allocated" << mNumberOfBytesAllocatedCpu << "bytes on CPU," << mNumberOfBytesAllocatedGpu << "bytes on GPU.";
 
     copyParametersToGpu(mParametersSimulation);
@@ -483,7 +483,7 @@ void ParticleSystem::slotSetParticleRadius(float radius)
     // which might break collisions. I'm not sure this really is a problem, though, need to investigate further.
     // If the particles are now so small that more than 4 can fit into a cell, re-create the grid with more cells
 
-    QVector3D cellSize = CudaHelper::cudaConvert(mParametersSimulation->gridParticleSystem.getCellSize());
+    QVector3D cellSize = CudaHelper::convert(mParametersSimulation->gridParticleSystem.getCellSize());
     const float shortestCellSide = std::min(std::min(cellSize.x(), cellSize.y()), cellSize.z());
     if(shortestCellSide > radius * 2.0f)
     {

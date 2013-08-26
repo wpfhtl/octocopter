@@ -109,8 +109,8 @@ void FlightPlannerParticles::slotInitialize()
     emit vboInfoGridInformationGain(
                 mVboGridMapOfInformationGainBytes,
                 Box3D(
-                    CudaHelper::cudaConvert(mSimulationParameters.gridInformationGain.worldMin),
-                    CudaHelper::cudaConvert(mSimulationParameters.gridInformationGain.worldMax)
+                    CudaHelper::convert(mSimulationParameters.gridInformationGain.worldMin),
+                    CudaHelper::convert(mSimulationParameters.gridInformationGain.worldMax)
                     ),
                 Vector3i(mSimulationParameters.gridInformationGain.cells.x, mSimulationParameters.gridInformationGain.cells.y, mSimulationParameters.gridInformationGain.cells.z)
                 );
@@ -162,8 +162,8 @@ void FlightPlannerParticles::slotProcessInformationGain(const quint8 threshold)
 
     if(maxPressure >= threshold)
     {
-        qDebug() << "FlightPlannerParticles::slotProcessInformationGain(): threshold is" << threshold << "- max pressure is" << maxPressure << ": generating waypoints.";
-        // Now that we've generated waypoint, we can deactivate the physics processing (and restart when only few waypoints are left)
+        qDebug() << "FlightPlannerParticles::slotProcessInformationGain(): max pressure" << maxPressure << ">" << "threshold" << threshold << "- generating waypoints!";
+        // Now that we're generating waypoints, we can deactivate the physics processing (and restart when only few waypoints are left)
         mDialog->setProcessPhysics(false);
         mTimerProcessInformationGain.stop();
         slotGenerateWaypoints();
@@ -192,25 +192,6 @@ void FlightPlannerParticles::slotGenerateWaypoints(quint32 numberOfWaypointsToGe
     computeWaypointBenefit(gridMapOfinformationGainFloat, gridMapOfinformationGainBytes, (float*)&vehiclePosition, numberOfCells);
     cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfInformationGainBytes, 0);
 
-    // To debug, we make sure that Bytes and Floats are still in sync
-    /*float* gvFloat = new float[numberOfCells];
-    quint8* gvByte = new quint8[numberOfCells];
-    cudaMemcpy(gvFloat, gridMapOfinformationGainFloat, sizeof(float) * numberOfCells, cudaMemcpyDeviceToHost);
-    cudaMemcpy(gvByte, gridMapOfinformationGainBytes, sizeof(quint8) * numberOfCells, cudaMemcpyDeviceToHost);
-    for(int i=0;i<numberOfCells;i++)
-    {
-        float vFloat = gvFloat[i];
-        quint8 vByte = gvByte[i];
-        if(vByte == 0) Q_ASSERT(fabs(vFloat) < 0.001);
-        else Q_ASSERT(fabs(vFloat) > 0.001);
-
-        gvFloat[i] = gvByte[i];
-    }
-    // copy the bytes into the float array on device
-    cudaMemcpy(gridMapOfinformationGainFloat, gvFloat, sizeof(float) * numberOfCells, cudaMemcpyHostToDevice);
-    delete gvFloat;
-    delete gvByte;*/
-
     // Fill mDeviceGridMapCellWorldPositions - this might be done only once and then copied lateron (just like the waypoint pressure above)
     // The w-component is set to 0.0 here
     fillGridMapCellWorldPositions(mDeviceGridInformationGainCellWorldPositions, numberOfCells);
@@ -235,28 +216,32 @@ void FlightPlannerParticles::slotGenerateWaypoints(quint32 numberOfWaypointsToGe
         // If we ask for more waypoints than cells with wp-pressure > 0.0, we'll get useless candidates!
         if(wp.w() > 0.1f)
         {
-            //qDebug() << __PRETTY_FUNCTION__ << "using waypoint" << wp;
-            wayPointsWithHighInformationGain.append(WayPoint(wp.toVector3D() + QVector3D(0.0f, 1.0f, 0.0f), wp.w()));
+            // First, create waypoints exactly where the information-gain-cell is.
+            // This is directly on the ground/walls/geometry, which is unsafe to reach.
+            wayPointsWithHighInformationGain.append(WayPoint(wp.toVector3D(), wp.w()));
         }
     }
 
-    // Merge waypoints if they're closer than X meters
-    wayPointsWithHighInformationGain.mergeCloseWaypoints(7.5f);
-
-    // Reduce them to the desired number
-    while(wayPointsWithHighInformationGain.size() > numberOfWaypointsToGenerate)
-        wayPointsWithHighInformationGain.removeLast();
-
-    qDebug() << "FlightPlannerParticles::slotGenerateWaypoints(): after merging and reducing:" << wayPointsWithHighInformationGain.toString();
-
-    // Sort them to the shortest path, honoring the vehicle's current location.
-    wayPointsWithHighInformationGain.sortToShortestPath(getLastKnownVehiclePose().getPosition());
-
-    qDebug() << "FlightPlannerParticles::slotGenerateWaypoints(): after sort to shortest path:" << wayPointsWithHighInformationGain.toString();
-
-    // Now use the PathPlanner to find a path to this next waypoint. It will emit a signal with the list. Hopefully.
+    // Now use the PathPlanner to move waypoints into safe areas and find a path through them. It will emit a signal with the list.
     if(wayPointsWithHighInformationGain.size())
     {
+        // Merge waypoints if they're closer than X meters
+        wayPointsWithHighInformationGain.mergeCloseWaypoints(7.5f);
+
+        // Reduce them to the desired number
+        while(wayPointsWithHighInformationGain.size() > numberOfWaypointsToGenerate)
+            wayPointsWithHighInformationGain.removeLast();
+
+        qDebug() << "FlightPlannerParticles::slotGenerateWaypoints(): after merging and reducing:" << wayPointsWithHighInformationGain.toString();
+
+        // Now use the occupancy grid to move the waypoints into close-by, safe areas
+        mPathPlanner->moveWayPointsToSafety(&wayPointsWithHighInformationGain);
+
+        // Sort them to the shortest path, honoring the vehicle's current location.
+        wayPointsWithHighInformationGain.sortToShortestPath(getLastKnownVehiclePose().getPosition());
+
+        qDebug() << "FlightPlannerParticles::slotGenerateWaypoints(): after sort to shortest path:" << wayPointsWithHighInformationGain.toString();
+
         mPathPlanner->slotComputePath(vehiclePosition, wayPointsWithHighInformationGain);
     }
     else
@@ -318,8 +303,8 @@ void FlightPlannerParticles::slotSetScanVolume(const Box3D scanVolume)
 
     OpenGlUtilities::setVboToBoundingBox(mVboBoundingBox, mScanVolume);
 
-    mSimulationParameters.gridInformationGain.worldMin = CudaHelper::cudaConvert(mScanVolume.min);
-    mSimulationParameters.gridInformationGain.worldMax = CudaHelper::cudaConvert(mScanVolume.max);
+    mSimulationParameters.gridInformationGain.worldMin = CudaHelper::convert(mScanVolume.min);
+    mSimulationParameters.gridInformationGain.worldMax = CudaHelper::convert(mScanVolume.max);
 
     if(CudaHelper::isDeviceSupported)
     {
@@ -328,8 +313,8 @@ void FlightPlannerParticles::slotSetScanVolume(const Box3D scanVolume)
         emit vboInfoGridInformationGain(
                     mVboGridMapOfInformationGainBytes,
                     Box3D(
-                        CudaHelper::cudaConvert(mSimulationParameters.gridInformationGain.worldMin),
-                        CudaHelper::cudaConvert(mSimulationParameters.gridInformationGain.worldMax)
+                        CudaHelper::convert(mSimulationParameters.gridInformationGain.worldMin),
+                        CudaHelper::convert(mSimulationParameters.gridInformationGain.worldMax)
                         ),
                     Vector3i(mSimulationParameters.gridInformationGain.cells.x, mSimulationParameters.gridInformationGain.cells.y, mSimulationParameters.gridInformationGain.cells.z)
                     );
@@ -354,14 +339,21 @@ void FlightPlannerParticles::slotWayPointReached(const WayPoint& wpt)
 {
     qDebug() << "FlightPlannerParticles::slotWayPointReached(): rover->baseconnection->flightplanner waypoint reached, so appending first element of mWayPointsAhead to mWayPointsPassed";
 
-    Q_ASSERT(mWayPointsAhead.size() && "FlightPlannerParticles::slotWayPointReached(): mWayPointsAhead is empty, how can you reach a waypoint?");
+    if(mWayPointsAhead.size())
+    {
+        mWayPointsPassed.append(mWayPointsAhead.takeAt(0));
+    }
+    else
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "mWayPointsAhead is empty, but rover reached wpt" << wpt.toString() << "- appending anyways.";
+        mWayPointsPassed.append(wpt);
+    }
 
     emit message(
                 Information,
                 QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                 QString("Reached waypoint %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
 
-    mWayPointsPassed.append(mWayPointsAhead.takeAt(0));
     emit wayPoints(mWayPointsAhead.list(), WayPointListSource::WayPointListSourceFlightPlanner);
     qDebug() << "FlightPlannerParticles::slotWayPointReached(): rover->baseconnection->flightplanner waypoint reached, emitted wayPoints())";
     emit suggestVisualization();
@@ -369,6 +361,11 @@ void FlightPlannerParticles::slotWayPointReached(const WayPoint& wpt)
     // When no waypoints are left, start testing for water-leaks!
     if(mWayPointsAhead.isEmpty())
     {
+        qDebug() << __PRETTY_FUNCTION__ << "mWayPointsAhead is empty, starting waypoint generation";
+        emit message(
+                    Information,
+                    QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
+                    QString("No more waypoints, starting generation"));
         slotStartWayPointGeneration();
     }
 }
@@ -456,7 +453,7 @@ void FlightPlannerParticles::showInformationGain()
         Q_ASSERT(i == mSimulationParameters.gridInformationGain.getCellHash(mSimulationParameters.gridInformationGain.getCellCoordinate(i)) && "grid computation error!");
         if(informationGainMapHost[i] > 0)
         {
-            qDebug() << "grid cell hash" << i << "at grid-coord" << cell.x << cell.y << cell.z << "and pos" << CudaHelper::cudaConvert(mSimulationParameters.gridInformationGain.getCellCenter(cell)) << "has waypoint pressure" << informationGainMapHost[i];
+            qDebug() << "grid cell hash" << i << "at grid-coord" << cell.x << cell.y << cell.z << "and pos" << CudaHelper::convert(mSimulationParameters.gridInformationGain.getCellCenter(cell)) << "has waypoint pressure" << informationGainMapHost[i];
         }
     }
 
@@ -471,7 +468,7 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloud*const point
 
     mPointCloudColliders->slotInsertPoints(pointCloudSource, firstPointToReadFromSrc, numberOfPointsToCopy);
 
-    if(mBaseStation->getOperatingMode() == BaseStation::OperatingMode::OperatingOnline && mWayPointsAhead.size() == 0 && !mTimerStepSimulation.isActive() && !mTimerProcessInformationGain.isActive())
+    if(mBaseStation->getOperatingMode() == OperatingMode::OperatingOnline && mWayPointsAhead.size() == 0 && !mTimerStepSimulation.isActive() && !mTimerProcessInformationGain.isActive())
     {
         // This is the first time that points were inserted (and we have no waypoints) - start the physics processing!
         slotStartWayPointGeneration();

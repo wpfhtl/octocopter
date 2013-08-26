@@ -115,11 +115,11 @@ void BaseConnection::processPacket(QByteArray packet)
 
         emit motion(&mMotionCommand);
     }
-    else if(command == "enablescanning")
+    else if(command == "setscannerstate")
     {
         bool enable = false;
         stream >> enable;
-        emit enableScanning(enable);
+        emit scannerState(enable);
     }
     else if(command == "diffcorr")
     {

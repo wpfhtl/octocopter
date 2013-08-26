@@ -44,6 +44,8 @@ public slots:
     // Called by FlightPlanner when it has changed its internal list.
     void slotSetWayPoints(const QList<WayPoint> *const, const WayPointListSource source);
 
+    void slotSetOperatingMode(const OperatingMode om);
+
 private slots:
     void slotResizeToMinimum();
 
@@ -65,6 +67,7 @@ signals:
     void setScanVolume(Box3D);
     void wayPointSelected(int);
     void showUserInterface();
+    void setScannerState(bool enabled);
 
     // These signals are emitted when the controlwidget wants waypoints to be changed
     void wayPoints(const QList<WayPoint>* const, const WayPointListSource);

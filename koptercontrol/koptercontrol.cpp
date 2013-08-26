@@ -151,11 +151,15 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mKopter, &Kopter::fatalError, this, &KopterControl::slotFatalError);
 
     connect(mLaserScannerDown, &LaserScanner::distanceAtFront, mFlightController, &FlightController::slotSetHeightOverGround);
-    connect(mBaseConnection, &BaseConnection::enableScanning, mLaserScannerDown, &LaserScanner::slotEnableScanning);
-    connect(mBaseConnection, &BaseConnection::enableScanning, mLaserScannerFrnt, &LaserScanner::slotEnableScanning);
+    connect(mBaseConnection, &BaseConnection::scannerState, mLaserScannerDown, &LaserScanner::slotEnableScanning);
+    connect(mBaseConnection, &BaseConnection::scannerState, mLaserScannerFrnt, &LaserScanner::slotEnableScanning);
     connect(mBaseConnection, &BaseConnection::differentialCorrections, mGnssDevice, &GnssDevice::slotSetDifferentialCorrections);
     connect(mBaseConnection, &BaseConnection::wayPoints, mFlightController, &FlightController::slotSetWayPoints);
     connect(mBaseConnection, &BaseConnection::newConnection, mFlightController, &FlightController::slotEmitFlightControllerInfo);
+
+    // We manually swithc lasers on/off
+    //connect(mGnssDevice->getSbfParser(), &SbfParser::gnssDeviceWorkingPrecisely, mLaserScannerDown, &LaserScanner::slotEnableScanning);
+    //connect(mGnssDevice->getSbfParser(), &SbfParser::gnssDeviceWorkingPrecisely, mLaserScannerFrnt, &LaserScanner::slotEnableScanning);
 
     connect(mBaseConnection, &BaseConnection::controllerWeights, mFlightController, &FlightController::slotSetControllerWeights);
 
@@ -174,8 +178,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mGnssDevice->getSbfParser(), &SbfParser::newVehiclePoseStatus, mBaseConnection, &BaseConnection::slotSendVehiclePose);
 
     connect(mGnssDevice->getSbfParser(), &SbfParser::scanFinished, mSensorFuser, &SensorFuser::slotScanFinished);
-    connect(mGnssDevice->getSbfParser(), &SbfParser::gnssDeviceWorkingPrecisely, mLaserScannerDown, &LaserScanner::slotEnableScanning);
-    connect(mGnssDevice->getSbfParser(), &SbfParser::gnssDeviceWorkingPrecisely, mLaserScannerFrnt, &LaserScanner::slotEnableScanning);
+
     connect(mLaserScannerDown->getHokuyo(), &Hokuyo::scanRaw, mSensorFuser, &SensorFuser::slotNewScanRaw);
     connect(mLaserScannerFrnt->getHokuyo(), &Hokuyo::scanRaw, mSensorFuser, &SensorFuser::slotNewScanRaw);
     connect(mSensorFuser, SIGNAL(scanFused(const float*const,const quint32,const QVector3D*const)), mBaseConnection, SLOT(slotSendScanFused(const float*const,const quint32,const QVector3D*const)));

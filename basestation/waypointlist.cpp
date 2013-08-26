@@ -103,6 +103,12 @@ void WayPointList::sortToShortestPath(const QVector3D &vehiclePosition)
 {
     qDebug() << "WayPointList::sortToShortestPath(): vehicle is at" << vehiclePosition << "waypointlist contains" << mWaypoints.size() << "waypoints";
 
+    if(mWaypoints.size() == 0)
+    {
+        qDebug() << "WayPointList::sortToShortestPath(): 0 waypoints, returning.";
+        return;
+    }
+
     QTime t;t.start();
 
     Graph g;
@@ -114,11 +120,6 @@ void WayPointList::sortToShortestPath(const QVector3D &vehiclePosition)
     Path p = g.optTSP();
 
     mWaypoints.clear();
-
-    // Debugging only
-//    QStringList wayPointIndexOrder;
-//    for(int i=0;i<p.vertices.size();i++) wayPointIndexOrder.append(QString::number(p.vertices.at(i)));
-//    qDebug() << "WayPointList::sortToShortestPath(): vertex index order will be:" << wayPointIndexOrder.join(", ");
 
     // Do not use the first point, it's at the vehicle's position!
     qDebug() << "WayPointList::sortToShortestPath(): ignoring first point:" << wpl.at(p.vertices[0]);

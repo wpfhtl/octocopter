@@ -29,15 +29,20 @@ void fillOccupancyGridD(u_int8_t* gridValues, float4* colliderPos, unsigned int 
     uint particleIndex = getThreadIndex1D();
 
     if(particleIndex >= numColliders) return;
-    float3 particleToCollidePos = make_float3(colliderPos[particleIndex]);
 
-    // get grid-cell of particle
-    int3 particleGridCell = parametersPathPlanner.grid.getCellCoordinate(particleToCollidePos);
+    // ignore points scanned from closer than 3 meters, so that we ignore bernd and the fishing rod :)
+    float4 particleToCollidePos = colliderPos[particleIndex];
 
-    // The cell-hash IS the offset in memory, as cells are adressed linearly
-    int cellHash = parametersPathPlanner.grid.getCellHash2(particleGridCell);
+    //if(particleToCollidePos.w > 9.0) // 3m squared
+    //{
+        // get grid-cell of particle
+        int3 particleGridCell = parametersPathPlanner.grid.getCellCoordinate(make_float3(particleToCollidePos));
 
-    if(cellHash >= 0) gridValues[cellHash] = 255;
+        // The cell-hash IS the offset in memory, as cells are adressed linearly
+        int cellHash = parametersPathPlanner.grid.getCellHash2(particleGridCell);
+
+        if(cellHash >= 0) gridValues[cellHash] = 255;
+    //}
 }
 
 __global__
@@ -75,6 +80,106 @@ void dilateOccupancyGridD(u_int8_t* gridValues, unsigned int numCells)
             }
         }
     }
+}
+
+__global__ void clearOccupancyGridAboveVehiclePositionD(
+        unsigned char* gridValues,
+        float vehicleX,
+        float vehicleY,
+        float vehicleZ)
+{
+    float3 vehiclePos = make_float3(vehicleX, vehicleY, vehicleZ);
+
+    int3 gridCellCoordinate = parametersPathPlanner.grid.getCellCoordinate(vehiclePos);
+
+    for(int z=-2;z<=2;z++)
+    {
+        for(int y=-1;y<=1;y++)
+        {
+            for(int x=-2;x<=2;x++)
+            {
+                const int3 neighbourGridCellCoordinate = gridCellCoordinate + make_int3(x,y,z);
+                const int neighbourGridCellIndex = parametersPathPlanner.grid.getCellHash2(neighbourGridCellCoordinate);
+                float3 cellCenter = parametersPathPlanner.grid.getCellCenter(neighbourGridCellCoordinate);
+                printf("clearOccupancyGridAboveVehiclePositionD(): clearing cell at %.2f / %.2f / %.2f\n", cellCenter.x, cellCenter.y, cellCenter.z);
+                gridValues[neighbourGridCellIndex] = 0;
+            }
+        }
+    }
+}
+
+
+void clearOccupancyGridAboveVehiclePosition(
+        unsigned char* gridValues,
+        float vehicleX,
+        float vehicleY,
+        float vehicleZ,
+        cudaStream_t *stream)
+{
+    clearOccupancyGridAboveVehiclePositionD<<< 1, 1, 0, *stream>>>(gridValues, vehicleX, vehicleY, vehicleZ);
+    cudaCheckSuccess("clearOccupancyGridAboveVehiclePosition");
+}
+
+__global__ void moveWayPointsToSafetyD(unsigned char* gridValues, float4* deviceWaypoints, unsigned int numberOfWayPoints)
+{
+    uint wptIndex = getThreadIndex1D();
+    if(wptIndex >= numberOfWayPoints) return;
+
+    float4 waypoint = deviceWaypoints[wptIndex];
+
+    int3 gridCellCoordinate = parametersPathPlanner.grid.getCellCoordinate(make_float3(waypoint));
+
+    int searchOrderHorizontal[3];
+    searchOrderHorizontal[0] = 0;
+    searchOrderHorizontal[1] = -1;
+    searchOrderHorizontal[2] = +1;
+
+    bool freeCellFound = false;
+    if(wptIndex == 0) printf("cell height is %.2f meters\n", parametersPathPlanner.grid.getCellSize().y);
+
+    // With a scanner range of 15m, how many cells should we search upwards of the waypoint candidate?
+    unsigned int maxNumberOfGridCellsToGoUp = 15.0 / parametersPathPlanner.grid.getCellSize().y;
+    printf("waypoint %d at %.2f/%.2f/%.2f will search %d cells up.\n", wptIndex, waypoint.x, waypoint.y, waypoint.z, maxNumberOfGridCellsToGoUp);
+
+    for(int z=0;z<3 && !freeCellFound;z++)
+    {
+        for(int x=0;x<3 && !freeCellFound;x++)
+        {
+            for(int y=2;y<maxNumberOfGridCellsToGoUp && !freeCellFound;y++)
+            {
+                const int3 neighbourGridCellCoordinate = gridCellCoordinate + make_int3(searchOrderHorizontal[x],y,searchOrderHorizontal[z]);
+                const int neighbourGridCellIndex = parametersPathPlanner.grid.getCellHash2(neighbourGridCellCoordinate);
+
+                if(gridValues[neighbourGridCellIndex] == 0)
+                {
+                    freeCellFound = true;
+                    float3 cellCenter = parametersPathPlanner.grid.getCellCenter(neighbourGridCellCoordinate);
+                    deviceWaypoints[wptIndex] = make_float4(cellCenter, waypoint.w);
+                    printf("waypoint %d found free neighbor at %.2f/%.2f/%.2f.\n", wptIndex, cellCenter.x, cellCenter.y, cellCenter.z);
+                }
+            }
+        }
+    }
+
+    // The waypoint is unusable, remove it!
+    if(!freeCellFound)
+    {
+        printf("waypoint %d found no free neighbor.\n");
+        deviceWaypoints[wptIndex] = make_float4(0.0);
+    }
+}
+
+void moveWayPointsToSafetyGpu(
+        unsigned char*  gridOccupancy,
+        float*          mDeviceWaypoints,
+        unsigned int    numberOfWayPoints,
+        cudaStream_t*   stream)
+{
+    uint numThreads, numBlocks;
+    computeExecutionKernelGrid(numberOfWayPoints, 64, numBlocks, numThreads);
+
+    moveWayPointsToSafetyD<<< numBlocks, numThreads, 0, *stream>>>(gridOccupancy, (float4*)mDeviceWaypoints, numberOfWayPoints);
+    cudaCheckSuccess("moveWayPointsToSafetyGpu");
 }
 
 void fillOccupancyGrid(unsigned char* gridValues, float* colliderPos, unsigned int numColliders, unsigned int numCells, cudaStream_t *stream)

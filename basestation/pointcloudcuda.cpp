@@ -193,7 +193,7 @@ bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint
 
 //    qDebug() << "PointCloudCuda::slotInsertPoints4():" << mName << "inserted" << numberOfPointsToAppend << "points, vbo elements:" << mVboInfo[0].size << "elements:" << mParameters.elementCount << "queue:" << mParameters.elementQueueCount;
 
-    if(mParameters.elementQueueCount > mParameters.capacity / 100)
+    if(mParameters.elementQueueCount > mParameters.capacity / 30)
     {
         emit pointsInserted(this, mParameters.elementCount, mParameters.elementQueueCount);
         slotReduce();

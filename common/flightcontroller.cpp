@@ -111,6 +111,7 @@ void FlightController::slotComputeMotionCommands()
                                 )
                             );
 
+                // If there is a next waypoint after the current one, we want to yaw towards it shortly before reaching the current one.
                 if(mWayPoints.size() > 1)
                 {
                     const QVector3D trajectory = mWayPoints.at(1) - mFlightControllerValues.trajectoryGoal;
@@ -122,7 +123,7 @@ void FlightController::slotComputeMotionCommands()
                                 );
                 }
 
-                // If we're close to it, move the hoverPosition towards trajectoryGoal
+                // Move the hoverPosition towards trajectoryGoal
                 mFlightControllerValues.hoverPosition = getHoverPosition(
                             mFlightControllerValues.trajectoryStart,
                             mFlightControllerValues.trajectoryGoal,
@@ -152,6 +153,7 @@ void FlightController::slotComputeMotionCommands()
             // If we're close to the upcoming waypoint, already start orienting towards the next!
             if(angleToYawDegreesAfterNextWaypoint != 0.0f)
             {
+                // At 1.0m distance, rotate to current trajectory angle. At 0.0m, rotate to next trajectory angle. In between, fade!
                 angleToYawDegreesNow = blend(1.0, 0.0, distanceToGoal, angleToYawDegreesNow, angleToYawDegreesAfterNextWaypoint);
             }
 
@@ -179,13 +181,6 @@ void FlightController::slotComputeMotionCommands()
             QVector3D worldFrameSpeedValue(mFlightControllerValues.lastKnownPose.getVelocity());
             worldFrameSpeedValue.setY(0.0f);
 
-            // We want the offset to the goal over the pitch axis. Right after reaching a waypoint, trajectoryGoal can be behind the vehicle
-            // when angleToYawDegrees is still large (orientation in progress). But pitching to trajectoryGoal behind you while yawing isn't
-            // good, as it causes weird behaviour (kopterlog-20130430-105341-1120-normandienstagnoadjust-gnssdata.sbf, 212210600).
-            // To fix this, we pitch towards the hoverposition while orientation is in progress and towards trajectorygoal after that.
-            // Of course, we need to fade this to prevent abrupt changes.
-//            const QVector3D hoverPosToGoal = mFlightControllerValues.trajectoryGoal - mFlightControllerValues.hoverPosition;
-
             QVector3D pitchTarget = mFlightControllerValues.flightState.state == FlightState::State::ApproachWayPoint ? mFlightControllerValues.trajectoryGoal : mFlightControllerValues.hoverPosition;
 
             float lateralOffsetPitchToTrajectoryGoal = getLateralOffsetOnVehiclePitchAxisToPosition(
@@ -211,57 +206,9 @@ void FlightController::slotComputeMotionCommands()
             float velOverPitchDesired = (3.0f * lateralOffsetPitchToTrajectoryGoal) / qBound(1.0, sqrt(fabs(angleToYawDegreesNow)), 15.0);
             velOverPitchDesired = qBound(-mMaxFlightVelPerAxis, velOverPitchDesired, mMaxFlightVelPerAxis);
 
-            // If we're approaching the goal waypoint, there's no need to slow if the next wpt is ahead (less than 90deg turn)
-            /*float angleBetweenTrajectories = 0.0f;
-            if(false && mWayPoints.size() > 1)
-            {
-                const QVector3D trajectoryPre = mFlightControllerValues.trajectoryGoal - mFlightControllerValues.trajectoryStart;
-                const QVector3D trajectoryPost = mWayPoints.at(1) - mFlightControllerValues.trajectoryGoal;
-                angleBetweenTrajectories = -RAD2DEG(Pose::getShortestTurnRadians(atan2(trajectoryPre.x(), trajectoryPre.z()) - atan2(trajectoryPost.x(), trajectoryPost.z())));
-
-                // If we're supposed to fly forward and we're oriented correctly (thats the case when we've departed trajectoryStart) and the upcoming path is straight, then don't brake shortly before reaching the goal!
-                if(fabs(angleBetweenTrajectories) < 90.0f)
-                {
-                    float lateralOffsetPitchToNextWayPoint = getLateralOffsetOnVehiclePitchAxisToPosition(
-                                mFlightControllerValues.lastKnownPose.getPosition(),
-                                mFlightControllerValues.lastKnownPose.getYawRadians(),
-                                mWayPoints.at(1));
-
-                    // Pitch less when orientation is still wrong!
-                    float velOverPitchDesiredToNextWaypoint = qBound(
-                                -mMaxFlightVelPerAxis,
-                                (float)(lateralOffsetPitchToNextWayPoint / qBound(1.0, sqrt(fabs(angleToYawDegreesNow)), 15.0)), // Pitch less when orientation is still wrong!
-                                mMaxFlightVelPerAxis);
-
-                    velOverPitchDesired = blend(1, -1, lateralOffsetPitchToTrajectoryGoal, velOverPitchDesired, velOverPitchDesiredToNextWaypoint);
-
-                    velOverPitchDesired = qBound(-mMaxFlightVelPerAxis, velOverPitchDesired, mMaxFlightVelPerAxis);
-
-                    // DO pitch towards the next waypoint (not current), but only if roll-offset and angleToYaw are small!
-
-                    //velOverPitchDesired = std::max(velOverPitchDesired, qBound(-mMaxFlightVelPerAxis, velOverPitchDesired2, mMaxFlightVelPerAxis));
-                    //const float velOverPitchDesiredTowardsNextWayPoint = qBound(-mMaxFlightVelPerAxis, lateralOffsetPitchToNextWayPoint, mMaxFlightVelPerAxis);
-                    // Only fly towards the next (not current) wpt if that also means flying forward!
-                    //if(velOverPitchDesiredTowardsNextWayPoint < 0)
-                }
-            }
-            qDebug() << "angle to yaw" << angleToYawDegreesNow << "- anglebetween trajectories" << angleBetweenTrajectories << "pitchOffset:" << lateralOffsetPitchToTrajectoryGoal << "velOverPitchDesired:" << velOverPitchDesired << "velOverPitchValue" << velOverPitchValue;*/
-
             // Do not bound desired speed over roll, we want to correct quickly.
             const float velOverRollDesired  = /*qBound(-mMaxFlightVelPerAxis,*/ 2.0f * lateralOffsetRollToTrajectory/*, mMaxFlightVelPerAxis)*/;
 
-//            QVector3D horizontalVelocity(mFlightControllerValues.lastKnownPose.getPosition());
-//            horizontalVelocity.setY(0.0f);
-/*
-            qDebug() << "FlightController::slotComputeMotionCommands():" << getFlightState().toString() << mFlightControllerValues.lastKnownPose
-                     << "maxVelPerAxis:" << mMaxFlightVelPerAxis
-                     << "horVel" << horizontalVelocity.length()
-                     << "trajGoal:" << mFlightControllerValues.trajectoryGoal
-                     << "angleToYawDeg:" << angleToYawDegrees << "deg" << (angleToYawDegrees < 0.0f ? "right" : "left") << "- adj:" << angleToYawDegreesAdjusted
-                     << "offset pitchToGoal" << lateralOffsetPitchToTrajectoryGoal << "rollToTraj" << lateralOffsetRollToTrajectory
-                     << "velPitchVal" << velOverPitchValue << "velPitchDes" << velOverPitchDesired
-                     << "velRollVal" << velOverRollValue << "velRollDes" << velOverRollDesired;
-*/
             // speedPitch denotes the vehicle's translation speed forward/backward. This speed goes along its Z-axis,
             // which points backwards. A positive speed thus means moving backwards. Positive pitch-control values
             // also mean bending backwards, so this matches.
@@ -276,19 +223,16 @@ void FlightController::slotComputeMotionCommands()
 
             mFlightControllerValues.motionCommand = MotionCommand(outputThrust, outputYaw, outputPitch, outputRoll);
 
-            // See whether we've reached the waypoint. Here, we check that not the vehicle, but the hoverposition is close to the waypoint.
+            // See whether we've reached the waypoint. Here, we check that not only the vehicle, but also the hoverposition is close to the waypoint.
             // If the hoverpos is 40cm in front of the goal and we switched to the next waypoint, the hoverposition would jump. This is not
             // good for a D-controller.
             if(
                     mFlightControllerValues.flightState.state == FlightState::State::ApproachWayPoint
-                    && mFlightControllerValues.hoverPosition.distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < mDistanceWayPointReached // hoverpos close to wp
+                    //&& mFlightControllerValues.hoverPosition.distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < mDistanceWayPointReached // hoverpos close to wp
                     && mFlightControllerValues.lastKnownPose.getPosition().distanceToLine(mFlightControllerValues.trajectoryGoal, QVector3D()) < mDistanceWayPointReached) // vehicle close to wp
             {
                 nextWayPointReached();
             }
-
-            // REMOVE! TODO BEN
-            //mFlightControllerValues.hoverPosition = pitchTarget;
         }
         else
         {
@@ -931,18 +875,6 @@ QVector3D FlightController::getHoverPosition(const QVector3D& trajectoryStart, c
     }
 
     mTrajectoryProgress = std::max(mTrajectoryProgress, projectedTrajectoryProgress);
-
-/* do not advance, we're speed-based now:
-    const QVector3D projectedHoverPosition(trajectoryStart + (trajectoryUnitVector * projectedTrajectoryProgress));
-    const float distanceFromVehicleToProjectedHoverPosition = vehiclePosition.distanceToLine(projectedHoverPosition, QVector3D());
-
-    if(distanceFromVehicleToProjectedHoverPosition < desiredDistanceToHoverPosition)
-    {
-        // The vehicle is so close that we should advance the carrot, to keep it desiredDistanceToHoverPosition in front
-        const float advanceHoverPosition = sqrt(pow(desiredDistanceToHoverPosition, 2.0f) - pow(distanceFromVehicleToProjectedHoverPosition, 2.0f));
-        const float newTrajectoryProgress = std::min(projectedTrajectoryProgress + advanceHoverPosition, trajectoryLength);
-        mTrajectoryProgress = std::max(mTrajectoryProgress, newTrajectoryProgress);
-    }*/
 
     qDebug() << "FlightController::getHoverPosition(): TS" << trajectoryStart << "VP" << vehiclePosition << "TUV" << trajectoryUnitVector << "TL" << trajectoryLength << "VFTSTV" << vectorFromTrajectoryStartToVehicle << "PTP" << projectedTrajectoryProgress << "MTP" << mTrajectoryProgress;
 

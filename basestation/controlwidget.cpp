@@ -29,9 +29,12 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
     connect(mWayPointTable, SIGNAL(cellClicked(int,int)), SIGNAL(wayPointSelected(int)));
     connect(mWayPointTable, SIGNAL(cellEntered(int,int)), SIGNAL(wayPointSelected(int)));
 
-    connect(mBtnSetScanVolume, &QPushButton::clicked, this, &ControlWidget::slotSetScanVolume);
+    connect(mBtnEnableScanning, &QPushButton::toggled, [=](const bool checked){
+        mBtnEnableScanning->setText(checked ? "Enabled" : "Disabled");
+        emit setScannerState(checked);
+    });
 
-    mBarWirelessRssi->setRange(0, 100);
+    connect(mBtnSetScanVolume, &QPushButton::clicked, this, &ControlWidget::slotSetScanVolume);
 
     QTimer::singleShot(0, this, SLOT(slotResizeToMinimum()));
 
@@ -41,6 +44,12 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
 ControlWidget::~ControlWidget()
 {
 //    delete mStyle;
+}
+
+void ControlWidget::slotSetOperatingMode(const OperatingMode om)
+{
+    mBtnEnableScanning->setEnabled(om == OperatingMode::OperatingOnline);
+    mBtnEnableScanning->setText(om == OperatingMode::OperatingOnline ? "Enabled" : "Disabled");
 }
 
 void ControlWidget::slotResizeToMinimum()
@@ -146,16 +155,6 @@ void ControlWidget::slotUpdateVehicleStatus(const VehicleStatus *const vs)
     mLabelMissionRunTime->setText(
             QString("%1:%2:%3").arg(QString::number(hours), 2, '0').arg(QString::number(mins), 2, '0').arg(QString::number(secs), 2, '0')
             );
-
-    if(vs->wirelessRssi < 0 && mBarWirelessRssi->maximum() == 100)
-    {
-        mBarWirelessRssi->setRange(0, 0);
-    }
-    else
-    {
-        mBarWirelessRssi->setRange(0, 100);
-        mBarWirelessRssi->setValue(vs->wirelessRssi);
-    }
 
     mLabelBatteryVoltage->setText(QString::number(vs->batteryVoltage, 'f', 2) + " V");
     if(vs->batteryVoltage > 13.5) mLabelBatteryVoltage->setStyleSheet(""); else mLabelBatteryVoltage->setStyleSheet(getBackgroundCss(true, false));
