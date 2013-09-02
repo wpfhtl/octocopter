@@ -82,12 +82,24 @@ void GlWindow::slotInitialize()
         exit(1);
     }
 
+    mOpenGlDebugLogger = new QOpenGLDebugLogger( this );
+    connect(mOpenGlDebugLogger, SIGNAL( messageLogged(QOpenGLDebugMessage)), this, SLOT(slotOpenGlDebugMessage(QOpenGLDebugMessage)), Qt::DirectConnection);
+    if(mOpenGlDebugLogger->initialize())
+    {
+        mOpenGlDebugLogger->startLogging(QOpenGLDebugLogger::SynchronousLogging);
+        mOpenGlDebugLogger->enableMessages();
+    }
+
     OpenGlUtilities::init();
 
-    // Create Vertex Array Object to contain our VBOs
-    glGenVertexArrays(1, &mVertexArrayObject);
-    // Bind the VAO to the context
-    glBindVertexArray(mVertexArrayObject);
+    mShaderProgramDefault = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
+    mShaderProgramPointCloud = new ShaderProgram(this, "shader-pointcloud-vertex.c", "", "shader-pointcloud-fragment.c");
+    mShaderProgramRawScanRays = new ShaderProgram(this, "shader-rawscanrays-vertex.c", "shader-rawscanrays-geometry.c", "shader-default-fragment.c");
+
+    // Create Vertex Array Object to contain our state and VBOs
+    mVertexArrayObject = new QOpenGLVertexArrayObject(this);
+    mVertexArrayObject->create();
+    mVertexArrayObject->bind();
 
     CudaHelper::initializeCuda();
 
@@ -99,10 +111,6 @@ void GlWindow::slotInitialize()
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
     // Now bind this UBO to a uniform-block binding-point
     glBindBufferRange(GL_UNIFORM_BUFFER, ShaderProgram::blockBindingPointGlobalMatrices, mUboId, 0, mUboSize);
-
-    mShaderProgramDefault = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
-    mShaderProgramPointCloud = new ShaderProgram(this, "shader-pointcloud-vertex.c", "", "shader-pointcloud-fragment.c");
-    mShaderProgramRawScanRays = new ShaderProgram(this, "shader-rawscanrays-vertex.c", "shader-rawscanrays-geometry.c", "shader-default-fragment.c");
 
     // Create a VBO for the vehicle's path.
     glGenBuffers(1, &mVboVehiclePath);
@@ -947,4 +955,11 @@ void GlWindow::reloadShaders()
     mShaderProgramDefault->initialize();
     mShaderProgramPointCloud->initialize();
     mShaderProgramRawScanRays->initialize();
+}
+
+void GlWindow::slotOpenGlDebugMessage(const QOpenGLDebugMessage message)
+{
+    qDebug() << message;
+    if(message.severity() != QOpenGLDebugMessage::Severity::LowSeverity)
+        qDebug() << "huh!";
 }

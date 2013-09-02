@@ -46,12 +46,6 @@ ControlWidget::~ControlWidget()
 //    delete mStyle;
 }
 
-void ControlWidget::slotSetOperatingMode(const OperatingMode om)
-{
-    mBtnEnableScanning->setEnabled(om == OperatingMode::OperatingOnline);
-    mBtnEnableScanning->setText(om == OperatingMode::OperatingOnline ? "Enabled" : "Disabled");
-}
-
 void ControlWidget::slotResizeToMinimum()
 {
     // super ugly....
@@ -143,6 +137,11 @@ void ControlWidget::slotUpdatePose(const Pose * const pose)
     mLabelYaw->setText(deg.arg(pose->getYawDegrees(), 3, 'f', 2, '0'));
 
     mCompass->setValue(pose->getYawDegrees()+180.0f);
+
+    if(!mBtnEnableScanning->isEnabled() && pose->isSufficientlyPreciseForSensorFusion())
+    {
+        mBtnEnableScanning->setEnabled(true);
+    }
 }
 
 void ControlWidget::slotUpdateVehicleStatus(const VehicleStatus *const vs)

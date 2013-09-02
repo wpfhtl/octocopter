@@ -49,6 +49,14 @@ WayPoint WayPointList::takeAt(const int index)
     return wpt;
 }
 
+void WayPointList::setHeight(const float height)
+{
+    for(int i=0;i<mWaypoints.size();i++)
+    {
+        mWaypoints[i].setY(height);
+    }
+}
+
 void WayPointList::mergeCloseWaypoints(const float minimumDistance)
 {
     for(int i=0;i<mWaypoints.size();i++)

@@ -46,7 +46,7 @@ private:
     bool mRenderScanVolume, mRenderDetectionVolume, mRenderWayPointsAhead, mRenderWayPointsPassed;
 
     WayPointList mWayPointsAhead, mWayPointsPassed;
-    unsigned int mVboBoundingBox, mVboWayPointConnections;
+    unsigned int mVboBoundingBoxScanVolume, mVboWayPointConnections;
 
     ShaderProgram *mShaderProgramDefault, *mShaderProgramWaypoint;
 

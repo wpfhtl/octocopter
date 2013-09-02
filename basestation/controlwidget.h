@@ -44,8 +44,6 @@ public slots:
     // Called by FlightPlanner when it has changed its internal list.
     void slotSetWayPoints(const QList<WayPoint> *const, const WayPointListSource source);
 
-    void slotSetOperatingMode(const OperatingMode om);
-
 private slots:
     void slotResizeToMinimum();
 

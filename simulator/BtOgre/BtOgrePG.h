@@ -108,6 +108,7 @@ class RigidBodyState : public QObject, public btMotionState
                         );
 
             p.setVelocity(velocity);
+            p.covariances = Pose::maximumUsableCovariance / 10.0f;
 
             // Whee, we are precise!!
             p.precision = Pose::AttitudeAvailable | Pose::HeadingFixed | Pose::RtkFixed | Pose::CorrectionAgeLow;

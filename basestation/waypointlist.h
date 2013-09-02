@@ -26,6 +26,8 @@ public:
     WayPointList(const WayPointList& other);
     ~WayPointList();
 
+    void setHeight(const float height);
+
     QString toString() const;
 
     bool isEmpty() const

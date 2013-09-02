@@ -233,6 +233,9 @@
        </item>
        <item row="2" column="3">
         <widget class="QPushButton" name="mBtnEnableScanning">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
          <property name="sizePolicy">
           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
            <horstretch>0</horstretch>
@@ -252,13 +255,13 @@
           </size>
          </property>
          <property name="text">
-          <string>Enabled</string>
+          <string>Disabled</string>
          </property>
          <property name="checkable">
           <bool>true</bool>
          </property>
          <property name="checked">
-          <bool>true</bool>
+          <bool>false</bool>
          </property>
         </widget>
        </item>

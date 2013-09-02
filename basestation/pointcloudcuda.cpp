@@ -193,7 +193,7 @@ bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint
 
 //    qDebug() << "PointCloudCuda::slotInsertPoints4():" << mName << "inserted" << numberOfPointsToAppend << "points, vbo elements:" << mVboInfo[0].size << "elements:" << mParameters.elementCount << "queue:" << mParameters.elementQueueCount;
 
-    if(mParameters.elementQueueCount > mParameters.capacity / 30)
+    if(mParameters.elementQueueCount > mParameters.capacity / 50)
     {
         emit pointsInserted(this, mParameters.elementCount, mParameters.elementQueueCount);
         slotReduce();
@@ -437,47 +437,60 @@ void PointCloudCuda::slotReset()
     mVboInfo[0].size = 0;
 }
 
-bool PointCloudCuda::importFromPly(const QString& fileName, QWidget* widget)
+bool PointCloudCuda::importFromFile(const QString& fileName, QWidget* widget)
 {
-    PlyManager pm(widget);
-
-    if(!pm.open(fileName, PlyManager::DataLoadFromFile))
-        return false;
-
-    quint32 numPointsToLoad = pm.getNumberOfPoints();
-    numPointsToLoad = qMin(mParameters.capacity - mParameters.elementQueueCount - mParameters.elementCount, numPointsToLoad);
-
-    float* points = new float[4*numPointsToLoad];
-
-    pm.loadPly4D(points, 0, numPointsToLoad);
-
-    slotInsertPoints4(points, numPointsToLoad);
-
-    delete points;
-
-    return true;
-}
-
-bool PointCloudCuda::exportToPly(const QString& fileName, QWidget *widget)
-{
-    PlyManager pm(widget);
-    if(!pm.open(fileName, PlyManager::DataSaveToFile))
-        return false;
-
-    pm.writeHeader(getNumberOfPoints(), PlyManager::NormalsNotIncluded, PlyManager::DirectionNotIncluded);
-
-    for(int i=0;i < mVboInfo.size();i++)
+    if(fileName.toLower().contains(".ply"))
     {
-        glBindBuffer(GL_ARRAY_BUFFER, mVboInfo[0].vbo);
+        PointCloudReaderPly pcr(fileName);
+        if(!pcr.open())
+        {
+            if(widget != nullptr) QMessageBox::critical(widget, "Error reading file", QString("Could not open file %1 for reading.").arg(fileName));
+            return false;
+        }
 
-        float* points = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY);
+        quint32 numPointsToLoad = pcr.getNumberOfPoints();
+        numPointsToLoad = qMin(mParameters.capacity - mParameters.elementQueueCount - mParameters.elementCount, numPointsToLoad);
 
-        pm.savePly4D(points, mVboInfo.at(i).size);
+        float* points = new float[4*numPointsToLoad];
+        pcr.readPoints(points, numPointsToLoad, widget);
+        slotInsertPoints4(points, numPointsToLoad);
+        delete points;
 
-        glUnmapBuffer(GL_ARRAY_BUFFER);
-
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        return true;
     }
 
-    return true;
+    QMessageBox::critical(widget, "Error reading file", QString("I do not know the type of file %1.").arg(fileName));
+    return false;
+}
+
+bool PointCloudCuda::exportToFile(const QString& fileName, QWidget *widget)
+{
+    if(fileName.toLower().contains(".ply"))
+    {
+        PointCloudWriterPly pcw(fileName);
+        pcw.setDataFormat(DataFormatBinaryBigEndian);
+        if(!pcw.open())
+        {
+            if(widget != nullptr) QMessageBox::critical(widget, "Error writing file", QString("Could not open file %1 for writing.").arg(fileName));
+            return false;
+        }
+
+        for(int i=0;i < mVboInfo.size();i++)
+        {
+            glBindBuffer(GL_ARRAY_BUFFER, mVboInfo[0].vbo);
+
+            float* points = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY);
+
+            pcw.writePoints(points, mVboInfo.at(i).size, widget);
+
+            glUnmapBuffer(GL_ARRAY_BUFFER);
+
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+        }
+
+        return true;
+    }
+
+    QMessageBox::critical(widget, "Error reading file", QString("I do not know the type of file %1.").arg(fileName));
+    return false;
 }

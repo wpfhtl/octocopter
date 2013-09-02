@@ -258,11 +258,7 @@ void PathPlanner::moveWayPointsToSafety(WayPointList* wayPointList)
         {
             if(waypointsHost[4*i+3] > 0.0f)
             {
-                wayPointList->append(
-                            WayPoint(
-                                QVector3D(waypointsHost[4*i+0], waypointsHost[4*i+1], waypointsHost[4*i+2]),
-                                waypointsHost[4*i+3]
-                            ));
+                wayPointList->append(WayPoint(QVector3D(waypointsHost[4*i+0], waypointsHost[4*i+1], waypointsHost[4*i+2]), waypointsHost[4*i+3]));
             }
         }
 

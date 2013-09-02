@@ -421,13 +421,13 @@ void GnssDevice::slotCommunicationSetup()
 
     // We want to know the pose - often. But on startup, we ask for slower data and then raise to msec20 when
     // the poses are of higher quality. See slotSetPoseFrequency()
-    slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec200");
+    slotQueueCommand("setSBFOutput,Stream1,"+mSerialPortOnDeviceUsb+",IntPVAAGeod,msec100");
 
     // We want to know PVTCartesion for MeanCorrAge (average correction data age), ReceiverStatus for CPU Load and IntAttCovEuler for Covariances (sigma-values)
     slotQueueCommand("setSBFOutput,Stream2,"+mSerialPortOnDeviceUsb+",PVTCartesian+ReceiverStatus+IntAttCovEuler,msec500");
 
     // We want to know whenever a scan is finished.
-    slotQueueCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceCom+",ExtEvent,OnChange");
+    slotQueueCommand("setSBFOutput,Stream3,"+mSerialPortOnDeviceUsb+",ExtEvent,OnChange");
 
     // We want to know what time it is
     // Update: No, we don't. Re-setting system-time in times of high system loads does NOT improve
@@ -435,7 +435,7 @@ void GnssDevice::slotCommunicationSetup()
     //slotQueueCommand("setSBFOutput,Stream4,"+mSerialPortOnDeviceCom+",ReceiverTime,sec30");
 
     // For now, record support messages for septentrio
-    slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,sec1"); // septentrio wants msec100, but that kills the cpu
+    slotQueueCommand("setSBFOutput,Stream5,"+mSerialPortOnDeviceUsb+",Support,sec2"); // septentrio wants msec100, but that kills the cpu
 
     // BBSamples contains data for the spectrum view, but Vim (not the editor, the RF-guy of Septentrio fame) said this is a VERY heavy packet.
     // So we skip this for now to keep the CPU load low (it was over 80%!)

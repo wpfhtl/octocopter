@@ -590,14 +590,7 @@ qint8 SensorFuser::matchTimestamps()
 
 void SensorFuser::slotNewVehiclePose(const Pose* const pose)
 {
-    if(!(
-                pose->precision & Pose::AttitudeAvailable &&
-                pose->precision & Pose::RtkFixed &&
-                pose->precision & Pose::CorrectionAgeLow &&
-                pose->precision & Pose::HeadingFixed &&
-                //pose->precision & Pose::ModeIntegrated &&
-                pose->covariances < Pose::maximumUsableCovariance
-                ))
+    if(!pose->isSufficientlyPreciseForSensorFusion())
     {
         qDebug() << "SensorFuser::slotNewVehiclePose(): received pose is not precise enough for fusing:" << pose->toString(true);
         return;

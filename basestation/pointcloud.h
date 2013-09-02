@@ -58,8 +58,8 @@ public:
     virtual quint32 getNumberOfPoints(void) const = 0;
     virtual quint32 getCapacity(void) const = 0;
 
-    virtual bool exportToPly(const QString& fileName, QWidget* widget = 0) = 0;
-    virtual bool importFromPly(const QString& fileName, QWidget* widget = 0) = 0;
+    virtual bool exportToFile(const QString& fileName, QWidget* widget = 0) = 0;
+    virtual bool importFromFile(const QString& fileName, QWidget* widget = 0) = 0;
 
 public slots:
     // Clears the datastructure, but does not destruct it. Points can still be inserted afterwards.

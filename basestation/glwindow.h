@@ -8,6 +8,7 @@
 #include <QVector3D>
 #include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLFunctions_4_3_Core>
+#include <QOpenGLDebugLogger>
 
 #include <cuda_gl_interop.h>
 
@@ -54,7 +55,9 @@ class GlWindow : public QWindow, protected OPENGL_FUNCTIONS_CLASS
     // The components of this vector store the rotation (in degrees) of the camera around the origin
     QVector2D mCameraRotation;
 
-    GLuint mVertexArrayObject;
+    QOpenGLVertexArrayObject* mVertexArrayObject;
+
+    QOpenGLDebugLogger* mOpenGlDebugLogger;
 
     unsigned int mVboVehicle, mVboAxes, mVboRawScanRays;
 
@@ -89,6 +92,9 @@ class GlWindow : public QWindow, protected OPENGL_FUNCTIONS_CLASS
     void resize();
     void exposeEvent(QExposeEvent *event);
     void resizeEvent(QResizeEvent *event);
+
+private slots:
+    void slotOpenGlDebugMessage(const QOpenGLDebugMessage message);
 
 public:
     GlWindow(QWindow *parent = 0/*, FlightPlannerInterface* flightPlanner*/);

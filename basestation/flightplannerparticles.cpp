@@ -8,7 +8,7 @@
 FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindow *glWidget, PointCloud *pointcloud) :
     QObject(baseStation),
     mWayPointsAhead(QColor(255,200,0,200)),
-    mWayPointsPassed(QColor(255,180,140,150))
+    mWayPointsPassed(QColor(128,128,128,50))
 {
     mGlWindow = glWidget;
     mBaseStation = baseStation;
@@ -22,7 +22,7 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
     mVboGridMapOfInformationGainFloats = 0;
     mDeviceGridInformationGainCellWorldPositions = 0;
     mShaderProgramDefault = mShaderProgramWaypoint = 0;
-    mVboBoundingBox = 0;
+    mVboBoundingBoxScanVolume = 0;
     mVboWayPointConnections = 0;
 
     mRenderWayPointsAhead = mRenderWayPointsPassed = true;
@@ -301,7 +301,7 @@ void FlightPlannerParticles::slotSetScanVolume(const Box3D scanVolume)
 
     mScanVolume = scanVolume;
 
-    OpenGlUtilities::setVboToBoundingBox(mVboBoundingBox, mScanVolume);
+    OpenGlUtilities::setVboToBoundingBox(mVboBoundingBoxScanVolume, mScanVolume);
 
     mSimulationParameters.gridInformationGain.worldMin = CudaHelper::convert(mScanVolume.min);
     mSimulationParameters.gridInformationGain.worldMax = CudaHelper::convert(mScanVolume.max);
@@ -492,10 +492,10 @@ void FlightPlannerParticles::slotVisualize()
         mShaderProgramWaypoint = new ShaderProgram(this, "shader-waypoint-vertex.c", "", "shader-waypoint-fragment.c");
     }
 
-    if(mVboBoundingBox == 0)
+    if(mVboBoundingBoxScanVolume == 0)
     {
-        glGenBuffers(1, &mVboBoundingBox);
-        OpenGlUtilities::setVboToBoundingBox(mVboBoundingBox, mScanVolume);
+        glGenBuffers(1, &mVboBoundingBoxScanVolume);
+        OpenGlUtilities::setVboToBoundingBox(mVboBoundingBoxScanVolume, mScanVolume);
     }
 
     if(mRenderScanVolume && mShaderProgramDefault != 0)
@@ -506,7 +506,7 @@ void FlightPlannerParticles::slotVisualize()
         glEnable(GL_BLEND);
         glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
         {
-            glBindBuffer(GL_ARRAY_BUFFER, mVboBoundingBox);
+            glBindBuffer(GL_ARRAY_BUFFER, mVboBoundingBoxScanVolume);
             glEnableVertexAttribArray(0);
             glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0); // position
 
@@ -531,7 +531,6 @@ void FlightPlannerParticles::slotVisualize()
 
     if(mShaderProgramDefault != 0 && mShaderProgramWaypoint != 0)
     {
-
         glEnable(GL_BLEND);
         glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
         {

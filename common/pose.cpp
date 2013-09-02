@@ -582,6 +582,21 @@ bool Pose::isSufficientlyPreciseForFlightControl() const
             && precision & Pose::RtkFixed;          // When switching from RtkFixed to Differential, height can jump by >30m in 1 second(!)
 }
 
+bool Pose::isSufficientlyPreciseForSensorFusion() const
+{
+    if(
+            precision & Pose::AttitudeAvailable &&
+            precision & Pose::RtkFixed &&
+            precision & Pose::CorrectionAgeLow &&
+            precision & Pose::HeadingFixed &&
+            //precision & Pose::ModeIntegrated &&
+            covariances < Pose::maximumUsableCovariance
+            )
+        return true;
+    else
+        return false;
+}
+
 
 // Must be able to process what operator<< writes above, for example:
 // pose t501171350 (-30.49/51.84/140.01) YPR (155.27/2.92/-1.03) VEL (0.12/-0.01/0.47) PR 17 CO 2.34

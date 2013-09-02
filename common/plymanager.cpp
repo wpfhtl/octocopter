@@ -1,184 +1,322 @@
 #include "plymanager.h"
+#include "common.h"
 
-PlyManager::PlyManager(QWidget *widget) : QObject()
+PointCloudReaderPly::PointCloudReaderPly(const QString& fileName)
 {
-    mFile = 0;
-    mNumberOfPoints = 0;
-    mProgressDialog = 0;
-    mWidget = widget;
-
-    if(mWidget)
-    {
-        mProgressDialog = new QProgressDialog("Processing cloud...", "Cancel", 0, 100, widget);
-        mProgressDialog->setWindowModality(Qt::WindowModal);
-    }
+    mNumberOfPoints = -1;
+    mFile = new QFile(fileName);
+    mDataFormat = DataFormatAscii;
 }
 
-bool PlyManager::open(const QString& fileName, const PlyManager::DataDirection& direction)
+PointCloudReaderPly::~PointCloudReaderPly()
 {
-    mDataDirection = direction;
-    if(mDataDirection == DataLoadFromFile)
-    {
-        qDebug() << "PlyManager::PlyManager(): opening file" << fileName << "for loading data";
-        mFile = new QFile(fileName);
-        if(!mFile->open(QIODevice::ReadOnly | QIODevice::Text))
-        {
-            qDebug() << "PlyManager::open(): couldn't open file" << mFile->fileName() << "for reading, exiting.";
-            return false;
-        }
-
-        // Find out how many vertices we have
-        QTextStream stream(mFile);
-        stream.seek(0);
-        while(!stream.atEnd())
-        {
-            const QString line = stream.readLine();
-            if(line.contains("element vertex"))
-            {
-                const QStringList lineList = line.split(' ', QString::SkipEmptyParts, Qt::CaseSensitive);
-                bool success = false;
-                mNumberOfPoints = lineList.last().toInt(&success);
-                if(!success)
-                {
-                    qDebug() << "PlyManager::open(): unable to determine number of points in file, line was:" << line;
-                    return false;
-                }
-                qDebug() << "PlyManager::PlyManager(): file" << fileName << "contains" << mNumberOfPoints << "points.";
-                break;
-            }
-        }
-    }
-    else
-    {
-        qDebug() << "PlyManager::PlyManager(): opening file" << fileName << "for writing data";
-        mFile = new QFile(fileName);
-        if(!mFile->open(QIODevice::ReadWrite | QIODevice::Text | QIODevice::Truncate))
-        {
-            qDebug() << "PlyManager::open(): couldn't open file" << mFile->fileName() << "for writing, exiting.";
-            return false;
-        }
-    }
-
-    return true;
+    delete mFile;
 }
 
-PlyManager::~PlyManager()
+bool PointCloudReaderPly::open()
 {
-    if(mFile)
-    {
-        qDebug() << "PlyManager::~PlyManager(): closing file" << mFile->fileName();
-        mFile->close();
-        delete mFile;
-    }
-
-    delete mProgressDialog;
+    return mFile->open(/*QIODevice::Text | */QIODevice::ReadOnly);
 }
 
-quint32 PlyManager::getNumberOfPoints() const
+qint64 PointCloudReaderPly::getNumberOfPoints()
 {
-    Q_ASSERT(mDataDirection == DataLoadFromFile);
+    mFile->seek(0);
+    QTextStream stream(mFile);
+    QString line;
+    do {
+        line = stream.readLine();
+        if(line.toLower().contains("element vertex"))
+        {
+            bool success = false;
+            mNumberOfPoints = line.split(" ", QString::SkipEmptyParts).last().toLongLong(&success);
+            if(!success) mNumberOfPoints = -1;
+        }
+        else if(line.toLower().startsWith("format "))
+        {
+            const QString format = line.split(" ", QString::SkipEmptyParts).at(1);
+            if(format.contains("ascii")) mDataFormat = DataFormatAscii;
+            else if(format.contains("little")) mDataFormat = DataFormatBinaryLittleEndian;
+            else if(format.contains("big")) mDataFormat = DataFormatBinaryBigEndian;
+        }
+        else if(line.toLower().contains("end_header"))
+        {
+            return mNumberOfPoints;
+        }
+    } while (!line.isNull());
 
     return mNumberOfPoints;
 }
 
-void PlyManager::writeHeader(const quint32& vertexCount, const IncludesNormals& includesNormals, const IncludesDirection& includesDirection)
+qint64 PointCloudReaderPly::readPoints(float* target, qint64 maxNumberOfPoints, QWidget* widget)
 {
-    Q_ASSERT(mDataDirection == DataSaveToFile);
+    if(!mFile->isOpen())
+        return -1;
+
+    if(maxNumberOfPoints < 0)
+        getNumberOfPoints();
+
+    if(maxNumberOfPoints < 0)
+        return -1;
+
+    QProgressDialog* progressDialog = 0;
+
+    if(widget != nullptr)
+    {
+        progressDialog = new QProgressDialog("Processing cloud...", "Cancel", 0, 100, widget);
+        progressDialog->setWindowModality(Qt::WindowModal);
+        progressDialog->setValue(0);
+        progressDialog->setMaximum(std::min(mNumberOfPoints, maxNumberOfPoints));
+        progressDialog->show();
+    }
+
+    const qint64 pointsToRead = std::min(maxNumberOfPoints, mNumberOfPoints);
+
+    if(mDataFormat == DataFormatAscii)
+    {
+        QTextStream in(mFile);
+        in.seek(0);
+        bool dataStarted = false;
+        qint64 lineNumber = 0;
+        qint64 numberOfPointsProcessed = 0;
+        while(!in.atEnd())
+        {
+            const QString line = in.readLine();
+
+            if(!dataStarted)
+            {
+                if(line == "end_header")
+                    dataStarted = true;
+            }
+            else
+            {
+                const QStringList values = line.split(' ', QString::SkipEmptyParts);
+
+                if(values.size() != 3)
+                {
+                    if(widget != nullptr)
+                        QMessageBox::critical(widget, "Error reading file", QString("Number of coordinates element line %1 of file %2 is %3, expected 3.").arg(lineNumber).arg(mFile->fileName()).arg(values.size()));
+                    return numberOfPointsProcessed;
+                }
+                else
+                {
+                    target[numberOfPointsProcessed*4 + 0] = values.at(0).toDouble();
+                    target[numberOfPointsProcessed*4 + 1] = values.at(1).toDouble();
+                    target[numberOfPointsProcessed*4 + 2] = values.at(2).toDouble();
+                    target[numberOfPointsProcessed*4 + 3] = 1.0;
+                    numberOfPointsProcessed++;
+                    if(progressDialog && numberOfPointsProcessed % 20000 == 0) progressDialog->setValue(numberOfPointsProcessed);
+                }
+            }
+            lineNumber++;
+            if(numberOfPointsProcessed >= maxNumberOfPoints) break;
+        }
+    }
+    else
+    {
+        mFile->seek(0);
+        forever
+        {
+            const QString line = mFile->readLine();
+            if(line.toLower().contains("end_header")) break;
+        }
+
+        for(qint64 i=0;i<pointsToRead;i++)
+        {
+            float x,y,z;
+            mFile->read((char*)&x, sizeof(float));
+            mFile->read((char*)&y, sizeof(float));
+            mFile->read((char*)&z, sizeof(float));
+
+            if(mDataFormat == DataFormatBinaryBigEndian)
+            {
+                x = swap_endian(x);
+                y = swap_endian(y);
+                z = swap_endian(z);
+            }
+
+            target[4*i+0] = x;
+            target[4*i+1] = y;
+            target[4*i+2] = z;
+            target[4*i+3] = 1.0f;
+
+            if(progressDialog && i % 20000 == 0) progressDialog->setValue(i);
+        }
+    }
+
+    delete progressDialog;
+    return pointsToRead;
+}
+
+void PointCloudReaderPly::close()
+{
+    mFile->close();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+PointCloudWriterPly::PointCloudWriterPly(const QString& fileName)
+{
+    mFile = new QFile(fileName);
+    mDataFormat = DataFormatBinaryLittleEndian;
+    mTotalNumberOfPointsWrittenToThisFile = 0;
+}
+
+PointCloudWriterPly::~PointCloudWriterPly()
+{
+    close();
+    delete mFile;
+}
+
+bool PointCloudWriterPly::setDataFormat(const DataFormatPly dataFormat)
+{
+    if(mFile->isOpen())
+    {
+        return false;
+    }
+    else
+    {
+        mDataFormat = dataFormat;
+        return true;
+    }
+
+}
+
+bool PointCloudWriterPly::open()
+{
+    if(!mFile->open(QIODevice::Text | QIODevice::ReadWrite | QIODevice::Truncate))
+        return false;
 
     QTextStream stream(mFile);
     stream << QString("ply") << endl;
-    stream << QString("format ascii 1.0") << endl;
-    stream << QString("comment written by koptertools / ben adler")/*.append(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"))*/ << endl; // no timestamp, that prevents checksum comparisons
-    stream << QString("element vertex %1").arg(vertexCount, 7, 10, QChar(' ')) << endl; // extra space for overwriting with bigger numbers later-on, meshlab doesn't mind.
+
+    if(mDataFormat == DataFormatAscii) stream << QString("format ascii 1.0") << endl;
+    else if(mDataFormat == DataFormatBinaryLittleEndian) stream << QString("format binary_little_endian 1.0") << endl;
+    else if(mDataFormat == DataFormatBinaryBigEndian) stream << QString("format binary_big_endian 1.0") << endl;
+
+    stream << QString("comment written by koptertools / ben adler") << endl; // no timestamp, that prevents checksum comparisons
+    stream << QString("element vertex 0000000000") << endl; // extra space for overwriting with bigger numbers later-on, meshlab doesn't mind.
     stream << QString("comment the coordinates of the point") << endl;
     stream << QString("property float x") << endl;
     stream << QString("property float y") << endl;
     stream << QString("property float z") << endl;
-
-    if(includesNormals == NormalsIncluded)
-    {
-        stream << QString("comment the normalized vector back to the laserscanner") << endl;
-        stream << QString("property float nx") << endl;
-        stream << QString("property float ny") << endl;
-        stream << QString("property float nz") << endl;
-    }
-
-    if(includesDirection == DirectionIncluded)
-    {
-        stream << QString("comment squared distance") << endl;
-        stream << QString("property float sqdist") << endl;
-    }
-
     stream << QString("end_header") << endl;
+
+    stream.flush();
+
+    return true;
 }
 
-void PlyManager::savePly4D(const float* const points, const quint32 numPoints)
+bool PointCloudWriterPly::writePoints(float* source, qint64 numberOfPoints, QWidget* widget)
 {
-    QTextStream stream(mFile);
-    stream.setRealNumberPrecision(4);
-    stream.setRealNumberNotation(QTextStream::FixedNotation);
-    for(int i = 0; i < numPoints; ++i)
+    QProgressDialog* progressDialog = nullptr;
+
+    if(widget != nullptr)
     {
-        stream << points[4*i+0] << " " << points[4*i+1] << " " << points[4*i+2] << endl;
-        if(mProgressDialog && i%1000 == 0) mProgressDialog->setValue((i*100)/numPoints);
+        progressDialog = new QProgressDialog("Processing cloud...", "Cancel", 0, 100, widget);
+        progressDialog->setWindowModality(Qt::WindowModal);
+
+        progressDialog->setValue(0);
+        progressDialog->setMaximum(numberOfPoints);
+        progressDialog->show();
     }
 
-    mProgressDialog->close();
-}
-
-void PlyManager::loadPly4D(float* points, const quint32 startPoint, const quint32 maxPoints)
-{
-    bool dataStarted = false;
-    quint32 lineNumber = 0;
-    quint32 vertexNumber = 0;
-    quint32 numberOfVerticesProcessed = 0;
-
-    if(mProgressDialog)
+    if(mDataFormat == DataFormatAscii)
     {
-        mProgressDialog->setValue(0);
-        mProgressDialog->setMaximum(maxPoints);
-        mProgressDialog->show();
-    }
-
-    QTextStream in(mFile);
-    in.seek(0);
-    while (!in.atEnd())
-    {
-        const QString line = in.readLine();
-
-        if(!dataStarted)
+        QTextStream stream(mFile);
+        stream.setRealNumberPrecision(3);
+        stream.setRealNumberNotation(QTextStream::FixedNotation);
+        for(int i = 0; i < numberOfPoints; ++i)
         {
-            if(line == "end_header")
-                dataStarted = true;
+            stream << source[4*i+0] << " " << source[4*i+1] << " " << source[4*i+2] << endl;
+            if(i%10000 == 0 && progressDialog != nullptr) progressDialog->setValue((i*100)/numberOfPoints);
+        }
+    }
+    else
+    {
+        // write binary data
+        mFile->seek(mFile->size());
+        if(mDataFormat == DataFormatBinaryLittleEndian)
+        {
+            for(int i = 0; i < numberOfPoints; ++i)
+            {
+                mFile->write((char*)&source[4*i+0], sizeof(float));
+                mFile->write((char*)&source[4*i+1], sizeof(float));
+                mFile->write((char*)&source[4*i+2], sizeof(float));
+                mTotalNumberOfPointsWrittenToThisFile++;
+                if(i%10000 == 0 && progressDialog != nullptr) progressDialog->setValue((i*100)/numberOfPoints);
+            }
         }
         else
         {
-            const QStringList values = line.split(' ', QString::SkipEmptyParts);
-
-            if(values.size() != 3)
+            for(int i = 0; i < numberOfPoints; ++i)
             {
-                QMessageBox::critical(mWidget, "Error reading file", QString("Number of elements in line %1 of file %2 is %3, expected 3.").arg(lineNumber).arg(mFile->fileName()).arg(values.size()));
-                return;
-            }
-            else
-            {
-                if(vertexNumber >= startPoint && numberOfVerticesProcessed < maxPoints)
-                {
-                    points[numberOfVerticesProcessed*4 + 0] = values.at(0).toDouble();
-
-                    // junhao: use z as height and mirror y axis
-                    points[numberOfVerticesProcessed*4 + 1] = values.at(2).toDouble();
-                    points[numberOfVerticesProcessed*4 + 2] = -values.at(1).toDouble();
-
-//                    points[numberOfVerticesProcessed*4 + 1] = values.at(1).toDouble();
-//                    points[numberOfVerticesProcessed*4 + 2] = values.at(2).toDouble();
-
-                    points[numberOfVerticesProcessed*4 + 3] = 1.0;
-                    numberOfVerticesProcessed++;
-                    if(mProgressDialog && numberOfVerticesProcessed % 20000 == 0) mProgressDialog->setValue(numberOfVerticesProcessed);
-                }
+                const float x = swap_endian(source[4*i+0]);
+                const float y = swap_endian(source[4*i+1]);
+                const float z = swap_endian(source[4*i+2]);
+                mFile->write((char*)&x, sizeof(float));
+                mFile->write((char*)&y, sizeof(float));
+                mFile->write((char*)&z, sizeof(float));
+                mTotalNumberOfPointsWrittenToThisFile++;
+                if(i%10000 == 0 && progressDialog != nullptr) progressDialog->setValue((i*100)/numberOfPoints);
             }
         }
-        lineNumber++;
     }
+
+    progressDialog->close();
+    delete progressDialog;
+}
+
+void PointCloudWriterPly::close()
+{
+    // We need to write the number of points into the header!
+    mFile->seek(0);
+    QString line;
+    do {
+        line = mFile->readLine();
+        qDebug() << "line" << line;
+        if(line.startsWith("element vertex 0000000000"))
+        {
+            QString numberString = QString::number(mTotalNumberOfPointsWrittenToThisFile);
+            while(numberString.size() < 10) numberString.append(" ");
+
+            const QString lineNew = QString("element vertex %1").arg(numberString);
+            mFile->seek(mFile->pos() - line.size());
+            mFile->write(lineNew.toLatin1());
+            break;
+        }
+    } while (!line.isNull() && !mFile->atEnd());
+
+    mFile->close();
 }

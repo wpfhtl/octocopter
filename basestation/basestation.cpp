@@ -232,7 +232,6 @@ BaseStation::BaseStation() : QMainWindow()
     if(mConnectionDialog->result() == QDialog::Accepted)
     {
         mOperatingMode = OperatingMode::OperatingOnline;
-        mControlWidget->slotSetOperatingMode(mOperatingMode);
         mRoverConnection = new RoverConnection(mConnectionDialog->getRoverHostName(), mConnectionDialog->getRoverPort(), this);
         connect(mControlWidget, &ControlWidget::setScannerState, mRoverConnection, &RoverConnection::slotSendScannerState);
 
@@ -292,7 +291,6 @@ BaseStation::BaseStation() : QMainWindow()
     else
     {
         mOperatingMode = OperatingMode::OperatingOffline;
-        mControlWidget->slotSetOperatingMode(mOperatingMode);
         mLogPlayer = new LogPlayer(this);
         mLogPlayer->setAllowedAreas(Qt::AllDockWidgetAreas);
         addDockWidget(Qt::BottomDockWidgetArea, mLogPlayer);
@@ -388,7 +386,7 @@ void BaseStation::slotExportCloud()
 
     if(fileName.isNull()) return;
 
-    if(mPointCloud->exportToPly(fileName, this))
+    if(mPointCloud->exportToFile(fileName, this))
     {
         mLogWidget->log(Information, "BaseStation::slotExportCloud()", "Successfully wrote cloud to " + fileName);
         QMessageBox::information(this, "Cloud export", "Successfully wrote cloud to\n" + fileName, "OK");
@@ -406,7 +404,7 @@ void BaseStation::slotImportCloud()
 
     if(fileName.isNull()) return;
 
-    if(mPointCloud->importFromPly(fileName, this))
+    if(mPointCloud->importFromFile(fileName, this))
     {
         mLogWidget->log(Information, "BaseStation::slotImportCloud()", "Successfully loaded cloud from " + fileName);
         QMessageBox::information(this, "Cloud import", "Successfully loaded cloud from\n" + fileName, "OK");

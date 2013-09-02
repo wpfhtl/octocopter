@@ -12,41 +12,54 @@
 #include <QMessageBox>
 #include <QProgressDialog>
 
-class PlyManager : public QObject
+class PointCloudReader
 {
-    Q_OBJECT
 public:
-    enum DataDirection {DataLoadFromFile, DataSaveToFile};
-    enum IncludesNormals { NormalsIncluded, NormalsNotIncluded };
-    enum IncludesDirection { DirectionIncluded, DirectionNotIncluded };
+    virtual bool open() = 0;
+    virtual qint64 getNumberOfPoints() = 0;
+    virtual qint64 readPoints(float* target, qint64 maxNumberOfPoints, QWidget* widget = nullptr) = 0;
+    virtual void close() = 0;
+};
 
-    PlyManager(QWidget* widget = 0);
-    ~PlyManager();
+class PointCloudWriter
+{
+public:
+    virtual bool open() = 0;
+    virtual bool writePoints(float* source, qint64 numberOfPoints, QWidget* widget = nullptr) = 0;
+    virtual void close() = 0;
+};
 
-    bool open(const QString& fileName, const PlyManager::DataDirection& direction);
+enum DataFormatPly {DataFormatAscii, DataFormatBinaryLittleEndian, DataFormatBinaryBigEndian};
+class PointCloudReaderPly : public PointCloudReader
+{
+    qint64 mNumberOfPoints;
+    QFile* mFile;
+    DataFormatPly mDataFormat;
 
-    quint32 getNumberOfPoints() const;
+public:
+    PointCloudReaderPly(const QString& fileName);
+    ~PointCloudReaderPly();
 
-    // This will write a header to the file. DataDirection must be DataSaveToFile
-    void writeHeader(const quint32& vertexCount, const PlyManager::IncludesNormals& includesNormals = NormalsNotIncluded, const PlyManager::IncludesDirection& includesDirection = DirectionNotIncluded);
+    bool open();
+    qint64 getNumberOfPoints();
+    qint64 readPoints(float* target, qint64 maxNumberOfPoints, QWidget* widget = nullptr);
+    void close();
+};
 
-    // These methods will read @points and stream them into the file. DataDirection must be DataSaveToFile
-    void savePly4D(const float *const points, const quint32 numPoints);
-
-    // These methods will read the file and write to @points. DataDirection must be DataLoadFromFile
-    void loadPly4D(float *points, const quint32 startPoint = 0, const quint32 maxPoints = 0);
-
-private:
-    DataDirection mDataDirection;
-
-    QWidget* mWidget;
-    QProgressDialog* mProgressDialog;
-
-    // The file to be written to or read from
+class PointCloudWriterPly : public PointCloudWriter
+{
+    qint64 mTotalNumberOfPointsWrittenToThisFile;
+    DataFormatPly mDataFormat;
     QFile* mFile;
 
-    // If reading, this is the number of points present in the file
-    quint32 mNumberOfPoints;
+public:
+    PointCloudWriterPly(const QString& fileName);
+    ~PointCloudWriterPly();
+
+    bool open();
+    bool writePoints(float* source, qint64 numberOfPoints, QWidget* widget = nullptr);
+    void close();
+    bool setDataFormat(const DataFormatPly dataFormat);
 
 };
 

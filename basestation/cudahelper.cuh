@@ -32,11 +32,11 @@ inline void __cudaCheckSuccess(const char *errorSource, const char *file, const 
     cudaError err = cudaGetLastError();
     if ( cudaSuccess != err )
     {
-        std::cout << "cudaCheckError(): " << errorSource << " failed at " << file << ":" << line << ": " << cudaGetErrorString(err);
+        std::cout << "ERRRRRRRRRRRRRRRRRRRRRROOOOOOOOOOOORRRRRRRRRRR!!!!!!!!!: cudaCheckError(): " << errorSource << " failed at " << file << ":" << line << ": " << cudaGetErrorString(err);
         std::cout.flush();
-        abort();
+        //abort();
     }
-
+/*
     // More careful checking, using sync (will slow down performance)
     err = cudaDeviceSynchronize();
     if(cudaSuccess != err)
@@ -45,6 +45,7 @@ inline void __cudaCheckSuccess(const char *errorSource, const char *file, const 
         std::cout.flush();
         abort();
     }
+    */
 #endif
 
     return;
