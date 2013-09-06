@@ -110,7 +110,7 @@
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="QCheckBox" name="mChkBoxShowParticles">
+       <widget class="QCheckBox" name="mChkBoxRenderParticles">
         <property name="text">
          <string>Show particles</string>
         </property>
@@ -127,14 +127,14 @@
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="QCheckBox" name="mChkBoxShowGridOccupancy">
+       <widget class="QCheckBox" name="mChkBoxRenderGridOccupancy">
         <property name="text">
          <string>Show GridOccupancy</string>
         </property>
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="QCheckBox" name="mChkBoxShowInformationGain">
+       <widget class="QCheckBox" name="mChkBoxRenderInformationGain">
         <property name="text">
          <string>Show Inf/Gain</string>
         </property>
@@ -144,19 +144,19 @@
        </widget>
       </item>
       <item row="3" column="1">
-       <widget class="QCheckBox" name="mChkBoxShowGridPathFinder">
+       <widget class="QCheckBox" name="mChkBoxRenderGridPathPlanner">
         <property name="text">
          <string>Show GridPathFinder</string>
         </property>
        </widget>
       </item>
      </layout>
-     <zorder>mChkBoxShowParticles</zorder>
+     <zorder>mChkBoxRenderParticles</zorder>
      <zorder>mChkBoxFollowVehicle</zorder>
-     <zorder>mChkBoxShowInformationGain</zorder>
+     <zorder>mChkBoxRenderInformationGain</zorder>
      <zorder>mChkBoxProcessPhysics</zorder>
-     <zorder>mChkBoxShowGridOccupancy</zorder>
-     <zorder>mChkBoxShowGridPathFinder</zorder>
+     <zorder>mChkBoxRenderGridOccupancy</zorder>
+     <zorder>mChkBoxRenderGridPathPlanner</zorder>
     </widget>
    </item>
    <item>

@@ -1,14 +1,9 @@
 #include "pathplanner.h"
-
-//#include <cuda_runtime_api.h>
 #include <openglutilities.h>
-//#include "cudahelper.h"
-//#include "cudahelper.cuh"
 
-PathPlanner::PathPlanner(QObject *parent) :
-    QObject(parent)
+PathPlanner::PathPlanner(PointCloudCuda* const pointCloudColliders, QObject *parent) : QObject(parent)
 {
-    mPointCloudColliders = nullptr;
+    mIsInitialized = false;
 
     mRepopulateOccupanccyGrid = true;
 
@@ -16,6 +11,8 @@ PathPlanner::PathPlanner(QObject *parent) :
     mParametersPathPlanner.grid.cells.y = 32;
     mParametersPathPlanner.grid.cells.z = 32;
 
+    mPointCloudColliders = pointCloudColliders;
+    connect(mPointCloudColliders, &PointCloudCuda::pointsInserted, this, &PathPlanner::slotColliderCloudInsertedPoints);
 }
 
 PathPlanner::~PathPlanner()
@@ -25,13 +22,17 @@ PathPlanner::~PathPlanner()
     cudaSafeCall(cudaFree(mDeviceWaypoints));
 }
 
-void PathPlanner::slotInitialize()
+void PathPlanner::initialize()
 {
+    qDebug() << __PRETTY_FUNCTION__;
+
+    Q_ASSERT(!mIsInitialized);
+
     Q_ASSERT(mPointCloudColliders != nullptr);
 
-    const quint32 numberOfCells = mParametersPathPlanner.grid.cells.x * mParametersPathPlanner.grid.cells.y * mParametersPathPlanner.grid.cells.z;
+    alignPathPlannerGridToColliderCloud();
 
-//    mHostOccupancyGrid = new quint8[numberOfCells];
+    const quint32 numberOfCells = mParametersPathPlanner.grid.cells.x * mParametersPathPlanner.grid.cells.y * mParametersPathPlanner.grid.cells.z;
 
     // The occupancy grid will be built and dilated in this memory
     mVboGridOccupancy = OpenGlUtilities::createVbo(numberOfCells * sizeof(quint8));
@@ -46,30 +47,43 @@ void PathPlanner::slotInitialize()
 
     cudaSafeCall(cudaStreamCreate(&mCudaStream));
 
-
-    emit vboInfoGridOccupancy(
-                mVboGridOccupancy,
-                Box3D(
-                    QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
-                    QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z)
-                    ),
-                Vector3i(mParametersPathPlanner.grid.cells.x, mParametersPathPlanner.grid.cells.y, mParametersPathPlanner.grid.cells.z)
-                );
-
-    emit vboInfoGridPathFinder(
-                mVboGridPathFinder,
-                Box3D(
-                    QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
-                    QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z)
-                    ),
-                Vector3i(mParametersPathPlanner.grid.cells.x, mParametersPathPlanner.grid.cells.y, mParametersPathPlanner.grid.cells.z)
-                );
+    mIsInitialized = true;
 }
 
-void PathPlanner::slotSetPointCloudColliders(PointCloudCuda* const pcd)
+void PathPlanner::alignPathPlannerGridToColliderCloud()
 {
-    mPointCloudColliders = pcd;
-    connect(mPointCloudColliders, &PointCloudCuda::pointsInserted, this, &PathPlanner::slotColliderCloudInsertedPoints);
+    // If the collider cloud's grid changed, copy the grid dimensions (not resolution) and repopulate
+    if(!mParametersPathPlanner.grid.hasSameExtents(mPointCloudColliders->getGrid()))
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "following collider cloud from current"
+                 << CudaHelper::convert(mParametersPathPlanner.grid.worldMin)
+                 << CudaHelper::convert(mParametersPathPlanner.grid.worldMin)
+                 << "to"
+                 << CudaHelper::convert(mPointCloudColliders->getGrid().worldMin)
+                 << CudaHelper::convert(mPointCloudColliders->getGrid().worldMax);
+
+        mParametersPathPlanner.grid.worldMin = mPointCloudColliders->getGrid().worldMin;
+        mParametersPathPlanner.grid.worldMax = mPointCloudColliders->getGrid().worldMax;
+        mRepopulateOccupanccyGrid = true;
+
+        emit vboInfoGridOccupancy(
+                    mVboGridOccupancy,
+                    Box3D(
+                        QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
+                        QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z)
+                        ),
+                    Vector3i(mParametersPathPlanner.grid.cells.x, mParametersPathPlanner.grid.cells.y, mParametersPathPlanner.grid.cells.z)
+                    );
+
+        emit vboInfoGridPathPlanner(
+                    mVboGridPathFinder,
+                    Box3D(
+                        QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
+                        QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z)
+                        ),
+                    Vector3i(mParametersPathPlanner.grid.cells.x, mParametersPathPlanner.grid.cells.y, mParametersPathPlanner.grid.cells.z)
+                    );
+    }
 }
 
 void PathPlanner::slotColliderCloudInsertedPoints()
@@ -113,6 +127,8 @@ void PathPlanner::populateOccupancyGrid(quint8* gridOccupancy)
 
 void PathPlanner::checkWayPointSafety(const QVector3D& vehiclePosition, const WayPointList* const wayPointsAhead)
 {
+    if(!mIsInitialized) initialize();
+
     // The collider cloud inserted some points. Let's check whether our waypoint-cells are now occupied. In that case, we'd have to re-plan!
     qDebug() << "PathPlanner::checkWayPointSafety(): checking safety of" << wayPointsAhead->size() << "waypoints...";
     if(wayPointsAhead->size())
@@ -212,6 +228,8 @@ void PathPlanner::checkWayPointSafety(const QVector3D& vehiclePosition, const Wa
 // So, these methods are called by FlightPlanner
 void PathPlanner::moveWayPointsToSafety(WayPointList* wayPointList)
 {
+    if(!mIsInitialized) initialize();
+
     int numberOfWayPoints = wayPointList->size();
 
     // The collider cloud inserted some points. Let's check whether our waypoint-cells are now occupied. In that case, we'd have to re-plan!
@@ -266,45 +284,11 @@ void PathPlanner::moveWayPointsToSafety(WayPointList* wayPointList)
     }
 }
 
-void PathPlanner::alignPathPlannerGridToColliderCloud()
-{
-    // If the collider cloud's grid changed, copy the grid dimensions (not resolution) and repopulate
-    if(!mParametersPathPlanner.grid.hasSameExtents(mPointCloudColliders->getGrid()))
-    {
-        qDebug() << __PRETTY_FUNCTION__ << "following collider cloud from current"
-                 << CudaHelper::convert(mParametersPathPlanner.grid.worldMin)
-                 << CudaHelper::convert(mParametersPathPlanner.grid.worldMin)
-                 << "to"
-                 << CudaHelper::convert(mPointCloudColliders->getGrid().worldMin)
-                 << CudaHelper::convert(mPointCloudColliders->getGrid().worldMax);
-
-        mParametersPathPlanner.grid.worldMin = mPointCloudColliders->getGrid().worldMin;
-        mParametersPathPlanner.grid.worldMax = mPointCloudColliders->getGrid().worldMax;
-        mRepopulateOccupanccyGrid = true;
-
-        emit vboInfoGridOccupancy(
-                    mVboGridOccupancy,
-                    Box3D(
-                        QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
-                        QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z)
-                        ),
-                    Vector3i(mParametersPathPlanner.grid.cells.x, mParametersPathPlanner.grid.cells.y, mParametersPathPlanner.grid.cells.z)
-                    );
-
-        emit vboInfoGridPathFinder(
-                    mVboGridPathFinder,
-                    Box3D(
-                        QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
-                        QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z)
-                        ),
-                    Vector3i(mParametersPathPlanner.grid.cells.x, mParametersPathPlanner.grid.cells.y, mParametersPathPlanner.grid.cells.z)
-                    );
-    }
-}
-
 void PathPlanner::slotComputePath(const QVector3D& vehiclePosition, const WayPointList& wayPointList)
 {
     Q_ASSERT(!wayPointList.isEmpty());
+
+    if(!mIsInitialized) initialize();
 
     WayPointList wayPointsWithHighInformationGain = wayPointList;
     wayPointsWithHighInformationGain.prepend(WayPoint(vehiclePosition, 0));
@@ -425,10 +409,10 @@ void PathPlanner::slotComputePath(const QVector3D& vehiclePosition, const WayPoi
 
     delete waypointsHost;
 
-    emit path(computedPath.list(), WayPointListSource::WayPointListSourceFlightPlanner);
-
     cudaGraphicsUnmapResources(1, &mCudaVboResourceGridPathFinder, 0);
     cudaGraphicsUnmapResources(1, &mCudaVboResourceGridOccupancy, 0);
+
+    emit path(computedPath.list(), WayPointListSource::WayPointListSourceFlightPlanner);
 
     qDebug() << __PRETTY_FUNCTION__ << "took" << t.elapsed() << "ms.";
 }

@@ -6,6 +6,7 @@
 #include <QColor>
 #include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLFunctions_4_3_Core>
+#include <QOpenGLVertexArrayObject>
 #include <plymanager.h> // for saving to .ply files
 #include <common.h>
 
@@ -24,16 +25,20 @@ public:
     QString mName; // for debugging only
 
     // Every pointcloud needs to offer a list of VBOs to render. The list can be just a single VboInfo with a single VBO.
-    struct VboInfo
+    struct RenderInfo
     {
+        QOpenGLVertexArrayObject* vao;
         quint32 vbo;
         quint8 elementSize; // number of floats, usually 3 or 4
         QColor color; // color to be used for rendering, invalid by default
         quint32 size; // the number of points
         quint8 stride; // stride between consecutive elements
 
-        VboInfo()
+        RenderInfo()
         {
+            // don't create the VAO yet. A non-existing VAO will be configured during first render!
+            //qDebug() << __PRETTY_FUNCTION__;
+            vao = 0;
             vbo = 0;
             elementSize = 4;
             color = QColor();
@@ -41,7 +46,12 @@ public:
             stride = 0;
         }
 
-        bool layoutMatches(const VboInfo* const otherVbo) const
+        ~RenderInfo()
+        {
+            if(vao) vao->deleteLater();
+        }
+
+        bool layoutMatches(const RenderInfo* const otherVbo) const
         {
             return elementSize == otherVbo->elementSize && stride == otherVbo->stride;
         }
@@ -50,10 +60,10 @@ public:
     PointCloud(const Box3D &boundingBox);
     ~PointCloud();
 
-    virtual const QVector<VboInfo>& getVboInfo() const = 0;
+    virtual QVector<RenderInfo*>* getRenderInfo() = 0;
 
     virtual void setMinimumPointDistance(const float &distance) = 0;
-    virtual float getMinimumPointDistance() const = 0;
+//    virtual float getMinimumPointDistance() const = 0;
 
     virtual quint32 getNumberOfPoints(void) const = 0;
     virtual quint32 getCapacity(void) const = 0;

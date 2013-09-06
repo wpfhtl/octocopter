@@ -120,6 +120,7 @@ public:
     ~BaseStation();
 
     OperatingMode getOperatingMode() {return mOperatingMode;}
+    GlScene* getGlScene() {return mGlScene;}
 
 private:
     QMenu *mMenuWindowList, *mMenuFile, *mMenuView;
@@ -144,6 +145,7 @@ private:
     PointCloudCuda* mPointCloud;
 
     GlWindow *mGlWindow;
+    GlScene *mGlScene;
 
     QMap<QString, CameraWidget*> mCameraWidgets;
 
@@ -155,6 +157,8 @@ signals:
 
 
 private slots:
+
+
     void slotExportCloud(void);
     void slotImportCloud(void);
     void slotToggleLogWidget(void) {if(mLogWidget) mLogWidget->setVisible(!mLogWidget->isVisible());}

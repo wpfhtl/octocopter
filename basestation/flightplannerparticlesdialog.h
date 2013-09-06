@@ -23,12 +23,10 @@ public:
 
     ParametersParticleSystem getSimulationParameters() const {return mSimulationParameters;}
 
-    bool processPhysics() const {return ui->mChkBoxProcessPhysics->isChecked();}
-    void setProcessPhysics(bool state) {ui->mChkBoxProcessPhysics->setChecked(state); emit processPhysicsChanged(state);}
+    bool isProcessPhysicsActive() const {return ui->mChkBoxProcessPhysics->isChecked();}
+    void setProcessPhysicsActive(bool state) {ui->mChkBoxProcessPhysics->setChecked(state); emit processPhysics(state);}
 
     bool followVehicle() const {return ui->mChkBoxFollowVehicle->isChecked();}
-    bool showParticles() const {return ui->mChkBoxShowParticles->isChecked();}
-    bool showInformationGain() const {return ui->mChkBoxShowInformationGain->isChecked();}
 
 private slots:
     void slotSimulationParametersChanged();
@@ -41,12 +39,12 @@ public slots:
 signals:
     void simulationParameters(const ParametersParticleSystem*);
 
-    void processPhysicsChanged(bool);
-    void followVehicleChanged(bool);
-    void showParticlesChanged(bool);
-    void showInformationGainChanged(bool);
-    void showOccupancyGridChanged(bool);
-    void showPathFinderGridChanged(bool);
+    void processPhysics(bool);
+    void followVehicle(bool);
+    void renderParticles(bool);
+    void renderInformationGain(bool);
+    void renderOccupancyGrid(bool);
+    void renderPathPlannerGrid(bool);
 
     void reduceColliderCloud();
     void resetParticles();

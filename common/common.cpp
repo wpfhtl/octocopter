@@ -18,5 +18,10 @@ QDebug operator<<(QDebug dbg, const Box3D &box)
     return dbg;
 }
 
+QDebug operator<<(QDebug dbg, const Vector3i &v)
+{
+    dbg.nospace() << "Vector3i(" << v.x << "/" << v.y << "/" << v.z << ")";
+    return dbg;
+}
 
 QString t() { return QTime::currentTime().toString("HH:mm:ss:zzz"); }

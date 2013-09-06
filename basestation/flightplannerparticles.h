@@ -1,7 +1,7 @@
 #ifndef FLIGHTPLANNERPARTICLES_H
 #define FLIGHTPLANNERPARTICLES_H
 
-#include "particlerenderer.h"
+#include "glscene.h"
 #include "particlesystem.h"
 #include "pathplanner.h"
 #include "lidarpoint.h"
@@ -22,33 +22,24 @@ class FlightPlannerParticles : public QObject, protected OPENGL_FUNCTIONS_CLASS
 {
     Q_OBJECT
 public:
-    FlightPlannerParticles(BaseStation* baseStation, GlWindow* glWidget, PointCloud* pointcloud);
+    FlightPlannerParticles(BaseStation* baseStation, GlWindow* glWidget, PointCloudCuda *pointcloud);
     ~FlightPlannerParticles();
 
     const Pose getLastKnownVehiclePose(void) const;
 
     const QList<WayPoint> *const getWayPoints();
 
-    const Box3D* getScanVolume() const
-    {
-        return &mScanVolume;
-    }
-
     PointCloudCuda* getPointCloudColliders() {return mPointCloudColliders;}
+    PathPlanner* getPathPlanner() {return mPathPlanner;}
 
 private:
-    Box3D mScanVolume;
+    Box3D mVolumeLocal, mVolumeGlobal;
     QVector<Pose> mVehiclePoses;
     GlWindow* mGlWindow;
     BaseStation* mBaseStation;
-    PointCloud* mPointCloudDense;
-
-    bool mRenderScanVolume, mRenderDetectionVolume, mRenderWayPointsAhead, mRenderWayPointsPassed;
+    PointCloudCuda* mPointCloudDense;
 
     WayPointList mWayPointsAhead, mWayPointsPassed;
-    unsigned int mVboBoundingBoxScanVolume, mVboWayPointConnections;
-
-    ShaderProgram *mShaderProgramDefault, *mShaderProgramWaypoint;
 
     static void sortToShortestPath(QList<WayPoint> &wayPointsSetOnRover, const QVector3D &currentVehiclePosition);
 
@@ -58,12 +49,8 @@ private:
     QVector3D mLastParticleSystemPositionToFollowVehicle;
     QTimer mTimerProcessInformationGain;
     QTimer mTimerStepSimulation;
-    //QList<WayPoint> mWayPointsGenerated, mWayPointsDetour;
     ParticleSystem* mParticleSystem;
-    ParticleRenderer* mParticleRenderer;
     cudaError_t mCudaError;
-    ShaderProgram* mShaderProgramGridLines; // for drawing the grid
-    qint32 mActiveWayPointVisualizationIndex;
 
     // To re-fill our datastructure when the boundingbox has changed.
     bool insertPointsFromNode(const Node* node);
@@ -96,8 +83,8 @@ private slots:
 
 public slots:
     void slotShowUserInterface();
-    void slotSetScanVolume(const Box3D scanVolume);
-    void slotSetActiveWayPoint(qint32 index) {mActiveWayPointVisualizationIndex = index; suggestVisualization();}
+    void slotSetVolumeGlobal(const Box3D volume);
+    void slotSetVolumeLocal(const Box3D volume);
 
     void slotNewScanFused(const float* const points, const quint32& count, const QVector3D* const scannerPosition);
 
@@ -134,18 +121,28 @@ public slots:
     void slotWayPointReached(const WayPoint&);
 
     void slotGenerateWaypoints(quint32 numberOfWaypointsToGenerate = 15);
-    void slotVisualize();
-
-    void slotSetRenderDetectionVolume(const bool enable) { mRenderDetectionVolume = enable; }
-    void slotSetRenderScanVolume(const bool enable) { mRenderScanVolume = enable; }
-    void slotSetRenderWayPointsAhead(const bool enable) { mRenderWayPointsAhead = enable; }
-    void slotSetRenderWayPointsPassed(const bool enable) { mRenderWayPointsPassed = enable; }
 
 
 signals:
     void message(const LogImportance& importance, const QString& source, const QString& message);
+    void particleRadiusChanged(float);
 
     void vboInfoGridInformationGain(quint32 vboPressure, Box3D gridBoundingBox, Vector3i grid);
+    void vboInfoParticles(quint32 vboPositions, quint32 particleCount, float particleRadius, Box3D particleSystemBoundingBox);
+
+    // Forwarded from PathPlanner
+    void vboInfoGridOccupancy(quint32 vboPressure, Box3D gridBoundingBox, Vector3i grid);
+    void vboInfoGridPathPlanner(quint32 vboPressure, Box3D gridBoundingBox, Vector3i grid);
+
+    void renderParticles(bool);
+    void renderInformationGain(bool);
+    void renderOccupancyGrid(bool);
+    void renderPathPlannerGrid(bool);
+
+    void volumeLocal(const Box3D*);
+    void volumeGlobal(const Box3D*);
+    void wayPointListAhead(WayPointList *wpl);
+    void wayPointListPassed(WayPointList *wpl);
 
     // This is emitted whenever FlightPlanner changes waypoints
     void wayPoints(const QList<WayPoint>* const, const WayPointListSource);

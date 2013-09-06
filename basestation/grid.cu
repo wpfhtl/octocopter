@@ -99,7 +99,7 @@ __host__ __device__ float3 Grid::getCellSize() const
                 );
 }
 
-__host__ __device__ uint3 Grid::getOptimalResolution(const float minDist)
+__host__ __device__ uint3 Grid::getOptimumResolution(const float minDist)
 {
     uint3 cells;
 

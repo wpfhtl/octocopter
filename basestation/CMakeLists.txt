@@ -79,7 +79,7 @@ set(SRC_FILES
     ../common/tsp/path
     ../common/tsp/opttsp
     ../common/tsp/pathinfo
-    particlerenderer
+    glscene
     pointcloud
 )
 
@@ -88,7 +88,7 @@ set(INC_FILES
     pointcloud.h
     pointcloudcuda.h
     particlesystem.h
-    particlerenderer.h
+    glscene.h
     basestation.h
     audioplayer.h
     glwindow.h

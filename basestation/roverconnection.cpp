@@ -228,13 +228,13 @@ void RoverConnection::processPacket(QByteArray data)
     else if(packetType == "flightstate")
     {
         stream >> mFlightState;
-        qDebug() << "RoverConnection::processPacket: emitting flightstate" << mFlightState.toString();
+        //qDebug() << "RoverConnection::processPacket: emitting flightstate" << mFlightState.toString();
         emit flightState(&mFlightState);
     }
     else if(packetType == "flightstaterestriction")
     {
         stream >> mFlightStateRestriction;
-        qDebug() << "RoverConnection::processPacket: received and emitting flightstaterestriction" << mFlightStateRestriction.toString();
+        //qDebug() << "RoverConnection::processPacket: received and emitting flightstaterestriction" << mFlightStateRestriction.toString();
         emit flightStateRestriction(&mFlightStateRestriction);
     }
     else if(packetType == "flightcontrollervalues")

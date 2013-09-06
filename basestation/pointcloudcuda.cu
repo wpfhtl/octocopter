@@ -84,7 +84,6 @@ bool checkCellForNeighborsBenD(
     return false;
 }
 
-
 // Collide a single particle (given by thread-id through @index) against all spheres in own and neighboring cells
 __global__
 void markCollidingPointsD(

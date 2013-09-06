@@ -18,7 +18,6 @@ private:
     QColor mColor;
     bool mVboDirty;
 
-    void updateVbo();
 
 public:
     WayPointList();
@@ -27,6 +26,7 @@ public:
     ~WayPointList();
 
     void setHeight(const float height);
+    void updateVbo();
 
     QString toString() const;
 
@@ -51,7 +51,7 @@ public:
     void setList(const QList<WayPoint>* const wayPointList);
 
     const QList<WayPoint>* list() const {return &mWaypoints;}
-    const quint32 vbo() {if(mVboDirty) updateVbo(); return mVbo;}
+    const quint32 vbo();
     const QColor color() const {return mColor;}
 
     void prepend(const WayPoint& wp);

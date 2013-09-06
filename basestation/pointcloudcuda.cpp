@@ -3,10 +3,13 @@
 #include "cudahelper.cuh"
 #include "pointcloudcuda.h"
 
-PointCloudCuda::PointCloudCuda(const Box3D& boundingBox, const quint32 maximumElementCount) : PointCloud(boundingBox)
+PointCloudCuda::PointCloudCuda(const Box3D& boundingBox, const quint32 maximumElementCount, const QString name) : PointCloud(boundingBox)
 {
-    mVboInfo.append(VboInfo());
+    mRenderInfoList.append(new RenderInfo());
 
+    mIsInitialized = false;
+
+    mName = name;
     mCudaVboResource = 0;
 
     mParameters.initialize();
@@ -42,45 +45,50 @@ PointCloudCuda::~PointCloudCuda()
         // If it was ever used, unregister the graphics resource so it is not accessible by CUDA unless registered again.
         if(mCudaVboResource)
         {
-            qDebug() << "PointCloudCuda::freeResources(): unregistering resource...";
+            qDebug() << __PRETTY_FUNCTION__ << mName << "unregistering resource...";
             cudaSafeCall(cudaGraphicsUnregisterResource(mCudaVboResource));
         }
 
-        glDeleteBuffers(1, &mVboInfo[0].vbo);
+        glDeleteBuffers(1, &mRenderInfoList[0]->vbo);
         cudaSafeCall(cudaFree(mDeviceMapGridCell));
         cudaSafeCall(cudaFree(mDeviceMapPointIndex));
         cudaSafeCall(cudaFree(mDeviceCellStart));
         cudaSafeCall(cudaFree(mDeviceCellStopp));
 
-        qDebug() << "PointCloudCuda::freeResources(): done.";
+        qDebug() << __PRETTY_FUNCTION__ << mName << "done.";
     }
 }
 
-void PointCloudCuda::slotInitialize()
+void PointCloudCuda::initialize()
 {
+    qDebug() << __PRETTY_FUNCTION__ << mName;
     initializeOpenGLFunctions();
 
     // determine data-size of all points in GPU
     const unsigned int memSizePointQuadrupels = sizeof(float) * 4 * mParameters.capacity;
     // Allocate GPU data
     // Create VBO with point positions. This is later given to renderer for visualization
-    mVboInfo[0].vbo = createVbo(memSizePointQuadrupels);
+    mRenderInfoList[0]->vbo = createVbo(memSizePointQuadrupels);
 
     if(CudaHelper::isDeviceSupported)
     {
         // Allocate storage for sorted points
         cudaSafeCall(cudaMalloc((void**)&mDevicePointSortedPos, memSizePointQuadrupels));
-        qDebug() << "PointCloudCuda::initialize(): allocated" << (2 * memSizePointQuadrupels) / (1024*1024) << "mb on the GPU for cloud with max" << mParameters.capacity / (1024*1024) << "million points.";
+        qDebug() << __PRETTY_FUNCTION__ << mName << "allocated" << (2 * memSizePointQuadrupels) / (1024*1024) << "mb on the GPU for cloud with max" << mParameters.capacity / (1024*1024) << "million points.";
 
         // For graphics interoperability, first register a resource for use with CUDA, then it can be mapped.
         // Registering can take a long time, so we do it here just once. Unregistering takes place when deallocating stuff.
         // During runtime, we just need to map and unmap the buffer to use it in CUDA
-        cudaGraphicsGLRegisterBuffer(&mCudaVboResource, mVboInfo[0].vbo, cudaGraphicsRegisterFlagsNone);
+        cudaGraphicsGLRegisterBuffer(&mCudaVboResource, mRenderInfoList[0]->vbo, cudaGraphicsRegisterFlagsNone);
     }
+
+    mIsInitialized = true;
 }
 
 void PointCloudCuda::initializeGrid()
 {
+    qDebug() << __PRETTY_FUNCTION__ << mName;
+
     Q_ASSERT(mGridHasChanged);
 
     if(!CudaHelper::isDeviceSupported)
@@ -89,7 +97,7 @@ void PointCloudCuda::initializeGrid()
         return;
     }
 
-    mParameters.grid.cells = mParameters.grid.getOptimalResolution(mParameters.minimumDistance);
+    mParameters.grid.cells = mParameters.grid.getOptimumResolution(mParameters.minimumDistance);
     copyParametersToGpu(&mParameters);
 
     const quint32 numberOfCells = mParameters.grid.getCellCount();
@@ -117,6 +125,8 @@ void PointCloudCuda::initializeGrid()
 
 void PointCloudCuda::setMinimumPointDistance(const float &distance)
 {
+    qDebug() << __PRETTY_FUNCTION__ << mName << distance;
+
     mParameters.minimumDistance = distance;
 
     // When minDist changes, we should recalculate the grid, so that collisions can be reliably found in own and neighboring cells!
@@ -171,25 +181,27 @@ bool PointCloudCuda::slotInsertPoints3(const float* const pointList, const quint
 
 bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint32 numPoints)
 {
-    Q_ASSERT(mVboInfo[0].elementSize == 4);
+    if(!mIsInitialized) initialize();
+
+    Q_ASSERT(mRenderInfoList[0]->elementSize == 4);
 
     const quint32 numberOfPointsToAppend = qMin(mParameters.capacity - mParameters.elementQueueCount - mParameters.elementCount, numPoints);
 
     // upload the points into the device
-    glBindBuffer(GL_ARRAY_BUFFER, mVboInfo[0].vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, mRenderInfoList[0]->vbo);
 
     // overwrite parts of the buffer
     glBufferSubData(
                 GL_ARRAY_BUFFER,
-                (mParameters.elementCount + mParameters.elementQueueCount) * sizeof(float) * mVboInfo[0].elementSize,  // start
-                numberOfPointsToAppend * sizeof(float) * mVboInfo[0].elementSize,         // size
+                (mParameters.elementCount + mParameters.elementQueueCount) * sizeof(float) * mRenderInfoList[0]->elementSize,  // start
+                numberOfPointsToAppend * sizeof(float) * mRenderInfoList[0]->elementSize,         // size
                 pointList);                            // source
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     mParameters.elementQueueCount += numberOfPointsToAppend;
 
-    mVboInfo[0].size = getNumberOfPoints();
+    mRenderInfoList[0]->size = getNumberOfPoints();
 
 //    qDebug() << "PointCloudCuda::slotInsertPoints4():" << mName << "inserted" << numberOfPointsToAppend << "points, vbo elements:" << mVboInfo[0].size << "elements:" << mParameters.elementCount << "queue:" << mParameters.elementQueueCount;
 
@@ -205,8 +217,12 @@ bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint
 
 void PointCloudCuda::slotInsertPoints(PointCloud *const pointCloudSource, const quint32& firstPointToReadFromSrc, quint32 numberOfPointsToCopy)
 {
+    qDebug() << __PRETTY_FUNCTION__ << mName << "receiving points from cloud" << pointCloudSource->mName;
+
+    if(!mIsInitialized) initialize();
+
     // Make sure the VBO layouts are compatible.
-    Q_ASSERT(pointCloudSource->getVboInfo()[0].layoutMatches(&mVboInfo[0]));
+    Q_ASSERT(pointCloudSource->getRenderInfo()->at(0)->layoutMatches(mRenderInfoList[0]));
 
     if(!CudaHelper::isDeviceSupported)
     {
@@ -239,34 +255,34 @@ void PointCloudCuda::slotInsertPoints(PointCloud *const pointCloudSource, const 
                     numberOfPointsToCopy - numberOfPointsProcessedInSrc // number of points left to copy
                     );
 
-        qDebug() << "PointCloudCuda::slotInsertPoints():" << numberOfPointsProcessedInSrc << "points inserted from source, space left in dst:" << freeSpaceInDst << "- inserting" << numberOfPointsToCopyInThisIteration << "points from src.";
+//        qDebug() << "PointCloudCuda::slotInsertPoints():" << numberOfPointsProcessedInSrc << "points inserted from source, space left in dst:" << freeSpaceInDst << "- inserting" << numberOfPointsToCopyInThisIteration << "points from src.";
 
         if(mAcceptPointsOutsideBoundingBox)
         {
-            qDebug() << "PointCloudCuda::slotInsertPoints(): mAcceptPointsOutsideBoundingBox is true, copying all given points.";
+//            qDebug() << "PointCloudCuda::slotInsertPoints(): mAcceptPointsOutsideBoundingBox is true, copying all given points.";
             mParameters.elementCount += copyPoints(
-                        mDevicePointPos + ((numberOfPointsProcessedInSrc) * sizeof(float) * mVboInfo[0].elementSize),
-                        devicePointsBaseSrc + ((firstPointToReadFromSrc + numberOfPointsProcessedInSrc) * sizeof(float) * mVboInfo[0].elementSize),
+                        mDevicePointPos + ((numberOfPointsProcessedInSrc) * sizeof(float) * mRenderInfoList[0]->elementSize),
+                        devicePointsBaseSrc + ((firstPointToReadFromSrc + numberOfPointsProcessedInSrc) * sizeof(float) * mRenderInfoList[0]->elementSize),
                         numberOfPointsToCopyInThisIteration);
         }
         else
         {
-            qDebug() << "PointCloudCuda::slotInsertPoints(): mAcceptPointsOutsideBoundingBox is false, copying only points in bbox.";
+//            qDebug() << "PointCloudCuda::slotInsertPoints(): mAcceptPointsOutsideBoundingBox is false, copying only points in bbox.";
             mParameters.elementCount += copyPointsInBoundingBox(
-                        mDevicePointPos + (getNumberOfPoints() * mVboInfo[0].elementSize),
-                        devicePointsBaseSrc + ((firstPointToReadFromSrc + numberOfPointsProcessedInSrc) * mVboInfo[0].elementSize),
+                        mDevicePointPos + (getNumberOfPoints() * mRenderInfoList[0]->elementSize),
+                        devicePointsBaseSrc + ((firstPointToReadFromSrc + numberOfPointsProcessedInSrc) * mRenderInfoList[0]->elementSize),
                         mParameters.grid.worldMin,
                         mParameters.grid.worldMax,
                         numberOfPointsToCopyInThisIteration);
         }
 
         slotReduce();
-        qDebug() << "PointCloudCuda::slotInsertPoints(): after reducing points, cloud contains" << mParameters.elementCount << "of" << mParameters.capacity << "points";
+//        qDebug() << "PointCloudCuda::slotInsertPoints(): after reducing points, cloud contains" << mParameters.elementCount << "of" << mParameters.capacity << "points";
 
         numberOfPointsProcessedInSrc += numberOfPointsToCopyInThisIteration;
     }
 
-    mVboInfo[0].size = getNumberOfPoints();
+    mRenderInfoList[0]->size = getNumberOfPoints();
 
     if(numberOfPointsProcessedInSrc < numberOfPointsToCopy)
         qDebug() << "PointCloudCuda::slotInsertPoints(): didn't insert all points from src (due to insufficient destination capacity of" << mParameters.capacity << "?)";
@@ -283,11 +299,15 @@ void PointCloudCuda::slotInsertPoints(PointCloud *const pointCloudSource, const 
 
 void PointCloudCuda::slotReduce()
 {
+    qDebug() << __PRETTY_FUNCTION__ << mName;
+
     if(!CudaHelper::isDeviceSupported)
     {
 //        qDebug() << "PointCloudCuda::slotReduce(): device not supported, not reducing points.";
         return;
     }
+
+    if(!mIsInitialized) initialize();
 
     if(mGridHasChanged) initializeGrid();
 
@@ -330,7 +350,7 @@ void PointCloudCuda::slotReduce()
 
 quint32 PointCloudCuda::reducePoints(float* devicePoints, const quint32 numElements, const bool createBoundingBox)
 {
-    qDebug() << "PointCloudCuda::reducePoints(): reducing" << numElements << "points, creating bbox:" << createBoundingBox;
+    qDebug() << "PointCloudCuda::reducePoints():" << mName << "reducing" << numElements << "points, creating bbox:" << createBoundingBox;
 
     if(numElements == 0) return 0;
 
@@ -408,7 +428,7 @@ quint32 PointCloudCuda::reducePoints(float* devicePoints, const quint32 numEleme
 
     size_t memTotal, memFree;
     cudaMemGetInfo(&memFree, &memTotal);
-    qDebug() << "PointCloudCuda::reducePoints(): device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free";
+    //qDebug() << "PointCloudCuda::reducePoints(): device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free";
 
     if(createBoundingBox)
     {
@@ -432,9 +452,12 @@ quint32 PointCloudCuda::createVbo(quint32 size)
 
 void PointCloudCuda::slotReset()
 {
+    qDebug() << __PRETTY_FUNCTION__ << mName;
+    if(!mIsInitialized) initialize();
+
     mParameters.elementQueueCount = 0;
     mParameters.elementCount = 0;
-    mVboInfo[0].size = 0;
+    mRenderInfoList[0]->size = 0;
 }
 
 bool PointCloudCuda::importFromFile(const QString& fileName, QWidget* widget)
@@ -475,13 +498,13 @@ bool PointCloudCuda::exportToFile(const QString& fileName, QWidget *widget)
             return false;
         }
 
-        for(int i=0;i < mVboInfo.size();i++)
+        for(int i=0;i < mRenderInfoList.size();i++)
         {
-            glBindBuffer(GL_ARRAY_BUFFER, mVboInfo[0].vbo);
+            glBindBuffer(GL_ARRAY_BUFFER, mRenderInfoList[0]->vbo);
 
             float* points = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY);
 
-            pcw.writePoints(points, mVboInfo.at(i).size, widget);
+            pcw.writePoints(points, mRenderInfoList.at(i)->size, widget);
 
             glUnmapBuffer(GL_ARRAY_BUFFER);
 

@@ -96,7 +96,7 @@ void DiffCorrFetcher::slotSocketDataReady()
 
 void DiffCorrFetcher::slotSocketStateChanged(QAbstractSocket::SocketState socketState)
 {
-      qDebug() << "DiffCorrFetcher::slotSocketStateChanged(): ignoring socket statechange to" << socketState;
+      //qDebug() << "DiffCorrFetcher::slotSocketStateChanged(): ignoring socket statechange to" << socketState;
 
       if(socketState == QAbstractSocket::ConnectedState && mSerialPortOnDevice.isEmpty())
       {

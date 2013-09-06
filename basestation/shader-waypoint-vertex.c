@@ -2,11 +2,9 @@
 
 // use glEnableVertexAttribArray(0) and glVertexAttribPointer(0, ...) to define this input data
 layout(location = 0) in vec4 in_position;
-// use glEnableVertexAttribArray(1) and glVertexAttribPointer(1, ...) to define this input data
-//layout(location = 1) in vec4 in_color;
+layout(location = 1) in float in_informationgain;
 
 in int gl_VertexID;
-in float in_informationgain;
 
 out float infgainfragshader;
 

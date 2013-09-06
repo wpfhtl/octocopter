@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>206</width>
-    <height>677</height>
+    <width>200</width>
+    <height>500</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -18,8 +18,8 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>206</width>
-    <height>677</height>
+    <width>200</width>
+    <height>500</height>
    </size>
   </property>
   <property name="maximumSize">
@@ -41,18 +41,18 @@
    <string>Status</string>
   </property>
   <widget class="QWidget" name="dockWidgetContents">
-   <layout class="QVBoxLayout" name="verticalLayout_3">
+   <layout class="QVBoxLayout" name="verticalLayout_4">
     <property name="spacing">
-     <number>0</number>
+     <number>1</number>
     </property>
     <property name="leftMargin">
-     <number>2</number>
+     <number>0</number>
     </property>
     <property name="topMargin">
      <number>0</number>
     </property>
     <property name="rightMargin">
-     <number>1</number>
+     <number>2</number>
     </property>
     <property name="bottomMargin">
      <number>0</number>
@@ -1229,163 +1229,181 @@
       <property name="title">
        <string>WayPoint Generation</string>
       </property>
-      <layout class="QGridLayout" name="gridLayout_3">
+      <layout class="QVBoxLayout" name="verticalLayout_3">
+       <property name="spacing">
+        <number>1</number>
+       </property>
        <property name="leftMargin">
-        <number>2</number>
+        <number>0</number>
        </property>
        <property name="topMargin">
         <number>0</number>
        </property>
        <property name="rightMargin">
-        <number>2</number>
+        <number>0</number>
        </property>
        <property name="bottomMargin">
         <number>0</number>
        </property>
-       <property name="spacing">
-        <number>1</number>
-       </property>
-       <item row="0" column="0">
-        <widget class="QLabel" name="label_17">
-         <property name="text">
-          <string>Min</string>
-         </property>
-        </widget>
+       <item>
+        <layout class="QGridLayout" name="gridLayout_3">
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_17">
+           <property name="text">
+            <string>Min</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QDoubleSpinBox" name="mSpinBoxScanVolumeMinX">
+           <property name="frame">
+            <bool>true</bool>
+           </property>
+           <property name="decimals">
+            <number>0</number>
+           </property>
+           <property name="minimum">
+            <double>-1000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1000.000000000000000</double>
+           </property>
+           <property name="value">
+            <double>-56.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="2">
+          <widget class="QDoubleSpinBox" name="mSpinBoxScanVolumeMinY">
+           <property name="frame">
+            <bool>true</bool>
+           </property>
+           <property name="decimals">
+            <number>0</number>
+           </property>
+           <property name="minimum">
+            <double>-1000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1000.000000000000000</double>
+           </property>
+           <property name="value">
+            <double>-6.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="3">
+          <widget class="QDoubleSpinBox" name="mSpinBoxScanVolumeMinZ">
+           <property name="frame">
+            <bool>true</bool>
+           </property>
+           <property name="decimals">
+            <number>0</number>
+           </property>
+           <property name="minimum">
+            <double>-1000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1000.000000000000000</double>
+           </property>
+           <property name="value">
+            <double>-50.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_18">
+           <property name="text">
+            <string>Max</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QDoubleSpinBox" name="mSpinBoxScanVolumeMaxX">
+           <property name="frame">
+            <bool>true</bool>
+           </property>
+           <property name="decimals">
+            <number>0</number>
+           </property>
+           <property name="minimum">
+            <double>-1000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1000.000000000000000</double>
+           </property>
+           <property name="value">
+            <double>8.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="2">
+          <widget class="QDoubleSpinBox" name="mSpinBoxScanVolumeMaxY">
+           <property name="frame">
+            <bool>true</bool>
+           </property>
+           <property name="decimals">
+            <number>0</number>
+           </property>
+           <property name="minimum">
+            <double>-1000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1000.000000000000000</double>
+           </property>
+           <property name="value">
+            <double>26.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="3">
+          <widget class="QDoubleSpinBox" name="mSpinBoxScanVolumeMaxZ">
+           <property name="frame">
+            <bool>true</bool>
+           </property>
+           <property name="decimals">
+            <number>0</number>
+           </property>
+           <property name="minimum">
+            <double>-1000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1000.000000000000000</double>
+           </property>
+           <property name="value">
+            <double>14.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
-       <item row="0" column="1">
-        <widget class="QDoubleSpinBox" name="mSpinBoxScanVolumeMinX">
-         <property name="frame">
-          <bool>true</bool>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_6">
+         <property name="spacing">
+          <number>1</number>
          </property>
-         <property name="decimals">
-          <number>0</number>
-         </property>
-         <property name="minimum">
-          <double>-1000.000000000000000</double>
-         </property>
-         <property name="maximum">
-          <double>1000.000000000000000</double>
-         </property>
-         <property name="value">
-          <double>-56.000000000000000</double>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="2">
-        <widget class="QDoubleSpinBox" name="mSpinBoxScanVolumeMinY">
-         <property name="frame">
-          <bool>true</bool>
-         </property>
-         <property name="decimals">
-          <number>0</number>
-         </property>
-         <property name="minimum">
-          <double>-1000.000000000000000</double>
-         </property>
-         <property name="maximum">
-          <double>1000.000000000000000</double>
-         </property>
-         <property name="value">
-          <double>-6.000000000000000</double>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="3">
-        <widget class="QDoubleSpinBox" name="mSpinBoxScanVolumeMinZ">
-         <property name="frame">
-          <bool>true</bool>
-         </property>
-         <property name="decimals">
-          <number>0</number>
-         </property>
-         <property name="minimum">
-          <double>-1000.000000000000000</double>
-         </property>
-         <property name="maximum">
-          <double>1000.000000000000000</double>
-         </property>
-         <property name="value">
-          <double>-50.000000000000000</double>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="0">
-        <widget class="QLabel" name="label_18">
-         <property name="text">
-          <string>Max</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="1">
-        <widget class="QDoubleSpinBox" name="mSpinBoxScanVolumeMaxX">
-         <property name="frame">
-          <bool>true</bool>
-         </property>
-         <property name="decimals">
-          <number>0</number>
-         </property>
-         <property name="minimum">
-          <double>-1000.000000000000000</double>
-         </property>
-         <property name="maximum">
-          <double>1000.000000000000000</double>
-         </property>
-         <property name="value">
-          <double>8.000000000000000</double>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="2">
-        <widget class="QDoubleSpinBox" name="mSpinBoxScanVolumeMaxY">
-         <property name="frame">
-          <bool>true</bool>
-         </property>
-         <property name="decimals">
-          <number>0</number>
-         </property>
-         <property name="minimum">
-          <double>-1000.000000000000000</double>
-         </property>
-         <property name="maximum">
-          <double>1000.000000000000000</double>
-         </property>
-         <property name="value">
-          <double>26.000000000000000</double>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="3">
-        <widget class="QDoubleSpinBox" name="mSpinBoxScanVolumeMaxZ">
-         <property name="frame">
-          <bool>true</bool>
-         </property>
-         <property name="decimals">
-          <number>0</number>
-         </property>
-         <property name="minimum">
-          <double>-1000.000000000000000</double>
-         </property>
-         <property name="maximum">
-          <double>1000.000000000000000</double>
-         </property>
-         <property name="value">
-          <double>14.000000000000000</double>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="0" colspan="2">
-        <widget class="QPushButton" name="mBtnSetScanVolume">
-         <property name="text">
-          <string>Set Volume</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="2" colspan="2">
-        <widget class="QPushButton" name="mBtnGenerateWaypoints">
-         <property name="text">
-          <string>Show GUI</string>
-         </property>
-        </widget>
+         <item>
+          <widget class="QPushButton" name="mBtnSetVolumeGlobal">
+           <property name="text">
+            <string>Set Global</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="mBtnSetVolumeLocal">
+           <property name="text">
+            <string>Set Local</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="mBtnGenerateWaypoints">
+           <property name="text">
+            <string>Show GUI</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
       </layout>
      </widget>

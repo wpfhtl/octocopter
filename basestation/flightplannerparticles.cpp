@@ -5,68 +5,79 @@
 #include "cudahelper.cuh"
 #include "basestation.h"
 
-FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindow *glWidget, PointCloud *pointcloud) :
+FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindow *glWidget, PointCloudCuda *pointCloudDense) :
     QObject(baseStation),
     mWayPointsAhead(QColor(255,200,0,200)),
     mWayPointsPassed(QColor(128,128,128,50))
 {
     mGlWindow = glWidget;
     mBaseStation = baseStation;
-    mPointCloudDense = pointcloud;
+    mPointCloudDense = pointCloudDense;
 
-    mActiveWayPointVisualizationIndex = -1;
     mParticleSystem = 0;
     mPathPlanner = 0;
-    mParticleRenderer = 0;
     mVboGridMapOfInformationGainBytes = 0;
+    mCudaVboResourceGridMapOfInformationGainBytes = 0;
     mVboGridMapOfInformationGainFloats = 0;
+    mCudaVboResourceGridMapOfInformationGainFloats = 0;
     mDeviceGridInformationGainCellWorldPositions = 0;
-    mShaderProgramDefault = mShaderProgramWaypoint = 0;
-    mVboBoundingBoxScanVolume = 0;
-    mVboWayPointConnections = 0;
-
-    mRenderWayPointsAhead = mRenderWayPointsPassed = true;
-    mRenderScanVolume = true;
-    mRenderDetectionVolume = true;
 
     mVehiclePoses.reserve(25 * 60 * 20); // enough poses for 20 minutes with 25Hz
 
-    mPointCloudColliders = new PointCloudCuda(
-                Box3D(
-                    QVector3D(-32.0f, -6.0f, -32.0f),
-                    QVector3D(32.0f, 26.0f, 32.0f)
-                    ),
-                64 * 1024);
-
+    mPointCloudColliders = new PointCloudCuda(Box3D(), 64 * 1024, "ColliderCloud");
 
     mPointCloudColliders->setMinimumPointDistance(0.2f);
     //mPointCloudColliders->setColor(QColor(0,0,255,255));
 
-    mGlWindow->slotPointCloudRegister(mPointCloudColliders);
+    mBaseStation->getGlScene()->slotPointCloudRegister(mPointCloudColliders);
 
     mSimulationParameters.initialize();
     mDialog = new FlightPlannerParticlesDialog(&mSimulationParameters, (QWidget*)baseStation);
+    connect(mDialog, SIGNAL(generateWayPoints()), SLOT(slotGenerateWaypoints()));
+    connect(mDialog, SIGNAL(resetInformationGain()), SLOT(slotClearGridOfInformationGain()));
 
-    mPathPlanner = new PathPlanner;
-    connect(mPathPlanner, &PathPlanner::path, this, &FlightPlannerParticles::slotSetWayPoints);
-    connect(mPathPlanner, &PathPlanner::generateNewWayPoints, this, &FlightPlannerParticles::slotStartWayPointGeneration);
-    connect(mPathPlanner, SIGNAL(message(LogImportance,QString,QString)), this, SIGNAL(message(LogImportance,QString,QString)));
+    //    connect(mDialog, SIGNAL(processPhysicsChanged(bool)), SLOT(slotProcessPhysics(bool)));
+    connect(mDialog, SIGNAL(renderParticles(bool)), SIGNAL(renderParticles(bool)));
+
+    connect(mDialog, SIGNAL(renderInformationGain(bool)), SIGNAL(renderInformationGain(bool)));
+    connect(mDialog, SIGNAL(renderOccupancyGrid(bool)), SIGNAL(renderOccupancyGrid(bool)));
+    connect(mDialog, SIGNAL(renderPathPlannerGrid(bool)), SIGNAL(renderPathPlannerGrid(bool)));
+    connect(mDialog, SIGNAL(reduceColliderCloud()), mPointCloudColliders, SLOT(slotReduce()));
+
+    connect(mPointCloudDense, SIGNAL(numberOfPoints(quint32)), mDialog, SLOT(slotSetPointCloudSizeDense(quint32)));
+    connect(mPointCloudColliders, SIGNAL(numberOfPoints(quint32)), mDialog, SLOT(slotSetPointCloudSizeSparse(quint32)));
 
     connect(&mTimerProcessInformationGain, SIGNAL(timeout()), this, SLOT(slotProcessInformationGain()));
 
     // When the dialog dis/enables physics processing, start/stop the timer
     mTimerStepSimulation.setInterval(1);
     connect(&mTimerStepSimulation, &QTimer::timeout, this, &FlightPlannerParticles::slotStepSimulation);
-    connect(mDialog, &FlightPlannerParticlesDialog::processPhysicsChanged, [=](const bool enable) {if(enable) mTimerStepSimulation.start(); else mTimerStepSimulation.stop();});
+    connect(mDialog, &FlightPlannerParticlesDialog::processPhysics, [=](const bool enable) {if(enable) mTimerStepSimulation.start(); else mTimerStepSimulation.stop();});
 }
 
 void FlightPlannerParticles::slotInitialize()
 {
-    qDebug() << "FlightPlannerParticles::slotInitialize()";
+    qDebug() << __PRETTY_FUNCTION__;
+
+    mPointCloudDense->initialize();
+    mPointCloudColliders->initialize();
 
     mSimulationParameters.initialize();
     mSimulationParameters.gridInformationGain.cells = make_uint3(256, 32, 256);
-    slotSetScanVolume(Box3D(QVector3D(-32, -6, -32), QVector3D(32, 26, 32)));
+
+    mParticleSystem = new ParticleSystem((PointCloudCuda*)mPointCloudDense, (PointCloudCuda*)mPointCloudColliders, &mSimulationParameters); // ParticleSystem will draw its points as colliders from the pointcloud passed here
+    mParticleSystem->slotSetParticleCount(32768);
+    mParticleSystem->slotSetParticleRadius(1.0f/2.0f); // balance against MinimumPointDistance above
+    mParticleSystem->slotSetDefaultParticlePlacement(ParticleSystem::ParticlePlacement::PlacementFillSky);
+    mParticleSystem->slotInitialize();
+
+    mPathPlanner = new PathPlanner(mPointCloudColliders);
+    connect(mPathPlanner, &PathPlanner::path, this, &FlightPlannerParticles::slotSetWayPoints);
+    connect(mPathPlanner, &PathPlanner::generateNewWayPoints, this, &FlightPlannerParticles::slotStartWayPointGeneration);
+    connect(mPathPlanner, SIGNAL(message(LogImportance,QString,QString)), this, SIGNAL(message(LogImportance,QString,QString)));
+    connect(mPathPlanner, SIGNAL(vboInfoGridOccupancy(quint32,Box3D,Vector3i)), SIGNAL(vboInfoGridOccupancy(quint32,Box3D,Vector3i)));
+    connect(mPathPlanner, SIGNAL(vboInfoGridPathPlanner(quint32,Box3D,Vector3i)), SIGNAL(vboInfoGridPathPlanner(quint32,Box3D,Vector3i)));
+    mPathPlanner->initialize();
 
     const quint32 numberOfCellsInGridInformationGain = mSimulationParameters.gridInformationGain.getCellCount();
 
@@ -86,25 +97,10 @@ void FlightPlannerParticles::slotInitialize()
     // Allocate a vector of float4 for the world-positions of the gridcell positions. These will be the values when sorting
     cudaSafeCall(cudaMalloc((void**)&mDeviceGridInformationGainCellWorldPositions, sizeof(float4) * numberOfCellsInGridInformationGain));
 
-    // Will contain QVector4Ds of worldpos of every gridcell, sorted by waypoint pressure
-    //    cudaSafeCall(cudaMalloc((void**)&mDeviceGridMapCellWorldPositions, sizeof(float4) * numberOfCellsInScanVolume));
-
-    mPointCloudColliders->slotInitialize();
-
     connect(mPointCloudDense, SIGNAL(pointsInserted(PointCloud*const,quint32,quint32)), SLOT(slotDenseCloudInsertedPoints(PointCloud*const,quint32,quint32)));
 
-    mShaderProgramGridLines = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
-
-    mParticleSystem = new ParticleSystem((PointCloudCuda*)mPointCloudDense, (PointCloudCuda*)mPointCloudColliders, &mSimulationParameters); // ParticleSystem will draw its points as colliders from the pointcloud passed here
-    mParticleRenderer = new ParticleRenderer;
-
-    connect(mParticleSystem, SIGNAL(particleRadiusChanged(float)), mParticleRenderer, SLOT(slotSetParticleRadius(float)));
-    //connect(mParticleSystem, SIGNAL(vboInfoParticles(quint32,quint32,quint32,QVector3D,QVector3D)), mParticleRenderer, SLOT(slotSetVboInfoParticles(quint32,quint32,quint32,QVector3D,QVector3D)));
-    connect(mParticleSystem, &ParticleSystem::vboInfoParticles, mParticleRenderer, &ParticleRenderer::slotSetVboInfoParticles);
-
-    connect(mPathPlanner, &PathPlanner::vboInfoGridOccupancy, mParticleRenderer, &ParticleRenderer::slotSetVboInfoGridOccupancy);
-    connect(mPathPlanner, &PathPlanner::vboInfoGridPathFinder, mParticleRenderer, &ParticleRenderer::slotSetVboInfoGridPathFinder);
-    connect(this, &FlightPlannerParticles::vboInfoGridInformationGain, mParticleRenderer, &ParticleRenderer::slotSetVboInfoGridInformationGain);
+    connect(mParticleSystem, SIGNAL(particleRadiusChanged(float)), SIGNAL(particleRadiusChanged(float)));
+    connect(mParticleSystem, SIGNAL(vboInfoParticles(quint32,quint32,float,Box3D)), SIGNAL(vboInfoParticles(quint32,quint32,float,Box3D)));
 
     emit vboInfoGridInformationGain(
                 mVboGridMapOfInformationGainBytes,
@@ -115,28 +111,14 @@ void FlightPlannerParticles::slotInitialize()
                 Vector3i(mSimulationParameters.gridInformationGain.cells.x, mSimulationParameters.gridInformationGain.cells.y, mSimulationParameters.gridInformationGain.cells.z)
                 );
 
-    mParticleSystem->slotSetParticleCount(32768);
-    mParticleSystem->slotSetParticleRadius(1.0f/2.0f); // balance against mOctreeCollisionObjects.setMinimumPointDistance() above
-    mParticleSystem->slotSetDefaultParticlePlacement(ParticleSystem::ParticlePlacement::PlacementFillSky);
-
-    connect(mDialog, SIGNAL(generateWayPoints()), SLOT(slotGenerateWaypoints()));
     connect(mDialog, SIGNAL(resetParticles()), mParticleSystem, SLOT(slotResetParticles()));
-    connect(mDialog, SIGNAL(resetInformationGain()), SLOT(slotClearGridOfInformationGain()));
     connect(mDialog, SIGNAL(simulationParameters(const ParametersParticleSystem*)), mParticleSystem, SLOT(slotSetSimulationParametersFromUi(const ParametersParticleSystem*)));
 
-    //    connect(mDialog, SIGNAL(processPhysicsChanged(bool)), SLOT(slotProcessPhysics(bool)));
-    connect(mDialog, SIGNAL(showParticlesChanged(bool)), mParticleRenderer, SLOT(slotSetRenderParticles(bool)));
-    connect(mDialog, SIGNAL(showInformationGainChanged(bool)), mParticleRenderer, SLOT(slotSetRenderInformationGain(bool)));
-    connect(mDialog, SIGNAL(showOccupancyGridChanged(bool)), mParticleRenderer, SLOT(slotSetRenderOccupancyGrid(bool)));
-    connect(mDialog, SIGNAL(showPathFinderGridChanged(bool)), mParticleRenderer, SLOT(slotSetRenderPathFinderGrid(bool)));
-    connect(mDialog, SIGNAL(reduceColliderCloud()), mPointCloudColliders, SLOT(slotReduce()));
+    slotSetVolumeGlobal(Box3D(QVector3D(-128, -6, -128), QVector3D(128, 26, 128)));
+    slotSetVolumeLocal(Box3D(QVector3D(-32, -6, -32), QVector3D(32, 26, 32)));
 
-    connect(mPointCloudDense, SIGNAL(numberOfPoints(quint32)), mDialog, SLOT(slotSetPointCloudSizeDense(quint32)));
-    connect(mPointCloudColliders, SIGNAL(numberOfPoints(quint32)), mDialog, SLOT(slotSetPointCloudSizeSparse(quint32)));
-
-    // PathPlanner needs ColliderCloud to initialize!
-    mPathPlanner->slotSetPointCloudColliders(mPointCloudColliders);
-    mPathPlanner->slotInitialize();
+    emit wayPointListAhead(&mWayPointsAhead);
+    emit wayPointListPassed(&mWayPointsPassed);
 }
 
 void FlightPlannerParticles::slotShowUserInterface()
@@ -164,7 +146,7 @@ void FlightPlannerParticles::slotProcessInformationGain(const quint8 threshold)
     {
         qDebug() << "FlightPlannerParticles::slotProcessInformationGain(): max pressure" << maxPressure << ">" << "threshold" << threshold << "- generating waypoints!";
         // Now that we're generating waypoints, we can deactivate the physics processing (and restart when only few waypoints are left)
-        mDialog->setProcessPhysics(false);
+        mDialog->setProcessPhysicsActive(false);
         mTimerProcessInformationGain.stop();
         slotGenerateWaypoints();
     }
@@ -253,19 +235,18 @@ void FlightPlannerParticles::slotGenerateWaypoints(quint32 numberOfWaypointsToGe
 
 FlightPlannerParticles::~FlightPlannerParticles()
 {
-    delete mParticleRenderer;
     delete mParticleSystem;
 
     if(CudaHelper::isDeviceSupported)
     {
         cudaSafeCall(cudaFree(mDeviceGridInformationGainCellWorldPositions));
         //cudaSafeCall(cudaFree(mVboGridMapOfInformationGainFloat));
-        cudaSafeCall(cudaGraphicsUnregisterResource(mCudaVboResourceGridMapOfInformationGainBytes));
-        cudaSafeCall(cudaGraphicsUnregisterResource(mCudaVboResourceGridMapOfInformationGainFloats));
+        if(mCudaVboResourceGridMapOfInformationGainBytes) cudaSafeCall(cudaGraphicsUnregisterResource(mCudaVboResourceGridMapOfInformationGainBytes));
+        if(mCudaVboResourceGridMapOfInformationGainFloats) cudaSafeCall(cudaGraphicsUnregisterResource(mCudaVboResourceGridMapOfInformationGainFloats));
     }
 
-    glDeleteBuffers(1, (const GLuint*)&mVboGridMapOfInformationGainBytes);
-    glDeleteBuffers(1, (const GLuint*)&mVboGridMapOfInformationGainFloats);
+    if(mVboGridMapOfInformationGainBytes) OpenGlUtilities::deleteVbo(mVboGridMapOfInformationGainBytes);
+    if(mVboGridMapOfInformationGainFloats) OpenGlUtilities::deleteVbo(mVboGridMapOfInformationGainFloats);
 }
 
 
@@ -293,18 +274,40 @@ void FlightPlannerParticles::slotNewScanFused(const float* const points, const q
     emit suggestVisualization();
 }
 
-void FlightPlannerParticles::slotSetScanVolume(const Box3D scanVolume)
+void FlightPlannerParticles::slotSetVolumeGlobal(const Box3D volume)
 {
-    qDebug() << __PRETTY_FUNCTION__ << scanVolume;
-    // We're being told to change the particle system volume - this is NOT the particle system' world's volume!
+    qDebug() << __PRETTY_FUNCTION__ << volume;
+    // We're being told to change the global volume
+
+    mVolumeGlobal = volume;
+
+    // If the local volumne is not enclosed anymore, try to make it fit!
+    if(!mVolumeGlobal.containsAllOf(&mVolumeLocal))
+    {
+        slotSetVolumeLocal(mVolumeLocal);
+    }
+
+    emit volumeGlobal(&mVolumeGlobal);
+}
+
+void FlightPlannerParticles::slotSetVolumeLocal(const Box3D volume)
+{
+    qDebug() << __PRETTY_FUNCTION__ << volume;
+    // We're being told to change the local volume that is used to bound waypoint generation.
+    // This means we need to move the particle system, the pathplanner structures etc.
     slotClearGridOfInformationGain();
 
-    mScanVolume = scanVolume;
+    mVolumeLocal = volume.tryToKeepWithin(mVolumeGlobal);
+    emit volumeLocal(&mVolumeLocal);
 
-    OpenGlUtilities::setVboToBoundingBox(mVboBoundingBoxScanVolume, mScanVolume);
+    mSimulationParameters.gridInformationGain.worldMin = CudaHelper::convert(mVolumeLocal.min);
+    mSimulationParameters.gridInformationGain.worldMax = CudaHelper::convert(mVolumeLocal.max);
 
-    mSimulationParameters.gridInformationGain.worldMin = CudaHelper::convert(mScanVolume.min);
-    mSimulationParameters.gridInformationGain.worldMax = CudaHelper::convert(mScanVolume.max);
+    // We set this cloud's BBOX, the pathplanner will follow automatically
+    mPointCloudColliders->setBoundingBox(mVolumeLocal);
+
+    mParticleSystem->slotSetVolume(mVolumeLocal);
+    mParticleSystem->slotResetParticles();
 
     if(CudaHelper::isDeviceSupported)
     {
@@ -319,6 +322,35 @@ void FlightPlannerParticles::slotSetScanVolume(const Box3D scanVolume)
                     Vector3i(mSimulationParameters.gridInformationGain.cells.x, mSimulationParameters.gridInformationGain.cells.y, mSimulationParameters.gridInformationGain.cells.z)
                     );
     }
+}
+
+void FlightPlannerParticles::slotVehiclePoseChanged(const Pose* const pose)
+{
+    mVehiclePoses.append(*pose);
+
+    //why this?? if(!mDialog->isProcessPhysicsActive()) return;
+
+    // Move the particlesystem with the vehicle if so desired and the vehicle moved X meters
+    const QVector3D pos = pose->getPosition();
+
+    if(mParticleSystem && mDialog->followVehicle() && pos.distanceToLine(mLastParticleSystemPositionToFollowVehicle, QVector3D()) > 20.0)
+    {
+        qDebug() << "FlightPlannerParticles::slotVehiclePoseChanged(): vehicle moved far enough, moving particle system...";
+        mLastParticleSystemPositionToFollowVehicle = pos;
+
+        const Box3D desiredParticleSystemExtents(QVector3D(
+                                                     pos.x()-32.0f,
+                                                     pos.y()-10.0f,
+                                                     pos.z()-32.0f),
+                                                 QVector3D(
+                                                     pos.x()+32.0f,
+                                                     pos.y()+22.0f,
+                                                     pos.z()+32.0f));
+
+        slotSetVolumeLocal(desiredParticleSystemExtents);
+    }
+
+    // check for collisions?!
 }
 
 void FlightPlannerParticles::slotSetWayPoints(const QList<WayPoint>* const wayPointList, const WayPointListSource source)
@@ -379,46 +411,16 @@ void FlightPlannerParticles::slotStartWayPointGeneration()
 
     slotClearGridOfInformationGain();
 
-    mDialog->setProcessPhysics(true);
+    // This will make the dialog emit processPhysics() signal, which is connected to a lambda above, starting the stepSimulation-timer.
+    mDialog->setProcessPhysicsActive(true);
 
+    // This will make the local bbox follow the vehicle!
     const Pose p = mVehiclePoses.last();
     slotVehiclePoseChanged(&p);
 
     mParticleSystem->slotResetParticles();
 
     mTimerProcessInformationGain.start(5000);
-}
-
-void FlightPlannerParticles::slotVehiclePoseChanged(const Pose* const pose)
-{
-    mVehiclePoses.append(*pose);
-
-    if(!mDialog->processPhysics()) return;
-
-    // Move the particlesystem with the vehicle if so desired and the vehicle moved X meters
-    const QVector3D pos = pose->getPosition();
-
-    if(mParticleSystem && mDialog->followVehicle() && pos.distanceToLine(mLastParticleSystemPositionToFollowVehicle, QVector3D()) > 20.0)
-    {
-        qDebug() << "FlightPlannerParticles::slotVehiclePoseChanged(): vehicle moved far enough, moving particle system...";
-        mLastParticleSystemPositionToFollowVehicle = pos;
-
-        const Box3D desiredParticleSystemExtents(QVector3D(
-                                                     pos.x()-32.0f,
-                                                     pos.y()-10.0f,
-                                                     pos.z()-32.0f),
-                                                 QVector3D(
-                                                     pos.x()+32.0f,
-                                                     pos.y()+22.0f,
-                                                     pos.z()+32.0f));
-
-        const Box3D particleSystemInScanVolume = desiredParticleSystemExtents.tryToKeepWithin(mScanVolume);
-
-        mParticleSystem->slotSetVolume(particleSystemInScanVolume);
-        //mParticleSystem->slotResetParticles();
-    }
-
-    // check for collisions?!
 }
 
 void FlightPlannerParticles::slotClearGridOfInformationGain()
@@ -432,6 +434,8 @@ void FlightPlannerParticles::slotClearGridOfInformationGain()
         cudaSafeCall(cudaMemset(gridMapOfInformationGainBytes, 0, sizeof(quint8) * numberOfCells));
         cudaSafeCall(cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfInformationGainBytes, 0));
     }
+    else
+        qDebug() << __PRETTY_FUNCTION__ << "couldn't clear information gain, VBO is not initialized yet!";
 }
 
 void FlightPlannerParticles::showInformationGain()
@@ -463,6 +467,8 @@ void FlightPlannerParticles::showInformationGain()
 
 void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloud*const pointCloudSource, const quint32& firstPointToReadFromSrc, quint32 numberOfPointsToCopy)
 {
+    qDebug() << __PRETTY_FUNCTION__;
+
     // Son, we shouldn't mess with CUDA while rendering is in progress
     Q_ASSERT(!mGlWindow->mIsCurrentlyRendering);
 
@@ -481,129 +487,6 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloud*const point
     }
 }
 
-void FlightPlannerParticles::slotVisualize()
-{
-    // Initialize shaders and VBO if necessary
-    if((mShaderProgramWaypoint == 0 || mShaderProgramDefault == 0) && mGlWindow != 0)
-    {
-        qDebug() << __PRETTY_FUNCTION__ << "initializing opengl...";
-        initializeOpenGLFunctions();
-        mShaderProgramDefault = new ShaderProgram(this, "shader-default-vertex.c", "", "shader-default-fragment.c");
-        mShaderProgramWaypoint = new ShaderProgram(this, "shader-waypoint-vertex.c", "", "shader-waypoint-fragment.c");
-    }
-
-    if(mVboBoundingBoxScanVolume == 0)
-    {
-        glGenBuffers(1, &mVboBoundingBoxScanVolume);
-        OpenGlUtilities::setVboToBoundingBox(mVboBoundingBoxScanVolume, mScanVolume);
-    }
-
-    if(mRenderScanVolume && mShaderProgramDefault != 0)
-    {
-        mShaderProgramDefault->bind();
-        mShaderProgramDefault->setUniformValue("useFixedColor", true);
-
-        glEnable(GL_BLEND);
-        glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
-        {
-            glBindBuffer(GL_ARRAY_BUFFER, mVboBoundingBoxScanVolume);
-            glEnableVertexAttribArray(0);
-            glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0); // position
-
-            // draw the lines around the box
-            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(0.2f, 0.2f, 1.0f, 0.8f));
-            glDrawArrays(GL_LINE_LOOP, 0, 4);
-            glDrawArrays(GL_LINE_LOOP, 4, 4);
-            glDrawArrays(GL_LINE_LOOP, 8, 4);
-            glDrawArrays(GL_LINE_LOOP, 12, 4);
-            glDrawArrays(GL_LINE_LOOP, 16, 4);
-            glDrawArrays(GL_LINE_LOOP, 20, 4);
-
-            // draw a half-transparent box
-            //            mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(1.0f, 1.0f, 1.0f, 0.015f));
-            //            glDrawArrays(GL_QUADS, 0, 24);
-
-            glDisableVertexAttribArray(0);
-        }
-        glDisable(GL_BLEND);
-        mShaderProgramDefault->release();
-    }
-
-    if(mShaderProgramDefault != 0 && mShaderProgramWaypoint != 0)
-    {
-        glEnable(GL_BLEND);
-        glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
-        {
-                if(mRenderWayPointsAhead && !mWayPointsAhead.isEmpty())
-                {
-                    const QColor c = mWayPointsAhead.color();
-                    mShaderProgramDefault->bind();
-                    mShaderProgramDefault->setUniformValue("useFixedColor", true);
-                    mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(c.redF(),c.greenF(),c.blueF(),c.alphaF()));
-                    glBindBuffer(GL_ARRAY_BUFFER, mWayPointsAhead.vbo());
-                    // Make the contents of this array available at layout position vertexShaderVertexIndex in the vertex shader
-                    Q_ASSERT(glGetAttribLocation(mShaderProgramDefault->programId(), "in_position") != -1);
-                    glEnableVertexAttribArray(glGetAttribLocation(mShaderProgramDefault->programId(), "in_position"));
-                    glVertexAttribPointer(glGetAttribLocation(mShaderProgramDefault->programId(), "in_position"), 4, GL_FLOAT, GL_FALSE, 20, 0);
-                    glLineWidth(2.0f);
-                    glDrawArrays(GL_LINE_STRIP, 0, mWayPointsAhead.size());
-                    mShaderProgramDefault->release();
-
-                    mShaderProgramWaypoint->bind();
-                    mShaderProgramWaypoint->setUniformValue("activeWayPointIndex", mActiveWayPointVisualizationIndex);
-                    mShaderProgramWaypoint->setUniformValue("fixedColor", QVector4D(c.redF(),c.greenF(),c.blueF(),c.alphaF()));
-
-                    mShaderProgramWaypoint->enableAttributeArray("in_informationgain");
-                    glVertexAttribPointer(mShaderProgramWaypoint->attributeLocation("in_informationgain"), 1, GL_FLOAT, GL_FALSE, 20, (void*)16);
-                    glDrawArrays(GL_POINTS, 0, mWayPointsAhead.size());
-                    glDisableVertexAttribArray(glGetAttribLocation(mShaderProgramDefault->programId(), "in_position"));
-                    glDisableVertexAttribArray(glGetAttribLocation(mShaderProgramDefault->programId(), "in_informationgain"));
-                    mShaderProgramWaypoint->release();
-                    glBindBuffer(GL_ARRAY_BUFFER, 0);
-                }
-
-                if(mRenderWayPointsPassed && !mWayPointsPassed.isEmpty())
-                {
-                    const QColor c = mWayPointsPassed.color();
-                    mShaderProgramDefault->bind();
-                    mShaderProgramDefault->setUniformValue("useFixedColor", true);
-                    mShaderProgramDefault->setUniformValue("fixedColor", QVector4D(c.redF(),c.greenF(),c.blueF(),c.alphaF()));
-                    glBindBuffer(GL_ARRAY_BUFFER, mWayPointsPassed.vbo());
-                    // Make the contents of this array available at layout position vertexShaderVertexIndex in the vertex shader
-                    Q_ASSERT(glGetAttribLocation(mShaderProgramDefault->programId(), "in_position") != -1);
-                    glEnableVertexAttribArray(glGetAttribLocation(mShaderProgramDefault->programId(), "in_position"));
-                    glVertexAttribPointer(glGetAttribLocation(mShaderProgramDefault->programId(), "in_position"), 4, GL_FLOAT, GL_FALSE, 20, 0);
-                    glLineWidth(1.0f);
-                    glDrawArrays(GL_LINE_STRIP, 0, mWayPointsPassed.size());
-                    mShaderProgramDefault->release();
-
-                    mShaderProgramWaypoint->bind();
-                    mShaderProgramWaypoint->setUniformValue("activeWayPointIndex", -1);
-                    mShaderProgramWaypoint->setUniformValue("fixedColor", QVector4D(c.redF(),c.greenF(),c.blueF(),c.alphaF()));
-
-                    mShaderProgramWaypoint->enableAttributeArray("in_informationgain");
-                    glVertexAttribPointer(mShaderProgramWaypoint->attributeLocation("in_informationgain"), 1, GL_FLOAT, GL_FALSE, 20, (void*)16);
-                    glDrawArrays(GL_POINTS, 0, mWayPointsPassed.size());
-                    glDisableVertexAttribArray(glGetAttribLocation(mShaderProgramDefault->programId(), "in_position"));
-                    glDisableVertexAttribArray(glGetAttribLocation(mShaderProgramDefault->programId(), "in_informationgain"));
-                    mShaderProgramWaypoint->release();
-                    glBindBuffer(GL_ARRAY_BUFFER, 0);
-                }
-        }
-        glDisable(GL_BLEND);
-    }
-
-    if(!mParticleSystem && CudaHelper::isDeviceSupported)
-        slotInitialize();
-
-    if(mParticleSystem)
-    {
-        mParticleRenderer->slotSetRenderBoundingBox(mRenderDetectionVolume);
-        mParticleRenderer->render();
-    }
-
-}
-
 void FlightPlannerParticles::slotStepSimulation()
 {
     if(!mParticleSystem && CudaHelper::isDeviceSupported)
@@ -615,7 +498,7 @@ void FlightPlannerParticles::slotStepSimulation()
     if(mPointCloudColliders->getNumberOfPoints() < 1)
     {
         qDebug() << __PRETTY_FUNCTION__ << "will not collide particles against 0 colliders, disablig particle simulation";
-        mDialog->setProcessPhysics(false);
+        mDialog->setProcessPhysicsActive(false);
         return;
     }
 

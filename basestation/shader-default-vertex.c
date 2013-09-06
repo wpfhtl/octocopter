@@ -26,8 +26,10 @@ void main()
 {
     color = in_color;
 
-    if(useMatrixExtra)
-      gl_Position = matrixCameraToClip * matrixModelToCamera * matrixExtra * in_position;
-    else
-      gl_Position = matrixCameraToClip * matrixModelToCamera * in_position;
+     if(useMatrixExtra)
+       gl_Position = matrixCameraToClip * matrixModelToCamera * matrixExtra * in_position;
+     else
+       gl_Position = matrixCameraToClip * matrixModelToCamera * in_position;
+    
+//    gl_Position = in_position;
 }

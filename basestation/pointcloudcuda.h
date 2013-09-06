@@ -32,25 +32,36 @@ class PointCloudCuda : public PointCloud
     Q_OBJECT
 
 public:
-    PointCloudCuda(const Box3D &boundingBox, const quint32 maximumElementCount = 8 * 1024 * 1024); // 8 million points capacity
+    PointCloudCuda(const Box3D &boundingBox = Box3D(), const quint32 maximumElementCount = 8 * 1024 * 1024, const QString name = QString()); // 8 million points capacity
     ~PointCloudCuda();
 
-    void updateVbo();
+    // Must be called:
+    // - before any work is done
+    // Requires:
+    // - active OpenGL context (because of cudaGraphicsGLRegisterBuffer)
+    void initialize();
+
+//    void updateVbo();
 
     // No two points closer than @distance will be inserted into this PointCloud
     void setMinimumPointDistance(const float &distance);
-    float getMinimumPointDistance() const { return mParameters.minimumDistance; }
+    //float getMinimumPointDistance() const { return mParameters.minimumDistance; }
 
     void setBoundingBox(const Box3D& box)
     {
-        // We do not use the Base-Classes' mBBoxMin and mBBoxMax!
+        qDebug() << __PRETTY_FUNCTION__ << mName << box;
         mParameters.grid.worldMin = make_float3(box.min.x(), box.min.y(), box.min.z());
         mParameters.grid.worldMax = make_float3(box.max.x(), box.max.y(), box.max.z());
     }
 
     QVector3D getWorldSize() const { return CudaHelper::convert(mParameters.grid.worldMax) - CudaHelper::convert(mParameters.grid.worldMax);}
 
-    cudaGraphicsResource** getCudaGraphicsResource() { return &mCudaVboResource;}
+    cudaGraphicsResource** getCudaGraphicsResource()
+    {
+        if(!mIsInitialized) initialize();
+
+        return &mCudaVboResource;
+    }
 
     quint32 getNumberOfPoints(void) const
     {
@@ -66,20 +77,22 @@ public:
 
     Grid getGrid() const {return mParameters.grid;}
 
-    const QVector<VboInfo>& getVboInfo() const { return mVboInfo; }
+    QVector<RenderInfo*>* getRenderInfo() { return &mRenderInfoList; }
 
     quint32 getCapacity(void) const { return mParameters.capacity; }
 
-    void setColor(const QColor& c) {mVboInfo[0].color = c;}
+    void setColor(const QColor& c) {mRenderInfoList[0]->color = c;}
 
     bool importFromFile(const QString& fileName, QWidget* widget = nullptr);
     bool exportToFile(const QString& fileName, QWidget* widget = nullptr);
 
 private:
+    bool mIsInitialized;
+    QString mName;
     ParametersPointCloud mParameters;
 
     // The VBO pointing to the points. To be passed to GlWidget for rendering. We currently use just one VBO.
-    QVector<VboInfo> mVboInfo;
+    QVector<RenderInfo*> mRenderInfoList;
 
     float* mNewPointsBuffer;
     quint32 mNewPointsBufferCursor;
@@ -114,8 +127,6 @@ public slots:
 
     // Insert points from another PointCloudCuda
     void slotInsertPoints(PointCloud *const pointCloudSource, const quint32& firstPointToReadFromSrc = 0, quint32 numberOfPointsToCopy = 0);
-
-    void slotInitialize();
 
     // Clears the datastructure, but does not destruct it. Points can still be inserted afterwards.
     void slotReset();

@@ -58,10 +58,26 @@ struct Box3D
 {
     QVector3D min,max;
 
-    Box3D() {}
+    Box3D()
+    {
+        min = QVector3D(-32, -32, -32);
+        max = QVector3D(32, 32, 32);
+    }
+
     Box3D(const QVector3D& minBox, const QVector3D& maxBox) {min = minBox; max = maxBox;}
     QVector3D size() const {return max - min;}
     QVector3D center() const {return min + (max - min)/2.0f;}
+
+    bool containsAllOf(const Box3D* other) const
+    {
+        return
+                min.x() <= other->min.x() &&
+                min.y() <= other->min.y() &&
+                min.z() <= other->min.z() &&
+                max.x() >= other->max.x() &&
+                max.y() >= other->max.y() &&
+                max.z() >= other->max.z();
+    }
 
     Box3D tryToKeepWithin(const Box3D& other) const
     {
@@ -212,5 +228,8 @@ struct Vector3i
         this->z = z;
     }
 };
+
+// for using qDebug()
+QDebug operator<<(QDebug dbg, const Vector3i &v);
 
 #endif // COMMON_H

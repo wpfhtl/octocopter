@@ -34,7 +34,21 @@ ControlWidget::ControlWidget(QWidget* widget) : QDockWidget(widget)
         emit setScannerState(checked);
     });
 
-    connect(mBtnSetScanVolume, &QPushButton::clicked, this, &ControlWidget::slotSetScanVolume);
+    connect(mBtnSetVolumeGlobal, &QPushButton::clicked, [=](){
+        emit volumeGlobal(
+                    Box3D(
+                        QVector3D(mSpinBoxScanVolumeMinX->value(), mSpinBoxScanVolumeMinY->value(), mSpinBoxScanVolumeMinZ->value()),
+                        QVector3D(mSpinBoxScanVolumeMaxX->value(), mSpinBoxScanVolumeMaxY->value(), mSpinBoxScanVolumeMaxZ->value()))
+                    );
+    });
+
+    connect(mBtnSetVolumeLocal, &QPushButton::clicked, [=](){
+        emit volumeLocal(
+                    Box3D(
+                        QVector3D(mSpinBoxScanVolumeMinX->value(), mSpinBoxScanVolumeMinY->value(), mSpinBoxScanVolumeMinZ->value()),
+                        QVector3D(mSpinBoxScanVolumeMaxX->value(), mSpinBoxScanVolumeMaxY->value(), mSpinBoxScanVolumeMaxZ->value()))
+                    );
+    });
 
     QTimer::singleShot(0, this, SLOT(slotResizeToMinimum()));
 
@@ -117,7 +131,7 @@ void ControlWidget::slotSetFlightState(const FlightState* const fs)
 
 void ControlWidget::slotSetFlightStateRestriction(const FlightStateRestriction* const fsr)
 {
-    qDebug() << "ControlWidget::slotSetFlightStateRestriction(): flightstaterestriction changed to" << fsr->toString();
+    //qDebug() << "ControlWidget::slotSetFlightStateRestriction(): flightstaterestriction changed to" << fsr->toString();
     mLabelFlightStateRestriction->setText(fsr->toString().replace("Restriction", ""));
 }
 
@@ -128,7 +142,7 @@ void ControlWidget::slotUpdatePose(const Pose * const pose)
     mLabelPoseOgreY->setText(QString("%1").arg(position.y(), 4, 'f', 3, '0'));
     mLabelPoseOgreZ->setText(QString("%1").arg(position.z(), 4, 'f', 3, '0'));
 
-    QString deg;
+    static QString deg;
     deg.sprintf("%c", 176);
     deg.prepend("%1");
 
@@ -202,16 +216,6 @@ void ControlWidget::slotUpdateInsStatus(const GnssStatus* const gnssStatus)
     mLabelInsCovariances->setText(QString::number(gnssStatus->covariances, 'f', 4));
     if(gnssStatus->covariances < 1.0) mLabelInsCovariances->setStyleSheet(""); else mLabelInsCovariances->setStyleSheet(getBackgroundCss());
 }
-
-void ControlWidget::slotSetScanVolume()
-{
-    emit setScanVolume(
-                Box3D(
-                    QVector3D(mSpinBoxScanVolumeMinX->value(), mSpinBoxScanVolumeMinY->value(), mSpinBoxScanVolumeMinZ->value()),
-                    QVector3D(mSpinBoxScanVolumeMaxX->value(), mSpinBoxScanVolumeMaxY->value(), mSpinBoxScanVolumeMaxZ->value()))
-                );
-}
-
 
 void ControlWidget::slotWayPointLoad()
 {

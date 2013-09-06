@@ -10,13 +10,16 @@
 WayPointList::WayPointList() : QObject(), OPENGL_FUNCTIONS_CLASS()
 {
     mVbo = 0;
-    mVboDirty = false;
+    // We set this to true by default, so that on the first call to vbo() (which is
+    // done in GlScene with an empty list), a VBO is created. This is required for
+    // correct initialization of the VAO.
+    mVboDirty = true;
 }
 
 WayPointList::WayPointList(const QColor& color) : QObject(), OPENGL_FUNCTIONS_CLASS()
 {
     mVbo = 0;
-    mVboDirty = false;
+    mVboDirty = true;
     mColor = color;
     mWaypoints.clear();
 }
@@ -24,7 +27,7 @@ WayPointList::WayPointList(const QColor& color) : QObject(), OPENGL_FUNCTIONS_CL
 WayPointList::WayPointList(const WayPointList& other) : QObject(), OPENGL_FUNCTIONS_CLASS()
 {
     mVbo = 0; // don't clone someone else's vbo, create your own!
-    mVboDirty = false;
+    mVboDirty = true;
     mColor = other.mColor;
     mWaypoints = other.mWaypoints;
 }
@@ -254,6 +257,8 @@ void WayPointList::updateVbo()
     glBindBuffer(GL_ARRAY_BUFFER, mVbo);
     glBufferData(GL_ARRAY_BUFFER, mWaypoints.size() * 5 * sizeof(float), (void*)vertices.constData(), GL_DYNAMIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    mVboDirty = false;
 }
 
 bool WayPointList::loadFromFile(const QString& fileName)
@@ -313,4 +318,12 @@ bool WayPointList::saveToFile(const QString& fileName) const
 
     file.close();
     return true;
+}
+
+const quint32 WayPointList::vbo()
+{
+    if(mVboDirty)
+        updateVbo();
+
+    return mVbo;
 }

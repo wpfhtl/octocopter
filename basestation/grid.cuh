@@ -60,7 +60,7 @@ struct Grid
 
     // If the Grid bounds are defined by worldMin and worldMax, then what is the best cells-configuration
     // given a fixed @minDist? result would be e.g. 256x32x256 cells.
-    __host__ __device__ uint3 getOptimalResolution(const float minDist);
+    __host__ __device__ uint3 getOptimumResolution(const float minDist);
 
     // Given the cell hash (=gl_PrimitiveIDIn), whats the 3d-grid-coordinate of the cell's center?
     // This is the reverse of particleskernel.cu -> calcGridHash(int3 gridCell).

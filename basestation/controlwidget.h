@@ -59,10 +59,9 @@ private slots:
 
     void slotEmitWaypoints();
 
-    void slotSetScanVolume();
-
 signals:
-    void setScanVolume(Box3D);
+    void volumeGlobal(Box3D);
+    void volumeLocal(Box3D);
     void wayPointSelected(int);
     void showUserInterface();
     void setScannerState(bool enabled);

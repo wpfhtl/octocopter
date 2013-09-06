@@ -6,9 +6,11 @@ ShaderProgram::ShaderProgram(QObject *parent, const QString& shaderVertex, const
     mNameShaderGeometry(shaderGeometry),
     mNameShaderFragment(shaderFragment)
 {
-    initializeOpenGLFunctions();
+    if(!initializeOpenGLFunctions())
+        qFatal("Couldn't initialize OpenGL functions!");
 
-    initialize();
+    if(!initialize())
+        qFatal("Couldn't initialize shaders!");
 }
 
 bool ShaderProgram::initialize()
@@ -20,10 +22,10 @@ bool ShaderProgram::initialize()
 
     if(!mNameShaderVertex.isEmpty())
     {
-    if(!addShaderFromSourceFile(QOpenGLShader::Vertex, shaderPath.absolutePath() + "/" + mNameShaderVertex))
-        qDebug() << "ShaderProgram::ShaderProgram(): compiling vertex shader" << mNameShaderVertex << "failed, log:" << log();
-//    else
-//        qDebug() << "ShaderProgram::ShaderProgram(): compiling vertex shader" << shaderVertex << "succeeded, log:" << log();
+        if(!addShaderFromSourceFile(QOpenGLShader::Vertex, shaderPath.absolutePath() + "/" + mNameShaderVertex))
+            qDebug() << "ShaderProgram::ShaderProgram(): compiling vertex shader" << mNameShaderVertex << "failed, log:" << log();
+        //else
+            //qDebug() << "ShaderProgram::ShaderProgram(): compiling vertex shader" << mNameShaderVertex << "succeeded, log:" << log();
     }
 
     if(!mNameShaderGeometry.isEmpty())
@@ -38,13 +40,13 @@ bool ShaderProgram::initialize()
     {
         if(!addShaderFromSourceFile(QOpenGLShader::Fragment, shaderPath.absolutePath() + "/" + mNameShaderFragment))
             qDebug() << "ShaderProgram::ShaderProgram(): compiling fragment shader" << mNameShaderFragment << "failed, log:" << log();
-//        else
-//            qDebug() << "ShaderProgram::ShaderProgram(): compiling fragment shader" << shaderFragment << "succeeded, log:" << log();
+        //else
+            //qDebug() << "ShaderProgram::ShaderProgram(): compiling fragment shader" << mNameShaderFragment << "succeeded, log:" << log();
     }
 
     if(link())
     {
-//        qDebug() << "ShaderProgram::ShaderProgram(): linking shader program with id" << programId() << "succeeded, log:" << log();
+        //qDebug() << "ShaderProgram::ShaderProgram(): linking shader program with id" << programId() << "succeeded, log:" << log();
         GLint numberOfActiveAttributes, numberOfAttachedShaders, numberOfActiveUniforms, numberOfGeometryVerticesOut = 0;
         glGetProgramiv(programId(), GL_ATTACHED_SHADERS, &numberOfAttachedShaders);
         glGetProgramiv(programId(), GL_ACTIVE_ATTRIBUTES, &numberOfActiveAttributes);
@@ -53,7 +55,7 @@ bool ShaderProgram::initialize()
         if(!mNameShaderGeometry.isEmpty())
             glGetProgramiv(programId(), GL_GEOMETRY_VERTICES_OUT, &numberOfGeometryVerticesOut);
 
-//        qDebug() << "ShaderProgram::ShaderProgram(): shader program has" << numberOfAttachedShaders<< "shaders and" << numberOfGeometryVerticesOut << "vertices geometry shader output.";
+        //qDebug() << "ShaderProgram::ShaderProgram(): shader program has" << numberOfAttachedShaders<< "shaders and" << numberOfGeometryVerticesOut << "vertices geometry shader output.";
 
         QStringList activeAttributes;
         for(int i=0; i < numberOfActiveAttributes; i++)
@@ -70,7 +72,7 @@ bool ShaderProgram::initialize()
             activeAttributes << attributeDescription;
         }
 
-//        qDebug() << "ShaderProgram::ShaderProgram(): shader program has" << numberOfActiveAttributes << "active attributes:" << activeAttributes.join(", ");
+        //qDebug() << "ShaderProgram::ShaderProgram(): shader program has" << numberOfActiveAttributes << "active attributes:" << activeAttributes.join(", ");
 
         QStringList activeUniforms;
         for(int i=0; i < numberOfActiveUniforms; i++)
@@ -87,11 +89,11 @@ bool ShaderProgram::initialize()
             activeUniforms << uniformDescription;
         }
 
-//        qDebug() << "ShaderProgram::ShaderProgram(): shader program has" << numberOfActiveUniforms << "active uniforms:" << activeUniforms.join(", ");
+        //qDebug() << "ShaderProgram::ShaderProgram(): shader program has" << numberOfActiveUniforms << "active uniforms:" << activeUniforms.join(", ");
 
         // Try to bind the program's uniform block "GlobalValues" to a constant point, defined in
         // blockBindingPoint. This is needed to conect the program's UB to a uniform-buffer-object,
-        // which can be updated from GlWidget.
+        // which can be updated from GlScene.
         // This is so universal that we try to make this onnection for every shader program. If it
         // fails because there is no such uniform, thats fine by me.
         bindUniformBlockToPoint("GlobalValues", blockBindingPointGlobalMatrices);

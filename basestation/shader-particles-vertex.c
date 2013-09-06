@@ -2,8 +2,7 @@
 
 // use glEnableVertexAttribArray(0) and glVertexAttribPointer(0, ...) to define this input data
 layout(location = 0) in vec4 in_position;
-// use glEnableVertexAttribArray(1) and glVertexAttribPointer(1, ...) to define this input data
-layout(location = 1) in vec4 in_color;
+// we don't need a color input anymore, as the color is derived from the in_position.w component
 
 out vec4 color;
 
@@ -21,8 +20,6 @@ layout(std140) uniform GlobalValues
 
 void main()
 {
-    //color = in_color;
-
     // when a particle has collided, change its color!
     if(in_position.w > 1.05)
       color = vec4(1.0, 0.0, 0.0, 1.0);

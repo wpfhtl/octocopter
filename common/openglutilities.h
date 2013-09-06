@@ -18,12 +18,12 @@ private:
     explicit OpenGlUtilities();
 
 public:
-    static void init();
+    static void initialize();
 
-    static quint32 createVbo(quint32 size);
+    static quint32 createVbo(quint32 size = 1, const GLvoid *data = 0, GLenum usage = GL_DYNAMIC_DRAW);
     static void deleteVbo(GLuint vbo);
 
-    static void setVboToBoundingBox(const quint32 vbo, const Box3D &box);
+    static void setVboToBoundingBox(const quint32 vbo, const Box3D *box);
 };
 
 #endif // OPENGLUTILITIES_H

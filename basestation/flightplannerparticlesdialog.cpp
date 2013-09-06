@@ -1,5 +1,5 @@
 #include "flightplannerparticlesdialog.h"
-
+#include <QDebug>
 FlightPlannerParticlesDialog::FlightPlannerParticlesDialog(const ParametersParticleSystem* const sp, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::FlightPlannerParticlesDialog)
@@ -12,12 +12,13 @@ FlightPlannerParticlesDialog::FlightPlannerParticlesDialog(const ParametersParti
 
     connect(ui->mBtnReduceColliderCloud, SIGNAL(clicked()), SIGNAL(reduceColliderCloud()));
 
-    connect(ui->mChkBoxProcessPhysics, SIGNAL(clicked(bool)), SIGNAL(processPhysicsChanged(bool)));
-    connect(ui->mChkBoxFollowVehicle, SIGNAL(clicked(bool)), SIGNAL(followVehicleChanged(bool)));
-    connect(ui->mChkBoxShowParticles, SIGNAL(clicked(bool)), SIGNAL(showParticlesChanged(bool)));
-    connect(ui->mChkBoxShowInformationGain, SIGNAL(clicked(bool)), SIGNAL(showInformationGainChanged(bool)));
-    connect(ui->mChkBoxShowGridOccupancy, SIGNAL(clicked(bool)), SIGNAL(showOccupancyGridChanged(bool)));
-    connect(ui->mChkBoxShowGridPathFinder, SIGNAL(clicked(bool)), SIGNAL(showPathFinderGridChanged(bool)));
+    connect(ui->mChkBoxProcessPhysics, SIGNAL(clicked(bool)), SIGNAL(processPhysics(bool)));
+    connect(ui->mChkBoxFollowVehicle, SIGNAL(clicked(bool)), SIGNAL(followVehicle(bool)));
+
+    connect(ui->mChkBoxRenderParticles, SIGNAL(clicked(bool)), SIGNAL(renderParticles(bool)));
+    connect(ui->mChkBoxRenderInformationGain, SIGNAL(clicked(bool)), SIGNAL(renderInformationGain(bool)));
+    connect(ui->mChkBoxRenderGridOccupancy, SIGNAL(clicked(bool)), SIGNAL(renderOccupancyGrid(bool)));
+    connect(ui->mChkBoxRenderGridPathPlanner, SIGNAL(clicked(bool)), SIGNAL(renderPathPlannerGrid(bool)));
 
     connect(ui->mSpinBoxTimeStepInner, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));
     connect(ui->mSpinBoxTimeStepOuter, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));

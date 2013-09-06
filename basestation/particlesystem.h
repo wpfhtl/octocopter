@@ -34,11 +34,6 @@ public:
 
     void update(quint8 *deviceGridMapOfWayPointPressure);
 
-    Vector3i gridCells(const Grid& g)
-    {
-        return Vector3i(g.cells.x, g.cells.y, g.cells.z);
-    }
-
 private slots:
     void slotNewCollidersInserted();
 
@@ -61,9 +56,15 @@ public slots:
         mParametersSimulation->velocityFactorCollisionCollider = sp->velocityFactorCollisionCollider;
     }
 
-    void slotSetParticleRadius(float);
+    // Must be called:
+    // - before any work is done
+    // Requires:
+    // - active OpenGL context (because of cudaGraphicsGLRegisterBuffer)
+    // - mParametersSimulation->particleCount to be defined
+    // - mPointCloudColliders must be set!
+    void slotInitialize();
 
-    void slotSetParticleSpring(const float spring) { mParametersSimulation->spring = spring; }
+    void slotSetParticleRadius(float);
 
     void slotSetParticleCount(const quint32 count)
     {
@@ -72,30 +73,12 @@ public slots:
         if(mIsInitialized) freeResources();
     }
 
-    // Values between 0 and 1 make sense, something like 0.98f seems realistic
-    void slotSetDampingMotion(const float damping) { mParametersSimulation->dampingMotion = damping; }
-
-    // Needs to be negative, so that the particle reverses direction when hitting a bounding wall
-    void slotSetVelocityFactorCollisionBoundary(const float factor) { mParametersSimulation->velocityFactorCollisionBoundary = factor; }
-
-    // The more damping, the more a collision will speed up the particles. So its the inverse of what you'd expect.
-    void slotSetVelocityFactorCollisionParticle(const float factor) { mParametersSimulation->velocityFactorCollisionParticle = factor; }
-
-    void slotSetGravity(const QVector3D& gravity)
-    {
-        mParametersSimulation->gravity.x = gravity.x();
-        mParametersSimulation->gravity.y = gravity.y();
-        mParametersSimulation->gravity.z = gravity.z();
-    }
-
     void slotSetVolume(const Box3D &boundingBox);
 
     void slotResetParticles();
 
-
 signals:
-    void particleRadiusChanged(float);
-    void vboInfoParticles(quint32 vboPositions, quint32 vboColor, quint32 particleCount, Box3D particleSystemBoundingBox);
+    void vboInfoParticles(quint32 vboPositions, quint32 particleCount, float particleRadius, Box3D particleSystemBoundingBox);
 
 protected:
     ParametersParticleSystem* mParametersSimulation;
@@ -106,24 +89,17 @@ protected:
     quint64 mNumberOfBytesAllocatedGpu;
 
     void showCollisionPositions();
-/*
-    Vector3i getGridCellCoordinate(const Grid& g, const quint32 hash) const;
-    Vector3i getGridCellCoordinate(const Grid& g, const QVector3D &worldPos) const;
 
-    QVector3D getGridCellCenter(const Grid &g, const Vector3i &gridCellCoordinate) const;
-    QVector3D getGridCellSize(const Grid &g) const;
-    quint32 getGridCellHash(const Grid &g, Vector3i gridCellCoordinate) const;
-*/
     enum ParticleArray
     {
         ArrayPositions,
         ArrayVelocities
     };
 
+    void emitVboInfo();
 
     void setNullPointers();
 
-    void initialize();
     void freeResources();
 
     unsigned int createVbo(quint32 size);
@@ -175,7 +151,6 @@ protected:
 
     unsigned int   mVboParticlePositions;   // vertex buffer object for particle positions
     unsigned int   mVboColliderPositions;   // vertex buffer object for collider positions
-    unsigned int   mVboParticleColors;      // vertex buffer object for particle colors
 
     struct cudaGraphicsResource *mCudaVboResourceParticlePositions; // handles OpenGL-CUDA exchange
     struct cudaGraphicsResource *mCudaVboResourceColliderPositions; // handles OpenGL-CUDA exchange
