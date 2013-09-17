@@ -36,7 +36,7 @@ inline void __cudaCheckSuccess(const char *errorSource, const char *file, const 
         std::cout.flush();
         //abort();
     }
-/*
+
     // More careful checking, using sync (will slow down performance)
     err = cudaDeviceSynchronize();
     if(cudaSuccess != err)
@@ -45,7 +45,7 @@ inline void __cudaCheckSuccess(const char *errorSource, const char *file, const 
         std::cout.flush();
         abort();
     }
-    */
+
 #endif
 
     return;

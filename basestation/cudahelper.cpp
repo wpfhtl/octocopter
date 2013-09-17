@@ -6,6 +6,8 @@ bool CudaHelper::isDeviceSupported = false;
 
 bool CudaHelper::initializeCuda()
 {
+    if(isDeviceSupported) return true; // already initialized
+
     // Initialize CUDA
     int numberOfCudaDevices;
     cudaSafeCall(cudaGetDeviceCount(&numberOfCudaDevices));

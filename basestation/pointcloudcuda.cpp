@@ -200,22 +200,16 @@ bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     mParameters.elementQueueCount += numberOfPointsToAppend;
-
     mRenderInfoList[0]->size = getNumberOfPoints();
 
-//    qDebug() << "PointCloudCuda::slotInsertPoints4():" << mName << "inserted" << numberOfPointsToAppend << "points, vbo elements:" << mVboInfo[0].size << "elements:" << mParameters.elementCount << "queue:" << mParameters.elementQueueCount;
+    // TODO: We could removePointsOutsideBoundingBox() here, but we'll rather do this only when we process points. Saves space.
 
-    if(mParameters.elementQueueCount > mParameters.capacity / 50)
-    {
-        emit pointsInserted(this, mParameters.elementCount, mParameters.elementQueueCount);
-        slotReduce();
-        emit numberOfPoints(getNumberOfPoints());
-    }
+//    qDebug() << "PointCloudCuda::slotInsertPoints4():" << mName << "inserted" << numberOfPointsToAppend << "points, vbo elements:" << mVboInfo[0].size << "elements:" << mParameters.elementCount << "queue:" << mParameters.elementQueueCount;
 
     return true;
 }
 
-void PointCloudCuda::slotInsertPoints(PointCloud *const pointCloudSource, const quint32& firstPointToReadFromSrc, quint32 numberOfPointsToCopy)
+void PointCloudCuda::slotInsertPoints(PointCloudCuda *const pointCloudSource, const quint32& firstPointToReadFromSrc, quint32 numberOfPointsToCopy)
 {
     qDebug() << __PRETTY_FUNCTION__ << mName << "receiving points from cloud" << pointCloudSource->mName;
 
@@ -257,22 +251,23 @@ void PointCloudCuda::slotInsertPoints(PointCloud *const pointCloudSource, const 
 
 //        qDebug() << "PointCloudCuda::slotInsertPoints():" << numberOfPointsProcessedInSrc << "points inserted from source, space left in dst:" << freeSpaceInDst << "- inserting" << numberOfPointsToCopyInThisIteration << "points from src.";
 
-        if(mAcceptPointsOutsideBoundingBox)
+        if(mOutlierTreatment == OutlierTreatment::Remove)
         {
-//            qDebug() << "PointCloudCuda::slotInsertPoints(): mAcceptPointsOutsideBoundingBox is true, copying all given points.";
-            mParameters.elementCount += copyPoints(
-                        mDevicePointPos + ((numberOfPointsProcessedInSrc) * sizeof(float) * mRenderInfoList[0]->elementSize),
-                        devicePointsBaseSrc + ((firstPointToReadFromSrc + numberOfPointsProcessedInSrc) * sizeof(float) * mRenderInfoList[0]->elementSize),
-                        numberOfPointsToCopyInThisIteration);
-        }
-        else
-        {
-//            qDebug() << "PointCloudCuda::slotInsertPoints(): mAcceptPointsOutsideBoundingBox is false, copying only points in bbox.";
+            //qDebug() << "PointCloudCuda::slotInsertPoints(): mAcceptPointsOutsideBoundingBox is false, copying only points in bbox.";
             mParameters.elementCount += copyPointsInBoundingBox(
                         mDevicePointPos + (getNumberOfPoints() * mRenderInfoList[0]->elementSize),
                         devicePointsBaseSrc + ((firstPointToReadFromSrc + numberOfPointsProcessedInSrc) * mRenderInfoList[0]->elementSize),
                         mParameters.grid.worldMin,
                         mParameters.grid.worldMax,
+                        numberOfPointsToCopyInThisIteration);
+
+        }
+        else
+        {
+            //qDebug() << "PointCloudCuda::slotInsertPoints(): mAcceptPointsOutsideBoundingBox is true, copying all given points.";
+            mParameters.elementCount += copyPoints(
+                        mDevicePointPos + ((numberOfPointsProcessedInSrc) * sizeof(float) * mRenderInfoList[0]->elementSize),
+                        devicePointsBaseSrc + ((firstPointToReadFromSrc + numberOfPointsProcessedInSrc) * sizeof(float) * mRenderInfoList[0]->elementSize),
                         numberOfPointsToCopyInThisIteration);
         }
 
@@ -311,6 +306,8 @@ void PointCloudCuda::slotReduce()
 
     if(mGridHasChanged) initializeGrid();
 
+    emit pointsInserted(this, mParameters.elementCount, mParameters.elementQueueCount);
+
     // We want to remove all points that have been appended and have close neighbors in the pre-existing data.
     // When appended points have close neighbors in other appended points, we want to delete just one of both.
 
@@ -326,7 +323,7 @@ void PointCloudCuda::slotReduce()
     if(mParameters.elementQueueCount)
     {
         time.start();
-        numberOfQueuedPointsRemaining = reducePoints(devicePointsQueued, mParameters.elementQueueCount, /*true*/false);
+        numberOfQueuedPointsRemaining = reducePoints(devicePointsQueued, mParameters.elementQueueCount);
         qDebug() << "PointCloudCuda::reduce(): reducing" << mParameters.elementQueueCount << "to" << numberOfQueuedPointsRemaining << "queued points took" << time.elapsed() << "ms";
     }
 
@@ -336,7 +333,7 @@ void PointCloudCuda::slotReduce()
 
     // Reduce all points
     time.start();
-    quint32 numberOfPointsRemaining = reducePoints(mDevicePointPos, mParameters.elementCount, false);
+    quint32 numberOfPointsRemaining = reducePoints(mDevicePointPos, mParameters.elementCount);
     qDebug() << "PointCloudCuda::reduce(): reducing" << mParameters.elementCount << "to" << numberOfPointsRemaining << "points took" << time.elapsed() << "ms";
     mParameters.elementCount = numberOfPointsRemaining;
 
@@ -346,32 +343,47 @@ void PointCloudCuda::slotReduce()
     // that any CUDA work issued  before ::cudaGraphicsUnmapResources()
     // will complete before any subsequently issued graphics work begins.
     if(hadToMapVbo) cudaGraphicsUnmapResources(1, &mCudaVboResource, 0);
+
+    mRenderInfoList[0]->size = getNumberOfPoints();
+    emit numberOfPoints(getNumberOfPoints());
 }
 
-quint32 PointCloudCuda::reducePoints(float* devicePoints, const quint32 numElements, const bool createBoundingBox)
+quint32 PointCloudCuda::reducePoints(float* devicePoints, quint32 numElements)
 {
-    qDebug() << "PointCloudCuda::reducePoints():" << mName << "reducing" << numElements << "points, creating bbox:" << createBoundingBox;
+    //numElements = 100000;
+
+    qDebug() << "PointCloudCuda::reducePoints():" << mName << "reducing" << numElements << "points, outlierTreatment" << static_cast<quint8>(mOutlierTreatment);
 
     if(numElements == 0) return 0;
 
-//    checkCudaSuccess("PointCloudCuda::reducePoints(): CUDA error before reduction");
+    cudaThreadSynchronize(); // dbg
 
-    float3 originalMin = mParameters.grid.worldMin;
-    float3 originalMax = mParameters.grid.worldMax;
+    QTime t; t.start();
 
-    if(createBoundingBox)
+    if(mOutlierTreatment == OutlierTreatment::GrowBoundingBox)
     {
         // Determine bounding-box of given points
         float3 bBoxMin, bBoxMax;
         getBoundingBox(devicePoints, numElements, bBoxMin, bBoxMax);
 
-        qDebug() << "PointCloudCuda::reduceQueuedPoints(): there are" << numElements << "points with a bbox from"
-                 << bBoxMin.x << bBoxMin.y << bBoxMin.z << "to" << bBoxMax.x << bBoxMax.y << bBoxMax.z;
+        qDebug() << "PointCloudCuda::reducePoints(): there are" << numElements << "points with a bbox from"
+                 << bBoxMin.x << bBoxMin.y << bBoxMin.z << "to" << bBoxMax.x << bBoxMax.y << bBoxMax.z << "using grid with" << mParameters.grid.cells.x << mParameters.grid.cells.y << mParameters.grid.cells.z << "cells";
 
         // Define the new bounding box for all queued points
         mParameters.grid.worldMin = bBoxMin;
         mParameters.grid.worldMax = bBoxMax;
     }
+    else if(mOutlierTreatment == OutlierTreatment::Remove)
+    {
+        numElements = removePointsOutsideBoundingBox(devicePoints, numElements, &mParameters.grid);
+        qDebug() << "PointCloudCuda::reducePoints(): removing points outside the bounding box"
+                 << mParameters.grid.worldMin.x << mParameters.grid.worldMin.y << mParameters.grid.worldMin.z
+                 << "to"
+                 << mParameters.grid.worldMax.x << mParameters.grid.worldMax.y << mParameters.grid.worldMax.z
+                 << "has left us with" << numElements << "points";
+    }
+
+    cudaThreadSynchronize();qDebug() << __PRETTY_FUNCTION__ << t.elapsed() << "ms after outlier treatment";
 
     copyParametersToGpu(&mParameters);
 
@@ -387,32 +399,27 @@ quint32 PointCloudCuda::reducePoints(float* devicePoints, const quint32 numEleme
             &paramsOnGpu->grid,
             numElements);
 
+    cudaThreadSynchronize();qDebug() << __PRETTY_FUNCTION__ << t.elapsed() << "ms after creating mapping from point to gridcell";
+
     // Sort this mapping according to grid cell
     sortMapAccordingToKeys(mDeviceMapGridCell, mDeviceMapPointIndex, numElements);
 
-    // Populate sorted positions buffer according to containing grid cell and fill cellStart and cellEnd tables
-    /*sortPosAccordingToGridCellAndFillCellStartAndEndArrays(
-                mDeviceCellStart,
-                mDeviceCellStopp,
-                mDevicePointSortedPos,
-                mDeviceMapGridCell,
-                mDeviceMapPointIndex,
-                devicePoints,
-                numElements,
-                mParameters.grid.getCellCount());*/
+    cudaThreadSynchronize();qDebug() << __PRETTY_FUNCTION__ << t.elapsed() << "ms after sorting map according to keys";
 
     sortParticlePosAndVelAccordingToGridCellAndFillCellStartAndEndArrays(
-                mDeviceCellStart,                           // output: At which index in mDeviceMapParticleIndex does cell X start?
-                mDeviceCellStopp,                             // output: At which index in mDeviceMapParticleIndex does cell X end?
-                mDevicePointSortedPos,                   // output: The particle positions, sorted by gridcell
-                0,                   // output: The particle velocities, sorted by gridcell
-                mDeviceMapGridCell,                 // input:  The key - part of the particle gridcell->index map, unsorted
-                mDeviceMapPointIndex,                    // input:  The value-part of the particle gridcell->index map, unsorted
-                devicePoints,                    // input:  The particle-positions, unsorted
-                0,                         // input:  The particle-velocities, unsorted
-                numElements,        // input:  The number of particles
-                mParameters.grid.getCellCount()  // input: Number of grid cells
+                mDeviceCellStart,               // output: At which index in mDeviceMapParticleIndex does cell X start?
+                mDeviceCellStopp,               // output: At which index in mDeviceMapParticleIndex does cell X end?
+                mDevicePointSortedPos,          // output: The particle positions, sorted by gridcell
+                0,                              // output: The particle velocities, sorted by gridcell
+                mDeviceMapGridCell,             // input:  The key - part of the particle gridcell->index map, sorted
+                mDeviceMapPointIndex,           // input:  The value-part of the particle gridcell->index map, sorted
+                devicePoints,                   // input:  The particle-positions, unsorted
+                0,                              // input:  The particle-velocities, unsorted
+                numElements,                    // input:  The number of particles
+                mParameters.grid.getCellCount() // input:  Number of grid cells
                 );
+
+    cudaThreadSynchronize();qDebug() << __PRETTY_FUNCTION__ << t.elapsed() << "ms after creating start and end arrays";
 
     // Mark redundant points by colliding with themselves using mParameters.minimumDistance
     markCollidingPoints(
@@ -423,19 +430,16 @@ quint32 PointCloudCuda::reducePoints(float* devicePoints, const quint32 numEleme
                 mDeviceCellStopp,
                 numElements);
 
+    cudaThreadSynchronize();qDebug() << __PRETTY_FUNCTION__ << t.elapsed() << "ms after marking colliding points";
+
     // Remove all points with values 0/0/0/0
     const quint32 remainingElements = removeClearedPoints(devicePoints, numElements);
+
+//    cudaThreadSynchronize();qDebug() << __PRETTY_FUNCTION__ << t.elapsed() << "ms after removing zero-points of" << numElements;
 
     size_t memTotal, memFree;
     cudaMemGetInfo(&memFree, &memTotal);
     //qDebug() << "PointCloudCuda::reducePoints(): device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free";
-
-    if(createBoundingBox)
-    {
-        // Re-set the bounding box back to the whole pointcloud, not just the queued points
-        mParameters.grid.worldMin = originalMin;
-        mParameters.grid.worldMax = originalMax;
-    }
 
     return remainingElements;
 }
@@ -491,7 +495,7 @@ bool PointCloudCuda::exportToFile(const QString& fileName, QWidget *widget)
     if(fileName.toLower().contains(".ply"))
     {
         PointCloudWriterPly pcw(fileName);
-        pcw.setDataFormat(DataFormatBinaryBigEndian);
+        pcw.setDataFormat(DataFormatBinaryLittleEndian);
         if(!pcw.open())
         {
             if(widget != nullptr) QMessageBox::critical(widget, "Error writing file", QString("Could not open file %1 for writing.").arg(fileName));

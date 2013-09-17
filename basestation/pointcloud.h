@@ -9,18 +9,30 @@
 #include <QOpenGLVertexArrayObject>
 #include <plymanager.h> // for saving to .ply files
 #include <common.h>
+#include <box3d.h>
+
+class PointCloudCuda;
 
 // This defines the INTERFACE of all pointclouds!
 class PointCloud : public QObject, public OPENGL_FUNCTIONS_CLASS
 {
     Q_OBJECT
-protected:
-    bool mAcceptPointsOutsideBoundingBox;
 
 public:
+    enum class OutlierTreatment
+    {
+        // When reducing points in the cloud, remove those that are outside of the AABB.
+        Remove,
+        // When reducing points in the cloud, permanently grow the AABB to accomodate all points.
+        GrowBoundingBox
+    };
 
-    void setAcceptPointsOutsideBoundingBox(bool accept) { mAcceptPointsOutsideBoundingBox = accept; }
-    bool acceptPointsOutsideBoundingBox() const { return mAcceptPointsOutsideBoundingBox; }
+protected:
+    OutlierTreatment mOutlierTreatment;
+
+public:
+    void setOutlierTreatment(const OutlierTreatment olt) { mOutlierTreatment = olt; }
+    OutlierTreatment getOutlierTreatment() const { return mOutlierTreatment; }
 
     QString mName; // for debugging only
 
@@ -87,7 +99,7 @@ signals:
     // A signal to make others aware that new points are present in the pointcloud. This signal is not guaranteed
     // to be fired whenever there are new points (e.g. after every scan), because that would cause a lot of signals.
     // Instead, the pointcloud is free to define larger intervals between signals.
-    void pointsInserted(PointCloud* const pointcloud, const quint32& firstPoint, const quint32& numPoints);
+    void pointsInserted(PointCloudCuda* const pointcloud, const quint32& firstPoint, const quint32& numPoints);
     void numberOfPoints(quint32 numberOfPoints);
 };
 

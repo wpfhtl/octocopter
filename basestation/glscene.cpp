@@ -98,11 +98,11 @@ void GlScene::slotUpdateMatrixModelToCamera()
     const QVector3D camPos = cameraRotation.rotatedVector(mCameraPosition);
 
     // Write the modelToCamera matrix into our UBO
-    QMatrix4x4 matrixModelToCamera;
-    matrixModelToCamera.lookAt(camPos, camLookAt, QVector3D(0.0f, 1.0f, 0.0f));
+    mMatrixModelToCamera.setToIdentity();
+    mMatrixModelToCamera.lookAt(camPos, camLookAt, QVector3D(0.0f, 1.0f, 0.0f));
 
     glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
-    glBufferSubData(GL_UNIFORM_BUFFER, 0, 64, matrixModelToCamera.constData());
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, 64, mMatrixModelToCamera.constData());
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
     //qDebug() << __PRETTY_FUNCTION__ << "camPos" << camPos << "lookAt" << camLookAt << "modelToCamera:" << matrixModelToCamera << matrixModelToCamera.inverted() * QVector3D();
 }
@@ -110,15 +110,15 @@ void GlScene::slotUpdateMatrixModelToCamera()
 void GlScene::slotUpdateMatrixCameraToClip(const quint32 windowWidth, const quint32 windowHeight)
 {
     // OpenGL 4 core profile: We set the second matrix (perspective = cameraToClip) in the UBO
-    QMatrix4x4 matrixCameraToClip;
+    mMatrixCameraToClip.setToIdentity();
 
     if(false)
     {
-        matrixCameraToClip.perspective(50.0f * mCameraZoom, (float)windowWidth/(float)windowHeight, 10.0f, +1000.0f);
+        mMatrixCameraToClip.perspective(50.0f * mCameraZoom, (float)windowWidth/(float)windowHeight, 10.0f, +1000.0f);
     }
     else
     {
-        matrixCameraToClip.ortho(
+        mMatrixCameraToClip.ortho(
                     -(windowWidth/2.0f) * mCameraZoom,
                     windowWidth/2.0f * mCameraZoom,
                     -(windowHeight/2.0f) * mCameraZoom,
@@ -128,7 +128,7 @@ void GlScene::slotUpdateMatrixCameraToClip(const quint32 windowWidth, const quin
 
     // Set the second matrix (cameraToClip) in the UBO
     glBindBuffer(GL_UNIFORM_BUFFER, mUboId);
-    glBufferSubData(GL_UNIFORM_BUFFER, 64, 64, matrixCameraToClip.constData());
+    glBufferSubData(GL_UNIFORM_BUFFER, 64, 64, mMatrixCameraToClip.constData());
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     //qDebug() << "GlWindow::slotUpdateMatrixCameraToClip(): resized gl viewport to" << windowWidth << windowHeight << "- using zoom" << mCameraZoom << "and setting perspective/cameraToClip matrix" << matrixCameraToClip;

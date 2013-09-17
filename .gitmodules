@@ -1,3 +1,0 @@
-[submodule "basestation/qserialdevice"]
-	path = basestation/qserialdevice
-	url = git://gitorious.org/qserialdevice/qserialdevice.git

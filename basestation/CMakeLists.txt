@@ -13,21 +13,11 @@ find_package(SDL_mixer REQUIRED)
 find_package(CUDA REQUIRED)
 
 file(GLOB_RECURSE CUDA_SRCS "*.cu")
-
-file(GLOB_RECURSE NORAD_SRCS "../common/sgp4sdp4/*.cpp")
-
-set(NORAD_SRC_FILES
-../common/sgp4sdp4/sgp4sdp4.c
-../common/sgp4sdp4/sgp_in.c
-../common/sgp4sdp4/sgp_math.c
-../common/sgp4sdp4/sgp_obs.c
-../common/sgp4sdp4/sgp_time.c
-../common/sgp4sdp4/solar.c
-)
+file(GLOB_RECURSE NORAD_SRCS "../common/sgp4sdp4/*.c")
 
 set(SRC_FILES
     ${CUDA_SRCS}
-    ${NORAD_SRC_FILES}
+    ${NORAD_SRCS}
     cudahelper
     main
     particlesystem
@@ -68,6 +58,7 @@ set(SRC_FILES
     ../common/waypoint
     ../common/gnsstime
     ../common/pose
+    ../common/box3d
     ../common/common
     ../common/gnssstatus
     ../common/wirelessdevice
@@ -81,60 +72,6 @@ set(SRC_FILES
     ../common/tsp/pathinfo
     glscene
     pointcloud
-)
-
-set(INC_FILES
-    cudahelper.h
-    pointcloud.h
-    pointcloudcuda.h
-    particlesystem.h
-    glscene.h
-    basestation.h
-    audioplayer.h
-    glwindow.h
-    logwidget.h
-    pidcontrollerwidget.h
-    logplayer.h
-    ptucontroller.h
-    camerawidget.h
-    waypointlist.h
-    pathplanner.h
-    flightplannerparticles.h
-    flightplannerparticlesdialog.h
-    diffcorrfetcher.h
-    model.h
-    controlwidget.h
-    satellitewidget.h
-    connectiondialog.h
-    roverconnection.h
-    shaderprogram.h
-    ../common/profiler.h
-    ../common/rawscan.h
-    ../common/logfile.h
-    ../common/motioncommand.h
-    ../common/joystick.h
-    ../common/sbfparser.h
-    ../common/sensorfuser.h
-    ../common/plymanager.h
-    ../common/openglutilities.h
-    ../common/flightcontrollervalues.h
-    ../common/pidcontroller.h
-    ../common/flightstate.h
-    ../common/flightstaterestriction.h
-    ../common/lidarpoint.h
-    ../common/waypoint.h
-    ../common/gnsstime.h
-    ../common/pose.h
-    ../common/common.h
-    ../common/gnssstatus.h
-    ../common/wirelessdevice.h
-    ../common/vehiclestatus.h
-    ../common/satellite.h
-    ../common/almanac.h
-    ../common/tsp/path.h
-    ../common/tsp/graph.h
-    ../common/tsp/matrix.h
-    ../common/tsp/pathinfo.h
 )
 
 set(UI_FILES
@@ -159,7 +96,6 @@ message(STATUS "Using OpenGl version \"${openglversion_major}.${openglversion_mi
 add_definitions(-DOPENGL_FUNCTIONS_CLASS=QOpenGLFunctions_${openglversion_major}_${openglversion_minor}_Core -DOPENGL_VERSION_MAJOR=${openglversion_major} -DOPENGL_VERSION_MINOR=${openglversion_minor})
 
 list(APPEND CUDA_NVCC_FLAGS -gencode=arch=compute_30,code=sm_30)
-#list(APPEND CUDA_NVCC_FLAGS -G -g -gencode=arch=compute_30,code=sm_30)
 
 add_definitions(-std=c++0x -fPIC)
 
@@ -187,3 +123,18 @@ set(CMAKE_AUTOMOC ON)
 cuda_add_executable(basestation ${SRC_FILES} ${UI_SRCS} ${RESOURCE_SRCS} OPTIONS -gencode=arch=compute_30,code=sm_30) # those are the nvcc options only for linking
 qt5_use_modules(basestation Widgets Gui Core Concurrent Network SerialPort OpenGL)
 target_link_libraries(basestation ${LIBRARIES})
+
+cuda_add_executable(test_pcd_reduction
+    ${CUDA_SRCS}
+    tests/testpcdreduction
+    cudahelper
+    pointcloudcuda
+    ../common/profiler
+    ../common/plymanager
+    ../common/box3d
+    ../common/common
+    pointcloud
+    OPTIONS -gencode=arch=compute_30,code=sm_30)
+
+qt5_use_modules(test_pcd_reduction Widgets Core Concurrent Network SerialPort)
+target_link_libraries(test_pcd_reduction ${LIBRARIES})

@@ -24,7 +24,7 @@ ParticleSystem::ParticleSystem(PointCloudCuda *const pointCloudDense, PointCloud
     qDebug() << "ParticleSystem::ParticleSystem(): using thrust version" << THRUST_MAJOR_VERSION << "." << THRUST_MINOR_VERSION;
 
     // Our collision cloud shouldn't contain points outside the bbox - that'd be a waste of resources
-    mPointCloudColliders->setAcceptPointsOutsideBoundingBox(false);
+    mPointCloudColliders->setOutlierTreatment(PointCloud::OutlierTreatment::Remove);
 
     // set simulation parameters
     mParametersSimulation = simulationParameters;
@@ -86,7 +86,7 @@ void ParticleSystem::slotSetVolume(const Box3D& boundingBox)
     // that are NOT in the collider-pointcloud - but should be. So, we re-populate the sparse point-
     // cloud with points from the dense pointcloud.
     mPointCloudColliders->slotReset();
-    mPointCloudColliders->slotInsertPoints(mPointCloudDense);
+    if(mPointCloudDense->getNumberOfPoints()) mPointCloudColliders->slotInsertPoints(mPointCloudDense);
 
     // Usually, the mapping from collider to grid-cells only changes when the collider pointcloud changes.
     // But when we move the grid (relative to the colliders), the mapping also needs an update!

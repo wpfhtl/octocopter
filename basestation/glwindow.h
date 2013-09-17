@@ -53,12 +53,6 @@ public:
 
     float mBackgroundBrightness;
 
-    // Sometimes, mapping an opengl buffer to CUDA memory fails. The only reason I can think of is that the buffer
-    // is currently used for rendering. Rendering should never be interrupted (allowing CUDA stuff to happen) by either
-    // threading or because I screwed up using QCoreApplication::processEvents(). To check this isn't the case, this
-    // member indicates whether we're currently rendering. In other parts of the code, we can then ASSERT on this. Dirrrty!
-    bool mIsCurrentlyRendering;
-
 signals:
     void initializingInGlContext();
     void message(const LogImportance& importance, const QString& source, const QString& message);

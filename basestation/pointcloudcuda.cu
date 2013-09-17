@@ -5,14 +5,12 @@
 #include "thrust/sort.h"
 #include "thrust/unique.h"
 #include <thrust/remove.h>
+#include <thrust/count.h>
 
-//#include <QDebug>
 #include "cuda.h"
 #include "cudahelper.cuh"
-//#include "cudahelper.h"
 #include "pointcloudcuda.cuh"
 #include "helper_math.h"
-
 #include "grid.cuh"
 
 // pointcloud parameters in constant memory
@@ -42,17 +40,27 @@ void copyParametersToGpu(ParametersPointCloud *hostParams)
 }
 
 
-// collide a particle against all other particles in a given cell
-__device__
-bool checkCellForNeighborsBenD(
-        int3    gridPos,     // grid cell to search for particles that could collide
-        uint    index,       // index of particle that is being collided
-        float4  pos,         // position of particle that is being collided
+// Returns the presence of neighbors of @pos within paramsPointCloud.minimumDistance in @gridCell
+// Caller must ensure:
+//  - pos is in grid
+//  - gridCell is valid (less than grid.cells)
+__device__ bool checkCellForNeighbors(
+        int3    gridCell,       // grid cell to search for particles that could collide
+        uint    index,          // index of particle that is being collided
+        float4  pos,            // position of particle that is being collided
         float4* posSorted,
         uint*   pointCellStart,
         uint*   pointCellStopp)
 {
-    uint gridHash = paramsPointCloud.grid.getCellHash(gridPos);
+    int gridHash = paramsPointCloud.grid.getSafeCellHash(gridCell);
+    if(gridHash < 0)
+    {
+        printf("ERROR! ignoring int3 gridcell coordinate %d/%d/%d thats out of bounds %d/%d/%d (%d)!\n",
+               gridCell.x, gridCell.y, gridCell.z,
+               paramsPointCloud.grid.cells.x, paramsPointCloud.grid.cells.y, paramsPointCloud.grid.cells.z,
+               gridHash);
+        return false;
+    }
 
     // get start of bucket for this cell
     uint startIndex = pointCellStart[gridHash];
@@ -62,20 +70,26 @@ bool checkCellForNeighborsBenD(
     {
         // iterate over particles in this cell
         uint endIndex = pointCellStopp[gridHash];
+
+        //printf("%d,", endIndex-startIndex);
+
         for(uint j=startIndex; j<endIndex; j++)
         {
             // check not colliding with self
-            if (j != index)
+            if(j != index)
             {
-                float4 posOther = posSorted[j];
-
-                float4 relPos = pos - posOther;
-
+                const float4 posOther = posSorted[j];
+                const float4 relPos = pos - posOther;
                 float distSquared = lengthSquared(make_float3(relPos));
 
                 // If they collide AND we're checking the point that was further from the scanner, THEN reduce it!
-                if(distSquared < paramsPointCloud.minimumDistance * paramsPointCloud.minimumDistance && pos.w > posOther.w/* && posOther.w != 0.0*/)
+                if(distSquared < paramsPointCloud.minimumDistance * paramsPointCloud.minimumDistance /*&& pos.w > posOther.w && posOther.w != 0.0*/)
                 {
+                    /*printf("point %.2f/%.2f/%.2f collides with point %.2f/%.2f/%.2f in cell %d/%d/%d.\n",
+                           pos.x, pos.y, pos.z,
+                           posOther.x, posOther.y, posOther.z,
+                           gridCell.x, gridCell.y, gridCell.z);*/
+
                     return true;
                 }
             }
@@ -84,27 +98,41 @@ bool checkCellForNeighborsBenD(
     return false;
 }
 
-// Collide a single particle (given by thread-id through @index) against all spheres in own and neighboring cells
+// Collide a single point (given by thread-id through @index) against all points in own and neighboring cells
 __global__
 void markCollidingPointsD(
-        float4* posOriginal,     // output: new positions, same or zeroed. This is actually mDevicePointPos, so its the original position location
-        float4* posSorted,          // input: positions sorted according to containing grid cell
-        uint*   gridPointIndex,  // input: particle indices sorted according to containing grid cell
-        uint*   pointCellStart,       // input: pointCellStart[19] contains the index of gridParticleIndex in which cell 19 starts
-        uint*   pointCellStopp,         // input: pointCellStopp[19] contains the index of gridParticleIndex in which cell 19 ends
-        uint    numPoints)       // input: number of total particles
+        float4* posOriginal,        // output: new positions, same or zeroed. This is actually mDevicePointPos, so its the original position location
+        float4* positionsSorted,    // input: positions sorted according to containing grid cell
+        uint*   gridPointIndex,     // input: particle indices sorted according to containing grid cell
+        uint*   pointCellStart,     // input: pointCellStart[19] contains the index of gridParticleIndex in which cell 19 starts
+        uint*   pointCellStopp,     // input: pointCellStopp[19] contains the index of gridParticleIndex in which cell 19 ends
+        uint    numPoints)          // input: number of total particles
 {
-    uint index = __mul24(blockIdx.x,blockDim.x) + threadIdx.x;
-    if(index >= numPoints) return;
+    uint indexInSortedPositionsArray = getThreadIndex1D();
+    if(indexInSortedPositionsArray >= numPoints) return;
 
     // read particle data from sorted arrays
-    float4 pos = posSorted[index];
-//    float3 vel = make_float3(FETCH(oldVel, index));
+    const float4 worldPos = positionsSorted[indexInSortedPositionsArray];
+
+    if(     worldPos.x < paramsPointCloud.grid.worldMin.x ||
+            worldPos.y < paramsPointCloud.grid.worldMin.y ||
+            worldPos.z < paramsPointCloud.grid.worldMin.z ||
+            worldPos.x > paramsPointCloud.grid.worldMax.x ||
+            worldPos.y > paramsPointCloud.grid.worldMax.y ||
+            worldPos.z > paramsPointCloud.grid.worldMax.z)
+    {
+        return;
+    }
 
     // get address of particle in grid
-    int3 gridPos = paramsPointCloud.grid.getCellCoordinate(make_float3(pos));
+    const int3 gridCellCoordinate = paramsPointCloud.grid.getCellCoordinate(make_float3(worldPos));
 
-    uint originalIndex = gridPointIndex[index];
+    // Do not process points that are not in the defined grid!
+    if(gridCellCoordinate.x == -1 || gridCellCoordinate.y == -1 || gridCellCoordinate.z == -1)
+        return;
+
+    const uint originalIndex = gridPointIndex[indexInSortedPositionsArray];
+
     // examine neighbouring cells
     for(int z=-1; z<=1; z++)
     {
@@ -112,14 +140,14 @@ void markCollidingPointsD(
         {
             for(int x=-1; x<=1; x++)
             {
-                int3 neighbourPos = gridPos + make_int3(x, y, z);
+                const int3 neighbourGridCoordinate = gridCellCoordinate + make_int3(x, y, z);
                 if(
-                        checkCellForNeighborsBenD(neighbourPos, index, pos, posSorted, pointCellStart, pointCellStopp)
-                        &&
-                        originalIndex % 2 == 0)
+                        neighbourGridCoordinate.x < paramsPointCloud.grid.cells.x && neighbourGridCoordinate.y < paramsPointCloud.grid.cells.y && neighbourGridCoordinate.z < paramsPointCloud.grid.cells.z &&
+                        checkCellForNeighbors(neighbourGridCoordinate, indexInSortedPositionsArray, worldPos, positionsSorted, pointCellStart, pointCellStopp))
                 {
                     // There is a neighboring point AND this point's index is even. Mark it for removal by zeroing it out!
-                    posOriginal[originalIndex] = make_float4(0.0, 0.0, 0.0, 0.0);
+                    //printf("reducing point!\n");
+                    posOriginal[originalIndex] = make_float4(0.0);
                     return;
                 }
             }
@@ -142,7 +170,9 @@ void markCollidingPoints(
 
     // thread per particle
     uint numThreads, numBlocks;
-    computeExecutionKernelGrid(numPoints, 64, numBlocks, numThreads);
+    computeExecutionKernelGrid(numPoints, 128, numBlocks, numThreads);
+
+    //std::cout << "markCollidingPoints(): we have " << numPoints << " points, " << numThreads << " threads and " << numBlocks << " blocks" << std::endl;
 
     // execute the kernel
     markCollidingPointsD<<< numBlocks, numThreads >>>(
@@ -154,8 +184,10 @@ void markCollidingPoints(
                                                numPoints
                                                );
 
-}
+    cudaDeviceSynchronize();
 
+    cudaCheckSuccess("markCollidingPoints");
+}
 
 // bounding box type
 typedef thrust::pair<float4, float4> bbox;
@@ -194,10 +226,6 @@ void getBoundingBox(float *dPoints, uint numPoints, float3& min, float3& max)
     thrust::device_ptr<float4> dev_ptr = thrust::device_pointer_cast(points);
 
     bbox init = bbox(dev_ptr[0], dev_ptr[0]);
-
-    // initial bounding box contains first point - does this execute on host? If yes, how can dPoints[0] work?
-//    bbox init = bbox(points[0], points[0]);
-//    bbox init = bbox(thrust::device_ptr<float4>(dPoints)[0], thrust::device_ptr<float4>(dPoints)[0]);
 
     // transformation operation
     bbox_transformation opConvertPointToBoundingBox;
@@ -241,11 +269,30 @@ unsigned int removeClearedPoints(float *devicePoints, unsigned int numberOfPoint
 {
     float4* points = (float4*)devicePoints;
 
-    const thrust::device_ptr<float4> newEnd = thrust::remove(
-                thrust::device_ptr<float4>(points),
-                thrust::device_ptr<float4>(points + numberOfPoints),
-                make_float4(0.0f)
-                );
+    std::cerr << __PRETTY_FUNCTION__ << " removing zero points in " << numberOfPoints << std::endl;
+
+    thrust::device_ptr<float4> newEnd;
+
+    try
+    {
+        // Just for debugging!
+        int result = thrust::count(thrust::device_ptr<float4>(points),
+                                   thrust::device_ptr<float4>(points + numberOfPoints),
+                                   make_float4(0.0f));
+        std::cerr << __PRETTY_FUNCTION__ << " removing " << result << " zero points in" << numberOfPoints << std::endl;
+
+        newEnd = thrust::remove(
+                    thrust::device_ptr<float4>(points),
+                    thrust::device_ptr<float4>(points + numberOfPoints),
+                    make_float4(0.0f)
+                    );
+    }
+    catch(thrust::system_error &e)
+    {
+      // output an error message and exit
+      std::cerr << "Error accessing vector element: " << e.what() << std::endl;
+      exit(-1);
+    }
 
     cudaCheckSuccess("removeZeroPoints");
 
@@ -253,20 +300,6 @@ unsigned int removeClearedPoints(float *devicePoints, unsigned int numberOfPoint
 
     return numberOfPointsLeft;
 }
-
-struct CloseToEachOther
-{
-    float distance;
-
-    __host__ __device__
-    CloseToEachOther(float dist = 0.01f) { distance = dist;}
-
-    __host__ __device__
-    bool operator()(float4 a, float4 b)
-    {
-        return (fabs(b.x - a.x) + fabs(b.y - a.y) + fabs(b.z - a.z)) < distance;
-    }
-};
 
 struct IsOutsideBoundingBoxOp
 {
@@ -290,10 +323,10 @@ struct IsOutsideBoundingBoxOp
     }
 };
 
-unsigned int clearPointsOutsideBoundingBox(float* points, unsigned int numberOfPoints, ParametersPointCloud* params)
+unsigned int removePointsOutsideBoundingBox(float* points, unsigned int numberOfPoints, Grid* grid)
 {
     // move all points in bbox to beginning of devicePointsBase and return number of points left
-    IsOutsideBoundingBoxOp op(params->grid.worldMin, params->grid.worldMax);
+    IsOutsideBoundingBoxOp op(grid->worldMin, grid->worldMax);
 
     float4* pointsf4 = (float4*)points;
 
@@ -308,7 +341,6 @@ unsigned int clearPointsOutsideBoundingBox(float* points, unsigned int numberOfP
 
     return numberOfPointsRemaining;
 }
-
 
 unsigned int copyPoints(float* devicePointsBaseDst, float* devicePointsBaseSrc, unsigned int numberOfPointsToCopy)
 {
@@ -349,7 +381,7 @@ struct IsInsideBoundingBoxOp
     }
 };
 
-
+// Requires dst and src to live in device memory space
 unsigned int copyPointsInBoundingBox(float* devicePointsBaseDst, float* devicePointsBaseSrc, float3 &bBoxMin, float3 &bBoxMax, unsigned int numberOfPointsToCopy)
 {
     float4* pointsSrc = (float4*)devicePointsBaseSrc;
@@ -368,27 +400,3 @@ unsigned int copyPointsInBoundingBox(float* devicePointsBaseDst, float* devicePo
     const unsigned int numberOfPointsCopied = newEnd.get() - pointsDst;
     return numberOfPointsCopied;
 }
-
-
-struct ComparisonOperatorPointCellHash {
-
-    Grid mGrid;
-
-    __host__ __device__
-    ComparisonOperatorPointCellHash(Grid grid)
-    {
-        mGrid = grid;
-    }
-
-    __host__ __device__
-    bool operator()(const float4& p1, const float4& p2)
-    {
-        int3 gc1 = mGrid.getCellCoordinate(make_float3(p1));
-        int3 gc2 = mGrid.getCellCoordinate(make_float3(p2));
-
-        if(mGrid.getCellHash(gc1) < mGrid.getCellHash(gc2))
-            return true;
-        else
-            return false;
-    }
-};

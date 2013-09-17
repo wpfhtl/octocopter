@@ -72,10 +72,10 @@ private:
     struct cudaGraphicsResource *mCudaVboResourceGridMapOfInformationGainFloats; // handles OpenGL-CUDA exchange
 
 private slots:
-    void slotDenseCloudInsertedPoints(PointCloud*const pointCloudSource, const quint32& firstPointToReadFromSrc, quint32 numberOfPointsToCopy);
+    void slotDenseCloudInsertedPoints(PointCloudCuda * const pointCloudSource, const quint32& firstPointToReadFromSrc, quint32 numberOfPointsToCopy);
 
     // checks waypoint pressure and if higher than threshold, cals slotGenerateWaypoints();
-    void slotProcessInformationGain(const quint8 threshold = 5);
+    void slotProcessInformationGain();
 
     void slotStepSimulation();
 

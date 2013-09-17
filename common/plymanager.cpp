@@ -91,7 +91,7 @@ qint64 PointCloudReaderPly::readPoints(float* target, qint64 maxNumberOfPoints, 
             {
                 const QStringList values = line.split(' ', QString::SkipEmptyParts);
 
-                if(values.size() != 3)
+                if(values.size() != 4)
                 {
                     if(widget != nullptr)
                         QMessageBox::critical(widget, "Error reading file", QString("Number of coordinates element line %1 of file %2 is %3, expected 3.").arg(lineNumber).arg(mFile->fileName()).arg(values.size()));
@@ -102,7 +102,7 @@ qint64 PointCloudReaderPly::readPoints(float* target, qint64 maxNumberOfPoints, 
                     target[numberOfPointsProcessed*4 + 0] = values.at(0).toDouble();
                     target[numberOfPointsProcessed*4 + 1] = values.at(1).toDouble();
                     target[numberOfPointsProcessed*4 + 2] = values.at(2).toDouble();
-                    target[numberOfPointsProcessed*4 + 3] = 1.0;
+                    target[numberOfPointsProcessed*4 + 3] = values.at(3).toDouble();
                     numberOfPointsProcessed++;
                     if(progressDialog && numberOfPointsProcessed % 20000 == 0) progressDialog->setValue(numberOfPointsProcessed);
                 }
@@ -122,22 +122,24 @@ qint64 PointCloudReaderPly::readPoints(float* target, qint64 maxNumberOfPoints, 
 
         for(qint64 i=0;i<pointsToRead;i++)
         {
-            float x,y,z;
+            float x,y,z,w;
             mFile->read((char*)&x, sizeof(float));
             mFile->read((char*)&y, sizeof(float));
             mFile->read((char*)&z, sizeof(float));
+            mFile->read((char*)&w, sizeof(float));
 
             if(mDataFormat == DataFormatBinaryBigEndian)
             {
                 x = swap_endian(x);
                 y = swap_endian(y);
                 z = swap_endian(z);
+                w = swap_endian(w);
             }
 
             target[4*i+0] = x;
             target[4*i+1] = y;
             target[4*i+2] = z;
-            target[4*i+3] = 1.0f;
+            target[4*i+3] = w;
 
             if(progressDialog && i % 20000 == 0) progressDialog->setValue(i);
         }
@@ -231,6 +233,7 @@ bool PointCloudWriterPly::open()
     stream << QString("property float x") << endl;
     stream << QString("property float y") << endl;
     stream << QString("property float z") << endl;
+    stream << QString("property float dist") << endl;
     stream << QString("end_header") << endl;
 
     stream.flush();
@@ -259,7 +262,7 @@ bool PointCloudWriterPly::writePoints(float* source, qint64 numberOfPoints, QWid
         stream.setRealNumberNotation(QTextStream::FixedNotation);
         for(int i = 0; i < numberOfPoints; ++i)
         {
-            stream << source[4*i+0] << " " << source[4*i+1] << " " << source[4*i+2] << endl;
+            stream << source[4*i+0] << " " << source[4*i+1] << " " << source[4*i+2] << " " << source[4*i+3] << endl;
             if(i%10000 == 0 && progressDialog != nullptr) progressDialog->setValue((i*100)/numberOfPoints);
         }
     }
@@ -274,6 +277,7 @@ bool PointCloudWriterPly::writePoints(float* source, qint64 numberOfPoints, QWid
                 mFile->write((char*)&source[4*i+0], sizeof(float));
                 mFile->write((char*)&source[4*i+1], sizeof(float));
                 mFile->write((char*)&source[4*i+2], sizeof(float));
+                mFile->write((char*)&source[4*i+3], sizeof(float));
                 mTotalNumberOfPointsWrittenToThisFile++;
                 if(i%10000 == 0 && progressDialog != nullptr) progressDialog->setValue((i*100)/numberOfPoints);
             }
@@ -285,17 +289,22 @@ bool PointCloudWriterPly::writePoints(float* source, qint64 numberOfPoints, QWid
                 const float x = swap_endian(source[4*i+0]);
                 const float y = swap_endian(source[4*i+1]);
                 const float z = swap_endian(source[4*i+2]);
+                const float w = swap_endian(source[4*i+3]);
                 mFile->write((char*)&x, sizeof(float));
                 mFile->write((char*)&y, sizeof(float));
                 mFile->write((char*)&z, sizeof(float));
+                mFile->write((char*)&w, sizeof(float));
                 mTotalNumberOfPointsWrittenToThisFile++;
                 if(i%10000 == 0 && progressDialog != nullptr) progressDialog->setValue((i*100)/numberOfPoints);
             }
         }
     }
 
-    progressDialog->close();
-    delete progressDialog;
+    if(widget != nullptr)
+    {
+        progressDialog->close();
+        delete progressDialog;
+    }
 }
 
 void PointCloudWriterPly::close()
@@ -305,7 +314,6 @@ void PointCloudWriterPly::close()
     QString line;
     do {
         line = mFile->readLine();
-        qDebug() << "line" << line;
         if(line.startsWith("element vertex 0000000000"))
         {
             QString numberString = QString::number(mTotalNumberOfPointsWrittenToThisFile);

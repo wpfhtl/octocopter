@@ -29,6 +29,8 @@ public:
 
     void initialize();
 
+    //QVector3D getWorldPositionOfMouse(const QSize &windowSize, const QPoint &mousePos);
+
     // Skip the setters and make this public, there's no harm
     bool
     mRenderAxisBase,
@@ -96,6 +98,8 @@ public slots:
 private:
 
     void renderController(const QMatrix4x4 &transform, const PidController* const controller);
+
+    QMatrix4x4 mMatrixCameraToClip, mMatrixModelToCamera;
 
     QVector3D mCameraPosition;
     QVector3D mCamLookAtOffset;

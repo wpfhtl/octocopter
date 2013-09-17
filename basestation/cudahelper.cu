@@ -10,7 +10,7 @@ __host__ __device__ bool operator==(const int3 a, const int3 b)
 
 __device__ unsigned int getThreadIndex1D(void)
 {
-  return blockIdx.x * blockDim.x + threadIdx.x;
+  return (blockIdx.x * blockDim.x) + threadIdx.x;
 }
 
 

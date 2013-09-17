@@ -5,8 +5,7 @@
 #include "cudahelper.h"
 
 GlWindow::GlWindow(GlScene* glScene, QWindow* parent) :
-    QWindow(parent),
-    mIsCurrentlyRendering(false)
+    QWindow(parent)
 {
     // Tell Qt we will use OpenGL for this window
     setSurfaceType(QWindow::OpenGLSurface);
@@ -18,6 +17,7 @@ GlWindow::GlWindow(GlScene* glScene, QWindow* parent) :
     format.setMinorVersion(OPENGL_VERSION_MINOR);
     format.setSamples(4);
     format.setProfile(QSurfaceFormat::CoreProfile);
+    format.setOption(QSurfaceFormat::DebugContext);
 //    format.setProfile(QSurfaceFormat::CompatibilityProfile);
     setFormat(format);
     create();
@@ -88,8 +88,6 @@ void GlWindow::slotRenderNow()
 
     //qDebug() << __PRETTY_FUNCTION__;
 
-    Q_ASSERT(mIsCurrentlyRendering == false);
-    mIsCurrentlyRendering = true;
     mOpenGlContext->makeCurrent(this);
     mFramesRenderedThisSecond++;
 
@@ -127,7 +125,6 @@ void GlWindow::slotRenderNow()
     mGlScene->render();
 
     mOpenGlContext->swapBuffers(this);
-    mIsCurrentlyRendering = false;
 }
 
 void GlWindow::slotSetCameraRotation(const float rotation)

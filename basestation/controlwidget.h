@@ -9,7 +9,8 @@
 #include <flightstate.h>
 #include <vehiclestatus.h>
 #include <pose.h>
-#include <common.h> // for hash()
+//#include <common.h> // for hash()
+#include <box3d.h>
 
 #define QT_USE_FAST_CONCATENATION
 #define QT_USE_FAST_OPERATOR_PLUS

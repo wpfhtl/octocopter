@@ -9,6 +9,7 @@
 #include <QString>
 #include <QByteArray>
 #include "common.h"
+#include <box3d.h>
 
 class OpenGlUtilities
 {

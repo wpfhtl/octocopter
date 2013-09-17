@@ -33,10 +33,9 @@ unsigned int removeClearedPoints(
         float* devicePoints,
         unsigned int numberOfPoints);
 
-unsigned int clearPointsOutsideBoundingBox(
-        float* points,
+unsigned int removePointsOutsideBoundingBox(float* points,
         unsigned int numberOfPoints,
-        ParametersPointCloud *params);
+        Grid *grid);
 
 unsigned int copyPoints(
         float* devicePointsBaseDst,

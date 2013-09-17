@@ -11,6 +11,7 @@
 #include <QOpenGLFunctions_4_3_Core>
 
 #include "common.h"
+#include <box3d.h>
 #include "grid.cuh"
 
 class PointCloudCuda;

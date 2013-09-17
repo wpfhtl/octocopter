@@ -26,7 +26,7 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
 
     mPointCloudColliders = new PointCloudCuda(Box3D(), 64 * 1024, "ColliderCloud");
 
-    mPointCloudColliders->setMinimumPointDistance(0.2f);
+    mPointCloudColliders->setMinimumPointDistance(0.1f);
     //mPointCloudColliders->setColor(QColor(0,0,255,255));
 
     mBaseStation->getGlScene()->slotPointCloudRegister(mPointCloudColliders);
@@ -42,12 +42,14 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
     connect(mDialog, SIGNAL(renderInformationGain(bool)), SIGNAL(renderInformationGain(bool)));
     connect(mDialog, SIGNAL(renderOccupancyGrid(bool)), SIGNAL(renderOccupancyGrid(bool)));
     connect(mDialog, SIGNAL(renderPathPlannerGrid(bool)), SIGNAL(renderPathPlannerGrid(bool)));
-    connect(mDialog, SIGNAL(reduceColliderCloud()), mPointCloudColliders, SLOT(slotReduce()));
+    connect(mDialog, &FlightPlannerParticlesDialog::reduceColliderCloud, mPointCloudColliders, &PointCloudCuda::slotReduce);
 
-    connect(mPointCloudDense, SIGNAL(numberOfPoints(quint32)), mDialog, SLOT(slotSetPointCloudSizeDense(quint32)));
-    connect(mPointCloudColliders, SIGNAL(numberOfPoints(quint32)), mDialog, SLOT(slotSetPointCloudSizeSparse(quint32)));
+    connect(mPointCloudDense, &PointCloudCuda::pointsInserted, this, &FlightPlannerParticles::slotDenseCloudInsertedPoints);
 
-    connect(&mTimerProcessInformationGain, SIGNAL(timeout()), this, SLOT(slotProcessInformationGain()));
+    connect(mPointCloudDense, &PointCloudCuda::numberOfPoints, mDialog, &FlightPlannerParticlesDialog::slotSetPointCloudSizeDense);
+    connect(mPointCloudColliders, &PointCloudCuda::numberOfPoints, mDialog, &FlightPlannerParticlesDialog::slotSetPointCloudSizeSparse);
+
+    connect(&mTimerProcessInformationGain, &QTimer::timeout, this, &FlightPlannerParticles::slotProcessInformationGain);
 
     // When the dialog dis/enables physics processing, start/stop the timer
     mTimerStepSimulation.setInterval(1);
@@ -97,9 +99,6 @@ void FlightPlannerParticles::slotInitialize()
     // Allocate a vector of float4 for the world-positions of the gridcell positions. These will be the values when sorting
     cudaSafeCall(cudaMalloc((void**)&mDeviceGridInformationGainCellWorldPositions, sizeof(float4) * numberOfCellsInGridInformationGain));
 
-    connect(mPointCloudDense, SIGNAL(pointsInserted(PointCloud*const,quint32,quint32)), SLOT(slotDenseCloudInsertedPoints(PointCloud*const,quint32,quint32)));
-
-    connect(mParticleSystem, SIGNAL(particleRadiusChanged(float)), SIGNAL(particleRadiusChanged(float)));
     connect(mParticleSystem, SIGNAL(vboInfoParticles(quint32,quint32,float,Box3D)), SIGNAL(vboInfoParticles(quint32,quint32,float,Box3D)));
 
     emit vboInfoGridInformationGain(
@@ -127,7 +126,7 @@ void FlightPlannerParticles::slotShowUserInterface()
 }
 
 // If the maximum informationGain is higher than threshold, it will generate new waypoints and decrease the pressure.
-void FlightPlannerParticles::slotProcessInformationGain(const quint8 threshold)
+void FlightPlannerParticles::slotProcessInformationGain()
 {
     if(mVboGridMapOfInformationGainBytes == 0 || mVboGridMapOfInformationGainFloats == 0)
     {
@@ -142,6 +141,8 @@ void FlightPlannerParticles::slotProcessInformationGain(const quint8 threshold)
     const quint8 maxPressure = getMaximumInformationGain(gridMapOfInformationGain, numberOfCells);
     cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfInformationGainBytes, 0);
 
+    const int threshold = 5;
+
     if(maxPressure >= threshold)
     {
         qDebug() << "FlightPlannerParticles::slotProcessInformationGain(): max pressure" << maxPressure << ">" << "threshold" << threshold << "- generating waypoints!";
@@ -149,6 +150,11 @@ void FlightPlannerParticles::slotProcessInformationGain(const quint8 threshold)
         mDialog->setProcessPhysicsActive(false);
         mTimerProcessInformationGain.stop();
         slotGenerateWaypoints();
+    }
+    else
+    {
+        // For some reason, information gain hasn't built up. This indicates that the model is sufficiently complete within volumeLocal.
+        // So, this might be a good time to move the volume!
     }
 }
 
@@ -271,6 +277,24 @@ void FlightPlannerParticles::slotNewScanFused(const float* const points, const q
     // Insert all points into mPointCloudDense
     mPointCloudDense->slotInsertPoints4(points, count);
 
+    if(mPointCloudDense->getNumberOfPointsQueued() > 50000 && !mTimerStepSimulation.isActive())
+    {
+        mPointCloudDense->slotReduce();
+
+        if(mBaseStation->getOperatingMode() == OperatingMode::OperatingOnline && mWayPointsAhead.size() == 0 && !mTimerStepSimulation.isActive() && !mTimerProcessInformationGain.isActive())
+        {
+            // This is the first time that points were inserted (and we have no waypoints) - start the physics processing!
+            qDebug() << "FlightPlannerParticles::slotNewScanFused(): 50k points were present and reduced successfully, starting wpt generation!";
+            slotStartWayPointGeneration();
+        }
+        else if(mWayPointsAhead.size())
+        {
+            // Points were added to the pointcloud and there's waypoints currently being passed
+            // Check to make sure that none of the new points are in cells that contain waypoints!
+            mPathPlanner->checkWayPointSafety(getLastKnownVehiclePose().getPosition(), &mWayPointsAhead);
+        }
+    }
+
     emit suggestVisualization();
 }
 
@@ -281,7 +305,7 @@ void FlightPlannerParticles::slotSetVolumeGlobal(const Box3D volume)
 
     mVolumeGlobal = volume;
 
-    // If the local volumne is not enclosed anymore, try to make it fit!
+    // If the local volume is not enclosed anymore, try to make it fit!
     if(!mVolumeGlobal.containsAllOf(&mVolumeLocal))
     {
         slotSetVolumeLocal(mVolumeLocal);
@@ -405,9 +429,10 @@ void FlightPlannerParticles::slotWayPointReached(const WayPoint& wpt)
 void FlightPlannerParticles::slotStartWayPointGeneration()
 {
     qDebug() << __PRETTY_FUNCTION__ << "starting generation!";
+    mTimerProcessInformationGain.start(5000);
 
     // This will first copy points to collider (which will reduce), then reduce the dense cloud.
-    ((PointCloudCuda*)mPointCloudDense)->slotReduce();
+    //((PointCloudCuda*)mPointCloudDense)->slotReduce();
 
     slotClearGridOfInformationGain();
 
@@ -419,8 +444,6 @@ void FlightPlannerParticles::slotStartWayPointGeneration()
     slotVehiclePoseChanged(&p);
 
     mParticleSystem->slotResetParticles();
-
-    mTimerProcessInformationGain.start(5000);
 }
 
 void FlightPlannerParticles::slotClearGridOfInformationGain()
@@ -465,26 +488,11 @@ void FlightPlannerParticles::showInformationGain()
     delete informationGainMapHost;
 }
 
-void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloud*const pointCloudSource, const quint32& firstPointToReadFromSrc, quint32 numberOfPointsToCopy)
+void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloudCuda*const pointCloudSource, const quint32& firstPointToReadFromSrc, quint32 numberOfPointsToCopy)
 {
     qDebug() << __PRETTY_FUNCTION__;
 
-    // Son, we shouldn't mess with CUDA while rendering is in progress
-    Q_ASSERT(!mGlWindow->mIsCurrentlyRendering);
-
     mPointCloudColliders->slotInsertPoints(pointCloudSource, firstPointToReadFromSrc, numberOfPointsToCopy);
-
-    if(mBaseStation->getOperatingMode() == OperatingMode::OperatingOnline && mWayPointsAhead.size() == 0 && !mTimerStepSimulation.isActive() && !mTimerProcessInformationGain.isActive())
-    {
-        // This is the first time that points were inserted (and we have no waypoints) - start the physics processing!
-        slotStartWayPointGeneration();
-    }
-    else if(mWayPointsAhead.size())
-    {
-        // Points were added to the pointcloud and there's waypoints currently being passed
-        // Check to make sure that none of the new points are in cells that contain waypoints!
-        mPathPlanner->checkWayPointSafety(getLastKnownVehiclePose().getPosition(), &mWayPointsAhead);
-    }
 }
 
 void FlightPlannerParticles::slotStepSimulation()

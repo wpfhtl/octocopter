@@ -68,6 +68,11 @@ public:
         return mParameters.elementCount + mParameters.elementQueueCount;
     }
 
+    quint32 getNumberOfPointsQueued(void) const
+    {
+        return mParameters.elementQueueCount;
+    }
+
     void setGridSize(const quint16 x, const quint16 y, const quint16 z)
     {
         mParameters.grid.cells.x = x;
@@ -114,7 +119,7 @@ private:
 
     struct cudaGraphicsResource *mCudaVboResource; // handles OpenGL-CUDA exchange
 
-    quint32 reducePoints(float* devicePoints, const quint32 numElements, const bool createBoundingBox);
+    quint32 reducePoints(float* devicePoints, quint32 numElements);
     void freeResources();
     void initializeGrid();
 
@@ -126,7 +131,7 @@ public slots:
     bool slotInsertPoints4(const float* const pointList, const quint32 numPoints);
 
     // Insert points from another PointCloudCuda
-    void slotInsertPoints(PointCloud *const pointCloudSource, const quint32& firstPointToReadFromSrc = 0, quint32 numberOfPointsToCopy = 0);
+    void slotInsertPoints(PointCloudCuda * const pointCloudSource, const quint32& firstPointToReadFromSrc = 0, quint32 numberOfPointsToCopy = 0);
 
     // Clears the datastructure, but does not destruct it. Points can still be inserted afterwards.
     void slotReset();

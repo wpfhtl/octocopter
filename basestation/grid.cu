@@ -3,9 +3,10 @@
 #undef _GLIBCXX_USE_INT128
 
 #include "grid.cuh"
-//#include "cudahelper.h"
 #include "cudahelper.cuh"
 #include "helper_math.h"
+
+#include <stdio.h>
 
 __host__ __device__ float3 Grid::getWorldSize() const
 {
@@ -38,17 +39,11 @@ __host__ __device__ unsigned int Grid::getCellHash(int3 gridCellCoordinate) cons
             + gridCellCoordinate.x;
 }
 
-__host__ __device__ int Grid::getCellHash2(int3 gridCellCoordinate) const
+// Just like the one above, but returns -1 for invalid cells (returns SIGNED int)
+__host__ __device__ int Grid::getSafeCellHash(int3 gridCellCoordinate) const
 {
     if(gridCellCoordinate.x >= cells.x || gridCellCoordinate.y >= cells.y || gridCellCoordinate.z >= cells.z)
         return -1;
-
-//    if(gridCellCoordinate.x < 0 || gridCellCoordinate.y < 0 || gridCellCoordinate.z < 0)
-//        return -1;
-
-//    gridCellCoordinate.x = gridCellCoordinate.x & (cells.x-1);  // wrap grid, assumes size is power of 2
-//    gridCellCoordinate.y = gridCellCoordinate.y & (cells.y-1);
-//    gridCellCoordinate.z = gridCellCoordinate.z & (cells.z-1);
 
     return (gridCellCoordinate.z * cells.y) * cells.x
             + (gridCellCoordinate.y * cells.x)
@@ -68,6 +63,21 @@ __host__ __device__ int3 Grid::getCellCoordinate(const unsigned int hash) const
 
 __host__ __device__ int3 Grid::getCellCoordinate(const float3 &worldPos) const
 {
+    if(     worldPos.x < worldMin.x ||
+            worldPos.y < worldMin.y ||
+            worldPos.z < worldMin.z ||
+            worldPos.x > worldMax.x ||
+            worldPos.y > worldMax.y ||
+            worldPos.z > worldMax.z)
+    {
+        printf("Grid::getCellCoordinate(): pos %.2f/%.2f/%.2f is not in grid from %.2f/%.2f/%.2f to %.2f/%.2f/%.2f\n",
+               worldPos.x, worldPos.y, worldPos.z,
+               worldMin.x, worldMin.y, worldMin.z,
+               worldMax.x, worldMax.y, worldMax.z);
+
+        return make_int3(-1, -1, -1);
+    }
+
     const float3 posRelativeToGridMin = worldPos - worldMin;
     const float3 cellSize = getCellSize();
 
@@ -108,10 +118,10 @@ __host__ __device__ uint3 Grid::getOptimumResolution(const float minDist)
     cells.y = floor((worldMax.y - worldMin.y) / minDist);
     cells.z = floor((worldMax.z - worldMin.z) / minDist);
 
-    // Make sure that it doesn't grow beyond hardware limits
-    cells.x = cudaBound(1, cells.x, 255);
-    cells.y = cudaBound(1, cells.y, 31);
-    cells.z = cudaBound(1, cells.z, 255);
+    // Make sure that it doesn't grow beyond hardware limits (256*32*256 = 2M)
+    cells.x = cudaBound(1, cells.x, 511);
+    cells.y = cudaBound(1, cells.y, 63);
+    cells.z = cudaBound(1, cells.z, 511);
 
     // And use a power of two, as this is needed by Grid::getCellHash().
     // TODO: Actually, that limitation should be removed, because using more grid cells means we're missing neighbors that we should check against!
@@ -217,13 +227,25 @@ void computeMappingFromGridCellToParticleD(
     const unsigned int index = getThreadIndex1D();
     if(index >= numParticles) return;
 
-    volatile float4 p = pos[index];
+    volatile float4 worldPos = pos[index];
+
+    // Do not process points outside the grid!
+    if(     worldPos.x < grid->worldMin.x ||
+            worldPos.y < grid->worldMin.y ||
+            worldPos.z < grid->worldMin.z ||
+            worldPos.x > grid->worldMax.x ||
+            worldPos.y > grid->worldMax.y ||
+            worldPos.z > grid->worldMax.z)
+    {
+        printf("computeMappingFromGridCellToParticleD(): particle %d is not in grid, this is an error!\n");
+        return;
+    }
 
     // In which grid cell does the particle live?
-    int3 gridPos = grid->getCellCoordinate(make_float3(p.x, p.y, p.z));
+    const int3 gridCellCoordinate = grid->getCellCoordinate(make_float3(worldPos.x, worldPos.y, worldPos.z));
 
     // Calculate the particle's hash from the grid-cell. This means particles in the same cell have the same hash
-    int hash = grid->getCellHash(gridPos);
+    int hash = grid->getCellHash(gridCellCoordinate);
 
     // getCellHash() returns -1 if pos is not in grid.
     if(hash >= 0)

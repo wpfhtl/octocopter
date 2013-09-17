@@ -39,7 +39,7 @@ void fillOccupancyGridD(u_int8_t* gridValues, float4* colliderPos, unsigned int 
         int3 particleGridCell = parametersPathPlanner.grid.getCellCoordinate(make_float3(particleToCollidePos));
 
         // The cell-hash IS the offset in memory, as cells are adressed linearly
-        int cellHash = parametersPathPlanner.grid.getCellHash2(particleGridCell);
+        int cellHash = parametersPathPlanner.grid.getSafeCellHash(particleGridCell);
 
         if(cellHash >= 0) gridValues[cellHash] = 255;
     //}
@@ -65,7 +65,7 @@ void dilateOccupancyGridD(u_int8_t* gridValues, unsigned int numCells)
             for(int x=-1;x<=1;x++)
             {
                 const int3 neighbourGridCellCoordinate = threadGridCellCoordinate + make_int3(x,y,z);
-                const int neighbourGridCellIndex = parametersPathPlanner.grid.getCellHash2(neighbourGridCellCoordinate);
+                const int neighbourGridCellIndex = parametersPathPlanner.grid.getSafeCellHash(neighbourGridCellCoordinate);
                 //if(cellIndex == 0) printf("cellIndex 0, coord 0/0/0 neighbor %d/%d/%d\n", x, y, z);
 
                 if(neighbourGridCellIndex >= 0 && gridValues[neighbourGridCellIndex] == 255)
@@ -99,7 +99,7 @@ __global__ void clearOccupancyGridAboveVehiclePositionD(
             for(int x=-2;x<=2;x++)
             {
                 const int3 neighbourGridCellCoordinate = gridCellCoordinate + make_int3(x,y,z);
-                const int neighbourGridCellIndex = parametersPathPlanner.grid.getCellHash2(neighbourGridCellCoordinate);
+                const int neighbourGridCellIndex = parametersPathPlanner.grid.getSafeCellHash(neighbourGridCellCoordinate);
                 float3 cellCenter = parametersPathPlanner.grid.getCellCenter(neighbourGridCellCoordinate);
                 printf("clearOccupancyGridAboveVehiclePositionD(): clearing cell at %.2f / %.2f / %.2f\n", cellCenter.x, cellCenter.y, cellCenter.z);
                 gridValues[neighbourGridCellIndex] = 0;
@@ -148,7 +148,7 @@ __global__ void moveWayPointsToSafetyD(unsigned char* gridValues, float4* device
             for(int y=2;y<maxNumberOfGridCellsToGoUp && !freeCellFound;y++)
             {
                 const int3 neighbourGridCellCoordinate = gridCellCoordinate + make_int3(searchOrderHorizontal[x],y,searchOrderHorizontal[z]);
-                const int neighbourGridCellIndex = parametersPathPlanner.grid.getCellHash2(neighbourGridCellCoordinate);
+                const int neighbourGridCellIndex = parametersPathPlanner.grid.getSafeCellHash(neighbourGridCellCoordinate);
 
                 if(gridValues[neighbourGridCellIndex] == 0)
                 {
@@ -224,7 +224,7 @@ int bound(int min, int value, int max)
 __global__ void markStartCellD(u_int8_t* gridValues)
 {
     int3 cellCoordinateStart = parametersPathPlanner.grid.getCellCoordinate(parametersPathPlanner.start);
-    int cellIndexStart = parametersPathPlanner.grid.getCellHash2(cellCoordinateStart);
+    int cellIndexStart = parametersPathPlanner.grid.getSafeCellHash(cellCoordinateStart);
 
     if(cellIndexStart > 0)
     {
@@ -268,7 +268,7 @@ void growGridD(u_int8_t* gridValues, Grid subGrid)
 
                     const int3 neighbourGridCellCoordinate = superGridCellCoordinate + make_int3(x,y,z);
 
-                    const int neighbourGridCellIndex = parametersPathPlanner.grid.getCellHash2(neighbourGridCellCoordinate);
+                    const int neighbourGridCellIndex = parametersPathPlanner.grid.getSafeCellHash(neighbourGridCellCoordinate);
 
                     // Border-cells might ask for neighbors outside of the grid. getCellHash2() returns -1 in those cases.
                     if(neighbourGridCellIndex >= 0)
@@ -388,7 +388,7 @@ __global__
 void checkGoalCellD(unsigned char* gridValues, unsigned int numCells, unsigned int searchRange, unsigned int *status)
 {
     int3 goalGridCellCoordinate = parametersPathPlanner.grid.getCellCoordinate(parametersPathPlanner.goal);
-    int goalGridCellOffset = parametersPathPlanner.grid.getCellHash2(goalGridCellCoordinate);
+    int goalGridCellOffset = parametersPathPlanner.grid.getSafeCellHash(goalGridCellCoordinate);
 
     uint valueInGoalCell = gridValues[goalGridCellOffset];
 
@@ -456,7 +456,7 @@ __global__
 void retrievePathD(unsigned char* gridValues, float4* waypoints)
 {
     int3 gridCellCoordinateGoal = parametersPathPlanner.grid.getCellCoordinate(parametersPathPlanner.goal);
-    int gridCellOffsetGoal = parametersPathPlanner.grid.getCellHash2(gridCellCoordinateGoal);
+    int gridCellOffsetGoal = parametersPathPlanner.grid.getSafeCellHash(gridCellCoordinateGoal);
 
     int3 gridCellCoordinateStart = parametersPathPlanner.grid.getCellCoordinate(parametersPathPlanner.start);
 
@@ -513,7 +513,7 @@ void retrievePathD(unsigned char* gridValues, float4* waypoints)
                             cudaBound(-1, gridCellCoordinateStart.z - cellCoordinate.z, 1));
 
                 int3 neighbourCellCoordinate = cellCoordinate + cellOffset;
-                int neighbourCellIndex = parametersPathPlanner.grid.getCellHash2(neighbourCellCoordinate);
+                int neighbourCellIndex = parametersPathPlanner.grid.getSafeCellHash(neighbourCellCoordinate);
                 if(neighbourCellIndex < 0) printf("bug!!!");
 
                 u_int8_t neighborValue = gridValues[neighbourCellIndex];
@@ -608,7 +608,7 @@ void retrievePathD(unsigned char* gridValues, float4* waypoints)
                             int3 cellOffset = make_int3(searchOrderX[x], searchOrderY[y], searchOrderZ[z]);
                             int3 neighbourCellCoordinate = cellCoordinate + cellOffset;
 
-                            int neighbourCellIndex = parametersPathPlanner.grid.getCellHash2(neighbourCellCoordinate);
+                            int neighbourCellIndex = parametersPathPlanner.grid.getSafeCellHash(neighbourCellCoordinate);
 
                             if(neighbourCellIndex >= 0)
                             {
@@ -669,7 +669,7 @@ __global__ void testWayPointCellOccupancyD(unsigned char*  gridValues, float4* u
     float4 waypoint = upcomingWayPoints[waypointIndex];
 
     const int3 gridCellCoordinate = parametersPathPlanner.grid.getCellCoordinate(make_float3(waypoint.x, waypoint.y, waypoint.z));
-    const int gridCellHash = parametersPathPlanner.grid.getCellHash2(gridCellCoordinate);
+    const int gridCellHash = parametersPathPlanner.grid.getSafeCellHash(gridCellCoordinate);
 
     if(gridCellHash < 0 || gridCellHash > parametersPathPlanner.grid.getCellCount())
         printf("testWayPointCellOccupancyD(): bug, waypoint %d is supposedly at %.2f/%.2f/%.2f/%.2f in cell hash %d\n",

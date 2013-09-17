@@ -189,7 +189,7 @@ BaseStation::BaseStation() : QMainWindow()
     MenuSlider* menuSlider;
 
     menuSlider = new MenuSlider("Rotate View", -1.0, 0.0, 1.0, this, 0.1f);
-    connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlWindow->slotSetCameraRotation(value);});
+    connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlWindow->slotSetCameraRotation(-value);});
     mMenuView->addAction(menuSlider);
 
     mMenuView->insertSeparator(menuSlider);
