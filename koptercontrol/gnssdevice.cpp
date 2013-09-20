@@ -360,9 +360,6 @@ void GnssDevice::slotCommunicationSetup()
     slotQueueCommand("setDataInOut,"+mSerialPortOnDeviceCom+",RTCMv3,SBF");
     slotQueueCommand("setDataInOut,"+mSerialPortOnDeviceUsb+",CMD,SBF");
 
-    // make the receiver listen to RTK data on specified port
-    //    sendAsciiCommand("setDataInOut,"+mSerialPortOnDeviceCom+",RTCMv3");
-
     // we want to know the TOW, because we don't want it to roll over! Answer is parsed below and used to sync time.
     slotQueueCommand("exeSBFOnce,"+mSerialPortOnDeviceCom+",ReceiverTime");
     slotQueueCommand("exeSBFOnce,"+mSerialPortOnDeviceCom+",ReceiverTime");
@@ -370,7 +367,7 @@ void GnssDevice::slotCommunicationSetup()
     // use a static (not moving) base station
     slotQueueCommand("setDiffCorrUsage,LowLatency,20.0,auto,0,off");
 
-    // xPPSOut is connected to DCD line of mSerialPortCom and uses hardpps() to sync clocks.
+    // xPPSOut is connected to DCD line of mSerialPortCom and uses hardpps() to sync clocks - NOT true, the com port is connected via USB :(
     // 0.00 is delay in nanoseconds, higher values cause PPS signal to be generated earlier.
     // 3600 is MaxSyncAge - time with no PVT after which PPS output is stopped. Ignored for RxClock timing system.
     slotQueueCommand("setPPSParameters,sec1,Low2High,0.00,RxClock,3600");
@@ -387,11 +384,23 @@ void GnssDevice::slotCommunicationSetup()
     // when GNSS fails, use IMU for how many seconds?
     slotQueueCommand("setExtSensorUsage,COM1,Accelerations+AngularRates,10");
 
-    // specify vector from GNSS antenna ARP to IMU in Vehicle reference frame
+    // Specify offset from GNSS antenna ARP to IMU in Vehicle reference frame
     // (vehicle reference frame has X forward, Y right and Z down)
-    // IMU is 3cm in front, 10cm to the right and 12cm below ARP. Max precision is 1 cm.
+    // IMU is 4cm behind, 13cm to the right and 35cm below ARP. Max precision is 1 cm.
+    //
     // Specifying orientation is not so easy (=fucking mess, Firmware User manual pg. 41)
-    slotQueueCommand("setExtSensorCalibration,COM1,manual,180,0,0,manual,0.03,-0.10,-0.12");
+    //
+    // What I consider default (orange hat on top, aluminum-base down, plug towards rear)
+    // is 180,0,0 (flipped on X, because Septentrio thinks it belongs with the aluminum base on top).
+    // This means that the drawings on that page are correct, and the text is fishy:
+    //
+    // "By default, the INS/GNSS integration filter assumes that the IMU is mounted horizontally,
+    // *upside up* and...
+    //
+    // So, upside is the aluminum base!
+    // Since the aluminum base *is* currently on top and we have another wicked rotation
+    // (Y points forward), we add the -90 deg rotation on Z and hope it'll work.
+    slotQueueCommand("setExtSensorCalibration,COM1,manual,0,0,-90,manual,-0.04,0.13,0.35");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
     //slotQueueCommand("setEventParameters,EventA,High2Low"); // Hokuyo

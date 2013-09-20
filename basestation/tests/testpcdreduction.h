@@ -13,7 +13,7 @@ class TestPcdReduction : protected OPENGL_FUNCTIONS_CLASS
 public:
     TestPcdReduction();
     ~TestPcdReduction();
-    void doTest();
+    void doTest(const QString &fileIn, const QString &fileOut);
 
 private:
     QOffscreenSurface* mOffScreenSurface;

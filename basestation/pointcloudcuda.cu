@@ -39,7 +39,7 @@ void copyParametersToGpu(ParametersPointCloud *hostParams)
     cudaSafeCall(cudaMemcpyToSymbol(paramsPointCloud, hostParams, sizeof(ParametersPointCloud)));
 }
 
-
+/*
 // Returns the presence of neighbors of @pos within paramsPointCloud.minimumDistance in @gridCell
 // Caller must ensure:
 //  - pos is in grid
@@ -83,12 +83,12 @@ __device__ bool checkCellForNeighbors(
                 float distSquared = lengthSquared(make_float3(relPos));
 
                 // If they collide AND we're checking the point that was further from the scanner, THEN reduce it!
-                if(distSquared < paramsPointCloud.minimumDistance * paramsPointCloud.minimumDistance /*&& pos.w > posOther.w && posOther.w != 0.0*/)
+                if(distSquared < paramsPointCloud.minimumDistance * paramsPointCloud.minimumDistance && pos.w > posOther.w)
                 {
-                    /*printf("point %.2f/%.2f/%.2f collides with point %.2f/%.2f/%.2f in cell %d/%d/%d.\n",
-                           pos.x, pos.y, pos.z,
-                           posOther.x, posOther.y, posOther.z,
-                           gridCell.x, gridCell.y, gridCell.z);*/
+                    //printf("point %.2f/%.2f/%.2f collides with point %.2f/%.2f/%.2f in cell %d/%d/%d.\n",
+                    //       pos.x, pos.y, pos.z,
+                    //       posOther.x, posOther.y, posOther.z,
+                    //       gridCell.x, gridCell.y, gridCell.z);
 
                     return true;
                 }
@@ -96,7 +96,7 @@ __device__ bool checkCellForNeighbors(
         }
     }
     return false;
-}
+}*/
 
 // Collide a single point (given by thread-id through @index) against all points in own and neighboring cells
 __global__
@@ -121,6 +121,7 @@ void markCollidingPointsD(
             worldPos.y > paramsPointCloud.grid.worldMax.y ||
             worldPos.z > paramsPointCloud.grid.worldMax.z)
     {
+        printf("ERROR, point not in grid!\n");
         return;
     }
 
@@ -133,6 +134,10 @@ void markCollidingPointsD(
 
     const uint originalIndex = gridPointIndex[indexInSortedPositionsArray];
 
+    float4 clusterPosition = make_float4(0.0);
+    float numberOfNeighbors = 0.0;
+//    float averageNeighborScanDistance = 0.0;
+
     // examine neighbouring cells
     for(int z=-1; z<=1; z++)
     {
@@ -142,19 +147,58 @@ void markCollidingPointsD(
             {
                 const int3 neighbourGridCoordinate = gridCellCoordinate + make_int3(x, y, z);
                 if(
-                        neighbourGridCoordinate.x < paramsPointCloud.grid.cells.x && neighbourGridCoordinate.y < paramsPointCloud.grid.cells.y && neighbourGridCoordinate.z < paramsPointCloud.grid.cells.z &&
-                        checkCellForNeighbors(neighbourGridCoordinate, indexInSortedPositionsArray, worldPos, positionsSorted, pointCellStart, pointCellStopp))
+                        neighbourGridCoordinate.x < paramsPointCloud.grid.cells.x &&
+                        neighbourGridCoordinate.y < paramsPointCloud.grid.cells.y &&
+                        neighbourGridCoordinate.z < paramsPointCloud.grid.cells.z)
                 {
-                    // There is a neighboring point AND this point's index is even. Mark it for removal by zeroing it out!
-                    //printf("reducing point!\n");
-                    posOriginal[originalIndex] = make_float4(0.0);
-                    return;
+                    // Ok, let's search this cell for neighbors!
+                    int gridHash = paramsPointCloud.grid.getSafeCellHash(neighbourGridCoordinate);
+
+                    // get start of bucket for this cell
+                    uint startIndex = pointCellStart[gridHash];
+
+                    // cell is not empty
+                    if(startIndex != 0xffffffff)
+                    {
+                        // iterate over particles in this cell
+                        uint endIndex = pointCellStopp[gridHash];
+
+                        for(uint j=startIndex; j<endIndex; j++)
+                        {
+                            // check not colliding with self
+                            if(j != indexInSortedPositionsArray)
+                            {
+                                const float4 posOther = positionsSorted[j];
+                                const float4 relPos = worldPos - posOther;
+
+                                if(lengthSquared(make_float3(relPos)) < paramsPointCloud.minimumDistance * paramsPointCloud.minimumDistance)
+                                {
+                                    // There is a neighbor! Record its presence.
+                                    numberOfNeighbors++;
+                                    clusterPosition += posOther;
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 
-    // This point does not collide with any other. Do not change its values, it will be kept.
+    if(numberOfNeighbors)
+    {
+        const float averageNeighborScanDistance = clusterPosition.w / numberOfNeighbors;
+        if(averageNeighborScanDistance > worldPos.w && (indexInSortedPositionsArray % 2))
+        {
+            // If the other neighbors are of better quality, delete ourselves
+            posOriginal[originalIndex] = make_float4(0.0);
+        }
+        else
+        {
+            // If we're better, move us into the center of our neighborhood
+            posOriginal[originalIndex] = clusterPosition / numberOfNeighbors;
+        }
+    }
 }
 
 

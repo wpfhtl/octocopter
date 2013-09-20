@@ -112,12 +112,12 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     mLaserScannerDown->slotSetRelativeScannerPose(
                 Pose(
                     QVector3D(      // Offset from vehicle center to Laser Source. In Vehicle Reference Frame: Like OpenGL, red arm forward pointing to screen
-                        +0.00,      // From vehicle left/right to laser, positive is moved to right "wing"
-                        -0.04,      // From vehicle up/down to laser, negative is down to laser
-                        -0.14),     // From vehicle 14cm forward, towards the front arm.
-                    +000.0,         // No yawing
-                    -091.0,         // 90 deg pitched down
-                    +000.0,         // No rolling
+                        +0.000,      // From vehicle left/right to laser, positive is moved to right "wing"
+                        -0.044,      // From vehicle up/down to laser, negative is down to laser
+                        -0.120),     // From vehicle 14cm forward, towards the front arm.
+                    +000.0,         // Yaw
+                    -090.0,         // 90 deg pitched down
+                    +000.0,         // Roll
                     10             // Use 10 msec TOW, so that the relative pose is always older than whatever new pose coming in. Don't use 0, as that would be set to current TOW, which might be newer due to clock offsets.
                     )
                 );
@@ -126,12 +126,12 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     mLaserScannerFrnt->slotSetRelativeScannerPose(
                 Pose(
                     QVector3D(      // Offset from vehicle center to Laser Source. In Vehicle Reference Frame: Like OpenGL, red arm forward pointing to screen
-                        0.00,      // From vehicle left/right to laser, positive is moved to right "wing"
-                        0.10,      // From vehicle up/down to laser, negative is down to laser
-                        0.00),     // From vehicle 14cm forward, towards the front arm.
-                    0.0,         // No yawing
-                    0.0,         // No pitching
-                    0.0,         // No rolling
+                        +0.000,      // From vehicle left/right to laser, positive is moved to right "wing"
+                        -0.105,      // From vehicle up/down to laser, negative is down to laser
+                        -0.015),     // From vehicle 1.5cm forward, towards the front arm.
+                    +000.0,         // Yaw
+                    +000.0,         // Pitch
+                    +180.0,         // Rolled upside down
                     10             // Use 10 msec TOW, so that the relative pose is always older than whatever new pose coming in. Don't use 0, as that would be set to current TOW, which might be newer due to clock offsets.
                     )
                 );
@@ -156,11 +156,6 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     connect(mBaseConnection, &BaseConnection::differentialCorrections, mGnssDevice, &GnssDevice::slotSetDifferentialCorrections);
     connect(mBaseConnection, &BaseConnection::wayPoints, mFlightController, &FlightController::slotSetWayPoints);
     connect(mBaseConnection, &BaseConnection::newConnection, mFlightController, &FlightController::slotEmitFlightControllerInfo);
-
-    // We manually swithc lasers on/off
-    //connect(mGnssDevice->getSbfParser(), &SbfParser::gnssDeviceWorkingPrecisely, mLaserScannerDown, &LaserScanner::slotEnableScanning);
-    //connect(mGnssDevice->getSbfParser(), &SbfParser::gnssDeviceWorkingPrecisely, mLaserScannerFrnt, &LaserScanner::slotEnableScanning);
-
     connect(mBaseConnection, &BaseConnection::controllerWeights, mFlightController, &FlightController::slotSetControllerWeights);
 
     connect(mGnssDevice->getSbfParser(), &SbfParser::message, mBaseConnection, &BaseConnection::slotSendLogMessage);

@@ -99,13 +99,20 @@
       <property name="spacing">
        <number>1</number>
       </property>
-      <item row="0" column="0">
-       <widget class="QCheckBox" name="mChkBoxProcessPhysics">
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="mChkBoxCheckWayPointSafety">
         <property name="text">
-         <string>Process Physics</string>
+         <string>Check Safety</string>
         </property>
         <property name="checked">
-         <bool>false</bool>
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="mChkBoxCreateWayPoints">
+        <property name="text">
+         <string>Create Waypoints</string>
         </property>
        </widget>
       </item>
@@ -119,20 +126,6 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
-       <widget class="QCheckBox" name="mChkBoxFollowVehicle">
-        <property name="text">
-         <string>Follow Vehicle</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QCheckBox" name="mChkBoxRenderGridOccupancy">
-        <property name="text">
-         <string>Show GridOccupancy</string>
-        </property>
-       </widget>
-      </item>
       <item row="1" column="1">
        <widget class="QCheckBox" name="mChkBoxRenderInformationGain">
         <property name="text">
@@ -143,20 +136,38 @@
         </property>
        </widget>
       </item>
+      <item row="2" column="0">
+       <widget class="QCheckBox" name="mChkBoxFollowVehicle">
+        <property name="text">
+         <string>Follow Vehicle</string>
+        </property>
+       </widget>
+      </item>
       <item row="3" column="1">
+       <widget class="QCheckBox" name="mChkBoxRenderGridOccupancy">
+        <property name="text">
+         <string>Show Occupancy</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
        <widget class="QCheckBox" name="mChkBoxRenderGridPathPlanner">
         <property name="text">
-         <string>Show GridPathFinder</string>
+         <string>Show PathPlanner</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QCheckBox" name="mChkBoxProcessPhysics">
+        <property name="text">
+         <string>Process Physics</string>
+        </property>
+        <property name="checked">
+         <bool>false</bool>
         </property>
        </widget>
       </item>
      </layout>
-     <zorder>mChkBoxRenderParticles</zorder>
-     <zorder>mChkBoxFollowVehicle</zorder>
-     <zorder>mChkBoxRenderInformationGain</zorder>
-     <zorder>mChkBoxProcessPhysics</zorder>
-     <zorder>mChkBoxRenderGridOccupancy</zorder>
-     <zorder>mChkBoxRenderGridPathPlanner</zorder>
     </widget>
    </item>
    <item>

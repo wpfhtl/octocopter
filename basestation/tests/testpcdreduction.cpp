@@ -6,7 +6,7 @@
 TestPcdReduction::TestPcdReduction()
 {
     mPointCloudCuda = new PointCloudCuda(Box3D(), 8*1024*1024, "TestCloud");
-    mPointCloudCuda->setMinimumPointDistance(0.02f);
+    mPointCloudCuda->setMinimumPointDistance(0.2f);
 
     QSurfaceFormat format;
     format.setDepthBufferSize(24);
@@ -36,22 +36,31 @@ TestPcdReduction::~TestPcdReduction()
     delete mPointCloudCuda;
 }
 
-void TestPcdReduction::doTest()
+void TestPcdReduction::doTest(const QString& fileIn, const QString& fileOut)
 {
     mOpenGlContext->makeCurrent(mOffScreenSurface);
     CudaHelper::initializeCuda();
 
-    const QString fileName = "../tests/cloud.ply";
-    mPointCloudCuda->importFromFile(fileName, nullptr);
+    mPointCloudCuda->importFromFile(fileIn, nullptr);
     qDebug() << __PRETTY_FUNCTION__ << "pointcloud contains" << mPointCloudCuda->getNumberOfPoints() << "points.";
     mPointCloudCuda->slotReduce();
     qDebug() << __PRETTY_FUNCTION__ << "pointcloud contains" << mPointCloudCuda->getNumberOfPoints() << "points.";
-    mPointCloudCuda->exportToFile("TestPcdReduction.ply", nullptr);
+    mPointCloudCuda->exportToFile(fileOut, nullptr);
 }
 
 int main(int argc, char *argv[])
 {
     QGuiApplication a(argc, argv);
+    QString fileIn("../tests/cloud.ply");
+    QString fileOut("TestPcdReduction.ply");
+
+    const QStringList args = a.arguments();
+    if(args.size() > 1)
+    {
+        fileIn = args.at(args.size() - 2);
+        fileOut = args.at(args.size() - 1);
+    }
+
     TestPcdReduction t;
-    t.doTest();
+    t.doTest(fileIn, fileOut);
 }

@@ -33,6 +33,7 @@ public:
     PathPlanner* getPathPlanner() {return mPathPlanner;}
 
 private:
+    bool mCreateWayPoints, mCheckWayPointSafety;
     Box3D mVolumeLocal, mVolumeGlobal;
     QVector<Pose> mVehiclePoses;
     GlWindow* mGlWindow;
@@ -120,7 +121,7 @@ public slots:
 
     void slotWayPointReached(const WayPoint&);
 
-    void slotGenerateWaypoints(quint32 numberOfWaypointsToGenerate = 15);
+    void slotGenerateWaypoints();
 
 
 signals:

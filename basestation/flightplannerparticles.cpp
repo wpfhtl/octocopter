@@ -14,6 +14,9 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
     mBaseStation = baseStation;
     mPointCloudDense = pointCloudDense;
 
+    mCreateWayPoints = false;
+    mCheckWayPointSafety = true;
+
     mParticleSystem = 0;
     mPathPlanner = 0;
     mVboGridMapOfInformationGainBytes = 0;
@@ -32,20 +35,19 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
     mBaseStation->getGlScene()->slotPointCloudRegister(mPointCloudColliders);
 
     mSimulationParameters.initialize();
+
     mDialog = new FlightPlannerParticlesDialog(&mSimulationParameters, (QWidget*)baseStation);
-    connect(mDialog, SIGNAL(generateWayPoints()), SLOT(slotGenerateWaypoints()));
-    connect(mDialog, SIGNAL(resetInformationGain()), SLOT(slotClearGridOfInformationGain()));
-
-    //    connect(mDialog, SIGNAL(processPhysicsChanged(bool)), SLOT(slotProcessPhysics(bool)));
     connect(mDialog, SIGNAL(renderParticles(bool)), SIGNAL(renderParticles(bool)));
-
     connect(mDialog, SIGNAL(renderInformationGain(bool)), SIGNAL(renderInformationGain(bool)));
     connect(mDialog, SIGNAL(renderOccupancyGrid(bool)), SIGNAL(renderOccupancyGrid(bool)));
     connect(mDialog, SIGNAL(renderPathPlannerGrid(bool)), SIGNAL(renderPathPlannerGrid(bool)));
+    connect(mDialog, &FlightPlannerParticlesDialog::createWayPoints, [=](const bool value) {mCreateWayPoints = value;});
+    connect(mDialog, &FlightPlannerParticlesDialog::checkWayPointSafety, [=](const bool value) {mCheckWayPointSafety = value;});
     connect(mDialog, &FlightPlannerParticlesDialog::reduceColliderCloud, mPointCloudColliders, &PointCloudCuda::slotReduce);
+    connect(mDialog, &FlightPlannerParticlesDialog::generateWayPoints, this, &FlightPlannerParticles::slotGenerateWaypoints);
+    connect(mDialog, &FlightPlannerParticlesDialog::resetInformationGain, this, &FlightPlannerParticles::slotClearGridOfInformationGain);
 
     connect(mPointCloudDense, &PointCloudCuda::pointsInserted, this, &FlightPlannerParticles::slotDenseCloudInsertedPoints);
-
     connect(mPointCloudDense, &PointCloudCuda::numberOfPoints, mDialog, &FlightPlannerParticlesDialog::slotSetPointCloudSizeDense);
     connect(mPointCloudColliders, &PointCloudCuda::numberOfPoints, mDialog, &FlightPlannerParticlesDialog::slotSetPointCloudSizeSparse);
 
@@ -134,6 +136,12 @@ void FlightPlannerParticles::slotProcessInformationGain()
         return;
     }
 
+    if(!mCreateWayPoints)
+    {
+        qDebug() << "FlightPlannerParticles::slotProcessInformationGain(): automatic waypoint generation not enabled, returning.";
+        return;
+    }
+
     const quint32 numberOfCells = mSimulationParameters.gridInformationGain.getCellCount();
 
     // Copy waypoint pressure from VBO into mDeviceGridMapinformationGainSorted
@@ -158,7 +166,7 @@ void FlightPlannerParticles::slotProcessInformationGain()
     }
 }
 
-void FlightPlannerParticles::slotGenerateWaypoints(quint32 numberOfWaypointsToGenerate)
+void FlightPlannerParticles::slotGenerateWaypoints()
 {
     if(mVboGridMapOfInformationGainBytes == 0 || mVboGridMapOfInformationGainFloats == 0)
     {
@@ -215,6 +223,8 @@ void FlightPlannerParticles::slotGenerateWaypoints(quint32 numberOfWaypointsToGe
     {
         // Merge waypoints if they're closer than X meters
         wayPointsWithHighInformationGain.mergeCloseWaypoints(7.5f);
+
+        const int numberOfWaypointsToGenerate = 15;
 
         // Reduce them to the desired number
         while(wayPointsWithHighInformationGain.size() > numberOfWaypointsToGenerate)
@@ -279,9 +289,16 @@ void FlightPlannerParticles::slotNewScanFused(const float* const points, const q
 
     if(mPointCloudDense->getNumberOfPointsQueued() > 50000 && !mTimerStepSimulation.isActive())
     {
+        qDebug() << "FlightPlannerParticles::slotNewScanFused(): reducing" << mPointCloudDense->getNumberOfPointsQueued() << "queued points in dense cloud.";
         mPointCloudDense->slotReduce();
 
-        if(mBaseStation->getOperatingMode() == OperatingMode::OperatingOnline && mWayPointsAhead.size() == 0 && !mTimerStepSimulation.isActive() && !mTimerProcessInformationGain.isActive())
+        if(
+                mBaseStation->getOperatingMode() == OperatingMode::OperatingOnline &&
+                mWayPointsAhead.size() == 0 &&
+                !mTimerStepSimulation.isActive() &&
+                !mTimerProcessInformationGain.isActive() &&
+                mCreateWayPoints
+                )
         {
             // This is the first time that points were inserted (and we have no waypoints) - start the physics processing!
             qDebug() << "FlightPlannerParticles::slotNewScanFused(): 50k points were present and reduced successfully, starting wpt generation!";
@@ -291,7 +308,7 @@ void FlightPlannerParticles::slotNewScanFused(const float* const points, const q
         {
             // Points were added to the pointcloud and there's waypoints currently being passed
             // Check to make sure that none of the new points are in cells that contain waypoints!
-            mPathPlanner->checkWayPointSafety(getLastKnownVehiclePose().getPosition(), &mWayPointsAhead);
+            if(mCheckWayPointSafety) mPathPlanner->checkWayPointSafety(getLastKnownVehiclePose().getPosition(), &mWayPointsAhead);
         }
     }
 

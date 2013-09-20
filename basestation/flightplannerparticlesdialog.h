@@ -39,6 +39,8 @@ public slots:
 signals:
     void simulationParameters(const ParametersParticleSystem*);
 
+    void createWayPoints(bool);
+    void checkWayPointSafety(bool);
     void processPhysics(bool);
     void followVehicle(bool);
     void renderParticles(bool);

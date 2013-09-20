@@ -14,6 +14,7 @@ SbfParser::SbfParser(QObject *parent) : QObject(parent)
     mGnssDeviceWorkingPrecisely = false;
 
     // Offset from ARP to vehicle center in meters, local vehicle coordinate system
+    // X right, Y up and Z backwards (OpenGL-Style)
     mTransformArpToVehicle.translate(0.09f, -0.53f, -0.04f);
 }
 
