@@ -25,7 +25,7 @@ public:
 
     explicit Almanac(QObject *parent = 0);
 
-    bool addTleAlmanac(const QString& twoLineElmentsUrl, const Satellite::Constellation& constellation);
+    bool addTleAlmanac(const QString& twoLineElmentsUrl, const GnssConstellation& constellation);
 
     // Specify time of week in seconds,
     void setTime(const float tow) {mTow = tow;}

@@ -11,6 +11,30 @@
 class GnssStatus
 {
 public:
+
+    enum GnssSignalType
+    {
+        GpsL1Ca = 0,
+        GpsL1Py,
+        GpsL2Py,
+        GpsL2C,
+        GpsL5,
+        QzssL1Ca = 6,
+        QzssL2C,
+        GloL1Ca,
+        GloL2P = 10,
+        GloL2Ca,
+        GloL3,
+        GalL1Bc = 17,
+        GalE5a = 20,
+        GalE5b,
+        GalE5,
+        GeoL1Ca = 24,
+        QzssL5 = 26,
+        CompassL1 = 28,
+        CompassE5b
+    };
+
     enum struct PvtMode
     {
         NoPVT = 0,
@@ -37,16 +61,16 @@ public:
     enum struct Error
     {
         NoError = 0,
-            NotEnoughMeasurements = 1,
-            NotEnoughEphemeridesAvailable = 2,
-            DopTooLarge = 3,
+        NotEnoughMeasurements = 1,
+        NotEnoughEphemeridesAvailable = 2,
+        DopTooLarge = 3,
         SumOfSquaredResidualsTooLarge = 4,
         NoConvergence = 5,
         NotEnoughMeasurementsAfterOutlierRejection = 6,
         PositionOutputProhibitedDueToExportLaws = 7,
-            NotEnoughDifferentialCorrectionsAvailable = 8,
-            BasestationCoordinatesNotAvailable = 9,
-            AmbiquitiesNotFixedButOnlyRtkFixedAllowed = 10,
+        NotEnoughDifferentialCorrectionsAvailable = 8,
+        BasestationCoordinatesNotAvailable = 9,
+        AmbiquitiesNotFixedButOnlyRtkFixedAllowed = 10,
         IntegratedPvNotRequestedByUser = 20,
         NotEnoughValidExtSensorValues = 21,
         CalibrationNotReady = 22,
@@ -54,6 +78,21 @@ public:
         WaitingForGnssPvt = 24,
         WaitingForFineTime = 27,
         InMotionAlignmentOngoing = 28
+    };
+
+    struct SatelliteReceptionStatus
+    {
+        GnssConstellation   constellation;
+        quint8              satelliteId;
+        QMap<GnssSignalType,float> carrierOverNoise;
+
+        bool operator<(const SatelliteReceptionStatus other) const
+        {
+            if(constellation != other.constellation)
+                return constellation < other.constellation;
+            else
+                return satelliteId < other.satelliteId;
+        }
     };
 
     PvtMode pvtMode;
@@ -67,6 +106,7 @@ public:
     quint8 cpuLoad; // in percent
     float covariances;
     float longitude, latitude, height;
+    QList<SatelliteReceptionStatus> receivedSatellites;
 
     GnssStatus()
     {
@@ -99,7 +139,7 @@ public:
                 && covariances == b.covariances
                 && longitude == b.longitude
                 && latitude == b.latitude
-                && height == b.height;
+                && height == b.height; // receivedSignals??
     }
 
     bool interestingOrDifferentComparedTo(const GnssStatus& b)
@@ -116,8 +156,8 @@ public:
                 || fabs(covariances - b.covariances) > 0.1
                 || fabs(longitude - b.longitude) > 0.001
                 || fabs(latitude - b.latitude) > 0.001
-                || fabs(height - b.height) > 1.0;
-
+                || fabs(height - b.height) > 1.0
+                || receivedSatellites.size() != b.receivedSatellites.size();
     }
 
     void setPvtMode(const quint8 pvtModeCode);
@@ -128,6 +168,8 @@ public:
 
     void setError(const quint8 errorCode);
     bool hasError(const quint8 errorCode) {return static_cast<quint8>(error) == errorCode; }
+
+    QList<SatelliteReceptionStatus>* getReceivedSignals() { return &receivedSatellites;}
 
     QString toString() const;
     QString getPvtMode() const {return getPvtMode(pvtMode);}
@@ -153,5 +195,7 @@ public:
 // for streaming
 QDataStream& operator<<(QDataStream &out, const GnssStatus &pose);
 QDataStream& operator>>(QDataStream &in, GnssStatus &pose);
+
+QDebug operator<<(QDebug dbg, const GnssStatus::GnssSignalType &g);
 
 #endif // GNSSSTATUS_H

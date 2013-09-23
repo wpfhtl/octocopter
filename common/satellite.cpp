@@ -13,23 +13,23 @@ Satellite::Satellite(Almanac *almanac, const QString &name, const QString &line1
 
 QString Satellite::getShortName() const
 {
-    if(mConstellation == Constellation::ConstellationGps)
+    if(mConstellation == GnssConstellation::ConstellationGps)
     {
         quint32 indexOfPRN = mName.indexOf("PRN");
         return QString("G%1").arg(mName.mid(indexOfPRN + 4, 2));
     }
-    else if(mConstellation == Constellation::ConstellationGlonass)
+    else if(mConstellation == GnssConstellation::ConstellationGlonass)
     {
         return QString("R%1").arg(mName.mid(9, 2));
     }
-    else if(mConstellation == Constellation::ConstellationGalileo)
+    else if(mConstellation == GnssConstellation::ConstellationGalileo)
     {
         if(mName.contains("GSAT"))
             return QString("E%1").arg(mName.right(3).left(2));
         else
             return QString("E%1").arg(mName.right(1));
     }
-    else if(mConstellation == Constellation::ConstellationBeidou)
+    else if(mConstellation == GnssConstellation::ConstellationCompass)
     {
         return QString("C%1").arg(mName);
     }
@@ -359,19 +359,19 @@ uint qHash(const Satellite &key, uint seed)
 
 QColor Satellite::getTextColor() const
 {
-    if(mConstellation == Constellation::ConstellationGps)
+    if(mConstellation == GnssConstellation::ConstellationGps)
     {
         return QColor(0,0,255);
     }
-    else if(mConstellation == Constellation::ConstellationGlonass)
+    else if(mConstellation == GnssConstellation::ConstellationGlonass)
     {
         return QColor(255,0,0);
     }
-    else if(mConstellation == Constellation::ConstellationGalileo)
+    else if(mConstellation == GnssConstellation::ConstellationGalileo)
     {
         return QColor(0,255,0);
     }
-    else if(mConstellation == Constellation::ConstellationBeidou)
+    else if(mConstellation == GnssConstellation::ConstellationCompass)
     {
         return QColor(255,255,0);
     }

@@ -453,8 +453,8 @@ void GnssDevice::slotCommunicationSetup()
     // Needed for septentrio to debug IMU problems
     //slotQueueCommand("setSBFOutput,Stream7,"+mSerialPortOnDeviceUsb+",ExtSensorMeas+AttEuler,msec20");
 
-    // No idea what this is for - Septentrio debugging?
-    //slotQueueCommand("setSBFOutput,Stream8,"+mSerialPortOnDeviceUsb+",MeasEpoch,msec200");
+    // To get signal strength (Carrier over Noise)
+    slotQueueCommand("setSBFOutput,Stream8,"+mSerialPortOnDeviceUsb+",MeasEpoch,sec1");
 
     // show current config
     slotQueueCommand("lstConfigFile,Current");

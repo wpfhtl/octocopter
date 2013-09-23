@@ -40,6 +40,19 @@ struct PositionGeodetic
     float elevation;
 };
 
+enum class GnssConstellation
+{
+    ConstellationGps,
+    ConstellationGlonass,
+    ConstellationGalileo,
+    ConstellationCompass,
+    ConstellationQzss,
+    ConstellationSbas,
+    ConstellationUnknown
+};
+
+QDebug operator<<(QDebug dbg, const GnssConstellation &c);
+
 enum class WayPointListSource
 {
     WayPointListSourceControlWidget,

@@ -10,20 +10,10 @@ class Almanac;
 
 class Satellite
 {
-public:
-    enum class Constellation
-    {
-        ConstellationGps,
-        ConstellationGlonass,
-        ConstellationBeidou,
-        ConstellationGalileo,
-        ConstellationUnknown
-    };
-
 private:
     // A pointer back to the almanac that manages this satellite
     Almanac* mAlmanac;
-    Constellation mConstellation;
+    GnssConstellation mConstellation;
     QString mName;
     QString mLine1, mLine2;
     double mVelocity, mAzimuth, mElevation, mRange, mRangeRate, mLatitude, mLongitude;
@@ -36,8 +26,8 @@ private:
 public:
     Satellite(Almanac *almanac, const QString& name, const QString& line1, const QString& line2);
 
-    Constellation getConstellation() const {return mConstellation;}
-    void setConstellation(Constellation c) {mConstellation = c;}
+    GnssConstellation getConstellation() const {return mConstellation;}
+    void setConstellation(GnssConstellation c) {mConstellation = c;}
 
     quint32 getCatalogNumber();
     void setCatalogNumber(const quint32 catalogNumber);

@@ -167,3 +167,31 @@ QDataStream& operator>>(QDataStream &in, GnssStatus& status)
 
     return in;
 }
+
+QDebug operator<<(QDebug dbg, const GnssStatus::GnssSignalType &g)
+{
+    switch(g)
+    {
+    case GnssStatus::GpsL1Ca: dbg << "GpsL1Ca"; break;
+    case GnssStatus::GpsL1Py: dbg << "GpsL1Py"; break;
+    case GnssStatus::GpsL2Py: dbg << "GpsL2Py"; break;
+    case GnssStatus::GpsL2C: dbg << "GpsL2C"; break;
+    case GnssStatus::GpsL5: dbg << "GpsL5"; break;
+    case GnssStatus::QzssL1Ca: dbg << "QzssL1Ca"; break;
+    case GnssStatus::QzssL2C: dbg << "QzssL2C"; break;
+    case GnssStatus::GloL1Ca: dbg << "GloL1Ca"; break;
+    case GnssStatus::GloL2P: dbg << "GloL2P"; break;
+    case GnssStatus::GloL2Ca: dbg << "GloL2Ca"; break;
+    case GnssStatus::GloL3: dbg << "GloL3"; break;
+    case GnssStatus::GalL1Bc: dbg << "GalL1Bc"; break;
+    case GnssStatus::GalE5a: dbg << "GalE5a"; break;
+    case GnssStatus::GalE5b: dbg << "GalE5b"; break;
+    case GnssStatus::GalE5: dbg << "GalE5"; break;
+    case GnssStatus::GeoL1Ca: dbg << "GeoL1Ca"; break;
+    case GnssStatus::QzssL5: dbg << "QzssL5"; break;
+    case GnssStatus::CompassL1: dbg << "CompassL1"; break;
+    case GnssStatus::CompassE5b: dbg << "CompassE5b"; break;
+    }
+
+    return dbg;
+}

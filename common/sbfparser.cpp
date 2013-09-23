@@ -298,6 +298,71 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
     }
     break;
 
+    case 4027:
+    {
+        // MeasEpoch
+        const Sbf_MeasEpoch *block = (Sbf_MeasEpoch*)(sbfData.constData() + offsetToValidPacket);
+
+        quint16 byteOffsetOfCurrentSubBlock = 20; // thats when the first type1 block starts
+
+        mGnssStatus.receivedSatellites.clear();
+
+        for(int type1Blocks = 0; type1Blocks < block->numberOfBlocksType1;type1Blocks++)
+        {
+            const Sbf_MeasEpochSubType1 *b1 = (Sbf_MeasEpochSubType1*)(((char*)block) + byteOffsetOfCurrentSubBlock);
+            byteOffsetOfCurrentSubBlock += block->lengthBlockType1;
+
+            GnssStatus::SatelliteReceptionStatus srs;
+
+            const quint8 svid = b1->spaceVehicleId;
+            if(svid < 38)
+            {
+                srs.satelliteId = svid;
+                srs.constellation = GnssConstellation::ConstellationGps;
+            }
+            else if(svid < 62)
+            {
+                srs.satelliteId = svid-37;
+                srs.constellation = GnssConstellation::ConstellationGlonass;
+            }
+            else if(svid < 120)
+            {
+                srs.satelliteId = svid-70;
+                srs.constellation = GnssConstellation::ConstellationGalileo;
+            }
+            else if(svid < 141)
+            {
+                srs.satelliteId = svid-100;
+                srs.constellation = GnssConstellation::ConstellationSbas;
+            }
+            else if(svid < 181)
+            {
+                srs.satelliteId = svid-140;
+                srs.constellation = GnssConstellation::ConstellationCompass;
+            }
+            else
+            {
+                srs.satelliteId = svid-180;
+                srs.constellation = GnssConstellation::ConstellationQzss;
+            }
+
+            populateSatelliteReceptionStatus(srs, b1, nullptr);
+
+            for(int type2Blocks = 0; type2Blocks<b1->numberOfType2BlocksFollowing; type2Blocks++)
+            {
+                const Sbf_MeasEpochSubType2 *b2 = (Sbf_MeasEpochSubType2*)(((char*)block) + byteOffsetOfCurrentSubBlock);
+                byteOffsetOfCurrentSubBlock += block->lengthBlockType2;
+                populateSatelliteReceptionStatus(srs, nullptr, b2);
+            }
+
+            mGnssStatus.receivedSatellites.append(srs);
+        }
+
+        // Order it into GPS1, GPS2, GPS2, GLO1, GLO2, GLO3, GAL1, GAL2, ...
+        qSort(mGnssStatus.receivedSatellites);
+    }
+    break;
+
     case 4072:
     {
         // IntAttCovEuler
@@ -307,7 +372,6 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
         if(fabs(mGnssStatus.covariances - newCovarianceValue) > 0.02)
         {
             mGnssStatus.covariances = newCovarianceValue;
-//            emit status(&mGnssStatus);
         }
     }
     break;
@@ -759,4 +823,53 @@ QString SbfParser::readable(const QByteArray& bytes)
     }
 
     return out;
+}
+
+void SbfParser::populateSatelliteReceptionStatus(GnssStatus::SatelliteReceptionStatus& srs, const Sbf_MeasEpochSubType1 *b1, const Sbf_MeasEpochSubType2 *b2)
+{
+    if(b1 != nullptr)
+    {
+        const quint8 svid = b1->spaceVehicleId;
+        if(svid < 38)
+        {
+            srs.satelliteId = svid;
+            srs.constellation = GnssConstellation::ConstellationGps;
+        }
+        else if(svid < 62)
+        {
+            srs.satelliteId = svid-37;
+            srs.constellation = GnssConstellation::ConstellationGlonass;
+        }
+        else if(svid < 120)
+        {
+            srs.satelliteId = svid-70;
+            srs.constellation = GnssConstellation::ConstellationGalileo;
+        }
+        else if(svid < 141)
+        {
+            srs.satelliteId = svid-100;
+            srs.constellation = GnssConstellation::ConstellationSbas;
+        }
+        else if(svid < 181)
+        {
+            srs.satelliteId = svid-140;
+            srs.constellation = GnssConstellation::ConstellationCompass;
+        }
+        else
+        {
+            srs.satelliteId = svid-180;
+            srs.constellation = GnssConstellation::ConstellationQzss;
+        }
+    }
+
+    const quint8 signalType = b1 != nullptr ? b1->signalTypeAndAntenna : b2->signalTypeAndAntenna;
+    GnssStatus::GnssSignalType gss = (GnssStatus::GnssSignalType)(signalType & 31);
+
+    float carrierOverNoise = b1 != nullptr ? b1->carrierOverNoise*0.25f : b2->carrierOverNoise*0.25f;
+
+    if(gss != GnssStatus::GnssSignalType::GpsL1Py && gss != GnssStatus::GnssSignalType::GpsL2Py)
+        carrierOverNoise += 10.0f;
+
+    //qDebug() << "SbfParser::populateSatelliteReceptionStatus():" << (b1 != nullptr ? "b1" : "b2") << "constellation" << srs.constellation << "sat" << srs.satelliteId << "signaltype" << gss << "strength" << carrierOverNoise;
+    srs.carrierOverNoise.insert(gss, carrierOverNoise);
 }

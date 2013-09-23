@@ -30,6 +30,7 @@ GlScene::GlScene() :
     mRenderAxisVehicle = true;
     mRenderTrajectory = true;
     mRenderVehicle = true;
+    mRenderSatelliteSignals = true;
 
     mRenderParticles = false;
     mRenderInformationGain = false;
@@ -76,6 +77,7 @@ GlScene::~GlScene()
     mVaoGridMapOfOccupancy->deleteLater();
     mVaoGridMapOfPathPlanner->deleteLater();
     mVaoWayPointsAhead->deleteLater();
+    mVaoSatelliteSignals->deleteLater();
 
     // TODO: Does this delete the shaders? No.
     mShaderProgramDefault->deleteLater();
@@ -84,6 +86,7 @@ GlScene::~GlScene()
     mShaderProgramPointCloud->deleteLater();
     mShaderProgramRawScanRays->deleteLater();
     mShaderProgramWaypoint->deleteLater();
+    mShaderProgramSatelliteSignals->deleteLater();
 }
 
 void GlScene::slotUpdateMatrixModelToCamera()
@@ -171,6 +174,7 @@ void GlScene::initialize()
     mShaderProgramPointCloud = new ShaderProgram(this, "shader-pointcloud-vertex.c", "", "shader-pointcloud-fragment.c");
     mShaderProgramRawScanRays = new ShaderProgram(this, "shader-rawscanrays-vertex.c", "shader-rawscanrays-geometry.c", "shader-default-fragment.c");
     mShaderProgramWaypoint = new ShaderProgram(this, "shader-waypoint-vertex.c", "", "shader-waypoint-fragment.c");
+    mShaderProgramSatelliteSignals = new ShaderProgram(this, "shader-satellitesignals-vertex.c", "shader-satellitesignals-geometry.c", "shader-satellitesignals-fragment.c");
 
     // Create the uniform buffer object (UBO) for all members of the UBO-Block
     mUboSize = 64 + 64; // One Matrix4x4 has 16 floats with 4 bytes each, giving 64 bytes.
@@ -288,6 +292,8 @@ void GlScene::initialize()
     // Vertex specification for waypoint lists will be created when bboxes are set
     mVaoWayPointsAhead = new QOpenGLVertexArrayObject(this);
     mVaoWayPointsPassed = new QOpenGLVertexArrayObject(this);
+
+    mVaoSatelliteSignals = new QOpenGLVertexArrayObject(this);
 
     mVaoParticles = new QOpenGLVertexArrayObject(this);
 
@@ -695,6 +701,20 @@ void GlScene::render()
     {
         mModelVehicle->slotSetModelTransform(transformVehicle);
         mModelVehicle->render();
+    }
+
+
+    if(mRenderSatelliteSignals && mVaoSatelliteSignals->isCreated())
+    {
+        mShaderProgramSatelliteSignals->bind();
+        mShaderProgramSatelliteSignals->setUniformValue("matrixExtra", mLastKnownVehiclePose->getMatrixConst());
+        mShaderProgramSatelliteSignals->setUniformValue("numSatsGps", mNumberOfSatellitesGps);
+        mShaderProgramSatelliteSignals->setUniformValue("numSatsGlonass", mNumberOfSatellitesGlonass);
+
+        mVaoSatelliteSignals->bind();
+        glDrawArrays(GL_POINTS, 0, mNumberOfSatelliteSignals);
+        mVaoSatelliteSignals->release();
+        mShaderProgramSatelliteSignals->release();
     }
 
     if(mRenderBoundingBoxGlobal && mVaoBoundingBoxGlobal->isCreated())
@@ -1120,6 +1140,7 @@ void GlScene::reloadShaders()
     mShaderProgramPointCloud->initialize();
     mShaderProgramRawScanRays->initialize();
     mShaderProgramWaypoint->initialize();
+    mShaderProgramSatelliteSignals->initialize();
 
     emit suggestVisualization();
 }
@@ -1130,8 +1151,7 @@ void GlScene::slotSetVolumeGlobal(const Box3D* volume)
     mVolumeGlobal = volume;
     OpenGlUtilities::setVboToBoundingBox(mVboBoundingBoxVolumeGlobal, mVolumeGlobal);
 
-    if(!mVaoBoundingBoxGlobal->isCreated())
-        mVaoBoundingBoxGlobal->create();
+    if(!mVaoBoundingBoxGlobal->isCreated()) mVaoBoundingBoxGlobal->create();
 
     mVaoBoundingBoxGlobal->bind();
     glBindBuffer(GL_ARRAY_BUFFER, mVboBoundingBoxVolumeGlobal);
@@ -1149,8 +1169,7 @@ void GlScene::slotSetVolumeLocal(const Box3D* volume)
     mVolumeLocal = volume;
     OpenGlUtilities::setVboToBoundingBox(mVboBoundingBoxVolumeLocal, mVolumeLocal);
 
-    if(!mVaoBoundingBoxLocal->isCreated())
-        mVaoBoundingBoxLocal->create();
+    if(!mVaoBoundingBoxLocal->isCreated()) mVaoBoundingBoxLocal->create();
 
     mVaoBoundingBoxLocal->bind();
     glBindBuffer(GL_ARRAY_BUFFER, mVboBoundingBoxVolumeLocal);
@@ -1192,6 +1211,71 @@ void GlScene::slotSetWayPointListPassed(WayPointList* wpl)
     glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 20, (void*)16);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     mVaoWayPointsPassed->release();
+
+    emit suggestVisualization();
+}
+
+void GlScene::slotSetInsStatus(const GnssStatus* const g)
+{
+    // If needed, create a VAO and VBO for the scan rays
+    if(!mVaoSatelliteSignals->isCreated())
+    {
+        mVaoSatelliteSignals->create();
+        mVaoSatelliteSignals->bind();
+
+        mVboSatelliteSignals = OpenGlUtilities::createVbo();
+
+        glBindBuffer(GL_ARRAY_BUFFER, mVboSatelliteSignals);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(
+                    0,          // index
+                    4,          // one element is one vertex attribute
+                    GL_UNSIGNED_BYTE,   // quint16 is GL_UNSIGNED_SHORT
+                    GL_FALSE,    // normalize to float [0-1]
+                    0,
+                    0);         // no offset
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        mVaoSatelliteSignals->release();
+    }
+
+    quint8 sats[60*4*3] = {0};
+    mNumberOfSatelliteSignals = 0;
+    mNumberOfSatellitesGps = 0;
+    mNumberOfSatellitesGlonass = 0;
+    for(int sat=0;sat<g->receivedSatellites.size();sat++)
+    {
+        const GnssStatus::SatelliteReceptionStatus& srs = g->receivedSatellites.at(sat);
+
+        if(srs.constellation == GnssConstellation::ConstellationSbas) continue;
+
+        QMapIterator<GnssStatus::GnssSignalType,float> i(srs.carrierOverNoise);
+        while(i.hasNext())
+        {
+            i.next();
+
+            sats[4 * mNumberOfSatelliteSignals + 0] = static_cast<quint8>(srs.constellation);
+            sats[4 * mNumberOfSatelliteSignals + 1] = srs.constellation == GnssConstellation::ConstellationGps ? mNumberOfSatellitesGps : mNumberOfSatellitesGlonass;
+            sats[4 * mNumberOfSatelliteSignals + 2] = i.key();
+            sats[4 * mNumberOfSatelliteSignals + 3] = (quint8)i.value() * 4;
+
+            mNumberOfSatelliteSignals++;
+        }
+
+        if(srs.constellation == GnssConstellation::ConstellationGps)
+            mNumberOfSatellitesGps++;
+        else
+            mNumberOfSatellitesGlonass++;
+    }
+
+    // sats now contains a list of signal-bytes that has to be drawn by shaders:
+    // [constellation] [svid] [signal] [rssi] ...
+
+    glBindBuffer(GL_ARRAY_BUFFER, mVboSatelliteSignals);
+    glBufferData(GL_ARRAY_BUFFER,
+                 mNumberOfSatelliteSignals * 4, // bytes should be enough
+                 sats,
+                 GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     emit suggestVisualization();
 }

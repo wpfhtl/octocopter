@@ -14,6 +14,7 @@
 #include "openglutilities.h"
 #include "shaderprogram.h"
 #include <common.h>
+#include <gnssstatus.h>
 
 class GlScene : public QObject, protected OPENGL_FUNCTIONS_CLASS
 {
@@ -45,7 +46,8 @@ public:
     mRenderOccupancyGrid,
     mRenderPathPlannerGrid,
     mRenderWayPointsAhead,
-    mRenderWayPointsPassed;
+    mRenderWayPointsPassed,
+    mRenderSatelliteSignals;
 
     // points scanned from further distance than this shouldn't be rendered by the shader!
     float mMaxPointVisualizationDistance;
@@ -86,6 +88,8 @@ public slots:
     void slotSetVboInfoGridOccupancy(const quint32 vbo, const Box3D& gridBoundingBox, const Vector3i& gridCells);
     void slotSetVboInfoGridPathPlanner(const quint32 vbo, const Box3D &gridBoundingBox, const Vector3i &gridCells);
     void slotSetVboInfoParticles(const quint32 vboPositions, const quint32 count, const float particleRadius, const Box3D particleSystemBoundingBox);
+
+    void slotSetInsStatus(const GnssStatus* const g);
 
     void slotUpdateMatrixCameraToClip(const quint32 windowWidth, const quint32 windowHeight);
     void slotUpdateMatrixModelToCamera();
@@ -136,7 +140,10 @@ private:
     *mVaoGridMapOfOccupancy,
     *mVaoGridMapOfPathPlanner,
     *mVaoWayPointsAhead,
-    *mVaoWayPointsPassed;
+    *mVaoWayPointsPassed,
+    *mVaoSatelliteSignals;
+
+    quint32 mNumberOfSatellitesGps, mNumberOfSatellitesGlonass, mNumberOfSatelliteSignals;
 
     QMatrix4x4 mRayVisualizationRelativeScannerMatrix;
     quint16 mRayVisualizationUsableDistanceIndexFirst, mRayVisualizationUsableDistanceIndexLast;
@@ -150,6 +157,7 @@ private:
     ShaderProgram *mShaderProgramWaypoint;
     ShaderProgram *mShaderProgramParticles;
     ShaderProgram *mShaderProgramGrid;
+    ShaderProgram *mShaderProgramSatelliteSignals;
 
     const Box3D *mVolumeGlobal, *mVolumeLocal;
 
@@ -179,6 +187,7 @@ private:
     GLuint mVboParticlePositions;
     GLuint mVboBoundingBoxVolumeLocal;
     GLuint mVboBoundingBoxVolumeGlobal;
+    GLuint mVboSatelliteSignals;
 
 signals:
     void suggestVisualization();

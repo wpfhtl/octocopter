@@ -15,7 +15,7 @@ Almanac::Almanac(QObject *parent) : QObject(parent)
 
 }
 
-bool Almanac::addTleAlmanac(const QString& twoLineElmentsUrl, const Satellite::Constellation& constellation)
+bool Almanac::addTleAlmanac(const QString& twoLineElmentsUrl, const GnssConstellation& constellation)
 {
     QNetworkRequest request;
     request.setUrl(QUrl(twoLineElmentsUrl));
@@ -28,9 +28,9 @@ void Almanac::slotAlmanacReceived(QNetworkReply* reply)
     // Parse the data, create satellites.
     quint8 constellationNumber = reply->request().attribute(
                 QNetworkRequest::User,
-                QVariant(static_cast<quint8>(Satellite::Constellation::ConstellationUnknown))).toInt();
+                QVariant(static_cast<quint8>(GnssConstellation::ConstellationUnknown))).toInt();
 
-    Satellite::Constellation constellation = static_cast<Satellite::Constellation>(constellationNumber);
+    GnssConstellation constellation = static_cast<GnssConstellation>(constellationNumber);
 
     QStringList stringListTle = QString(reply->readAll()).split("\n", QString::SkipEmptyParts);
 

@@ -53,9 +53,9 @@ void SatelliteWidget::slotFetchTles()
 {
     qDebug() << "fetching TLEs from celestrak.com...";
     mAlmanac->slotClear();
-    mAlmanac->addTleAlmanac("http://celestrak.com/NORAD/elements/gps-ops.txt", Satellite::Constellation::ConstellationGps);
-    mAlmanac->addTleAlmanac("http://celestrak.com/NORAD/elements/glo-ops.txt", Satellite::Constellation::ConstellationGlonass);
-    mAlmanac->addTleAlmanac("http://celestrak.com/NORAD/elements/galileo.txt", Satellite::Constellation::ConstellationGalileo);
+    mAlmanac->addTleAlmanac("http://celestrak.com/NORAD/elements/gps-ops.txt", GnssConstellation::ConstellationGps);
+    mAlmanac->addTleAlmanac("http://celestrak.com/NORAD/elements/glo-ops.txt", GnssConstellation::ConstellationGlonass);
+    mAlmanac->addTleAlmanac("http://celestrak.com/NORAD/elements/galileo.txt", GnssConstellation::ConstellationGalileo);
 }
 
 void SatelliteWidget::slotUpdateTable()
@@ -82,9 +82,9 @@ void SatelliteWidget::slotUpdateTable()
     {
         Satellite& s = (*satellites)[i];
 
-        if(!mBtnEnableGps->isChecked() && s.getConstellation() == Satellite::Constellation::ConstellationGps) continue;
-        if(!mBtnEnableGlo->isChecked() && s.getConstellation() == Satellite::Constellation::ConstellationGlonass) continue;
-        if(!mBtnEnableGal->isChecked() && s.getConstellation() == Satellite::Constellation::ConstellationGalileo) continue;
+        if(!mBtnEnableGps->isChecked() && s.getConstellation() == GnssConstellation::ConstellationGps) continue;
+        if(!mBtnEnableGlo->isChecked() && s.getConstellation() == GnssConstellation::ConstellationGlonass) continue;
+        if(!mBtnEnableGal->isChecked() && s.getConstellation() == GnssConstellation::ConstellationGalileo) continue;
 
         satelliteCounter++;
     }
@@ -95,9 +95,9 @@ void SatelliteWidget::slotUpdateTable()
     {
         Satellite& s = (*satellites)[i];
 
-        if(!mBtnEnableGps->isChecked() && s.getConstellation() == Satellite::Constellation::ConstellationGps) continue;
-        if(!mBtnEnableGlo->isChecked() && s.getConstellation() == Satellite::Constellation::ConstellationGlonass) continue;
-        if(!mBtnEnableGal->isChecked() && s.getConstellation() == Satellite::Constellation::ConstellationGalileo) continue;
+        if(!mBtnEnableGps->isChecked() && s.getConstellation() == GnssConstellation::ConstellationGps) continue;
+        if(!mBtnEnableGlo->isChecked() && s.getConstellation() == GnssConstellation::ConstellationGlonass) continue;
+        if(!mBtnEnableGal->isChecked() && s.getConstellation() == GnssConstellation::ConstellationGalileo) continue;
 
         s.computeOrbit();
         QTableWidgetItem *item;
@@ -160,9 +160,9 @@ void SatelliteWidget::slotUpdatePolarPlot()
     {
         Satellite& s = (*satellites)[i];
 
-        if(!mBtnEnableGps->isChecked() && s.getConstellation() == Satellite::Constellation::ConstellationGps) continue;
-        if(!mBtnEnableGlo->isChecked() && s.getConstellation() == Satellite::Constellation::ConstellationGlonass) continue;
-        if(!mBtnEnableGal->isChecked() && s.getConstellation() == Satellite::Constellation::ConstellationGalileo) continue;
+        if(!mBtnEnableGps->isChecked() && s.getConstellation() == GnssConstellation::ConstellationGps) continue;
+        if(!mBtnEnableGlo->isChecked() && s.getConstellation() == GnssConstellation::ConstellationGlonass) continue;
+        if(!mBtnEnableGal->isChecked() && s.getConstellation() == GnssConstellation::ConstellationGalileo) continue;
 
         if(s.getElevation() > 0.0f)
         {

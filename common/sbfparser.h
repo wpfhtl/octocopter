@@ -113,24 +113,67 @@ private:
       quint8        Mode;
       quint8        Error;
 
-      float          Cov_HeadHead;
-      float          Cov_PitchPitch;
-      float          Cov_RollRoll;
-      float          Cov_HeadPitch;
-      float          Cov_HeadRoll;
-      float          Cov_PitchRoll;
+      float         Cov_HeadHead;
+      float         Cov_PitchPitch;
+      float         Cov_RollRoll;
+      float         Cov_HeadPitch;
+      float         Cov_HeadRoll;
+      float         Cov_PitchRoll;
     } __attribute__ ((packed, aligned(4)));
 
     struct Sbf_ExtEvent
     {
         Sbf_Header  Header;
-        quint32       TOW;
-        quint16       WNc;
-        quint8        Source;
-        quint8        Polarity;
-        float          Offset;
-        double         RxClkBias;
-        quint16       PVTAge;
+        quint32     TOW;
+        quint16     WNc;
+        quint8      Source;
+        quint8      Polarity;
+        float       Offset;
+        double      RxClkBias;
+        quint16     PVTAge;
+    } __attribute__ ((packed, aligned(4)));
+
+    struct Sbf_MeasEpochSubType1
+    {
+        quint8      rxChannel;
+        quint8      signalTypeAndAntenna;
+        quint8      spaceVehicleId;
+        quint8      pseudoRangeMsb;
+        quint32     pseudoRangeLsb;
+        qint32      carrierDoppler;
+        quint16     carrierLsb;
+        qint8       carrierMsb;
+        quint8      carrierOverNoise;
+        quint16     lockTime;
+        quint8      obsInfo;
+        quint8      numberOfType2BlocksFollowing;
+    } __attribute__ ((packed, aligned(4)));
+
+    struct Sbf_MeasEpochSubType2
+    {
+        quint8      signalTypeAndAntenna;
+        quint8      lockTime;
+        quint8      carrierOverNoise;
+        quint8      offsetsMsb;
+        qint8       carrierMsb;
+        quint8      obsInfo;
+        quint16     codeOffsetLsb;
+        quint16     carrierLsb;
+        quint16     dopplerOffsetLsb;
+    } __attribute__ ((packed, aligned(4)));
+
+    struct Sbf_MeasEpoch
+    {
+        Sbf_Header  Header;
+        quint32     TOW;
+        quint16     WNc;
+        quint8      numberOfBlocksType1;
+        quint8      lengthBlockType1;
+        quint8      lengthBlockType2;
+        quint8      commonFlags;
+        qint8       cumulativeClockJumps; // rev1
+        quint8      reserved;
+        void*       subBlocks;// specifyThese using structs and then arrays of these structs?!
     } __attribute__ ((packed, aligned(4)));
 
     struct Sbf_IntPVAAGeod
@@ -251,6 +294,8 @@ private:
     inline quint16 computeChecksum(const void *buf, const quint32 length) const;
 
     QVector3D convertGeodeticToCartesian(const double& lon, const double& lat, const double& elevation);
+
+    void populateSatelliteReceptionStatus(GnssStatus::SatelliteReceptionStatus& srs, const Sbf_MeasEpochSubType1 *b1 = nullptr, const Sbf_MeasEpochSubType2 *b2 = nullptr);
 
     QMatrix4x4 mTransformArpToVehicle;
 

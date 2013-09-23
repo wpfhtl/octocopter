@@ -186,6 +186,12 @@ BaseStation::BaseStation() : QMainWindow()
     action->setChecked(true);
     connect(action, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderTrajectory = checked; mGlWindow->slotRenderLater();});
 
+    action = new QAction("Show Satellite Signals", this);
+    mMenuView->addAction(action);
+    action->setCheckable(true);
+    action->setChecked(true);
+    connect(action, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderSatelliteSignals = checked; mGlWindow->slotRenderLater();});
+
     MenuSlider* menuSlider;
 
     menuSlider = new MenuSlider("Rotate View", -1.0, 0.0, 1.0, this, 0.1f);
@@ -271,6 +277,7 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mRoverConnection, &RoverConnection::scanData, mFlightPlanner, &FlightPlannerParticles::slotNewScanFused);
         connect(mRoverConnection, &RoverConnection::vehicleStatus, mControlWidget, &ControlWidget::slotUpdateVehicleStatus);
         connect(mRoverConnection, &RoverConnection::gnssStatus, mControlWidget, &ControlWidget::slotUpdateInsStatus);
+        connect(mRoverConnection, &RoverConnection::gnssStatus, mGlScene, &GlScene::slotSetInsStatus);
         connect(mRoverConnection, &RoverConnection::flightControllerValues, this, &BaseStation::slotSetFlightControllerValues);
 
         connect(mRoverConnection, &RoverConnection::wayPointReachedByRover, mFlightPlanner, &FlightPlannerParticles::slotWayPointReached);
@@ -308,6 +315,7 @@ BaseStation::BaseStation() : QMainWindow()
         connect(mLogPlayer, &LogPlayer::vehiclePose, mGlScene, &GlScene::slotNewVehiclePose);
         connect(mLogPlayer, &LogPlayer::scanFused, mFlightPlanner, &FlightPlannerParticles::slotNewScanFused);
         connect(mLogPlayer, &LogPlayer::gnssStatus, mControlWidget, &ControlWidget::slotUpdateInsStatus);
+        connect(mLogPlayer, &LogPlayer::gnssStatus, mGlScene, &GlScene::slotSetInsStatus);
         connect(mLogPlayer, &LogPlayer::flightState, mControlWidget, &ControlWidget::slotSetFlightState);
         connect(mLogPlayer, &LogPlayer::flightStateRestriction, mControlWidget, &ControlWidget::slotSetFlightStateRestriction);
 
