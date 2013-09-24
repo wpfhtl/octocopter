@@ -196,6 +196,14 @@ public:
 QDataStream& operator<<(QDataStream &out, const GnssStatus &pose);
 QDataStream& operator>>(QDataStream &in, GnssStatus &pose);
 
+QDataStream& operator<<(QDataStream &out, const GnssStatus::SatelliteReceptionStatus &s);
+QDataStream& operator>>(QDataStream &in, GnssStatus::SatelliteReceptionStatus &s);
+
+QDataStream& operator<<(QDataStream &out, const GnssStatus::GnssSignalType &s);
+QDataStream& operator>>(QDataStream &in, GnssStatus::GnssSignalType &s);
+
+
+
 QDebug operator<<(QDebug dbg, const GnssStatus::GnssSignalType &g);
 
 #endif // GNSSSTATUS_H

@@ -36,6 +36,7 @@ class GlWindow : public QWindow, protected OPENGL_FUNCTIONS_CLASS
     QPoint      mLastMousePosition;
     QOpenGLDebugLogger* mOpenGlDebugLogger;
     quint32 mFramesRenderedThisSecond;
+    bool mIsInitialized;
 
     void zoom(double zoomFactor);
     void mousePressEvent(QMouseEvent *event);

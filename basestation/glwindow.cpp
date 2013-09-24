@@ -7,6 +7,8 @@
 GlWindow::GlWindow(GlScene* glScene, QWindow* parent) :
     QWindow(parent)
 {
+    mIsInitialized = false;
+
     // Tell Qt we will use OpenGL for this window
     setSurfaceType(QWindow::OpenGLSurface);
 
@@ -53,7 +55,12 @@ GlWindow::~GlWindow()
 
 void GlWindow::slotInitialize()
 {
+    if(mIsInitialized) return;
+
     qDebug() << __PRETTY_FUNCTION__;
+
+    mIsInitialized = true;
+
     mOpenGlContext->makeCurrent(this);
 
     mOpenGlDebugLogger = new QOpenGLDebugLogger(this);
@@ -198,6 +205,8 @@ void GlWindow::exposeEvent(QExposeEvent *event)
 void GlWindow::resizeEvent(QResizeEvent *event)
 {
     Q_UNUSED(event);
+
+    if(!mIsInitialized) slotInitialize();
 
     const int w = width();
     const int h = height();

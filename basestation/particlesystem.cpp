@@ -42,7 +42,7 @@ ParticleSystem::ParticleSystem(PointCloudCuda *const pointCloudDense, PointCloud
     mParametersSimulation->gridParticleSystem.worldMin = make_float3(-32.0f, -6.0f, -32.0f);
     mParametersSimulation->gridParticleSystem.worldMax = make_float3(32.0f, 26.0f, 32.0f);
 
-    connect(mPointCloudColliders, SIGNAL(pointsInserted(PointCloud*const,quint32,quint32)), SLOT(slotNewCollidersInserted()));
+    connect(mPointCloudColliders, SIGNAL(pointsInserted(PointCloudCuda*const,quint32,quint32)), SLOT(slotNewCollidersInserted()));
 }
 
 void ParticleSystem::slotNewCollidersInserted()

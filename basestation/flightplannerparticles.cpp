@@ -60,7 +60,13 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
 }
 
 void FlightPlannerParticles::slotInitialize()
-{
+{    
+    if(!CudaHelper::isDeviceSupported)
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "device not supported, not initializing...";
+        return;
+    }
+
     qDebug() << __PRETTY_FUNCTION__;
 
     mPointCloudDense->initialize();

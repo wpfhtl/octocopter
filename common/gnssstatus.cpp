@@ -137,7 +137,21 @@ void GnssStatus::setError(const quint8 errorCode)
 // for streaming
 QDataStream& operator<<(QDataStream &out, const GnssStatus &status)
 {
-    out << static_cast<quint8>(status.pvtMode) << static_cast<quint8>(status.integrationMode) << static_cast<quint8>(status.error) << status.info << status.numSatellitesUsed << status.gnssAge << status.meanCorrAge << status.cpuLoad << status.covariances << status.longitude << status.latitude << status.height;
+    out
+            << static_cast<quint8>(status.pvtMode)
+            << static_cast<quint8>(status.integrationMode)
+            << static_cast<quint8>(status.error)
+            << status.info
+            << status.numSatellitesUsed
+            << status.gnssAge
+            << status.meanCorrAge
+            << status.cpuLoad
+            << status.covariances
+            << status.longitude
+            << status.latitude
+            << status.height
+            << status.receivedSatellites;
+
     return out;
 }
 
@@ -164,9 +178,39 @@ QDataStream& operator>>(QDataStream &in, GnssStatus& status)
     in >> status.longitude;
     in >> status.latitude;
     in >> status.height;
+    in >> status.receivedSatellites;
 
     return in;
 }
+
+
+QDataStream& operator<<(QDataStream &out, const GnssStatus::SatelliteReceptionStatus &s)
+{
+    out << static_cast<quint8>(s.constellation) << s.satelliteId << s.carrierOverNoise;
+}
+
+QDataStream& operator>>(QDataStream &in, GnssStatus::SatelliteReceptionStatus &s)
+{
+    quint8 constellation;
+    in >> constellation;
+    s.constellation = static_cast<GnssConstellation>(constellation);
+
+    in >> s.satelliteId;
+    in >> s.carrierOverNoise;
+}
+
+QDataStream& operator<<(QDataStream &out, const GnssStatus::GnssSignalType &s)
+{
+    out << (quint8)s;
+}
+
+QDataStream& operator>>(QDataStream &in, GnssStatus::GnssSignalType &s)
+{
+    quint8 signal;
+    in >> signal;
+    s = static_cast<GnssStatus::GnssSignalType>(signal);
+}
+
 
 QDebug operator<<(QDebug dbg, const GnssStatus::GnssSignalType &g)
 {
