@@ -55,7 +55,7 @@ public:
         NoSolution = 0,
         Loosely_INS = 1,
         Loosely_INS_and_GNSS = 2,
-        GNSS_only = 4,
+        GNSS_only = 4
     };
 
     enum struct Error

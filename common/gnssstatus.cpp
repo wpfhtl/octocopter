@@ -197,11 +197,13 @@ QDataStream& operator>>(QDataStream &in, GnssStatus::SatelliteReceptionStatus &s
 
     in >> s.satelliteId;
     in >> s.carrierOverNoise;
+
+    return in;
 }
 
 QDataStream& operator<<(QDataStream &out, const GnssStatus::GnssSignalType &s)
 {
-    out << (quint8)s;
+    out << static_cast<quint8>(s);
 }
 
 QDataStream& operator>>(QDataStream &in, GnssStatus::GnssSignalType &s)
@@ -209,6 +211,8 @@ QDataStream& operator>>(QDataStream &in, GnssStatus::GnssSignalType &s)
     quint8 signal;
     in >> signal;
     s = static_cast<GnssStatus::GnssSignalType>(signal);
+
+    return in;
 }
 
 

@@ -651,7 +651,7 @@
          <item>
           <widget class="QLabel" name="label_11">
            <property name="text">
-            <string>Sats</string>
+            <string>SatsUsed</string>
            </property>
           </widget>
          </item>

@@ -571,7 +571,7 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
                         QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
                         QString("Number of used satellites changed from %1 to %2").arg(mGnssStatus.numSatellitesUsed).arg(numberOfSatellitesUsed));*/
 
-            mGnssStatus.numSatellitesUsed = numberOfSatellitesUsed;
+            mGnssStatus.numSatellitesUsed = block->NrSVAnt == 255 ? 0 : numberOfSatellitesUsed;
         }
 
         setPose(block, mGnssStatus);
