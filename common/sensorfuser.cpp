@@ -665,7 +665,7 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGnss)
       We also compute the drift and cause an alarm if it becomes too high, neccessitating a shorter ratio.
       */
 
-    qDebug() << "SensorFuser::slotScanFinished(): gnss receiver says scanner finished a scan at time" << timestampScanGnss;
+    //qDebug() << "SensorFuser::slotScanFinished(): gnss receiver says scanner finished a scan at time" << timestampScanGnss;
 
     // Make sure we receive data in order
     if(mGnssTimeStamps.size() && mGnssTimeStamps.last() >= timestampScanGnss)

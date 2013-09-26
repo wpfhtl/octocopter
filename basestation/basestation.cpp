@@ -434,12 +434,12 @@ void BaseStation::slotSpeakGnssStatus(const GnssStatus* const status)
 {
     if(mAudioPlayer && mActionEnableAudio->isChecked())
     {
-        if(status->error != GnssStatus::Error::NoError)
+        if(status->pvtMode != GnssStatus::PvtMode::RtkFixed)
+            mAudioPlayer->setSound(QString("../media/gnss_mode_%1.ogg").arg(status->getPvtMode().toLower().replace(' ', '_')));
+        else if(status->error != GnssStatus::Error::NoError)
             mAudioPlayer->setSound(QString("../media/ins_error_%1.ogg").arg(status->getError().toLower().replace(' ', '_')));
         else if(!testBit(status->info, 11))
             mAudioPlayer->setSound(QString("../media/ins_error_heading_ambiguous.ogg"));
-        else if(status->pvtMode != GnssStatus::PvtMode::RtkFixed)
-            mAudioPlayer->setSound(QString("../media/gnss_mode_%1.ogg").arg(status->getPvtMode().toLower().replace(' ', '_')));
         else if(status->covariances > Pose::maximumUsableCovariance)
             mAudioPlayer->setSound(QString("../media/ins_covariances_too_high.ogg"));
         else if(status->meanCorrAge > 50)
