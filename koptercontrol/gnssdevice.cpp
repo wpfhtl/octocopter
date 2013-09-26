@@ -400,7 +400,7 @@ void GnssDevice::slotCommunicationSetup()
     // So, upside is the aluminum base!
     // Since the aluminum base *is* currently on top and we have another wicked rotation
     // (Y points forward), we add the -90 deg rotation on Z and hope it'll work.
-    slotQueueCommand("setExtSensorCalibration,COM1,manual,0,0,-90,manual,-0.04,0.13,0.35");
+    slotQueueCommand("setExtSensorCalibration,COM1,manual,0,0,-90,manual,-0.05,0.14,0.35");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
     //slotQueueCommand("setEventParameters,EventA,High2Low"); // Hokuyo
@@ -450,8 +450,8 @@ void GnssDevice::slotCommunicationSetup()
     // So we skip this for now to keep the CPU load low (it was over 80%!)
     //slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",BBSamples,sec1"); // septentrio wants msec100, but that kills the cpu
 
-    // Needed for septentrio to debug IMU problems
-    //slotQueueCommand("setSBFOutput,Stream7,"+mSerialPortOnDeviceUsb+",ExtSensorMeas+AttEuler,msec20");
+    // Needed for septentrio to debug IMU problems (ExtSensorMeas+AttEuler) - and for me to analyze sensor platform vibrations
+    slotQueueCommand("setSBFOutput,Stream7,"+mSerialPortOnDeviceUsb+",ExtSensorMeas,msec20");
 
     // To get signal strength (Carrier over Noise)
     slotQueueCommand("setSBFOutput,Stream8,"+mSerialPortOnDeviceUsb+",MeasEpoch,sec1");

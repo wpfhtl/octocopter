@@ -98,6 +98,18 @@ __device__ bool checkCellForNeighbors(
     return false;
 }*/
 
+// not really random, but should be good enough.
+__device__ float randomNumber()
+{
+    uint a = threadIdx.x;
+    uint b = blockIdx.x * blockDim.x;
+
+    b = 36969 * (b & 65535) + (b >> 16);
+    a = 18000 * (a & 65535) + (a >> 16);
+
+    return ((b << 16) + a) / 4294967295.0;
+}
+
 // Collide a single point (given by thread-id through @index) against all points in own and neighboring cells
 __global__
 void markCollidingPointsD(
@@ -188,7 +200,7 @@ void markCollidingPointsD(
     if(numberOfNeighbors)
     {
         const float averageNeighborScanDistance = clusterPosition.w / numberOfNeighbors;
-        if(averageNeighborScanDistance > worldPos.w && (indexInSortedPositionsArray % 2))
+        if(averageNeighborScanDistance > worldPos.w && randomNumber() * numberOfNeighbors > 1.0)
         {
             // If the other neighbors are of better quality, delete ourselves
             posOriginal[originalIndex] = make_float4(0.0);
@@ -200,7 +212,6 @@ void markCollidingPointsD(
         }
     }
 }
-
 
 void markCollidingPoints(
         float* posOriginal,

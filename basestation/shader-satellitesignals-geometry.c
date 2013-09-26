@@ -188,4 +188,8 @@ void main()
       drawBox(matModelViewProjection, vec3(scaleCenter, 3.0, 0), vec3(scaleWidth + 0.1, 0.02, 0.4), vec4(1,1,1,0.5));
     if(gl_PrimitiveIDIn == 3)
       drawBox(matModelViewProjection, vec3(scaleCenter, 4.0, 0), vec3(scaleWidth + 0.1, 0.02, 0.4), vec4(1,1,1,0.5));
+    /*if(gl_PrimitiveIDIn == 4) // gps
+      drawBox(matModelViewProjection, vec3(scaleVeryLeft/2 - 0.2, -0.8, 0), vec3(scaleVeryLeft-0.4, 0.4, 0.4), vec4(0,0,1,0.5));
+    if(gl_PrimitiveIDIn == 5) // glonass
+      drawBox(matModelViewProjection, vec3(scaleVeryRight/2 + 0.2, -0.8, 0), vec3(scaleVeryRight+0.4, 0.4, 0.4), vec4(1,0,0,0.5));*/
 }

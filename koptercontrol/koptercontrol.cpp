@@ -113,7 +113,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
                 Pose(
                     QVector3D(      // Offset from vehicle center to Laser Source. In Vehicle Reference Frame: Like OpenGL, red arm forward pointing to screen
                         +0.000,      // From vehicle left/right to laser, positive is moved to right "wing"
-                        -0.044,      // From vehicle up/down to laser, negative is down to laser
+                        -0.040,      // From vehicle up/down to laser, negative is down to laser
                         -0.120),     // From vehicle 14cm forward, towards the front arm.
                     +000.0,         // Yaw
                     -090.0,         // 90 deg pitched down
