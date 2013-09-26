@@ -400,7 +400,7 @@ void GnssDevice::slotCommunicationSetup()
     // So, upside is the aluminum base!
     // Since the aluminum base *is* currently on top and we have another wicked rotation
     // (Y points forward), we add the -90 deg rotation on Z and hope it'll work.
-    slotQueueCommand("setExtSensorCalibration,COM1,manual,0,0,-90,manual,-0.05,0.14,0.35");
+    slotQueueCommand("setExtSensorCalibration,COM1,manual,0,0,270,manual,-0.05,0.14,0.35");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
     //slotQueueCommand("setEventParameters,EventA,High2Low"); // Hokuyo
@@ -451,7 +451,7 @@ void GnssDevice::slotCommunicationSetup()
     //slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",BBSamples,sec1"); // septentrio wants msec100, but that kills the cpu
 
     // Needed for septentrio to debug IMU problems (ExtSensorMeas+AttEuler) - and for me to analyze sensor platform vibrations
-    slotQueueCommand("setSBFOutput,Stream7,"+mSerialPortOnDeviceUsb+",ExtSensorMeas,msec20");
+    //slotQueueCommand("setSBFOutput,Stream7,"+mSerialPortOnDeviceUsb+",ExtSensorMeas,msec20");
 
     // To get signal strength (Carrier over Noise)
     slotQueueCommand("setSBFOutput,Stream8,"+mSerialPortOnDeviceUsb+",MeasEpoch,sec1");
@@ -804,8 +804,10 @@ void GnssDevice::slotSetSystemTime(const qint32& tow)
         // usec can under/overflow; fix it
         if(system.tv_usec > 1000000)
         {
+	    qDebug() << "system.tv" << system.tv_sec << "system.tv_usec > 1000000:" << system.tv_usec << "subtracting 1000000";
             system.tv_usec -= 1000000;
             system.tv_sec += 1;
+	    qDebug() << "system.tv" << system.tv_sec << "system.tv_usec" << system.tv_usec;
         }
 
         if(settimeofday(&system, NULL) < 0)
