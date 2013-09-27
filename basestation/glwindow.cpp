@@ -78,9 +78,9 @@ void GlWindow::slotInitialize()
         exit(1);
     }
 
-    OpenGlUtilities::initialize();
-
     CudaHelper::initializeCuda();
+
+    OpenGlUtilities::initialize();
 
     glClearColor(mBackgroundBrightness, mBackgroundBrightness, mBackgroundBrightness, 0.0f);
 

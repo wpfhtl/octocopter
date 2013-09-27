@@ -193,16 +193,16 @@ void main()
     if(constellation != 0) svid += numSatsGps+1;
     float xpos = -0.95 + float(svid)*0.08 + (0.016 * float(signalType));
     vec2 size = vec2(0.015, signalStrength/33.33333);
-    vec3 pos = vec3(xpos, -0.9 + size.y/2, 1.0);
+    vec3 pos = vec3(xpos, -0.9 + size.y/2, -0.2);
     
     drawBox2d(pos, size, color);
     
     // let different shaders draw different scales, so we can keep max_vertices low!
-    if(gl_PrimitiveIDIn == 0) drawBox2d(vec3(0.0, -0.9, 0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
-    if(gl_PrimitiveIDIn == 1) drawBox2d(vec3(0.0, -0.6, 0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
-    if(gl_PrimitiveIDIn == 2) drawBox2d(vec3(0.0, -0.3, 0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
-    if(gl_PrimitiveIDIn == 3) drawBox2d(vec3(0.0,  0.0, 0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
-    if(gl_PrimitiveIDIn == 4) drawBox2d(vec3(0.0, +0.3, 0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
-    if(gl_PrimitiveIDIn == 5) drawBox2d(vec3(0.0, +0.6, 0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
-    if(gl_PrimitiveIDIn == 6) drawBox2d(vec3(0.0, +0.9, 0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
+    if(gl_PrimitiveIDIn == 0) drawBox2d(vec3(0.0, -0.9, -0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
+    if(gl_PrimitiveIDIn == 1) drawBox2d(vec3(0.0, -0.6, -0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
+    if(gl_PrimitiveIDIn == 2) drawBox2d(vec3(0.0, -0.3, -0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
+    if(gl_PrimitiveIDIn == 3) drawBox2d(vec3(0.0,  0.0, -0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
+    if(gl_PrimitiveIDIn == 4) drawBox2d(vec3(0.0, +0.3, -0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
+    if(gl_PrimitiveIDIn == 5) drawBox2d(vec3(0.0, +0.6, -0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
+    if(gl_PrimitiveIDIn == 6) drawBox2d(vec3(0.0, +0.9, -0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
 }

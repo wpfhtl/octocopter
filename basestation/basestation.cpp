@@ -1,6 +1,7 @@
 #include "basestation.h"
 #include <QMenu>
 #include <QMenuBar>
+#include <QHostInfo>
 
 BaseStation::BaseStation() : QMainWindow()
 {
@@ -37,8 +38,9 @@ BaseStation::BaseStation() : QMainWindow()
     glContainer->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
     setCentralWidget(glContainer);
 
-    // Create a large cloud. It can be resized later.
-    mPointCloud = new PointCloudCuda(Box3D(QVector3D(-512, 0, -512), QVector3D(512, 32, 512)), 8*1024*1024, "DenseCloud");
+    // Create a large cloud. Less large for notebook.
+    const quint32 numberOfPoints = QHostInfo::localHostName() == "tams58" ? 1*1024*1024 : 8*1024*1024;
+    mPointCloud = new PointCloudCuda(Box3D(QVector3D(-512, 0, -512), QVector3D(512, 32, 512)), numberOfPoints, "DenseCloud");
     connect(mGlWindow, &GlWindow::message, mLogWidget, &LogWidget::log);
 
     // register dense pointcloud for rendering.
@@ -189,7 +191,7 @@ BaseStation::BaseStation() : QMainWindow()
     action = new QAction("Show Satellite Signals", this);
     mMenuView->addAction(action);
     action->setCheckable(true);
-    action->setChecked(true);
+    action->setChecked(false);
     connect(action, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderSatelliteSignals = checked; mGlWindow->slotRenderLater();});
 
     MenuSlider* menuSlider;

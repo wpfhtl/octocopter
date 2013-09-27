@@ -427,7 +427,7 @@ GoalCellStatus checkGoalCell(unsigned char* gridValues, unsigned int numCells, u
 {
     if(numCells == 0) return GoalCellBlocked;
 
-    u_int32_t* statusDevice;
+    u_int32_t* statusDevice = 0;
     cudaSafeCall(cudaMalloc((void**)statusDevice, sizeof(u_int32_t)));
 
     checkGoalCellD<<< 1, 1, 0, *stream>>>(gridValues, numCells, searchRange, statusDevice);

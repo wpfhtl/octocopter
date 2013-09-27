@@ -100,6 +100,21 @@ public slots:
     void moveCameraTarget(const float x, const float y, const float z);
 
 private:
+    struct RawScanRayVisualization
+    {
+        QOpenGLVertexArrayObject* vao;
+        GLuint vbo;
+        QMatrix4x4 relativeScannerPose;
+        quint32 distanceIndexFirst;
+        quint32 distanceIndexLast;
+
+        RawScanRayVisualization()
+        {
+            vao = nullptr;
+            vbo = 0;
+        }
+    };
+    QVector<RawScanRayVisualization*> mRawScanVisualizations;
 
     void renderController(const QMatrix4x4 &transform, const PidController* const controller);
 
@@ -131,7 +146,6 @@ private:
     QOpenGLVertexArrayObject
     *mVaoAxes,
     *mVaoPointCloud,
-    *mVaoRawScan,
     *mVaoTrajectory,
     *mVaoBoundingBoxGlobal,
     *mVaoBoundingBoxLocal,
@@ -176,7 +190,6 @@ private:
 
 
     GLuint mVboAxes;
-    GLuint mVboRawScanRays;
     GLuint mVboVehiclePathElementSize;
     GLuint mVboVehiclePathBytesMaximum;
     GLuint mVboVehiclePathBytesCurrent;
