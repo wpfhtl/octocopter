@@ -73,6 +73,11 @@ public:
         return mParameters.elementQueueCount;
     }
 
+    quint32 getNumberOfPointsFree(void) const
+    {
+        return mParameters.capacity - (mParameters.elementCount + mParameters.elementQueueCount);
+    }
+
     void setGridSize(const quint16 x, const quint16 y, const quint16 z)
     {
         mParameters.grid.cells.x = x;

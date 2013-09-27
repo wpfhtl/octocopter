@@ -185,27 +185,44 @@ bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint
 
     Q_ASSERT(mRenderInfoList[0]->elementSize == 4);
 
-    const quint32 numberOfPointsToAppend = qMin(mParameters.capacity - mParameters.elementQueueCount - mParameters.elementCount, numPoints);
-
-    if(numberOfPointsToAppend == 0)
-    {
-        qDebug() << __PRETTY_FUNCTION__ << "pointcloud" << mName << "full, not accepting further points!";
-        return false;
-    }
+    const quint32 numberOfPointsToAppend = qMin(mParameters.capacity - mParameters.insertionCursor, numPoints);
 
     // upload the points into the device
     glBindBuffer(GL_ARRAY_BUFFER, mRenderInfoList[0]->vbo);
 
     // overwrite parts of the buffer
     glBufferSubData(
+            GL_ARRAY_BUFFER,
+            mParameters.insertionCursor * sizeof(float) * mRenderInfoList[0]->elementSize,  // start
+            numberOfPointsToAppend * sizeof(float) * mRenderInfoList[0]->elementSize,         // size
+            pointList);                            // source
+
+    mParameters.insertionCursor += numberOfPointsToAppend;
+
+    mParameters.elementQueueCount += numberOfPointsToAppend;
+
+    if(numberOfPointsToAppend != numPoints)
+    {
+        // We just wrote until the end of the buffer and haven't inserted all points yet. Let's
+        // restart at the beginning of the buffer and write the remaining points
+        qDebug() << "free refill!!!" << (numPoints - numberOfPointsToAppend);
+        mParameters.insertionCursor = 0;
+
+        glBufferSubData(
                 GL_ARRAY_BUFFER,
-                (mParameters.elementCount + mParameters.elementQueueCount) * sizeof(float) * mRenderInfoList[0]->elementSize,  // start
-                numberOfPointsToAppend * sizeof(float) * mRenderInfoList[0]->elementSize,         // size
-                pointList);                            // source
+                mParameters.insertionCursor * sizeof(float) * mRenderInfoList[0]->elementSize,          // start
+                (numPoints - numberOfPointsToAppend) * sizeof(float) * mRenderInfoList[0]->elementSize, // size
+                pointList + (mRenderInfoList[0]->elementSize * numberOfPointsToAppend));                // source
+
+        mParameters.insertionCursor = numPoints - numberOfPointsToAppend;
+
+        // We should now mark all points as being in the queue!
+        mParameters.elementCount = 0;
+        mParameters.elementQueueCount = mParameters.capacity;
+    }
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    mParameters.elementQueueCount += numberOfPointsToAppend;
     mRenderInfoList[0]->size = getNumberOfPoints();
 
     // TODO: We could removePointsOutsideBoundingBox() here, but we'll rather do this only when we process points. Saves space.

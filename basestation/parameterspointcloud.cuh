@@ -11,6 +11,9 @@ struct ParametersPointCloud
     // minimum distance to closest neighbor for new points
     float minimumDistance;
 
+    // When using the VBO as a ring buffer, where to insert?
+    unsigned int insertionCursor;
+
     // how many points are currently stored (not counting the points queued thereafter)
     unsigned int elementCount;
 
@@ -25,6 +28,7 @@ struct ParametersPointCloud
     {
         grid.initialize();
         minimumDistance = 0.0f;
+        insertionCursor = 0;
         elementCount = 0;
         elementQueueCount = 0;
         capacity = 0;

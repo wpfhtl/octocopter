@@ -50,7 +50,7 @@ private:
     SensorFuser* mSensorFuser;
     FlightController *mFlightController;
     GnssDevice *mGnssDevice;
-    LaserScanner *mLaserScannerFrnt, *mLaserScannerDown;
+    LaserScanner *mLaserScannerLookingFrwd, *mLaserScannerLookingDown;
     BaseConnection *mBaseConnection;
     QDateTime mTimestampStartup;
 

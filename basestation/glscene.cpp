@@ -30,7 +30,7 @@ GlScene::GlScene() :
     mRenderAxisVehicle = true;
     mRenderTrajectory = true;
     mRenderVehicle = true;
-    mRenderSatelliteSignals = true;
+    mRenderSatelliteSignals = false;
 
     mRenderParticles = false;
     mRenderInformationGain = false;
@@ -43,7 +43,7 @@ GlScene::GlScene() :
     mVboBoundingBoxVolumeGlobal = 0;
     mVboBoundingBoxVolumeLocal = 0;
     mVboParticlePositions = 0;
-    mVboRawScanRays = 0;
+    //mVboRawScanRays = 0;
 
     mVboVehiclePathElementSize = sizeof(QVector3D) + sizeof(QVector4D); // position and color with alpha
     mVboVehiclePathBytesMaximum = (3600 * 50 * mVboVehiclePathElementSize); // For a flight time of one hour
@@ -68,7 +68,6 @@ GlScene::~GlScene()
 {
     mVaoAxes->deleteLater();
     mVaoPointCloud->deleteLater();
-    mVaoRawScan->deleteLater();
     mVaoTrajectory->deleteLater();
     mVaoBoundingBoxGlobal->deleteLater();
     mVaoBoundingBoxLocal->deleteLater();
@@ -87,6 +86,13 @@ GlScene::~GlScene()
     mShaderProgramRawScanRays->deleteLater();
     mShaderProgramWaypoint->deleteLater();
     mShaderProgramSatelliteSignals->deleteLater();
+
+
+    for(int i=0;i<mRawScanVisualizations.size();i++)
+    {
+        OpenGlUtilities::deleteVbo(mRawScanVisualizations[i]->vbo);
+        mRawScanVisualizations[i]->vao->deleteLater();
+    }
 }
 
 void GlScene::slotUpdateMatrixModelToCamera()
@@ -268,7 +274,7 @@ void GlScene::initialize()
     mVaoPointCloud->create();
 
     // Vertex specification of raw scan - created when data comes in
-    mVaoRawScan = new QOpenGLVertexArrayObject(this);
+    //mVaoRawScan = new QOpenGLVertexArrayObject(this);
 
     // Vertex specification of trajectory
     mVboVehiclePath = OpenGlUtilities::createVbo(mVboVehiclePathBytesMaximum);
@@ -468,24 +474,30 @@ void GlScene::render()
         }
         mShaderProgramPointCloud->release();
 
-        if(mRenderRawScanRays && mVaoRawScan->isCreated())
+        if(mRenderRawScanRays)
         {
-            quint8 rayStride = 0; // how many rays to ignore between visualized rays
             mShaderProgramRawScanRays->bind();
-            mShaderProgramRawScanRays->setUniformValue("rayStride", rayStride);
+            for(int i=0;i<mRawScanVisualizations.size();i++)
+            {
+                RawScanRayVisualization* rsrv = mRawScanVisualizations[i];
+                quint8 rayStride = 0; // how many rays to ignore between visualized rays
+                mShaderProgramRawScanRays->setUniformValue("rayStride", rayStride);
 
-            QMatrix4x4 lidarMatrix;
-            if(mLastKnownVehiclePose) lidarMatrix = mLastKnownVehiclePose->getMatrixCopy();
-            //lidarMatrix.translate(QVector3D(0.0f, -0.04f, -0.14f));
+                QMatrix4x4 lidarMatrix;
+                if(mLastKnownVehiclePose) lidarMatrix = mLastKnownVehiclePose->getMatrixCopy();
 
-            mShaderProgramRawScanRays->setUniformValue("useFixedColor", false);
-            mShaderProgramRawScanRays->setUniformValue("useMatrixExtra", true);
-            mShaderProgramRawScanRays->setUniformValue("firstUsableDistance", mRayVisualizationUsableDistanceIndexFirst);
-            mShaderProgramRawScanRays->setUniformValue("matrixExtra", lidarMatrix * mRayVisualizationRelativeScannerMatrix);
+                QColor rayColor(i==0?255:100, i==2?255:100, i==1?255:100, 128);
 
-            mVaoRawScan->bind();
-            glDrawArrays(GL_POINTS, 0, (mRayVisualizationUsableDistanceIndexLast-mRayVisualizationUsableDistanceIndexFirst) / (rayStride+1));
-            mVaoRawScan->release();
+                mShaderProgramRawScanRays->setUniformValue("useFixedColor", true);
+                mShaderProgramRawScanRays->setUniformValue("fixedColor", rayColor);
+                mShaderProgramRawScanRays->setUniformValue("firstUsableDistance", rsrv->distanceIndexFirst);
+                mShaderProgramRawScanRays->setUniformValue("useMatrixExtra", true);
+                mShaderProgramRawScanRays->setUniformValue("matrixExtra", lidarMatrix * rsrv->relativeScannerPose);
+
+                rsrv->vao->bind();
+                glDrawArrays(GL_POINTS, 0, (rsrv->distanceIndexLast-rsrv->distanceIndexFirst) / (rayStride+1));
+                rsrv->vao->release();
+            }
             mShaderProgramRawScanRays->release();
         }
 
@@ -1101,19 +1113,38 @@ void GlScene::slotNewRawScan(const RawScan* const rawScan)
 {
     if(mRenderRawScanRays)
     {
-        mRayVisualizationRelativeScannerMatrix = *(rawScan->relativeScannerPose);
-        mRayVisualizationUsableDistanceIndexFirst = rawScan->firstUsableDistance;
-        mRayVisualizationUsableDistanceIndexLast = rawScan->firstUsableDistance + rawScan->numberOfDistances - 1;
+        RawScanRayVisualization* rsrv = nullptr;
+
+        for(int i=0;i<mRawScanVisualizations.size();i++)
+        {
+            if(mRawScanVisualizations[i]->relativeScannerPose == *rawScan->relativeScannerPose)
+            {
+                rsrv = mRawScanVisualizations[i];
+                break;
+            }
+        }
+
+        if(rsrv == nullptr)
+        {
+            rsrv = new RawScanRayVisualization;
+            rsrv->relativeScannerPose = *rawScan->relativeScannerPose;
+            mRawScanVisualizations.append(rsrv);
+        }
+
+        rsrv->distanceIndexFirst = rawScan->firstUsableDistance;
+        rsrv->distanceIndexLast = rawScan->firstUsableDistance + rawScan->numberOfDistances - 1;
 
         // If needed, create a VAO and VBO for the scan rays
-        if(!mVaoRawScan->isCreated())
+        if(rsrv->vao == nullptr)
         {
-            mVboRawScanRays = OpenGlUtilities::createVbo();
+            qDebug() << __PRETTY_FUNCTION__ << "creationg new visulization for scanner sitting at" << rawScan->relativeScannerPose;
+            rsrv->vbo = OpenGlUtilities::createVbo();
 
-            mVaoRawScan->create();
-            mVaoRawScan->bind();
+            rsrv->vao = new QOpenGLVertexArrayObject(this);
+            rsrv->vao->create();
+            rsrv->vao->bind();
             quint32 rayStride = 0;
-            glBindBuffer(GL_ARRAY_BUFFER, mVboRawScanRays);
+            glBindBuffer(GL_ARRAY_BUFFER, rsrv->vbo);
             glEnableVertexAttribArray(0);
             glVertexAttribPointer(
                         0,          // index
@@ -1123,10 +1154,10 @@ void GlScene::slotNewRawScan(const RawScan* const rawScan)
                         (rayStride+1) * sizeof(quint16),          // bytes stride, not ray stride
                         0);         // no offset
             glBindBuffer(GL_ARRAY_BUFFER, 0);
-            mVaoRawScan->release();
+            rsrv->vao->release();
         }
 
-        glBindBuffer(GL_ARRAY_BUFFER, mVboRawScanRays);
+        glBindBuffer(GL_ARRAY_BUFFER, rsrv->vbo);
         glBufferData(GL_ARRAY_BUFFER, sizeof(quint16) * rawScan->numberOfDistances, rawScan->distances, GL_STATIC_DRAW);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }

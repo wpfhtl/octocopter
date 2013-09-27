@@ -386,7 +386,6 @@ void GnssDevice::slotCommunicationSetup()
 
     // Specify offset from GNSS antenna ARP to IMU in Vehicle reference frame
     // (vehicle reference frame has X forward, Y right and Z down)
-    // IMU is 4cm behind, 13cm to the right and 35cm below ARP. Max precision is 1 cm.
     //
     // Specifying orientation is not so easy (=fucking mess, Firmware User manual pg. 41)
     //
@@ -400,8 +399,10 @@ void GnssDevice::slotCommunicationSetup()
     // So, upside is the aluminum base!
     // Since the aluminum base *is* currently on top and we have another wicked rotation
     // (Y points forward), we add the -90 deg rotation on Z and hope it'll work.
+
+    // IMU is 4cm in front, 3cm to the right and 34cm below ARP. Max precision is 1 cm.
     //slotQueueCommand("setExtSensorCalibration,COM1,manual,0,0,270,manual,-0.05,0.14,0.35");
-    slotQueueCommand("setExtSensorCalibration,COM1,manual,0,0,0,manual,0.10,0.08,0.38");
+    slotQueueCommand("setExtSensorCalibration,COM1,manual,0,0,0,manual,0.04,0.03,0.34");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
     //slotQueueCommand("setEventParameters,EventA,High2Low"); // Hokuyo
