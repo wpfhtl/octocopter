@@ -453,7 +453,7 @@ void GnssDevice::slotCommunicationSetup()
     //slotQueueCommand("setSBFOutput,Stream6,"+mSerialPortOnDeviceUsb+",BBSamples,sec1"); // septentrio wants msec100, but that kills the cpu
 
     // Needed for septentrio to debug IMU problems (ExtSensorMeas+AttEuler) - and for me to analyze sensor platform vibrations
-    //slotQueueCommand("setSBFOutput,Stream7,"+mSerialPortOnDeviceUsb+",ExtSensorMeas,msec20");
+    slotQueueCommand("setSBFOutput,Stream7,"+mSerialPortOnDeviceUsb+",ExtSensorMeas,msec20");
 
     // To get signal strength (Carrier over Noise)
     slotQueueCommand("setSBFOutput,Stream8,"+mSerialPortOnDeviceUsb+",MeasEpoch,sec1");
