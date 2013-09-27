@@ -293,7 +293,7 @@ void FlightPlannerParticles::slotNewScanFused(const float* const points, const q
     // Insert all points into mPointCloudDense
     mPointCloudDense->slotInsertPoints4(points, count);
 
-    if(mPointCloudDense->getNumberOfPointsQueued() > 50000 && !mTimerStepSimulation.isActive())
+    if(CudaHelper::isDeviceSupported && mPointCloudDense->getNumberOfPointsQueued() > 50000 && !mTimerStepSimulation.isActive())
     {
         qDebug() << "FlightPlannerParticles::slotNewScanFused(): reducing" << mPointCloudDense->getNumberOfPointsQueued() << "queued points in dense cloud.";
         mPointCloudDense->slotReduce();

@@ -37,8 +37,9 @@ BaseStation::BaseStation() : QMainWindow()
     glContainer->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
     setCentralWidget(glContainer);
 
-    // Create a large cloud. It can be resized later.
-    mPointCloud = new PointCloudCuda(Box3D(QVector3D(-512, 0, -512), QVector3D(512, 32, 512)), 8*1024*1024, "DenseCloud");
+    // Create a large cloud. Les large for notebook.
+    const quint32 numberOfPoints = CudaHelper::isDeviceSupported ? 8*1024*1024 : 1 * 1024*1024;
+    mPointCloud = new PointCloudCuda(Box3D(QVector3D(-512, 0, -512), QVector3D(512, 32, 512)), numberOfPoints, "DenseCloud");
     connect(mGlWindow, &GlWindow::message, mLogWidget, &LogWidget::log);
 
     // register dense pointcloud for rendering.

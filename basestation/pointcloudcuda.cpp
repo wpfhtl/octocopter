@@ -187,6 +187,12 @@ bool PointCloudCuda::slotInsertPoints4(const float* const pointList, const quint
 
     const quint32 numberOfPointsToAppend = qMin(mParameters.capacity - mParameters.elementQueueCount - mParameters.elementCount, numPoints);
 
+    if(numberOfPointsToAppend == 0)
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "pointcloud" << mName << "full, not accepting further points!";
+        return false;
+    }
+
     // upload the points into the device
     glBindBuffer(GL_ARRAY_BUFFER, mRenderInfoList[0]->vbo);
 
