@@ -400,7 +400,8 @@ void GnssDevice::slotCommunicationSetup()
     // So, upside is the aluminum base!
     // Since the aluminum base *is* currently on top and we have another wicked rotation
     // (Y points forward), we add the -90 deg rotation on Z and hope it'll work.
-    slotQueueCommand("setExtSensorCalibration,COM1,manual,0,0,270,manual,-0.05,0.14,0.35");
+    //slotQueueCommand("setExtSensorCalibration,COM1,manual,0,0,270,manual,-0.05,0.14,0.35");
+    slotQueueCommand("setExtSensorCalibration,COM1,manual,0,0,0,manual,0.10,0.08,0.38");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
     //slotQueueCommand("setEventParameters,EventA,High2Low"); // Hokuyo

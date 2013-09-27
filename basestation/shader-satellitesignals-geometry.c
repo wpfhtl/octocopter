@@ -23,7 +23,40 @@ uniform mat4 matrixExtra;
 uniform int numSatsGps;
 uniform int numSatsGlonass;
 
-void drawBox(in mat4 matrix, in vec3 basePos, in vec3 size, in vec4 clr)
+// pos has z for depth!
+void drawBox2d(in vec3 pos, in vec2 size, in vec4 clr)
+{
+    // top left
+    gl_Position = vec4(pos.x - size.x/2, pos.y + size.y/2, pos.z, 1.0);
+    color = clr;
+    EmitVertex();
+
+    // bottom left
+    gl_Position = vec4(pos.x - size.x/2, pos.y - size.y/2, pos.z, 1.0);
+    color = clr;
+    EmitVertex();
+
+    // bottom right
+    gl_Position = vec4(pos.x + size.x/2, pos.y - size.y/2, pos.z, 1.0);
+    color = clr;
+    EmitVertex();
+
+    // top right
+    gl_Position = vec4(pos.x + size.x/2, pos.y + size.y/2, pos.z, 1.0);
+    color = clr;
+    EmitVertex();
+
+    // top left
+    gl_Position = vec4(pos.x - size.x/2, pos.y + size.y/2, pos.z, 1.0);
+    color = clr;
+    EmitVertex();
+
+    EndPrimitive();
+}
+
+
+
+void drawBox3d(in mat4 matrix, in vec3 basePos, in vec3 size, in vec4 clr)
 {
     vec3 v;
 
@@ -132,12 +165,10 @@ void main()
     //  11  Blue:    L2-CA
   
     vec4 palette[4] = vec4[](
-      vec4(0.0, 1.0, 0.0, 1.0),
-      vec4(0.0, 0.0, 1.0, 1.0),
-      vec4(1.0, 0.0, 0.0, 1.0),
-      vec4(1.0, 1.0, 0.0, 1.0));
-    
-    mat4 matModelViewProjection = matrixCameraToClip * matrixModelToCamera * matrixExtra;
+      vec4(0.0, 1.0, 0.0, 0.3),
+      vec4(0.0, 0.0, 1.0, 0.3),
+      vec4(1.0, 0.0, 0.0, 0.3),
+      vec4(1.0, 1.0, 0.0, 0.3));
 
     uint constellation = int(gl_in[0].gl_Position.x);
     uint svid = int(gl_in[0].gl_Position.y);
@@ -156,40 +187,22 @@ void main()
       color = palette[signalType];
     }
     
-    float signalStrength = gl_in[0].gl_Position.w / 4.0;
+    float signalStrength = gl_in[0].gl_Position.w / 4;
+
+    // make glonass start right of gps, with one spacer in between
+    if(constellation != 0) svid += numSatsGps+1;
+    float xpos = -0.95 + float(svid)*0.08 + (0.016 * float(signalType));
+    vec2 size = vec2(0.015, signalStrength/33.33333);
+    vec3 pos = vec3(xpos, -0.9 + size.y/2, 1.0);
     
-    float xpos;
-    // gps satellites to the left, glonass to the right!
-    if(constellation == 0) // 0=gps, 1=glonass
-      xpos = float(svid) - 0.8 - float(numSatsGps);
-    else
-      xpos = 0.8 + float(svid);
-    
-    xpos += 0.2 * float(signalType);
-    
-    vec3 pos = vec3(xpos, 0.0, 0.0);
-    
-    vec3 boxSize = vec3(0.19, signalStrength/10.0, 0.19);
-    
-    drawBox(matModelViewProjection, pos, boxSize, color);
-    
-    // dbg
-    float scaleVeryLeft = -(numSatsGps + 0.9);
-    float scaleVeryRight = +(numSatsGlonass + 0.1);
-    float scaleWidth = scaleVeryRight - scaleVeryLeft;
-    float scaleCenter = scaleVeryLeft + scaleWidth/2.0;
+    drawBox2d(pos, size, color);
     
     // let different shaders draw different scales, so we can keep max_vertices low!
-    if(gl_PrimitiveIDIn == 0)
-      drawBox(matModelViewProjection, vec3(scaleCenter, 1.0, 0), vec3(scaleWidth + 0.1, 0.02, 0.4), vec4(1,1,1,0.5));
-    if(gl_PrimitiveIDIn == 1)
-      drawBox(matModelViewProjection, vec3(scaleCenter, 2.0, 0), vec3(scaleWidth + 0.1, 0.02, 0.4), vec4(1,1,1,0.5));
-    if(gl_PrimitiveIDIn == 2)
-      drawBox(matModelViewProjection, vec3(scaleCenter, 3.0, 0), vec3(scaleWidth + 0.1, 0.02, 0.4), vec4(1,1,1,0.5));
-    if(gl_PrimitiveIDIn == 3)
-      drawBox(matModelViewProjection, vec3(scaleCenter, 4.0, 0), vec3(scaleWidth + 0.1, 0.02, 0.4), vec4(1,1,1,0.5));
-    /*if(gl_PrimitiveIDIn == 4) // gps
-      drawBox(matModelViewProjection, vec3(scaleVeryLeft/2 - 0.2, -0.8, 0), vec3(scaleVeryLeft-0.4, 0.4, 0.4), vec4(0,0,1,0.5));
-    if(gl_PrimitiveIDIn == 5) // glonass
-      drawBox(matModelViewProjection, vec3(scaleVeryRight/2 + 0.2, -0.8, 0), vec3(scaleVeryRight+0.4, 0.4, 0.4), vec4(1,0,0,0.5));*/
+    if(gl_PrimitiveIDIn == 0) drawBox2d(vec3(0.0, -0.9, 0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
+    if(gl_PrimitiveIDIn == 1) drawBox2d(vec3(0.0, -0.6, 0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
+    if(gl_PrimitiveIDIn == 2) drawBox2d(vec3(0.0, -0.3, 0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
+    if(gl_PrimitiveIDIn == 3) drawBox2d(vec3(0.0,  0.0, 0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
+    if(gl_PrimitiveIDIn == 4) drawBox2d(vec3(0.0, +0.3, 0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
+    if(gl_PrimitiveIDIn == 5) drawBox2d(vec3(0.0, +0.6, 0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
+    if(gl_PrimitiveIDIn == 6) drawBox2d(vec3(0.0, +0.9, 0.1), vec2(1.95, 0.002), vec4(0.8,0.8,0.8,0.5));
 }

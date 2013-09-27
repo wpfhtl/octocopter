@@ -152,7 +152,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     connect(mLaserScannerDown, &LaserScanner::distanceAtFront, mFlightController, &FlightController::slotSetHeightOverGround);
     connect(mBaseConnection, &BaseConnection::scannerState, mLaserScannerDown, &LaserScanner::slotEnableScanning);
-    connect(mBaseConnection, &BaseConnection::scannerState, mLaserScannerFrnt, &LaserScanner::slotEnableScanning);
+    // disable until INS is precise connect(mBaseConnection, &BaseConnection::scannerState, mLaserScannerFrnt, &LaserScanner::slotEnableScanning);
     connect(mBaseConnection, &BaseConnection::differentialCorrections, mGnssDevice, &GnssDevice::slotSetDifferentialCorrections);
     connect(mBaseConnection, &BaseConnection::wayPoints, mFlightController, &FlightController::slotSetWayPoints);
     connect(mBaseConnection, &BaseConnection::newConnection, mFlightController, &FlightController::slotEmitFlightControllerInfo);
