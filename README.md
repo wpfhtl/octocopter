@@ -23,13 +23,13 @@ In detail, the subdirectories contain:
 * __scanconverter__ converts previously captured laser scanner logs into binary format.
 * __simulator__ implements the same network protocol as "koptercontrol", so that "basestation" can connect to it. This way, many mechanisms can be tested during bad weather without having to fly outside. In Hamburg/Germany, this is important :)
 
-All of the software below is written in C++ and designed to work in real-time on UAV and base station. It is developed and used on Ubuntu linux x86. The requirements are:
+All of the software below is written in C++ and designed to work in real-time on UAV and base station. It is developed and used on (Ubuntu) linux. The requirements are:
 
 * Qt 5.1
 * A graphics subsystem providing OpenGL 3.3 
-* assimp
-* SDL
-* DevIL
+* assimp (for 3d model loading)
+* SDL (for sound)
+* DevIL (loading images as textures into OpenGL)
 * Ogre (for the simulator)
 
 For complete functionality, basestation further requires:
@@ -37,4 +37,4 @@ For complete functionality, basestation further requires:
 * CUDA 5.0
 * NVIDIA GPU with at least 1GB VRAM and compute capability 2.0 or higher
 
-If you have any questions, find me at http://tams.informatik.uni-hamburg.de/people/adler/.
+If you have any questions, find me at http://tams.informatik.uni-hamburg.de/people/adler/. There's also a youtube channel containing videos that are mostly related: http://www.youtube.com/user/kernelpnc
