@@ -304,7 +304,7 @@ void SensorFuser::fuseScans()
                     if(index % mStridePoint != 0) continue;
 
                     // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
-                    if(rawScan->distances[index] < 500 || rawScan->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
+                    if(rawScan->distances[index] < 700 || rawScan->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
 
                     // Convert millimeters to meters.
                     const float distance = rawScan->distances[index] / 1000.0f;
@@ -434,7 +434,7 @@ void SensorFuser::fuseScans()
                     if(index % mStridePoint != 0) continue;
 
                     // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
-                    if(rawScan->distances[index] < 300 || rawScan->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
+                    if(rawScan->distances[index] < 700 || rawScan->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
 
                     // Convert millimeters to meters.
                     const float distance = rawScan->distances[index] / 1000.0f;
@@ -496,7 +496,7 @@ void SensorFuser::fuseScans()
                 if(index % mStridePoint != 0) continue;
 
                 // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
-                if(rawScan->distances[index] < 500 || rawScan->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
+                if(rawScan->distances[index] < 700 || rawScan->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
 
                 // Convert millimeters to meters.
                 const float distance = rawScan->distances[index] / 1000.0f;
