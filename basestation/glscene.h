@@ -16,6 +16,9 @@
 #include <common.h>
 #include <gnssstatus.h>
 
+class ProcessingState;
+class FlightPlannerParticles;
+
 class GlScene : public QObject, protected OPENGL_FUNCTIONS_CLASS
 {
     Q_OBJECT
@@ -52,13 +55,25 @@ public:
     // points scanned from further distance than this shouldn't be rendered by the shader!
     float mMaxPointVisualizationDistance;
 
-    float mParticleRadius;
+    float mParticleRadius, mParticleOpacity;
 
     float mPointCloudPointSize;
     float mPointCloudPointAlpha;
     float mPointCloudColorLow, mPointCloudColorHigh;
 
+    // This allows FlightPlanner to tell GlScene in what state it currently is.
+    // GlScene will adjust render-settings (Show Particles/Grids? Rotate? ...) accordingly.
+    enum class FlightPlannerProcessingState
+    {
+        Idle,
+        ReducingPointCloud,
+        ParticleSimulation,
+        WayPointComputation,
+        WayPointChecking
+    };
+
 public slots:
+    void slotSetFlightPlannerProcessingState(const FlightPlannerProcessingState& state) {mFlightPlannerProcessingState = state; emit suggestVisualization();}
 
     void slotSetVolumeGlobal(const Box3D* volume);
     void slotSetVolumeLocal(const Box3D* volume);
@@ -100,6 +115,8 @@ public slots:
     void moveCameraTarget(const float x, const float y, const float z);
 
 private:
+    FlightPlannerProcessingState mFlightPlannerProcessingState;
+
     struct RawScanRayVisualization
     {
         QOpenGLVertexArrayObject* vao;
@@ -204,7 +221,6 @@ private:
 
 signals:
     void suggestVisualization();
-    void visualizeNow();
 };
 
 #endif

@@ -5,6 +5,7 @@
 #include <openglutilities.h>
 
 #include "glscene.h"
+#include "flightplannerparticles.h"
 
 GlScene::GlScene() :
     mWayPointsAhead(nullptr),
@@ -20,6 +21,7 @@ GlScene::GlScene() :
     mActiveWayPointVisualizationIndex(-1)
 {
     mIsInitialized = false;
+    mFlightPlannerProcessingState = FlightPlannerProcessingState::Idle;
 
     mRenderBoundingBoxGlobal = true;
     mRenderBoundingBoxLocal = true;
@@ -50,6 +52,7 @@ GlScene::GlScene() :
     mVboVehiclePathBytesCurrent = 0;
 
     mParticleRadius = 0.0f;
+    mParticleOpacity = 1.0f;
     mNumberOfParticles = 0;
 
     mMaxPointVisualizationDistance = 1000.0f;
@@ -548,7 +551,6 @@ void GlScene::render()
         mShaderProgramDefault->release();
     }
     glDisable(GL_BLEND);
-    emit visualizeNow();
 
     QMatrix4x4 transformVehicle;
 
@@ -715,7 +717,6 @@ void GlScene::render()
         mModelVehicle->render();
     }
 
-
     if(mRenderSatelliteSignals && mVaoSatelliteSignals->isCreated())
     {
         mShaderProgramSatelliteSignals->bind();
@@ -785,35 +786,15 @@ void GlScene::render()
         mShaderProgramDefault->release();
     }
 
-    if(mNumberOfParticles != 0 && mVboParticlePositions != 0 && mRenderParticles)
-    {
-        // Program needs to be in use before setting values to uniforms
-        mShaderProgramParticles->bind();
-        mShaderProgramParticles->setUniformValue("useFixedColor", false);
-
-        mVaoParticles->bind();
-
-        // Set particleRadius variable in the shader program
-        Q_ASSERT(glGetUniformLocation(mShaderProgramParticles->programId(), "particleRadius") != -1);
-        glUniform1f(glGetUniformLocation(mShaderProgramParticles->programId(), "particleRadius"), mParticleRadius);
-
-        glBindBuffer(GL_ARRAY_BUFFER, mVboParticlePositions);
-        glDrawArrays(GL_POINTS, 0, mNumberOfParticles);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-        mVaoParticles->release();
-        mShaderProgramParticles->release();
-    }
-
     // Render information gain
-    if(mVboGridMapOfInformationGain != 0 && mRenderInformationGain && mVaoGridMapOfInformationGain->isCreated())
+    if(mVboGridMapOfInformationGain != 0 && mVaoGridMapOfInformationGain->isCreated() && (mRenderInformationGain || mFlightPlannerProcessingState == FlightPlannerProcessingState::ParticleSimulation || mFlightPlannerProcessingState == FlightPlannerProcessingState::WayPointComputation))
     {
         // Draw grid with waypoint pressure
         mShaderProgramGrid->bind();
 
         mShaderProgramGrid->setUniformValue("fixedColor", QColor(255,0,0));
         // If we have a value of (quint8)1, that'll be 1/255=0.004 in the shader's float. Amplify this?
-        mShaderProgramGrid->setUniformValue("alphaMultiplication", 30.0f);
+        mShaderProgramGrid->setUniformValue("alphaMultiplication", 10.0f);
         mShaderProgramGrid->setUniformValue("alphaExponentiation", 1.0f);
         mShaderProgramGrid->setUniformValue("quadSizeFactor", 1.0f);
 
@@ -838,13 +819,39 @@ void GlScene::render()
         mShaderProgramGrid->release();
     }
 
-    // Render occupancy grid
-    if(mVboGridMapOfOccupancy != 0 && mRenderOccupancyGrid && mVaoGridMapOfOccupancy->isCreated())
+    if(mNumberOfParticles != 0 && mVboParticlePositions != 0 && (mRenderParticles || mFlightPlannerProcessingState == FlightPlannerProcessingState::ParticleSimulation))
     {
-        // Draw grid with waypoint pressure
+        glEnable(GL_BLEND);
+        glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
+        // Program needs to be in use before setting values to uniforms
+        mShaderProgramParticles->bind();
+        mShaderProgramParticles->setUniformValue("useFixedColor", false);
+        mShaderProgramParticles->setUniformValue("particleOpacity", std::max(mParticleOpacity-0.1f, 0.0f));
+
+        mVaoParticles->bind();
+
+        // Set particleRadius variable in the shader program
+        Q_ASSERT(glGetUniformLocation(mShaderProgramParticles->programId(), "particleRadius") != -1);
+        glUniform1f(glGetUniformLocation(mShaderProgramParticles->programId(), "particleRadius"), mParticleRadius);
+
+        glBindBuffer(GL_ARRAY_BUFFER, mVboParticlePositions);
+        glDrawArrays(GL_POINTS, 0, mNumberOfParticles);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        mVaoParticles->release();
+        mShaderProgramParticles->release();
+        glDisable(GL_BLEND);
+    }
+
+    // Render occupancy grid
+    if(mVboGridMapOfOccupancy != 0 && mVaoGridMapOfOccupancy->isCreated() && (mRenderOccupancyGrid || mFlightPlannerProcessingState == FlightPlannerProcessingState::WayPointChecking || mFlightPlannerProcessingState == FlightPlannerProcessingState::WayPointComputation))
+    {
+        glEnable(GL_BLEND);
+        glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
+        // Draw grid with occupancy
         mShaderProgramGrid->bind();
 
-        mShaderProgramGrid->setUniformValue("fixedColor", QColor(64,64,64));
+        mShaderProgramGrid->setUniformValue("fixedColor", QColor(128,128,255,128));
         // If we have a value of (quint8)1, that'll be 1/255=0.004 in the shader's float. Amplify this?
         mShaderProgramGrid->setUniformValue("alphaMultiplication", 1.0f);
         mShaderProgramGrid->setUniformValue("alphaExponentiation", 1.0f);
@@ -868,8 +875,8 @@ void GlScene::render()
         mVaoGridMapOfOccupancy->release();
 
         mShaderProgramGrid->release();
+        glDisable(GL_BLEND);
     }
-
 
     // Render pathfinder grid
     if(mVboGridMapOfPathPlanner != 0 && mRenderPathPlannerGrid && mVaoGridMapOfPathPlanner->isCreated())

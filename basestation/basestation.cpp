@@ -49,6 +49,7 @@ BaseStation::BaseStation() : QMainWindow()
     mFlightPlanner = new FlightPlannerParticles(this, mGlWindow, mPointCloud);
     connect(mFlightPlanner, &FlightPlannerParticles::volumeLocal, mGlScene, &GlScene::slotSetVolumeLocal);
     connect(mFlightPlanner, &FlightPlannerParticles::volumeGlobal, mGlScene, &GlScene::slotSetVolumeGlobal);
+    connect(mFlightPlanner, &FlightPlannerParticles::cameraRotation, mGlWindow, &GlWindow::slotSetCameraRotation);
 
     connect(mFlightPlanner, &FlightPlannerParticles::vboInfoParticles, mGlScene, &GlScene::slotSetVboInfoParticles);
     connect(mFlightPlanner, &FlightPlannerParticles::vboInfoGridOccupancy, mGlScene, &GlScene::slotSetVboInfoGridOccupancy);
@@ -56,11 +57,13 @@ BaseStation::BaseStation() : QMainWindow()
     connect(mFlightPlanner, &FlightPlannerParticles::vboInfoGridInformationGain, mGlScene, &GlScene::slotSetVboInfoGridInformationGain);
     connect(mFlightPlanner, &FlightPlannerParticles::wayPointListAhead, mGlScene, &GlScene::slotSetWayPointListAhead);
     connect(mFlightPlanner, &FlightPlannerParticles::wayPointListPassed, mGlScene, &GlScene::slotSetWayPointListPassed);
+    connect(mFlightPlanner, &FlightPlannerParticles::processingState, mGlScene, &GlScene::slotSetFlightPlannerProcessingState);
 
     connect(mFlightPlanner, &FlightPlannerParticles::renderInformationGain, [=](const bool value) {mGlScene->mRenderInformationGain = value; mGlWindow->slotRenderLater();});
     connect(mFlightPlanner, &FlightPlannerParticles::renderOccupancyGrid, [=](const bool value) {mGlScene->mRenderOccupancyGrid = value; mGlWindow->slotRenderLater();});
     connect(mFlightPlanner, &FlightPlannerParticles::renderParticles, [=](const bool value) {mGlScene->mRenderParticles = value; mGlWindow->slotRenderLater();});
     connect(mFlightPlanner, &FlightPlannerParticles::renderPathPlannerGrid, [=](const bool value) {mGlScene->mRenderPathPlannerGrid = value; mGlWindow->slotRenderLater();});
+    connect(mFlightPlanner, &FlightPlannerParticles::particleOpacity, [=](const float value) {mGlScene->mParticleOpacity = value; mGlWindow->slotRenderLater();});
     connect(mFlightPlanner, &FlightPlannerParticles::message, mLogWidget, &LogWidget::log);
     connect(mFlightPlanner, &FlightPlannerParticles::wayPoints, mControlWidget, &ControlWidget::slotSetWayPoints);
     connect(mFlightPlanner, &FlightPlannerParticles::suggestVisualization, mGlWindow, &GlWindow::slotRenderLater);

@@ -14,9 +14,6 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
     mBaseStation = baseStation;
     mPointCloudDense = pointCloudDense;
 
-    mCreateWayPoints = false;
-    mCheckWayPointSafety = true;
-
     mParticleSystem = 0;
     mPathPlanner = 0;
     mVboGridMapOfInformationGainBytes = 0;
@@ -27,10 +24,10 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
 
     mVehiclePoses.reserve(25 * 60 * 20); // enough poses for 20 minutes with 25Hz
 
-    mPointCloudColliders = new PointCloudCuda(Box3D(), 64 * 1024, "ColliderCloud");
+    mTimeOfLastDenseCloudReduction = QTime::currentTime();
 
+    mPointCloudColliders = new PointCloudCuda(Box3D(), 64 * 1024, "ColliderCloud");
     mPointCloudColliders->setMinimumPointDistance(0.1f);
-    //mPointCloudColliders->setColor(QColor(0,0,255,255));
 
     mBaseStation->getGlScene()->slotPointCloudRegister(mPointCloudColliders);
 
@@ -41,8 +38,6 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
     connect(mDialog, SIGNAL(renderInformationGain(bool)), SIGNAL(renderInformationGain(bool)));
     connect(mDialog, SIGNAL(renderOccupancyGrid(bool)), SIGNAL(renderOccupancyGrid(bool)));
     connect(mDialog, SIGNAL(renderPathPlannerGrid(bool)), SIGNAL(renderPathPlannerGrid(bool)));
-    connect(mDialog, &FlightPlannerParticlesDialog::createWayPoints, [=](const bool value) {mCreateWayPoints = value;});
-    connect(mDialog, &FlightPlannerParticlesDialog::checkWayPointSafety, [=](const bool value) {mCheckWayPointSafety = value;});
     connect(mDialog, &FlightPlannerParticlesDialog::reduceColliderCloud, mPointCloudColliders, &PointCloudCuda::slotReduce);
     connect(mDialog, &FlightPlannerParticlesDialog::generateWayPoints, this, &FlightPlannerParticles::slotGenerateWaypoints);
     connect(mDialog, &FlightPlannerParticlesDialog::resetInformationGain, this, &FlightPlannerParticles::slotClearGridOfInformationGain);
@@ -56,7 +51,20 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
     // When the dialog dis/enables physics processing, start/stop the timer
     mTimerStepSimulation.setInterval(1);
     connect(&mTimerStepSimulation, &QTimer::timeout, this, &FlightPlannerParticles::slotStepSimulation);
-    connect(mDialog, &FlightPlannerParticlesDialog::processPhysics, [=](const bool enable) {if(enable) mTimerStepSimulation.start(); else mTimerStepSimulation.stop();});
+    connect(mDialog, &FlightPlannerParticlesDialog::processPhysics, [=](const bool enable)
+    {
+        if(enable)
+        {
+            qDebug() << __PRETTY_FUNCTION__ << "starting simulation timer!";
+            mTimerStepSimulation.start();
+        }
+        else
+        {
+            qDebug() << __PRETTY_FUNCTION__ << "stopping simulation timer!";
+            mTimerStepSimulation.stop();
+        }
+    });
+
 }
 
 void FlightPlannerParticles::slotInitialize()
@@ -142,7 +150,7 @@ void FlightPlannerParticles::slotProcessInformationGain()
         return;
     }
 
-    if(!mCreateWayPoints)
+    if(!mDialog->createWayPoints())
     {
         qDebug() << "FlightPlannerParticles::slotProcessInformationGain(): automatic waypoint generation not enabled, returning.";
         return;
@@ -179,6 +187,8 @@ void FlightPlannerParticles::slotGenerateWaypoints()
         qDebug() << "FlightPlannerParticles::getRankedWaypoints(): not initialized yet, returning.";
         return;
     }
+
+    emit processingState(GlScene::FlightPlannerProcessingState::WayPointComputation);
 
     copyParametersToGpu(&mSimulationParameters);
 
@@ -247,6 +257,7 @@ void FlightPlannerParticles::slotGenerateWaypoints()
         qDebug() << "FlightPlannerParticles::slotGenerateWaypoints(): after sort to shortest path:" << wayPointsWithHighInformationGain.toString();
 
         mPathPlanner->slotComputePath(vehiclePosition, wayPointsWithHighInformationGain);
+        emit processingState(GlScene::FlightPlannerProcessingState::Idle);
     }
     else
     {
@@ -290,32 +301,38 @@ const Pose FlightPlannerParticles::getLastKnownVehiclePose(void) const
 
 void FlightPlannerParticles::slotNewScanFused(const float* const points, const quint32& count, const QVector3D* const scannerPosition)
 {
+    // Experimental: Do not accept points while we're processing!
+    if(mTimerStepSimulation.isActive() || mTimerProcessInformationGain.isActive())
+    {
+        qDebug() << "FlightPlannerParticles::slotNewScanFused(): not accepting points while processing.";
+        return;
+    }
+
     // Insert all points into mPointCloudDense
     mPointCloudDense->slotInsertPoints4(points, count);
 
-    if(mBaseStation->getOperatingMode() == OperatingMode::OperatingOnline && CudaHelper::isDeviceSupported && mPointCloudDense->getNumberOfPointsFree() < 1000 && !mTimerStepSimulation.isActive())
+    if(!CudaHelper::isDeviceSupported) return;
+
+    if((mTimeOfLastDenseCloudReduction.msecsTo(QTime::currentTime()) > 2000 || mPointCloudDense->getNumberOfPointsFree() < 1000)/* && !mTimerStepSimulation.isActive()*/)
     {
         qDebug() << "FlightPlannerParticles::slotNewScanFused(): reducing" << mPointCloudDense->getNumberOfPointsQueued() << "queued points in dense cloud.";
+        mTimeOfLastDenseCloudReduction = QTime::currentTime();
         mPointCloudDense->slotReduce();
+    }
 
-        if(
-                mBaseStation->getOperatingMode() == OperatingMode::OperatingOnline &&
-                mWayPointsAhead.size() == 0 &&
-                !mTimerStepSimulation.isActive() &&
-                !mTimerProcessInformationGain.isActive() &&
-                mCreateWayPoints
-                )
-        {
-            // This is the first time that points were inserted (and we have no waypoints) - start the physics processing!
-            qDebug() << "FlightPlannerParticles::slotNewScanFused(): 50k points were present and reduced successfully, starting wpt generation!";
-            slotStartWayPointGeneration();
-        }
-        else if(mWayPointsAhead.size())
-        {
-            // Points were added to the pointcloud and there's waypoints currently being passed
-            // Check to make sure that none of the new points are in cells that contain waypoints!
-            if(mCheckWayPointSafety) mPathPlanner->checkWayPointSafety(getLastKnownVehiclePose().getPosition(), &mWayPointsAhead);
-        }
+    if(
+               mBaseStation->getOperatingMode() == OperatingMode::OperatingOnline
+            && mWayPointsAhead.size() == 0
+            && mPointCloudDense->getNumberOfPoints() > 50000
+//            && !mTimerStepSimulation.isActive()
+//            && !mTimerProcessInformationGain.isActive()
+            && mDialog->createWayPoints())
+    {
+        // This is the first time that points were inserted (and we have no waypoints) - start the physics processing!
+        qDebug() << "FlightPlannerParticles::slotNewScanFused(): 50k points are present, reducing and starting wpt generation!";
+        mTimeOfLastDenseCloudReduction = QTime::currentTime();
+        mPointCloudDense->slotReduce();
+        slotStartWayPointGeneration();
     }
 
     emit suggestVisualization();
@@ -454,10 +471,10 @@ void FlightPlannerParticles::slotStartWayPointGeneration()
     qDebug() << __PRETTY_FUNCTION__ << "starting generation!";
     mTimerProcessInformationGain.start(5000);
 
-    // This will first copy points to collider (which will reduce), then reduce the dense cloud.
-    //((PointCloudCuda*)mPointCloudDense)->slotReduce();
-
     slotClearGridOfInformationGain();
+
+    // Make sure we visualize the process
+    emit processingState(GlScene::FlightPlannerProcessingState::ParticleSimulation);
 
     // This will make the dialog emit processPhysics() signal, which is connected to a lambda above, starting the stepSimulation-timer.
     mDialog->setProcessPhysicsActive(true);
@@ -481,7 +498,9 @@ void FlightPlannerParticles::slotClearGridOfInformationGain()
         cudaSafeCall(cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfInformationGainBytes, 0));
     }
     else
+    {
         qDebug() << __PRETTY_FUNCTION__ << "couldn't clear information gain, VBO is not initialized yet!";
+    }
 }
 
 void FlightPlannerParticles::showInformationGain()
@@ -513,9 +532,20 @@ void FlightPlannerParticles::showInformationGain()
 
 void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloudCuda*const pointCloudSource, const quint32& firstPointToReadFromSrc, quint32 numberOfPointsToCopy)
 {
+    // This is called when the dense cloud inserted points. When points come in, we make sure this happens every 2 seconds,
+    // so that waypoint safety can be checked as often.
     qDebug() << __PRETTY_FUNCTION__;
 
     mPointCloudColliders->slotInsertPoints(pointCloudSource, firstPointToReadFromSrc, numberOfPointsToCopy);
+
+    // Check to make sure that all waypoints are safe (i.e. their gridcells are not occupied)
+    if(mDialog->checkWayPointSafety() && mWayPointsAhead.size())
+    {
+        emit processingState(GlScene::FlightPlannerProcessingState::WayPointChecking);
+        mPathPlanner->checkWayPointSafety(getLastKnownVehiclePose().getPosition(), &mWayPointsAhead);
+        // Todo: wait a couple of frames before emitting this. There's no QTimer::singleShot(lambda), though :|
+        QTimer::singleShot(500, this, SLOT(slotSetProcessingStateToIdle()));
+    }
 }
 
 void FlightPlannerParticles::slotStepSimulation()
@@ -543,7 +573,18 @@ void FlightPlannerParticles::slotStepSimulation()
 
     cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfInformationGainBytes, 0);
 
+    // Set the particle's opacity!
+    float percentLeft = mTimerProcessInformationGain.remainingTime();
+    percentLeft /= (float)mTimerProcessInformationGain.interval();
+    emit particleOpacity(percentLeft);
+    qDebug() << __PRETTY_FUNCTION__ << "percentLeft:" << percentLeft;
+
     static int iteration = 0;
     if(iteration++ % 100 == 0)
         emit suggestVisualization();
+}
+
+void FlightPlannerParticles::slotSetProcessingStateToIdle()
+{
+    emit processingState(GlScene::FlightPlannerProcessingState::Idle);
 }

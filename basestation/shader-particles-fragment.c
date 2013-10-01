@@ -19,6 +19,7 @@ layout(std140) uniform GlobalValues
 };
 
 uniform float particleRadius;
+uniform float particleOpacity;
 
 // For using fixed color, e.g. when rendering waypoints
 uniform vec4 fixedColor;
@@ -57,12 +58,14 @@ void main()
 
     if(useFixedColor)
     {
-      fragColor = fixedColor * diffuse_value;
-      //fragColor.w = 1.0;
+        vec4 clr = fixedColor * diffuse_value;
+        clr.w = particleOpacity;
+        fragColor = clr;
     }
     else
     {
-      fragColor = colorGS_to_FS * diffuse_value;
-      //fragColor.w = 1.0;
+        vec4 clr = colorGS_to_FS * diffuse_value;
+        clr.w = particleOpacity;
+        fragColor = clr;
     }
 }

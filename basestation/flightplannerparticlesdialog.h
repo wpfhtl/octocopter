@@ -27,6 +27,8 @@ public:
     void setProcessPhysicsActive(bool state) {ui->mChkBoxProcessPhysics->setChecked(state); emit processPhysics(state);}
 
     bool followVehicle() const {return ui->mChkBoxFollowVehicle->isChecked();}
+    bool createWayPoints() const {return ui->mChkBoxCreateWayPoints->isChecked();}
+    bool checkWayPointSafety() const  {return ui->mChkBoxCheckWayPointSafety->isChecked();}
 
 private slots:
     void slotSimulationParametersChanged();
@@ -35,12 +37,12 @@ public slots:
     void slotSetInitialValues(const ParametersParticleSystem* const sp);
     void slotSetPointCloudSizeDense(const quint32 size);
     void slotSetPointCloudSizeSparse(const quint32 size);
+    void slotSetRenderParticles(const bool value) {ui->mChkBoxRenderParticles->setChecked(value);}
+    void slotSetRenderInformationGain(const bool value) {ui->mChkBoxRenderInformationGain->setChecked(value);}
+    void slotSetRenderOccupancyGrid(const bool value) {ui->mChkBoxRenderGridOccupancy->setChecked(value);}
 
 signals:
     void simulationParameters(const ParametersParticleSystem*);
-
-    void createWayPoints(bool);
-    void checkWayPointSafety(bool);
     void processPhysics(bool);
     void followVehicle(bool);
     void renderParticles(bool);

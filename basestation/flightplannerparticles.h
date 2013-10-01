@@ -33,7 +33,6 @@ public:
     PathPlanner* getPathPlanner() {return mPathPlanner;}
 
 private:
-    bool mCreateWayPoints, mCheckWayPointSafety;
     Box3D mVolumeLocal, mVolumeGlobal;
     QVector<Pose> mVehiclePoses;
     GlWindow* mGlWindow;
@@ -50,6 +49,9 @@ private:
     QVector3D mLastParticleSystemPositionToFollowVehicle;
     QTimer mTimerProcessInformationGain;
     QTimer mTimerStepSimulation;
+    QTime mTimeOfLastDenseCloudReduction;
+    // QTimer mTimerCheckWayPointSafety; do whenever dense inserted points (if checked)
+    //put into glscene! QTimer mTimerHideVisualizationAfterWayPointsComputed;
     ParticleSystem* mParticleSystem;
     cudaError_t mCudaError;
 
@@ -74,6 +76,8 @@ private:
 
 private slots:
     void slotDenseCloudInsertedPoints(PointCloudCuda * const pointCloudSource, const quint32& firstPointToReadFromSrc, quint32 numberOfPointsToCopy);
+
+    void slotSetProcessingStateToIdle();
 
     // checks waypoint pressure and if higher than threshold, cals slotGenerateWaypoints();
     void slotProcessInformationGain();
@@ -126,7 +130,9 @@ public slots:
 
 signals:
     void message(const LogImportance& importance, const QString& source, const QString& message);
-    void particleRadiusChanged(float);
+    void particleOpacity(float);
+
+    void processingState(GlScene::FlightPlannerProcessingState);
 
     void vboInfoGridInformationGain(quint32 vboPressure, Box3D gridBoundingBox, Vector3i grid);
     void vboInfoParticles(quint32 vboPositions, quint32 particleCount, float particleRadius, Box3D particleSystemBoundingBox);
@@ -148,6 +154,7 @@ signals:
     // This is emitted whenever FlightPlanner changes waypoints
     void wayPoints(const QList<WayPoint>* const, const WayPointListSource);
 
+    void cameraRotation(float);
     void suggestVisualization();
 };
 

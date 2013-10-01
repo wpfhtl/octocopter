@@ -368,6 +368,7 @@ void PointCloudCuda::slotReduce()
     if(hadToMapVbo) cudaGraphicsUnmapResources(1, &mCudaVboResource, 0);
 
     mRenderInfoList[0]->size = getNumberOfPoints();
+    mParameters.insertionCursor = getNumberOfPoints();
     emit numberOfPoints(getNumberOfPoints());
 }
 
@@ -482,6 +483,7 @@ void PointCloudCuda::slotReset()
     qDebug() << __PRETTY_FUNCTION__ << mName;
     if(!mIsInitialized) initialize();
 
+    mParameters.insertionCursor = 0;
     mParameters.elementQueueCount = 0;
     mParameters.elementCount = 0;
     mRenderInfoList[0]->size = 0;

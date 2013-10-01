@@ -15,9 +15,6 @@ FlightPlannerParticlesDialog::FlightPlannerParticlesDialog(const ParametersParti
     connect(ui->mChkBoxProcessPhysics, SIGNAL(clicked(bool)), SIGNAL(processPhysics(bool)));
     connect(ui->mChkBoxFollowVehicle, SIGNAL(clicked(bool)), SIGNAL(followVehicle(bool)));
 
-    connect(ui->mChkBoxCreateWayPoints, SIGNAL(clicked(bool)), SIGNAL(createWayPoints(bool)));
-    connect(ui->mChkBoxCheckWayPointSafety, SIGNAL(clicked(bool)), SIGNAL(checkWayPointSafety(bool)));
-
     connect(ui->mChkBoxRenderParticles, SIGNAL(clicked(bool)), SIGNAL(renderParticles(bool)));
     connect(ui->mChkBoxRenderInformationGain, SIGNAL(clicked(bool)), SIGNAL(renderInformationGain(bool)));
     connect(ui->mChkBoxRenderGridOccupancy, SIGNAL(clicked(bool)), SIGNAL(renderOccupancyGrid(bool)));
