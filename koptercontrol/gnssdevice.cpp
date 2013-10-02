@@ -770,6 +770,7 @@ void GnssDevice::slotSerialPortStatusChanged(const QString& status, const QDateT
 
 void GnssDevice::slotSetSystemTime(const qint32& tow)
 {
+    // The Host uses UTC time, but currentTow() applies the leap-second offset (currently 16s).
     const qint32 currentHostTow = GnssTime::currentTow();
 
     // First, what time is it now?
@@ -779,14 +780,13 @@ void GnssDevice::slotSetSystemTime(const qint32& tow)
     // SecondsPerWeek - CurrentSecondInWeek is number of seconds till rollover
     const quint32 secondsToRollOver = (7 * 86400) - (tow / 1000);
 
-    // Apply 16000ms = 16 leapseconds offset? Only when we really sync to UTC, which we don't.
     const qint32 offsetHostToGnss = tow - currentHostTow + 7; // Oscilloscope indicates 7ms offset is a good value.
     qDebug() << "GnssDevice::slotSetSystemTime(): time rollover in" << ((float)secondsToRollOver)/86400.0f << "d, offset host time" << currentHostTow << "to gnss time" << tow << "is" << offsetHostToGnss/1000 << "s and" << (offsetHostToGnss%1000) << "ms";
 
     // For small clock drifts, adjust clock. Else, set clock
     if(abs(offsetHostToGnss) < 10)
     {
-        qDebug() << "GnssDevice::slotSetSystemTime(): unix-time now is" << QDateTime::currentMSecsSinceEpoch() / 1000 << "- offset smaller than 10ms, using adjtime to correct clock drift...";
+        qDebug() << __PRETTY_FUNCTION__ << "unix-time now is" << QDateTime::currentMSecsSinceEpoch() / 1000 << "- offset smaller than 10ms, using adjtime to correct clock drift...";
         system.tv_sec = 0;
         system.tv_usec = offsetHostToGnss * 1000;
         if(adjtime(&system, NULL) < 0)
@@ -806,10 +806,10 @@ void GnssDevice::slotSetSystemTime(const qint32& tow)
         // usec can under/overflow; fix it
         if(system.tv_usec > 1000000)
         {
-	    qDebug() << "system.tv" << system.tv_sec << "system.tv_usec > 1000000:" << system.tv_usec << "subtracting 1000000";
+            qDebug() << __PRETTY_FUNCTION__ << "system.tv" << system.tv_sec << "system.tv_usec > 1000000:" << system.tv_usec << "subtracting 1000000";
             system.tv_usec -= 1000000;
             system.tv_sec += 1;
-	    qDebug() << "system.tv" << system.tv_sec << "system.tv_usec" << system.tv_usec;
+            qDebug() << __PRETTY_FUNCTION__ << "system.tv" << system.tv_sec << "system.tv_usec" << system.tv_usec;
         }
 
         if(settimeofday(&system, NULL) < 0)
@@ -822,6 +822,6 @@ void GnssDevice::slotSetSystemTime(const qint32& tow)
         }
     }
 
-    qDebug() << "GnssDevice::slotSetSystemTime(): time synchronized, offset host to gnss was" << offsetHostToGnss << "ms, unix-time now is" << QDateTime::currentMSecsSinceEpoch() / 1000;
+    qDebug() << __PRETTY_FUNCTION__ << "time synchronized, offset host to gnss was" << offsetHostToGnss << "ms, unix-time now is" << QDateTime::currentMSecsSinceEpoch() / 1000;
     emit systemTimeSynchronized();
 }

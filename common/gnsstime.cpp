@@ -9,5 +9,6 @@ qint32 GnssTime::currentTow()
 //    qDebug() << beginningOfWeek.toString("ddd hh:mm:ss:zzz");
     //Q_ASSERT(beginningOfWeek.date().dayOfWeek() == Qt::Sunday && beginningOfWeek.toString("hh:mm:ss:zzz") == QString("00:00:00:000"));
 
-    return beginningOfWeek.msecsTo(QDateTime::currentDateTime());
+    // We add 16 seconds offset between UTC and GPS time
+    return beginningOfWeek.msecsTo(QDateTime::currentDateTime().addMSecs(16000));
 }
