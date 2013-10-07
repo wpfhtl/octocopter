@@ -247,6 +247,12 @@ void RoverConnection::processPacket(QByteArray data)
     {
         mCurrentlyWaitingForPingReply = false;
     }
+    else if(packetType == "instancekeyword")
+    {
+        QString kopterControlInstanceKeyword;
+        stream >> kopterControlInstanceKeyword;
+        qDebug() << __PRETTY_FUNCTION__ << "koptercontrol instance keyword is" << kopterControlInstanceKeyword;
+    }
     else
     {
         qDebug() << "RoverConnection::processPacket(): unknown packetType" << packetType;

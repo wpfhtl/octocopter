@@ -23,11 +23,11 @@
    <item>
     <widget class="QGroupBox" name="groupBox">
      <property name="title">
-      <string>Information</string>
+      <string>Cloud Capacity</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_4">
       <property name="leftMargin">
-       <number>4</number>
+       <number>0</number>
       </property>
       <property name="topMargin">
        <number>0</number>
@@ -38,40 +38,87 @@
       <property name="bottomMargin">
        <number>0</number>
       </property>
-      <property name="spacing">
-       <number>1</number>
+      <property name="horizontalSpacing">
+       <number>4</number>
+      </property>
+      <property name="verticalSpacing">
+       <number>2</number>
       </property>
       <item row="0" column="0">
        <widget class="QLabel" name="label_6">
         <property name="text">
-         <string>Cloud Size Dense</string>
+         <string>Dense</string>
         </property>
        </widget>
       </item>
       <item row="0" column="1">
        <widget class="QLabel" name="mLabelPointCloudSizeDense">
+        <property name="minimumSize">
+         <size>
+          <width>40</width>
+          <height>0</height>
+         </size>
+        </property>
         <property name="text">
          <string>0</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QProgressBar" name="mProgressBarCloudDense">
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>16</height>
+         </size>
+        </property>
+        <property name="value">
+         <number>0</number>
         </property>
        </widget>
       </item>
       <item row="1" column="0">
        <widget class="QLabel" name="label_7">
         <property name="text">
-         <string>Cloud Size Sparse</string>
+         <string>Sparse</string>
         </property>
        </widget>
       </item>
       <item row="1" column="1">
        <widget class="QLabel" name="mLabelPointCloudSizeSparse">
+        <property name="minimumSize">
+         <size>
+          <width>40</width>
+          <height>0</height>
+         </size>
+        </property>
         <property name="text">
          <string>0</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QProgressBar" name="mProgressBarCloudSparse">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>16</height>
+         </size>
+        </property>
+        <property name="value">
+         <number>0</number>
         </property>
        </widget>
       </item>

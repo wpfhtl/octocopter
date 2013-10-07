@@ -86,7 +86,7 @@ void ParticleSystem::slotSetVolume(const Box3D& boundingBox)
     // that are NOT in the collider-pointcloud - but should be. So, we re-populate the sparse point-
     // cloud with points from the dense pointcloud.
     mPointCloudColliders->slotReset();
-    if(mPointCloudDense->getNumberOfPoints()) mPointCloudColliders->slotInsertPoints(mPointCloudDense);
+    if(mPointCloudDense->getNumberOfPointsStored()) mPointCloudColliders->slotInsertPoints(mPointCloudDense);
 
     // Usually, the mapping from collider to grid-cells only changes when the collider pointcloud changes.
     // But when we move the grid (relative to the colliders), the mapping also needs an update!
@@ -142,7 +142,7 @@ void ParticleSystem::slotInitialize()
 
     size_t memTotal, memFree;
     cudaSafeCall(cudaMemGetInfo(&memFree, &memTotal));
-    qDebug() << "ParticleSystem::initialize(): before init, device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free.";
+    qDebug() << __PRETTY_FUNCTION__ << "before init, device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free.";
 
     // Set gridsize so that the cell-edges are never shorter than the particle's diameter! If particles were allowed to be larger than gridcells in
     // any dimension, we couldn't find all relevant neighbors by searching through only the (3*3*3)-1 = 8 cells immediately neighboring this one.
@@ -184,6 +184,7 @@ void ParticleSystem::slotInitialize()
 
     // Create VBO with collider positions. This is later given to particle renderer for visualization
     mVboColliderPositions = mPointCloudColliders->getRenderInfo()->at(0)->vbo;//OpenGlUtilities::createVbo(sizeof(float) * 4 * mSimulationParameters->colliderCountMax);
+    //qDebug() << "vbo colliderpos is" << mVboColliderPositions;
     cudaSafeCall(cudaGraphicsGLRegisterBuffer(&mCudaVboResourceColliderPositions, mVboColliderPositions, cudaGraphicsMapFlagsNone));
     // use vboInfo.size or mSimulationParameters->colliderCountMax?
 

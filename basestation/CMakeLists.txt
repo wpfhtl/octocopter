@@ -41,6 +41,7 @@ set(SRC_FILES
     connectiondialog
     roverconnection
     shaderprogram
+    ../common/messagehandler
     ../common/profiler
     ../common/rawscan
     ../common/logfile
@@ -95,7 +96,12 @@ execute_process(COMMAND glxinfo COMMAND grep "OpenGL version string" COMMAND cut
 message(STATUS "Using OpenGl version \"${openglversion_major}.${openglversion_minor}\" and class \"QOpenGLFunctions_${openglversion_major}_${openglversion_minor}_Core\"")
 add_definitions(-DOPENGL_FUNCTIONS_CLASS=QOpenGLFunctions_${openglversion_major}_${openglversion_minor}_Core -DOPENGL_VERSION_MAJOR=${openglversion_major} -DOPENGL_VERSION_MINOR=${openglversion_minor})
 
+# nvcc options for debugging:
+#--debug (-g)                        Generate debug information for host code.
+#--device-debug (-G)                 Generate debug information for device code.
+#--generate-line-info (-lineinfo)    Generate line-number information for device code.
 list(APPEND CUDA_NVCC_FLAGS -gencode=arch=compute_30,code=sm_30)
+#list(APPEND CUDA_NVCC_FLAGS -gencode=arch=compute_30,code=sm_30 -g -G -lineinfo)
 
 add_definitions(-std=c++0x -fPIC)
 

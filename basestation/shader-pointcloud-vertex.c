@@ -22,6 +22,7 @@ layout(std140) uniform GlobalValues
 uniform float pointcloudPointAlpha;
 uniform float pointcloudColorLow;
 uniform float pointcloudColorHigh;
+uniform float pointcloudPointSize;
 uniform mat4 matrixExtra;
 uniform bool useMatrixExtra;
 uniform float maxPointVisualizationDistance;
@@ -79,4 +80,5 @@ void main()
     }
 
     color = colorTemp;
+    gl_PointSize = pointcloudPointSize;
 }

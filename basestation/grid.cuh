@@ -6,7 +6,7 @@
 #include "vector_functions.h"
 #include "cudahelper.cuh"
 
-struct Grid
+struct __align__(16) Grid
 {
     uint3 cells;
     float3 worldMin;

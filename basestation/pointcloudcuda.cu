@@ -6,6 +6,7 @@
 #include "thrust/unique.h"
 #include <thrust/remove.h>
 #include <thrust/count.h>
+#include <thrust/device_ptr.h>
 
 #include "cuda.h"
 #include "cudahelper.cuh"
@@ -27,7 +28,6 @@ inline __host__ __device__ bool operator!=(float4 &a, float4 &b)
 }
 
 // rearrange particle data into sorted order (sorted according to containing grid cell), and find the start of each cell in the sorted hash array
-
 void getDeviceAddressOfParametersPointCloud(ParametersPointCloud** ptr)
 {
     cudaSafeCall(cudaGetSymbolAddress((void**)ptr, paramsPointCloud));
@@ -39,28 +39,21 @@ void copyParametersToGpu(ParametersPointCloud *hostParams)
     cudaSafeCall(cudaMemcpyToSymbol(paramsPointCloud, hostParams, sizeof(ParametersPointCloud)));
 }
 
-/*
 // Returns the presence of neighbors of @pos within paramsPointCloud.minimumDistance in @gridCell
 // Caller must ensure:
 //  - pos is in grid
 //  - gridCell is valid (less than grid.cells)
-__device__ bool checkCellForNeighbors(
+__device__ void checkCellForNeighbors(
         int3    gridCell,       // grid cell to search for particles that could collide
         uint    index,          // index of particle that is being collided
         float4  pos,            // position of particle that is being collided
         float4* posSorted,
         uint*   pointCellStart,
-        uint*   pointCellStopp)
+        uint*   pointCellStopp,
+        float4& clusterPosition,
+        uint&   numberofNeighborsFound)
 {
-    int gridHash = paramsPointCloud.grid.getSafeCellHash(gridCell);
-    if(gridHash < 0)
-    {
-        printf("ERROR! ignoring int3 gridcell coordinate %d/%d/%d thats out of bounds %d/%d/%d (%d)!\n",
-               gridCell.x, gridCell.y, gridCell.z,
-               paramsPointCloud.grid.cells.x, paramsPointCloud.grid.cells.y, paramsPointCloud.grid.cells.z,
-               gridHash);
-        return false;
-    }
+    const uint gridHash = paramsPointCloud.grid.getCellHash(gridCell);
 
     // get start of bucket for this cell
     uint startIndex = pointCellStart[gridHash];
@@ -70,8 +63,6 @@ __device__ bool checkCellForNeighbors(
     {
         // iterate over particles in this cell
         uint endIndex = pointCellStopp[gridHash];
-
-        //printf("%d,", endIndex-startIndex);
 
         for(uint j=startIndex; j<endIndex; j++)
         {
@@ -83,25 +74,20 @@ __device__ bool checkCellForNeighbors(
                 float distSquared = lengthSquared(make_float3(relPos));
 
                 // If they collide AND we're checking the point that was further from the scanner, THEN reduce it!
-                if(distSquared < paramsPointCloud.minimumDistance * paramsPointCloud.minimumDistance && pos.w > posOther.w)
+                if(distSquared < paramsPointCloud.minimumDistance * paramsPointCloud.minimumDistance)
                 {
-                    //printf("point %.2f/%.2f/%.2f collides with point %.2f/%.2f/%.2f in cell %d/%d/%d.\n",
-                    //       pos.x, pos.y, pos.z,
-                    //       posOther.x, posOther.y, posOther.z,
-                    //       gridCell.x, gridCell.y, gridCell.z);
-
-                    return true;
+                    clusterPosition += posOther;
+                    numberofNeighborsFound ++;
                 }
             }
         }
     }
-    return false;
-}*/
+}
 
 // not really random, but should be good enough.
-__device__ float randomNumber()
+__device__ float randomNumber(uint seed)
 {
-    uint a = threadIdx.x;
+    uint a = threadIdx.x * seed;
     uint b = blockIdx.x * blockDim.x;
 
     b = 36969 * (b & 65535) + (b >> 16);
@@ -120,87 +106,70 @@ void markCollidingPointsD(
         uint*   pointCellStopp,     // input: pointCellStopp[19] contains the index of gridParticleIndex in which cell 19 ends
         uint    numPoints)          // input: number of total particles
 {
-    uint indexInSortedPositionsArray = getThreadIndex1D();
-    if(indexInSortedPositionsArray >= numPoints) return;
+    uint threadIndex = getThreadIndex1D();
+    if(threadIndex >= numPoints) return;
 
     // read particle data from sorted arrays
-    const float4 worldPos = positionsSorted[indexInSortedPositionsArray];
-
-    if(     worldPos.x < paramsPointCloud.grid.worldMin.x ||
-            worldPos.y < paramsPointCloud.grid.worldMin.y ||
-            worldPos.z < paramsPointCloud.grid.worldMin.z ||
-            worldPos.x > paramsPointCloud.grid.worldMax.x ||
-            worldPos.y > paramsPointCloud.grid.worldMax.y ||
-            worldPos.z > paramsPointCloud.grid.worldMax.z)
-    {
-        printf("ERROR, point not in grid!\n");
-        return;
-    }
+    const float4 worldPos = positionsSorted[threadIndex];
 
     // get address of particle in grid
     const int3 gridCellCoordinate = paramsPointCloud.grid.getCellCoordinate(make_float3(worldPos));
 
     // Do not process points that are not in the defined grid!
-    if(gridCellCoordinate.x == -1 || gridCellCoordinate.y == -1 || gridCellCoordinate.z == -1)
+    if(gridCellCoordinate.x == -1)
+    {
+        printf("got a point not in grid, ouch!\n");
         return;
+    }
 
-    const uint originalIndex = gridPointIndex[indexInSortedPositionsArray];
+    const uint originalIndex = gridPointIndex[threadIndex];
 
     float4 clusterPosition = make_float4(0.0);
-    float numberOfNeighbors = 0.0;
-//    float averageNeighborScanDistance = 0.0;
+    unsigned int numberOfCollisionsInOwnCell = 0;
+    unsigned int numberOfCollisionsInNeighborCells = 0;
+
+    // This code tries to optimize, thinking: If we already find many neighbors in our own cell, there's really not much
+    // use in looking in other cells, too. We could even go so far as to test for the minimumDistance vs cellSize: If the
+    // mindist is 20 cm, the cell contains 100 points and the cellsize is 20cm, then we know we have lots of neighbors
+    // without even looking at them. But we don't know their .w component values!
+    checkCellForNeighbors(
+                gridCellCoordinate,
+                threadIndex,
+                worldPos,
+                positionsSorted,
+                pointCellStart,
+                pointCellStopp,
+                clusterPosition,
+                numberOfCollisionsInOwnCell);
 
     // examine neighbouring cells
-    for(int z=-1; z<=1; z++)
+    for(int z=-1; z<=1 && numberOfCollisionsInOwnCell < 5; z++)
     {
         for(int y=-1; y<=1; y++)
         {
             for(int x=-1; x<=1; x++)
             {
                 const int3 neighbourGridCoordinate = gridCellCoordinate + make_int3(x, y, z);
-                if(
-                        neighbourGridCoordinate.x < paramsPointCloud.grid.cells.x &&
-                        neighbourGridCoordinate.y < paramsPointCloud.grid.cells.y &&
-                        neighbourGridCoordinate.z < paramsPointCloud.grid.cells.z)
-                {
-                    // Ok, let's search this cell for neighbors!
-                    int gridHash = paramsPointCloud.grid.getSafeCellHash(neighbourGridCoordinate);
+                if(x == 0 && y == 0 && z == 0) continue;
 
-                    // get start of bucket for this cell
-                    uint startIndex = pointCellStart[gridHash];
-
-                    // cell is not empty
-                    if(startIndex != 0xffffffff)
-                    {
-                        // iterate over particles in this cell
-                        uint endIndex = pointCellStopp[gridHash];
-
-                        for(uint j=startIndex; j<endIndex; j++)
-                        {
-                            // check not colliding with self
-                            if(j != indexInSortedPositionsArray)
-                            {
-                                const float4 posOther = positionsSorted[j];
-                                const float4 relPos = worldPos - posOther;
-
-                                if(lengthSquared(make_float3(relPos)) < paramsPointCloud.minimumDistance * paramsPointCloud.minimumDistance)
-                                {
-                                    // There is a neighbor! Record its presence.
-                                    numberOfNeighbors++;
-                                    clusterPosition += posOther;
-                                }
-                            }
-                        }
-                    }
-                }
+                checkCellForNeighbors(
+                            neighbourGridCoordinate,
+                            threadIndex,
+                            worldPos,
+                            positionsSorted,
+                            pointCellStart,
+                            pointCellStopp,
+                            clusterPosition,
+                            numberOfCollisionsInNeighborCells);
             }
         }
     }
 
-    if(numberOfNeighbors)
+    const float numberOfCollisionsTotal = numberOfCollisionsInOwnCell + numberOfCollisionsInNeighborCells;
+    if(numberOfCollisionsTotal > 0.0)
     {
-        const float averageNeighborScanDistance = clusterPosition.w / numberOfNeighbors;
-        if(averageNeighborScanDistance > worldPos.w && randomNumber() * numberOfNeighbors > 1.0)
+        const float averageNeighborScanDistance = clusterPosition.w / numberOfCollisionsTotal;
+        if(averageNeighborScanDistance > worldPos.w /*&& randomNumber(numPoints + threadIndex) * numberOfCollisionsTotal > 1.0*/)
         {
             // If the other neighbors are of better quality, delete ourselves
             posOriginal[originalIndex] = make_float4(0.0);
@@ -208,9 +177,11 @@ void markCollidingPointsD(
         else
         {
             // If we're better, move us into the center of our neighborhood
-            posOriginal[originalIndex] = clusterPosition / numberOfNeighbors;
+            posOriginal[originalIndex] = clusterPosition / numberOfCollisionsTotal;
         }
     }
+
+    //posOriginal[originalIndex] = make_float4(worldPos.x, worldPos.y, worldPos.z, numberOfCollisionsTotal);
 }
 
 void markCollidingPoints(
@@ -230,6 +201,8 @@ void markCollidingPoints(
     //std::cout << "markCollidingPoints(): we have " << numPoints << " points, " << numThreads << " threads and " << numBlocks << " blocks" << std::endl;
 
     // execute the kernel
+    // TODO: test optimization: Write back not into posOriginal, but into posSorted (should be faster), then memcpy posSorted into posOriginal.
+    // If writing back into posSorted is faster, we should be able to just switch buffers after every reduction.
     markCollidingPointsD<<< numBlocks, numThreads >>>(
                                                (float4*)posOriginal,
                                                (float4*)posSorted,
@@ -324,8 +297,6 @@ unsigned int removeClearedPoints(float *devicePoints, unsigned int numberOfPoint
 {
     float4* points = (float4*)devicePoints;
 
-    std::cerr << __PRETTY_FUNCTION__ << " removing zero points in " << numberOfPoints << std::endl;
-
     thrust::device_ptr<float4> newEnd;
 
     try
@@ -334,7 +305,7 @@ unsigned int removeClearedPoints(float *devicePoints, unsigned int numberOfPoint
         int result = thrust::count(thrust::device_ptr<float4>(points),
                                    thrust::device_ptr<float4>(points + numberOfPoints),
                                    make_float4(0.0f));
-        std::cerr << __PRETTY_FUNCTION__ << " removing " << result << " zero points in" << numberOfPoints << std::endl;
+        std::cerr << __PRETTY_FUNCTION__ << " removing zero points: " << result << " of " << numberOfPoints << std::endl;
 
         newEnd = thrust::remove(
                     thrust::device_ptr<float4>(points),

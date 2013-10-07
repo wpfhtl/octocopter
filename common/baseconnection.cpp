@@ -1,8 +1,9 @@
 #include "baseconnection.h"
 #include "motioncommand.h"
 
-BaseConnection::BaseConnection(const QString& interface) :
+BaseConnection::BaseConnection(const QString& interface, const QString instanceKeyword) :
     QObject(),
+    mInstanceKeyword(instanceKeyword),
     mMutex(QMutex::NonRecursive)
 {
     QMutexLocker locker(&mMutex);
@@ -53,6 +54,8 @@ void BaseConnection::slotNewConnection()
     mTcpServer->close();
 
     emit newConnection();
+
+    slotSendInstanceKeyword();
 }
 
 void BaseConnection::slotReadSocket(bool lockMutex)
@@ -233,6 +236,16 @@ void BaseConnection::slotSendPingReply()
     QDataStream stream(&data, QIODevice::WriteOnly);
 
     stream << QString("pingreply");
+    slotSendData(data, false);
+}
+
+void BaseConnection::slotSendInstanceKeyword()
+{
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    stream << QString("instancekeyword");
+    stream << mInstanceKeyword;
     slotSendData(data, false);
 }
 

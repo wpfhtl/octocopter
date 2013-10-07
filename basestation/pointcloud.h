@@ -69,7 +69,7 @@ public:
         }
     };
 
-    PointCloud(const Box3D &boundingBox);
+    PointCloud();
     ~PointCloud();
 
     virtual QVector<RenderInfo*>* getRenderInfo() = 0;
@@ -77,7 +77,7 @@ public:
     virtual void setMinimumPointDistance(const float &distance) = 0;
 //    virtual float getMinimumPointDistance() const = 0;
 
-    virtual quint32 getNumberOfPoints(void) const = 0;
+    virtual quint32 getNumberOfPointsStored(void) const = 0;
     virtual quint32 getCapacity(void) const = 0;
 
     virtual bool exportToFile(const QString& fileName, QWidget* widget = 0) = 0;
@@ -100,7 +100,6 @@ signals:
     // to be fired whenever there are new points (e.g. after every scan), because that would cause a lot of signals.
     // Instead, the pointcloud is free to define larger intervals between signals.
     void pointsInserted(PointCloudCuda* const pointcloud, const quint32& firstPoint, const quint32& numPoints);
-    void numberOfPoints(quint32 numberOfPoints);
 };
 
 #endif

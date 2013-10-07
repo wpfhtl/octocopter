@@ -27,7 +27,7 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
     mTimeOfLastDenseCloudReduction = QTime::currentTime();
 
     mPointCloudColliders = new PointCloudCuda(Box3D(), 128 * 1024, "ColliderCloud");
-    mPointCloudColliders->setMinimumPointDistance(0.2f);
+    mPointCloudColliders->setMinimumPointDistance(0.15f);
 
     mBaseStation->getGlScene()->slotPointCloudRegister(mPointCloudColliders);
 
@@ -43,9 +43,10 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
     connect(mDialog, &FlightPlannerParticlesDialog::resetInformationGain, this, &FlightPlannerParticles::slotClearGridOfInformationGain);
 
     connect(mPointCloudDense, &PointCloudCuda::pointsInserted, this, &FlightPlannerParticles::slotDenseCloudInsertedPoints);
-    connect(mPointCloudDense, &PointCloudCuda::numberOfPoints, mDialog, &FlightPlannerParticlesDialog::slotSetPointCloudSizeDense);
-    connect(mPointCloudColliders, &PointCloudCuda::numberOfPoints, mDialog, &FlightPlannerParticlesDialog::slotSetPointCloudSizeSparse);
+    connect(mPointCloudDense, &PointCloudCuda::parameters, mDialog, &FlightPlannerParticlesDialog::slotSetPointCloudParametersDense);
+    connect(mPointCloudColliders, &PointCloudCuda::parameters, mDialog, &FlightPlannerParticlesDialog::slotSetPointCloudParametersSparse);
 
+    mTimerProcessInformationGain.setInterval(5000);
     connect(&mTimerProcessInformationGain, &QTimer::timeout, this, &FlightPlannerParticles::slotProcessInformationGain);
 
     // When the dialog dis/enables physics processing, start/stop the timer
@@ -323,7 +324,7 @@ void FlightPlannerParticles::slotNewScanFused(const float* const points, const q
     if(
                mBaseStation->getOperatingMode() == OperatingMode::OperatingOnline
             && mWayPointsAhead.size() == 0
-            && mPointCloudDense->getNumberOfPoints() > 50000
+            && mPointCloudDense->getNumberOfPointsStored() > 50000
 //            && !mTimerStepSimulation.isActive()
 //            && !mTimerProcessInformationGain.isActive()
             && mDialog->createWayPoints())
@@ -469,7 +470,7 @@ void FlightPlannerParticles::slotWayPointReached(const WayPoint& wpt)
 void FlightPlannerParticles::slotStartWayPointGeneration()
 {
     qDebug() << __PRETTY_FUNCTION__ << "starting generation!";
-    mTimerProcessInformationGain.start(5000);
+    mTimerProcessInformationGain.start();
 
     slotClearGridOfInformationGain();
 
@@ -556,7 +557,7 @@ void FlightPlannerParticles::slotStepSimulation()
         slotInitialize();
     }
 
-    if(mPointCloudColliders->getNumberOfPoints() < 1)
+    if(mPointCloudColliders->getNumberOfPointsStored() < 1)
     {
         qDebug() << __PRETTY_FUNCTION__ << "will not collide particles against 0 colliders, disablig particle simulation";
         mDialog->setProcessPhysicsActive(false);
@@ -574,7 +575,9 @@ void FlightPlannerParticles::slotStepSimulation()
     cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfInformationGainBytes, 0);
 
     // Set the particle's opacity!
-    float percentLeft = mTimerProcessInformationGain.remainingTime();
+    const int remainingTime = mTimerProcessInformationGain.remainingTime();
+    // If remainingTime is -1 (for whatever reason), make sure we show the particles completely
+    float percentLeft = remainingTime < 0 ? mTimerProcessInformationGain.interval() : remainingTime;
     percentLeft /= (float)mTimerProcessInformationGain.interval();
     emit particleOpacity(percentLeft);
     qDebug() << __PRETTY_FUNCTION__ << "percentLeft:" << percentLeft;

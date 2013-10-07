@@ -40,16 +40,17 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     snSignalPipe = new QSocketNotifier(signalFd[1], QSocketNotifier::Read, this);
     connect(snSignalPipe, SIGNAL(activated(int)), SLOT(slotHandleSignal()));
 
-    // Make sure logging dir exists
-    if(!QDir::current().mkpath("log"))
-        qFatal("KopterControl::KopterControl(): couldn't create log/ subdirectory, please do it for me!");
-
     // Create a logfile-prefix
+    QString instanceKeyword; // whatever the user specifies on the cmdline, e.g. "loopingFlight1"
     QString logFilePrefix = QString("log/kopterlog-%1-%2")
             .arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss"))
             .arg(QString::number(QCoreApplication::applicationPid()));
     const QStringList args = QCoreApplication::arguments();
-    if(args.size() == 2) logFilePrefix.append(QString("-%1").arg(args.last()));
+    if(args.size() == 2)
+    {
+        instanceKeyword = args.last();
+        logFilePrefix.append(QString("-%1").arg(instanceKeyword));
+    }
     qDebug() << "KopterControl::KopterControl(): logfile prefix is" << logFilePrefix;
 
     mMessageHandler = new MessageHandler(logFilePrefix);
@@ -139,7 +140,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     mGnssDevice = new GnssDevice(deviceSerialGnssPort1, deviceSerialGnssPort2, logFilePrefix, this);
     mSensorFuser = new SensorFuser(1); // Really lo-res data for septentrio postprocessing tests.
 
-    mBaseConnection = new BaseConnection(networkInterface);
+    mBaseConnection = new BaseConnection(networkInterface, instanceKeyword);
     mKopter = new Kopter(deviceSerialKopter, this);
 
     connect(mLaserScannerLookingDown, &LaserScanner::message, mBaseConnection, &BaseConnection::slotSendLogMessage);

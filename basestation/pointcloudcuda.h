@@ -41,11 +41,8 @@ public:
     // - active OpenGL context (because of cudaGraphicsGLRegisterBuffer)
     void initialize();
 
-//    void updateVbo();
-
     // No two points closer than @distance will be inserted into this PointCloud
     void setMinimumPointDistance(const float &distance);
-    //float getMinimumPointDistance() const { return mParameters.minimumDistance; }
 
     void setBoundingBox(const Box3D& box)
     {
@@ -54,7 +51,7 @@ public:
         mParameters.grid.worldMax = make_float3(box.max.x(), box.max.y(), box.max.z());
     }
 
-    QVector3D getWorldSize() const { return CudaHelper::convert(mParameters.grid.worldMax) - CudaHelper::convert(mParameters.grid.worldMax);}
+    QVector3D getWorldSize() const {return CudaHelper::convert(mParameters.grid.worldMax) - CudaHelper::convert(mParameters.grid.worldMax);}
 
     cudaGraphicsResource** getCudaGraphicsResource()
     {
@@ -63,9 +60,9 @@ public:
         return &mCudaVboResource;
     }
 
-    quint32 getNumberOfPoints(void) const
+    quint32 getNumberOfPointsStored(void) const
     {
-        return mParameters.elementCount + mParameters.elementQueueCount;
+        return qMin(mParameters.elementCount + mParameters.elementQueueCount, mParameters.capacity);
     }
 
     quint32 getNumberOfPointsQueued(void) const
@@ -96,9 +93,9 @@ public:
     bool importFromFile(const QString& fileName, QWidget* widget = nullptr);
     bool exportToFile(const QString& fileName, QWidget* widget = nullptr);
 
+    QString mName; // dbg only
 private:
     bool mIsInitialized;
-    QString mName;
     ParametersPointCloud mParameters;
 
     // The VBO pointing to the points. To be passed to GlWidget for rendering. We currently use just one VBO.
@@ -143,6 +140,9 @@ public slots:
 
     // reduce the points if necessary. Use any method. A wrapper-method for all my recent attempts at reduction....
     void slotReduce();
+
+signals:
+    void parameters(const ParametersPointCloud* const);
 };
 
 #endif

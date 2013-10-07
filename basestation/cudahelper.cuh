@@ -18,7 +18,7 @@ inline void __cudaSafeCall(cudaError err, const char *file, const int line)
 #ifdef CUDA_ERROR_CHECK
     if(cudaSuccess != err)
     {
-        std::cout << "cudaSafeCall(): failed at " << file << ":" << line << ": " << cudaGetErrorString(err);
+        std::cout << "cudaSafeCall(): failed at " << file << ":" << line << ": " << cudaGetErrorString(err) << std::endl;
         std::cout.flush();
         abort();
     }
@@ -32,7 +32,7 @@ inline void __cudaCheckSuccess(const char *errorSource, const char *file, const 
     cudaError err = cudaGetLastError();
     if ( cudaSuccess != err )
     {
-        std::cout << "ERRRRRRRRRRRRRRRRRRRRRROOOOOOOOOOOORRRRRRRRRRR!!!!!!!!!: cudaCheckError(): " << errorSource << " failed at " << file << ":" << line << ": " << cudaGetErrorString(err);
+        std::cout << "ERRRRRRRRRRRRRRRRRRRRRROOOOOOOOOOOORRRRRRRRRRR!!!!!!!!!: cudaCheckError(): " << errorSource << " failed at " << file << ":" << line << ": " << cudaGetErrorString(err) << std::endl;
         std::cout.flush();
         //abort();
     }

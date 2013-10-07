@@ -49,7 +49,7 @@ Simulator::Simulator(void) :
     // Make it create logfiles!
     mFlightController = new FlightController(QString("simulator-%1").arg(QDateTime::currentDateTime().toString("yyyy-MM-dd-HHmmsszzz")));
 
-    mBaseConnection = new BaseConnection("eth0");
+    mBaseConnection = new BaseConnection("eth0", "simulator");
     connect(mBaseConnection, &BaseConnection::wayPoints, mFlightController, &FlightController::slotSetWayPoints);
     connect(mBaseConnection, &BaseConnection::controllerWeights, mFlightController, &FlightController::slotSetControllerWeights);
     connect(mBaseConnection, &BaseConnection::newConnection, this, &Simulator::slotNewConnection);

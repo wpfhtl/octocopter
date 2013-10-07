@@ -111,7 +111,7 @@ void PathPlanner::populateOccupancyGrid(quint8* gridOccupancy)
 
     // Get a pointer to the particle positions in the device by mapping GPU mem into CUDA address space
     float *colliderPos = (float*)CudaHelper::mapGLBufferObject(mPointCloudColliders->getCudaGraphicsResource());
-    fillOccupancyGrid(gridOccupancyLocal, colliderPos, mPointCloudColliders->getNumberOfPoints(), mParametersPathPlanner.grid.getCellCount(), &mCudaStream);
+    fillOccupancyGrid(gridOccupancyLocal, colliderPos, mPointCloudColliders->getNumberOfPointsStored(), mParametersPathPlanner.grid.getCellCount(), &mCudaStream);
     cudaGraphicsUnmapResources(1, mPointCloudColliders->getCudaGraphicsResource(), 0);
 
     dilateOccupancyGrid(

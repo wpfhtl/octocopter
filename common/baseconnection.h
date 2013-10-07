@@ -36,6 +36,7 @@ private:
     QString mControllerName;
     QMap<QChar,float> mControllerWeights;
     QByteArray mDifferentialCorrections;
+    QString mInstanceKeyword;
 
     void processPacket(QByteArray packet);
 
@@ -46,6 +47,7 @@ private slots:
     void slotSocketError(QAbstractSocket::SocketError socketError);
 
     void slotSendPingReply();
+    void slotSendInstanceKeyword();
 
     // the internalCall parameter skips locking of the mutex, which would lead to a deadlock if
     // slotSendData was called from a class-internal method that already locked the mutex.
@@ -53,7 +55,7 @@ private slots:
     void slotFlushWriteQueue(void);
 
 public:
-    BaseConnection(const QString& interface);
+    BaseConnection(const QString& interface, const QString instanceKeyword = QString());
     ~BaseConnection();
 
 signals:

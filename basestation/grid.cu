@@ -21,7 +21,7 @@ __host__ __device__ float3 Grid::getWorldCenter() const
     return make_float3(worldMin.x, worldMin.y, worldMin.z) + getWorldSize()/2.0f;
 }
 
-// Calculate a particle's hash value (=address in grid) from its containing cell (clamping to edges)
+// Calculate a particle cell's hash value (=address in grid) from its containing cell (clamping to edges)
 __host__ __device__ unsigned int Grid::getCellHash(int3 gridCellCoordinate) const
 {
 //    if(gridCellCoordinate.x >= cells.x || gridCellCoordinate.y >= cells.y || gridCellCoordinate.z >= cells.z)
@@ -30,9 +30,15 @@ __host__ __device__ unsigned int Grid::getCellHash(int3 gridCellCoordinate) cons
 //    if(gridCellCoordinate.x < 0 || gridCellCoordinate.y < 0 || gridCellCoordinate.z < 0)
 //        return -1;
 
-    gridCellCoordinate.x = gridCellCoordinate.x & (cells.x-1);  // wrap grid, assumes size is power of 2
-    gridCellCoordinate.y = gridCellCoordinate.y & (cells.y-1);
-    gridCellCoordinate.z = gridCellCoordinate.z & (cells.z-1);
+    // If bufsize is a power of 2, then instead of X % bufsize do X & (bufsize-1)
+    // This avoids the slow modulo-operator, which uses weird floating-point arithmetic
+
+//    gridCellCoordinate.x = gridCellCoordinate.x & (cells.x-1);  // wrap grid, assumes size is power of 2
+//    gridCellCoordinate.y = gridCellCoordinate.y & (cells.y-1);
+//    gridCellCoordinate.z = gridCellCoordinate.z & (cells.z-1);
+    gridCellCoordinate.x = gridCellCoordinate.x % cells.x;
+    gridCellCoordinate.y = gridCellCoordinate.y % cells.y;
+    gridCellCoordinate.z = gridCellCoordinate.z % cells.z;
 
     return (gridCellCoordinate.z * cells.y) * cells.x
             + (gridCellCoordinate.y * cells.x)
@@ -42,8 +48,17 @@ __host__ __device__ unsigned int Grid::getCellHash(int3 gridCellCoordinate) cons
 // Just like the one above, but returns -1 for invalid cells (returns SIGNED int)
 __host__ __device__ int Grid::getSafeCellHash(int3 gridCellCoordinate) const
 {
-    if(gridCellCoordinate.x >= cells.x || gridCellCoordinate.y >= cells.y || gridCellCoordinate.z >= cells.z)
+    if(
+            gridCellCoordinate.x >= cells.x
+            || gridCellCoordinate.y >= cells.y
+            || gridCellCoordinate.z >= cells.z
+            || gridCellCoordinate.x < 0
+            || gridCellCoordinate.y < 0
+            || gridCellCoordinate.z < 0)
+    {
+        printf("error, I was asked for a non-existing cell's hash!\n");
         return -1;
+    }
 
     return (gridCellCoordinate.z * cells.y) * cells.x
             + (gridCellCoordinate.y * cells.x)
@@ -54,16 +69,25 @@ __host__ __device__ int Grid::getSafeCellHash(int3 gridCellCoordinate) const
 // This is the reverse of particleskernel.cu -> calcGridHash(int3 gridCell).
 __host__ __device__ int3 Grid::getCellCoordinate(const unsigned int hash) const
 {
+    // http://stackoverflow.com/questions/12252826/modular-arithmetic-on-the-gpu says we should
+    // use unsigned int for modulo operands (not result). Luckily, this fits our data types.
     int3 cell;
-    cell.x = floor(fmod((double)hash, cells.x));
-    cell.y = floor(fmod((double)hash, cells.x * cells.y) / cells.x);
-    cell.z = floor(fmod((double)hash, cells.x * cells.y * cells.z) / (cells.x * cells.y));
+
+//    cell.x = floor(fmod((double)hash, cells.x));
+//    cell.y = floor(fmod((double)hash, cells.x * cells.y) / cells.x);
+//    cell.z = floor(fmod((double)hash, cells.x * cells.y * cells.z) / (cells.x * cells.y));
+
+    cell.x = (hash % cells.x);
+    cell.y = (hash % (cells.x * cells.y)) / cells.x;
+    cell.z = (hash % (cells.x * cells.y * cells.z) / (cells.x * cells.y));
+
     return cell;
 }
 
 __host__ __device__ int3 Grid::getCellCoordinate(const float3 &worldPos) const
 {
-    if(     worldPos.x < worldMin.x ||
+    /* this simple if takes 20% wall time of the markCollidingPoint kernel!!!*/
+     if(     worldPos.x < worldMin.x ||
             worldPos.y < worldMin.y ||
             worldPos.z < worldMin.z ||
             worldPos.x > worldMax.x ||

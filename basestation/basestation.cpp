@@ -5,11 +5,16 @@
 
 BaseStation::BaseStation() : QMainWindow()
 {
-    qDebug() << __PRETTY_FUNCTION__;
+    // Create a logfile-prefix
+    QString logFilePrefix = QString("log/kopterlog-%1-%2-basestation.txt")
+            .arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss"))
+            .arg(QString::number(QCoreApplication::applicationPid()));
+    qDebug() << __PRETTY_FUNCTION__ << "logfile prefix is" << logFilePrefix;
+
+    mMessageHandler = new MessageHandler(logFilePrefix);
 
     mTimerJoystick = 0;
     mLogPlayer = 0;
-//    mPtuController = 0;
     mAudioPlayer = 0;
     mDiffCorrFetcher = 0;
 
@@ -38,9 +43,10 @@ BaseStation::BaseStation() : QMainWindow()
     glContainer->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
     setCentralWidget(glContainer);
 
-    // Create a large cloud. Less large for notebook.
+    // Create a large cloud. Less large for notebook. If the dense cloud doesn't include NEGATIVE_Y points,
+    // then scanning points slightly below 0 will not make it into collider cloud and collision avoidance!!!
     const quint32 numberOfPoints = QHostInfo::localHostName() == "tams58" ? 1*1024*1024 : 8*1024*1024;
-    mPointCloud = new PointCloudCuda(Box3D(QVector3D(-512, 0, -512), QVector3D(512, 32, 512)), numberOfPoints, "DenseCloud");
+    mPointCloud = new PointCloudCuda(Box3D(QVector3D(-512, -2, -512), QVector3D(512, 30, 512)), numberOfPoints, "DenseCloud");
     connect(mGlWindow, &GlWindow::message, mLogWidget, &LogWidget::log);
 
     // register dense pointcloud for rendering.

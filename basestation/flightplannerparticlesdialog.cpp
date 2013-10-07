@@ -81,14 +81,46 @@ void FlightPlannerParticlesDialog::slotSimulationParametersChanged()
     emit simulationParameters(&mSimulationParameters);
 }
 
-void FlightPlannerParticlesDialog::slotSetPointCloudSizeDense(const quint32 size)
+void FlightPlannerParticlesDialog::slotSetPointCloudParametersDense(const ParametersPointCloud * const p)
 {
-    static QLocale locale(QLocale::English, QLocale::UnitedStates);
-    ui->mLabelPointCloudSizeDense->setText(locale.toString(size));
+    float numPoints = p->elementCount + p->elementQueueCount;
+    float capacity = p->capacity;
+
+    QChar suffixOcc;
+    while(numPoints > 1024) {
+        numPoints /= 1024;
+        suffixOcc = suffixOcc.isNull() ? 'k' : 'm';
+    }
+
+    QChar suffixCap;
+    while(capacity > 1024) {
+        capacity /= 1024;
+        suffixCap = suffixCap.isNull() ? 'k' : 'm';
+    }
+
+    ui->mLabelPointCloudSizeDense->setText(QString("%1%2 / %3%4").arg(numPoints, 0, 'f', 1).arg(suffixOcc).arg(capacity, 0, 'f', 1).arg(suffixCap));
+    ui->mProgressBarCloudDense->setRange(0, p->capacity);
+    ui->mProgressBarCloudDense->setValue(p->elementCount + p->elementQueueCount);
 }
 
-void FlightPlannerParticlesDialog::slotSetPointCloudSizeSparse(const quint32 size)
+void FlightPlannerParticlesDialog::slotSetPointCloudParametersSparse(const ParametersPointCloud * const p)
 {
-    static QLocale locale(QLocale::English, QLocale::UnitedStates);
-    ui->mLabelPointCloudSizeSparse->setText(locale.toString(size));
+    float numPoints = p->elementCount + p->elementQueueCount;
+    float capacity = p->capacity;
+
+    QChar suffixOcc;
+    while(numPoints > 1024) {
+        numPoints /= 1024;
+        suffixOcc = suffixOcc.isNull() ? 'k' : 'm';
+    }
+
+    QChar suffixCap;
+    while(capacity > 1024) {
+        capacity /= 1024;
+        suffixCap = suffixCap.isNull() ? 'k' : 'm';
+    }
+
+    ui->mLabelPointCloudSizeSparse->setText(QString("%1%2 / %3%4").arg(numPoints, 0, 'f', 1).arg(suffixOcc).arg(capacity, 0, 'f', 1).arg(suffixCap));
+    ui->mProgressBarCloudSparse->setRange(0, p->capacity);
+    ui->mProgressBarCloudSparse->setValue(p->elementCount + p->elementQueueCount);
 }

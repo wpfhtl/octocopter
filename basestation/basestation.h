@@ -8,6 +8,7 @@
 #include <QMainWindow>
 #include <QWidgetAction>
 
+#include "messagehandler.h"
 #include "glwindow.h"
 #include "audioplayer.h"
 #include "logplayer.h"
@@ -123,6 +124,7 @@ public:
     GlScene* getGlScene() {return mGlScene;}
 
 private:
+    MessageHandler* mMessageHandler;
     QMenu *mMenuWindowList, *mMenuFile, *mMenuView;
     QTimer* mTimerJoystick;
     WirelessDevice* mWirelessDevice;

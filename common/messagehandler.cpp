@@ -9,6 +9,9 @@ MessageHandler::MessageHandler(const QString& logFilePrefix)
 {
     qDebug() << "MessageHandler::installMessageHandler(): setting up console logging...";
 
+    // Make sure logging dir exists
+    if(!QDir::current().mkpath("log")) qFatal("MessageHandler::MessageHandler(): couldn't create log/ subdirectory, please do it for me!");
+
     mNumPunct = new comma_numpunct();
     mLocale = new std::locale(std::locale(), mNumPunct);
     mLogMessage = new QByteArray;

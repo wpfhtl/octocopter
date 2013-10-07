@@ -5,7 +5,7 @@
 
 TestPcdReduction::TestPcdReduction()
 {
-    mPointCloudCuda = new PointCloudCuda(Box3D(), 8*1024*1024, "TestCloud");
+    mPointCloudCuda = new PointCloudCuda(Box3D(QVector3D(-512, -512, -512), QVector3D(512, 512, 512)), 8*1024*1024, "TestCloud");
     mPointCloudCuda->setMinimumPointDistance(0.2f);
 
     QSurfaceFormat format;
@@ -41,18 +41,25 @@ void TestPcdReduction::doTest(const QString& fileIn, const QString& fileOut)
     mOpenGlContext->makeCurrent(mOffScreenSurface);
     CudaHelper::initializeCuda();
 
-    mPointCloudCuda->importFromFile(fileIn, nullptr);
-    qDebug() << __PRETTY_FUNCTION__ << "pointcloud contains" << mPointCloudCuda->getNumberOfPoints() << "points.";
-    mPointCloudCuda->slotReduce();
-    qDebug() << __PRETTY_FUNCTION__ << "pointcloud contains" << mPointCloudCuda->getNumberOfPoints() << "points.";
-    mPointCloudCuda->exportToFile(fileOut, nullptr);
+//    for(int i=0;i<10;i++) {
+        mPointCloudCuda->importFromFile(fileIn, nullptr);
+//        for(int j=0;j<5;j++) {
+//            qDebug() << __PRETTY_FUNCTION__ << "before" << j << "pointcloud" << i << "contains" << mPointCloudCuda->getNumberOfPointsStored() << "points.";
+            mPointCloudCuda->slotReduce();
+//            qDebug() << __PRETTY_FUNCTION__ << "after" << j << "pointcloud" << i << "contains" << mPointCloudCuda->getNumberOfPointsStored() << "points.";
+//            mPointCloudCuda->exportToFile(fileOut.arg(i).arg(j), nullptr);
+            mPointCloudCuda->exportToFile(fileOut.arg(0).arg(0), nullptr);
+//        }
+        mPointCloudCuda->slotReset();
+        usleep(100000);
+//    }
 }
 
 int main(int argc, char *argv[])
 {
     QGuiApplication a(argc, argv);
-    QString fileIn("../tests/cloud.ply");
-    QString fileOut("TestPcdReduction.ply");
+    QString fileIn("../tests/cloud2m.ply");
+    QString fileOut("TestPcdReduction-%1-%2.ply");
 
     const QStringList args = a.arguments();
     if(args.size() > 1)
@@ -61,6 +68,8 @@ int main(int argc, char *argv[])
         fileOut = args.at(args.size() - 1);
     }
 
-    TestPcdReduction t;
-    t.doTest(fileIn, fileOut);
+    TestPcdReduction test;
+    QTime time;time.start();
+    test.doTest(fileIn, fileOut);
+    qDebug() << "total test time in msec:" << time.elapsed();
 }

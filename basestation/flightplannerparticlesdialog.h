@@ -2,6 +2,7 @@
 #define FLIGHTPLANNERPARTICLESDIALOG_H
 
 #include <QDialog>
+#include "pointcloudcuda.h"
 #include "parametersparticlesystem.cuh"
 #include "ui_flightplannerparticlesdialog.h"
 
@@ -35,8 +36,8 @@ private slots:
 
 public slots:
     void slotSetInitialValues(const ParametersParticleSystem* const sp);
-    void slotSetPointCloudSizeDense(const quint32 size);
-    void slotSetPointCloudSizeSparse(const quint32 size);
+    void slotSetPointCloudParametersDense(const ParametersPointCloud* const p);
+    void slotSetPointCloudParametersSparse(const ParametersPointCloud* const p);
     void slotSetRenderParticles(const bool value) {ui->mChkBoxRenderParticles->setChecked(value);}
     void slotSetRenderInformationGain(const bool value) {ui->mChkBoxRenderInformationGain->setChecked(value);}
     void slotSetRenderOccupancyGrid(const bool value) {ui->mChkBoxRenderGridOccupancy->setChecked(value);}

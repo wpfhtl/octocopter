@@ -435,6 +435,7 @@ void GlScene::render()
         mShaderProgramPointCloud->setUniformValue("pointcloudPointAlpha", mPointCloudPointAlpha);
         mShaderProgramPointCloud->setUniformValue("pointcloudColorLow", mPointCloudColorLow);
         mShaderProgramPointCloud->setUniformValue("pointcloudColorHigh", mPointCloudColorHigh);
+        mShaderProgramPointCloud->setUniformValue("pointcloudPointSize", mPointCloudPointSize);
         for(int i=0;i<mPointCloudsToRender.size();i++)
         {
             QVector<PointCloud::RenderInfo*>* renderInfoList = mPointCloudsToRender.at(i)->getRenderInfo();
