@@ -124,6 +124,40 @@ public:
     GlScene* getGlScene() {return mGlScene;}
 
 private:
+    struct Actions
+    {
+        QAction
+        *actionReloadShaders,
+        *actionClearDenseCloud,
+        *actionClearTrajectory,
+        *actionClearPassedWayPoints,
+        *actionShowDenseCloud,
+        *actionShowSparseCloud,
+        *actionShowWayPointsAhead,
+        *actionShowWayPointsPassed,
+        *actionShowAxesBase,
+        *actionShowAxesVehicle,
+        *actionShowVehicle,
+        *actionShowBoundingBoxGlobal,
+        *actionShowBoundingBoxLocal,
+        *actionShowRawScan,
+        *actionShowTrajectory,
+        *actionShowSatelliteSignals;
+
+        MenuSlider
+        *menuSliderRotateView,
+        *menuSliderBackgroundBrightness,
+        *menuSliderParticleVisSize,
+        *menuSliderParticleOpacity,
+        *menuSliderDistanceThreshold,
+        *menuSliderPointSize,
+        *menuSliderPointAlpha,
+        *menuSliderColorLow,
+        *menuSliderColorHigh;
+    };
+
+    Actions mActions;
+
     MessageHandler* mMessageHandler;
     QMenu *mMenuWindowList, *mMenuFile, *mMenuView;
     QTimer* mTimerJoystick;
@@ -152,6 +186,7 @@ private:
     QMap<QString, CameraWidget*> mCameraWidgets;
 
     void closeEvent(QCloseEvent *event);
+    void keyPressEvent(QKeyEvent *event);
 
     OperatingMode mOperatingMode;
 

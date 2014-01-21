@@ -8,7 +8,7 @@
 class SensorFuser : public QObject
 {
     Q_OBJECT
-
+QMatrix4x4 matrixToRotateEverythingForFittingBBox;
 public:
     SensorFuser(const quint8& stridePoint = 1, const quint8& strideScan = 1);
     ~SensorFuser();

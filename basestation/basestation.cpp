@@ -101,143 +101,145 @@ BaseStation::BaseStation() : QMainWindow()
     mMenuFile->addAction("Save Log", mLogWidget, SLOT(save()));
 
     // Setup actions in menus
-    QAction* action;
+//    QAction* action;
 
-    action = new QAction("Reload Shaders", this);
-    mMenuView->addAction(action);
-    connect(action, &QAction::triggered, [=]() {mGlScene->reloadShaders(); mGlWindow->slotRenderLater();});
+    mActions.actionReloadShaders = new QAction("Reload Shaders", this);
+    mMenuView->addAction(mActions.actionReloadShaders);
+    connect(mActions.actionReloadShaders, &QAction::triggered, [=]() {mGlScene->reloadShaders(); mGlWindow->slotRenderLater();});
 
-    action = new QAction("Clear Dense Cloud", this);
-    mMenuView->addAction(action);
-    connect(action, &QAction::triggered, [=]() {mPointCloud->slotReset(); mGlWindow->slotRenderLater();});
+    mActions.actionClearDenseCloud = new QAction("Clear Dense Cloud", this);
+    mMenuView->addAction(mActions.actionClearDenseCloud);
+    connect(mActions.actionClearDenseCloud, &QAction::triggered, [=]() {mPointCloud->slotReset(); mGlWindow->slotRenderLater();});
 
-    mMenuView->insertSeparator(action);
+    mMenuView->insertSeparator(mActions.actionClearDenseCloud);
 
-    action = new QAction("Clear Trajectory", this);
-    mMenuView->addAction(action);
-    connect(action, &QAction::triggered, [=]() {mGlScene->slotClearVehicleTrajectory(); mGlWindow->slotRenderLater();});
+    mActions.actionClearTrajectory = new QAction("Clear Trajectory", this);
+    mMenuView->addAction(mActions.actionClearTrajectory);
+    connect(mActions.actionClearTrajectory, &QAction::triggered, [=]() {mGlScene->slotClearVehicleTrajectory(); mGlWindow->slotRenderLater();});
 
-    action = new QAction("Clear Passed Waypoints", this);
-    mMenuView->addAction(action);
-    connect(action, &QAction::triggered, [=]() {mFlightPlanner->slotClearWayPointsPassed(); mGlWindow->slotRenderLater();});
+    mActions.actionClearPassedWayPoints = new QAction("Clear Passed Waypoints", this);
+    mMenuView->addAction(mActions.actionClearPassedWayPoints);
+    connect(mActions.actionClearPassedWayPoints, &QAction::triggered, [=]() {mFlightPlanner->slotClearWayPointsPassed(); mGlWindow->slotRenderLater();});
 
-    action = new QAction("Show Dense Cloud", this);
-    mMenuView->addAction(action);
-    action->setCheckable(true);
-    action->setChecked(true);
-    connect(action, &QAction::triggered, [=](const bool &checked) {
+    mActions.actionShowDenseCloud = new QAction("Show Dense Cloud", this);
+    mMenuView->addAction(mActions.actionShowDenseCloud);
+    mActions.actionShowDenseCloud->setCheckable(true);
+    mActions.actionShowDenseCloud->setChecked(true);
+    connect(mActions.actionShowDenseCloud, &QAction::triggered, [=](const bool &checked) {
         if(checked) mGlScene->slotPointCloudRegister(mPointCloud);
         else mGlScene->slotPointCloudUnregister(mPointCloud);
         mGlWindow->slotRenderLater();
     });
 
-    mMenuView->insertSeparator(action);
+    mMenuView->insertSeparator(mActions.actionShowDenseCloud);
 
-    action = new QAction("Show Sparse Cloud", this);
-    mMenuView->addAction(action);
-    action->setCheckable(true);
-    action->setChecked(true);
-    connect(action, &QAction::triggered, [=](const bool &checked) {
+    mActions.actionShowSparseCloud = new QAction("Show Sparse Cloud", this);
+    mMenuView->addAction(mActions.actionShowSparseCloud);
+    mActions.actionShowSparseCloud->setCheckable(true);
+    mActions.actionShowSparseCloud->setChecked(true);
+    connect(mActions.actionShowSparseCloud, &QAction::triggered, [=](const bool &checked) {
         if(checked) mGlScene->slotPointCloudRegister(mFlightPlanner->getPointCloudColliders());
         else mGlScene->slotPointCloudUnregister(mFlightPlanner->getPointCloudColliders());
         mGlWindow->slotRenderLater();
     });
 
-    action = new QAction("Show WayPoints Ahead", this);
-    mMenuView->addAction(action);
-    action->setCheckable(true);
-    action->setChecked(true);
-    connect(action, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderWayPointsAhead = checked; mGlWindow->slotRenderLater();});
+    mActions.actionShowWayPointsAhead = new QAction("Show WayPoints Ahead", this);
+    mMenuView->addAction(mActions.actionShowWayPointsAhead);
+    mActions.actionShowWayPointsAhead->setCheckable(true);
+    mActions.actionShowWayPointsAhead->setChecked(true);
+    connect(mActions.actionShowWayPointsAhead, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderWayPointsAhead = checked; mGlWindow->slotRenderLater();});
 
-    action = new QAction("Show WayPoints Passed", this);
-    mMenuView->addAction(action);
-    action->setCheckable(true);
-    action->setChecked(true);
-    connect(action, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderWayPointsPassed = checked; mGlWindow->slotRenderLater();});
+    mActions.actionShowWayPointsPassed = new QAction("Show WayPoints Passed", this);
+    mMenuView->addAction(mActions.actionShowWayPointsPassed);
+    mActions.actionShowWayPointsPassed->setCheckable(true);
+    mActions.actionShowWayPointsPassed->setChecked(true);
+    connect(mActions.actionShowWayPointsPassed, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderWayPointsPassed = checked; mGlWindow->slotRenderLater();});
 
-    action = new QAction("Show Axes Base", this);
-    mMenuView->addAction(action);
-    action->setCheckable(true);
-    action->setChecked(true);
-    connect(action, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderAxisBase = checked; mGlWindow->slotRenderLater();});
+    mActions.actionShowAxesBase = new QAction("Show Axes Base", this);
+    mMenuView->addAction(mActions.actionShowAxesBase);
+    mActions.actionShowAxesBase->setCheckable(true);
+    mActions.actionShowAxesBase->setChecked(true);
+    connect(mActions.actionShowAxesBase, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderAxisBase = checked; mGlWindow->slotRenderLater();});
 
-    action = new QAction("Show Axes Vehicle", this);
-    mMenuView->addAction(action);
-    action->setCheckable(true);
-    action->setChecked(true);
-    connect(action, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderAxisVehicle = checked; mGlWindow->slotRenderLater();});
+    mActions.actionShowAxesVehicle = new QAction("Show Axes Vehicle", this);
+    mMenuView->addAction(mActions.actionShowAxesVehicle);
+    mActions.actionShowAxesVehicle->setCheckable(true);
+    mActions.actionShowAxesVehicle->setChecked(true);
+    connect(mActions.actionShowAxesVehicle, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderAxisVehicle = checked; mGlWindow->slotRenderLater();});
 
-    action = new QAction("Show Vehicle", this);
-    mMenuView->addAction(action);
-    action->setCheckable(true);
-    action->setChecked(true);
-    connect(action, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderVehicle = checked; mGlWindow->slotRenderLater();});
+    mActions.actionShowVehicle = new QAction("Show Vehicle", this);
+    mMenuView->addAction(mActions.actionShowVehicle);
+    mActions.actionShowVehicle->setCheckable(true);
+    mActions.actionShowVehicle->setChecked(true);
+    connect(mActions.actionShowVehicle, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderVehicle = checked; mGlWindow->slotRenderLater();});
 
-    action = new QAction("Show Global BBox", this);
-    mMenuView->addAction(action);
-    action->setCheckable(true);
-    action->setChecked(true);
-    connect(action, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderBoundingBoxGlobal = checked; mGlWindow->slotRenderLater();});
+    mActions.actionShowBoundingBoxGlobal = new QAction("Show Global BBox", this);
+    mMenuView->addAction(mActions.actionShowBoundingBoxGlobal);
+    mActions.actionShowBoundingBoxGlobal->setCheckable(true);
+    mActions.actionShowBoundingBoxGlobal->setChecked(true);
+    connect(mActions.actionShowBoundingBoxGlobal, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderBoundingBoxGlobal = checked; mGlWindow->slotRenderLater();});
 
-    action = new QAction("Show Local BBox", this);
-    mMenuView->addAction(action);
-    action->setCheckable(true);
-    action->setChecked(true);
-    connect(action, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderBoundingBoxLocal = checked; mGlWindow->slotRenderLater();});
+    mActions.actionShowBoundingBoxLocal = new QAction("Show Local BBox", this);
+    mMenuView->addAction(mActions.actionShowBoundingBoxLocal);
+    mActions.actionShowBoundingBoxLocal->setCheckable(true);
+    mActions.actionShowBoundingBoxLocal->setChecked(true);
+    connect(mActions.actionShowBoundingBoxLocal, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderBoundingBoxLocal = checked; mGlWindow->slotRenderLater();});
 
-    action = new QAction("Show Raw Scan", this);
-    mMenuView->addAction(action);
-    action->setCheckable(true);
-    action->setChecked(true);
-    connect(action, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderRawScanRays = checked; mGlWindow->slotRenderLater();});
+    mActions.actionShowRawScan = new QAction("Show Raw Scan", this);
+    mMenuView->addAction(mActions.actionShowRawScan);
+    mActions.actionShowRawScan->setCheckable(true);
+    mActions.actionShowRawScan->setChecked(true);
+    connect(mActions.actionShowRawScan, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderRawScanRays = checked; mGlWindow->slotRenderLater();});
 
-    action = new QAction("Show Trajectory", this);
-    mMenuView->addAction(action);
-    action->setCheckable(true);
-    action->setChecked(true);
-    connect(action, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderTrajectory = checked; mGlWindow->slotRenderLater();});
+    mActions.actionShowTrajectory = new QAction("Show Trajectory", this);
+    mMenuView->addAction(mActions.actionShowTrajectory);
+    mActions.actionShowTrajectory->setCheckable(true);
+    mActions.actionShowTrajectory->setChecked(true);
+    connect(mActions.actionShowTrajectory, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderTrajectory = checked; mGlWindow->slotRenderLater();});
 
-    action = new QAction("Show Satellite Signals", this);
-    mMenuView->addAction(action);
-    action->setCheckable(true);
-    action->setChecked(false);
-    connect(action, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderSatelliteSignals = checked; mGlWindow->slotRenderLater();});
+    mActions.actionShowSatelliteSignals = new QAction("Show Satellite Signals", this);
+    mMenuView->addAction(mActions.actionShowSatelliteSignals);
+    mActions.actionShowSatelliteSignals->setCheckable(true);
+    mActions.actionShowSatelliteSignals->setChecked(false);
+    connect(mActions.actionShowSatelliteSignals, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderSatelliteSignals = checked; mGlWindow->slotRenderLater();});
 
-    MenuSlider* menuSlider;
+    mActions.menuSliderRotateView = new MenuSlider("Rotate View", -1.0, 0.0, 1.0, this, 0.1f);
+    connect(mActions.menuSliderRotateView, &MenuSlider::value, [=](const float &value) {mGlWindow->slotSetCameraRotation(-value);});
+    mMenuView->addAction(mActions.menuSliderRotateView);
 
-    menuSlider = new MenuSlider("Rotate View", -1.0, 0.0, 1.0, this, 0.1f);
-    connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlWindow->slotSetCameraRotation(-value);});
-    mMenuView->addAction(menuSlider);
+    mMenuView->insertSeparator(mActions.menuSliderRotateView);
 
-    mMenuView->insertSeparator(menuSlider);
+    mActions.menuSliderBackgroundBrightness = new MenuSlider("BG Brightness", 0, 0.2, 1.0, this);
+    connect(mActions.menuSliderBackgroundBrightness, &MenuSlider::value, [=](const float &value) {mGlWindow->mBackgroundBrightness = value; mGlWindow->slotRenderLater();});
+    mMenuView->addAction(mActions.menuSliderBackgroundBrightness);
 
-    menuSlider = new MenuSlider("BG Brightness", 0, 0.2, 1.0, this);
-    connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlWindow->mBackgroundBrightness = value; mGlWindow->slotRenderLater();});
-    mMenuView->addAction(menuSlider);
+    mActions.menuSliderParticleVisSize = new MenuSlider("Particle VisSize", 0, 0.5, 2.0, this);
+    connect(mActions.menuSliderParticleVisSize, &MenuSlider::value, [=](const float &value) {mGlScene->mParticleRadius = value; mGlWindow->slotRenderLater();});
+    mMenuView->addAction(mActions.menuSliderParticleVisSize);
 
-    menuSlider = new MenuSlider("Particle VisSize", 0, 0.5, 2.0, this);
-    connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlScene->mParticleRadius = value; mGlWindow->slotRenderLater();});
-    mMenuView->addAction(menuSlider);
+    mActions.menuSliderParticleOpacity = new MenuSlider("Particle Opacity", 0, 1.0, 1.0, this);
+    connect(mActions.menuSliderParticleOpacity, &MenuSlider::value, [=](const float &value) {mGlScene->mParticleOpacity = value; mGlWindow->slotRenderLater();});
+    mMenuView->addAction(mActions.menuSliderParticleOpacity);
 
-    menuSlider = new MenuSlider("Distance Threshold", 0, 30, 30, this);
-    connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlScene->mMaxPointVisualizationDistance = value; mGlWindow->slotRenderLater();});
-    mMenuView->addAction(menuSlider);
+    mActions.menuSliderDistanceThreshold = new MenuSlider("Distance Threshold", 0, 30, 30, this);
+    connect(mActions.menuSliderDistanceThreshold, &MenuSlider::value, [=](const float &value) {mGlScene->mMaxPointVisualizationDistance = value; mGlWindow->slotRenderLater(); qDebug() << value;});
+    mMenuView->addAction(mActions.menuSliderDistanceThreshold);
 
-    menuSlider = new MenuSlider("Point Size", 0.1f, 1.0f, 10.0f, this);
-    connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlScene->mPointCloudPointSize = value; mGlWindow->slotRenderLater();});
-    mMenuView->addAction(menuSlider);
+    mActions.menuSliderPointSize = new MenuSlider("Point Size", 0.1f, 1.0f, 10.0f, this);
+    connect(mActions.menuSliderPointSize, &MenuSlider::value, [=](const float &value) {mGlScene->mPointCloudPointSize = value; mGlWindow->slotRenderLater();});
+    mMenuView->addAction(mActions.menuSliderPointSize);
 
-    menuSlider = new MenuSlider("Point Alpha", 0.01f, 0.3f, 1.0f, this);
-    connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlScene->mPointCloudPointAlpha = value; mGlWindow->slotRenderLater();});
-    mMenuView->addAction(menuSlider);
+    mActions.menuSliderPointAlpha = new MenuSlider("Point Alpha", 0.01f, 0.3f, 1.0f, this);
+    connect(mActions.menuSliderPointAlpha, &MenuSlider::value, [=](const float &value) {mGlScene->mPointCloudPointAlpha = value; mGlWindow->slotRenderLater();});
+    mMenuView->addAction(mActions.menuSliderPointAlpha);
 
-    menuSlider = new MenuSlider("Color Low", -5.0f, 0.0f, 20.0f, this);
-    connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlScene->mPointCloudColorLow = value; mGlWindow->slotRenderLater();});
-    mMenuView->addAction(menuSlider);
+    mActions.menuSliderColorLow = new MenuSlider("Color Low", -5.0f, -2.0f, 20.0f, this);
+    connect(mActions.menuSliderColorLow, &MenuSlider::value, [=](const float &value) {mGlScene->mPointCloudColorLow = value; mGlWindow->slotRenderLater();qDebug() << value;});
+    mMenuView->addAction(mActions.menuSliderColorLow);
 
-    menuSlider = new MenuSlider("Color High", -5.0f, 10.0f, 20.0f, this);
-    connect(menuSlider, &MenuSlider::value, [=](const float &value) {mGlScene->mPointCloudColorHigh = value; mGlWindow->slotRenderLater();});
-    mMenuView->addAction(menuSlider);
+    mActions.menuSliderColorHigh = new MenuSlider("Color High", -5.0f, 10.0f, 20.0f, this);
+    connect(mActions.menuSliderColorHigh, &MenuSlider::value, [=](const float &value) {mGlScene->mPointCloudColorHigh = value; mGlWindow->slotRenderLater();});
+    mMenuView->addAction(mActions.menuSliderColorHigh);
 
     mActionEnableAudio = new QAction("Speech", this);
     mActionEnableAudio->setCheckable(true);
@@ -363,6 +365,11 @@ BaseStation::~BaseStation()
     delete mGlScene;
     delete mAudioPlayer;
     delete mPointCloud;
+}
+
+void BaseStation::keyPressEvent(QKeyEvent * event)
+{
+
 }
 
 void BaseStation::closeEvent(QCloseEvent *event)

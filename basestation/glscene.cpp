@@ -58,7 +58,7 @@ GlScene::GlScene() :
     mMaxPointVisualizationDistance = 1000.0f;
     mPointCloudPointSize = 1.0;
     mPointCloudPointAlpha = 1.0;
-    mPointCloudColorLow = 0.0f;
+    mPointCloudColorLow = -2.0f;
     mPointCloudColorHigh = 10.0f;
 
     // Put camera to a good starting position
@@ -795,7 +795,7 @@ void GlScene::render()
 
         mShaderProgramGrid->setUniformValue("fixedColor", QColor(255,0,0));
         // If we have a value of (quint8)1, that'll be 1/255=0.004 in the shader's float. Amplify this?
-        mShaderProgramGrid->setUniformValue("alphaMultiplication", 10.0f);
+        mShaderProgramGrid->setUniformValue("alphaMultiplication", 2.0f);
         mShaderProgramGrid->setUniformValue("alphaExponentiation", 1.0f);
         mShaderProgramGrid->setUniformValue("quadSizeFactor", 1.0f);
 
@@ -811,11 +811,13 @@ void GlScene::render()
         //mShaderProgramGrid->setUniformValue("gridCellCount", mGridCells);
         glUniform3i(mShaderProgramGrid->uniformLocation("gridCellCount"), mGridInformationGainCellCount.x, mGridInformationGainCellCount.y, mGridInformationGainCellCount.z);
 
+        glEnable(GL_BLEND);
         mVaoGridMapOfInformationGain->bind();
         glBindBuffer(GL_ARRAY_BUFFER, mVboGridMapOfInformationGain);
         glDrawArrays(GL_POINTS, 0, mGridInformationGainCellCount.x * mGridInformationGainCellCount.y * mGridInformationGainCellCount.z);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         mVaoGridMapOfInformationGain->release();
+        glDisable(GL_BLEND);
 
         mShaderProgramGrid->release();
     }
@@ -957,8 +959,6 @@ void GlScene::render()
         }
     }
     glDisable(GL_BLEND);
-
-    mVaoAxes->release();
 }
 
 void GlScene::renderController(const QMatrix4x4& transform, const PidController* const controller)

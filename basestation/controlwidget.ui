@@ -1288,7 +1288,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>-6.000000000000000</double>
+            <double>-10.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1307,7 +1307,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>-50.000000000000000</double>
+            <double>-30.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1352,7 +1352,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>26.000000000000000</double>
+            <double>22.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1371,7 +1371,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>14.000000000000000</double>
+            <double>34.000000000000000</double>
            </property>
           </widget>
          </item>

@@ -4,6 +4,7 @@
 
 SensorFuser::SensorFuser(const quint8& stridePoint, const quint8& strideScan) : QObject()
 {
+    matrixToRotateEverythingForFittingBBox.rotate(45, 0, 1, 0);
     mStridePoint = stridePoint;
     mStrideScan = strideScan; // TODO: implement
 
@@ -109,7 +110,10 @@ void SensorFuser::fuseRayWithLastInterpolatedPose(const qint16 index, const floa
                 0.0f,                                                       // Y always 0
                 -cos(0.0043633231299858238686f * (index - 540)) * distance);// Z in meters
 
-    const QVector3D p = mLastInterpolatedPose * vectorScannerToPoint;
+
+
+
+    const QVector3D p = matrixToRotateEverythingForFittingBBox * mLastInterpolatedPose.getMatrixRef() * vectorScannerToPoint;
 
     mRegisteredPoints[mNumberOfPointsFusedInThisScan * 4 + 0] = p.x();
     mRegisteredPoints[mNumberOfPointsFusedInThisScan * 4 + 1] = p.y();
