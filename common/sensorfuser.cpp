@@ -4,7 +4,6 @@
 
 SensorFuser::SensorFuser(const quint8& stridePoint, const quint8& strideScan) : QObject()
 {
-    matrixToRotateEverythingForFittingBBox.rotate(45, 0, 1, 0);
     mStridePoint = stridePoint;
     mStrideScan = strideScan; // TODO: implement
 
@@ -113,7 +112,7 @@ void SensorFuser::fuseRayWithLastInterpolatedPose(const qint16 index, const floa
 
 
 
-    const QVector3D p = matrixToRotateEverythingForFittingBBox * mLastInterpolatedPose.getMatrixRef() * vectorScannerToPoint;
+    const QVector3D p = mLastInterpolatedPose.getMatrixRef() * vectorScannerToPoint;
 
     mRegisteredPoints[mNumberOfPointsFusedInThisScan * 4 + 0] = p.x();
     mRegisteredPoints[mNumberOfPointsFusedInThisScan * 4 + 1] = p.y();
@@ -185,7 +184,7 @@ void SensorFuser::fuseScans()
                 break;
             }
         }
-        
+
         //qDebug() << __PRETTY_FUNCTION__ << "best fit pose index" << bestFitPoseIndex << "timediff" << bestFitPoseTimeDifference;
 
         // If no pose was found, try the next scan.

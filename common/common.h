@@ -15,6 +15,9 @@
 // So I can do qDebug() << "string is" << Q(myStringObject) << "."; without having quotes around the string-value inthe output
 #define Q(string) (string).toStdString().c_str()
 
+inline double deg2rad(const double in) {return (in * M_PI) / 180.0;}
+inline double rad2deg(const double in) {return (in * 180) / M_PI;}
+
 template <typename T>
 T swap_endian(T u)
 {
@@ -111,12 +114,13 @@ quint32 nextHigherPowerOfTwo(quint32 v)
     return v + 1;
 }*/
 
-struct Vector3i
+template <typename T>
+struct Vector3
 {
-    qint16 x,y,z;
+    T x,y,z;
 
-    Vector3i() {x = y = z = 0;}
-    Vector3i(qint16 x, qint16 y, qint16 z)
+    Vector3() {x = y = z = 0;}
+    Vector3(T x, T y, T z)
     {
         this->x = x;
         this->y = y;
@@ -125,6 +129,10 @@ struct Vector3i
 };
 
 // for using qDebug()
-QDebug operator<<(QDebug dbg, const Vector3i &v);
+template <typename T> QDebug operator<<(QDebug dbg, const Vector3<T> &v)
+{
+    dbg.nospace() << "Vector3<T>(" << v.x << "/" << v.y << "/" << v.z << ")";
+    return dbg;
+}
 
 #endif // COMMON_H

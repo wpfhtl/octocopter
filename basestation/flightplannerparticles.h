@@ -134,12 +134,12 @@ signals:
 
     void processingState(GlScene::FlightPlannerProcessingState);
 
-    void vboInfoGridInformationGain(quint32 vboPressure, Box3D gridBoundingBox, Vector3i grid);
+    void vboInfoGridInformationGain(quint32 vboPressure, Box3D gridBoundingBox, Vector3<quint16> grid);
     void vboInfoParticles(quint32 vboPositions, quint32 particleCount, float particleRadius, Box3D particleSystemBoundingBox);
 
     // Forwarded from PathPlanner
-    void vboInfoGridOccupancy(quint32 vboPressure, Box3D gridBoundingBox, Vector3i grid);
-    void vboInfoGridPathPlanner(quint32 vboPressure, Box3D gridBoundingBox, Vector3i grid);
+    void vboInfoGridOccupancy(quint32 vboPressure, Box3D gridBoundingBox, Vector3<quint16> grid);
+    void vboInfoGridPathPlanner(quint32 vboPressure, Box3D gridBoundingBox, Vector3<quint16> grid);
 
     void renderParticles(bool);
     void renderInformationGain(bool);

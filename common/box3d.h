@@ -14,7 +14,7 @@ struct Box3D
     // Required for shifting a smaller box in a larger box.
     Box3D *mBoundingBox;
     QVector<bool>* mVisitorGrid;
-    Vector3i mTravelDirection;
+//    Vector3i mTravelDirection;
 
     Box3D();
     Box3D(const QVector3D& minBox, const QVector3D& maxBox);

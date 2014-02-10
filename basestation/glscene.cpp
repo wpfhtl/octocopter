@@ -367,7 +367,7 @@ void GlScene::slotSetVboInfoParticles(const quint32 vboPositions, const quint32 
     qDebug() << "GlScene::slotSetVboInfoParticles(): will render VBO pos" << mVboParticlePositions << "containing" << mNumberOfParticles << "particles";
 }
 
-void GlScene::slotSetVboInfoGridInformationGain(const quint32 vboPressure, const Box3D& gridBoundingBox, const Vector3i &gridCells)
+void GlScene::slotSetVboInfoGridInformationGain(const quint32 vboPressure, const Box3D& gridBoundingBox, const Vector3<quint16> &gridCells)
 {
     mVboGridMapOfInformationGain = vboPressure;
     mBoundingBoxGridInformationGain = gridBoundingBox;
@@ -383,7 +383,7 @@ void GlScene::slotSetVboInfoGridInformationGain(const quint32 vboPressure, const
     qDebug() << "GlScene::slotSetVboInfoGridInformationGain(): will render VBO pos" << mVboGridMapOfInformationGain << "with" << gridCells << "cells using bbox" << gridBoundingBox;
 }
 
-void GlScene::slotSetVboInfoGridOccupancy(const quint32 vbo, const Box3D& gridBoundingBox, const Vector3i &gridCells)
+void GlScene::slotSetVboInfoGridOccupancy(const quint32 vbo, const Box3D& gridBoundingBox, const Vector3<quint16> &gridCells)
 {
     mVboGridMapOfOccupancy = vbo;
     mBoundingBoxGridOccupancy = gridBoundingBox;
@@ -399,7 +399,7 @@ void GlScene::slotSetVboInfoGridOccupancy(const quint32 vbo, const Box3D& gridBo
     qDebug() << "GlScene::slotSetVboInfoGridOccupancyGain(): will render VBO pos" << mVboGridMapOfOccupancy << "with" << gridCells << "cells using bbox" << gridBoundingBox;
 }
 
-void GlScene::slotSetVboInfoGridPathPlanner(const quint32 vbo, const Box3D& gridBoundingBox, const Vector3i &gridCells)
+void GlScene::slotSetVboInfoGridPathPlanner(const quint32 vbo, const Box3D& gridBoundingBox, const Vector3<quint16> &gridCells)
 {
     mVboGridMapOfPathPlanner = vbo;
     mBoundingBoxGridPathFinder = gridBoundingBox;

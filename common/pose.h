@@ -9,9 +9,9 @@
 #include <QStringList>
 #include <QDebug>
 
-#ifdef COMPILED_WITH_BULLET
-  #include <bullet/btBulletDynamicsCommon.h>
-#endif
+#include <common.h>
+#include <limits>
+
 
 #include <gnsstime.h>
 #include <common.h>
@@ -48,6 +48,7 @@
 
 class Pose
 {
+
 private:
     QMatrix4x4 mTransform;
     QVector3D mVelocity; // m/s
@@ -55,7 +56,6 @@ private:
 public:
     Pose(const QVector3D &position, const float &yawDegrees, const float &pitchDegrees, const float &rollDegrees, const qint32& timestamp = 0);
     Pose(const QMatrix4x4& matrix, const qint32& timestamp = 0);
-    Pose(const QString& poseString);
     explicit Pose(const Pose* const p);
     Pose();
 
@@ -128,10 +128,13 @@ public:
     void getEulerAnglesRadians(float& yaw, float &pitch, float &roll) const;
     void getEulerAnglesDegrees(float& yaw, float &pitch, float &roll) const;
 
-    Pose operator*(const Pose &p) const
+/*    Pose operator*(const Pose &p) const
     {
         const QMatrix4x4 newTransform = mTransform * p.getMatrixConst();
         Pose r(newTransform, std::max(timestamp, p.timestamp));
+
+        r.position = position;
+
 
         // just for testing, remove in the future!
         r.rotation = rotation;
@@ -141,21 +144,15 @@ public:
         r.precision = precision;
 
         return r;
-    }
+    }*/
 
-    void transform(const QMatrix4x4* const m)
-    {
-        mTransform = mTransform * *m;
-    }
+    void transform(const QMatrix4x4* const m) { mTransform = mTransform * *m; }
 
     static void rotationToAngleAxis(const QQuaternion &q, float& angleDegrees, QVector3D& axis);
 
     static QQuaternion inverse(const QQuaternion& q);
 
-    QVector3D operator*(const QVector3D &v) const
-    {
-        return mTransform.map(v);
-    }
+    QVector3D operator*(const QVector3D &v) const { return mTransform.map(v); }
 
     // a.k.a. squad
     static QQuaternion interpolateCubic(const QQuaternion& rkP, const QQuaternion& rkA, const QQuaternion& rkB, const QQuaternion& rkQ, const float mu)
@@ -200,16 +197,6 @@ public:
     float getYawDegrees() const {return RAD2DEG(getYawRadians());}
     float getPitchDegrees() const {return RAD2DEG(getPitchRadians());}
     float getRollDegrees() const {return RAD2DEG(getRollRadians());}
-
-#ifdef BASESTATION
-    btTransform getTransform() const
-    {
-        float yaw, pitch, roll;
-        getEulerAnglesRadians(yaw, pitch, roll);
-        const QVector3D position = getPosition();
-        return btTransform(btQuaternion(yaw, pitch, roll), btVector3(position.x(), position.y(), position.z()));
-    }
-#endif
 };
 
 // for using qDebug()

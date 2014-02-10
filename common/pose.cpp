@@ -184,6 +184,8 @@
         return (Eul_FromHMatrix(M, order));
     }
 
+
+
 Pose::Pose()
 {
     mTransform.setToIdentity();
@@ -527,7 +529,7 @@ float Pose::getAngleBetweenDegrees(const Pose &p1, const Pose &p2)
 
 QDebug operator<<(QDebug dbg, const Pose &pose)
 {
-    dbg.nospace() << pose.toString();
+    dbg.nospace() << pose.toString(false);
 
     return dbg.space();
 }
@@ -595,81 +597,6 @@ bool Pose::isSufficientlyPreciseForSensorFusion() const
         return true;
     else
         return false;
-}
-
-
-// Must be able to process what operator<< writes above, for example:
-// pose t501171350 (-30.49/51.84/140.01) YPR (155.27/2.92/-1.03) VEL (0.12/-0.01/0.47) PR 17 CO 2.34
-Pose::Pose(const QString& poseString)
-{
-    Q_ASSERT("who the hell is using this?");
-
-    QStringList tokens = poseString.split(' ');
-    if(tokens.size() != 11) qDebug() << "Pose::Pose(QString): unexpected token stringlist size, expecting 11!";
-    bool success = false;
-
-    // set time
-    const qint32 timestamp = tokens.value(1).remove(0, 1).toInt(&success, 10);
-    Q_ASSERT(success && "Pose::Pose(QString): couldn't convert time to int.");
-    this->timestamp = timestamp;
-
-    mTransform.setToIdentity();
-
-    // set positions
-    QVector3D position;
-    QString positionString = tokens.value(2).remove(0, 1);
-    positionString.chop(1);
-    const QStringList positions = positionString.split('/');
-    position.setX(positions.at(0).toFloat(&success));
-    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert X to float.";
-    position.setY(positions.at(1).toFloat(&success));
-    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert Y to float.";
-    position.setZ(positions.at(2).toFloat(&success));
-    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert Z to float.";
-
-    mTransform.translate(position);
-
-    // set orientations
-    float yaw, pitch, roll;
-    QString orientationString = tokens.value(4).remove(0, 1);
-    orientationString.chop(1);
-    const QStringList orientations = orientationString.split('/');
-    yaw = orientations.at(0).toFloat(&success);
-    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert yaw to float.";
-    pitch = orientations.at(1).toFloat(&success);
-    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert pitch to float.";
-    roll = orientations.at(2).toFloat(&success);
-    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert roll to float.";
-
-    mTransform.rotate(yaw, QVector3D(0,1,0));
-    mTransform.rotate(pitch, QVector3D(1,0,0));
-    mTransform.rotate(roll, QVector3D(0,0,1));
-
-    // set velocities
-    float vx, vy, vz;
-    QString velocityString = tokens.value(6).remove(0, 1);
-    velocityString.chop(1);
-    const QStringList velocities = velocityString.split('/');
-    vx = velocities.at(0).toFloat(&success);
-    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert vx to float.";
-    vy = velocities.at(1).toFloat(&success);
-    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert vy to float.";
-    vz = velocities.at(2).toFloat(&success);
-    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert vz to float.";
-    setVelocity(QVector3D(vx, vy, vz));
-
-    // set precision and covariances
-    precision = tokens.value(8).toInt(&success);
-    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert precision to int.";
-
-    covariances = tokens.value(10).toFloat(&success);
-    if(!success) qDebug() << "Pose::Pose(QString): couldn't convert covariances to float.";
-
-    if(poseString != toString())
-        qDebug() << "Pose::Pose(QString): parsing failed: original:" << poseString << "reconstructed" << toString();
-
-    acceleration = 0.0f;
-    rotation = 0.0f;
 }
 
 QDataStream& operator<<(QDataStream &out, const Pose &pose)

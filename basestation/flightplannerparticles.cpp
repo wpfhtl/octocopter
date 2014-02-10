@@ -69,7 +69,7 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
 }
 
 void FlightPlannerParticles::slotInitialize()
-{    
+{
     if(!CudaHelper::isDeviceSupported)
     {
         qDebug() << __PRETTY_FUNCTION__ << "device not supported, not initializing...";
@@ -94,8 +94,8 @@ void FlightPlannerParticles::slotInitialize()
     connect(mPathPlanner, &PathPlanner::path, this, &FlightPlannerParticles::slotSetWayPoints);
     connect(mPathPlanner, &PathPlanner::generateNewWayPoints, this, &FlightPlannerParticles::slotStartWayPointGeneration);
     connect(mPathPlanner, SIGNAL(message(LogImportance,QString,QString)), this, SIGNAL(message(LogImportance,QString,QString)));
-    connect(mPathPlanner, SIGNAL(vboInfoGridOccupancy(quint32,Box3D,Vector3i)), SIGNAL(vboInfoGridOccupancy(quint32,Box3D,Vector3i)));
-    connect(mPathPlanner, SIGNAL(vboInfoGridPathPlanner(quint32,Box3D,Vector3i)), SIGNAL(vboInfoGridPathPlanner(quint32,Box3D,Vector3i)));
+    connect(mPathPlanner, SIGNAL(vboInfoGridOccupancy(quint32,Box3D,Vector3<quint16>)), SIGNAL(vboInfoGridOccupancy(quint32,Box3D,Vector3<quint16>)));
+    connect(mPathPlanner, SIGNAL(vboInfoGridPathPlanner(quint32,Box3D,Vector3<quint16>)), SIGNAL(vboInfoGridPathPlanner(quint32,Box3D,Vector3<quint16>)));
     mPathPlanner->initialize();
 
     const quint32 numberOfCellsInGridInformationGain = mSimulationParameters.gridInformationGain.getCellCount();
@@ -124,7 +124,7 @@ void FlightPlannerParticles::slotInitialize()
                     CudaHelper::convert(mSimulationParameters.gridInformationGain.worldMin),
                     CudaHelper::convert(mSimulationParameters.gridInformationGain.worldMax)
                     ),
-                Vector3i(mSimulationParameters.gridInformationGain.cells.x, mSimulationParameters.gridInformationGain.cells.y, mSimulationParameters.gridInformationGain.cells.z)
+                Vector3<quint16>(mSimulationParameters.gridInformationGain.cells.x, mSimulationParameters.gridInformationGain.cells.y, mSimulationParameters.gridInformationGain.cells.z)
                 );
 
     connect(mDialog, SIGNAL(resetParticles()), mParticleSystem, SLOT(slotResetParticles()));
@@ -384,7 +384,7 @@ void FlightPlannerParticles::slotSetVolumeLocal(const Box3D volume)
                         CudaHelper::convert(mSimulationParameters.gridInformationGain.worldMin),
                         CudaHelper::convert(mSimulationParameters.gridInformationGain.worldMax)
                         ),
-                    Vector3i(mSimulationParameters.gridInformationGain.cells.x, mSimulationParameters.gridInformationGain.cells.y, mSimulationParameters.gridInformationGain.cells.z)
+                    Vector3<quint16>(mSimulationParameters.gridInformationGain.cells.x, mSimulationParameters.gridInformationGain.cells.y, mSimulationParameters.gridInformationGain.cells.z)
                     );
     }
 }

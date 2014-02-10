@@ -12,12 +12,6 @@ bool testBitEqual(quint16 number1, quint16 number2, quint8 bit)
     return (number1 & mask) == (number2 & mask);
 }
 
-QDebug operator<<(QDebug dbg, const Vector3i &v)
-{
-    dbg.nospace() << "Vector3i(" << v.x << "/" << v.y << "/" << v.z << ")";
-    return dbg;
-}
-
 QDebug operator<<(QDebug dbg, const GnssConstellation &c)
 {
     if(c == GnssConstellation::ConstellationGps) dbg << "GPS";

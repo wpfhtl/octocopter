@@ -51,8 +51,8 @@ public:
 
 signals:
     // To allow others to render our occupancy grid.
-    void vboInfoGridOccupancy(quint32 vboPressure, Box3D gridBoundingBox, Vector3i grid);
-    void vboInfoGridPathPlanner(quint32 vboPressure, Box3D gridBoundingBox, Vector3i grid);
+    void vboInfoGridOccupancy(quint32 vboPressure, Box3D gridBoundingBox, Vector3<quint16> grid);
+    void vboInfoGridPathPlanner(quint32 vboPressure, Box3D gridBoundingBox, Vector3<quint16> grid);
 
     // This is ALWAYS emitted after a call to slotRequestPath(). If the list is empty, no path was found.
     // If it is not empty, the first and last elements MUST be start and goal, respectively.

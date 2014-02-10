@@ -93,6 +93,12 @@ set(RESOURCE_FILES
 
 execute_process(COMMAND glxinfo COMMAND grep "OpenGL version string" COMMAND cut -d " " -f 4 COMMAND cut -d "." -f 1 OUTPUT_VARIABLE openglversion_major OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND glxinfo COMMAND grep "OpenGL version string" COMMAND cut -d " " -f 4 COMMAND cut -d "." -f 2 OUTPUT_VARIABLE openglversion_minor OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+if(openglversion_minor GREATER 3 AND openglversion_minor EQUAL 4)
+  message(STATUS "Using OpenGl version \"${openglversion_major}.${openglversion_minor}\" is not supported, using \"${openglversion_major}.3\"")
+  set(openglversion_minor "3")
+endif()
+
 message(STATUS "Using OpenGl version \"${openglversion_major}.${openglversion_minor}\" and class \"QOpenGLFunctions_${openglversion_major}_${openglversion_minor}_Core\"")
 add_definitions(-DOPENGL_FUNCTIONS_CLASS=QOpenGLFunctions_${openglversion_major}_${openglversion_minor}_Core -DOPENGL_VERSION_MAJOR=${openglversion_major} -DOPENGL_VERSION_MINOR=${openglversion_minor})
 

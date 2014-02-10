@@ -99,9 +99,9 @@ public slots:
     void slotSetActiveWayPoint(qint32 index) {mActiveWayPointVisualizationIndex = index; suggestVisualization();}
     void slotSetParticleRadius(float r) { mParticleRadius = r; }
 
-    void slotSetVboInfoGridInformationGain(const quint32 vboPressure, const Box3D& boundingBoxGrid, const Vector3i& gridCells);
-    void slotSetVboInfoGridOccupancy(const quint32 vbo, const Box3D& gridBoundingBox, const Vector3i& gridCells);
-    void slotSetVboInfoGridPathPlanner(const quint32 vbo, const Box3D &gridBoundingBox, const Vector3i &gridCells);
+    void slotSetVboInfoGridInformationGain(const quint32 vboPressure, const Box3D& boundingBoxGrid, const Vector3<quint16>& gridCells);
+    void slotSetVboInfoGridOccupancy(const quint32 vbo, const Box3D& gridBoundingBox, const Vector3<quint16>& gridCells);
+    void slotSetVboInfoGridPathPlanner(const quint32 vbo, const Box3D &gridBoundingBox, const Vector3<quint16> &gridCells);
     void slotSetVboInfoParticles(const quint32 vboPositions, const quint32 count, const float particleRadius, const Box3D particleSystemBoundingBox);
 
     void slotSetInsStatus(const GnssStatus* const g);
@@ -197,13 +197,13 @@ private:
     quint32 mNumberOfParticles;
 
     Box3D mBoundingBoxGridInformationGain;
-    Vector3i mGridInformationGainCellCount;
+    Vector3<quint16> mGridInformationGainCellCount;
 
     Box3D mBoundingBoxGridOccupancy;
-    Vector3i mGridOccupancyCellCount;
+    Vector3<quint16> mGridOccupancyCellCount;
 
     Box3D mBoundingBoxGridPathFinder;
-    Vector3i mGridPathFinderCellCount;
+    Vector3<quint16> mGridPathFinderCellCount;
 
 
     GLuint mVboAxes;
