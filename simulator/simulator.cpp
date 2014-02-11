@@ -48,6 +48,15 @@ Simulator::Simulator(void) :
 
     // Make it create logfiles!
     mFlightController = new FlightController(QString("simulator-%1").arg(QDateTime::currentDateTime().toString("yyyy-MM-dd-HHmmsszzz")));
+    QMap<QChar,float> weights;
+    weights.insert('p', 15);
+    weights.insert('i', 0);
+    weights.insert('d', 1);
+    QString controllerP("pitch");
+    QString controllerR("roll");
+    mFlightController->slotSetControllerWeights(&controllerP, &weights);
+    mFlightController->slotSetControllerWeights(&controllerR, &weights);
+    mFlightController->slotSetFlightSpeed(2);
 
     mBaseConnection = new BaseConnection("eth0", "simulator");
     connect(mBaseConnection, &BaseConnection::wayPoints, mFlightController, &FlightController::slotSetWayPoints);
