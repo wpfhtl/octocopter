@@ -6,6 +6,8 @@
 #include <Ogre.h>
 #include <OgreTerrainGroup.h>
 
+#include <random>
+
 #include "simulator.h"
 #include "ogrewidget.h"
 #include "coordinateconverter.h"
@@ -23,6 +25,10 @@ class LaserScanner : public QThread
 
 private:
     Simulator *mSimulator;
+
+    // for producing noise
+    std::random_device* mRandomDevice;
+    std::mt19937* mRandomMersenneTwister;
 
     QMutex mMutex;
 

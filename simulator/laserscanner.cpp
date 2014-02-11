@@ -24,6 +24,11 @@ LaserScanner::LaserScanner(
     mAngleStep = angleStep;
     mTimeFactor = mSimulator->getTimeFactor();
 
+//    std::random_device rd;
+//    std::mt19937 gen(rd());
+    mRandomDevice = new std::random_device;
+    mRandomMersenneTwister = new std::mt19937(/*mRandomDevice()*/);
+
     mBottomBeamClockDivisor = 0;
 
     mTimerScan = 0;
@@ -128,6 +133,15 @@ void LaserScanner::slotDoScan()
 
     int numberOfRays = 0;
 
+    std::normal_distribution<> noiseDistYaw(0, 1.0);
+    Ogre::Quaternion quatNoiseYaw(Ogre::Degree(noiseDistYaw(*mRandomMersenneTwister)), Ogre::Vector3::UNIT_Y);
+
+    std::normal_distribution<> noiseDistPitch(0, 0.5);
+    Ogre::Quaternion quatNoisePitch(Ogre::Degree(noiseDistPitch(*mRandomMersenneTwister)), Ogre::Vector3::UNIT_X);
+
+    std::normal_distribution<> noiseDistRoll(0, 0.5);
+    Ogre::Quaternion quatNoiseRoll(Ogre::Degree(noiseDistRoll(*mRandomMersenneTwister)), Ogre::Vector3::UNIT_Z);
+
     while(mCurrentScanAngle <= mAngleStop)
     {
         numberOfRays++;
@@ -138,7 +152,7 @@ void LaserScanner::slotDoScan()
         Ogre::Quaternion quatBeamRotation(Ogre::Degree(mCurrentScanAngle), Ogre::Vector3::UNIT_Y);
         QMutexLocker locker(&mMutex);
         mLaserBeam.setOrigin(mScannerPosition);
-        mLaserBeam.setDirection(mScannerOrientation * quatBeamRotation * Ogre::Vector3::NEGATIVE_UNIT_Z);
+        mLaserBeam.setDirection(mScannerOrientation * (quatNoiseYaw * quatNoisePitch * quatNoiseRoll) * quatBeamRotation * Ogre::Vector3::NEGATIVE_UNIT_Z);
         locker.unlock();
 
         float closestDistanceToEntity = -1.0f;
@@ -203,7 +217,11 @@ void LaserScanner::slotDoScan()
         if(rayResultTerrain.hit)
             distanceValidTerrain = mLaserBeam.getOrigin().distance(rayResultTerrain.position);
 
-        const float distanceFinal = std::min(distanceValidEntity, distanceValidTerrain);
+        float distanceFinal = std::min(distanceValidEntity, distanceValidTerrain);
+
+        // Create gaussian noise around 0, standard deviation increases with distance
+        std::normal_distribution<> d(0, 0.005 * qBound(1.0f, distanceFinal, 10.0f));
+        distanceFinal += d(*mRandomMersenneTwister);
 
         if(distanceFinal < mRange)
         {
