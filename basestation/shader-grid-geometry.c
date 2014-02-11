@@ -70,13 +70,12 @@ void main()
     // Don't draw completely transparent boxes. For some reason, this also fixes the problem of the quads disappearing at certain viewing-angles.
     if(cellvalue[0] == 0.0) return;
     
-    float alpha = cellvalue[0] * 256.0;
-    if(alphaExponentiation != 1.0) alpha = pow(alpha, alphaExponentiation);
+    float alpha = cellvalue[0];
     alpha *= alphaMultiplication;
-    alpha /= 256.0;
-    if(alpha < 1.0 && alpha > 0.995) alpha = 0.2; // show dilated cells with obvious difference.
+    if(alphaExponentiation != 1.0) alpha = pow(alpha, alphaExponentiation);
+    if(alpha < 1.0 && alpha > 0.995) alpha = 0.3; // show dilated cells with obvious difference.
     if(alpha > 1.0) alpha = 1.0;
-    alpha *= 10;
+    //alpha *= 10;
     //if(cellvalue[0] > 0) alpha = 1.0;
 
     vec4 outColor = fixedColor;

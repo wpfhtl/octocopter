@@ -45,6 +45,7 @@ __host__ __device__ unsigned int Grid::getCellHash(int3 gridCellCoordinate) cons
             + gridCellCoordinate.x;
 }
 
+
 // Just like the one above, but returns -1 for invalid cells (returns SIGNED int)
 __host__ __device__ int Grid::getSafeCellHash(int3 gridCellCoordinate) const
 {
@@ -56,7 +57,9 @@ __host__ __device__ int Grid::getSafeCellHash(int3 gridCellCoordinate) const
             || gridCellCoordinate.y < 0
             || gridCellCoordinate.z < 0)
     {
-        printf("error, I was asked for a non-existing cell's hash!\n");
+        printf("error, I was asked for a non-existing cell's hash: cell asked: %d %d %d, grid size: %d %d %d\n",
+               gridCellCoordinate.x, gridCellCoordinate.y, gridCellCoordinate.z,
+               cells.x, cells.y, cells.z);
         return -1;
     }
 

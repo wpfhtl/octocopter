@@ -65,17 +65,20 @@ void dilateOccupancyGridD(u_int8_t* gridValues, unsigned int numCells)
             for(int x=-1;x<=1;x++)
             {
                 const int3 neighbourGridCellCoordinate = threadGridCellCoordinate + make_int3(x,y,z);
-                const int neighbourGridCellIndex = parametersPathPlanner.grid.getSafeCellHash(neighbourGridCellCoordinate);
                 //if(cellIndex == 0) printf("cellIndex 0, coord 0/0/0 neighbor %d/%d/%d\n", x, y, z);
 
-                if(neighbourGridCellIndex >= 0 && gridValues[neighbourGridCellIndex] == 255)
+                if(parametersPathPlanner.grid.isCellInGrid(neighbourGridCellCoordinate))
                 {
+                    const int neighbourGridCellIndex = parametersPathPlanner.grid.getSafeCellHash(neighbourGridCellCoordinate);
                     // Because CUDA works using thread-batches, we cannot just load all cells, then compute and then store all cells.
                     // Using batches would mean we would dilate a part of the grid, then load the neighboring part and dilate the
                     // dilation again, making almost all of the grid become occupied.
                     // For this reason, we say that 255 is occupied and 254 is dilated-occupied. This way, we don't need two grids. Hah!
-                    gridValues[cellIndex] = 254;
-                    return;
+                    if(gridValues[neighbourGridCellIndex] == 255)
+                    {
+                        gridValues[cellIndex] = 254;
+                        return;
+                    }
                 }
             }
         }
@@ -192,15 +195,19 @@ void fillOccupancyGrid(unsigned char* gridValues, float* colliderPos, unsigned i
     uint numThreads, numBlocks;
     computeExecutionKernelGrid(numColliders, 64, numBlocks, numThreads);
 
-    printf("using %d colliders at %p to fill occupancy grid with %d cells at %p.\n",
+    printf("fillOccupancyGrid(): using %d colliders at %p to fill occupancy grid with %d cells at %p.\n",
            numColliders, colliderPos, numCells, gridValues);
 
     fillOccupancyGridD<<< numBlocks, numThreads, 0, *stream>>>(gridValues, (float4*)colliderPos, numColliders);
     cudaCheckSuccess("fillOccupancyGrid");
+
+    printf("fillOccupancyGrid(): done.\n");
 }
 
 void dilateOccupancyGrid(unsigned char* gridValues, unsigned int numCells, cudaStream_t *stream)
 {
+    printf("dilateOccupancyGrid(): dilating %d cells.\n", numCells);
+
     if(numCells == 0) return;
 
     uint numThreads, numBlocks;
@@ -208,6 +215,8 @@ void dilateOccupancyGrid(unsigned char* gridValues, unsigned int numCells, cudaS
 
     dilateOccupancyGridD<<< numBlocks, numThreads, 0, *stream>>>(gridValues, numCells);
     cudaCheckSuccess("dilateOccupancyGridD");
+
+    printf("dilateOccupancyGrid(): done.\n");
 }
 
 __device__
@@ -268,11 +277,10 @@ void growGridD(u_int8_t* gridValues, Grid subGrid)
 
                     const int3 neighbourGridCellCoordinate = superGridCellCoordinate + make_int3(x,y,z);
 
-                    const int neighbourGridCellIndex = parametersPathPlanner.grid.getSafeCellHash(neighbourGridCellCoordinate);
-
-                    // Border-cells might ask for neighbors outside of the grid. getCellHash2() returns -1 in those cases.
-                    if(neighbourGridCellIndex >= 0)
+                    // Border-cells might ask for neighbors outside of the grid.
+                    if(parametersPathPlanner.grid.isCellInGrid(neighbourGridCellCoordinate))
                     {
+                        const int neighbourGridCellIndex = parametersPathPlanner.grid.getCellHash(neighbourGridCellCoordinate);
                         const u_int8_t neighborValue = gridValues[neighbourGridCellIndex];
 
                         // Find the lowest neighbor that is neither 0 nor 255

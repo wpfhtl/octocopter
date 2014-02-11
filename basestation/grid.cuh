@@ -40,6 +40,13 @@ struct __align__(16) Grid
         return result;
     }
 
+    __host__ __device__ bool isCellInGrid(int3 gridCellCoordinate) const
+    {
+        return
+                gridCellCoordinate.x < cells.x && gridCellCoordinate.y < cells.y && gridCellCoordinate.z < cells.z &&
+                gridCellCoordinate.x >= 0 && gridCellCoordinate.y >= 0 && gridCellCoordinate.z >= 0;
+    }
+
     __host__ void initialize()
     {
         cells.x = cells.y = cells.z = 0;

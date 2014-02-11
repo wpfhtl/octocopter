@@ -30,15 +30,17 @@ void PathPlanner::initialize()
 
     Q_ASSERT(mPointCloudColliders != nullptr);
 
-    alignPathPlannerGridToColliderCloud();
-
     const quint32 numberOfCells = mParametersPathPlanner.grid.cells.x * mParametersPathPlanner.grid.cells.y * mParametersPathPlanner.grid.cells.z;
 
     // The occupancy grid will be built and dilated in this memory
     mVboGridOccupancy = OpenGlUtilities::createVbo(numberOfCells * sizeof(quint8));
     cudaSafeCall(cudaGraphicsGLRegisterBuffer(&mCudaVboResourceGridOccupancy, mVboGridOccupancy, cudaGraphicsMapFlagsNone));
 
-    // The (dilated) occupancy grid will be copied in here, then the pathplanner fill it. Separate memories
+    quint8* gridOccupancyLocal = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridOccupancy);
+    cudaMemset(gridOccupancyLocal, 0, numberOfCells);
+    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridOccupancy, 0);
+
+    // The (dilated) occupancy grid will be copied in here, then the pathplanner fills it. Separate memories
     // enable re-use of the pre-built occupancy grid.
     mVboGridPathFinder = OpenGlUtilities::createVbo(numberOfCells * sizeof(quint8));
     cudaSafeCall(cudaGraphicsGLRegisterBuffer(&mCudaVboResourceGridPathFinder, mVboGridPathFinder, cudaGraphicsMapFlagsNone));
@@ -46,6 +48,8 @@ void PathPlanner::initialize()
     cudaSafeCall(cudaMalloc((void**)&mDeviceWaypoints, mMaxWaypoints * 4 * sizeof(float)));
 
     cudaSafeCall(cudaStreamCreate(&mCudaStream));
+
+    alignPathPlannerGridToColliderCloud();
 
     mIsInitialized = true;
 }
@@ -107,13 +111,14 @@ void PathPlanner::populateOccupancyGrid(quint8* gridOccupancy)
     else
         gridOccupancyLocal = gridOccupancy;
 
-    qDebug() << __PRETTY_FUNCTION__ << "updating occupancy grid...";
+    qDebug() << __PRETTY_FUNCTION__ << "filling occupancy grid...";
 
     // Get a pointer to the particle positions in the device by mapping GPU mem into CUDA address space
     float *colliderPos = (float*)CudaHelper::mapGLBufferObject(mPointCloudColliders->getCudaGraphicsResource());
     fillOccupancyGrid(gridOccupancyLocal, colliderPos, mPointCloudColliders->getNumberOfPointsStored(), mParametersPathPlanner.grid.getCellCount(), &mCudaStream);
     cudaGraphicsUnmapResources(1, mPointCloudColliders->getCudaGraphicsResource(), 0);
 
+    qDebug() << __PRETTY_FUNCTION__ << "dilating occupancy grid...";
     dilateOccupancyGrid(
                 gridOccupancyLocal,
                 mParametersPathPlanner.grid.getCellCount(),
@@ -123,6 +128,8 @@ void PathPlanner::populateOccupancyGrid(quint8* gridOccupancy)
         cudaGraphicsUnmapResources(1, &mCudaVboResourceGridOccupancy, 0);
 
     mRepopulateOccupanccyGrid = false;
+
+    qDebug() << __PRETTY_FUNCTION__ << "done.";
 }
 
 void PathPlanner::checkWayPointSafety(const QVector3D& vehiclePosition, const WayPointList* const wayPointsAhead)
@@ -135,7 +142,7 @@ void PathPlanner::checkWayPointSafety(const QVector3D& vehiclePosition, const Wa
     {
         copyParametersToGpu(&mParametersPathPlanner);
 
-        // Make some room for waypoints in host memory. The first float4's x=y=z=w will store just the number of waypoints
+        // Make some room for waypoints in host memory.
         float* waypointsHost = new float[wayPointsAhead->size() * 4];
 
         // We want to check wayPointsAhead, so we need to copy it into GPU memory space.

@@ -314,11 +314,19 @@ void FlightPlannerParticles::slotNewScanFused(const float* const points, const q
 
     if(!CudaHelper::isDeviceSupported) return;
 
+    QTime timeForDenseReduction;
+    timeForDenseReduction.start();
     if((mTimeOfLastDenseCloudReduction.msecsTo(QTime::currentTime()) > 2000 || mPointCloudDense->getNumberOfPointsFree() < 1000)/* && !mTimerStepSimulation.isActive()*/)
     {
         qDebug() << "FlightPlannerParticles::slotNewScanFused(): reducing" << mPointCloudDense->getNumberOfPointsQueued() << "queued points in dense cloud.";
         mTimeOfLastDenseCloudReduction = QTime::currentTime();
         mPointCloudDense->slotReduce();
+    }
+
+    if(timeForDenseReduction.elapsed() > 100 && mBaseStation->getOperatingMode() == OperatingMode::OperatingOnline)
+    {
+        qDebug() << "FlightPlannerParticles::slotNewScanFused(): reducing dense cloud took too long during flight:" << timeForDenseReduction.elapsed() << "ms - clearing dense cloud";
+        mPointCloudDense->slotReset();
     }
 
     if(
