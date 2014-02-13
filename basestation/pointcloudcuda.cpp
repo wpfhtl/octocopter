@@ -20,7 +20,7 @@ PointCloudCuda::PointCloudCuda(const Box3D& boundingBox, const quint32 maximumEl
     mParameters.minimumDistance = 0.02f;
     mParameters.capacity = maximumElementCount;
 
-    mDevicePointPos = 0;
+    mDevicePointPos = nullptr;
 
     // Set to zero, so we dont cudaFree() them before first init
     mDeviceCellStart = 0;
@@ -248,7 +248,7 @@ void PointCloudCuda::slotInsertPoints(PointCloudCuda *const pointCloudSource, co
 
     if(!CudaHelper::isDeviceSupported)
     {
-        qDebug() << "PointCloudCuda::slotInsertPoints(): device not supported, not transforming points to sparse cloud.";
+        qDebug() << __PRETTY_FUNCTION__ << mName << "device not supported, not transforming points to sparse cloud.";
         return;
     }
 
@@ -256,16 +256,23 @@ void PointCloudCuda::slotInsertPoints(PointCloudCuda *const pointCloudSource, co
     Q_ASSERT(pointCloudSource->mDevicePointPos != nullptr);
     //float *devicePointsBaseSrc = (float*) CudaHelper::mapGLBufferObject(pointCloudSource->getCudaGraphicsResource());
     float *devicePointsBaseSrc = pointCloudSource->mDevicePointPos;
-    mDevicePointPos = (float*) CudaHelper::mapGLBufferObject(getCudaGraphicsResource());
+
+    qDebug() << __PRETTY_FUNCTION__ << mName << "pcd src is mapped, now mapping my gl buffer...";
+
+    const bool haveToMapPointPos = checkAndMapPointsToCuda();
 
     // By default, copy all points from pointCloudSource
-    if(numberOfPointsToCopy == 0) numberOfPointsToCopy = pointCloudSource->getNumberOfPointsStored();
+    if(numberOfPointsToCopy == 0)
+    {
+        numberOfPointsToCopy = pointCloudSource->getNumberOfPointsStored();
+        qDebug() << __PRETTY_FUNCTION__ << mName << "numberOfPointsToCopy is 0, copying all" << numberOfPointsToCopy << "points from" << pointCloudSource->mName;
+    }
 
     const quint32 numberOfPointsBeforeCopy = getNumberOfPointsStored();
 
     quint32 numberOfPointsProcessedInSrc = 0;
     // We only fill our cloud up to 95% capacity. Otherwise, we'd have maaaany iterations filling it completely, then reducing to 99.99%, refilling, 99.991%, ...
-    qDebug() << "PointCloudCuda::slotInsertPoints(): current occupancy:" << getNumberOfPointsStored() / mParameters.capacity << ": there are" << numberOfPointsToCopy << "to insert";
+    qDebug() << __PRETTY_FUNCTION__ << mName << "current occupancy:" << getNumberOfPointsStored() / mParameters.capacity << ": there are" << numberOfPointsToCopy << "to insert";
     while(mParameters.elementCount < mParameters.capacity * 0.95f && numberOfPointsProcessedInSrc < pointCloudSource->getNumberOfPointsStored() - firstPointToReadFromSrc && numberOfPointsProcessedInSrc < numberOfPointsToCopy)
     {
         const quint32 freeSpaceInDst = mParameters.capacity - mParameters.elementCount - mParameters.elementQueueCount;
@@ -277,11 +284,11 @@ void PointCloudCuda::slotInsertPoints(PointCloudCuda *const pointCloudSource, co
                     numberOfPointsToCopy - numberOfPointsProcessedInSrc // number of points left to copy
                     );
 
-//        qDebug() << "PointCloudCuda::slotInsertPoints():" << numberOfPointsProcessedInSrc << "points inserted from source, space left in dst:" << freeSpaceInDst << "- inserting" << numberOfPointsToCopyInThisIteration << "points from src.";
+        qDebug() << __PRETTY_FUNCTION__ << mName << numberOfPointsProcessedInSrc << "points inserted from source, space left in dst:" << freeSpaceInDst << "- inserting" << numberOfPointsToCopyInThisIteration << "points from src.";
 
         if(mOutlierTreatment == OutlierTreatment::Remove)
         {
-            //qDebug() << "PointCloudCuda::slotInsertPoints(): mAcceptPointsOutsideBoundingBox is false, copying only points in bbox.";
+            qDebug() << __PRETTY_FUNCTION__ << mName << "PointCloudCuda::slotInsertPoints(): mAcceptPointsOutsideBoundingBox is false, copying only points in bbox.";
             mParameters.elementQueueCount += copyPointsInBoundingBox(
                         mDevicePointPos + (getNumberOfPointsStored() * mRenderInfoList[0]->elementSize),
                         devicePointsBaseSrc + ((firstPointToReadFromSrc + numberOfPointsProcessedInSrc) * mRenderInfoList[0]->elementSize),
@@ -292,15 +299,16 @@ void PointCloudCuda::slotInsertPoints(PointCloudCuda *const pointCloudSource, co
         }
         else
         {
-            //qDebug() << "PointCloudCuda::slotInsertPoints(): mAcceptPointsOutsideBoundingBox is true, copying all given points.";
+            qDebug() << __PRETTY_FUNCTION__ << mName << "mAcceptPointsOutsideBoundingBox is true, copying all given points.";
             mParameters.elementQueueCount += copyPoints(
                         mDevicePointPos + ((numberOfPointsProcessedInSrc) * sizeof(float) * mRenderInfoList[0]->elementSize),
                         devicePointsBaseSrc + ((firstPointToReadFromSrc + numberOfPointsProcessedInSrc) * sizeof(float) * mRenderInfoList[0]->elementSize),
                         numberOfPointsToCopyInThisIteration);
         }
 
+        qDebug() << __PRETTY_FUNCTION__ << mName << "copying done, now reducing...";
         slotReduce();
-//        qDebug() << "PointCloudCuda::slotInsertPoints(): after reducing points, cloud contains" << mParameters.elementCount << "of" << mParameters.capacity << "points";
+        qDebug() << __PRETTY_FUNCTION__ << mName << "after reducing points, cloud contains" << mParameters.elementCount << "of" << mParameters.capacity << "points";
 
         numberOfPointsProcessedInSrc += numberOfPointsToCopyInThisIteration;
     }
@@ -310,9 +318,7 @@ void PointCloudCuda::slotInsertPoints(PointCloudCuda *const pointCloudSource, co
     if(numberOfPointsProcessedInSrc < numberOfPointsToCopy)
         qDebug() << "PointCloudCuda::slotInsertPoints(): didn't insert all points from src (due to insufficient destination capacity of" << mParameters.capacity << "?)";
 
-    cudaGraphicsUnmapResources(1, getCudaGraphicsResource(), 0);
-    cudaGraphicsUnmapResources(1, ((PointCloudCuda*)pointCloudSource)->getCudaGraphicsResource(), 0);
-    mDevicePointPos = 0;
+    if(haveToMapPointPos) checkAndUnmapPointsFromCuda();
 
     qDebug() << "PointCloudCuda::slotInsertPoints(): took" << time.elapsed() << "ms.";
 
@@ -345,8 +351,7 @@ void PointCloudCuda::slotReduce()
     // We want to remove all points that have been appended and have close neighbors in the pre-existing data.
     // When appended points have close neighbors in other appended points, we want to delete just one of both.
 
-    const bool hadToMapVbo = (mDevicePointPos == nullptr);
-    if(hadToMapVbo) mDevicePointPos = (float*) CudaHelper::mapGLBufferObject(getCudaGraphicsResource());
+    const bool haveToMapPointPos = checkAndMapPointsToCuda();
 
     QTime time; // for profiling
 
@@ -356,7 +361,7 @@ void PointCloudCuda::slotReduce()
         time.start();
         float *devicePointsQueued = mDevicePointPos + (mParameters.elementCount * 4);
         const quint32 numberOfQueuedPointsRemaining = reducePoints(devicePointsQueued, mParameters.elementQueueCount);
-        qDebug() << "PointCloudCuda::reduce(): 1) - reducing" << mParameters.elementQueueCount << "to" << numberOfQueuedPointsRemaining << "points took" << time.elapsed() << "ms";
+        qDebug() << __PRETTY_FUNCTION__ << mName << "1) - reducing" << mParameters.elementQueueCount << "to" << numberOfQueuedPointsRemaining << "points took" << time.elapsed() << "ms";
 
         // We have now reduced the queued points. Send them to other point clouds interested in the new points. First, we need to update
         // elementQueueCount, as the receiving pointcloud might want to inquire about our queue.
@@ -371,7 +376,7 @@ void PointCloudCuda::slotReduce()
     // 2) - reduce all points (including the already reduced, previously queued points)
     time.start();
     const quint32 numberOfPointsRemaining = reducePoints(mDevicePointPos, mParameters.elementCount);
-    qDebug() << "PointCloudCuda::reduce(): 2) - reducing" << mParameters.elementCount << "to" << numberOfPointsRemaining << "points took" << time.elapsed() << "ms";
+    qDebug() << __PRETTY_FUNCTION__ << mName << "2) - reducing" << mParameters.elementCount << "to" << numberOfPointsRemaining << "points took" << time.elapsed() << "ms";
     mParameters.elementCount = numberOfPointsRemaining;
 
     // Unmap at end here to avoid unnecessary graphics/CUDA context switch.
@@ -379,11 +384,7 @@ void PointCloudCuda::slotReduce()
     // are mapped again. This function provides the synchronization guarantee
     // that any CUDA work issued  before ::cudaGraphicsUnmapResources()
     // will complete before any subsequently issued graphics work begins.
-    if(hadToMapVbo)
-    {
-        cudaGraphicsUnmapResources(1, &mCudaVboResource, 0);
-        mDevicePointPos = nullptr;
-    }
+    if(haveToMapPointPos) checkAndUnmapPointsFromCuda();
 
     mRenderInfoList[0]->size = getNumberOfPointsStored();
 
@@ -394,7 +395,7 @@ quint32 PointCloudCuda::reducePoints(float* devicePoints, quint32 numElements)
 {
     if(numElements == 0) return 0;
 
-    qDebug() << "PointCloudCuda::reducePoints():" << mName << "reducing" << numElements << "points, outlierTreatment" << static_cast<quint8>(mOutlierTreatment);
+    qDebug() << __PRETTY_FUNCTION__ << mName << "reducing" << numElements << "points, outlierTreatment" << static_cast<quint8>(mOutlierTreatment);
 
     cudaThreadSynchronize(); // dbg
 
@@ -406,7 +407,7 @@ quint32 PointCloudCuda::reducePoints(float* devicePoints, quint32 numElements)
         float3 bBoxMin, bBoxMax;
         getBoundingBox(devicePoints, numElements, bBoxMin, bBoxMax);
 
-        qDebug() << "PointCloudCuda::reducePoints(): there are" << numElements << "points with a bbox from"
+        qDebug() << __PRETTY_FUNCTION__ << mName << "there are" << numElements << "points with a bbox from"
                  << bBoxMin.x << bBoxMin.y << bBoxMin.z << "to" << bBoxMax.x << bBoxMax.y << bBoxMax.z << "using grid with" << mParameters.grid.cells.x << mParameters.grid.cells.y << mParameters.grid.cells.z << "cells";
 
         // Define the new bounding box for all queued points
@@ -416,7 +417,7 @@ quint32 PointCloudCuda::reducePoints(float* devicePoints, quint32 numElements)
     else if(mOutlierTreatment == OutlierTreatment::Remove)
     {
         numElements = removePointsOutsideBoundingBox(devicePoints, numElements, &mParameters.grid);
-        qDebug() << "PointCloudCuda::reducePoints(): removing points outside the bounding box"
+        qDebug() << __PRETTY_FUNCTION__ << mName << "removing points outside the bounding box"
                  << mParameters.grid.worldMin.x << mParameters.grid.worldMin.y << mParameters.grid.worldMin.z
                  << "to"
                  << mParameters.grid.worldMax.x << mParameters.grid.worldMax.y << mParameters.grid.worldMax.z
@@ -478,7 +479,7 @@ quint32 PointCloudCuda::reducePoints(float* devicePoints, quint32 numElements)
 
     size_t memTotal, memFree;
     cudaMemGetInfo(&memFree, &memTotal);
-    //qDebug() << "PointCloudCuda::reducePoints(): device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free";
+    qDebug() << __PRETTY_FUNCTION__ << mName << "device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free";
 
     return remainingElements;
 }
@@ -559,4 +560,38 @@ bool PointCloudCuda::exportToFile(const QString& fileName, QWidget *widget)
 
     QMessageBox::critical(widget, "Error reading file", QString("I do not know the type of file %1.").arg(fileName));
     return false;
+}
+
+bool PointCloudCuda::checkAndMapPointsToCuda()
+{
+    // Simply make sure that the pointer used for the resource is mapped.
+    // Return true if it had to be mapped, false otherwise.
+    if(mDevicePointPos == nullptr)
+    {
+        qDebug() << __PRETTY_FUNCTION__ << mName << "mapping into cuda space";
+        mDevicePointPos = (float*) CudaHelper::mapGLBufferObject(getCudaGraphicsResource());
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+bool PointCloudCuda::checkAndUnmapPointsFromCuda()
+{
+    // Simply make sure that the pointer used for the resource is unmapped.
+    // Return true if it had to be unmapped, false otherwise.
+    if(mDevicePointPos == nullptr)
+    {
+        return false;
+    }
+    else
+    {
+        qDebug() << __PRETTY_FUNCTION__ << mName << "unmapping out of cuda space";
+        cudaGraphicsUnmapResources(1, getCudaGraphicsResource(), 0);
+        mDevicePointPos = nullptr;
+        return true;
+    }
+
 }

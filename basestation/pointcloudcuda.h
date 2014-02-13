@@ -53,13 +53,6 @@ public:
 
     QVector3D getWorldSize() const {return CudaHelper::convert(mParameters.grid.worldMax) - CudaHelper::convert(mParameters.grid.worldMax);}
 
-    cudaGraphicsResource** getCudaGraphicsResource()
-    {
-        if(!mIsInitialized) initialize();
-
-        return &mCudaVboResource;
-    }
-
     quint32 getNumberOfPointsStored(void) const
     {
         return qMin(mParameters.elementCount + mParameters.elementQueueCount, mParameters.capacity);
@@ -94,6 +87,18 @@ public:
     bool exportToFile(const QString& fileName, QWidget* widget = nullptr);
 
     QString mName; // dbg only
+
+    bool arePointsMapped() const {return mDevicePointPos != nullptr;}
+
+    bool checkAndMapPointsToCuda();
+    bool checkAndUnmapPointsFromCuda();
+
+    const float* getPointsInCudaSpace() const
+    {
+        Q_ASSERT(arePointsMapped());
+        return mDevicePointPos;
+    }
+
 private:
     bool mIsInitialized;
     ParametersPointCloud mParameters;
@@ -124,6 +129,17 @@ private:
     quint32 reducePoints(float* devicePoints, quint32 numElements);
     void freeResources();
     void initializeGrid();
+
+    cudaGraphicsResource** getCudaGraphicsResource()
+    {
+        if(!mIsInitialized)
+        {
+            qDebug() << __PRETTY_FUNCTION__ << mName << "initializing!";
+            initialize();
+        }
+
+        return &mCudaVboResource;
+    }
 
 public slots:
     // Tell the cloud to insert the given points. As you can see, the cloud may not change or even own the points.

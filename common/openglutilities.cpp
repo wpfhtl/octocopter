@@ -16,7 +16,7 @@ quint32 OpenGlUtilities::createVbo(quint32 size, const GLvoid *data, GLenum usag
     mGlFunctions->glBindBuffer(GL_ARRAY_BUFFER, vbo);
     mGlFunctions->glBufferData(GL_ARRAY_BUFFER, size, data, usage);
     mGlFunctions->glBindBuffer(GL_ARRAY_BUFFER, 0);
-    //Q_ASSERT(mGlFunctions->glGetError() == GL_NO_ERROR);
+    Q_ASSERT(mGlFunctions->glGetError() == GL_NO_ERROR);
     return vbo;
 }
 

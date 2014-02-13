@@ -19,7 +19,7 @@ void testWayPointCellOccupancy(unsigned char*  gridValues, float* upcomingWayPoi
 
 void fillOccupancyGrid(
         unsigned char*  gridValues,
-        float*          colliderPos,
+        const float*    colliderPos,
         unsigned int    numColliders,
         unsigned int    numCells,
         cudaStream_t*   stream);

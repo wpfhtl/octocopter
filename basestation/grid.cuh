@@ -47,6 +47,13 @@ struct __align__(16) Grid
                 gridCellCoordinate.x >= 0 && gridCellCoordinate.y >= 0 && gridCellCoordinate.z >= 0;
     }
 
+    __host__ __device__ bool isPositionInGrid(float4 position) const
+    {
+        return
+                position.x <= worldMax.x && position.y <= worldMax.y && position.z <= worldMax.z &&
+                position.x >= worldMin.x && position.y >= worldMin.y && position.z >= worldMin.z;
+    }
+
     __host__ void initialize()
     {
         cells.x = cells.y = cells.z = 0;

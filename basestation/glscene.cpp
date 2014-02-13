@@ -1096,17 +1096,17 @@ void GlScene::slotClearVehicleTrajectory()
 }
 
 
-void GlScene::slotPointCloudRegister(PointCloud* p)
+void GlScene::slotPointCloudRegister(PointCloudCuda* p)
 {
     mPointCloudsToRender.append(p);
 }
 
-void GlScene::slotPointCloudUnregister(PointCloud* p)
+void GlScene::slotPointCloudUnregister(PointCloudCuda* p)
 {
     mPointCloudsToRender.removeOne(p);
 }
 
-bool GlScene::isPointCloudRegistered(PointCloud* p)
+bool GlScene::isPointCloudRegistered(PointCloudCuda* p)
 {
     return mPointCloudsToRender.contains(p);
 }

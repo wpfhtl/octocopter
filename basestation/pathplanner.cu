@@ -24,25 +24,31 @@ void copyParametersToGpu(ParametersPathPlanner *hostParams)
 }
 
 __global__
-void fillOccupancyGridD(u_int8_t* gridValues, float4* colliderPos, unsigned int numColliders)
+void fillOccupancyGridD(u_int8_t* gridValues, const float4* colliderPos, unsigned int numColliders, unsigned int numCells)
 {
-    uint particleIndex = getThreadIndex1D();
+    uint colliderIndex = getThreadIndex1D();
 
-    if(particleIndex >= numColliders) return;
+    if(colliderIndex >= numColliders) return;
 
-    // ignore points scanned from closer than 3 meters, so that we ignore bernd and the fishing rod :)
-    float4 particleToCollidePos = colliderPos[particleIndex];
+    const float4 particlePosition = colliderPos[colliderIndex];
 
-    //if(particleToCollidePos.w > 9.0) // 3m squared
-    //{
+    if(parametersPathPlanner.grid.isPositionInGrid(particlePosition))
+    {
         // get grid-cell of particle
-        int3 particleGridCell = parametersPathPlanner.grid.getCellCoordinate(make_float3(particleToCollidePos));
+        int3 particleGridCell = parametersPathPlanner.grid.getCellCoordinate(make_float3(particlePosition));
 
         // The cell-hash IS the offset in memory, as cells are adressed linearly
-        int cellHash = parametersPathPlanner.grid.getSafeCellHash(particleGridCell);
+        int cellHash = parametersPathPlanner.grid.getCellHash(particleGridCell);
 
-        if(cellHash >= 0) gridValues[cellHash] = 255;
-    //}
+        if(cellHash >= 0 && cellHash < numCells)
+        {
+            gridValues[cellHash] = 255;
+        }
+        else
+        {
+            printf("ERROR, position was supposed to be in grid! We have %d cells and want to write to cell %d.\n\n\n", numCells, cellHash);
+        }
+    }
 }
 
 __global__
@@ -172,6 +178,8 @@ __global__ void moveWayPointsToSafetyD(unsigned char* gridValues, float4* device
     }
 }
 
+// Will move the waypoints to cells that are free in gridOccupancy. If the w-component is untouched (and non-zero),
+// it was possible to move them to free zones. Waypoints with w-component of zero could not find a free neighboring cell.
 void moveWayPointsToSafetyGpu(
         unsigned char*  gridOccupancy,
         float*          mDeviceWaypoints,
@@ -185,20 +193,19 @@ void moveWayPointsToSafetyGpu(
     cudaCheckSuccess("moveWayPointsToSafetyGpu");
 }
 
-void fillOccupancyGrid(unsigned char* gridValues, float* colliderPos, unsigned int numColliders, unsigned int numCells, cudaStream_t *stream)
+void fillOccupancyGrid(unsigned char* gridValues, const float* colliderPos, unsigned int numColliders, unsigned int numCells, cudaStream_t *stream)
 {
     if(numColliders == 0) return;
 
     // set all cells to empty
-    cudaMemset(gridValues, 0, numCells * sizeof(unsigned char));
+    cudaSafeCall(cudaMemset(gridValues, 0, numCells * sizeof(unsigned char)));
 
     uint numThreads, numBlocks;
     computeExecutionKernelGrid(numColliders, 64, numBlocks, numThreads);
 
-    printf("fillOccupancyGrid(): using %d colliders at %p to fill occupancy grid with %d cells at %p.\n",
-           numColliders, colliderPos, numCells, gridValues);
+    printf("fillOccupancyGrid(): using %d colliders at %p to fill occupancy grid with %d cells at %p.\n", numColliders, colliderPos, numCells, gridValues);
 
-    fillOccupancyGridD<<< numBlocks, numThreads, 0, *stream>>>(gridValues, (float4*)colliderPos, numColliders);
+    fillOccupancyGridD<<< numBlocks, numThreads, 0, *stream>>>(gridValues, (float4*)colliderPos, numColliders, numCells);
     cudaCheckSuccess("fillOccupancyGrid");
 
     printf("fillOccupancyGrid(): done.\n");
@@ -428,7 +435,6 @@ void checkGoalCellD(unsigned char* gridValues, unsigned int numCells, unsigned i
     }
 }
 
-
 // This method checks whether the goal cell is occupied. If so, it tries
 // to find a free neighboring cell that can be used instead.
 GoalCellStatus checkGoalCell(unsigned char* gridValues, unsigned int numCells, unsigned int searchRange, cudaStream_t *stream)
@@ -457,8 +463,6 @@ GoalCellStatus checkGoalCell(unsigned char* gridValues, unsigned int numCells, u
         return GoalCellBlocked;
     }
 }
-
-
 
 __global__
 void retrievePathD(unsigned char* gridValues, float4* waypoints)
@@ -685,20 +689,21 @@ __global__ void testWayPointCellOccupancyD(unsigned char*  gridValues, float4* u
 
     if(gridValues[gridCellHash] > 253)
     {
-        waypoint.w = 1.0;
+        // Waypoints have an information gain (w-component) of either positive for real waypoints
+        // or 0 for path-detour waypoints. Flip/Decrement the w-component, so that coliding waypoints
+        // can be detected because they have a negative information gain.
+        waypoint.w *= -1.0; // detour waypoints are still zero!
+        waypoint.w -= 1.0;
         upcomingWayPoints[waypointIndex] = waypoint;
     }
 }
 
 void testWayPointCellOccupancy(unsigned char*  gridValues, float* upcomingWayPoints, unsigned int numberOfWayPoints, cudaStream_t *stream)
 {
-    // We take the grid values and the float4-waypoints (with the first element defining the waypoint-count) and set conflicting
-
-    // The number of waypoints available is in upcomingWayPoints[0], but thats in device memory space. So,
-    // just start a sufficient number of threads and let the superfuous ones hang out for a while.
+    // Start a sufficient number of threads and let the superfuous ones hang out for a while.
     uint numThreads, numBlocks;
     computeExecutionKernelGrid(numberOfWayPoints, 64, numBlocks, numThreads);
 
     testWayPointCellOccupancyD<<< numBlocks, numThreads, 0, *stream>>>(gridValues, (float4*)upcomingWayPoints, numberOfWayPoints);
-    cudaCheckSuccess("fillOccupancyGrid");
+    cudaCheckSuccess("testWayPointCellOccupancy");
 }

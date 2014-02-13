@@ -7,6 +7,11 @@ PathPlanner::PathPlanner(PointCloudCuda* const pointCloudColliders, QObject *par
 
     mRepopulateOccupanccyGrid = true;
 
+    mGridOccupancyTemplate = nullptr;
+    mGridOccupancyPathPanner = nullptr;
+
+    mDeviceWaypoints = nullptr;
+
     mParametersPathPlanner.grid.cells.x = 32;
     mParametersPathPlanner.grid.cells.y = 32;
     mParametersPathPlanner.grid.cells.z = 32;
@@ -18,7 +23,7 @@ PathPlanner::PathPlanner(PointCloudCuda* const pointCloudColliders, QObject *par
 PathPlanner::~PathPlanner()
 {
     OpenGlUtilities::deleteVbo(mVboGridOccupancy);
-    OpenGlUtilities::deleteVbo(mVboGridPathFinder);
+    OpenGlUtilities::deleteVbo(mVboGridPathPlanner);
     cudaSafeCall(cudaFree(mDeviceWaypoints));
 }
 
@@ -30,20 +35,20 @@ void PathPlanner::initialize()
 
     Q_ASSERT(mPointCloudColliders != nullptr);
 
-    const quint32 numberOfCells = mParametersPathPlanner.grid.cells.x * mParametersPathPlanner.grid.cells.y * mParametersPathPlanner.grid.cells.z;
+    const quint32 numberOfCells = mParametersPathPlanner.grid.getCellCount();
 
     // The occupancy grid will be built and dilated in this memory
     mVboGridOccupancy = OpenGlUtilities::createVbo(numberOfCells * sizeof(quint8));
-    cudaSafeCall(cudaGraphicsGLRegisterBuffer(&mCudaVboResourceGridOccupancy, mVboGridOccupancy, cudaGraphicsMapFlagsNone));
+    cudaSafeCall(cudaGraphicsGLRegisterBuffer(&mCudaVboResourceGridOccupancyTemplate, mVboGridOccupancy, cudaGraphicsMapFlagsNone));
 
-    quint8* gridOccupancyLocal = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridOccupancy);
-    cudaMemset(gridOccupancyLocal, 0, numberOfCells);
-    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridOccupancy, 0);
+    checkAndMapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
+    cudaMemset(mGridOccupancyTemplate, 0, numberOfCells);
+    checkAndUnmapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
 
     // The (dilated) occupancy grid will be copied in here, then the pathplanner fills it. Separate memories
     // enable re-use of the pre-built occupancy grid.
-    mVboGridPathFinder = OpenGlUtilities::createVbo(numberOfCells * sizeof(quint8));
-    cudaSafeCall(cudaGraphicsGLRegisterBuffer(&mCudaVboResourceGridPathFinder, mVboGridPathFinder, cudaGraphicsMapFlagsNone));
+    mVboGridPathPlanner = OpenGlUtilities::createVbo(numberOfCells * sizeof(quint8));
+    cudaSafeCall(cudaGraphicsGLRegisterBuffer(&mCudaVboResourceGridPathPlanner, mVboGridPathPlanner, cudaGraphicsMapFlagsNone));
 
     cudaSafeCall(cudaMalloc((void**)&mDeviceWaypoints, mMaxWaypoints * 4 * sizeof(float)));
 
@@ -80,7 +85,7 @@ void PathPlanner::alignPathPlannerGridToColliderCloud()
                     );
 
         emit vboInfoGridPathPlanner(
-                    mVboGridPathFinder,
+                    mVboGridPathPlanner,
                     Box3D(
                         QVector3D(mParametersPathPlanner.grid.worldMin.x, mParametersPathPlanner.grid.worldMin.y, mParametersPathPlanner.grid.worldMin.z),
                         QVector3D(mParametersPathPlanner.grid.worldMax.x, mParametersPathPlanner.grid.worldMax.y, mParametersPathPlanner.grid.worldMax.z)
@@ -95,7 +100,7 @@ void PathPlanner::slotColliderCloudInsertedPoints()
     mRepopulateOccupanccyGrid = true;
 }
 
-void PathPlanner::populateOccupancyGrid(quint8* gridOccupancy)
+void PathPlanner::populateOccupancyGrid()
 {
     if(mRepopulateOccupanccyGrid == false)
     {
@@ -103,36 +108,33 @@ void PathPlanner::populateOccupancyGrid(quint8* gridOccupancy)
         return;
     }
 
-    // We can be given a pointer to the device's mapped VBO. If not, we map and unmap it ourselves.
-    quint8* gridOccupancyLocal;
+    copyParametersToGpu(&mParametersPathPlanner);
 
-    if(gridOccupancy == nullptr)
-        gridOccupancyLocal = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridOccupancy);
-    else
-        gridOccupancyLocal = gridOccupancy;
+    const bool haveToMapGridOccupancyTemplate = checkAndMapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
 
     qDebug() << __PRETTY_FUNCTION__ << "filling occupancy grid...";
 
     // Get a pointer to the particle positions in the device by mapping GPU mem into CUDA address space
-    float *colliderPos = (float*)CudaHelper::mapGLBufferObject(mPointCloudColliders->getCudaGraphicsResource());
-    fillOccupancyGrid(gridOccupancyLocal, colliderPos, mPointCloudColliders->getNumberOfPointsStored(), mParametersPathPlanner.grid.getCellCount(), &mCudaStream);
-    cudaGraphicsUnmapResources(1, mPointCloudColliders->getCudaGraphicsResource(), 0);
+
+    const bool haveToMapPointPos = mPointCloudColliders->checkAndMapPointsToCuda();
+    const float *colliderPos = mPointCloudColliders->getPointsInCudaSpace();
+    fillOccupancyGrid(mGridOccupancyTemplate, colliderPos, mPointCloudColliders->getNumberOfPointsStored(), mParametersPathPlanner.grid.getCellCount(), &mCudaStream);
+    if(haveToMapPointPos) mPointCloudColliders->checkAndUnmapPointsFromCuda();
 
     qDebug() << __PRETTY_FUNCTION__ << "dilating occupancy grid...";
     dilateOccupancyGrid(
-                gridOccupancyLocal,
+                mGridOccupancyTemplate,
                 mParametersPathPlanner.grid.getCellCount(),
                 &mCudaStream);
 
-    if(gridOccupancy == nullptr)
-        cudaGraphicsUnmapResources(1, &mCudaVboResourceGridOccupancy, 0);
+    if(haveToMapGridOccupancyTemplate) checkAndUnmapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
 
     mRepopulateOccupanccyGrid = false;
 
     qDebug() << __PRETTY_FUNCTION__ << "done.";
 }
 
-void PathPlanner::checkWayPointSafety(const QVector3D& vehiclePosition, const WayPointList* const wayPointsAhead)
+bool PathPlanner::checkWayPointSafety(const QVector3D& vehiclePosition, const WayPointList* const wayPointsAhead)
 {
     if(!mIsInitialized) initialize();
 
@@ -151,83 +153,43 @@ void PathPlanner::checkWayPointSafety(const QVector3D& vehiclePosition, const Wa
             waypointsHost[4*i+0] = wayPointsAhead->at(i).x();
             waypointsHost[4*i+1] = wayPointsAhead->at(i).y();
             waypointsHost[4*i+2] = wayPointsAhead->at(i).z();
-            waypointsHost[4*i+3] = 0.0f;
+            waypointsHost[4*i+3] = wayPointsAhead->at(i).informationGain;
         }
 
-        cudaMemcpy(
+        cudaSafeCall(cudaMemcpy(
                     (void*)mDeviceWaypoints,
                     (void*)waypointsHost,
                     4 * wayPointsAhead->size() * sizeof(float),
-                    cudaMemcpyHostToDevice);
+                    cudaMemcpyHostToDevice));
 
-        quint8* gridOccupancy = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridOccupancy);
-        populateOccupancyGrid(gridOccupancy);
-        testWayPointCellOccupancy(gridOccupancy, mDeviceWaypoints, wayPointsAhead->size(), &mCudaStream);
-        cudaGraphicsUnmapResources(1, &mCudaVboResourceGridOccupancy, 0);
+        const bool haveToMapGridOccupancyTemplate = checkAndMapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
+        populateOccupancyGrid();
+        testWayPointCellOccupancy(mGridOccupancyTemplate, mDeviceWaypoints, wayPointsAhead->size(), &mCudaStream);
+        if(haveToMapGridOccupancyTemplate) checkAndUnmapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
 
         // Now copy the waypoints back from device into host memory and see if the w-components are non-zero.
-        cudaMemcpy(
+        cudaSafeCall(cudaMemcpy(
                     (void*)waypointsHost,
                     (void*)mDeviceWaypoints,
                     4 * wayPointsAhead->size() * sizeof(float),
-                    cudaMemcpyDeviceToHost);
+                    cudaMemcpyDeviceToHost));
 
         // Check the next N waypoints for collisions with ALL of the collider cloud!
         const quint32 numberOfUpcomingWayPointsToCheck = 5;
 
-        QVector<quint32> occupiedWayPoints;
-
         // Check all future-waypoint-w-components.
         for(int i=0; i<numberOfUpcomingWayPointsToCheck && i < wayPointsAhead->size()-1; i++)
         {
-            if(waypointsHost[4*i+3] > 0.0f)
+            if(waypointsHost[4*i+3] < 0.0f)
             {
-                // Oh my, waypoint i is now unreachable! Extract the important (information gain) waypoints and
-                // re-plan a path through all of them. If the occupied waypoint is a InformationGain-WayPoint,
-                // then remove it.
-                occupiedWayPoints.append(i);
-
-                const QVector4D wpt(waypointsHost[4*i+0], waypointsHost[4*i+1], waypointsHost[4*i+2], waypointsHost[4*i+3]);
-                qDebug() << __PRETTY_FUNCTION__ << "waypoint" << i << "at" << wpt.x() << wpt.y() << wpt.z() << "collides with point cloud!";
+                qDebug() << __PRETTY_FUNCTION__ << "next-up-waypoint" << i << "at" << waypointsHost[4*i+0] << waypointsHost[4*i+1] << waypointsHost[4*i+2] << "collides with point cloud! Recomputing waypoints";
+                delete waypointsHost;
+                return false;
             }
         }
 
         delete waypointsHost;
-
-        // If we found occupied waypoints, compute a new path using only the information-gain waypoints.
-        if(occupiedWayPoints.size())
-        {
-            emit message(LogImportance::Warning, "PathPlanner", "waypoints are now colliding with geometry. Stopping rover and replanning path.");
-
-            // wayPointsAhead is a pointer to flightplanner's real list. As soon as we emit an empty path,
-            // it will also become empty! So, create a copy.
-            WayPointList wayPointsWithHighInformationGain(*wayPointsAhead);
-
-            // Create an empty list to emit an empty path, so we stop the rover!
-            QList<WayPoint> wpl;
-            emit path(&wpl, WayPointListSource::WayPointListSourceFlightPlanner);
-
-            for(int i=wayPointsWithHighInformationGain.size()-1;i>=0;i--)
-            {
-                const WayPoint wpt = wayPointsWithHighInformationGain.at(i);
-
-                // If this waypoint has information gain AND is not one of the occupied ones, re-use it!
-                if(wpt.informationGain <= 0.0f || occupiedWayPoints.contains(i))
-                    wayPointsWithHighInformationGain.remove(i);
-            }
-
-            // compute a new path through the same waypoints
-            if(wayPointsWithHighInformationGain.size())
-            {
-                slotComputePath(vehiclePosition, wayPointsWithHighInformationGain);
-            }
-            else
-            {
-                // There are no waypoints left to compute a path. Generate new waypoints!
-                qDebug() << "PathPlanner::checkWayPointSafety(): no waypoitns left to compute path!";
-                emit generateNewWayPoints();
-            }
-        }
+        return true;
     }
 }
 
@@ -237,7 +199,7 @@ void PathPlanner::moveWayPointsToSafety(WayPointList* wayPointList)
 {
     if(!mIsInitialized) initialize();
 
-    int numberOfWayPoints = wayPointList->size();
+    const int numberOfWayPoints = wayPointList->size();
 
     // The collider cloud inserted some points. Let's check whether our waypoint-cells are now occupied. In that case, we'd have to re-plan!
     qDebug() << __PRETTY_FUNCTION__ << "moving" << numberOfWayPoints << "waypoints to safe cells...";
@@ -260,23 +222,23 @@ void PathPlanner::moveWayPointsToSafety(WayPointList* wayPointList)
 
         wayPointList->clear();
 
-        cudaMemcpy(
+        cudaSafeCall(cudaMemcpy(
                     (void*)mDeviceWaypoints,
                     (void*)waypointsHost,
                     4 * numberOfWayPoints * sizeof(float),
-                    cudaMemcpyHostToDevice);
+                    cudaMemcpyHostToDevice));
 
-        quint8* gridOccupancy = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridOccupancy);
-        populateOccupancyGrid(gridOccupancy);
-        moveWayPointsToSafetyGpu(gridOccupancy, mDeviceWaypoints, numberOfWayPoints, &mCudaStream);
-        cudaGraphicsUnmapResources(1, &mCudaVboResourceGridOccupancy, 0);
+        const bool haveToMapGridOccupancyTemplate = checkAndMapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
+        populateOccupancyGrid();
+        moveWayPointsToSafetyGpu(mGridOccupancyTemplate, mDeviceWaypoints, numberOfWayPoints, &mCudaStream);
+        if(haveToMapGridOccupancyTemplate) checkAndUnmapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
 
         // Now copy the waypoints back from device into host memory and see if the w-components are non-zero.
-        cudaMemcpy(
+        cudaSafeCall(cudaMemcpy(
                     (void*)waypointsHost,
                     (void*)mDeviceWaypoints,
                     4 * numberOfWayPoints * sizeof(float),
-                    cudaMemcpyDeviceToHost);
+                    cudaMemcpyDeviceToHost));
 
         // Check all future-waypoint-w-components.
         for(int i=0;i<numberOfWayPoints-1; i++)
@@ -289,6 +251,7 @@ void PathPlanner::moveWayPointsToSafety(WayPointList* wayPointList)
 
         delete waypointsHost;
     }
+    qDebug() << __PRETTY_FUNCTION__ << "returning list with" << wayPointList->size() << "waypoints";
 }
 
 void PathPlanner::slotComputePath(const QVector3D& vehiclePosition, const WayPointList& wayPointList)
@@ -318,20 +281,26 @@ void PathPlanner::slotComputePath(const QVector3D& vehiclePosition, const WayPoi
 
     copyParametersToGpu(&mParametersPathPlanner);
 
-    quint8* gridOccupancy = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridOccupancy);
-    quint8* gridPathFinder = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridPathFinder);
+    const bool haveToMapGridOccupancyTemplate = checkAndMapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
+//    quint8* mGridOccupancyPopulatedAndDilated = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridOccupancy);
+
+    const bool haveToMapGridOccupancyPathPlanner = checkAndMapGridOccupancy(mCudaVboResourceGridPathPlanner);
+//    quint8* mGridOccupancyPathPanner = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridPathFinder);
 
     // Only re-creates the occupancy grid if the collider cloud's content changed
-    populateOccupancyGrid(gridOccupancy);
+    populateOccupancyGrid();
 
     // The first path leads from vehicle position to first waypoint. Clear the occupancy grid above the vehicle!
     // This is currently necessary, because we also scan bernd and the fishing rod, occupying our own cells.
     clearOccupancyGridAboveVehiclePosition(
-                gridPathFinder,
+                mGridOccupancyPathPanner,
                 vehiclePosition.x(),
                 vehiclePosition.y(),
                 vehiclePosition.z(),
                 &mCudaStream);
+
+    // We have freed the occupancy grid a little to make path planning easier/possible. Restore it to the real grid asap.
+    mRepopulateOccupanccyGrid = true;
 
     // Make some room for waypoints in host memory. The first float4's x=y=z=w will store just the number of waypoints
     float* waypointsHost = new float[mMaxWaypoints * 4];
@@ -350,26 +319,30 @@ void PathPlanner::slotComputePath(const QVector3D& vehiclePosition, const WayPoi
         copyParametersToGpu(&mParametersPathPlanner);
 
         // Copy the populated and dilated occupancy grid into the PathFinder's domain
-        cudaMemcpy(gridPathFinder, gridOccupancy, mParametersPathPlanner.grid.getCellCount(), cudaMemcpyDeviceToDevice);
+        cudaSafeCall(cudaMemcpy(
+                    mGridOccupancyPathPanner,
+                    mGridOccupancyTemplate,
+                    mParametersPathPlanner.grid.getCellCount(),
+                    cudaMemcpyDeviceToDevice));
 
         // Now start path planning.
-        markStartCell(gridPathFinder, &mCudaStream);
+        markStartCell(mGridOccupancyPathPanner, &mCudaStream);
 
         growGrid(
-                    gridPathFinder,
+                    mGridOccupancyPathPanner,
                     &mParametersPathPlanner,
                     &mCudaStream);
 
         retrievePath(
-                    gridPathFinder,
+                    mGridOccupancyPathPanner,
                     mDeviceWaypoints,
                     &mCudaStream);
 
-        cudaMemcpy(
+        cudaSafeCall(cudaMemcpy(
                     (void*)waypointsHost,
                     (void*)mDeviceWaypoints,
                     4 * mMaxWaypoints * sizeof(float),
-                    cudaMemcpyDeviceToHost);
+                    cudaMemcpyDeviceToHost));
 
         if(fabs(waypointsHost[0]) < 0.001 && fabs(waypointsHost[1]) < 0.001 && fabs(waypointsHost[2]) < 0.001)
         {
@@ -416,10 +389,81 @@ void PathPlanner::slotComputePath(const QVector3D& vehiclePosition, const WayPoi
 
     delete waypointsHost;
 
-    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridPathFinder, 0);
-    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridOccupancy, 0);
+    if(haveToMapGridOccupancyTemplate) checkAndUnmapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
+//    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridPathFinder, 0);
+
+    if(haveToMapGridOccupancyPathPlanner) checkAndUnmapGridOccupancy(mCudaVboResourceGridPathPlanner);
+//    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridOccupancy, 0);
 
     emit path(computedPath.list(), WayPointListSource::WayPointListSourceFlightPlanner);
 
     qDebug() << __PRETTY_FUNCTION__ << "took" << t.elapsed() << "ms.";
+}
+
+bool PathPlanner::checkAndMapGridOccupancy(cudaGraphicsResource *resource)
+{
+    // Simply make sure that the pointer used for this resource is mapped.
+    // Return true if it had to be mapped, false otherwise.
+    if(resource == mCudaVboResourceGridOccupancyTemplate)
+    {
+        if(mGridOccupancyTemplate == nullptr)
+        {
+            qDebug() << __PRETTY_FUNCTION__ << "mapping grid occupancy template into cuda space";
+            mGridOccupancyTemplate = (quint8*)CudaHelper::mapGLBufferObject(&resource);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    if(resource == mCudaVboResourceGridPathPlanner)
+    {
+        if(mGridOccupancyPathPanner == nullptr)
+        {
+            qDebug() << __PRETTY_FUNCTION__ << "mapping grid occupancy pathplanner into cuda space";
+            mGridOccupancyPathPanner = (quint8*)CudaHelper::mapGLBufferObject(&resource);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+}
+
+bool PathPlanner::checkAndUnmapGridOccupancy(cudaGraphicsResource *resource)
+{
+    // Simply make sure that the pointer used for this resource is unmapped.
+    // Return true if it had to be unmapped, false otherwise.
+    if(resource == mCudaVboResourceGridOccupancyTemplate)
+    {
+        if(mGridOccupancyTemplate == nullptr)
+        {
+            return false;
+        }
+        else
+        {
+            qDebug() << __PRETTY_FUNCTION__ << "mapping grid occupancy template out of cuda space";
+            cudaGraphicsUnmapResources(1, &resource, 0);
+            mGridOccupancyTemplate = nullptr;
+            return true;
+        }
+    }
+
+    if(resource == mCudaVboResourceGridPathPlanner)
+    {
+        if(mGridOccupancyPathPanner == nullptr)
+        {
+            return false;
+        }
+        else
+        {
+            qDebug() << __PRETTY_FUNCTION__ << "mapping grid occupancy pathplanner out of cuda space";
+            cudaGraphicsUnmapResources(1, &resource, 0);
+            mGridOccupancyPathPanner = nullptr;
+            return true;
+        }
+    }
 }

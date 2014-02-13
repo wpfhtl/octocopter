@@ -27,7 +27,7 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
     mTimeOfLastDenseCloudReduction = QTime::currentTime();
 
     mPointCloudColliders = new PointCloudCuda(Box3D(), 128 * 1024, "ColliderCloud");
-    mPointCloudColliders->setMinimumPointDistance(0.15f);
+    mPointCloudColliders->setMinimumPointDistance(0.12f);
 
     mBaseStation->getGlScene()->slotPointCloudRegister(mPointCloudColliders);
 
@@ -189,6 +189,8 @@ void FlightPlannerParticles::slotGenerateWaypoints()
         return;
     }
 
+    emit particleOpacity(1.0f);
+
     emit processingState(GlScene::FlightPlannerProcessingState::WayPointComputation);
 
     copyParametersToGpu(&mSimulationParameters);
@@ -255,9 +257,11 @@ void FlightPlannerParticles::slotGenerateWaypoints()
         // Sort them to the shortest path, honoring the vehicle's current location.
         wayPointsWithHighInformationGain.sortToShortestPath(getLastKnownVehiclePose().getPosition());
 
-        qDebug() << "FlightPlannerParticles::slotGenerateWaypoints(): after sort to shortest path:" << wayPointsWithHighInformationGain.toString();
+        qDebug() << __PRETTY_FUNCTION__ << "after sort to shortest path:" << wayPointsWithHighInformationGain.toString();
 
         mPathPlanner->slotComputePath(vehiclePosition, wayPointsWithHighInformationGain);
+
+        qDebug() << __PRETTY_FUNCTION__ << "setting processing state to idle";
         emit processingState(GlScene::FlightPlannerProcessingState::Idle);
     }
     else
@@ -432,7 +436,9 @@ void FlightPlannerParticles::slotSetWayPoints(const QList<WayPoint>* const wayPo
 
     // Tell others about our new waypoints!
     emit wayPoints(mWayPointsAhead.list(), source);
-    emit suggestVisualization();
+
+    // do not suggestVisualization() here, as the pointcloud calling this method might still have its buffer mapped!
+    //emit suggestVisualization();
 }
 
 const QList<WayPoint>* const FlightPlannerParticles::getWayPoints()
@@ -477,7 +483,7 @@ void FlightPlannerParticles::slotWayPointReached(const WayPoint& wpt)
 
 void FlightPlannerParticles::slotStartWayPointGeneration()
 {
-    qDebug() << __PRETTY_FUNCTION__ << "starting generation!";
+    qDebug() << __PRETTY_FUNCTION__ << "starting generation, setting processing state to ParticleSimulation";
     mTimerProcessInformationGain.start();
 
     slotClearGridOfInformationGain();
@@ -543,7 +549,7 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloudCuda*const p
 {
     // This is called when the dense cloud inserted points. When points come in, we make sure this happens every 2 seconds,
     // so that waypoint safety can be checked as often.
-    qDebug() << __PRETTY_FUNCTION__;
+    qDebug() << __PRETTY_FUNCTION__ << "cloud" << pointCloudSource << "inserted points. First point:" << firstPointToReadFromSrc << "number:" << numberOfPointsToCopy;
 
     mPointCloudColliders->slotInsertPoints(pointCloudSource, firstPointToReadFromSrc, numberOfPointsToCopy);
 
@@ -551,9 +557,69 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloudCuda*const p
     if(mDialog->checkWayPointSafety() && mWayPointsAhead.size())
     {
         emit processingState(GlScene::FlightPlannerProcessingState::WayPointChecking);
-        mPathPlanner->checkWayPointSafety(getLastKnownVehiclePose().getPosition(), &mWayPointsAhead);
-        // Todo: wait a couple of frames before emitting this. There's no QTimer::singleShot(lambda), though :|
-        QTimer::singleShot(500, this, SLOT(slotSetProcessingStateToIdle()));
+        if(!mPathPlanner->checkWayPointSafety(getLastKnownVehiclePose().getPosition(), &mWayPointsAhead))
+        {
+            qDebug() << __PRETTY_FUNCTION__ << "some waypoints are now in occupied territory, re-generating waypoints.";
+            // Retrieve all waypoints with informatio ngain, re-move them to safe positions and re-plan the path.
+            emit message(LogImportance::Warning, "FlightPlanner", "waypoints are now colliding with geometry. Stopping rover and replanning path.");
+
+
+            // Re-generate waypoints from old information gain. This is problematic, as we will re-approach waypoints
+            // that we've already visited.
+            //slotGenerateWaypoints();
+
+            // Completey restart waypoint generation. Also problematic, because particle simulation takes time and it
+            // sometimes seems like fly back where we came from. Reversing flight-direction might be smart, but seems
+            // clumsy
+            //QList<WayPoint> empty;
+            //slotSetWayPoints(&empty, WayPointListSource::WayPointListSourceFlightPlanner);
+            //slotStartWayPointGeneration();
+
+            // wayPointsAhead is a pointer to flightplanner's real list. As soon as we emit an empty path,
+            // it will also become empty! So, create a copy.
+            WayPointList newWayPointsWithHighInformationGain;
+
+            for(int i=mWayPointsAhead.size()-1;i>=0;i--)
+            {
+                const WayPoint wpt = mWayPointsAhead.at(i);
+
+                // Waypoints and their information gain
+                // less than zero:
+                //             -1 : a detour waypoint that collides
+                //   less than -1 : a real waypoint that collides
+                //              0 : a detour waypoint that doesn't collide
+                // greater than 0 : a real waypoint that doesn't collide
+                if(std::abs(wpt.informationGain) > 1.1f)
+                    newWayPointsWithHighInformationGain.append(wpt);
+            }
+
+            // Set an empty list, so we stop the rover!
+            QList<WayPoint> wpl;
+            slotSetWayPoints(&wpl, WayPointListSource::WayPointListSourceFlightPlanner);
+
+            if(!newWayPointsWithHighInformationGain.size())
+            {
+                qDebug() << __PRETTY_FUNCTION__ << "no waypoints left after checking for safety, cannot compute path!";
+                QTimer::singleShot(500, this, SLOT(slotSetProcessingStateToIdle()));
+                return;
+            }
+
+            mPathPlanner->moveWayPointsToSafety(&newWayPointsWithHighInformationGain);
+
+            if(!newWayPointsWithHighInformationGain.size())
+            {
+                qDebug() << __PRETTY_FUNCTION__ << "no waypoints left after moving remaining waypoints to safety, cannot compute path!";
+                QTimer::singleShot(500, this, SLOT(slotSetProcessingStateToIdle()));
+                return;
+            }
+
+            mPathPlanner->slotComputePath(getLastKnownVehiclePose().getPosition(), newWayPointsWithHighInformationGain);
+        }
+        else
+        {
+            // Todo: wait a couple of frames before emitting this. There's no QTimer::singleShot(lambda), though :|
+            QTimer::singleShot(500, this, SLOT(slotSetProcessingStateToIdle()));
+        }
     }
 }
 
@@ -597,5 +663,6 @@ void FlightPlannerParticles::slotStepSimulation()
 
 void FlightPlannerParticles::slotSetProcessingStateToIdle()
 {
+    qDebug() << __PRETTY_FUNCTION__;
     emit processingState(GlScene::FlightPlannerProcessingState::Idle);
 }

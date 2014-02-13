@@ -28,7 +28,7 @@ public:
 
     void render();
 
-    bool isPointCloudRegistered(PointCloud* p);
+    bool isPointCloudRegistered(PointCloudCuda *p);
     void reloadShaders();
 
     void initialize();
@@ -73,7 +73,15 @@ public:
     };
 
 public slots:
-    void slotSetFlightPlannerProcessingState(const FlightPlannerProcessingState& state) {mFlightPlannerProcessingState = state; emit suggestVisualization();}
+    void slotSetFlightPlannerProcessingState(const FlightPlannerProcessingState& state)
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "setting processing state to" << static_cast<quint8>(state);
+        mFlightPlannerProcessingState = state;
+
+        // Do NOT suggestVisualization() here, because this signal might come
+        // from a pointcloud that still has a buffer mapped!
+        //emit suggestVisualization();
+    }
 
     void slotSetVolumeGlobal(const Box3D* volume);
     void slotSetVolumeLocal(const Box3D* volume);
@@ -83,8 +91,8 @@ public slots:
 
     // GlWidget renders points from all known PointClouds. These methods (de)register PointClouds for rendering.
     // Ownership remains with the caller, meaning they MUST be deregistered before deletion
-    void slotPointCloudRegister(PointCloud* p);
-    void slotPointCloudUnregister(PointCloud* p);
+    void slotPointCloudRegister(PointCloudCuda *p);
+    void slotPointCloudUnregister(PointCloudCuda *p);
 
     // LogPlayer and RoverConnection set values used/computed by the flightcontroller.
     // These shall be visualized here in GlWidget for debugging.
@@ -146,7 +154,7 @@ private:
     bool mIsInitialized;
 
     WayPointList *mWayPointsAhead, *mWayPointsPassed;
-    QList<PointCloud*> mPointCloudsToRender;
+    QList<PointCloudCuda*> mPointCloudsToRender;
 
     Model *mModelVehicle, *mModelThrust, *mModelConeYaw, *mModelConePitch, *mModelConeRoll, *mModelHoverPosition, *mModelTrajectoryStart, *mModelTrajectoryGoal, *mModelVelocityArrow;
     Model *mModelControllerP, *mModelControllerI, *mModelControllerD;

@@ -15,7 +15,7 @@ class PathPlanner : public QObject
     Q_OBJECT
 
 private:
-    static const int mMaxWaypoints = 100; // should be more than enough
+    static const int mMaxWaypoints = 1000; // should be more than enough
     ParametersPathPlanner mParametersPathPlanner;
     PointCloudCuda* mPointCloudColliders;
     bool mRepopulateOccupanccyGrid;
@@ -26,13 +26,22 @@ private:
     // It  is used when computing subpaths and when checking waypoint safety.
     float* mDeviceWaypoints;
 
-    GLuint mVboGridOccupancy;
-    GLuint mVboGridPathFinder;
-    struct cudaGraphicsResource *mCudaVboResourceGridOccupancy; // handles OpenGL-CUDA exchange
-    struct cudaGraphicsResource *mCudaVboResourceGridPathFinder; // handles OpenGL-CUDA exchange
+    // A pointer to the populated and dilated occupancy grid. Either nullptr or mapped.
+    // The pathplanner copies it and uses that for path planning.
+    quint8* mGridOccupancyTemplate;
+    // A pointer to the grid used by the path planner
+    quint8* mGridOccupancyPathPanner;
 
-    void populateOccupancyGrid(quint8 *gridOccupancy = nullptr);
+    GLuint mVboGridOccupancy;
+    GLuint mVboGridPathPlanner;
+    struct cudaGraphicsResource *mCudaVboResourceGridOccupancyTemplate; // handles OpenGL-CUDA exchange
+    struct cudaGraphicsResource *mCudaVboResourceGridPathPlanner; // handles OpenGL-CUDA exchange
+
+    void populateOccupancyGrid();
     void alignPathPlannerGridToColliderCloud();
+
+    bool checkAndMapGridOccupancy(cudaGraphicsResource *resource);
+    bool checkAndUnmapGridOccupancy(cudaGraphicsResource *resource);
 
 public:
     explicit PathPlanner(PointCloudCuda * const pointCloudColliders, QObject *parent = 0);
@@ -46,7 +55,11 @@ public:
     // - defined number of gridcells (grid-cells are allocated in VBO)
     void initialize();
 
-    void checkWayPointSafety(const QVector3D &vehiclePosition, const WayPointList* const wayPointsAhead);
+    // Checks whether all waypoints are free w.r.t. to the dilated occupancy grid. When a waypoint is in
+    // an occupied cell, it will be removed from the list.
+    // Returns true if everything was fine , false if collisions occurred and waypoints were removed.
+    bool checkWayPointSafety(const QVector3D &vehiclePosition, const WayPointList * const wayPointsAhead);
+
     void moveWayPointsToSafety(WayPointList* wayPointList);
 
 signals:
@@ -61,7 +74,7 @@ signals:
     void path(const QList<WayPoint>* const, WayPointListSource);
 
     // Is emitted when checkWayPointSafety() finds out that the path must be deleted completely.
-    void generateNewWayPoints();
+//    void generateNewWayPoints();
 
     void message(const LogImportance& importance, const QString& source, const QString& message);
 
