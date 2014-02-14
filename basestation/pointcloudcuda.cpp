@@ -272,8 +272,8 @@ void PointCloudCuda::slotInsertPoints(PointCloudCuda *const pointCloudSource, co
 
     quint32 numberOfPointsProcessedInSrc = 0;
     // We only fill our cloud up to 95% capacity. Otherwise, we'd have maaaany iterations filling it completely, then reducing to 99.99%, refilling, 99.991%, ...
-    qDebug() << __PRETTY_FUNCTION__ << mName << "current occupancy:" << getNumberOfPointsStored() / mParameters.capacity << ": there are" << numberOfPointsToCopy << "to insert";
-    while(mParameters.elementCount < mParameters.capacity * 0.95f && numberOfPointsProcessedInSrc < pointCloudSource->getNumberOfPointsStored() - firstPointToReadFromSrc && numberOfPointsProcessedInSrc < numberOfPointsToCopy)
+    qDebug() << __PRETTY_FUNCTION__ << mName << "current occupancy:" << (float)getNumberOfPointsStored() / (float)mParameters.capacity << ": there are" << numberOfPointsToCopy << "to insert";
+    while(mParameters.elementCount < mParameters.capacity * 0.98f && numberOfPointsProcessedInSrc < pointCloudSource->getNumberOfPointsStored() - firstPointToReadFromSrc && numberOfPointsProcessedInSrc < numberOfPointsToCopy)
     {
         const quint32 freeSpaceInDst = mParameters.capacity - mParameters.elementCount - mParameters.elementQueueCount;
 

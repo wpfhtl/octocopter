@@ -102,7 +102,7 @@ QString WayPointList::toString() const
     QString result = QString("WayPointList with %1 elements:\n").arg(mWaypoints.size());
 
     for(int i=0;i<mWaypoints.size();i++)
-        result.append(QString("wpt %1, gain %2, %3 %4 %5\n").arg(i, 2).arg(mWaypoints[i].informationGain, 2).arg(mWaypoints[i].x(), 7).arg(mWaypoints[i].y(), 7).arg(mWaypoints[i].z(), 7));
+        result.append(QString("wpt %1, gain %2, %3 %4 %5\n").arg(i, 2).arg((int)mWaypoints[i].informationGain, 2).arg(mWaypoints[i].x(), 7).arg(mWaypoints[i].y(), 7).arg(mWaypoints[i].z(), 7));
 
     return result;
 }

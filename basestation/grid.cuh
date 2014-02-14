@@ -50,8 +50,8 @@ struct __align__(16) Grid
     __host__ __device__ bool isPositionInGrid(float4 position) const
     {
         return
-                position.x <= worldMax.x && position.y <= worldMax.y && position.z <= worldMax.z &&
-                position.x >= worldMin.x && position.y >= worldMin.y && position.z >= worldMin.z;
+                position.x < worldMax.x && position.y < worldMax.y && position.z < worldMax.z &&
+                position.x > worldMin.x && position.y > worldMin.y && position.z > worldMin.z;
     }
 
     __host__ void initialize()

@@ -134,7 +134,7 @@ void PathPlanner::populateOccupancyGrid()
     qDebug() << __PRETTY_FUNCTION__ << "done.";
 }
 
-bool PathPlanner::checkWayPointSafety(const QVector3D& vehiclePosition, const WayPointList* const wayPointsAhead)
+bool PathPlanner::checkWayPointSafety(const WayPointList* const wayPointsAhead)
 {
     if(!mIsInitialized) initialize();
 
@@ -266,10 +266,10 @@ void PathPlanner::slotComputePath(const QVector3D& vehiclePosition, const WayPoi
     qDebug() << __PRETTY_FUNCTION__ << "computing path for waypointlist" << wayPointsWithHighInformationGain.toString();
 
     // mDeviceOccupancyGrid points to device memory filled with grid-values of quint8.
-    // After fillOccupancyGrid(), empty cells contain a 0, occupied cells contain a 255.
+    // After fillOccupancyGrid(), empty cells contain a 0, occupied cells contain a 254/255.
     // The cell containing the start is set to 1. Then, one thread is launched per cell,
     // looking into the neighboring cells. If a neighboring cell (26 3d-neighbors) contains
-    // a value other than 0 or 255, the current cell is set to min(neighbor)+1.
+    // a value other than 0 or 254/255, the current cell is set to min(neighbor)+1.
     // This is executed often, so that all cells reachable from start get filled with the
     // distance TO start
 
@@ -282,10 +282,7 @@ void PathPlanner::slotComputePath(const QVector3D& vehiclePosition, const WayPoi
     copyParametersToGpu(&mParametersPathPlanner);
 
     const bool haveToMapGridOccupancyTemplate = checkAndMapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
-//    quint8* mGridOccupancyPopulatedAndDilated = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridOccupancy);
-
     const bool haveToMapGridOccupancyPathPlanner = checkAndMapGridOccupancy(mCudaVboResourceGridPathPlanner);
-//    quint8* mGridOccupancyPathPanner = (quint8*)CudaHelper::mapGLBufferObject(&mCudaVboResourceGridPathFinder);
 
     // Only re-creates the occupancy grid if the collider cloud's content changed
     populateOccupancyGrid();

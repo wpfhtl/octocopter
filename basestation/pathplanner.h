@@ -58,7 +58,7 @@ public:
     // Checks whether all waypoints are free w.r.t. to the dilated occupancy grid. When a waypoint is in
     // an occupied cell, it will be removed from the list.
     // Returns true if everything was fine , false if collisions occurred and waypoints were removed.
-    bool checkWayPointSafety(const QVector3D &vehiclePosition, const WayPointList * const wayPointsAhead);
+    bool checkWayPointSafety(const WayPointList * const wayPointsAhead);
 
     void moveWayPointsToSafety(WayPointList* wayPointList);
 

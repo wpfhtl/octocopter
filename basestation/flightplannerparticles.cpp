@@ -26,8 +26,8 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
 
     mTimeOfLastDenseCloudReduction = QTime::currentTime();
 
-    mPointCloudColliders = new PointCloudCuda(Box3D(), 128 * 1024, "ColliderCloud");
-    mPointCloudColliders->setMinimumPointDistance(0.12f);
+    mPointCloudColliders = new PointCloudCuda(Box3D(), 256 * 1024, "ColliderCloud");
+    mPointCloudColliders->setMinimumPointDistance(0.08f);
 
     mBaseStation->getGlScene()->slotPointCloudRegister(mPointCloudColliders);
 
@@ -92,7 +92,6 @@ void FlightPlannerParticles::slotInitialize()
 
     mPathPlanner = new PathPlanner(mPointCloudColliders);
     connect(mPathPlanner, &PathPlanner::path, this, &FlightPlannerParticles::slotSetWayPoints);
-    connect(mPathPlanner, &PathPlanner::generateNewWayPoints, this, &FlightPlannerParticles::slotStartWayPointGeneration);
     connect(mPathPlanner, SIGNAL(message(LogImportance,QString,QString)), this, SIGNAL(message(LogImportance,QString,QString)));
     connect(mPathPlanner, SIGNAL(vboInfoGridOccupancy(quint32,Box3D,Vector3<quint16>)), SIGNAL(vboInfoGridOccupancy(quint32,Box3D,Vector3<quint16>)));
     connect(mPathPlanner, SIGNAL(vboInfoGridPathPlanner(quint32,Box3D,Vector3<quint16>)), SIGNAL(vboInfoGridPathPlanner(quint32,Box3D,Vector3<quint16>)));
@@ -557,12 +556,11 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloudCuda*const p
     if(mDialog->checkWayPointSafety() && mWayPointsAhead.size())
     {
         emit processingState(GlScene::FlightPlannerProcessingState::WayPointChecking);
-        if(!mPathPlanner->checkWayPointSafety(getLastKnownVehiclePose().getPosition(), &mWayPointsAhead))
+        if(!mPathPlanner->checkWayPointSafety(&mWayPointsAhead))
         {
-            qDebug() << __PRETTY_FUNCTION__ << "some waypoints are now in occupied territory, re-generating waypoints.";
+            qDebug() << __PRETTY_FUNCTION__ << "some of the following waypoints are now in occupied territory, moving them from:" << mWayPointsAhead.toString();
             // Retrieve all waypoints with informatio ngain, re-move them to safe positions and re-plan the path.
             emit message(LogImportance::Warning, "FlightPlanner", "waypoints are now colliding with geometry. Stopping rover and replanning path.");
-
 
             // Re-generate waypoints from old information gain. This is problematic, as we will re-approach waypoints
             // that we've already visited.
@@ -579,7 +577,7 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloudCuda*const p
             // it will also become empty! So, create a copy.
             WayPointList newWayPointsWithHighInformationGain;
 
-            for(int i=mWayPointsAhead.size()-1;i>=0;i--)
+            for(int i=0;i<mWayPointsAhead.size();i++)
             {
                 const WayPoint wpt = mWayPointsAhead.at(i);
 
@@ -614,6 +612,8 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloudCuda*const p
             }
 
             mPathPlanner->slotComputePath(getLastKnownVehiclePose().getPosition(), newWayPointsWithHighInformationGain);
+
+            qDebug() << __PRETTY_FUNCTION__ << "waypoitns changed to:" << mWayPointsAhead.toString();
         }
         else
         {
