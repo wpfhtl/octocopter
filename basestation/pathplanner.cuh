@@ -36,10 +36,9 @@ void clearOccupancyGridAboveVehiclePosition(
         float           vehicleZ,
         cudaStream_t*   stream);
 
-void moveWayPointsToSafetyGpu(
-        unsigned char*  gridOccupancy,
+void moveWayPointsToSafetyGpu(unsigned char*  gridOccupancy,
         float*          mDeviceWaypoints,
-        unsigned int    numberOfWayPoints,
+        unsigned int    numberOfWayPoints, unsigned int startSearchNumberOfCellsAbove,
         cudaStream_t*   stream);
 
 void retrievePath(unsigned char*  gridValues,

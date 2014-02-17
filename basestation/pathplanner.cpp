@@ -12,9 +12,7 @@ PathPlanner::PathPlanner(PointCloudCuda* const pointCloudColliders, QObject *par
 
     mDeviceWaypoints = nullptr;
 
-    mParametersPathPlanner.grid.cells.x = 32;
-    mParametersPathPlanner.grid.cells.y = 32;
-    mParametersPathPlanner.grid.cells.z = 32;
+    mParametersPathPlanner.grid.cells.x = mParametersPathPlanner.grid.cells.y = mParametersPathPlanner.grid.cells.z = 32;
 
     mPointCloudColliders = pointCloudColliders;
     connect(mPointCloudColliders, &PointCloudCuda::pointsInserted, this, &PathPlanner::slotColliderCloudInsertedPoints);
@@ -194,8 +192,11 @@ bool PathPlanner::checkWayPointSafety(const WayPointList* const wayPointsAhead)
 }
 
 // This is not part of slotComputePath() because we want to moveToSafety, travellingSalesMan, computePath in that order!
-// So, these methods are called by FlightPlanner
-void PathPlanner::moveWayPointsToSafety(WayPointList* wayPointList)
+// So, these methods are called by FlightPlanner. Pass 0 as last parameter to start searching in the waypoint's cells or
+// a higher number to start searching above. When first moving waypoints fresh from the information gain grid, we want to
+// search 1 or 2 cells above for sufficient ground clearance. Later-on, when just moving those waypoints that collide, we
+// do not really want to raise them again. That's what the last parameter is made for.
+void PathPlanner::moveWayPointsToSafety(WayPointList* wayPointList, bool raiseWaypointsForGroundClearance)
 {
     if(!mIsInitialized) initialize();
 
@@ -228,9 +229,12 @@ void PathPlanner::moveWayPointsToSafety(WayPointList* wayPointList)
                     4 * numberOfWayPoints * sizeof(float),
                     cudaMemcpyHostToDevice));
 
+        // If desired, raise waypoints by 4m
+        int startSearchNumberOfCellsAbove = raiseWaypointsForGroundClearance ? (4.0 / mParametersPathPlanner.grid.getCellSize().y) : 0;
+
         const bool haveToMapGridOccupancyTemplate = checkAndMapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
         populateOccupancyGrid();
-        moveWayPointsToSafetyGpu(mGridOccupancyTemplate, mDeviceWaypoints, numberOfWayPoints, &mCudaStream);
+        moveWayPointsToSafetyGpu(mGridOccupancyTemplate, mDeviceWaypoints, numberOfWayPoints, startSearchNumberOfCellsAbove, &mCudaStream);
         if(haveToMapGridOccupancyTemplate) checkAndUnmapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
 
         // Now copy the waypoints back from device into host memory and see if the w-components are non-zero.

@@ -27,7 +27,7 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
     mTimeOfLastDenseCloudReduction = QTime::currentTime();
 
     mPointCloudColliders = new PointCloudCuda(Box3D(), 256 * 1024, "ColliderCloud");
-    mPointCloudColliders->setMinimumPointDistance(0.08f);
+    mPointCloudColliders->setMinimumPointDistance(0.10f);
 
     mBaseStation->getGlScene()->slotPointCloudRegister(mPointCloudColliders);
 
@@ -251,7 +251,7 @@ void FlightPlannerParticles::slotGenerateWaypoints()
         qDebug() << "FlightPlannerParticles::slotGenerateWaypoints(): after merging and reducing:" << wayPointsWithHighInformationGain.toString();
 
         // Now use the occupancy grid to move the waypoints into close-by, safe areas
-        mPathPlanner->moveWayPointsToSafety(&wayPointsWithHighInformationGain);
+        mPathPlanner->moveWayPointsToSafety(&wayPointsWithHighInformationGain, true);
 
         // Sort them to the shortest path, honoring the vehicle's current location.
         wayPointsWithHighInformationGain.sortToShortestPath(getLastKnownVehiclePose().getPosition());
@@ -602,7 +602,7 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloudCuda*const p
                 return;
             }
 
-            mPathPlanner->moveWayPointsToSafety(&newWayPointsWithHighInformationGain);
+            mPathPlanner->moveWayPointsToSafety(&newWayPointsWithHighInformationGain, false);
 
             if(!newWayPointsWithHighInformationGain.size())
             {

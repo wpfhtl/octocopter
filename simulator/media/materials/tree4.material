@@ -1,0 +1,40 @@
+material tree4_trunk
+{
+	technique
+	{
+		pass
+		{
+			//lighting on
+			ambient 1 1 1 1
+			diffuse 1 1 1 1
+			specular 0 0 0 1 10
+
+			texture_unit
+			{
+				texture t4_b.png
+			}
+		}
+	}
+}
+
+material tree4_leafs
+{
+	technique
+	{
+		pass
+		{
+			//lighting on
+			ambient 1 1 1 1
+			diffuse 1 1 1 1
+			specular 0 0 0 0
+			emissive 0 0 0 0
+			scene_blend alpha_blend
+			depth_write off
+
+			texture_unit
+			{
+				texture t4_c.png
+			}
+		}
+	}
+}

@@ -420,7 +420,6 @@ void GlScene::render()
     Q_ASSERT(mIsInitialized);
 
     glDepthMask(GL_TRUE);
-    glEnable(GL_DEPTH_TEST);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
 
@@ -846,75 +845,6 @@ void GlScene::render()
         glDisable(GL_BLEND);
     }
 
-    // Render occupancy grid
-    if(mVboGridMapOfOccupancy != 0 && mVaoGridMapOfOccupancy->isCreated() && (mRenderOccupancyGrid || mFlightPlannerProcessingState == FlightPlannerProcessingState::WayPointChecking || mFlightPlannerProcessingState == FlightPlannerProcessingState::WayPointComputation))
-    {
-        glEnable(GL_BLEND);
-        glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
-        // Draw grid with occupancy
-        mShaderProgramGrid->bind();
-
-        mShaderProgramGrid->setUniformValue("fixedColor", QColor(128,128,255,128));
-        // If we have a value of (quint8)1, that'll be 1/255=0.004 in the shader's float. Amplify this?
-        mShaderProgramGrid->setUniformValue("alphaMultiplication", 1.0f);
-        mShaderProgramGrid->setUniformValue("alphaExponentiation", 1.0f);
-        mShaderProgramGrid->setUniformValue("quadSizeFactor", 0.6f);
-
-        // Set uniform values in the shader program
-        Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMin") != -1);
-        mShaderProgramGrid->setUniformValue("boundingBoxMin", mBoundingBoxGridOccupancy.min);
-
-        Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMax") != -1);
-        mShaderProgramGrid->setUniformValue("boundingBoxMax", mBoundingBoxGridOccupancy.max);
-
-        // gridSize is a uint3, not sure how to set this with qt, so lets do opengl:
-        Q_ASSERT(mShaderProgramGrid->uniformLocation("gridCellCount") != -1);
-        glUniform3i(mShaderProgramGrid->uniformLocation("gridCellCount"), mGridOccupancyCellCount.x, mGridOccupancyCellCount.y, mGridOccupancyCellCount.z);
-
-        mVaoGridMapOfOccupancy->bind();
-        glBindBuffer(GL_ARRAY_BUFFER, mVboGridMapOfOccupancy);
-        glDrawArrays(GL_POINTS, 0, mGridOccupancyCellCount.x * mGridOccupancyCellCount.y * mGridOccupancyCellCount.z);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        mVaoGridMapOfOccupancy->release();
-
-        mShaderProgramGrid->release();
-        glDisable(GL_BLEND);
-    }
-
-    // Render pathfinder grid
-    if(mVboGridMapOfPathPlanner != 0 && mRenderPathPlannerGrid && mVaoGridMapOfPathPlanner->isCreated())
-    {
-        // Draw grid with waypoint pressure
-        mShaderProgramGrid->bind();
-
-        mShaderProgramGrid->setUniformValue("fixedColor", QColor(0,255,0));
-        // If we have a value of (quint8)1, that'll be 1/255=0.004 in the shader's float. Amplify this?
-        mShaderProgramGrid->setUniformValue("alphaMultiplication", 1.0f);
-        mShaderProgramGrid->setUniformValue("alphaExponentiation", 2.0f);
-        mShaderProgramGrid->setUniformValue("quadSizeFactor", 0.2f);
-
-        // Set uniform values in the shader program
-        Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMin") != -1);
-        mShaderProgramGrid->setUniformValue("boundingBoxMin", mBoundingBoxGridPathFinder.min);
-
-        Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMax") != -1);
-        mShaderProgramGrid->setUniformValue("boundingBoxMax", mBoundingBoxGridPathFinder.max);
-
-        // gridSize is a uint3, not sure how to set this with qt, so lets do opengl:
-        Q_ASSERT(mShaderProgramGrid->uniformLocation("gridCellCount") != -1);
-        glUniform3i(mShaderProgramGrid->uniformLocation("gridCellCount"), mGridPathFinderCellCount.x, mGridPathFinderCellCount.y, mGridPathFinderCellCount.z);
-
-        // Make the contents of this array available at layout position vertexShaderVertexIndex in the vertex shader
-        mVaoGridMapOfPathPlanner->bind();
-        glBindBuffer(GL_ARRAY_BUFFER, mVboGridMapOfPathPlanner);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glDrawArrays(GL_POINTS, 0, mGridPathFinderCellCount.x * mGridPathFinderCellCount.y * mGridPathFinderCellCount.z);
-        mVaoGridMapOfPathPlanner->release();
-
-        mShaderProgramGrid->release();
-    }
-    glEnable(GL_CULL_FACE);
-
     glEnable(GL_BLEND);
     glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
     {
@@ -959,6 +889,75 @@ void GlScene::render()
         }
     }
     glDisable(GL_BLEND);
+
+    // Render occupancy grid
+    if(mVboGridMapOfOccupancy != 0 && mVaoGridMapOfOccupancy->isCreated() && (mRenderOccupancyGrid || mFlightPlannerProcessingState == FlightPlannerProcessingState::WayPointChecking || mFlightPlannerProcessingState == FlightPlannerProcessingState::WayPointComputation))
+    {
+        glEnable(GL_BLEND);
+        glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Beau.Ti.Ful!
+        // Draw grid with occupancy
+        mShaderProgramGrid->bind();
+
+        mShaderProgramGrid->setUniformValue("fixedColor", QColor(128,128,255,128));
+        // If we have a value of (quint8)1, that'll be 1/255=0.004 in the shader's float. Amplify this?
+        mShaderProgramGrid->setUniformValue("alphaMultiplication", 0.6f);
+        mShaderProgramGrid->setUniformValue("alphaExponentiation", 1.0f);
+        mShaderProgramGrid->setUniformValue("quadSizeFactor", 0.6f);
+
+        // Set uniform values in the shader program
+        Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMin") != -1);
+        mShaderProgramGrid->setUniformValue("boundingBoxMin", mBoundingBoxGridOccupancy.min);
+
+        Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMax") != -1);
+        mShaderProgramGrid->setUniformValue("boundingBoxMax", mBoundingBoxGridOccupancy.max);
+
+        // gridSize is a uint3, not sure how to set this with qt, so lets do opengl:
+        Q_ASSERT(mShaderProgramGrid->uniformLocation("gridCellCount") != -1);
+        glUniform3i(mShaderProgramGrid->uniformLocation("gridCellCount"), mGridOccupancyCellCount.x, mGridOccupancyCellCount.y, mGridOccupancyCellCount.z);
+
+        mVaoGridMapOfOccupancy->bind();
+        glBindBuffer(GL_ARRAY_BUFFER, mVboGridMapOfOccupancy);
+        glDrawArrays(GL_POINTS, 0, mGridOccupancyCellCount.x * mGridOccupancyCellCount.y * mGridOccupancyCellCount.z);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        mVaoGridMapOfOccupancy->release();
+
+        mShaderProgramGrid->release();
+        glDisable(GL_BLEND);
+    }
+
+    // Render pathfinder grid
+    if(mVboGridMapOfPathPlanner != 0 && mRenderPathPlannerGrid && mVaoGridMapOfPathPlanner->isCreated())
+    {
+        // Draw grid with waypoint pressure
+        mShaderProgramGrid->bind();
+
+        mShaderProgramGrid->setUniformValue("fixedColor", QColor(0,255,0));
+        // If we have a value of (quint8)1, that'll be 1/255=0.004 in the shader's float. Amplify this?
+        mShaderProgramGrid->setUniformValue("alphaMultiplication", 0.6f);
+        mShaderProgramGrid->setUniformValue("alphaExponentiation", 1.0f);
+        mShaderProgramGrid->setUniformValue("quadSizeFactor", 0.2f);
+
+        // Set uniform values in the shader program
+        Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMin") != -1);
+        mShaderProgramGrid->setUniformValue("boundingBoxMin", mBoundingBoxGridPathFinder.min);
+
+        Q_ASSERT(mShaderProgramGrid->uniformLocation("boundingBoxMax") != -1);
+        mShaderProgramGrid->setUniformValue("boundingBoxMax", mBoundingBoxGridPathFinder.max);
+
+        // gridSize is a uint3, not sure how to set this with qt, so lets do opengl:
+        Q_ASSERT(mShaderProgramGrid->uniformLocation("gridCellCount") != -1);
+        glUniform3i(mShaderProgramGrid->uniformLocation("gridCellCount"), mGridPathFinderCellCount.x, mGridPathFinderCellCount.y, mGridPathFinderCellCount.z);
+
+        // Make the contents of this array available at layout position vertexShaderVertexIndex in the vertex shader
+        mVaoGridMapOfPathPlanner->bind();
+        glBindBuffer(GL_ARRAY_BUFFER, mVboGridMapOfPathPlanner);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glDrawArrays(GL_POINTS, 0, mGridPathFinderCellCount.x * mGridPathFinderCellCount.y * mGridPathFinderCellCount.z);
+        mVaoGridMapOfPathPlanner->release();
+
+        mShaderProgramGrid->release();
+    }
+    glEnable(GL_CULL_FACE);
 }
 
 void GlScene::renderController(const QMatrix4x4& transform, const PidController* const controller)

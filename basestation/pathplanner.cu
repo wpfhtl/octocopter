@@ -129,7 +129,9 @@ void clearOccupancyGridAboveVehiclePosition(
     cudaCheckSuccess("clearOccupancyGridAboveVehiclePosition");
 }
 
-__global__ void moveWayPointsToSafetyD(unsigned char* gridValues, float4* deviceWaypoints, unsigned int numberOfWayPoints)
+// If startSearchNumberOfCellsAbove is 0, we will start searching for free cells in the waypoint's cell and then further upwards and outwards
+// If startSearchNumberOfCellsAbove is 3, we will start searching for free cells 3 cells above the waypoint's cell and then further upwards and outwards
+__global__ void moveWayPointsToSafetyD(unsigned char* gridValues, float4* deviceWaypoints, unsigned int numberOfWayPoints, unsigned int startSearchNumberOfCellsAbove)
 {
     uint wptIndex = getThreadIndex1D();
     if(wptIndex >= numberOfWayPoints) return;
@@ -167,7 +169,7 @@ __global__ void moveWayPointsToSafetyD(unsigned char* gridValues, float4* device
     {
         for(int x=0;x<3 && !freeCellFound;x++)
         {
-            for(int y=0;y<maxNumberOfGridCellsToGoUp && !freeCellFound;y++)
+            for(int y=startSearchNumberOfCellsAbove;y<maxNumberOfGridCellsToGoUp && !freeCellFound;y++)
             {
                 const int3 neighbourGridCellCoordinate = gridCellCoordinate + make_int3(searchOrderHorizontal[x],y,searchOrderHorizontal[z]);
                 if(parametersPathPlanner.grid.isCellInGrid(neighbourGridCellCoordinate))
@@ -200,12 +202,13 @@ void moveWayPointsToSafetyGpu(
         unsigned char*  gridOccupancy,
         float*          mDeviceWaypoints,
         unsigned int    numberOfWayPoints,
+        unsigned int    startSearchNumberOfCellsAbove,
         cudaStream_t*   stream)
 {
     uint numThreads, numBlocks;
     computeExecutionKernelGrid(numberOfWayPoints, 64, numBlocks, numThreads);
 
-    moveWayPointsToSafetyD<<< numBlocks, numThreads, 0, *stream>>>(gridOccupancy, (float4*)mDeviceWaypoints, numberOfWayPoints);
+    moveWayPointsToSafetyD<<< numBlocks, numThreads, 0, *stream>>>(gridOccupancy, (float4*)mDeviceWaypoints, numberOfWayPoints, startSearchNumberOfCellsAbove);
     cudaCheckSuccess("moveWayPointsToSafetyGpu");
 }
 
@@ -307,7 +310,7 @@ void growGridD(u_int8_t* gridValues, Grid subGrid)
                         const int neighbourGridCellIndex = parametersPathPlanner.grid.getCellHash(neighbourGridCellCoordinate);
                         const u_int8_t neighborValue = gridValues[neighbourGridCellIndex];
 
-                        // Find the lowest neighbor that is neither 0 nor 255
+                        // Find the lowest neighbor that is neither 0 nor 254/255
                         if(neighborValue < lowestNonNullNeighbor && neighborValue != 0)
                             lowestNonNullNeighbor = neighborValue;
                     }
@@ -381,36 +384,38 @@ void growGrid(unsigned char* gridValues, ParametersPathPlanner* parameters, cuda
 
     const unsigned int longestSideCellCount = parameters->grid.getLongestSideCellCount();
 
-    int3 iterationCellMin, iterationCellMax, lastCellMin, lastCellMax;
+    int3 thisIterationCellMin, thisIterationCellMax, lastCellMin, lastCellMax;
 
-    for(unsigned int i=1;i<longestSideCellCount;i++)
+    // Let the wave propagate as long as it might take to go from one corner to the opposing one
+    const int maxNumberOfSteps = sqrt(pow(longestSideCellCount,2) + pow(longestSideCellCount,2));
+    for(int i=1;i<maxNumberOfSteps;i++)
     {
-        iterationCellMin = parameters->grid.clampCellCoordinate(cellCoordinateStart + make_int3(-i, -i, -i));
-        iterationCellMax = parameters->grid.clampCellCoordinate(cellCoordinateStart + make_int3(+i, +i, +i));
+        thisIterationCellMin = parameters->grid.clampCellCoordinate(cellCoordinateStart + make_int3(-i, -i, -i));
+        thisIterationCellMax = parameters->grid.clampCellCoordinate(cellCoordinateStart + make_int3(+i, +i, +i));
 
-        if(iterationCellMin == lastCellMin && iterationCellMax == lastCellMax)
+        if(thisIterationCellMin == lastCellMin && thisIterationCellMax == lastCellMax)
         {
             // cell coordinates haven't changed, so we have grown the whole grid.
+            printf("growGrid(): stopping after iteration %d, as cellMin/cellMax haven't changed.\n", i);
             break;
         }
-        else
-        {
-            lastCellMin = iterationCellMin;
-            lastCellMax = iterationCellMax;
-        }
+
+        lastCellMin = thisIterationCellMin;
+        lastCellMax = thisIterationCellMax;
 
         Grid iterationGrid;
-        iterationGrid.cells.x = iterationCellMax.x - iterationCellMin.x + 1;
-        iterationGrid.cells.y = iterationCellMax.y - iterationCellMin.y + 1;
-        iterationGrid.cells.z = iterationCellMax.z - iterationCellMin.z + 1;
+        iterationGrid.cells.x = thisIterationCellMax.x - thisIterationCellMin.x + 1;
+        iterationGrid.cells.y = thisIterationCellMax.y - thisIterationCellMin.y + 1;
+        iterationGrid.cells.z = thisIterationCellMax.z - thisIterationCellMin.z + 1;
         float3 superGridCellSize = parameters->grid.getCellSize();
-        iterationGrid.worldMin = parameters->grid.getCellCenter(iterationCellMin) - superGridCellSize/2;
-        iterationGrid.worldMax = parameters->grid.getCellCenter(iterationCellMax) + superGridCellSize/2;
+        iterationGrid.worldMin = parameters->grid.getCellCenter(thisIterationCellMin) - superGridCellSize/2;
+        iterationGrid.worldMax = parameters->grid.getCellCenter(thisIterationCellMax) + superGridCellSize/2;
 
 //        cudaSafeCall(cudaMemcpyToSymbol(growingGrid, iterationGrid, sizeof(Grid)));
 
         computeExecutionKernelGrid(iterationGrid.getCellCount(), 64, numBlocks, numThreads);
-        //printf("growGrid(): growing grid in %d cells.\n", iterationGrid.getCellCount());
+        printf("growGrid(): iteration %d of max %d: growing grid in %d/%d/%d = %d cells.\n",
+               i, maxNumberOfSteps, iterationGrid.cells.x, iterationGrid.cells.y, iterationGrid.cells.z, iterationGrid.getCellCount());
         growGridD<<< numBlocks, numThreads, 0, *stream>>>(gridValues, iterationGrid);
         cudaCheckSuccess("growGridD");
     }
@@ -527,8 +532,12 @@ void retrievePathD(unsigned char* gridValues, float4* waypoints)
         {
             // We are at cellCoordinate and found a value of distance. Now check all neighbors
             // until we find one with a smaller value. That's the path backwards towards the goal.
-
             bool foundNextCellTowardsTarget = false;
+
+            int3 travelDirectionDirect = make_int3(
+                        cudaBound(-1, gridCellCoordinateStart.x - currentCellCoordinate.x, 1),
+                        cudaBound(-1, gridCellCoordinateStart.y - currentCellCoordinate.y, 1),
+                        cudaBound(-1, gridCellCoordinateStart.z - currentCellCoordinate.z, 1));
 
             if(!foundNextCellTowardsTarget)
             {
@@ -536,10 +545,6 @@ void retrievePathD(unsigned char* gridValues, float4* waypoints)
                 // in certain directions first. To prevent this, we first search the cell towards the
                 // direction of the goal...
 
-                int3 travelDirectionDirect = make_int3(
-                            cudaBound(-1, gridCellCoordinateStart.x - currentCellCoordinate.x, 1),
-                            cudaBound(-1, gridCellCoordinateStart.y - currentCellCoordinate.y, 1),
-                            cudaBound(-1, gridCellCoordinateStart.z - currentCellCoordinate.z, 1));
 
                 int3 neighbourCellCoordinate = currentCellCoordinate + travelDirectionDirect;
 
@@ -583,6 +588,10 @@ void retrievePathD(unsigned char* gridValues, float4* waypoints)
             {
                 // Ok, the direct step didn't work.
                 // Define search order. First try to repeat the last step. If that fails, at least try to keep the height.
+                // Wrong: now I think that going as directly as possible is more important than repeating the last step.
+                // Let's see what the paths look like.
+                lastTravelDirection = travelDirectionDirect;
+
                 int searchOrderX[3];
                 if(lastTravelDirection.x == 0)
                 {
@@ -642,7 +651,27 @@ void retrievePathD(unsigned char* gridValues, float4* waypoints)
                                 if(neighborValue < stepsToStartCell)
                                 {
                                     if(neighborValue != stepsToStartCell-1)
+                                    {
                                         printf("uh-oh, error2, there's currently %d steps to start, but neighbor value is %d!\n", stepsToStartCell, neighborValue);
+                                        // print the grid containgin the cells with a neighbor difference greater than 1!
+                                        for(int printYDiff = -1;printYDiff<=1;printYDiff++)
+                                        {
+                                            int printY = printYDiff + currentCellCoordinate.y;
+                                            if(cellOffset.y == 0) printY = currentCellCoordinate.y; // print one y-slice only if the cell-hop-error is within this y-slice
+                                            printf("grid at height/y %d:\n", printY);
+                                            for(int printZ=0;printZ<parametersPathPlanner.grid.cells.z;printZ++)
+                                            {
+                                                for(int printX=0;printX<parametersPathPlanner.grid.cells.x;printX++)
+                                                {
+                                                    printf("%03d ", gridValues[parametersPathPlanner.grid.getCellHash(make_int3(printX, printY, printZ))]);
+                                                }
+                                                printf("\n");
+                                            }
+                                            printf("\n");
+                                            if(cellOffset.y == 0) break;
+                                        }
+
+                                    }
 
                                     // Append our current cell's position to the waypoint list.
                                     float3 cellCenter = parametersPathPlanner.grid.getCellCenter(neighbourCellCoordinate);

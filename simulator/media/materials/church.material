@@ -5,13 +5,11 @@ material church/01_-_Default
 	{
 		pass
 		{
-//			ambient 0.588235 0.588235 0.588235 1
-//			diffuse 0.588235 0.588235 0.588235 1
-
 			texture_unit
 			{
 				texture_alias 0
 				texture church.jpg
+				tex_address_mode clamp
 			}
 		}
 

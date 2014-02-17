@@ -60,7 +60,7 @@ public:
     // Returns true if everything was fine , false if collisions occurred and waypoints were removed.
     bool checkWayPointSafety(const WayPointList * const wayPointsAhead);
 
-    void moveWayPointsToSafety(WayPointList* wayPointList);
+    void moveWayPointsToSafety(WayPointList* wayPointList, bool raiseWaypointsForGroundClearance);
 
 signals:
     // To allow others to render our occupancy grid.

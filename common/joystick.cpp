@@ -10,9 +10,11 @@ Joystick::Joystick() : QObject()
     timeout.tv_sec = 0;
     timeout.tv_nsec = 10;
 
+    mPollTimer = nullptr;
+
     // Try opening all js-device-files before failing.
     int currentDeviceIndex = 0;
-    while((fd = open(deviceFile.arg(currentDeviceIndex).toLocal8Bit().constData(), O_RDONLY)) == -1)
+    while((mFileDescriptor = open(deviceFile.arg(currentDeviceIndex).toLocal8Bit().constData(), O_RDONLY)) == -1)
     {
         qDebug() << "Joystick::Joystick(): Couldn't open joystick at" << deviceFile.arg(currentDeviceIndex);
         currentDeviceIndex++;
@@ -28,9 +30,9 @@ Joystick::Joystick() : QObject()
 
     char joystickName[255];
 
-    ioctl(fd, JSIOCGAXES, &numAxis);
-    ioctl(fd, JSIOCGBUTTONS, &numButtons);
-    ioctl(fd, JSIOCGNAME(255), &joystickName);
+    ioctl(mFileDescriptor, JSIOCGAXES, &numAxis);
+    ioctl(mFileDescriptor, JSIOCGBUTTONS, &numButtons);
+    ioctl(mFileDescriptor, JSIOCGNAME(255), &joystickName);
 
     mJoystickName = QString(joystickName);
 
@@ -43,14 +45,17 @@ Joystick::Joystick() : QObject()
     mPollTimer->start(200);
 
     // use non-blocking mode
-    fcntl(fd, F_SETFL, O_NONBLOCK);
+    fcntl(mFileDescriptor, F_SETFL, O_NONBLOCK);
 }
 
 Joystick::~Joystick()
 {
-    mPollTimer->stop();
-    mPollTimer->deleteLater();
-    close(fd);
+    if(mPollTimer != nullptr)
+    {
+        mPollTimer->stop();
+        mPollTimer->deleteLater();
+    }
+    close(mFileDescriptor);
 }
 
 //void Joystick::slotPollButtons()
@@ -67,7 +72,7 @@ bool Joystick::updateValues()
     if(!valid) return false;
 
     // get all events from joystick and update our private values
-    while(read(fd, &event, sizeof(struct js_event)) > 0)
+    while(read(mFileDescriptor, &event, sizeof(struct js_event)) > 0)
     {
         /* see what to do with the event */
         if(mJoystickName == "WAILLY PPM") // the USB adaptor for the kopter's RC. Sucks, don't use it!

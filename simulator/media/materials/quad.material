@@ -5,6 +5,7 @@ material quad/08_-_Default
 	{
 		pass
 		{
+			lighting on
 			ambient 0.588235 0.745098 0.862745 1
 			diffuse 0.588235 0.745098 0.862745 1
 		}

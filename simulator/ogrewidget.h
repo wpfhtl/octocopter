@@ -208,6 +208,8 @@ private:
 
     Ogre::ManualObject* mTrajectoryLine;
 
+    void placeObjectOnTerrain(const QString meshName, const Ogre::Vector3 position, const float rotationY, const Ogre::Vector3 scale = Ogre::Vector3(1,1,1));
+
     void addMeshInformation(Ogre::Entity* entity, Ogre::SceneNode* node);
 
     // for the raycasting against entities (not ground)

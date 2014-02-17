@@ -36,7 +36,7 @@ private:
     struct timespec timeout;
     bool valid;
     qint16 x, y, z, r;
-    int fd, deviceNum, numAxis, numButtons;
+    int mFileDescriptor, deviceNum, numAxis, numButtons;
     QString deviceFile;
     QString mJoystickName;
     char* mButtons;
