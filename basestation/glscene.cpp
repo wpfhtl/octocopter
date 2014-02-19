@@ -23,7 +23,7 @@ GlScene::GlScene() :
     mIsInitialized = false;
     mFlightPlannerProcessingState = FlightPlannerProcessingState::Idle;
 
-    mRenderBoundingBoxGlobal = true;
+    mRenderBoundingBoxGlobal = false;
     mRenderBoundingBoxLocal = true;
     mRenderWayPointsAhead = true;
     mRenderWayPointsPassed = true;

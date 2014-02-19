@@ -31,10 +31,11 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
     controllerWeights.insert(&mFlightControllerValues.controllerYaw, weights);
 
     // Hover - Pitch / Roll
+    // 2014-02-19: Decrease from 10/0/6 to 9/0/4, as the kopter is kinda epileptic today - d is the cause for this.
     weights.clear();
-    weights.insert('p', 10.0f);
+    weights.insert('p', 9.0f);
     weights.insert('i', 0.0f);
-    weights.insert('d', 6.0f);
+    weights.insert('d', 4.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerPitch, weights);
     controllerWeights.insert(&mFlightControllerValues.controllerRoll, weights);
     mFlightControllerWeights.insert(FlightState::State::Hover, controllerWeights);

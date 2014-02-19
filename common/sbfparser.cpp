@@ -216,7 +216,7 @@ QVector3D SbfParser::convertGeodeticToCartesian(const double &lon, const double 
         if(mGnssStatus.pvtMode == GnssStatus::PvtMode::RtkFixed)
         {
             mOriginLongitude = lon;
-            mOriginLatitude = lat;
+            mOriginLatitude = lat + 0.00019; // origin is 22m north of start point!
 
             // Whats the transform for?
             mOriginElevation = elevation + mTransformArpToVehicle(1, 3);

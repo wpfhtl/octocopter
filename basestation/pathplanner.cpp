@@ -155,10 +155,10 @@ bool PathPlanner::checkWayPointSafety(const WayPointList* const wayPointsAhead)
         }
 
         cudaSafeCall(cudaMemcpy(
-                    (void*)mDeviceWaypoints,
-                    (void*)waypointsHost,
-                    4 * wayPointsAhead->size() * sizeof(float),
-                    cudaMemcpyHostToDevice));
+                         (void*)mDeviceWaypoints,
+                         (void*)waypointsHost,
+                         4 * wayPointsAhead->size() * sizeof(float),
+                         cudaMemcpyHostToDevice));
 
         const bool haveToMapGridOccupancyTemplate = checkAndMapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
         populateOccupancyGrid();
@@ -167,10 +167,10 @@ bool PathPlanner::checkWayPointSafety(const WayPointList* const wayPointsAhead)
 
         // Now copy the waypoints back from device into host memory and see if the w-components are non-zero.
         cudaSafeCall(cudaMemcpy(
-                    (void*)waypointsHost,
-                    (void*)mDeviceWaypoints,
-                    4 * wayPointsAhead->size() * sizeof(float),
-                    cudaMemcpyDeviceToHost));
+                         (void*)waypointsHost,
+                         (void*)mDeviceWaypoints,
+                         4 * wayPointsAhead->size() * sizeof(float),
+                         cudaMemcpyDeviceToHost));
 
         // Check the next N waypoints for collisions with ALL of the collider cloud!
         const quint32 numberOfUpcomingWayPointsToCheck = 5;
@@ -224,10 +224,10 @@ void PathPlanner::moveWayPointsToSafety(WayPointList* wayPointList, bool raiseWa
         wayPointList->clear();
 
         cudaSafeCall(cudaMemcpy(
-                    (void*)mDeviceWaypoints,
-                    (void*)waypointsHost,
-                    4 * numberOfWayPoints * sizeof(float),
-                    cudaMemcpyHostToDevice));
+                         (void*)mDeviceWaypoints,
+                         (void*)waypointsHost,
+                         4 * numberOfWayPoints * sizeof(float),
+                         cudaMemcpyHostToDevice));
 
         // If desired, raise waypoints by 4m
         int startSearchNumberOfCellsAbove = raiseWaypointsForGroundClearance ? (4.0 / mParametersPathPlanner.grid.getCellSize().y) : 0;
@@ -239,10 +239,10 @@ void PathPlanner::moveWayPointsToSafety(WayPointList* wayPointList, bool raiseWa
 
         // Now copy the waypoints back from device into host memory and see if the w-components are non-zero.
         cudaSafeCall(cudaMemcpy(
-                    (void*)waypointsHost,
-                    (void*)mDeviceWaypoints,
-                    4 * numberOfWayPoints * sizeof(float),
-                    cudaMemcpyDeviceToHost));
+                         (void*)waypointsHost,
+                         (void*)mDeviceWaypoints,
+                         4 * numberOfWayPoints * sizeof(float),
+                         cudaMemcpyDeviceToHost));
 
         // Check all future-waypoint-w-components.
         for(int i=0;i<numberOfWayPoints-1; i++)
@@ -321,10 +321,10 @@ void PathPlanner::slotComputePath(const QVector3D& vehiclePosition, const WayPoi
 
         // Copy the populated and dilated occupancy grid into the PathFinder's domain
         cudaSafeCall(cudaMemcpy(
-                    mGridOccupancyPathPanner,
-                    mGridOccupancyTemplate,
-                    mParametersPathPlanner.grid.getCellCount(),
-                    cudaMemcpyDeviceToDevice));
+                         mGridOccupancyPathPanner,
+                         mGridOccupancyTemplate,
+                         mParametersPathPlanner.grid.getCellCount(),
+                         cudaMemcpyDeviceToDevice));
 
         // Now start path planning.
         markStartCell(mGridOccupancyPathPanner, &mCudaStream);
@@ -334,16 +334,26 @@ void PathPlanner::slotComputePath(const QVector3D& vehiclePosition, const WayPoi
                     &mParametersPathPlanner,
                     &mCudaStream);
 
+        // We must set the waypoints-array on the device to a special value because
+        // a bug can lead to some waypoints not being written. This is ok
+        // as long as we can detect this. When memsetting with 0, we can,
+        // otherwise we'd find a waypoint from a previous run and couldn't
+        // detect this incidence.
+        cudaSafeCall(cudaMemset(
+                         (void*)mDeviceWaypoints,
+                         255, // interpreted as float, should be NaN!
+                         4 * mMaxWaypoints * sizeof(float)));
+
         retrievePath(
                     mGridOccupancyPathPanner,
                     mDeviceWaypoints,
                     &mCudaStream);
 
         cudaSafeCall(cudaMemcpy(
-                    (void*)waypointsHost,
-                    (void*)mDeviceWaypoints,
-                    4 * mMaxWaypoints * sizeof(float),
-                    cudaMemcpyDeviceToHost));
+                         (void*)waypointsHost,
+                         (void*)mDeviceWaypoints,
+                         4 * mMaxWaypoints * sizeof(float),
+                         cudaMemcpyDeviceToHost));
 
         if(fabs(waypointsHost[0]) < 0.001 && fabs(waypointsHost[1]) < 0.001 && fabs(waypointsHost[2]) < 0.001)
         {
@@ -357,6 +367,13 @@ void PathPlanner::slotComputePath(const QVector3D& vehiclePosition, const WayPoi
             // The first waypoint isn't one, it only contains the number of waypoints
             for(int i=1;i<=waypointsHost[0];i++)
             {
+                // workaround for the no-waypoint-bug, which will show values of NaN/NaN/NaN/NaN due to the 255-memset above
+                if(isnan(waypointsHost[4*i+3]))
+                {
+                    qDebug() << __PRETTY_FUNCTION__ << "ignoring waypoint that was skpped in retrievePath due to bug in growGrid.";
+                    continue;
+                }
+
                 WayPoint newWayPoint;
 
                 if(i == 1)
@@ -376,7 +393,7 @@ void PathPlanner::slotComputePath(const QVector3D& vehiclePosition, const WayPoi
                 // Otherwise, we have the end of path A and the beginning of path B in the list, although they're the same.
                 if(pathNumber == 0 || i > 1)
                 {
-                    computedPath.append(newWayPoint);
+                        computedPath.append(newWayPoint);
                 }
             }
 
@@ -391,10 +408,10 @@ void PathPlanner::slotComputePath(const QVector3D& vehiclePosition, const WayPoi
     delete waypointsHost;
 
     if(haveToMapGridOccupancyTemplate) checkAndUnmapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
-//    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridPathFinder, 0);
+    //    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridPathFinder, 0);
 
     if(haveToMapGridOccupancyPathPlanner) checkAndUnmapGridOccupancy(mCudaVboResourceGridPathPlanner);
-//    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridOccupancy, 0);
+    //    cudaGraphicsUnmapResources(1, &mCudaVboResourceGridOccupancy, 0);
 
     emit path(computedPath.list(), WayPointListSource::WayPointListSourceFlightPlanner);
 

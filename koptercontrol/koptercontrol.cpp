@@ -139,6 +139,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     mGnssDevice = new GnssDevice(deviceSerialGnssPort1, deviceSerialGnssPort2, logFilePrefix, this);
     mSensorFuser = new SensorFuser(1); // Really lo-res data for septentrio postprocessing tests.
+    mSensorFuser->setMaximumFusableRayLength(10.0); // Favor precision over range
 
     mBaseConnection = new BaseConnection(networkInterface, instanceKeyword);
     mKopter = new Kopter(deviceSerialKopter, this);

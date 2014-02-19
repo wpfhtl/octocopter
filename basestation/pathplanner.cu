@@ -556,8 +556,32 @@ void retrievePathD(unsigned char* gridValues, float4* waypoints)
 
                     if(neighborValue < stepsToStartCell)
                     {
+                        // Sometimes, we find a cell that is not smaller by ONE, but by MULTIPLE. I haven't found the bug yet,
+                        // but the underlying grid does contain those hiccups. So when we start at the goal cell with e.g. 15,
+                        // then jump to 14, 13, and then 11, we won't actually fill index 12 of the waypoint array, in effect
+                        // reusing waypoint 12 from a previous search.
                         if(neighborValue != stepsToStartCell-1)
-                            printf("uh-oh, error1, there's currently %d steps to start, but neighbor value is %d!\n", stepsToStartCell, neighborValue);
+                        {
+                            printf("uh-oh, error2, there's currently %d steps to start, but neighbor value is %d!\n", stepsToStartCell, neighborValue);
+                            // print the grid containgin the cells with a neighbor difference greater than 1!
+                            for(int printYDiff = -1;printYDiff<=1;printYDiff++)
+                            {
+                                int printY = printYDiff + currentCellCoordinate.y;
+                                if(travelDirectionDirect.y == 0) printY = currentCellCoordinate.y; // print one y-slice only if the cell-hop-error is within this y-slice
+                                printf("grid at height/y %d:\n", printY);
+                                for(int printZ=0;printZ<parametersPathPlanner.grid.cells.z;printZ++)
+                                {
+                                    for(int printX=0;printX<parametersPathPlanner.grid.cells.x;printX++)
+                                    {
+                                        printf("%03d ", gridValues[parametersPathPlanner.grid.getCellHash(make_int3(printX, printY, printZ))]);
+                                    }
+                                    printf("\n");
+                                }
+                                printf("\n");
+                                if(travelDirectionDirect.y == 0) break;
+                            }
+
+                        }
 
                         // prepend our current cell's position to the waypoint list.
                         float3 cellCenter = parametersPathPlanner.grid.getCellCenter(neighbourCellCoordinate);
@@ -650,6 +674,12 @@ void retrievePathD(unsigned char* gridValues, float4* waypoints)
 
                                 if(neighborValue < stepsToStartCell)
                                 {
+                                    // We have found a neighboring cell with smaller info. Let's go that way!
+
+                                    // Sometimes, we find a cell that is not smaller by ONE, but by MULTIPLE. I haven't found the bug yet,
+                                    // but the underlying grid does contain those hiccups. So when we start at the goal cell with e.g. 15,
+                                    // then jump to 14, 13, and then 11, we won't actually fill index 12 of the waypoint array, in effect
+                                    // reusing waypoint 12 from a previous search.
                                     if(neighborValue != stepsToStartCell-1)
                                     {
                                         printf("uh-oh, error2, there's currently %d steps to start, but neighbor value is %d!\n", stepsToStartCell, neighborValue);

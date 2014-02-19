@@ -26,7 +26,7 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
 
     mTimeOfLastDenseCloudReduction = QTime::currentTime();
 
-    mPointCloudColliders = new PointCloudCuda(Box3D(), 256 * 1024, "ColliderCloud");
+    mPointCloudColliders = new PointCloudCuda(Box3D(), 512 * 1024, "ColliderCloud");
     mPointCloudColliders->setMinimumPointDistance(0.10f);
 
     mBaseStation->getGlScene()->slotPointCloudRegister(mPointCloudColliders);

@@ -176,7 +176,7 @@ BaseStation::BaseStation() : QMainWindow()
     mActions.actionShowBoundingBoxGlobal = new QAction("Show Global BBox", this);
     mMenuView->addAction(mActions.actionShowBoundingBoxGlobal);
     mActions.actionShowBoundingBoxGlobal->setCheckable(true);
-    mActions.actionShowBoundingBoxGlobal->setChecked(true);
+    mActions.actionShowBoundingBoxGlobal->setChecked(false);
     connect(mActions.actionShowBoundingBoxGlobal, &QAction::triggered, [=](const bool &checked) {mGlScene->mRenderBoundingBoxGlobal = checked; mGlWindow->slotRenderLater();});
 
     mActions.actionShowBoundingBoxLocal = new QAction("Show Local BBox", this);
