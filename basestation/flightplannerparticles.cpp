@@ -556,14 +556,15 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloudCuda*const p
     if(mDialog->checkWayPointSafety() && mWayPointsAhead.size())
     {
         emit processingState(GlScene::FlightPlannerProcessingState::WayPointChecking);
-        if(!mPathPlanner->checkWayPointSafety(&mWayPointsAhead))
+        const qint32 offendingWayPointIndex = mPathPlanner->checkWayPointSafety(&mWayPointsAhead);
+        if(offendingWayPointIndex > -1)
         {
             qDebug() << __PRETTY_FUNCTION__ << "some of the following waypoints are now in occupied territory, moving them from:" << mWayPointsAhead.toString();
             // Retrieve all waypoints with informatio ngain, re-move them to safe positions and re-plan the path.
             emit message(LogImportance::Warning, "FlightPlanner", "waypoints are now colliding with geometry. Stopping rover and replanning path.");
 
-            // Re-generate waypoints from old information gain. This is problematic, as we will re-approach waypoints
-            // that we've already visited.
+            // Re-generate waypoints from old information gain. This is problematic,
+            // as we will re-approach waypoints that we've already visited.
             //slotGenerateWaypoints();
 
             // Completey restart waypoint generation. Also problematic, because particle simulation takes time and it
@@ -581,13 +582,7 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloudCuda*const p
             {
                 const WayPoint wpt = mWayPointsAhead.at(i);
 
-                // Waypoints and their information gain
-                // less than zero:
-                //             -1 : a detour waypoint that collides
-                //   less than -1 : a real waypoint that collides
-                //              0 : a detour waypoint that doesn't collide
-                // greater than 0 : a real waypoint that doesn't collide
-                if(std::abs(wpt.informationGain) > 1.1f)
+                if(std::abs(wpt.informationGain) > 0.0f)
                     newWayPointsWithHighInformationGain.append(wpt);
             }
 
@@ -598,7 +593,7 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloudCuda*const p
             if(!newWayPointsWithHighInformationGain.size())
             {
                 qDebug() << __PRETTY_FUNCTION__ << "no waypoints left after checking for safety, cannot compute path!";
-                QTimer::singleShot(500, this, SLOT(slotSetProcessingStateToIdle()));
+                QTimer::singleShot(100, this, SLOT(slotSetProcessingStateToIdle()));
                 return;
             }
 
@@ -607,7 +602,7 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloudCuda*const p
             if(!newWayPointsWithHighInformationGain.size())
             {
                 qDebug() << __PRETTY_FUNCTION__ << "no waypoints left after moving remaining waypoints to safety, cannot compute path!";
-                QTimer::singleShot(500, this, SLOT(slotSetProcessingStateToIdle()));
+                QTimer::singleShot(100, this, SLOT(slotSetProcessingStateToIdle()));
                 return;
             }
 
@@ -618,7 +613,7 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloudCuda*const p
         else
         {
             // Todo: wait a couple of frames before emitting this. There's no QTimer::singleShot(lambda), though :|
-            QTimer::singleShot(500, this, SLOT(slotSetProcessingStateToIdle()));
+            QTimer::singleShot(250, this, SLOT(slotSetProcessingStateToIdle()));
         }
     }
 }

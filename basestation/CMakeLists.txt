@@ -19,6 +19,7 @@ set(SRC_FILES
     ${CUDA_SRCS}
     ${NORAD_SRCS}
     cudahelper
+    cudaqdebug
     main
     particlesystem
     pointcloudcuda
@@ -140,6 +141,7 @@ cuda_add_executable(test_pcd_reduction
     ${CUDA_SRCS}
     tests/testpcdreduction
     cudahelper
+    cudaqdebug
     pointcloudcuda
     ../common/profiler
     ../common/plymanager

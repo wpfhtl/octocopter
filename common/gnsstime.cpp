@@ -12,3 +12,16 @@ qint32 GnssTime::currentTow()
     // We add 16 seconds offset between UTC and GPS time
     return beginningOfWeek.msecsTo(QDateTime::currentDateTime().addMSecs(16000));
 }
+
+QString GnssTime::currentTowString()
+{
+    QString towString = QString::number(currentTow());
+    int i = towString.size()-3;
+    while(i > 0)
+    {
+        towString.insert(i, '.');
+        i -= 3;
+    }
+
+    return towString;
+}

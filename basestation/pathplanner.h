@@ -55,12 +55,11 @@ public:
     // - defined number of gridcells (grid-cells are allocated in VBO)
     void initialize();
 
-    // Checks whether all waypoints are free w.r.t. to the dilated occupancy grid. When a waypoint is in
-    // an occupied cell, it will be removed from the list.
-    // Returns true if everything was fine , false if collisions occurred and waypoints were removed.
-    bool checkWayPointSafety(const WayPointList * const wayPointsAhead);
+    // Checks whether all waypoints are free w.r.t. to the dilated occupancy grid. This method
+    // returns either the index of the first colliding waypoint, or -1 when all are free.
+    qint32 checkWayPointSafety(const WayPointList * const wayPointsAhead);
 
-    void moveWayPointsToSafety(WayPointList* wayPointList, bool raiseWaypointsForGroundClearance);
+    void moveWayPointsToSafety(WayPointList* wayPointList, bool raiseAllWaypointsForGroundClearance);
 
 signals:
     // To allow others to render our occupancy grid.

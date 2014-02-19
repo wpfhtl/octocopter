@@ -1,13 +1,14 @@
 #ifndef CUDA_CUH
 #define CUDA_CUH
 
+#include "cudaqdebug.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <iostream>
+#include <sstream>
 
 // was 64
 #define KERNEL_LAUNCH_BLOCKSIZE 256
-
 
 #define CUDA_ERROR_CHECK
 #define cudaSafeCall(err) __cudaSafeCall( err, __FILE__, __LINE__ )
@@ -18,9 +19,12 @@ inline void __cudaSafeCall(cudaError err, const char *file, const int line)
 #ifdef CUDA_ERROR_CHECK
     if(cudaSuccess != err)
     {
-        std::cout << "cudaSafeCall(): failed at " << file << ":" << line << ": " << cudaGetErrorString(err) << std::endl;
+        std::stringstream error;
+        error << "cudaSafeCall(): error, failed at " << file << ":" << line << ": " << cudaGetErrorString(err);
+        sendToLogFile(error.str());
+        std::cout << error.str() << std::endl;
         std::cout.flush();
-        abort();
+        //abort();
     }
 #endif
     return;
@@ -30,9 +34,12 @@ inline void __cudaCheckSuccess(const char *errorSource, const char *file, const 
 {
 #ifdef CUDA_ERROR_CHECK
     cudaError err = cudaGetLastError();
-    if ( cudaSuccess != err )
+    if(cudaSuccess != err)
     {
-        std::cout << "ERRRRRRRRRRRRRRRRRRRRRROOOOOOOOOOOORRRRRRRRRRR!!!!!!!!!: cudaCheckError(): " << errorSource << " failed at " << file << ":" << line << ": " << cudaGetErrorString(err) << std::endl;
+        std::stringstream error;
+        error << "cudaCheckSuccess(): " << errorSource << " error at " << file << ":" << line << ": " << cudaGetErrorString(err);
+        sendToLogFile(error.str());
+        std::cout << error.str() << std::endl;
         std::cout.flush();
         //abort();
     }
@@ -41,13 +48,14 @@ inline void __cudaCheckSuccess(const char *errorSource, const char *file, const 
     err = cudaDeviceSynchronize();
     if(cudaSuccess != err)
     {
-        std::cout << "cudaCheckError(): with sync failed at " << file << ":" << line << ": " << cudaGetErrorString(err);
+        std::stringstream error;
+        error << "cudaCheckSuccess(): (with sync) error at " << file << ":" << line << ": " << cudaGetErrorString(err);
+        sendToLogFile(error.str());
+        std::cout << error.str() << std::endl;
         std::cout.flush();
-        abort();
+        //abort();
     }
-
 #endif
-
     return;
 }
 

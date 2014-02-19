@@ -777,20 +777,18 @@ __global__ void testWayPointCellOccupancyD(unsigned char*  gridValues, float4* u
     float4 waypoint = upcomingWayPoints[waypointIndex];
 
     const int3 gridCellCoordinate = parametersPathPlanner.grid.getCellCoordinate(make_float3(waypoint.x, waypoint.y, waypoint.z));
-    const int gridCellHash = parametersPathPlanner.grid.getSafeCellHash(gridCellCoordinate);
 
-    if(gridCellHash < 0 || gridCellHash > parametersPathPlanner.grid.getCellCount())
-        printf("testWayPointCellOccupancyD(): bug, waypoint %d is supposedly at %.2f/%.2f/%.2f/%.2f in cell hash %d\n",
-               waypointIndex, waypoint.x, waypoint.y, waypoint.z, waypoint.w, gridCellHash);
-
-    if(gridValues[gridCellHash] > 253)
+    if(parametersPathPlanner.grid.isCellInGrid(gridCellCoordinate))
     {
-        // Waypoints have an information gain (w-component) of either positive for real waypoints
-        // or 0 for path-detour waypoints. Flip/Decrement the w-component, so that coliding waypoints
-        // can be detected because they have a negative information gain.
-        waypoint.w *= -1.0; // detour waypoints are still zero!
-        waypoint.w -= 1.0;
+        // Overwrite the waypoint's information gain, re-using it for collision-detection.
+        const int gridCellHash = parametersPathPlanner.grid.getCellHash(gridCellCoordinate);
+        waypoint.w = gridValues[gridCellHash];
         upcomingWayPoints[waypointIndex] = waypoint;
+    }
+    else
+    {
+        printf("testWayPointCellOccupancyD(): bug, waypoint %d is supposedly at %.2f/%.2f/%.2f/%.2f, which is outside the grid.\n",
+               waypointIndex, waypoint.x, waypoint.y, waypoint.z, waypoint.w);
     }
 }
 
@@ -799,7 +797,6 @@ void testWayPointCellOccupancy(unsigned char*  gridValues, float* upcomingWayPoi
     // Start a sufficient number of threads and let the superfuous ones hang out for a while.
     uint numThreads, numBlocks;
     computeExecutionKernelGrid(numberOfWayPoints, 64, numBlocks, numThreads);
-
     testWayPointCellOccupancyD<<< numBlocks, numThreads, 0, *stream>>>(gridValues, (float4*)upcomingWayPoints, numberOfWayPoints);
     cudaCheckSuccess("testWayPointCellOccupancy");
 }

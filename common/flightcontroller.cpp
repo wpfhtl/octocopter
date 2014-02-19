@@ -31,11 +31,10 @@ FlightController::FlightController(const QString& logFilePrefix) : QObject()
     controllerWeights.insert(&mFlightControllerValues.controllerYaw, weights);
 
     // Hover - Pitch / Roll
-    // 2014-02-19: Decrease from 10/0/6 to 9/0/4, as the kopter is kinda epileptic today - d is the cause for this.
     weights.clear();
-    weights.insert('p', 9.0f);
+    weights.insert('p', 10.0f);
     weights.insert('i', 0.0f);
-    weights.insert('d', 4.0f);
+    weights.insert('d', 6.0f);
     controllerWeights.insert(&mFlightControllerValues.controllerPitch, weights);
     controllerWeights.insert(&mFlightControllerValues.controllerRoll, weights);
     mFlightControllerWeights.insert(FlightState::State::Hover, controllerWeights);
@@ -619,9 +618,9 @@ void FlightController::initializeControllers()
 void FlightController::slotSetHeightOverGround(const float& beamLength)
 {
     // Height is given from vehicle center to ground, but we care about the bottom of the landing gear.
-    qDebug() << "FlightController::slotSetHeightOverGround()" << beamLength - 0.16f << "meters";
+    qDebug() << "FlightController::slotSetHeightOverGround(): feet are" << beamLength - 0.135f << "meters above ground";
     mFlightControllerValues.lastKnownHeightOverGroundTimestamp = GnssTime::currentTow();
-    mFlightControllerValues.lastKnownHeightOverGround = beamLength - 0.16f;
+    mFlightControllerValues.lastKnownHeightOverGround = beamLength - 0.135f;
 }
 /*
 bool FlightController::isHeightOverGroundValueRecent() const

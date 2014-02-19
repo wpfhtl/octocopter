@@ -9,7 +9,7 @@ Hokuyo::Hokuyo(LogFile* const logFile, const QMatrix4x4 * const relativePose, bo
     mLogFile = logFile;
 
     mRelativeScannerPose = relativePose;
-    
+
     mIsConnectedToEventPin = isConnectedToEventPin;
 
     mLastScannerTimeStamp = 0;
@@ -93,8 +93,8 @@ void Hokuyo::slotStartScanning()
     if(mOffsetTimeScannerToTow == 0)
     {
         qDebug() << __PRETTY_FUNCTION__ << "scanner time not set, will scan as soon as time is set!";
-	mState = State::ScanRequestedButTimeUnknown;
-	emit finished();
+    mState = State::ScanRequestedButTimeUnknown;
+    emit finished();
         return;
     }
 
@@ -138,9 +138,14 @@ void Hokuyo::slotStartScanning()
                         //sizeof(quint16) * ((indexStop - indexStart) + 1) // how many bytes to write
                         //);
 
-            // Every full moon, emit the distance from vehicle center to the ground in meters (scanner to vehicle center is 3cm)
-            if(mHeightOverGroundClockDivisor == 0 && mScannedDistances.size() > 540)
-                emit distanceAtFront(rawScan->distances[540]/1000.0f + 0.03f);
+            // Every full moon, emit the distance at the front ray. Can be used for height estimation.
+            // Of course, we only do that when there actually IS a measurement
+            if(mHeightOverGroundClockDivisor == 0 && mScannedDistances.size() > 540 && rawScan->distances[540] != 0)
+            {
+                const float distance = rawScan->distances[540]/1000.0f;
+                qDebug() << __PRETTY_FUNCTION__ << "emitting distanceAtFront of" << distance;
+                emit distanceAtFront(distance);
+            }
 
             // With this call, we GIVE UP OWNERSHIP of the data. It might get deleted immediately!
             //qDebug() << __PRETTY_FUNCTION__ << "emitting scanData(qint32, quint16," << rawScan->numberOfDistances << "), connectedToEventPin:" << mIsConnectedToEventPin;

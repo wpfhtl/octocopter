@@ -568,7 +568,7 @@ bool PointCloudCuda::checkAndMapPointsToCuda()
     // Return true if it had to be mapped, false otherwise.
     if(mDevicePointPos == nullptr)
     {
-        qDebug() << __PRETTY_FUNCTION__ << mName << "mapping into cuda space";
+        //qDebug() << __PRETTY_FUNCTION__ << mName << "mapping into cuda space";
         mDevicePointPos = (float*) CudaHelper::mapGLBufferObject(getCudaGraphicsResource());
         return true;
     }
@@ -588,7 +588,7 @@ bool PointCloudCuda::checkAndUnmapPointsFromCuda()
     }
     else
     {
-        qDebug() << __PRETTY_FUNCTION__ << mName << "unmapping out of cuda space";
+        //qDebug() << __PRETTY_FUNCTION__ << mName << "unmapping out of cuda space";
         cudaGraphicsUnmapResources(1, getCudaGraphicsResource(), 0);
         mDevicePointPos = nullptr;
         return true;

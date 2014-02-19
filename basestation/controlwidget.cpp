@@ -170,9 +170,10 @@ void ControlWidget::slotUpdateVehicleStatus(const VehicleStatus *const vs)
             );
 
     mLabelBatteryVoltage->setText(QString::number(vs->batteryVoltage, 'f', 2) + " V");
-    if(vs->batteryVoltage > 13.5) mLabelBatteryVoltage->setStyleSheet(""); else mLabelBatteryVoltage->setStyleSheet(getBackgroundCss(true, false));
+    if(vs->batteryVoltage > 14.0) mLabelBatteryVoltage->setStyleSheet(""); else mLabelBatteryVoltage->setStyleSheet(getBackgroundCss(true, false));
 
-    mLabelBarometricHeight->setText(QString::number(vs->barometricHeight));
+    //mLabelBarometricHeight->setText(QString::number(vs->barometricHeight));
+    mLabelCurrentGnssTime->setText(GnssTime::currentTowString());
 }
 
 

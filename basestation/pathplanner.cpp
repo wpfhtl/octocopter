@@ -132,7 +132,7 @@ void PathPlanner::populateOccupancyGrid()
     qDebug() << __PRETTY_FUNCTION__ << "done.";
 }
 
-bool PathPlanner::checkWayPointSafety(const WayPointList* const wayPointsAhead)
+qint32 PathPlanner::checkWayPointSafety(const WayPointList* const wayPointsAhead)
 {
     if(!mIsInitialized) initialize();
 
@@ -172,22 +172,20 @@ bool PathPlanner::checkWayPointSafety(const WayPointList* const wayPointsAhead)
                          4 * wayPointsAhead->size() * sizeof(float),
                          cudaMemcpyDeviceToHost));
 
-        // Check the next N waypoints for collisions with ALL of the collider cloud!
-        const quint32 numberOfUpcomingWayPointsToCheck = 5;
-
-        // Check all future-waypoint-w-components.
-        for(int i=0; i<numberOfUpcomingWayPointsToCheck && i < wayPointsAhead->size()-1; i++)
+        // Check future-waypoint-w-components. They are now assigned the value from the grid,
+        // meaning that 0 is free, 254 occupied-dilated and 255 occupied.
+        for(int i=0; i < wayPointsAhead->size()-1; i++)
         {
-            if(waypointsHost[4*i+3] < 0.0f)
+            if(waypointsHost[4*i+3] != 0.0f)
             {
-                qDebug() << __PRETTY_FUNCTION__ << "next-up-waypoint" << i << "at" << waypointsHost[4*i+0] << waypointsHost[4*i+1] << waypointsHost[4*i+2] << "collides with point cloud! Recomputing waypoints";
+                qDebug() << __PRETTY_FUNCTION__ << "next-up-waypoint" << i << "at" << waypointsHost[4*i+0] << waypointsHost[4*i+1] << waypointsHost[4*i+2] << "collides with point cloud, grid-value is" << waypointsHost[4*i+3] << "returning false!";
                 delete waypointsHost;
-                return false;
+                return i;
             }
         }
 
         delete waypointsHost;
-        return true;
+        return -1;
     }
 }
 
@@ -196,7 +194,7 @@ bool PathPlanner::checkWayPointSafety(const WayPointList* const wayPointsAhead)
 // a higher number to start searching above. When first moving waypoints fresh from the information gain grid, we want to
 // search 1 or 2 cells above for sufficient ground clearance. Later-on, when just moving those waypoints that collide, we
 // do not really want to raise them again. That's what the last parameter is made for.
-void PathPlanner::moveWayPointsToSafety(WayPointList* wayPointList, bool raiseWaypointsForGroundClearance)
+void PathPlanner::moveWayPointsToSafety(WayPointList* wayPointList, bool raiseAllWaypointsForGroundClearance)
 {
     if(!mIsInitialized) initialize();
 
@@ -230,7 +228,7 @@ void PathPlanner::moveWayPointsToSafety(WayPointList* wayPointList, bool raiseWa
                          cudaMemcpyHostToDevice));
 
         // If desired, raise waypoints by 4m
-        int startSearchNumberOfCellsAbove = raiseWaypointsForGroundClearance ? (4.0 / mParametersPathPlanner.grid.getCellSize().y) : 0;
+        int startSearchNumberOfCellsAbove = raiseAllWaypointsForGroundClearance ? (4.0 / mParametersPathPlanner.grid.getCellSize().y) : 0;
 
         const bool haveToMapGridOccupancyTemplate = checkAndMapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
         populateOccupancyGrid();
@@ -463,7 +461,7 @@ bool PathPlanner::checkAndUnmapGridOccupancy(cudaGraphicsResource *resource)
         }
         else
         {
-            qDebug() << __PRETTY_FUNCTION__ << "mapping grid occupancy template out of cuda space";
+            //qDebug() << __PRETTY_FUNCTION__ << "mapping grid occupancy template out of cuda space";
             cudaGraphicsUnmapResources(1, &resource, 0);
             mGridOccupancyTemplate = nullptr;
             return true;
@@ -478,7 +476,7 @@ bool PathPlanner::checkAndUnmapGridOccupancy(cudaGraphicsResource *resource)
         }
         else
         {
-            qDebug() << __PRETTY_FUNCTION__ << "mapping grid occupancy pathplanner out of cuda space";
+            //qDebug() << __PRETTY_FUNCTION__ << "mapping grid occupancy pathplanner out of cuda space";
             cudaGraphicsUnmapResources(1, &resource, 0);
             mGridOccupancyPathPanner = nullptr;
             return true;

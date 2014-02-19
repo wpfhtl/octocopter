@@ -6,7 +6,7 @@
 BaseStation::BaseStation() : QMainWindow()
 {
     // Create a logfile-prefix
-    QString logFilePrefix = QString("log/kopterlog-%1-%2-basestation.txt")
+    QString logFilePrefix = QString("log/kopterlog-%1-%2-basestation")
             .arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss"))
             .arg(QString::number(QCoreApplication::applicationPid()));
     qDebug() << __PRETTY_FUNCTION__ << "logfile prefix is" << logFilePrefix;
@@ -343,7 +343,7 @@ BaseStation::BaseStation() : QMainWindow()
         mLogWidget->log(Information, "BaseStation::BaseStation()", "Working offline, disabling RoverConnection+RtkFetcher, enabling LogPlayer.");
     }
 
-    QSettings settings("BenAdler", "Basestation");
+    QSettings settings("BenAdler", "basestation");
     restoreGeometry(settings.value("geometry").toByteArray());
     restoreState(settings.value("windowState").toByteArray());
 
@@ -375,7 +375,7 @@ void BaseStation::keyPressEvent(QKeyEvent * event)
 void BaseStation::closeEvent(QCloseEvent *event)
 {
     qDebug() << "saving window state!";
-    QSettings settings("BenAdler", "Basestation");
+    QSettings settings("BenAdler", "basestation");
     settings.setValue("geometry", saveGeometry());
     settings.setValue("windowState", saveState());
     QMainWindow::closeEvent(event);
