@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>252</width>
-    <height>717</height>
+    <height>737</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -19,7 +19,7 @@
   <property name="minimumSize">
    <size>
     <width>252</width>
-    <height>717</height>
+    <height>737</height>
    </size>
   </property>
   <property name="maximumSize">
@@ -27,12 +27,6 @@
     <width>524287</width>
     <height>524287</height>
    </size>
-  </property>
-  <property name="font">
-   <font>
-    <pointsize>7</pointsize>
-    <kerning>true</kerning>
-   </font>
   </property>
   <property name="windowOpacity">
    <double>1.000000000000000</double>
@@ -90,7 +84,7 @@
        <item row="0" column="0">
         <widget class="QLabel" name="label_12">
          <property name="text">
-          <string>Flighttime</string>
+          <string>Time</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -98,9 +92,9 @@
         </widget>
        </item>
        <item row="0" column="1">
-        <widget class="QLabel" name="mLabelMissionRunTime">
+        <widget class="QLabel" name="mLabelCurrentGnssTime">
          <property name="text">
-          <string>00:00</string>
+          <string>0</string>
          </property>
         </widget>
        </item>
@@ -133,7 +127,7 @@
        <item row="1" column="0">
         <widget class="QLabel" name="label_5">
          <property name="text">
-          <string>Barometer</string>
+          <string>Flighttime</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -141,9 +135,9 @@
         </widget>
        </item>
        <item row="1" column="1">
-        <widget class="QLabel" name="mLabelBarometricHeight">
+        <widget class="QLabel" name="mLabelMissionRunTime">
          <property name="text">
-          <string>0</string>
+          <string>00:00</string>
          </property>
         </widget>
        </item>
@@ -178,6 +172,9 @@
          <property name="text">
           <string>Voltage</string>
          </property>
+         <property name="textFormat">
+          <enum>Qt::PlainText</enum>
+         </property>
          <property name="alignment">
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
          </property>
@@ -187,6 +184,9 @@
         <widget class="QLabel" name="mLabelBatteryVoltage">
          <property name="text">
           <string>0.0 V</string>
+         </property>
+         <property name="textFormat">
+          <enum>Qt::PlainText</enum>
          </property>
         </widget>
        </item>
@@ -222,6 +222,9 @@
          <property name="text">
           <string>Restriction</string>
          </property>
+         <property name="alignment">
+          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         </property>
         </widget>
        </item>
        <item row="3" column="1">
@@ -237,7 +240,7 @@
           <bool>false</bool>
          </property>
          <property name="sizePolicy">
-          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
