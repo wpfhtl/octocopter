@@ -544,7 +544,7 @@ void FlightController::setFlightState(FlightState newFlightState)
         // hoverpos a little below ourselves, so the rotors keep quiet. We can then raise the hoverpos by a meter to
         // make it start up. If the hoverpos was at the current pos, the thrust would change quickly due to noise in
         // the GNSS pose's positions.
-        const QVector3D offset(0.0f, -0.2f, 0.0f);
+        const QVector3D offset(0.0f, 0.2f, 0.0f);
 
         mFlightControllerValues.hoverPosition = mFlightControllerValues.lastKnownPose.getPosition() + offset;
 

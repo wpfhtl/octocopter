@@ -71,10 +71,10 @@ void main()
     if(cellvalue[0] == 0.0) return;
     
     float alpha = cellvalue[0];
-    alpha *= alphaMultiplication;
     if(alphaExponentiation != 1.0) alpha = pow(alpha, alphaExponentiation);
-    if(alpha < 1.0 && alpha > 0.995) alpha = 0.3; // show dilated cells with obvious difference.
+    if(alpha < 1.0 && alpha > 0.993) alpha = 0.4; // show dilated cells with obvious difference.
     if(alpha > 1.0) alpha = 1.0;
+    alpha *= alphaMultiplication;
     //if(cellvalue[0] > 0) alpha = 1.0;
 
     vec4 outColor = fixedColor;

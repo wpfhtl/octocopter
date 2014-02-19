@@ -900,7 +900,7 @@ void GlScene::render()
 
         mShaderProgramGrid->setUniformValue("fixedColor", QColor(128,128,255,128));
         // If we have a value of (quint8)1, that'll be 1/255=0.004 in the shader's float. Amplify this?
-        mShaderProgramGrid->setUniformValue("alphaMultiplication", 0.6f);
+        //mShaderProgramGrid->setUniformValue("alphaMultiplication", 0.6f);
         mShaderProgramGrid->setUniformValue("alphaExponentiation", 1.0f);
         mShaderProgramGrid->setUniformValue("quadSizeFactor", 0.6f);
 

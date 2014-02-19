@@ -153,7 +153,7 @@ void SensorFuser::fuseScans()
                 // the scanInfo is relatively old, we give up waiting for a gnssTimestamp and use the scanner's
                 rawScan->timeStampScanMiddleGnss = rawScan->timeStampScanMiddleScanner;
                 mNumberOfScansWithMissingGnssTimestamps++;
-                //qDebug() << __PRETTY_FUNCTION__ << "scan is old, no gnss time, using scanner time";
+                qDebug() << __PRETTY_FUNCTION__ << "scan is old, no gnss time, using scanner time";
             }
             else
             {
@@ -188,7 +188,11 @@ void SensorFuser::fuseScans()
         //qDebug() << __PRETTY_FUNCTION__ << "best fit pose index" << bestFitPoseIndex << "timediff" << bestFitPoseTimeDifference;
 
         // If no pose was found, try the next scan.
-        if(bestFitPoseTimeDifference == std::numeric_limits<qint32>::max()) continue;
+        if(bestFitPoseTimeDifference == std::numeric_limits<qint32>::max())
+        {
+            qDebug() << __PRETTY_FUNCTION__ << "did not find a pose, there are" << mPoses.size() << "- returning.";
+            return;
+        }
 
         // Even when interpolating e.g. cubically, the bestFit pose (not the other ones surrounding
         // the scan) should be as close as required for nearest neighbor. If not, skip this scan.
@@ -218,7 +222,7 @@ void SensorFuser::fuseScans()
         // We do not use switch/case or if/else here, because when we find that a scan cannot ever be fused using a better method
         // requiring more poses, we can downgrade the InterpolationMethod and still fuse this scan linearly of even using nn.
         InterpolationMethod im = mBestInterpolationMethodToUse;
-
+/*
         if(im == InterpolationMethod::Cubic)
         {
             // The indexes of the poses to be used for cubic interpolation
@@ -353,7 +357,7 @@ void SensorFuser::fuseScans()
                 mLastScannerPosition = mPoses[poseIndicesToUse[2]]->getPosition();
                 emit scanFused(mRegisteredPoints, mNumberOfPointsFusedInThisScan, &mLastScannerPosition);
             }
-        }
+        }*/
 
         if(im == InterpolationMethod::Linear)
         {
@@ -439,6 +443,13 @@ void SensorFuser::fuseScans()
                     // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
                     if(rawScan->distances[index] < 700 || rawScan->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
 
+                    // Skip reflections that have no neighbors. Chances are that they are just noise
+                    if(index > 0 && index < rawScan->numberOfDistances-1 && rawScan->distances[index-1] == 0 && rawScan->distances[index+1] == 0)
+                    {
+                        qDebug() << __PRETTY_FUNCTION__ << "lonely ray without neighbors, skipping noise";
+                        continue;
+                    }
+
                     // Convert millimeters to meters.
                     const float distance = rawScan->distances[index] / 1000.0f;
 
@@ -455,6 +466,14 @@ void SensorFuser::fuseScans()
                         }
                         else
                         {
+#warning: we SHOULD always have a poseIndicesToUse[2] element. Sometimes, we do not. Logic error.
+                            if(poseIndicesToUse.size() < 3 || poseIndicesToUse[2] >= mPoses.size())
+                            {
+                                qDebug() << __PRETTY_FUNCTION__ << "logic error, preventing crash by sipping fusion.";
+                                iteratorRawScans.remove();
+                                return;
+                            }
+
                             mLastInterpolatedPose = Pose::interpolateLinear(
                                         mPoses[poseIndicesToUse[1]],
                                     mPoses[poseIndicesToUse[2]],

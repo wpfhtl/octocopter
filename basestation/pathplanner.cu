@@ -101,20 +101,27 @@ __global__ void clearOccupancyGridAboveVehiclePositionD(
 
     int3 gridCellCoordinate = parametersPathPlanner.grid.getCellCoordinate(vehiclePos);
 
-    for(int z=-2;z<=2;z++)
+//    for(int z=-1;z<=1;z++)
+//    {
+//            for(int x=-1;x<=1;x++)
+//            {
+    for(int y=0;y<=2;y++)
     {
-        for(int y=-1;y<=1;y++)
-        {
-            for(int x=-2;x<=2;x++)
-            {
-                const int3 neighbourGridCellCoordinate = gridCellCoordinate + make_int3(x,y,z);
-                const int neighbourGridCellIndex = parametersPathPlanner.grid.getSafeCellHash(neighbourGridCellCoordinate);
-                float3 cellCenter = parametersPathPlanner.grid.getCellCenter(neighbourGridCellCoordinate);
-                printf("clearOccupancyGridAboveVehiclePositionD(): clearing cell at %.2f / %.2f / %.2f\n", cellCenter.x, cellCenter.y, cellCenter.z);
-                gridValues[neighbourGridCellIndex] = 0;
-            }
-        }
+                // We want to clear only the vehicle's cell 2 cells above it.
+//                if(y == 0 && (x != 0 || z != 0)) continue;
+
+                int3 neighbourGridCellCoordinate = gridCellCoordinate + make_int3(0,y,0);
+
+                if(parametersPathPlanner.grid.isCellInGrid(neighbourGridCellCoordinate))
+                {
+                    const int neighbourGridCellIndex = parametersPathPlanner.grid.getCellHash(neighbourGridCellCoordinate);
+                    float3 cellCenter = parametersPathPlanner.grid.getCellCenter(neighbourGridCellCoordinate);
+                    printf("clearOccupancyGridAboveVehiclePositionD(): clearing cell centered at %.2f / %.2f / %.2f\n", cellCenter.x, cellCenter.y, cellCenter.z);
+                    gridValues[neighbourGridCellIndex] = 0;
+                }
     }
+    //            }
+    //        }
 }
 
 
