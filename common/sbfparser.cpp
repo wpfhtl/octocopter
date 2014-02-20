@@ -367,7 +367,7 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
     {
         // IntAttCovEuler
         const Sbf_IntAttCovEuler *block = (Sbf_IntAttCovEuler*)(sbfData.constData() + offsetToValidPacket);
-        qDebug() << "SBF: IntAttCovEuler: covariances for heading, pitch, roll:" << block->Cov_HeadHead << block->Cov_PitchPitch << block->Cov_RollRoll;
+        //qDebug() << "SBF: IntAttCovEuler: covariances for heading, pitch, roll:" << block->Cov_HeadHead << block->Cov_PitchPitch << block->Cov_RollRoll;
         float newCovarianceValue = std::max(std::max(block->Cov_HeadHead, block->Cov_PitchPitch), block->Cov_RollRoll);
         if(fabs(mGnssStatus.covariances - newCovarianceValue) > 0.02)
         {

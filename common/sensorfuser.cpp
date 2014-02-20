@@ -124,7 +124,7 @@ void SensorFuser::fuseRayWithLastInterpolatedPose(const qint16 index, const floa
 // According to mInterpolationmethod, we set each ScanInfo' object 's poses-list to be the 1(nn) / 2(linear) / 3(linear) / 4(cubic) / 5(cubic) best poses to interpolate
 void SensorFuser::fuseScans()
 {
-    Profiler p(__PRETTY_FUNCTION__);
+    //Profiler p(__PRETTY_FUNCTION__);
 
     // Process every scan...
     QMutableListIterator<RawScan*> iteratorRawScans(mRawScans);
@@ -133,6 +133,7 @@ void SensorFuser::fuseScans()
         RawScan* rawScan = iteratorRawScans.next();
         //qDebug() << __PRETTY_FUNCTION__ << "now processing raw scan from scanner time" << rawScan->timeStampScanMiddleScanner << "gnss time" << rawScan->timeStampScanMiddleGnss;
 
+        // If the scanner IS connected to an event-pin, it will leave timeStampScanMiddleGnss at zero. Thus,
         // scanInfo can still contain scans with zero timeStampScanMiddleGnss values because they weren't matched/
         // populated from the mGnssTimeStamps vector. This can have two reasons:
         //
@@ -167,16 +168,16 @@ void SensorFuser::fuseScans()
 
         // Which pose(-index) fits best to this scan?
         qint32 bestFitPoseIndex = -1;
-        qint32 bestFitPoseTimeDifference = std::numeric_limits<qint32>::max();
+        qint32 bestFitScanToPoseTimeDifference = std::numeric_limits<qint32>::max();
         for(int currentPoseIndex = 0; currentPoseIndex < mPoses.size(); currentPoseIndex++)
         {
             const Pose* const currentPose = mPoses[currentPoseIndex];
-            if(abs(currentPose->timestamp - rawScan->timeStampScanMiddleGnss) < abs(bestFitPoseTimeDifference))
+            if(abs(currentPose->timestamp - rawScan->timeStampScanMiddleGnss) < abs(bestFitScanToPoseTimeDifference))
             {
                 bestFitPoseIndex = currentPoseIndex;
 
                 // negative value means the pose was before the scan
-                bestFitPoseTimeDifference = currentPose->timestamp - rawScan->timeStampScanMiddleGnss;
+                bestFitScanToPoseTimeDifference = currentPose->timestamp - rawScan->timeStampScanMiddleGnss;
             }
             else
             {
@@ -188,7 +189,7 @@ void SensorFuser::fuseScans()
         //qDebug() << __PRETTY_FUNCTION__ << "best fit pose index" << bestFitPoseIndex << "timediff" << bestFitPoseTimeDifference;
 
         // If no pose was found, try the next scan.
-        if(bestFitPoseTimeDifference == std::numeric_limits<qint32>::max())
+        if(bestFitScanToPoseTimeDifference == std::numeric_limits<qint32>::max())
         {
             qDebug() << __PRETTY_FUNCTION__ << "did not find a pose, there are" << mPoses.size() << "- returning.";
             return;
@@ -196,10 +197,9 @@ void SensorFuser::fuseScans()
 
         // Even when interpolating e.g. cubically, the bestFit pose (not the other ones surrounding
         // the scan) should be as close as required for nearest neighbor. If not, skip this scan.
-        // TODO: check this!
-        if(abs(bestFitPoseTimeDifference) > MaximumFusionTimeOffset::NearestNeighbor)
+        if(abs(bestFitScanToPoseTimeDifference) > MaximumFusionTimeOffset::NearestNeighbor)
         {
-            //qDebug() << __PRETTY_FUNCTION__ << "scan<->pose time diff is more than" << MaximumFusionTimeOffset::NearestNeighbor << "- skipping";
+            qDebug() << __PRETTY_FUNCTION__ << "scan<->bestPose time diff is" << bestFitScanToPoseTimeDifference << "- skipping.";
             continue;
         }
 
@@ -222,144 +222,8 @@ void SensorFuser::fuseScans()
         // We do not use switch/case or if/else here, because when we find that a scan cannot ever be fused using a better method
         // requiring more poses, we can downgrade the InterpolationMethod and still fuse this scan linearly of even using nn.
         InterpolationMethod im = mBestInterpolationMethodToUse;
-/*
-        if(im == InterpolationMethod::Cubic)
-        {
-            // The indexes of the poses to be used for cubic interpolation
-            QVector<qint16> poseIndicesToUse;
 
-            // We have the index of the best-fitting pose, but for cubic interpolation, we need 4 or 5 poses.
-            // Assemble the indices of the other required poses
-            if(bestFitPoseTimeDifference < 0)
-            {
-                // The best-fitting pose is from BEFORE the scan
-                if(bestFitPoseTimeDifference >= -9) // 9ms is duration of half a scan
-                {
-                    // the scan's first ray was before mPose[bestFitPoseIndex]
-                    poseIndicesToUse.append(bestFitPoseIndex - 2);
-                    poseIndicesToUse.append(bestFitPoseIndex - 1);
-                    poseIndicesToUse.append(bestFitPoseIndex);
-                    poseIndicesToUse.append(bestFitPoseIndex + 1);
-                    poseIndicesToUse.append(bestFitPoseIndex + 2);
-                }
-                else
-                {
-                    // the scan's first ray was after mPose[bestFitPoseIndex]
-                    poseIndicesToUse.append(bestFitPoseIndex - 1);
-                    poseIndicesToUse.append(bestFitPoseIndex);
-                    poseIndicesToUse.append(bestFitPoseIndex + 1);
-                    poseIndicesToUse.append(bestFitPoseIndex + 2);
-                }
-            }
-            else // this branch is ok for a value of exactly 0!
-            {
-                // The best-fitting pose is from AFTER the scan
-                if(bestFitPoseTimeDifference <= 9) // 9ms is duration of half a scan
-                {
-                    // the scan's last ray was after mPose[bestFitPoseIndex]
-                    poseIndicesToUse.append(bestFitPoseIndex - 2);
-                    poseIndicesToUse.append(bestFitPoseIndex - 1);
-                    poseIndicesToUse.append(bestFitPoseIndex);
-                    poseIndicesToUse.append(bestFitPoseIndex + 1);
-                    poseIndicesToUse.append(bestFitPoseIndex + 2);
-                }
-                else
-                {
-                    // the scan's last ray was before mPose[bestFitPoseIndex]
-                    poseIndicesToUse.append(bestFitPoseIndex - 2);
-                    poseIndicesToUse.append(bestFitPoseIndex - 1);
-                    poseIndicesToUse.append(bestFitPoseIndex);
-                    poseIndicesToUse.append(bestFitPoseIndex + 1);
-                }
-            }
-
-            bool allPosesPresent = true;
-
-            // Check for existance and usability of poses until one fails
-            for(int i=0;i<poseIndicesToUse.size() && allPosesPresent;i++)
-            {
-                const qint16& poseIndex = poseIndicesToUse[i];
-                if(poseIndex < 0)
-                {
-                    // The current scan does have a well-fitting pose, but for cubic interpolation, we require one that happened
-                    // before the first/oldest pose in mPoses. Thus, we will never be able to fuse this scan cubically.
-                    // Downgrade the InterpolationMethod to Linear and see if that works out.
-                    allPosesPresent = false;
-                    im = InterpolationMethod::Linear;
-                }
-                else if(poseIndex >= mPoses.size())
-                {
-                    // We need a pose from the future: just wait for it to come in!
-                    allPosesPresent = false;
-                    if(mFlushRemainingData) im = InterpolationMethod::Linear;
-                }
-                else if(abs(mPoses[poseIndex]->timestamp - rawScan->timeStampScanMiddleGnss) > MaximumFusionTimeOffset::Cubic)
-                {
-                    // mPoses[poseIndex] exists, but it is too far away time-wise. This means there are missing poses,
-                    // so we should try degrading the interpolation-method
-                    allPosesPresent = false;
-                    im = InterpolationMethod::Linear;
-                }
-            }
-
-            if(allPosesPresent)
-            {
-                // We finally have all poses required to fuse this scan. Go!
-                for(qint16 index=0; index < rawScan->numberOfDistances; index++)
-                {
-                    // Only process every mStridePoint'th point
-                    if(index % mStridePoint != 0) continue;
-
-                    // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
-                    if(rawScan->distances[index] < 700 || rawScan->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
-
-                    // Convert millimeters to meters.
-                    const float distance = rawScan->distances[index] / 1000.0f;
-
-                    const qint32 timeOfCurrentRay = rawScan->timeStampScanMiddleGnss + (qint32)(-9.375f + (((float)index) * 0.01736f));
-
-                    if(mLastInterpolatedPose.timestamp != timeOfCurrentRay)
-                    {
-                        // TODO: chek this form 20 and 50 Hz poses using yellow paper!
-                        if(mPoses[poseIndicesToUse[2]]->timestamp > timeOfCurrentRay)
-                        {
-                            mLastInterpolatedPose = Pose::interpolateCubic(
-                                        mPoses[poseIndicesToUse[0]],
-                                    mPoses[poseIndicesToUse[1]],
-                                    mPoses[poseIndicesToUse[2]],
-                                    mPoses[poseIndicesToUse[3]],
-                                    timeOfCurrentRay);
-                        }
-                        else
-                        {
-                            mLastInterpolatedPose = Pose::interpolateCubic(
-                                        mPoses[poseIndicesToUse[1]],
-                                    mPoses[poseIndicesToUse[2]],
-                                    mPoses[poseIndicesToUse[3]],
-                                    mPoses[poseIndicesToUse[4]],
-                                    timeOfCurrentRay);
-                        }
-
-                        mLastInterpolatedPose.transform(rawScan->relativeScannerPose);
-                        emitLastInterpolatedPose();
-                    }
-
-                    fuseRayWithLastInterpolatedPose(index + rawScan->firstUsableDistance, distance);
-                    // Skip angles when distance is close
-                    if(distance < 1.0f) index += 3; else if(distance < 2.0f) index += 2; else if(distance < 3.0f) index += 1;
-                }
-
-                // This scan was successfully fused. Remove it from our vector
-                iteratorRawScans.remove();
-
-                mStatsScansFused[InterpolationMethod::Cubic]++;
-
-                mLastScannerPosition = mPoses[poseIndicesToUse[2]]->getPosition();
-                emit scanFused(mRegisteredPoints, mNumberOfPointsFusedInThisScan, &mLastScannerPosition);
-            }
-        }*/
-
-        if(im == InterpolationMethod::Linear)
+        if(true || im == InterpolationMethod::Linear)
         {
             //qDebug() << __PRETTY_FUNCTION__ << "trying to fuse scan linearly...";
             // The indexes of the poses to be used for linear interpolation
@@ -367,39 +231,25 @@ void SensorFuser::fuseScans()
 
             // We have the index of the best-fitting pose, but for linear interpolation, we need 2 or 3 poses.
             // Assemble the indices of the other required poses
-            if(bestFitPoseTimeDifference < 0)
+            if(bestFitScanToPoseTimeDifference < -9)
             {
-                // The best-fitting pose is from BEFORE the scan
-                if(bestFitPoseTimeDifference >= -9) // 9ms is duration of half a scan
-                {
-                    // the scan's first ray was before mPose[bestFitPoseIndex]
-                    poseIndicesToUse.append(bestFitPoseIndex - 1);
-                    poseIndicesToUse.append(bestFitPoseIndex);
-                    poseIndicesToUse.append(bestFitPoseIndex + 1);
-                }
-                else
-                {
                     // the scan's first ray was after mPose[bestFitPoseIndex]
                     poseIndicesToUse.append(bestFitPoseIndex);
                     poseIndicesToUse.append(bestFitPoseIndex + 1);
-                }
             }
-            else // this branch is ok for a value of exactly 0!
+            else if(bestFitScanToPoseTimeDifference > 9)
             {
-                // The best-fitting pose is from AFTER the scan
-                if(bestFitPoseTimeDifference <= 9) // 9ms is duration of half a scan
-                {
-                    // the scan's last ray was after mPose[bestFitPoseIndex]
-                    poseIndicesToUse.append(bestFitPoseIndex - 1);
-                    poseIndicesToUse.append(bestFitPoseIndex);
-                    poseIndicesToUse.append(bestFitPoseIndex + 1);
-                }
-                else
-                {
                     // the scan's last ray was before mPose[bestFitPoseIndex]
                     poseIndicesToUse.append(bestFitPoseIndex - 1);
                     poseIndicesToUse.append(bestFitPoseIndex);
-                }
+            }
+            else
+            {
+                // The best pose was recorded exactly during the scan, so that the first ray
+                // will require pose -1/0 and the last ray will require pose 0/1
+                poseIndicesToUse.append(bestFitPoseIndex - 1);
+                poseIndicesToUse.append(bestFitPoseIndex);
+                poseIndicesToUse.append(bestFitPoseIndex + 1);
             }
 
             bool allPosesPresent = true;
@@ -411,23 +261,20 @@ void SensorFuser::fuseScans()
                 if(poseIndex < 0)
                 {
                     // The current scan does have a well-fitting pose, but for linear interpolation, we require one that happened
-                    // before the first/oldest pose in mPoses. Thus, we will never be able to fuse this scan linearly.
-                    // Downgrade the InterpolationMethod to NearestNeighbor and see if that works out.
+                    // before the first/oldest pose in mPoses. Thus, we will never be able to fuse this scan linearly. Leave it
+                    // for the clean-method to remove old data.
                     allPosesPresent = false;
-                    im = InterpolationMethod::NearestNeighbor;
                 }
                 else if(poseIndex >= mPoses.size())
                 {
                     // We need a pose from the future: just wait for it to come in!
                     allPosesPresent = false;
-                    if(mFlushRemainingData) im = InterpolationMethod::NearestNeighbor;
                 }
-                else if(abs(mPoses[poseIndex]->timestamp - rawScan->timeStampScanMiddleGnss) > MaximumFusionTimeOffset::Linear)
+                else if(abs(mPoses[poseIndex]->timestamp - rawScan->timeStampScanMiddleGnss) > MaximumFusionTimeOffset::PoseInterval)
                 {
                     // mPoses[poseIndex] exists, but it is too far away time-wise. This means there are missing poses,
                     // so we should try degrading the interpolation-method
                     allPosesPresent = false;
-                    im = InterpolationMethod::NearestNeighbor;
                 }
             }
 
@@ -440,8 +287,11 @@ void SensorFuser::fuseScans()
                     // Only process every mStridePoint'th point
                     if(index % mStridePoint != 0) continue;
 
+                    // Convert millimeters to meters.
+                    const float distance = rawScan->distances[index] / 1000.0f;
+
                     // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
-                    if(rawScan->distances[index] < 700 || rawScan->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
+                    if(distance < 0.7f || distance > mMaximumFusableRayLength) continue;
 
                     // Skip reflections that have no neighbors. Chances are that they are just noise
                     if(index > 0 && index < rawScan->numberOfDistances-1 && rawScan->distances[index-1] == 0 && rawScan->distances[index+1] == 0)
@@ -450,34 +300,48 @@ void SensorFuser::fuseScans()
                         continue;
                     }
 
-                    // Convert millimeters to meters.
-                    const float distance = rawScan->distances[index] / 1000.0f;
-
                     const qint32 timeOfCurrentRay = rawScan->timeStampScanMiddleGnss + (qint32)(-9.375f + (((float)index) * 0.01736f));
 
                     if(mLastInterpolatedPose.timestamp != timeOfCurrentRay)
                     {
-                        if(mPoses[poseIndicesToUse[1]]->timestamp > timeOfCurrentRay)
+                        if(poseIndicesToUse.size() == 2)
                         {
-                            mLastInterpolatedPose = Pose::interpolateLinear(
-                                        mPoses[poseIndicesToUse[0]],
-                                    mPoses[poseIndicesToUse[1]],
-                                    timeOfCurrentRay);
+                            // We only have two poses, because the scan fits between them without overlapping a pose
+                            Q_ASSERT(rawScan->timeStampScanMiddleGnss - 9 >= mPoses[poseIndicesToUse[0]]->timestamp);
+                            Q_ASSERT(rawScan->timeStampScanMiddleGnss + 9 <= mPoses[poseIndicesToUse[1]]->timestamp);
+
+                            mLastInterpolatedPose = Pose::interpolateLinear(mPoses[poseIndicesToUse[0]], mPoses[poseIndicesToUse[1]], timeOfCurrentRay);
+                        }
+                        else if(poseIndicesToUse.size() == 3)
+                        {
+                            // We have three poses because the scan happened during the middle pose!
+                            Q_ASSERT(
+                                    rawScan->timeStampScanMiddleGnss + 9 >= mPoses[poseIndicesToUse[1]]->timestamp
+                                    ||
+                                    rawScan->timeStampScanMiddleGnss - 9 <= mPoses[poseIndicesToUse[1]]->timestamp
+                                    );
+
+                            if(timeOfCurrentRay < mPoses[poseIndicesToUse[1]]->timestamp)
+                            {
+                                // The scan's center can be max. 9ms before the pose. Then the scan's first ray can be up to 18ms before.
+                                Q_ASSERT(mPoses[poseIndicesToUse[1]]->timestamp - timeOfCurrentRay <= 18);
+
+                                mLastInterpolatedPose = Pose::interpolateLinear(mPoses[poseIndicesToUse[0]], mPoses[poseIndicesToUse[1]], timeOfCurrentRay);
+                            }
+                            else if(timeOfCurrentRay > mPoses[poseIndicesToUse[1]]->timestamp)
+                            {
+                                // The scan's center can be max. 9ms after the pose. Then the scan's last ray can be up to 18ms after.
+                                Q_ASSERT(mPoses[poseIndicesToUse[1]]->timestamp - timeOfCurrentRay >= -18);
+                                mLastInterpolatedPose = Pose::interpolateLinear(mPoses[poseIndicesToUse[1]], mPoses[poseIndicesToUse[2]], timeOfCurrentRay);
+                            }
+                            else
+                            {
+                                mLastInterpolatedPose = *mPoses[poseIndicesToUse[1]];
+                            }
                         }
                         else
                         {
-#warning: we SHOULD always have a poseIndicesToUse[2] element. Sometimes, we do not. Logic error.
-                            if(poseIndicesToUse.size() < 3 || poseIndicesToUse[2] >= mPoses.size())
-                            {
-                                qDebug() << __PRETTY_FUNCTION__ << "logic error, preventing crash by sipping fusion.";
-                                iteratorRawScans.remove();
-                                return;
-                            }
-
-                            mLastInterpolatedPose = Pose::interpolateLinear(
-                                        mPoses[poseIndicesToUse[1]],
-                                    mPoses[poseIndicesToUse[2]],
-                                    timeOfCurrentRay);
+                            qDebug() << __PRETTY_FUNCTION__ << "oh, poseIndicesToUse has" << poseIndicesToUse.size() << "elements!!!";
                         }
 
                         emitLastInterpolatedPose();
@@ -500,42 +364,6 @@ void SensorFuser::fuseScans()
                 //qDebug() << __PRETTY_FUNCTION__ << "now emitting" << mNumberOfPointsFusedInThisScan << "points";
                 emit scanFused(mRegisteredPoints, mNumberOfPointsFusedInThisScan, &mLastScannerPosition);
             }
-        }
-
-        if(im == InterpolationMethod::NearestNeighbor)
-        {
-            // Skip this scan if no good pose was found
-            if(abs(bestFitPoseTimeDifference) > MaximumFusionTimeOffset::NearestNeighbor) continue;
-
-            mLastInterpolatedPose = *mPoses[bestFitPoseIndex];
-            mLastInterpolatedPose.transform(rawScan->relativeScannerPose);
-
-            emitLastInterpolatedPose();
-
-            for(qint16 index=0; index < rawScan->numberOfDistances; index++)
-            {
-                // Only process every mStridePoint'th point
-                if(index % mStridePoint != 0) continue;
-
-                // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
-                if(rawScan->distances[index] < 700 || rawScan->distances[index] > mMaximumFusableRayLength * 1000.0f) continue;
-
-                // Convert millimeters to meters.
-                const float distance = rawScan->distances[index] / 1000.0f;
-
-                fuseRayWithLastInterpolatedPose(index + rawScan->firstUsableDistance, distance);
-
-                // Skip angles when distance is close
-                if(distance < 1.0f) index += 3; else if(distance < 2.0f) index += 2; else if(distance < 3.0f) index += 1;
-            }
-
-            // This scan was successfully fused. Remove it from our vector
-            iteratorRawScans.remove();
-
-            mStatsScansFused[InterpolationMethod::NearestNeighbor]++;
-
-            mLastScannerPosition = mPoses[bestFitPoseIndex]->getPosition();
-            emit scanFused(mRegisteredPoints, mNumberOfPointsFusedInThisScan, &mLastScannerPosition);
         }
     }
 }

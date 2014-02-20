@@ -306,8 +306,6 @@ float FlightController::getLateralOffsetOnVehicleRollAxisToPosition(const QVecto
 
 void FlightController::logFlightControllerValues()
 {
-    //qDebug() << "FlightController::logFlightControllerValues(): logging" << mFlightControllerValues.lastKnownPose << "at fcvtime" << mFlightControllerValues.timestamp;
-
     QByteArray data("FLTCLR"); // start with the magic bytes
     QDataStream ds(&data, QIODevice::WriteOnly);
     ds.skipRawData(data.size()); // position the stream after the magic bytes
@@ -322,8 +320,8 @@ void FlightController::slotLiftHoverPosition()
     if(mFlightControllerValues.flightState == FlightState::State::Hover)
     {
         qDebug() << "FlightController::slotLiftHoverPosition(): hovering, raising hoverpos and trajectorygoal by 1.5m - please step back!";
-        mFlightControllerValues.hoverPosition  += QVector3D(0.0f, 1.5f, 0.0f);
-        mFlightControllerValues.trajectoryGoal += QVector3D(0.0f, 1.5f, 0.0f);
+        mFlightControllerValues.hoverPosition  += QVector3D(0.0f, 0.5f, 0.0f);
+        mFlightControllerValues.trajectoryGoal += QVector3D(0.0f, 0.5f, 0.0f);
     }
 }
 

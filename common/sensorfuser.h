@@ -35,11 +35,12 @@ public:
 private:
     struct MaximumFusionTimeOffset
     {
-        // These values assume 10 Hz (100ms interval) pose rate. Higher frequencies should work flawlessly!
-        #define POSE_INTERVAL 100
-        static const quint16 NearestNeighbor = POSE_INTERVAL / 2 + 1; // 51
-        static const quint16 Linear = ((POSE_INTERVAL / 2) * 3) + 1; // 151
-        static const quint16 Cubic = (POSE_INTERVAL * 2.5) + 1; // 252
+        // These values assume 20 Hz (50ms interval) pose rate. Higher frequencies should work flawlessly.
+        #define POSE_INTERVAL 50
+        static const qint16 PoseInterval = POSE_INTERVAL;
+        static const qint16 NearestNeighbor = POSE_INTERVAL / 2 + 1; // 26
+        static const qint16 Linear = ((POSE_INTERVAL / 2) * 3) + 1; // 76
+        static const qint16 Cubic = (POSE_INTERVAL * 2.5) + 1; // 126
     };
 
 

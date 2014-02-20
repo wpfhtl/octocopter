@@ -13,6 +13,17 @@ FlightControllerValues::FlightControllerValues()
     lastKnownHeightOverGroundTimestamp = 0;
 }
 
+QString FlightControllerValues::toString() const{
+    return QString("lastKnownPose %1, timestamp %2, hoverPos %3/%4/%5, trajStart %6/%7/%8, trajGoal %9/%10/%11, flightState %12, heightOverGround %13")
+            .arg(lastKnownPose.toString(true))
+            .arg(timestamp)
+            .arg(hoverPosition.x()).arg(hoverPosition.y()).arg(hoverPosition.z())
+            .arg(trajectoryStart.x()).arg(trajectoryStart.y()).arg(trajectoryStart.z())
+            .arg(trajectoryGoal.x()).arg(trajectoryGoal.y()).arg(trajectoryGoal.z())
+            .arg(flightState.toString())
+            .arg(lastKnownHeightOverGround);
+}
+
 // for streaming
 QDataStream& operator<<(QDataStream &out, const FlightControllerValues &fcv)
 {

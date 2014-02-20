@@ -38,7 +38,7 @@ QString RawScan::toString() const
     {
         result.append(QString::number(distances[i]) + " ");
     }
-    
+
     return result;
 }
 
@@ -93,6 +93,23 @@ void RawScan::log(LogFile* const logFile)
     //
     // PacketLengthInBytes is ALL bytes of this packet
     // indexFirst denotes the start of usable data (not 1s)
+
+    if(
+            numberOfDistances > 1080
+            || firstUsableDistance > 1080
+            || timeStampScanMiddleGnss < 0
+            || timeStampScanMiddleGnss > 604800000
+            || timeStampScanMiddleScanner < 0
+            || timeStampScanMiddleScanner > 604800000
+            )
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "error, not logging corrupt raw scan:"
+                 << "numberOfDistances" << numberOfDistances
+                 << "firstUsableDistance" << firstUsableDistance
+                 << "timeStampScanMiddleGnss" << timeStampScanMiddleGnss
+                 << "timeStampScanMiddleScanner" << timeStampScanMiddleScanner;
+        return;
+    }
 
     // Write the total amount of bytes of this scan into the stream
     const quint16 length = 5 // LASER

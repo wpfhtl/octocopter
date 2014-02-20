@@ -601,7 +601,7 @@ void LogPlayer::processPacket(const LogPlayer::DataSource& source, const LogPlay
 
         mFlightControllerValues = fcv;
 
-        qDebug() << "FLTCLR:" << mFlightControllerValues.timestamp;
+        //qDebug() << "FLTCLR:" << mFlightControllerValues.timestamp;
 
         emit flightControllerValues(&mFlightControllerValues);
 

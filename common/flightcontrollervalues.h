@@ -16,6 +16,8 @@ class FlightControllerValues
 public:
     FlightControllerValues();
 
+    QString toString() const;
+
     qint32 timestamp; // Is set by flightcontroller after all values are computed
     PidController controllerThrust, controllerYaw, controllerPitch, controllerRoll;
     MotionCommand motionCommand;
@@ -32,6 +34,5 @@ public:
 // for streaming
 QDataStream& operator<<(QDataStream &out, const FlightControllerValues &fcv);
 QDataStream& operator>>(QDataStream &in, FlightControllerValues &fcv);
-
 
 #endif

@@ -321,9 +321,13 @@ Pose Pose::extrapolateLinear(const Pose &p1, const Pose &p2, const qint32 &timeI
 Pose Pose::interpolateLinear(const Pose* const p0, const Pose* const p1, const qint32& time)
 {
     // recreate mu from time argument
-    const float mu = (((float)(time - p0->timestamp)) / ((float)(p1->timestamp - p0->timestamp)));
+    float mu = (((float)(time - p0->timestamp)) / ((float)(p1->timestamp - p0->timestamp)));
 
-    if(mu < 0.0 || mu > 1.0) qDebug() << __PRETTY_FUNCTION__ << "ERROR, mu is" << mu;
+    if(mu < 0.0 || mu > 1.0)
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "ERROR, mu is" << mu;
+        mu = qBound(0.0f, mu, 1.0f);
+    }
 
     const QVector3D position = p0->getPosition() * (1.0 - mu) + p1->getPosition() * mu;
     const QQuaternion orientation = QQuaternion::nlerp(p0->getOrientation(), p1->getOrientation(), mu);
