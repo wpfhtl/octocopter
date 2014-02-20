@@ -37,6 +37,7 @@ public slots:
     void slotSetFlightState(const FlightState *const fs);
     void slotSetFlightStateRestriction(const FlightStateRestriction *const fsr);
     void slotUpdatePose(const Pose *const pose);
+    void slotUpdateTime();
     void slotUpdateVehicleStatus(const VehicleStatus* const vs);
     void slotUpdateInsStatus(const GnssStatus* const gnssStatus);
     void slotUpdateConnectionDiffCorr(const bool working);

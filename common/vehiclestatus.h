@@ -17,11 +17,14 @@ public:
     float batteryVoltage;
     qint16 barometricHeight;
     qint8 wirelessRssi;
-    
+    qint8 cpuTemperature; // in degrees celsius
+
+    void updateCpuTemperature(const QString fileName = "/sys/bus/platform/devices/coretemp.0/temp2_input");
+
 signals:
-    
+
 public slots:
-    
+
 };
 
 // for using qDebug();

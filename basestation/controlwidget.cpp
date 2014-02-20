@@ -160,6 +160,8 @@ void ControlWidget::slotUpdatePose(const Pose * const pose)
 
 void ControlWidget::slotUpdateVehicleStatus(const VehicleStatus *const vs)
 {
+    slotUpdateTime();
+
     const int secsPassed = vs->missionRunTime / 1000.0f;
     const int secs = secsPassed % 60;
     const int mins = (secsPassed+1) / 60;
@@ -172,7 +174,13 @@ void ControlWidget::slotUpdateVehicleStatus(const VehicleStatus *const vs)
     mLabelBatteryVoltage->setText(QString::number(vs->batteryVoltage, 'f', 2) + " V");
     if(vs->batteryVoltage > 14.0) mLabelBatteryVoltage->setStyleSheet(""); else mLabelBatteryVoltage->setStyleSheet(getBackgroundCss(true, false));
 
-    //mLabelBarometricHeight->setText(QString::number(vs->barometricHeight));
+    mLabelBarometricHeight->setText(QString::number(vs->barometricHeight));
+
+    mLabelCpuTemperature->setText(QString("%1%2").arg(vs->cpuTemperature).arg(QChar(0260)));
+}
+
+void ControlWidget::slotUpdateTime()
+{
     mLabelCurrentGnssTime->setText(GnssTime::currentTowString());
 }
 
@@ -188,6 +196,8 @@ QString ControlWidget::getBackgroundCss(const bool& error, const bool& dark)
 
 void ControlWidget::slotUpdateInsStatus(const GnssStatus* const gnssStatus)
 {
+    slotUpdateTime();
+
     mLabelGnssMode->setText(gnssStatus->getPvtMode());
     if(gnssStatus->pvtMode == GnssStatus::PvtMode::RtkFixed) mLabelGnssMode->setStyleSheet(""); else mLabelGnssMode->setStyleSheet(getBackgroundCss());
 

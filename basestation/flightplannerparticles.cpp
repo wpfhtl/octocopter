@@ -557,7 +557,19 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloudCuda*const p
     {
         emit processingState(GlScene::FlightPlannerProcessingState::WayPointChecking);
         const qint32 offendingWayPointIndex = mPathPlanner->checkWayPointSafety(&mWayPointsAhead);
-        if(offendingWayPointIndex > -1)
+
+        if(offendingWayPointIndex < 0)
+        {
+            // Todo: wait a couple of frames before emitting this. There's no QTimer::singleShot(lambda), though :|
+            qDebug() << __PRETTY_FUNCTION__ << "offendingWayPointIndex is" << offendingWayPointIndex << "- all waypoints are safe, continuing...";
+            QTimer::singleShot(250, this, SLOT(slotSetProcessingStateToIdle()));
+        }
+        else if(offendingWayPointIndex > 2)
+        {
+            qDebug() << __PRETTY_FUNCTION__ << "offendingWayPointIndex is" << offendingWayPointIndex << "- problems ahead, but still some headroom...";
+            QTimer::singleShot(250, this, SLOT(slotSetProcessingStateToIdle()));
+        }
+        else
         {
             qDebug() << __PRETTY_FUNCTION__ << "some of the following waypoints are now in occupied territory, moving them from:" << mWayPointsAhead.toString();
             // Retrieve all waypoints with informatio ngain, re-move them to safe positions and re-plan the path.
@@ -609,11 +621,6 @@ void FlightPlannerParticles::slotDenseCloudInsertedPoints(PointCloudCuda*const p
             mPathPlanner->slotComputePath(getLastKnownVehiclePose().getPosition(), newWayPointsWithHighInformationGain);
 
             qDebug() << __PRETTY_FUNCTION__ << "waypoitns changed to:" << mWayPointsAhead.toString();
-        }
-        else
-        {
-            // Todo: wait a couple of frames before emitting this. There's no QTimer::singleShot(lambda), though :|
-            QTimer::singleShot(250, this, SLOT(slotSetProcessingStateToIdle()));
         }
     }
 }

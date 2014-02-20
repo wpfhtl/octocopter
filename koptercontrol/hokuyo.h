@@ -14,7 +14,7 @@
 class Hokuyo : public QObject
 {
     Q_OBJECT
-    
+
 public:
     enum class State
     {
@@ -28,7 +28,7 @@ private:
     const QMatrix4x4* mRelativeScannerPose;
     LogFile* mLogFile;
     qrk::UrgCtrl mScanner;
-    quint8 mHeightOverGroundClockDivisor;
+    qint32 mHeightOverGroundClockDivisor;
     qint64 mOffsetTimeScannerToTow;
     qint32 mLastScannerTimeStamp;
     bool mIsConnectedToEventPin;
@@ -47,7 +47,7 @@ public:
     ~Hokuyo();
 
     bool open(const QString &deviceFilename);
-    
+
     State getState() const {return mState;}
 
     bool isTimeSynchronized() const {return mOffsetTimeScannerToTow != 0;}

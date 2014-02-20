@@ -310,7 +310,9 @@ void SensorFuser::fuseScans()
                             Q_ASSERT(rawScan->timeStampScanMiddleGnss - 9 >= mPoses[poseIndicesToUse[0]]->timestamp);
                             Q_ASSERT(rawScan->timeStampScanMiddleGnss + 9 <= mPoses[poseIndicesToUse[1]]->timestamp);
 
-                            mLastInterpolatedPose = Pose::interpolateLinear(mPoses[poseIndicesToUse[0]], mPoses[poseIndicesToUse[1]], timeOfCurrentRay);
+                            bool ok = false;
+                            mLastInterpolatedPose = Pose::interpolateLinear(mPoses[poseIndicesToUse[0]], mPoses[poseIndicesToUse[1]], timeOfCurrentRay, &ok);
+                            if(!ok) qDebug() << "mu-screwup: 2 poses from" << mPoses[poseIndicesToUse[0]]->timestamp << mPoses[poseIndicesToUse[1]]->timestamp << "scan from" << rawScan->timeStampScanMiddleGnss << "currentRay" << timeOfCurrentRay;
                         }
                         else if(poseIndicesToUse.size() == 3)
                         {
@@ -326,13 +328,18 @@ void SensorFuser::fuseScans()
                                 // The scan's center can be max. 9ms before the pose. Then the scan's first ray can be up to 18ms before.
                                 Q_ASSERT(mPoses[poseIndicesToUse[1]]->timestamp - timeOfCurrentRay <= 18);
 
-                                mLastInterpolatedPose = Pose::interpolateLinear(mPoses[poseIndicesToUse[0]], mPoses[poseIndicesToUse[1]], timeOfCurrentRay);
+                                bool ok = false;
+                                mLastInterpolatedPose = Pose::interpolateLinear(mPoses[poseIndicesToUse[0]], mPoses[poseIndicesToUse[1]], timeOfCurrentRay, &ok);
+                                if(!ok) qDebug() << "mu-screwup: 3 poses from" << mPoses[poseIndicesToUse[0]]->timestamp << mPoses[poseIndicesToUse[1]]->timestamp << mPoses[poseIndicesToUse[2]]->timestamp << "scan from" << rawScan->timeStampScanMiddleGnss << "currentRay" << timeOfCurrentRay << "(before central pose)";
                             }
                             else if(timeOfCurrentRay > mPoses[poseIndicesToUse[1]]->timestamp)
                             {
                                 // The scan's center can be max. 9ms after the pose. Then the scan's last ray can be up to 18ms after.
                                 Q_ASSERT(mPoses[poseIndicesToUse[1]]->timestamp - timeOfCurrentRay >= -18);
-                                mLastInterpolatedPose = Pose::interpolateLinear(mPoses[poseIndicesToUse[1]], mPoses[poseIndicesToUse[2]], timeOfCurrentRay);
+
+                                bool ok = false;
+                                mLastInterpolatedPose = Pose::interpolateLinear(mPoses[poseIndicesToUse[1]], mPoses[poseIndicesToUse[2]], timeOfCurrentRay, &ok);
+                                if(!ok) qDebug() << "mu-screwup: 3 poses from" << mPoses[poseIndicesToUse[0]]->timestamp << mPoses[poseIndicesToUse[1]]->timestamp << mPoses[poseIndicesToUse[2]]->timestamp << "scan from" << rawScan->timeStampScanMiddleGnss << "currentRay" << timeOfCurrentRay << "(after central pose)";
                             }
                             else
                             {
@@ -593,7 +600,6 @@ void SensorFuser::slotNewScanRaw(RawScan *scan)
     {
         mRawScans.append(scan);
     }
-
 
     mNewestDataTime = std::max(mNewestDataTime, scan->timeStampScanMiddleScanner);
 }

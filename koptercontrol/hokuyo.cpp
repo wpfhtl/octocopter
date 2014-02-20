@@ -93,8 +93,8 @@ void Hokuyo::slotStartScanning()
     if(mOffsetTimeScannerToTow == 0)
     {
         qDebug() << __PRETTY_FUNCTION__ << "scanner time not set, will scan as soon as time is set!";
-    mState = State::ScanRequestedButTimeUnknown;
-    emit finished();
+        mState = State::ScanRequestedButTimeUnknown;
+        emit finished();
         return;
     }
 
@@ -103,18 +103,19 @@ void Hokuyo::slotStartScanning()
     do
     {
         mHeightOverGroundClockDivisor++;
-        mHeightOverGroundClockDivisor %= 20; // Emit heightOverGround every 20 scans, so thats 2Hz
 
         // TODO: handle wrapping of lasertime after 4.66 hours!
         long timestampScanner = 0;
-        if(mScanner.capture(mScannedDistances, &timestampScanner) <= 0)
+        const int numberOfRaysCaptured = mScanner.capture(mScannedDistances, &timestampScanner);
+        if(numberOfRaysCaptured != 1081)
         {
-             qWarning() << "Hokuyo::slotScanFinished(): weird, less than 1 samples received from lidar";
+            qWarning()
+                    << __PRETTY_FUNCTION__ << "weird:" << numberOfRaysCaptured << "rays captured from lidar that"
+                    << (mIsConnectedToEventPin ? "IS" : "IS NOT") << "connected to event pin. Skipping.";
         }
         else
         {
             mLastScannerTimeStamp = timestampScanner;
-
 
             RawScan* rawScan = new RawScan;
 
@@ -126,31 +127,38 @@ void Hokuyo::slotStartScanning()
             // Set the gnss time to the scanner time if we're not connected to an event-pin.
             if(!mIsConnectedToEventPin) rawScan->timeStampScanMiddleGnss = rawScan->timeStampScanMiddleScanner;
 
-            // Fill the values in the RawScan. It will allocate memory for the values.
-            rawScan->setDistances(mScannedDistances);
+            // Fill the values in the RawScan. setDistances will check the data (it migh be only 1s and thus useless).
+            // If not, it will allocate memory for the values and store them in RLE-compressed manner.
+            const bool rawScanIsValid = rawScan->setDistances(mScannedDistances);
 
-            rawScan->log(mLogFile);
-
-            //qDebug() << "scan from scanner connected to pin:" << mIsConnectedToEventPin << ": tostring:" << rawScan->toString();
-
-            //mLogFile->write(
-                        //(const char*)(distancesToEmit->data() + indexStart), // where to start writing.
-                        //sizeof(quint16) * ((indexStop - indexStart) + 1) // how many bytes to write
-                        //);
-
-            // Every full moon, emit the distance at the front ray. Can be used for height estimation.
-            // Of course, we only do that when there actually IS a measurement
-            if(mHeightOverGroundClockDivisor == 0 && mScannedDistances.size() > 540 && rawScan->distances[540] != 0)
+            if(!rawScanIsValid)
             {
-                const float distance = rawScan->distances[540]/1000.0f;
-                qDebug() << __PRETTY_FUNCTION__ << "emitting distanceAtFront of" << distance;
-                emit distanceAtFront(distance);
+                delete rawScan;
             }
+            else
+            {
+                rawScan->log(mLogFile);
 
-            // With this call, we GIVE UP OWNERSHIP of the data. It might get deleted immediately!
-            //qDebug() << __PRETTY_FUNCTION__ << "emitting scanData(qint32, quint16," << rawScan->numberOfDistances << "), connectedToEventPin:" << mIsConnectedToEventPin;
+                //qDebug() << "scan from scanner connected to pin:" << mIsConnectedToEventPin << ": tostring:" << rawScan->toString();
 
-            emit scanRaw(rawScan);
+                //mLogFile->write(
+                //(const char*)(distancesToEmit->data() + indexStart), // where to start writing.
+                //sizeof(quint16) * ((indexStop - indexStart) + 1) // how many bytes to write
+                //);
+
+                // Every full moon, emit the distance at the front ray. Can be used for height estimation.
+                // Of course, we only do that when there actually IS a measurement (further than 10cm)
+                if(mHeightOverGroundClockDivisor % 20 == 0 && mScannedDistances.size() > 540 && rawScan->distances[540] > 100)
+                {
+                    const float distance = rawScan->distances[540]/1000.0f;
+                    qDebug() << __PRETTY_FUNCTION__ << "distanceFront from scanner that" << (mIsConnectedToEventPin ? "IS" : "IS NOT") << "connected to event-pin:" << distance << "m";
+                    emit distanceAtFront(distance);
+                }
+
+                // With this call, we GIVE UP OWNERSHIP of the data. It might get deleted immediately!
+                //qDebug() << __PRETTY_FUNCTION__ << "emitting scanData(qint32, quint16," << rawScan->numberOfDistances << "), connectedToEventPin:" << mIsConnectedToEventPin;
+                emit scanRaw(rawScan);
+            }
         }
     } while (mState == State::Scanning);
 

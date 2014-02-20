@@ -138,55 +138,56 @@ qint32 PathPlanner::checkWayPointSafety(const WayPointList* const wayPointsAhead
 
     // The collider cloud inserted some points. Let's check whether our waypoint-cells are now occupied. In that case, we'd have to re-plan!
     qDebug() << "PathPlanner::checkWayPointSafety(): checking safety of" << wayPointsAhead->size() << "waypoints...";
-    if(wayPointsAhead->size())
+
+    if(wayPointsAhead->size() == 0) return -1;
+
+    copyParametersToGpu(&mParametersPathPlanner);
+
+    // Make some room for waypoints in host memory.
+    float* waypointsHost = new float[wayPointsAhead->size() * 4];
+
+    // We want to check wayPointsAhead, so we need to copy it into GPU memory space.
+    for(int i=0;i<wayPointsAhead->size();i++)
     {
-        copyParametersToGpu(&mParametersPathPlanner);
-
-        // Make some room for waypoints in host memory.
-        float* waypointsHost = new float[wayPointsAhead->size() * 4];
-
-        // We want to check wayPointsAhead, so we need to copy it into GPU memory space.
-        for(int i=0;i<wayPointsAhead->size();i++)
-        {
-            waypointsHost[4*i+0] = wayPointsAhead->at(i).x();
-            waypointsHost[4*i+1] = wayPointsAhead->at(i).y();
-            waypointsHost[4*i+2] = wayPointsAhead->at(i).z();
-            waypointsHost[4*i+3] = wayPointsAhead->at(i).informationGain;
-        }
-
-        cudaSafeCall(cudaMemcpy(
-                         (void*)mDeviceWaypoints,
-                         (void*)waypointsHost,
-                         4 * wayPointsAhead->size() * sizeof(float),
-                         cudaMemcpyHostToDevice));
-
-        const bool haveToMapGridOccupancyTemplate = checkAndMapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
-        populateOccupancyGrid();
-        testWayPointCellOccupancy(mGridOccupancyTemplate, mDeviceWaypoints, wayPointsAhead->size(), &mCudaStream);
-        if(haveToMapGridOccupancyTemplate) checkAndUnmapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
-
-        // Now copy the waypoints back from device into host memory and see if the w-components are non-zero.
-        cudaSafeCall(cudaMemcpy(
-                         (void*)waypointsHost,
-                         (void*)mDeviceWaypoints,
-                         4 * wayPointsAhead->size() * sizeof(float),
-                         cudaMemcpyDeviceToHost));
-
-        // Check future-waypoint-w-components. They are now assigned the value from the grid,
-        // meaning that 0 is free, 254 occupied-dilated and 255 occupied.
-        for(int i=0; i < wayPointsAhead->size()-1; i++)
-        {
-            if(waypointsHost[4*i+3] != 0.0f)
-            {
-                qDebug() << __PRETTY_FUNCTION__ << "next-up-waypoint" << i << "at" << waypointsHost[4*i+0] << waypointsHost[4*i+1] << waypointsHost[4*i+2] << "collides with point cloud, grid-value is" << waypointsHost[4*i+3] << "returning false!";
-                delete waypointsHost;
-                return i;
-            }
-        }
-
-        delete waypointsHost;
-        return -1;
+        waypointsHost[4*i+0] = wayPointsAhead->at(i).x();
+        waypointsHost[4*i+1] = wayPointsAhead->at(i).y();
+        waypointsHost[4*i+2] = wayPointsAhead->at(i).z();
+        waypointsHost[4*i+3] = wayPointsAhead->at(i).informationGain;
     }
+
+    cudaSafeCall(cudaMemcpy(
+                     (void*)mDeviceWaypoints,
+                     (void*)waypointsHost,
+                     4 * wayPointsAhead->size() * sizeof(float),
+                     cudaMemcpyHostToDevice));
+
+    const bool haveToMapGridOccupancyTemplate = checkAndMapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
+    populateOccupancyGrid();
+    testWayPointCellOccupancy(mGridOccupancyTemplate, mDeviceWaypoints, wayPointsAhead->size(), &mCudaStream);
+    if(haveToMapGridOccupancyTemplate) checkAndUnmapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
+
+    // Now copy the waypoints back from device into host memory and see if the w-components are non-zero.
+    cudaSafeCall(cudaMemcpy(
+                     (void*)waypointsHost,
+                     (void*)mDeviceWaypoints,
+                     4 * wayPointsAhead->size() * sizeof(float),
+                     cudaMemcpyDeviceToHost));
+
+    // Check future-waypoint-w-components. They are now assigned the value from the grid,
+    // meaning that 0 is free, 254 occupied-dilated and 255 occupied.
+    for(int i=0; i < wayPointsAhead->size()-1; i++)
+    {
+        if(waypointsHost[4*i+3] != 0.0f)
+        {
+            qDebug() << __PRETTY_FUNCTION__ << "next-up-waypoint" << i << "at" << waypointsHost[4*i+0] << waypointsHost[4*i+1] << waypointsHost[4*i+2] << "collides with point cloud, grid-value is" << waypointsHost[4*i+3] << "returning false!";
+            delete waypointsHost;
+            return i;
+        }
+    }
+
+    qDebug() << __PRETTY_FUNCTION__ << "all" << wayPointsAhead->size() << "waypoints are safe!";
+    delete waypointsHost;
+    return -1;
 }
 
 // This is not part of slotComputePath() because we want to moveToSafety, travellingSalesMan, computePath in that order!
@@ -196,22 +197,26 @@ qint32 PathPlanner::checkWayPointSafety(const WayPointList* const wayPointsAhead
 // do not really want to raise them again. That's what the last parameter is made for.
 void PathPlanner::moveWayPointsToSafety(WayPointList* wayPointList, bool raiseAllWaypointsForGroundClearance)
 {
+    // The collider cloud inserted some points. Let's check whether our waypoint-cells are now occupied. In that case, we'd have to re-plan!
     if(!mIsInitialized) initialize();
 
-    const int numberOfWayPoints = wayPointList->size();
+    const int numberOfWayPointsToCheck = wayPointList->size();
 
-    // The collider cloud inserted some points. Let's check whether our waypoint-cells are now occupied. In that case, we'd have to re-plan!
-    qDebug() << __PRETTY_FUNCTION__ << "moving" << numberOfWayPoints << "waypoints to safe cells...";
-    if(numberOfWayPoints)
+    // If desired, raise waypoints by 4m
+    int startSearchNumberOfCellsAbove = raiseAllWaypointsForGroundClearance ? (4.0 / mParametersPathPlanner.grid.getCellSize().y) : 0;
+
+    qDebug() << __PRETTY_FUNCTION__ << "raising" << numberOfWayPointsToCheck << "waypoints by" << startSearchNumberOfCellsAbove << "cells, then moving to safe cells if required.";
+
+    if(numberOfWayPointsToCheck)
     {
         alignPathPlannerGridToColliderCloud();
         copyParametersToGpu(&mParametersPathPlanner);
 
         // Make some room for waypoints in host memory. The first float4's x=y=z=w will store just the number of waypoints
-        float* waypointsHost = new float[numberOfWayPoints * 4];
+        float* waypointsHost = new float[numberOfWayPointsToCheck * 4];
 
         // We want to check wayPointList, so we need to copy it into GPU memory space.
-        for(int i=0;i<numberOfWayPoints;i++)
+        for(int i=0;i<numberOfWayPointsToCheck;i++)
         {
             waypointsHost[4*i+0] = wayPointList->at(i).x();
             waypointsHost[4*i+1] = wayPointList->at(i).y();
@@ -224,36 +229,40 @@ void PathPlanner::moveWayPointsToSafety(WayPointList* wayPointList, bool raiseAl
         cudaSafeCall(cudaMemcpy(
                          (void*)mDeviceWaypoints,
                          (void*)waypointsHost,
-                         4 * numberOfWayPoints * sizeof(float),
+                         4 * numberOfWayPointsToCheck * sizeof(float),
                          cudaMemcpyHostToDevice));
 
-        // If desired, raise waypoints by 4m
-        int startSearchNumberOfCellsAbove = raiseAllWaypointsForGroundClearance ? (4.0 / mParametersPathPlanner.grid.getCellSize().y) : 0;
 
         const bool haveToMapGridOccupancyTemplate = checkAndMapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
         populateOccupancyGrid();
-        moveWayPointsToSafetyGpu(mGridOccupancyTemplate, mDeviceWaypoints, numberOfWayPoints, startSearchNumberOfCellsAbove, &mCudaStream);
+        moveWayPointsToSafetyGpu(mGridOccupancyTemplate, mDeviceWaypoints, numberOfWayPointsToCheck, startSearchNumberOfCellsAbove, &mCudaStream);
         if(haveToMapGridOccupancyTemplate) checkAndUnmapGridOccupancy(mCudaVboResourceGridOccupancyTemplate);
 
         // Now copy the waypoints back from device into host memory and see if the w-components are non-zero.
         cudaSafeCall(cudaMemcpy(
                          (void*)waypointsHost,
                          (void*)mDeviceWaypoints,
-                         4 * numberOfWayPoints * sizeof(float),
+                         4 * numberOfWayPointsToCheck * sizeof(float),
                          cudaMemcpyDeviceToHost));
 
         // Check all future-waypoint-w-components.
-        for(int i=0;i<numberOfWayPoints-1; i++)
+        for(int i=0;i<numberOfWayPointsToCheck; i++)
         {
-            if(waypointsHost[4*i+3] > 0.0f)
+            const WayPoint wpt(QVector3D(waypointsHost[4*i+0], waypointsHost[4*i+1], waypointsHost[4*i+2]), waypointsHost[4*i+3]);
+
+            if(wpt.informationGain > 0.0f)
             {
-                wayPointList->append(WayPoint(QVector3D(waypointsHost[4*i+0], waypointsHost[4*i+1], waypointsHost[4*i+2]), waypointsHost[4*i+3]));
+                wayPointList->append(wpt);
+            }
+            else
+            {
+                qDebug() << __PRETTY_FUNCTION__ << "waypoint" << i << ":" << wpt << "couldn't be saved, removing it.";
             }
         }
 
         delete waypointsHost;
     }
-    qDebug() << __PRETTY_FUNCTION__ << "returning list with" << wayPointList->size() << "waypoints";
+    qDebug() << __PRETTY_FUNCTION__ << "returning list with" << wayPointList->size() << "of" << numberOfWayPointsToCheck << "waypoints left.";
 }
 
 void PathPlanner::slotComputePath(const QVector3D& vehiclePosition, const WayPointList& wayPointList)

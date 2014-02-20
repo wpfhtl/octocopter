@@ -42,20 +42,32 @@ QString RawScan::toString() const
     return result;
 }
 
-void RawScan::setDistances(const std::vector<long>& distances)
+bool RawScan::setDistances(const std::vector<long>& distances)
 {
     // A usual dataset contains 200 1's at the beginning and 200 1's at the end.
     // We RLE-compress the leading 1s and drop the trailing 1s
-
     // We currently do not write the relativesensorpose every time, because that'd be wasteful.
 
-    quint16 indexFirst = 0;
-    while(distances[indexFirst] == 1)
+    const qint32 minimumValidRayLength = 150; // that's 15cm distance
+
+    const qint32 numberOfDistances = distances.size();
+
+    // Apparently there ARE scan-sweeps consisting of ONLY ones. Careful!
+    qint16 indexFirst = 0;
+    while(distances[indexFirst] < minimumValidRayLength && indexFirst < numberOfDistances - 1)
         indexFirst++;
 
-    quint16 indexLast = distances.size()-1;
-    while(distances[indexLast] == 1)
+    if(indexFirst == numberOfDistances - 1)
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "the scan from scanner-time" << timeStampScanMiddleScanner << "contained" << numberOfDistances << "rays, they were all < 10, skipping.";
+        return false;
+    }
+
+    qint16 indexLast = numberOfDistances - 1;
+    while(distances[indexLast] < minimumValidRayLength && indexLast > indexFirst)
         indexLast--;
+
+    Q_ASSERT(indexLast >= 0);
 
     this->firstUsableDistance = indexFirst;
     this->numberOfDistances = (indexLast - indexFirst) + 1;
@@ -68,6 +80,8 @@ void RawScan::setDistances(const std::vector<long>& distances)
     {
         this->distances[targetIndex++] = distances[i];
     }
+
+    return isValid();
 }
 
 void RawScan::setDistances(const quint16* distances, const quint16 firstUsableDistance, const quint16 lastUsableDistance)
@@ -84,6 +98,26 @@ void RawScan::setDistances(const quint16* distances, const quint16 firstUsableDi
                 sizeof(quint16) * numberOfDistances);
 }
 
+bool RawScan::isValid() const
+{
+    if(
+            numberOfDistances > 1081
+            || firstUsableDistance > 1080
+            || timeStampScanMiddleGnss < 0
+            || timeStampScanMiddleGnss > 604800000
+            || timeStampScanMiddleScanner < 0
+            || timeStampScanMiddleScanner > 604800000
+            )
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "error, invalid raw scan:"
+                 << "numberOfDistances" << numberOfDistances
+                 << "firstUsableDistance" << firstUsableDistance
+                 << "timeStampScanMiddleGnss" << timeStampScanMiddleGnss
+                 << "timeStampScanMiddleScanner" << timeStampScanMiddleScanner;
+        return false;
+    }
+    return true;
+}
 
 void RawScan::log(LogFile* const logFile)
 {
@@ -94,20 +128,9 @@ void RawScan::log(LogFile* const logFile)
     // PacketLengthInBytes is ALL bytes of this packet
     // indexFirst denotes the start of usable data (not 1s)
 
-    if(
-            numberOfDistances > 1080
-            || firstUsableDistance > 1080
-            || timeStampScanMiddleGnss < 0
-            || timeStampScanMiddleGnss > 604800000
-            || timeStampScanMiddleScanner < 0
-            || timeStampScanMiddleScanner > 604800000
-            )
+    if(!isValid())
     {
-        qDebug() << __PRETTY_FUNCTION__ << "error, not logging corrupt raw scan:"
-                 << "numberOfDistances" << numberOfDistances
-                 << "firstUsableDistance" << firstUsableDistance
-                 << "timeStampScanMiddleGnss" << timeStampScanMiddleGnss
-                 << "timeStampScanMiddleScanner" << timeStampScanMiddleScanner;
+        qDebug() << __PRETTY_FUNCTION__ << "will not log invalid scan!";
         return;
     }
 

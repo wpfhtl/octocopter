@@ -85,7 +85,7 @@ void Kopter::slotFlushMessageQueue()
         {
             qDebug() << __PRETTY_FUNCTION__ << "waiting 5ms" << timeSinceLastCommand << "for serial port to clear send-queue consisting of" << mSendMessageQueue.size() << "messages";
             usleep(5000);
-	    timeSinceLastCommand = mLastSendTime.msecsTo(QTime::currentTime());
+        timeSinceLastCommand = mLastSendTime.msecsTo(QTime::currentTime());
         }
 
         msg.send(mSerialPortFlightCtrl);
@@ -282,6 +282,7 @@ void Kopter::slotSerialPortDataReady()
                 mVehicleStatus.missionRunTime = mMissionStartTime.isValid() ? (quint32)mMissionStartTime.msecsTo(QTime::currentTime()) : 0;
                 mVehicleStatus.barometricHeight = debugOut->Analog[5];
                 mVehicleStatus.batteryVoltage = (float)(debugOut->Analog[9])/10.0;
+                mVehicleStatus.updateCpuTemperature();
 
                 emit vehicleStatus(&mVehicleStatus);
             }

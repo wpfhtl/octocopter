@@ -107,7 +107,7 @@ public:
 
     static Pose extrapolateLinear(const Pose &p1, const Pose &p2, const qint32 &timeInFuture);
 
-    static Pose interpolateLinear(const Pose * const p0, const Pose * const p1, const qint32 &time);
+    static Pose interpolateLinear(const Pose * const p0, const Pose * const p1, const qint32 &time, bool *ok = nullptr);
 
     // Returns a pose between @before and @after, also needs @first and @last, as its bicubic. @mu specifies the position between @before and @after.
 //    static Pose interpolateCubic(const Pose * const p0, const Pose * const p1, const Pose * const p2, const Pose * const p3, const float &mu);

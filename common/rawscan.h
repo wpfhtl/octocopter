@@ -22,8 +22,13 @@ struct RawScan
 
     ~RawScan();
 
-    void setDistances(const std::vector<long> &distances);
+    // used by hokuyo
+    bool setDistances(const std::vector<long> &distances);
+
+    // used by logplayer - no error checking
     void setDistances(const quint16* distances, const quint16 firstUsableDistance, const quint16 lastUsableDistance);
+
+    bool isValid() const;
 
     void log(LogFile* const logFile);
 
