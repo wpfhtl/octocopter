@@ -10,7 +10,7 @@
 // was 64
 #define KERNEL_LAUNCH_BLOCKSIZE 256
 
-#define CUDA_ERROR_CHECK
+//#define CUDA_ERROR_CHECK // uncomment for (slow) error checking
 #define cudaSafeCall(err) __cudaSafeCall( err, __FILE__, __LINE__ )
 #define cudaCheckSuccess(src)  __cudaCheckSuccess( src, __FILE__, __LINE__ )
 

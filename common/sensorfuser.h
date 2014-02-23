@@ -43,23 +43,48 @@ private:
         static const qint16 Cubic = (POSE_INTERVAL * 2.5) + 1; // 126
     };
 
-
     // for debugging/logging
     QFile* mPoseDynamicsLogFile;
     QTextStream* mPoseDynamicsStream;
 
     // appends the resulting point to mRegisteredPoints
-    void fuseRayWithLastInterpolatedPose(const qint16 index, const float& distance);
+    void fuseRayWithPose(const Pose& pose, const qint16 index, const float& distance);
 
     InterpolationMethod mBestInterpolationMethodToUse;
 
     quint8 mStridePoint, mStrideScan;
 
-    quint32 mNumberOfScansWithMissingGnssTimestamps;
+    struct Statistics
+    {
+        quint32 numberOfScansWithMissingGnssTimestamps;
+        quint32 numberOfReceivedPoses;
+        quint32 numberOfReceivedScans;
+        quint32 numberOfScansFused;
+        quint32 numberOfScansDiscarded;
 
-    Pose mLastInterpolatedPose;
+        Statistics() :
+            numberOfScansWithMissingGnssTimestamps(0),
+            numberOfReceivedPoses(0),
+            numberOfReceivedScans(0),
+            numberOfScansFused(0),
+            numberOfScansDiscarded(0)
+        {}
 
-    QMap<InterpolationMethod,quint16> mStatsScansFused;
+        QString toString() const
+        {
+            return QString("Statistics:\n\t%1 scans received, %2 fused, %3 discarded. %4 scans with missing GNSS timestamps.\n\t%4 poses received.")
+                    .arg(numberOfReceivedScans)
+                    .arg(numberOfScansFused)
+                    .arg(numberOfScansDiscarded)
+                    .arg(numberOfScansWithMissingGnssTimestamps)
+                    .arg(numberOfReceivedPoses);
+        }
+    };
+
+    Statistics mStatistics;
+
+//    Pose mLastInterpolatedPose;
+
     quint32 mStatsScansDiscarded;
 
     bool mFlushRemainingData;
@@ -96,8 +121,6 @@ private:
 
     // Cleans old scans, poses and gnss timestamps
     void cleanUnusableData();
-
-    void emitLastInterpolatedPose();
 
 public slots:
     // Used to send a new vehicle pose to SensorFuser. You must guarantee that the poses are

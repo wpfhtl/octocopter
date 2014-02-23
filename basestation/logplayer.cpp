@@ -130,7 +130,7 @@ bool LogPlayer::slotOpenLogFiles()
                     this,
                     "Select LIDAR log",
                     logFileInfo.absoluteFilePath() + "/" + logFileInfo.completeBaseName() + QString(".ldr%1").arg(lidarNumber),
-                    QString("LIDAR Data (*.ldr%1)").arg(lidarNumber));
+                    QString("LIDAR Data (*.ldr0 *.ldr1 *.ldr2 *.ldr3)"));
 
         QFile logFileLaser(logFileNameLidar);
         if(!logFileLaser.open(QIODevice::ReadOnly))

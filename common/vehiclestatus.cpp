@@ -2,9 +2,13 @@
 #include <QFile>
 
 VehicleStatus::VehicleStatus(QObject *parent) :
-    QObject(parent)
+    QObject(parent),
+    missionRunTime(0),
+    batteryVoltage(-1.0),
+    barometricHeight(-1),
+    wirelessRssi(-1),
+    cpuTemperature(-1)
 {
-    cpuTemperature = 0;
 }
 
 QString VehicleStatus::toString() const

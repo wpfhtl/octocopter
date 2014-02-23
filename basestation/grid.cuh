@@ -54,6 +54,13 @@ struct __align__(16) Grid
                 position.x > worldMin.x && position.y > worldMin.y && position.z > worldMin.z;
     }
 
+    __host__ __device__ bool isPositionInGrid(float3 position) const
+    {
+        return
+                position.x < worldMax.x && position.y < worldMax.y && position.z < worldMax.z &&
+                position.x > worldMin.x && position.y > worldMin.y && position.z > worldMin.z;
+    }
+
     __host__ void initialize()
     {
         cells.x = cells.y = cells.z = 0;
@@ -89,6 +96,7 @@ struct __align__(16) Grid
 
     __host__ __device__ float3 getWorldCenter() const;
 
+    __host__ __device__ float getWorldVolume() const;
 };
 
 void computeMappingFromPointToGridCell(

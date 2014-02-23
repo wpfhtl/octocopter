@@ -5,18 +5,20 @@ OPENGL_FUNCTIONS_CLASS* OpenGlUtilities::mGlFunctions = 0;
 
 void OpenGlUtilities::initialize()
 {
+    qDebug() << __PRETTY_FUNCTION__;
     mGlFunctions = new OPENGL_FUNCTIONS_CLASS;
     mGlFunctions->initializeOpenGLFunctions();
 }
 
 quint32 OpenGlUtilities::createVbo(quint32 size, const GLvoid *data, GLenum usage)
 {
+    checkError();
     GLuint vbo;
     mGlFunctions->glGenBuffers(1, &vbo);
     mGlFunctions->glBindBuffer(GL_ARRAY_BUFFER, vbo);
     mGlFunctions->glBufferData(GL_ARRAY_BUFFER, size, data, usage);
     mGlFunctions->glBindBuffer(GL_ARRAY_BUFFER, 0);
-    Q_ASSERT(mGlFunctions->glGetError() == GL_NO_ERROR);
+    checkError();
     return vbo;
 }
 

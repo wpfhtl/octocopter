@@ -43,9 +43,9 @@ struct ParametersParticleSystem
         gridInformationGain.worldMax = make_float3(128.0f, 60.0f, 128.0f);
         gridInformationGain.cells = make_uint3(1024, 64, 1024);
 
-        particleRadius = 0.5f;
+        particleRadius = 1.0f;
         colliderRadius = 0.1f;
-        particleCount = 32768;
+        particleCount = 1; // will be set by ParticleSystem to a sensible value, depending on world size
         dampingMotion = 0.99f;      // used only for integration
         velocityFactorCollisionCollider = 0.1f;
         velocityFactorCollisionParticle = 0.03f;

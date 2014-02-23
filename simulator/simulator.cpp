@@ -40,7 +40,7 @@ Simulator::Simulator(void) :
 
     connect(mOgreWidget, &OgreWidget::setupFinished, this, &Simulator::slotOgreInitialized);
 
-    mBattery = new Battery(this, 16.8, 5.0);
+    mBattery = new Battery(this, 16.8, 500.0); // 500 Ah is a lot, but we don't want to simulate an empty battery for now.
     mBattery->charge();
 
     mUpdateTimer = new QTimer(this);

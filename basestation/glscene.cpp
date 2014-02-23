@@ -364,6 +364,8 @@ void GlScene::slotSetVboInfoParticles(const quint32 vboPositions, const quint32 
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
     mVaoParticles->release();
 
+    emit suggestVisualization();
+
     qDebug() << "GlScene::slotSetVboInfoParticles(): will render VBO pos" << mVboParticlePositions << "containing" << mNumberOfParticles << "particles";
 }
 
@@ -381,6 +383,8 @@ void GlScene::slotSetVboInfoGridInformationGain(const quint32 vboPressure, const
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     mVaoGridMapOfInformationGain->release();
     qDebug() << "GlScene::slotSetVboInfoGridInformationGain(): will render VBO pos" << mVboGridMapOfInformationGain << "with" << gridCells << "cells using bbox" << gridBoundingBox;
+
+    emit suggestVisualization();
 }
 
 void GlScene::slotSetVboInfoGridOccupancy(const quint32 vbo, const Box3D& gridBoundingBox, const Vector3<quint16> &gridCells)
@@ -397,6 +401,8 @@ void GlScene::slotSetVboInfoGridOccupancy(const quint32 vbo, const Box3D& gridBo
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     mVaoGridMapOfOccupancy->release();
     qDebug() << "GlScene::slotSetVboInfoGridOccupancyGain(): will render VBO pos" << mVboGridMapOfOccupancy << "with" << gridCells << "cells using bbox" << gridBoundingBox;
+
+    emit suggestVisualization();
 }
 
 void GlScene::slotSetVboInfoGridPathPlanner(const quint32 vbo, const Box3D& gridBoundingBox, const Vector3<quint16> &gridCells)
@@ -413,6 +419,8 @@ void GlScene::slotSetVboInfoGridPathPlanner(const quint32 vbo, const Box3D& grid
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     mVaoGridMapOfPathPlanner->release();
     qDebug() << "GlScene::slotSetVboInfoGridPathFinder(): will render VBO pos" << mVboGridMapOfPathPlanner << "with" << gridCells << "cells using bbox" << gridBoundingBox;
+
+    emit suggestVisualization();
 }
 
 void GlScene::render()
@@ -512,7 +520,7 @@ void GlScene::render()
                 mShaderProgramDefault->setUniformValue("useFixedColor", false);
                 mVaoTrajectory->bind();
                 glBindBuffer(GL_ARRAY_BUFFER, mVboVehiclePath);
-                glPointSize(1.0);
+                glPointSize(2.0);
                 glDrawArrays(GL_POINTS, 0, (mVboVehiclePathBytesCurrent / mVboVehiclePathElementSize));
                 glBindBuffer(GL_ARRAY_BUFFER, 0);
                 mVaoTrajectory->release();
@@ -794,7 +802,7 @@ void GlScene::render()
 
         mShaderProgramGrid->setUniformValue("fixedColor", QColor(255,0,0));
         // If we have a value of (quint8)1, that'll be 1/255=0.004 in the shader's float. Amplify this?
-        mShaderProgramGrid->setUniformValue("alphaMultiplication", 30.0f);
+        mShaderProgramGrid->setUniformValue("alphaMultiplication", 80.0f);
         mShaderProgramGrid->setUniformValue("alphaExponentiation", 1.0f);
         mShaderProgramGrid->setUniformValue("quadSizeFactor", 1.0f);
 
@@ -1054,7 +1062,7 @@ void GlScene::slotNewVehiclePose(const Pose* const pose)
                 )
             color.setRgb(255, 0, 0);
         else
-            color.setRgb(0, 0, 200);
+            color.setRgb(40, 40, 255);
 
         // If the poses CV sucks, fade it.
         if(pose->covariances > Pose::maximumUsableCovariance) color.setAlpha(128);
@@ -1095,7 +1103,6 @@ void GlScene::slotClearVehicleTrajectory()
 {
     mVboVehiclePathBytesCurrent = 0;
 }
-
 
 void GlScene::slotPointCloudRegister(PointCloudCuda* p)
 {
@@ -1169,6 +1176,8 @@ void GlScene::slotNewRawScan(const RawScan* const rawScan)
         glBindBuffer(GL_ARRAY_BUFFER, rsrv->vbo);
         glBufferData(GL_ARRAY_BUFFER, sizeof(quint16) * rawScan->numberOfDistances, rawScan->distances, GL_STATIC_DRAW);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        emit suggestVisualization();
     }
 }
 

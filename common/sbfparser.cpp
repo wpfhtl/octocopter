@@ -216,7 +216,7 @@ QVector3D SbfParser::convertGeodeticToCartesian(const double &lon, const double 
         if(mGnssStatus.pvtMode == GnssStatus::PvtMode::RtkFixed)
         {
             mOriginLongitude = lon;
-            mOriginLatitude = lat + 0.00019; // origin is 22m north of start point!
+            mOriginLatitude = lat;
 
             // Whats the transform for?
             mOriginElevation = elevation + mTransformArpToVehicle(1, 3);
@@ -268,8 +268,8 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
 
     if(sbfData.at(offsetToValidPacket + 0) != '$' || sbfData.at(offsetToValidPacket + 1) != '@')
     {
-        qDebug() << __PRETTY_FUNCTION__ << "sbfData at" << offsetToValidPacket << "doesn't start with $@, but with" << readable(sbfData.mid(offsetToValidPacket, 20));
-        Q_ASSERT(false);
+        qDebug() << __PRETTY_FUNCTION__ << "error: sbfData at" << offsetToValidPacket << "doesn't start with $@, but with" << readable(sbfData.mid(offsetToValidPacket, 20));
+        //Q_ASSERT(false);
     }
 
     const quint16 msgCrc = *(quint16*)(sbfData.constData() + offsetToValidPacket + 2);
@@ -699,7 +699,7 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
     break;
     default:
     {
-//        qDebug() << "SbfParser::processNextValidPacket(): ignoring block id" << msgIdBlock;
+        //qDebug() << "SbfParser::processNextValidPacket(): ignoring block id" << msgIdBlock;
     }
     }
 
@@ -709,103 +709,10 @@ quint32 SbfParser::processNextValidPacket(const QByteArray &sbfData, const quint
     if(mGnssStatus.interestingOrDifferentComparedTo(previousGpsStatus))
         emit status(&mGnssStatus);
 
-    return msgLength;
-
-    /*
-     Remove the processed SBF block from our incoming buffer, so that it contains either nothing, the next (possibly
-     half-complete) SBF message or a (possibly half-complete) command-reply. SBF blocks often end with padding bytes
-     which are NOT included in the msgLength counter (contrary to SBF guide, pg. 11).
-
-     So, after processing a packet, we cut off AT LEAST msgLength bytes and then look for the next $@ or $R,
-     further removing the padding bytes before that next message starts:
-
-     $@<header/><body>...$@...</body>...padding...$R;listCurrentConfig\n\n...........\nUSB1>$@<header/><body/>...padding...$@
-
-                         ^^- *data* showing up as SYNC - thats rare, but it happens
-                                                  ^--------- a reply to a command ---------^
-     |<---------- msgLength ------->|
-     |<------------- to be removed ------------->|
-
-     We cannot search for the next $R using indexOf() because oftentimes, this won't exist in @sbfData, which is many
-     megabytes in size. Searching through this hundred times per second is slooooow. So, we just search for a $ using
-     the fast indexOf(), and when found look further for a @,R:,R; or R?. This indicates either the next SBF packet,
-     the next command-reply (or garbage, e.g. in padding bytes). Still, this makes sure we won't just delete command-
-     replies.
-    */
-
-    // Search for the next info (command-reply or SBF)
-    bool nextInfoFound = false;
-    qint16 positionOfNextInfo = msgLength;
-//    qDebug() << "SbfParser::processNextValidPacket(): looking for next info, previous msgLength was" << msgLength;
-    while(positionOfNextInfo >= 0 && !nextInfoFound)
-    {
-//        qDebug() << "SbfParser::processNextValidPacket(): looking for a $ starting at" << positionOfNextInfo;
-        positionOfNextInfo = sbfData.indexOf('$', positionOfNextInfo);
-//        qDebug() << "SbfParser::processNextValidPacket(): $ found at" << positionOfNextInfo  << "of sbfData size:" << sbfData.size();
-        if(positionOfNextInfo >= msgLength)
-        {
-            // construct a string starting at the found position, but make sure not to overrun the buffer-end
-            const QString sync = QString::fromLatin1(sbfData.constData() + positionOfNextInfo, std::min(3, sbfData.size() - positionOfNextInfo));
-            if(sync.left(2) == "$@" || sync == "$R:" || sync == "$R?" || sync == "$R;")
-            {
-//                qDebug() << "SbfParser::processNextValidPacket(): nextInfo found at" << positionOfNextInfo << "- breaking.";
-                nextInfoFound = true;
-                break;
-            }
-            else
-            {
-//                qDebug() << "SbfParser::processNextValidPacket(): unfortunately, sync did not match, was:" << readable(sync.toAscii());
-//                qDebug() << "SbfParser::processNextValidPacket(): sbfData:" << readable(sbfData);
-            }
-        }
-
-        if(positionOfNextInfo > 0 && !nextInfoFound)
-        {
-            // If a $ was found (but no $@, $R*), continue searching AFTER the previous occurence
-            positionOfNextInfo++;
-//            qDebug() << "SbfParser::processNextValidPacket(): next info not found, will continue to look at:" << positionOfNextInfo;
-        }
-        else
-        {
-            // If no $ was found, do not increment positionOfNextInfo
-            // from -1 to 0, otherwise the if above would loop again.
-        }
-    }
-
-    /*
-     If positionOfNextInfo is -1 here, it means that there was no $@ or $R in all of sbfData after the processed packet.
-     If the LAST BYTE of sbfData is a "$", then don't delete it, it probably is the start of another packet still coming
-     in via serial port. On next iteration, we'll probably find the missing and neighboring @ or R character.
-    */
-    if(positionOfNextInfo < 0)
-    {
-        // If we have more data after the processed message, but no SYNC was found...
-        if((sbfData.size() - msgLength) != 0)
-        {
-//            qDebug() << "SbfParser::processNextValidPacket(): no $@ or $R* found after processed packet (of"<< msgLength << "bytes), deleting buffer containing" << sbfData.size() - msgLength << "trailing bytes.";
-//            qDebug() << "SbfParser::processNextValidPacket(): to be deleted after the processed packet:" << readable(sbfData.right(sbfData.size() - msgLength));
-        }
-
-        if(sbfData.right(1) == "$")
-        {
-//            qDebug() << "SbfParser::processNextValidPacket(): last char was $, so the @ is probably coming in next. Not deleting the $.";
-//            qDebug() << "SbfParser::processNextValidPacket(): sbfData:" << readable(sbfData);
-            positionOfNextInfo = sbfData.size()-1;
-        }
-        else
-        {
-            positionOfNextInfo = sbfData.size();
-        }
-    }
-
-//    const quint16 bytesToRemove = std::max(msgLength, (quint16)positionOfNextInfo);
-
-    // Announce what packet we just processed. Might be used for logging.
-    // ExtEvent is generic enough, the TOW is always at the same location
-    const Sbf_ExtEvent * const block = (Sbf_ExtEvent*)sbfData.constData();
+    const Sbf_ExtEvent * const block = (Sbf_ExtEvent*)(sbfData.constData() + offsetToValidPacket);
     emit processedPacket((qint32)block->TOW);
 
-    //sbfData.remove(0, bytesToRemove);
+    return msgLength;
 }
 
 // replace every non-printable char with a special char, for making sbf-data readable

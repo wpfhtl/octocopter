@@ -109,7 +109,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
     qDebug() << "KopterControl::KopterControl(): reading RSSI at interface" << networkInterface;
 
     mFlightController = new FlightController(logFilePrefix);
-    mLaserScannerLookingDown = new LaserScanner(deviceSerialLidarDown, logFilePrefix);
+    mLaserScannerLookingDown = new LaserScanner(deviceSerialLidarDown, logFilePrefix, true); // "true" means connected-to-event-pin
     mLaserScannerLookingDown->slotSetRelativeScannerPose(
                 Pose(
                     QVector3D(      // Offset from vehicle center to Laser Source. In Vehicle Reference Frame: Like OpenGL, red arm forward pointing to screen
@@ -139,7 +139,7 @@ KopterControl::KopterControl(int argc, char **argv) : QCoreApplication(argc, arg
 
     mGnssDevice = new GnssDevice(deviceSerialGnssPort1, deviceSerialGnssPort2, logFilePrefix, this);
     mSensorFuser = new SensorFuser(1); // Really lo-res data for septentrio postprocessing tests.
-    mSensorFuser->setMaximumFusableRayLength(10.0); // Favor precision over range
+    mSensorFuser->setMaximumFusableRayLength(16.0); // Compromise between precision and range
 
     mBaseConnection = new BaseConnection(networkInterface, instanceKeyword);
     mKopter = new Kopter(deviceSerialKopter, this);

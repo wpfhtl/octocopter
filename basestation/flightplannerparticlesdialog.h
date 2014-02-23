@@ -18,8 +18,10 @@ private:
     Ui::FlightPlannerParticlesDialog *ui;
     ParametersParticleSystem mSimulationParameters;
 
+    bool mReactToChangesFromUi;
+
 public:
-    explicit FlightPlannerParticlesDialog(const ParametersParticleSystem* const sp, QWidget *parent = 0);
+    explicit FlightPlannerParticlesDialog(QWidget *parent = 0);
     ~FlightPlannerParticlesDialog();
 
     ParametersParticleSystem getSimulationParameters() const {return mSimulationParameters;}
@@ -32,10 +34,10 @@ public:
     bool checkWayPointSafety() const  {return ui->mChkBoxCheckWayPointSafety->isChecked();}
 
 private slots:
-    void slotSimulationParametersChanged();
+    void slotSimulationParametersChangedThroughUi();
 
 public slots:
-    void slotSetInitialValues(const ParametersParticleSystem* const sp);
+    void slotSetValuesFromStruct(const ParametersParticleSystem* const sp);
     void slotSetPointCloudParametersDense(const ParametersPointCloud* const p);
     void slotSetPointCloudParametersSparse(const ParametersPointCloud* const p);
     void slotSetRenderParticles(const bool value) {ui->mChkBoxRenderParticles->setChecked(value);}
@@ -43,7 +45,7 @@ public slots:
     void slotSetRenderOccupancyGrid(const bool value) {ui->mChkBoxRenderGridOccupancy->setChecked(value);}
 
 signals:
-    void simulationParameters(const ParametersParticleSystem*);
+    void simulationParameters(const ParametersParticleSystem* const);
     void processPhysics(bool);
     void followVehicle(bool);
     void renderParticles(bool);

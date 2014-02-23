@@ -85,7 +85,7 @@ public slots:
     void slotSendWayPointReached(const WayPoint&wpt);
 
     // called by flightcontroller when waypoints are changed
-    void slotSendWayPoints(const QList<WayPoint> *const, const WayPointListSource source);
+    void slotSendWayPoints(const QList<WayPoint> *const wayPointList, const WayPointListSource source);
 
     // called by rover to send updated pose to basestation (called frequently)
     void slotSendVehiclePose(const Pose* const pose);

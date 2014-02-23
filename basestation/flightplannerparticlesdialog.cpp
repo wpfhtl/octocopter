@@ -1,10 +1,11 @@
 #include "flightplannerparticlesdialog.h"
 #include <QDebug>
-FlightPlannerParticlesDialog::FlightPlannerParticlesDialog(const ParametersParticleSystem* const sp, QWidget *parent) :
+FlightPlannerParticlesDialog::FlightPlannerParticlesDialog(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::FlightPlannerParticlesDialog)
 {
     ui->setupUi(this);
+
 
     connect(ui->mBtnResetParticles, SIGNAL(clicked()), SIGNAL(resetParticles()));
     connect(ui->mBtnResetInformationGain, SIGNAL(clicked()), SIGNAL(resetInformationGain()));
@@ -20,26 +21,26 @@ FlightPlannerParticlesDialog::FlightPlannerParticlesDialog(const ParametersParti
     connect(ui->mChkBoxRenderGridOccupancy, SIGNAL(clicked(bool)), SIGNAL(renderOccupancyGrid(bool)));
     connect(ui->mChkBoxRenderGridPathPlanner, SIGNAL(clicked(bool)), SIGNAL(renderPathPlannerGrid(bool)));
 
-    connect(ui->mSpinBoxTimeStepInner, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));
-    connect(ui->mSpinBoxTimeStepOuter, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));
-    connect(ui->mSpinBoxAttraction, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));
-    connect(ui->mSpinBoxColliderRadius, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));
-    connect(ui->mSpinBoxCollisionBoundary, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));
-    connect(ui->mSpinBoxCollisionParticle, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));
-    connect(ui->mSpinBoxCollisionCollider, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));
-    connect(ui->mSpinBoxDamping, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));
-    connect(ui->mSpinBoxParticleRadius, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));
-    connect(ui->mSpinBoxShear, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));
-    connect(ui->mSpinBoxSpring, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));
-    connect(ui->mSpinBoxGravityX, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));
-    connect(ui->mSpinBoxGravityY, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));
-    connect(ui->mSpinBoxGravityZ, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChanged()));
-
-    slotSetInitialValues(sp);
+    connect(ui->mSpinBoxTimeStepInner, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChangedThroughUi()));
+    connect(ui->mSpinBoxTimeStepOuter, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChangedThroughUi()));
+    connect(ui->mSpinBoxAttraction, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChangedThroughUi()));
+    connect(ui->mSpinBoxColliderRadius, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChangedThroughUi()));
+    connect(ui->mSpinBoxCollisionBoundary, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChangedThroughUi()));
+    connect(ui->mSpinBoxCollisionParticle, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChangedThroughUi()));
+    connect(ui->mSpinBoxCollisionCollider, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChangedThroughUi()));
+    connect(ui->mSpinBoxDamping, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChangedThroughUi()));
+    connect(ui->mSpinBoxParticleCount, SIGNAL(valueChanged(int)), SLOT(slotSimulationParametersChangedThroughUi()));
+    connect(ui->mSpinBoxParticleRadius, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChangedThroughUi()));
+    connect(ui->mSpinBoxShear, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChangedThroughUi()));
+    connect(ui->mSpinBoxSpring, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChangedThroughUi()));
+    connect(ui->mSpinBoxGravityX, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChangedThroughUi()));
+    connect(ui->mSpinBoxGravityY, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChangedThroughUi()));
+    connect(ui->mSpinBoxGravityZ, SIGNAL(valueChanged(double)), SLOT(slotSimulationParametersChangedThroughUi()));
 }
 
-void FlightPlannerParticlesDialog::slotSetInitialValues(const ParametersParticleSystem* const sp)
+void FlightPlannerParticlesDialog::slotSetValuesFromStruct(const ParametersParticleSystem* const sp)
 {
+    mReactToChangesFromUi = false;
     ui->mSpinBoxTimeStepInner->setValue(sp->timeStepInner);
     ui->mSpinBoxTimeStepOuter->setValue(sp->timeStepOuter);
     ui->mSpinBoxAttraction->setValue(sp->attraction);
@@ -48,12 +49,16 @@ void FlightPlannerParticlesDialog::slotSetInitialValues(const ParametersParticle
     ui->mSpinBoxCollisionParticle->setValue(sp->velocityFactorCollisionParticle);
     ui->mSpinBoxCollisionCollider->setValue(sp->velocityFactorCollisionCollider);
     ui->mSpinBoxDamping->setValue(sp->dampingMotion);
+    ui->mSpinBoxParticleCount->setEnabled(true);
+    ui->mSpinBoxParticleCount->setValue(sp->particleCount);
+    ui->mSpinBoxParticleCount->setEnabled(false);
     ui->mSpinBoxParticleRadius->setValue(sp->particleRadius);
     ui->mSpinBoxShear->setValue(sp->shear);
     ui->mSpinBoxSpring->setValue(sp->spring);
     ui->mSpinBoxGravityX->setValue(sp->gravity.x);
     ui->mSpinBoxGravityY->setValue(sp->gravity.y);
     ui->mSpinBoxGravityZ->setValue(sp->gravity.z);
+    mReactToChangesFromUi = true;
 }
 
 FlightPlannerParticlesDialog::~FlightPlannerParticlesDialog()
@@ -61,8 +66,10 @@ FlightPlannerParticlesDialog::~FlightPlannerParticlesDialog()
     delete ui;
 }
 
-void FlightPlannerParticlesDialog::slotSimulationParametersChanged()
+void FlightPlannerParticlesDialog::slotSimulationParametersChangedThroughUi()
 {
+    if(!mReactToChangesFromUi) return;
+
     mSimulationParameters.timeStepInner = ui->mSpinBoxTimeStepInner->value();
     mSimulationParameters.timeStepOuter = ui->mSpinBoxTimeStepOuter->value();
     mSimulationParameters.attraction = ui->mSpinBoxAttraction->value();
@@ -71,6 +78,7 @@ void FlightPlannerParticlesDialog::slotSimulationParametersChanged()
     mSimulationParameters.velocityFactorCollisionParticle = ui->mSpinBoxCollisionParticle->value();
     mSimulationParameters.velocityFactorCollisionCollider = ui->mSpinBoxCollisionCollider->value();
     mSimulationParameters.dampingMotion = ui->mSpinBoxDamping->value();
+    mSimulationParameters.particleCount = ui->mSpinBoxParticleCount->value();
     mSimulationParameters.particleRadius = ui->mSpinBoxParticleRadius->value();
     mSimulationParameters.shear = ui->mSpinBoxShear->value();
     mSimulationParameters.spring = ui->mSpinBoxSpring->value();

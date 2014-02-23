@@ -59,7 +59,7 @@ bool RawScan::setDistances(const std::vector<long>& distances)
 
     if(indexFirst == numberOfDistances - 1)
     {
-        qDebug() << __PRETTY_FUNCTION__ << "the scan from scanner-time" << timeStampScanMiddleScanner << "contained" << numberOfDistances << "rays, they were all < 10, skipping.";
+        qDebug() << __PRETTY_FUNCTION__ << "the scan from scanner-time" << timeStampScanMiddleScanner << "contained" << numberOfDistances << "rays, they were all <" << minimumValidRayLength << "- skipping.";
         return false;
     }
 

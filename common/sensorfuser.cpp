@@ -9,10 +9,8 @@ SensorFuser::SensorFuser(const quint8& stridePoint, const quint8& strideScan) : 
 
     mFlushRemainingData = false;
     mNewestDataTime = 0;
-    mMaximumFusableRayLength = 99.0f;
-    mStatsScansDiscarded = 0;
+    mMaximumFusableRayLength = 9999.0f;
     mLastScanMiddleGnssTow = 0;
-    mNumberOfScansWithMissingGnssTimestamps = 0;
     mMaximumTimeOffsetBetweenScannerAndGnss = 12;
 
     mRegisteredPoints = new float[1080 * 4];
@@ -36,13 +34,8 @@ SensorFuser::SensorFuser(const quint8& stridePoint, const quint8& strideScan) : 
 
 SensorFuser::~SensorFuser()
 {
-    qDebug() << "SensorFuser::~SensorFuser(): total scans fused:"
-             << "cubic:"  << mStatsScansFused[InterpolationMethod::Cubic]
-             << "linear:" << mStatsScansFused[InterpolationMethod::Linear]
-             << "nearestneighbor:" << mStatsScansFused[InterpolationMethod::NearestNeighbor]
-             << "discarded:"<< mStatsScansDiscarded
-             << "missing gnss stamps:" << mNumberOfScansWithMissingGnssTimestamps;
-    qDebug() << "SensorFuser::~SensorFuser(): leftover scanInfos:"  << mRawScans.size() << "scanGnss:" << mGnssTimeStamps.size() << "poses:"<< mPoses.size();
+    qDebug() << __PRETTY_FUNCTION__ << mStatistics.toString();
+    qDebug() << __PRETTY_FUNCTION__ << "leftover scanInfos:"  << mRawScans.size() << "scanGnss:" << mGnssTimeStamps.size() << "poses:"<< mPoses.size();
 
     slotClearData();
 
@@ -86,7 +79,8 @@ void SensorFuser::slotClearData(const qint32 maximumDataAge)
         // We check the scanner timestamp, thats precise enough
         if(rs->timeStampScanMiddleScanner + maximumDataAge < mNewestDataTime || maximumDataAge < 0)
         {
-            qDebug() << "SensorFuser::slotClearData(): removing old unfused scan from lasertime" << rs->timeStampScanMiddleScanner << "gnsstime" << rs->timeStampScanMiddleGnss;
+            qDebug() << __PRETTY_FUNCTION__ << "removing old unfused scan from scannertime" << rs->timeStampScanMiddleScanner << "gnsstime" << rs->timeStampScanMiddleGnss;
+            mStatistics.numberOfScansDiscarded++;
             delete rs;
             k.remove();
         }
@@ -101,18 +95,15 @@ void SensorFuser::slotClearData(const qint32 maximumDataAge)
 }
 
 // TODO: make this method fuse N successive rays
-void SensorFuser::fuseRayWithLastInterpolatedPose(const qint16 index, const float& distance)
+void SensorFuser::fuseRayWithPose(const Pose& pose, const qint16 index, const float& distance)
 {
     // Version using QMatrix4x4
     const QVector3D vectorScannerToPoint(
-                sin(-0.0043633231299858238686f * (index - 540)) * distance, // X in meters
+                sin(-0.0043633231299858238686 * (index - 540)) * distance, // X in meters
                 0.0f,                                                       // Y always 0
-                -cos(0.0043633231299858238686f * (index - 540)) * distance);// Z in meters
+                -cos(0.0043633231299858238686 * (index - 540)) * distance);// Z in meters
 
-
-
-
-    const QVector3D p = mLastInterpolatedPose.getMatrixRef() * vectorScannerToPoint;
+    const QVector3D p = pose.getMatrixConst() * vectorScannerToPoint;
 
     mRegisteredPoints[mNumberOfPointsFusedInThisScan * 4 + 0] = p.x();
     mRegisteredPoints[mNumberOfPointsFusedInThisScan * 4 + 1] = p.y();
@@ -152,9 +143,9 @@ void SensorFuser::fuseScans()
             if(mNewestDataTime - rawScan->timeStampScanMiddleScanner > 1000 || mFlushRemainingData)
             {
                 // the scanInfo is relatively old, we give up waiting for a gnssTimestamp and use the scanner's
+                qDebug() << __PRETTY_FUNCTION__ << "scan from" << rawScan->timeStampScanMiddleScanner << "is old, no gnss time, using scanner time";
                 rawScan->timeStampScanMiddleGnss = rawScan->timeStampScanMiddleScanner;
-                mNumberOfScansWithMissingGnssTimestamps++;
-                qDebug() << __PRETTY_FUNCTION__ << "scan is old, no gnss time, using scanner time";
+                mStatistics.numberOfScansWithMissingGnssTimestamps++;
             }
             else
             {
@@ -280,7 +271,9 @@ void SensorFuser::fuseScans()
 
             if(allPosesPresent)
             {
-                //qDebug() << __PRETTY_FUNCTION__ << "all poses present, fusing" << rawScan->numberOfDistances << "rays";
+                //qDebug() << __PRETTY_FUNCTION__ << "all poses present, fusing" << rawScan->numberOfDistances << "rays"
+                Pose poseForScanRay;
+
                 // We finally have all poses required to fuse this scan. Go!
                 for(qint16 index=0; index < rawScan->numberOfDistances; index++)
                 {
@@ -294,7 +287,7 @@ void SensorFuser::fuseScans()
                     if(distance < 0.7f || distance > mMaximumFusableRayLength) continue;
 
                     // Skip reflections that have no neighbors. Chances are that they are just noise
-                    if(index > 0 && index < rawScan->numberOfDistances-1 && rawScan->distances[index-1] == 0 && rawScan->distances[index+1] == 0)
+                    if(index > 0 && index < rawScan->numberOfDistances-1 && rawScan->distances[index-1] == 1 && rawScan->distances[index+1] == 1)
                     {
                         qDebug() << __PRETTY_FUNCTION__ << "lonely ray without neighbors, skipping noise";
                         continue;
@@ -302,7 +295,7 @@ void SensorFuser::fuseScans()
 
                     const qint32 timeOfCurrentRay = rawScan->timeStampScanMiddleGnss + (qint32)(-9.375f + (((float)index) * 0.01736f));
 
-                    if(mLastInterpolatedPose.timestamp != timeOfCurrentRay)
+                    if(poseForScanRay.timestamp != timeOfCurrentRay)
                     {
                         if(poseIndicesToUse.size() == 2)
                         {
@@ -311,7 +304,7 @@ void SensorFuser::fuseScans()
                             Q_ASSERT(rawScan->timeStampScanMiddleGnss + 9 <= mPoses[poseIndicesToUse[1]]->timestamp);
 
                             bool ok = false;
-                            mLastInterpolatedPose = Pose::interpolateLinear(mPoses[poseIndicesToUse[0]], mPoses[poseIndicesToUse[1]], timeOfCurrentRay, &ok);
+                            poseForScanRay = Pose::interpolateLinear(mPoses[poseIndicesToUse[0]], mPoses[poseIndicesToUse[1]], timeOfCurrentRay, &ok);
                             if(!ok) qDebug() << "mu-screwup: 2 poses from" << mPoses[poseIndicesToUse[0]]->timestamp << mPoses[poseIndicesToUse[1]]->timestamp << "scan from" << rawScan->timeStampScanMiddleGnss << "currentRay" << timeOfCurrentRay;
                         }
                         else if(poseIndicesToUse.size() == 3)
@@ -329,7 +322,7 @@ void SensorFuser::fuseScans()
                                 Q_ASSERT(mPoses[poseIndicesToUse[1]]->timestamp - timeOfCurrentRay <= 18);
 
                                 bool ok = false;
-                                mLastInterpolatedPose = Pose::interpolateLinear(mPoses[poseIndicesToUse[0]], mPoses[poseIndicesToUse[1]], timeOfCurrentRay, &ok);
+                                poseForScanRay = Pose::interpolateLinear(mPoses[poseIndicesToUse[0]], mPoses[poseIndicesToUse[1]], timeOfCurrentRay, &ok);
                                 if(!ok) qDebug() << "mu-screwup: 3 poses from" << mPoses[poseIndicesToUse[0]]->timestamp << mPoses[poseIndicesToUse[1]]->timestamp << mPoses[poseIndicesToUse[2]]->timestamp << "scan from" << rawScan->timeStampScanMiddleGnss << "currentRay" << timeOfCurrentRay << "(before central pose)";
                             }
                             else if(timeOfCurrentRay > mPoses[poseIndicesToUse[1]]->timestamp)
@@ -338,12 +331,12 @@ void SensorFuser::fuseScans()
                                 Q_ASSERT(mPoses[poseIndicesToUse[1]]->timestamp - timeOfCurrentRay >= -18);
 
                                 bool ok = false;
-                                mLastInterpolatedPose = Pose::interpolateLinear(mPoses[poseIndicesToUse[1]], mPoses[poseIndicesToUse[2]], timeOfCurrentRay, &ok);
+                                poseForScanRay = Pose::interpolateLinear(mPoses[poseIndicesToUse[1]], mPoses[poseIndicesToUse[2]], timeOfCurrentRay, &ok);
                                 if(!ok) qDebug() << "mu-screwup: 3 poses from" << mPoses[poseIndicesToUse[0]]->timestamp << mPoses[poseIndicesToUse[1]]->timestamp << mPoses[poseIndicesToUse[2]]->timestamp << "scan from" << rawScan->timeStampScanMiddleGnss << "currentRay" << timeOfCurrentRay << "(after central pose)";
                             }
                             else
                             {
-                                mLastInterpolatedPose = *mPoses[poseIndicesToUse[1]];
+                                poseForScanRay = *mPoses[poseIndicesToUse[1]];
                             }
                         }
                         else
@@ -351,13 +344,12 @@ void SensorFuser::fuseScans()
                             qDebug() << __PRETTY_FUNCTION__ << "oh, poseIndicesToUse has" << poseIndicesToUse.size() << "elements!!!";
                         }
 
-                        emitLastInterpolatedPose();
                         //qDebug() << "pose source" << mPoses[poseIndicesToUse[1]]->toString();
-                        mLastInterpolatedPose.transform(rawScan->relativeScannerPose);
-                        //qDebug() << "pose done: " << mLastInterpolatedPose.toString();
+                        poseForScanRay.transform(rawScan->relativeScannerPose);
+                        //qDebug() << "pose done: " << poseForScanRay.toString();
                     }
 
-                    fuseRayWithLastInterpolatedPose(index + rawScan->firstUsableDistance, distance);
+                    fuseRayWithPose(poseForScanRay, index + rawScan->firstUsableDistance, distance);
                     // Skip angles when distance is close
                     if(distance < 1.0f) index += 3; else if(distance < 2.0f) index += 2; else if(distance < 3.0f) index += 1;
                 }
@@ -365,7 +357,7 @@ void SensorFuser::fuseScans()
                 // This scan was successfully fused. Remove it from our vector
                 iteratorRawScans.remove();
 
-                mStatsScansFused[InterpolationMethod::Linear]++;
+                mStatistics.numberOfScansFused++;
 
                 mLastScannerPosition = mPoses[poseIndicesToUse[1]]->getPosition();
                 //qDebug() << __PRETTY_FUNCTION__ << "now emitting" << mNumberOfPointsFusedInThisScan << "points";
@@ -452,6 +444,8 @@ void SensorFuser::slotNewVehiclePose(const Pose* const pose)
         qDebug() << "SensorFuser::slotNewVehiclePose(): received pose is not precise enough for fusing:" << pose->toString(true);
         return;
     }
+
+    mStatistics.numberOfReceivedPoses++;
 
     //Profiler p(__PRETTY_FUNCTION__);
 
@@ -575,6 +569,8 @@ void SensorFuser::slotNewScanRaw(RawScan *scan)
 
     //Profiler p(__PRETTY_FUNCTION__);
 
+    mStatistics.numberOfReceivedScans++;
+
     // Do not store data that we cannot fuse anyway, because there is no pose or its very old (no gnss reception)
     if(!mPoses.size() || mPoses.last()->timestamp < (scan->timeStampScanMiddleScanner - MaximumFusionTimeOffset::Cubic))
     {
@@ -602,11 +598,4 @@ void SensorFuser::slotNewScanRaw(RawScan *scan)
     }
 
     mNewestDataTime = std::max(mNewestDataTime, scan->timeStampScanMiddleScanner);
-}
-
-void SensorFuser::emitLastInterpolatedPose()
-{
-    //    emit vehiclePose(&mLastInterpolatedPose);
-    //    QCoreApplication::processEvents();
-    //    usleep(100000);
 }

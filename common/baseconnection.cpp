@@ -249,15 +249,15 @@ void BaseConnection::slotSendInstanceKeyword()
     slotSendData(data, false);
 }
 
-void BaseConnection::slotSendWayPoints(const QList<WayPoint>* const wayPoints, const WayPointListSource source)
+void BaseConnection::slotSendWayPoints(const QList<WayPoint>* const wayPointList, const WayPointListSource source)
 {
-    qDebug() << "BaseConnection::slotFlightControllerWayPointsChanged(): number of waypoints" << wayPoints->size();
+    qDebug() << __PRETTY_FUNCTION__ << "sending" << wayPointList->size() << "waypoints from" << static_cast<quint8>(source) << "to base, first one:" << wayPointList->at(0);
 
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
 
     stream << QString("waypointlist");
-    stream << *wayPoints;
+    stream << *wayPointList;
 
     slotSendData(data, false);
 }
@@ -278,7 +278,7 @@ void BaseConnection::slotSendFlightControllerWeights()
 // waypoints-hash-list from rover will not match.
 void BaseConnection::slotSendWayPointReached(const WayPoint& wpt)
 {
-    qDebug() << "BaseConnection::slotWayPointReached(): reached" << wpt;
+    qDebug() << __PRETTY_FUNCTION__ << "reached wpt" << wpt;
 
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);

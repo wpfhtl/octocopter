@@ -21,6 +21,12 @@ __host__ __device__ float3 Grid::getWorldCenter() const
     return make_float3(worldMin.x, worldMin.y, worldMin.z) + getWorldSize()/2.0f;
 }
 
+__host__ __device__ float Grid::getWorldVolume() const
+{
+    const float3 s = getWorldSize();
+    return s.x * s.y * s.z;
+}
+
 // Calculate a particle cell's hash value (=address in grid) from its containing cell (clamping to edges)
 __host__ __device__ unsigned int Grid::getCellHash(int3 gridCellCoordinate) const
 {

@@ -239,6 +239,7 @@ float3 collideSpheres(
 
 
 // collide a particle against all other particles and colliders in a given cell
+// caller must ensure that the cell actually exists!
 __device__
 float3 collideCell(
         float4* particleCollisionPositions, // output: storage for the particle's current position if it collides with a collider
@@ -273,7 +274,7 @@ float3 collideCell(
         for(uint j=particlesStartIndex; j<particlesEndIndex; j++)
         {
             // check not colliding with self
-            if (j != particleToCollideIndex)
+            if(j != particleToCollideIndex)
             {
                 float3 posToCollideAgainst = make_float3(particlePosSorted[j]);
                 float3 velToCollideAgainst = make_float3(particleVelSorted[j]);
@@ -324,7 +325,6 @@ float3 collideCell(
     return forceCollisionsAgainstParticles + forceCollisionsAgainstColliders;
 }
 
-
 // Collide a single particle (given by thread-id through @index) against all other particles and colliders in own and neighboring cells
 __global__
 void collideParticlesWithParticlesAndCollidersD(
@@ -346,11 +346,18 @@ void collideParticlesWithParticlesAndCollidersD(
         uint    numParticles)       // input: number of total particles
 {
     uint particleToCollideIndex = getThreadIndex1D();
-    if (particleToCollideIndex >= numParticles) return;
+    if(particleToCollideIndex >= numParticles) return;
 
     // read particle data from sorted arrays
     float3 particleToCollidePos = make_float3(particlePosSorted[particleToCollideIndex]);
     float3 particleToCollideVel = make_float3(particleVelSorted[particleToCollideIndex]);
+
+    if(!parametersParticleSystem.gridParticleSystem.isPositionInGrid(particleToCollidePos))
+    {
+        printf("Found that particle at index %d at pos %.2f/%.2f/%.2f wasn't in the grid!\n",
+               particleToCollideIndex, particleToCollidePos.x, particleToCollidePos.y, particleToCollidePos.z);
+        return;
+    }
 
     // get grid-cell of particle
     int3 particleToCollideGridCell = parametersParticleSystem.gridParticleSystem.getCellCoordinate(particleToCollidePos);
@@ -367,6 +374,9 @@ void collideParticlesWithParticlesAndCollidersD(
             for(int x=-1; x<=1; x++)
             {
                 int3 neighbourGridCell = particleToCollideGridCell + make_int3(x, y, z);
+
+                if(!parametersParticleSystem.gridParticleSystem.isCellInGrid(neighbourGridCell))
+                    continue;
 
                 // Collide against other particles and colliders in this cell
                 forceOnParticle += collideCell(

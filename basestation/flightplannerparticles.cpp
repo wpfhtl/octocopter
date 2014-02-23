@@ -33,7 +33,7 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
 
     mSimulationParameters.initialize();
 
-    mDialog = new FlightPlannerParticlesDialog(&mSimulationParameters, (QWidget*)baseStation);
+    mDialog = new FlightPlannerParticlesDialog((QWidget*)baseStation);
     connect(mDialog, SIGNAL(renderParticles(bool)), SIGNAL(renderParticles(bool)));
     connect(mDialog, SIGNAL(renderInformationGain(bool)), SIGNAL(renderInformationGain(bool)));
     connect(mDialog, SIGNAL(renderOccupancyGrid(bool)), SIGNAL(renderOccupancyGrid(bool)));
@@ -42,7 +42,11 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
     connect(mDialog, &FlightPlannerParticlesDialog::generateWayPoints, this, &FlightPlannerParticles::slotGenerateWaypoints);
     connect(mDialog, &FlightPlannerParticlesDialog::resetInformationGain, this, &FlightPlannerParticles::slotClearGridOfInformationGain);
 
-    connect(mPointCloudDense, &PointCloudCuda::pointsInserted, this, &FlightPlannerParticles::slotDenseCloudInsertedPoints);
+    // Fill dense cloud => sparse cloud in online mode only.
+    if(mBaseStation->getOperatingMode() == OperatingMode::OperatingOnline)
+        connect(mPointCloudDense, &PointCloudCuda::pointsInserted, this, &FlightPlannerParticles::slotDenseCloudInsertedPoints);
+
+    // To show pcd filling and capacity in UI
     connect(mPointCloudDense, &PointCloudCuda::parameters, mDialog, &FlightPlannerParticlesDialog::slotSetPointCloudParametersDense);
     connect(mPointCloudColliders, &PointCloudCuda::parameters, mDialog, &FlightPlannerParticlesDialog::slotSetPointCloudParametersSparse);
 
@@ -82,13 +86,16 @@ void FlightPlannerParticles::slotInitialize()
     mPointCloudColliders->initialize();
 
     mSimulationParameters.initialize();
-    mSimulationParameters.gridInformationGain.cells = make_uint3(256, 32, 256);
+    mSimulationParameters.gridInformationGain.cells = make_uint3(128, 32, 128);
 
     mParticleSystem = new ParticleSystem((PointCloudCuda*)mPointCloudDense, (PointCloudCuda*)mPointCloudColliders, &mSimulationParameters); // ParticleSystem will draw its points as colliders from the pointcloud passed here
-    mParticleSystem->slotSetParticleCount(32768);
-    mParticleSystem->slotSetParticleRadius(1.0f/2.0f); // balance against MinimumPointDistance above
-    mParticleSystem->slotSetDefaultParticlePlacement(ParticleSystem::ParticlePlacement::PlacementFillSky);
-    mParticleSystem->slotInitialize();
+    mParticleSystem->slotSetParticleRadius(2.0f);
+
+    connect(mDialog, &FlightPlannerParticlesDialog::resetParticles, mParticleSystem, &ParticleSystem::slotResetParticles);
+    connect(mDialog, &FlightPlannerParticlesDialog::simulationParameters, mParticleSystem, &ParticleSystem::slotSetSimulationParameters);
+    connect(mParticleSystem, &ParticleSystem::parametersChanged, mDialog, &FlightPlannerParticlesDialog::slotSetValuesFromStruct);
+
+    mParticleSystem->slotEmitVboInfoAndParameters(); // so that mDialog gets the parameters set
 
     mPathPlanner = new PathPlanner(mPointCloudColliders);
     connect(mPathPlanner, &PathPlanner::path, this, &FlightPlannerParticles::slotSetWayPoints);
@@ -126,9 +133,7 @@ void FlightPlannerParticles::slotInitialize()
                 Vector3<quint16>(mSimulationParameters.gridInformationGain.cells.x, mSimulationParameters.gridInformationGain.cells.y, mSimulationParameters.gridInformationGain.cells.z)
                 );
 
-    connect(mDialog, SIGNAL(resetParticles()), mParticleSystem, SLOT(slotResetParticles()));
-    connect(mDialog, SIGNAL(simulationParameters(const ParametersParticleSystem*)), mParticleSystem, SLOT(slotSetSimulationParametersFromUi(const ParametersParticleSystem*)));
-
+    // Just to have some defaults...
     slotSetVolumeGlobal(Box3D(QVector3D(-128, -6, -128), QVector3D(128, 26, 128)));
     slotSetVolumeLocal(Box3D(QVector3D(-32, -6, -32), QVector3D(32, 26, 32)));
 
@@ -163,11 +168,14 @@ void FlightPlannerParticles::slotProcessInformationGain()
     const quint8 maxPressure = getMaximumInformationGain(gridMapOfInformationGain, numberOfCells);
     cudaGraphicsUnmapResources(1, &mCudaVboResourceGridMapOfInformationGainBytes, 0);
 
-    const int threshold = 5;
+    // When using small particles, many will slip through and cause high pressure values
+    // When using large particles, few  will slip through and cause low  pressure values
+    const int threshold = qBound(1.0, 3.0f * (1.0f/sqrt(mSimulationParameters.particleRadius)), 255.0);
+    qDebug() << __PRETTY_FUNCTION__ << "information gain threshold for particle radius" << mSimulationParameters.particleRadius << "is" << threshold;
 
     if(maxPressure >= threshold)
     {
-        qDebug() << "FlightPlannerParticles::slotProcessInformationGain(): max pressure" << maxPressure << ">" << "threshold" << threshold << "- generating waypoints!";
+        qDebug() << __PRETTY_FUNCTION__ << "max pressure" << maxPressure << ">=" << "threshold" << threshold << "- generating waypoints!";
         // Now that we're generating waypoints, we can deactivate the physics processing (and restart when only few waypoints are left)
         mDialog->setProcessPhysicsActive(false);
         mTimerProcessInformationGain.stop();
@@ -175,8 +183,17 @@ void FlightPlannerParticles::slotProcessInformationGain()
     }
     else
     {
-        // For some reason, information gain hasn't built up. This indicates that the model is sufficiently complete within volumeLocal.
-        // So, this might be a good time to move the volume!
+        // Information gain hasn't built up. This indicates that the pointcloud is sufficiently
+        // complete. This might be a good time to either move the volume or decrease particle size.
+
+        qDebug() << __PRETTY_FUNCTION__ << "maxPressure is" << maxPressure << "- threshold is" << threshold << ": decreasing particle size...";
+
+        // This will completely reset the particle system. No need to slotResetParticles() etc.
+        mParticleSystem->slotSetParticleRadius(mSimulationParameters.particleRadius * 0.9f);
+
+        // Using larger particles means that there will be less particles per information gain grid cell, so
+        // we will have to use a lower threshold and possibly longer simulation time
+        //mTimerProcessInformationGain.setInterval(10000);
     }
 }
 
@@ -286,15 +303,6 @@ FlightPlannerParticles::~FlightPlannerParticles()
     if(mVboGridMapOfInformationGainFloats) OpenGlUtilities::deleteVbo(mVboGridMapOfInformationGainFloats);
 }
 
-
-
-void FlightPlannerParticles::slotClearVehicleTrajectory()
-{
-    mVehiclePoses.clear();
-    //    if(mGlWindow) mGlWindow->slotClearVehicleTrajectory();
-    //    emit suggestVisualization();
-}
-
 const Pose FlightPlannerParticles::getLastKnownVehiclePose(void) const
 {
     if(mVehiclePoses.size())
@@ -305,10 +313,9 @@ const Pose FlightPlannerParticles::getLastKnownVehiclePose(void) const
 
 void FlightPlannerParticles::slotNewScanFused(const float* const points, const quint32& count, const QVector3D* const scannerPosition)
 {
-    // Experimental: Do not accept points while we're processing!
     if(mTimerStepSimulation.isActive() || mTimerProcessInformationGain.isActive())
     {
-        qDebug() << "FlightPlannerParticles::slotNewScanFused(): not accepting points while processing.";
+        //qDebug() << "FlightPlannerParticles::slotNewScanFused(): not accepting points while processing.";
         return;
     }
 
@@ -319,7 +326,10 @@ void FlightPlannerParticles::slotNewScanFused(const float* const points, const q
 
     QTime timeForDenseReduction;
     timeForDenseReduction.start();
-    if((mTimeOfLastDenseCloudReduction.msecsTo(QTime::currentTime()) > 2000 || mPointCloudDense->getNumberOfPointsFree() < 1000)/* && !mTimerStepSimulation.isActive()*/)
+
+    // Reduce the dense cloud only in online mode, when we want to pass the resulting sparser points to pointcloudsparse.
+    // If working offline, we just want to display the scanned data using the dense cloud and its ringbuffer
+    if(mTimeOfLastDenseCloudReduction.msecsTo(QTime::currentTime()) > 2000 && mBaseStation->getOperatingMode() == OperatingMode::OperatingOnline)
     {
         qDebug() << "FlightPlannerParticles::slotNewScanFused(): reducing" << mPointCloudDense->getNumberOfPointsQueued() << "queued points in dense cloud.";
         mTimeOfLastDenseCloudReduction = QTime::currentTime();
@@ -369,6 +379,7 @@ void FlightPlannerParticles::slotSetVolumeGlobal(const Box3D volume)
 void FlightPlannerParticles::slotSetVolumeLocal(const Box3D volume)
 {
     qDebug() << __PRETTY_FUNCTION__ << volume;
+
     // We're being told to change the local volume that is used to bound waypoint generation.
     // This means we need to move the particle system, the pathplanner structures etc.
     slotClearGridOfInformationGain();
@@ -382,8 +393,8 @@ void FlightPlannerParticles::slotSetVolumeLocal(const Box3D volume)
     // We set this cloud's BBOX, the pathplanner will follow automatically
     mPointCloudColliders->setBoundingBox(mVolumeLocal);
 
+    // Will completely reset the particleSystem
     mParticleSystem->slotSetVolume(mVolumeLocal);
-    mParticleSystem->slotResetParticles();
 
     if(CudaHelper::isDeviceSupported)
     {
@@ -398,6 +409,8 @@ void FlightPlannerParticles::slotSetVolumeLocal(const Box3D volume)
                     Vector3<quint16>(mSimulationParameters.gridInformationGain.cells.x, mSimulationParameters.gridInformationGain.cells.y, mSimulationParameters.gridInformationGain.cells.z)
                     );
     }
+
+    qDebug() << __PRETTY_FUNCTION__ << volume << "- done.";
 }
 
 void FlightPlannerParticles::slotVehiclePoseChanged(const Pose* const pose)
@@ -431,13 +444,15 @@ void FlightPlannerParticles::slotVehiclePoseChanged(const Pose* const pose)
 
 void FlightPlannerParticles::slotSetWayPoints(const QList<WayPoint>* const wayPointList, const WayPointListSource source)
 {
+    qDebug() << __PRETTY_FUNCTION__ << "saving" << wayPointList->size() << "waypoints from" << static_cast<quint8>(source) << "- first one:" << wayPointList->at(0);
     mWayPointsAhead.setList(wayPointList);
 
     // Tell others about our new waypoints!
     emit wayPoints(mWayPointsAhead.list(), source);
 
-    // do not suggestVisualization() here, as the pointcloud calling this method might still have its buffer mapped!
-    //emit suggestVisualization();
+    // Pointcloud calling this method might still have its buffer mapped,
+    // but suggestVisualization() does render, not immediately.
+    emit suggestVisualization();
 }
 
 const QList<WayPoint>* const FlightPlannerParticles::getWayPoints()
@@ -447,15 +462,20 @@ const QList<WayPoint>* const FlightPlannerParticles::getWayPoints()
 
 void FlightPlannerParticles::slotWayPointReached(const WayPoint& wpt)
 {
-    qDebug() << "FlightPlannerParticles::slotWayPointReached(): rover->baseconnection->flightplanner waypoint reached, so appending first element of mWayPointsAhead to mWayPointsPassed";
+    qDebug() << __PRETTY_FUNCTION__ << "rover->baseconnection->flightplanner waypoint" << wpt << "reached, so appending first element of mWayPointsAhead"
+             << (mWayPointsAhead.size() ? mWayPointsAhead.at(0).toString() : "[empty list]")
+             << "to mWayPointsPassed";
 
     if(mWayPointsAhead.size())
     {
+        if(mWayPointsAhead.at(0) != wpt)
+            qDebug() << __PRETTY_FUNCTION__ << "error, the reached waypoint was not the first in mWayPointsAhead!";
+
         mWayPointsPassed.append(mWayPointsAhead.takeAt(0));
     }
     else
     {
-        qDebug() << __PRETTY_FUNCTION__ << "mWayPointsAhead is empty, but rover reached wpt" << wpt.toString() << "- appending anyways.";
+        qDebug() << __PRETTY_FUNCTION__ << "error, mWayPointsAhead is empty, but rover reached wpt" << wpt.toString() << "- appending anyways.";
         mWayPointsPassed.append(wpt);
     }
 
@@ -465,10 +485,10 @@ void FlightPlannerParticles::slotWayPointReached(const WayPoint& wpt)
                 QString("Reached waypoint %1 %2 %3").arg(wpt.x()).arg(wpt.y()).arg(wpt.z()));
 
     emit wayPoints(mWayPointsAhead.list(), WayPointListSource::WayPointListSourceFlightPlanner);
-    qDebug() << "FlightPlannerParticles::slotWayPointReached(): rover->baseconnection->flightplanner waypoint reached, emitted wayPoints())";
+    qDebug() << __PRETTY_FUNCTION__ << "rover->baseconnection->flightplanner waypoint reached, emitted wayPoints())";
     emit suggestVisualization();
 
-    // When no waypoints are left, start testing for water-leaks!
+    // When no waypoints are left, generate some!
     if(mWayPointsAhead.isEmpty())
     {
         qDebug() << __PRETTY_FUNCTION__ << "mWayPointsAhead is empty, starting waypoint generation";
@@ -656,7 +676,7 @@ void FlightPlannerParticles::slotStepSimulation()
     float percentLeft = remainingTime < 0 ? mTimerProcessInformationGain.interval() : remainingTime;
     percentLeft /= (float)mTimerProcessInformationGain.interval();
     emit particleOpacity(percentLeft);
-    qDebug() << __PRETTY_FUNCTION__ << "percentLeft:" << percentLeft;
+    if(remainingTime % 10 == 0) qDebug() << __PRETTY_FUNCTION__ << "percentLeft:" << percentLeft;
 
     static int iteration = 0;
     if(iteration++ % 100 == 0)

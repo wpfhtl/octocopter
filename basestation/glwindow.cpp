@@ -19,8 +19,8 @@ GlWindow::GlWindow(GlScene* glScene, QWindow* parent) :
     format.setMinorVersion(OPENGL_VERSION_MINOR);
     format.setSamples(4);
     format.setProfile(QSurfaceFormat::CoreProfile);
-    format.setOption(QSurfaceFormat::DebugContext);
-//    format.setProfile(QSurfaceFormat::CompatibilityProfile);
+    //format.setOption(QSurfaceFormat::DebugContext);
+    //format.setProfile(QSurfaceFormat::CompatibilityProfile);
     setFormat(format);
     create();
 
@@ -43,7 +43,7 @@ GlWindow::GlWindow(GlScene* glScene, QWindow* parent) :
 
     mTimerUpdate = new QTimer(this);
     mTimerUpdate->setInterval(1000 / 50);
-    connect(mTimerUpdate, &QTimer::timeout, this, &GlWindow::slotRenderLater);
+    connect(mTimerUpdate, &QTimer::timeout, this, &GlWindow::slotRenderNow);
 }
 
 GlWindow::~GlWindow()
@@ -67,8 +67,8 @@ void GlWindow::slotInitialize()
     connect(mOpenGlDebugLogger, SIGNAL(messageLogged(QOpenGLDebugMessage)), this, SLOT(slotOpenGlDebugMessage(QOpenGLDebugMessage)), Qt::DirectConnection);
     if(mOpenGlDebugLogger->initialize())
     {
-        //mOpenGlDebugLogger->startLogging(QOpenGLDebugLogger::SynchronousLogging);
-        mOpenGlDebugLogger->startLogging(QOpenGLDebugLogger::AsynchronousLogging);
+        //mOpenGlDebugLogger->startLogging(QOpenGLDebugLogger::SynchronousLogging); // very slow, but callback is called directly on error
+        mOpenGlDebugLogger->startLogging(QOpenGLDebugLogger::AsynchronousLogging); // hardly slower, but, well, asynchronous
         mOpenGlDebugLogger->enableMessages();
     }
 
@@ -132,6 +132,36 @@ void GlWindow::slotRenderNow()
     mGlScene->render();
 
     mOpenGlContext->swapBuffers(this);
+
+    // Stop the render-timer when nothign happens
+    if(fabs(mRotationPerFrame) < 0.00001 && !mViewZooming && mTimerUpdate->isActive())
+    {
+        mTimerUpdate->stop();
+        //qDebug() << __PRETTY_FUNCTION__ << "idle, disabling render-timer.";
+    }
+}
+
+// Must *not* render immediately, as it can be called when opengl-buffers are still mapped!
+void GlWindow::slotRenderLater()
+{
+/*    if(mTimeOfLastRender.msecsTo(QTime::currentTime()) > mTimerUpdate->interval())
+    {
+        slotRenderNow();
+
+
+    }
+    else*/
+    {
+        if(mTimerUpdate->isActive())
+        {
+            //qDebug() << __PRETTY_FUNCTION__ << "render-timer is already active, noop.";
+        }
+        else
+        {
+            //qDebug() << __PRETTY_FUNCTION__ << "render-timer is inactive, starting it.";
+            mTimerUpdate->start();
+        }
+    }
 }
 
 void GlWindow::slotSetCameraRotation(const float rotation)
@@ -140,7 +170,10 @@ void GlWindow::slotSetCameraRotation(const float rotation)
 
     // Enable the timer if we want to rotate and its not running already
     if(fabs(mRotationPerFrame) > 0.00001 && !mViewZooming)
-        mTimerUpdate->start();
+    {
+        //qDebug() << __PRETTY_FUNCTION__ << "either zooming or rotating, calling slotRenderLater();";
+        slotRenderLater();
+    }
 }
 
 void GlWindow::mousePressEvent(QMouseEvent *event)
@@ -177,22 +210,6 @@ void GlWindow::wheelEvent(QWheelEvent *event)
     mTimerUpdate->setInterval(1000 / 50);
     mTimerUpdate->start();
     slotRenderLater();
-}
-
-void GlWindow::slotRenderLater()
-{
-    if(mTimeOfLastRender.msecsTo(QTime::currentTime()) > mTimerUpdate->interval())
-    {
-        slotRenderNow();
-
-        if(!fabs(mRotationPerFrame) > 0.00001 && !mViewZooming)
-            mTimerUpdate->stop();
-    }
-    else
-    {
-        if(!mTimerUpdate->isActive())
-            mTimerUpdate->start();
-    }
 }
 
 void GlWindow::exposeEvent(QExposeEvent *event)

@@ -38,25 +38,6 @@ public:
 private slots:
     void slotNewCollidersInserted();
 
-public slots:
-    void slotSetDefaultParticlePlacement(const ParticlePlacement pp) { mDefaultParticlePlacement = pp; }
-
-    // The user changed some value sin the UI. Accept all fields from SimulationParameters that make sense
-    // (e.g. changing particleCount doesn't make sense, as we'd have to re-initialize). Maybe later.
-    void slotSetSimulationParametersFromUi(const ParametersParticleSystem* sp)
-    {
-        mParametersSimulation->timeStepInner = sp->timeStepInner;
-        mParametersSimulation->attraction = sp->attraction;
-        mParametersSimulation->dampingMotion = sp->dampingMotion;
-        mParametersSimulation->gravity = sp->gravity;
-        mParametersSimulation->particleRadius = sp->particleRadius;
-        mParametersSimulation->shear = sp->shear;
-        mParametersSimulation->spring = sp->spring;
-        mParametersSimulation->velocityFactorCollisionBoundary = sp->velocityFactorCollisionBoundary;
-        mParametersSimulation->velocityFactorCollisionParticle = sp->velocityFactorCollisionParticle;
-        mParametersSimulation->velocityFactorCollisionCollider = sp->velocityFactorCollisionCollider;
-    }
-
     // Must be called:
     // - before any work is done
     // Requires:
@@ -65,21 +46,25 @@ public slots:
     // - mPointCloudColliders must be set!
     void slotInitialize();
 
+public slots:
+    void slotSetDefaultParticlePlacement(const ParticlePlacement pp) { mDefaultParticlePlacement = pp; }
+
+    // The user changed some values in the UI. Accept all fields from SimulationParameters and
+    // implement some compromise (e.g. particleCount vs. particleRadius). The UI shall check
+    // and reflect the resulting parameters.
+    void slotSetSimulationParameters(const ParametersParticleSystem* const sp);
+
+    // Parameter are emitted on initialization. But since that's done lazily on first particle simulation,
+    // the UI needs to be made aware of the parameters. Call this slot and we'll emit parametersChanged();
+    void slotEmitVboInfoAndParameters();
+
     void slotSetParticleRadius(float);
-
-    void slotSetParticleCount(const quint32 count)
-    {
-        mParametersSimulation->particleCount = count;
-        // Need to rebuild data-structures when particle count changes.
-        if(mIsInitialized) freeResources();
-    }
-
     void slotSetVolume(const Box3D &boundingBox);
-
     void slotResetParticles();
 
 signals:
     void vboInfoParticles(quint32 vboPositions, quint32 particleCount, float particleRadius, Box3D particleSystemBoundingBox);
+    void parametersChanged(const ParametersParticleSystem* const);
 
 protected:
     ParametersParticleSystem* mParametersSimulation;
@@ -97,7 +82,6 @@ protected:
         ArrayVelocities
     };
 
-    void emitVboInfo();
 
     void setNullPointers();
 

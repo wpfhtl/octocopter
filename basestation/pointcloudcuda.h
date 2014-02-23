@@ -44,12 +44,7 @@ public:
     // No two points closer than @distance will be inserted into this PointCloud
     void setMinimumPointDistance(const float &distance);
 
-    void setBoundingBox(const Box3D& box)
-    {
-        qDebug() << __PRETTY_FUNCTION__ << mName << box;
-        mParameters.grid.worldMin = make_float3(box.min.x(), box.min.y(), box.min.z());
-        mParameters.grid.worldMax = make_float3(box.max.x(), box.max.y(), box.max.z());
-    }
+    void setBoundingBox(const Box3D& box);
 
     QVector3D getWorldSize() const {return CudaHelper::convert(mParameters.grid.worldMax) - CudaHelper::convert(mParameters.grid.worldMax);}
 

@@ -33,8 +33,6 @@ public:
 
     void initialize();
 
-    //QVector3D getWorldPositionOfMouse(const QSize &windowSize, const QPoint &mousePos);
-
     // Skip the setters and make this public, there's no harm
     bool
     mRenderAxisBase,
@@ -78,9 +76,7 @@ public slots:
         qDebug() << __PRETTY_FUNCTION__ << "setting processing state to" << static_cast<quint8>(state);
         mFlightPlannerProcessingState = state;
 
-        // Do NOT suggestVisualization() here, because this signal might come
-        // from a pointcloud that still has a buffer mapped!
-        //emit suggestVisualization();
+        emit suggestVisualization();
     }
 
     void slotSetVolumeGlobal(const Box3D* volume);

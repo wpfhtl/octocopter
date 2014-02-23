@@ -239,7 +239,7 @@ void PointCloudCuda::slotInsertPoints(PointCloudCuda *const pointCloudSource, co
     qDebug() << __PRETTY_FUNCTION__ << mName << "receiving points from cloud" << pointCloudSource->mName;
 
     if(pointCloudSource->mParameters.minimumDistance >= mParameters.minimumDistance)
-        qDebug() << __PRETTY_FUNCTION__ << mName << "WARNING, cloud" << pointCloudSource->mName << "is less dense than we are, this should be the other way around!";
+        qDebug() << __PRETTY_FUNCTION__ << mName << "ERROR, cloud" << pointCloudSource->mName << "is less dense than we are, this should be the other way around!";
 
     if(!mIsInitialized) initialize();
 
@@ -253,8 +253,9 @@ void PointCloudCuda::slotInsertPoints(PointCloudCuda *const pointCloudSource, co
     }
 
     QTime time; time.start();
+
+    const bool haveToMapPointPosOfPointCloudSource = pointCloudSource->checkAndMapPointsToCuda();
     Q_ASSERT(pointCloudSource->mDevicePointPos != nullptr);
-    //float *devicePointsBaseSrc = (float*) CudaHelper::mapGLBufferObject(pointCloudSource->getCudaGraphicsResource());
     float *devicePointsBaseSrc = pointCloudSource->mDevicePointPos;
 
     qDebug() << __PRETTY_FUNCTION__ << mName << "pcd src is mapped, now mapping my gl buffer...";
@@ -319,6 +320,8 @@ void PointCloudCuda::slotInsertPoints(PointCloudCuda *const pointCloudSource, co
         qDebug() << "PointCloudCuda::slotInsertPoints(): didn't insert all points from src (due to insufficient destination capacity of" << mParameters.capacity << "?)";
 
     if(haveToMapPointPos) checkAndUnmapPointsFromCuda();
+
+    if(haveToMapPointPosOfPointCloudSource) pointCloudSource->checkAndUnmapPointsFromCuda();
 
     qDebug() << "PointCloudCuda::slotInsertPoints(): took" << time.elapsed() << "ms.";
 
@@ -482,6 +485,23 @@ quint32 PointCloudCuda::reducePoints(float* devicePoints, quint32 numElements)
     qDebug() << __PRETTY_FUNCTION__ << mName << "device has" << memFree / 1048576 << "of" << memTotal / 1048576 << "mb free";
 
     return remainingElements;
+}
+
+void PointCloudCuda::setBoundingBox(const Box3D& box)
+{
+    qDebug() << __PRETTY_FUNCTION__ << mName << box;
+    mParameters.grid.worldMin = make_float3(box.min.x(), box.min.y(), box.min.z());
+    mParameters.grid.worldMax = make_float3(box.max.x(), box.max.y(), box.max.z());
+
+    // remove points that now lie outside, if mOutlierTreatment indicates that
+    if(mIsInitialized && getNumberOfPointsStored() && mOutlierTreatment == OutlierTreatment::Remove)
+    {
+        const bool haveToMapPointPos = checkAndMapPointsToCuda();
+        mParameters.elementCount = removePointsOutsideBoundingBox(mDevicePointPos, getNumberOfPointsStored(), &mParameters.grid);
+        qDebug() << __PRETTY_FUNCTION__ << mName << "removing points outside the bounding box" << box << "has left us with" << mParameters.elementCount << "points";
+        mParameters.elementQueueCount = 0;
+        if(haveToMapPointPos) checkAndUnmapPointsFromCuda();
+    }
 }
 
 quint32 PointCloudCuda::createVbo(quint32 size)

@@ -273,12 +273,18 @@
          <property name="text">
           <string>BaroHeight</string>
          </property>
+         <property name="alignment">
+          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         </property>
         </widget>
        </item>
        <item row="4" column="0">
         <widget class="QLabel" name="label_16">
          <property name="text">
           <string>CpuTemp</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
          </property>
         </widget>
        </item>
@@ -1258,7 +1264,7 @@
        </size>
       </property>
       <property name="title">
-       <string>WayPoint Generation</string>
+       <string>Scan Volume Bounding Boxes</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_3">
        <property name="spacing">
@@ -1300,7 +1306,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>-56.000000000000000</double>
+            <double>-32.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1338,7 +1344,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>-30.000000000000000</double>
+            <double>-32.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1364,7 +1370,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>8.000000000000000</double>
+            <double>32.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -1402,7 +1408,7 @@
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>34.000000000000000</double>
+            <double>32.000000000000000</double>
            </property>
           </widget>
          </item>

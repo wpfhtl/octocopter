@@ -402,7 +402,7 @@ void GnssDevice::slotCommunicationSetup()
 
     // IMU is 4cm in front, 3cm to the right and 34cm below ARP. Max precision is 1 cm.
     //slotQueueCommand("setExtSensorCalibration,COM1,manual,0,0,270,manual,-0.05,0.14,0.35");
-    slotQueueCommand("setExtSensorCalibration,COM1,manual,0,0,0,manual,0.04,0.03,0.34");
+    slotQueueCommand("setExtSensorCalibration,COM1,manual,0,0,0,manual,0.04,0.03,0.36");
 
     // set up processing of the event-pulse from the lidar. Use falling edge, not rising.
     //slotQueueCommand("setEventParameters,EventA,High2Low"); // Hokuyo
@@ -644,7 +644,7 @@ void GnssDevice::slotDataReadyOnCom()
     {
         // Move all new bytes into our SBF buffer
         mReceiveBufferCom.append(mSerialPortCom->readAll());
-	
+
         //qDebug() << __PRETTY_FUNCTION__ << "com buffer contains:" << mReceiveBufferCom;
 
         // If we're waiting for a command-reply, try to find and parse it. When done, advance the dataCursor.

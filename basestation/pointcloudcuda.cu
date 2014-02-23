@@ -212,8 +212,6 @@ void markCollidingPoints(
                                                numPoints
                                                );
 
-    cudaDeviceSynchronize();
-
     cudaCheckSuccess("markCollidingPoints");
 }
 
