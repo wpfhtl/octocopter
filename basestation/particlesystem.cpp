@@ -85,7 +85,11 @@ void ParticleSystem::slotSetVolume(const Box3D& boundingBox)
     // contains points outside of the particle system and B) the dense pointcloud contains points
     // that are NOT in the collider-pointcloud - but should be. So, we re-populate the sparse point-
     // cloud with points from the dense pointcloud.
-    if(mPointCloudDense->getNumberOfPointsStored()) mPointCloudColliders->slotInsertPoints(mPointCloudDense);
+    if(mPointCloudDense->getNumberOfPointsStored())
+        mPointCloudColliders->slotInsertPoints(
+                    mPointCloudDense,
+                    0,
+                    std::min(mPointCloudDense->getNumberOfPointsStored(), mPointCloudDense->getCapacity()));
 
     // Usually, the mapping from collider to grid-cells only changes when the collider pointcloud changes.
     // But when we move the grid (relative to the colliders), the mapping also needs an update!
@@ -516,12 +520,12 @@ void ParticleSystem::setArray(ParticleArray array, const float* data, int start,
     }
     else if(array == ArrayVelocities)
     {
-        cudaMemcpy(
+        cudaSafeCall(cudaMemcpy(
                     (char*) mDeviceParticleVel + start*4*sizeof(float), // destination
                     data,                                       // source
                     count*4*sizeof(float),                      // count
                     cudaMemcpyHostToDevice                      // copy-kind
-                    );
+                    ));
     }
 }
 

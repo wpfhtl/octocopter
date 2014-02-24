@@ -149,8 +149,11 @@ public slots:
     // Clears the datastructure, but does not destruct it. Points can still be inserted afterwards.
     void slotReset();
 
-    // reduce the points if necessary. Use any method. A wrapper-method for all my recent attempts at reduction....
-    void slotReduce();
+    // reduce the last N points in the cloud. Requires that the queue is empty!
+    void slotReduceEnd(quint32 numberOfPointsToReduce = 0);
+
+    // reduce only the queue and emit the resulting points, for a less dense cloud to use as inout.
+    void slotReduceQueue();
 
 signals:
     void parameters(const ParametersPointCloud* const);

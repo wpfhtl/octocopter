@@ -24,6 +24,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     mConnectionDialog = new ConnectionDialog(this);
     mConnectionDialog->exec();
+    mOperatingMode = mConnectionDialog->result() == QDialog::Accepted ? OperatingMode::OperatingOnline : OperatingMode::OperatingOffline;
 
     mControlWidget = new ControlWidget(this);
     addDockWidget(Qt::RightDockWidgetArea, mControlWidget);
@@ -45,7 +46,7 @@ BaseStation::BaseStation() : QMainWindow()
 
     // Create a large cloud. Less large for notebook. If the dense cloud doesn't include NEGATIVE_Y points,
     // then scanning points slightly below 0 will not make it into collider cloud and collision avoidance!!!
-    const quint32 numberOfPoints = QHostInfo::localHostName() == "tams58" ? 1*1024*1024 : 2*1024*1024;
+    const quint32 numberOfPoints = QHostInfo::localHostName() == "tams58" ? 1*1024*1024 : 1*1024*1024;
     mPointCloud = new PointCloudCuda(Box3D(QVector3D(-512, -2, -512), QVector3D(512, 30, 512)), numberOfPoints, "DenseCloud");
     connect(mGlWindow, &GlWindow::message, mLogWidget, &LogWidget::log);
 
@@ -251,9 +252,8 @@ BaseStation::BaseStation() : QMainWindow()
     mMenuWindowList->addAction("PID Controllers", this, SLOT(slotTogglePidControllerWidget()));
 
     // Only start RTK fetcher, RoverConnection, PtuController etc. if we're working online
-    if(mConnectionDialog->result() == QDialog::Accepted)
+    if(mOperatingMode == OperatingMode::OperatingOnline)
     {
-        mOperatingMode = OperatingMode::OperatingOnline;
         mRoverConnection = new RoverConnection(mConnectionDialog->getRoverHostName(), mConnectionDialog->getRoverPort(), this);
         connect(mControlWidget, &ControlWidget::setScannerState, mRoverConnection, &RoverConnection::slotSendScannerState);
 
@@ -313,7 +313,6 @@ BaseStation::BaseStation() : QMainWindow()
     }
     else
     {
-        mOperatingMode = OperatingMode::OperatingOffline;
         mLogPlayer = new LogPlayer(this);
         mLogPlayer->setAllowedAreas(Qt::AllDockWidgetAreas);
         addDockWidget(Qt::BottomDockWidgetArea, mLogPlayer);

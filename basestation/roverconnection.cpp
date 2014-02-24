@@ -183,10 +183,10 @@ void RoverConnection::processPacket(QByteArray data)
     {
         stream >> mGnssStatus;
 
-        emit message(
+        /*emit message(
                     mGnssStatus.error == GnssStatus::Error::NoError && mGnssStatus.pvtMode == GnssStatus::PvtMode::RtkFixed && mGnssStatus.integrationMode != GnssStatus::IntegrationMode::NoSolution && mGnssStatus.integrationMode != GnssStatus::IntegrationMode::GNSS_only && mGnssStatus.numSatellitesUsed >= 5 ? Information : Error,
                     QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__),
-                    mGnssStatus.toString());
+                    mGnssStatus.toString());*/
 
         emit gnssStatus(&mGnssStatus);
     }

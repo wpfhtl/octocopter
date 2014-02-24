@@ -251,7 +251,10 @@ void BaseConnection::slotSendInstanceKeyword()
 
 void BaseConnection::slotSendWayPoints(const QList<WayPoint>* const wayPointList, const WayPointListSource source)
 {
-    qDebug() << __PRETTY_FUNCTION__ << "sending" << wayPointList->size() << "waypoints from" << static_cast<quint8>(source) << "to base, first one:" << wayPointList->at(0);
+    qDebug() << __PRETTY_FUNCTION__
+             << "sending" << wayPointList->size() << "waypoints from"
+             << static_cast<quint8>(source) << "to base, first one:"
+             << (wayPointList->size() > 0 ? wayPointList->at(0).toString() : "[null]");
 
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);

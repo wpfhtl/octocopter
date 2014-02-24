@@ -1062,7 +1062,7 @@ void GlScene::slotNewVehiclePose(const Pose* const pose)
                 )
             color.setRgb(255, 0, 0);
         else
-            color.setRgb(40, 40, 255);
+            color.setRgb(80, 80, 255);
 
         // If the poses CV sucks, fade it.
         if(pose->covariances > Pose::maximumUsableCovariance) color.setAlpha(128);

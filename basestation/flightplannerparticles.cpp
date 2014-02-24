@@ -38,13 +38,16 @@ FlightPlannerParticles::FlightPlannerParticles(BaseStation* baseStation, GlWindo
     connect(mDialog, SIGNAL(renderInformationGain(bool)), SIGNAL(renderInformationGain(bool)));
     connect(mDialog, SIGNAL(renderOccupancyGrid(bool)), SIGNAL(renderOccupancyGrid(bool)));
     connect(mDialog, SIGNAL(renderPathPlannerGrid(bool)), SIGNAL(renderPathPlannerGrid(bool)));
-    connect(mDialog, &FlightPlannerParticlesDialog::reduceColliderCloud, mPointCloudColliders, &PointCloudCuda::slotReduce);
+    connect(mDialog, &FlightPlannerParticlesDialog::reduceColliderCloud, [=] {mPointCloudColliders->slotReduceEnd();});
     connect(mDialog, &FlightPlannerParticlesDialog::generateWayPoints, this, &FlightPlannerParticles::slotGenerateWaypoints);
     connect(mDialog, &FlightPlannerParticlesDialog::resetInformationGain, this, &FlightPlannerParticles::slotClearGridOfInformationGain);
 
     // Fill dense cloud => sparse cloud in online mode only.
     if(mBaseStation->getOperatingMode() == OperatingMode::OperatingOnline)
+    {
+        emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Will feeding CloudCollider from CloudDense");
         connect(mPointCloudDense, &PointCloudCuda::pointsInserted, this, &FlightPlannerParticles::slotDenseCloudInsertedPoints);
+    }
 
     // To show pcd filling and capacity in UI
     connect(mPointCloudDense, &PointCloudCuda::parameters, mDialog, &FlightPlannerParticlesDialog::slotSetPointCloudParametersDense);
@@ -89,7 +92,7 @@ void FlightPlannerParticles::slotInitialize()
     mSimulationParameters.gridInformationGain.cells = make_uint3(128, 32, 128);
 
     mParticleSystem = new ParticleSystem((PointCloudCuda*)mPointCloudDense, (PointCloudCuda*)mPointCloudColliders, &mSimulationParameters); // ParticleSystem will draw its points as colliders from the pointcloud passed here
-    mParticleSystem->slotSetParticleRadius(2.0f);
+    mParticleSystem->slotSetParticleRadius(FlightPlannerParticles::initialParticleRadius);
 
     connect(mDialog, &FlightPlannerParticlesDialog::resetParticles, mParticleSystem, &ParticleSystem::slotResetParticles);
     connect(mDialog, &FlightPlannerParticlesDialog::simulationParameters, mParticleSystem, &ParticleSystem::slotSetSimulationParameters);
@@ -134,8 +137,8 @@ void FlightPlannerParticles::slotInitialize()
                 );
 
     // Just to have some defaults...
-    slotSetVolumeGlobal(Box3D(QVector3D(-128, -6, -128), QVector3D(128, 26, 128)));
     slotSetVolumeLocal(Box3D(QVector3D(-32, -6, -32), QVector3D(32, 26, 32)));
+    slotSetVolumeGlobal(Box3D(QVector3D(-128, -6, -128), QVector3D(128, 26, 128)));
 
     emit wayPointListAhead(&mWayPointsAhead);
     emit wayPointListPassed(&mWayPointsPassed);
@@ -179,6 +182,7 @@ void FlightPlannerParticles::slotProcessInformationGain()
         // Now that we're generating waypoints, we can deactivate the physics processing (and restart when only few waypoints are left)
         mDialog->setProcessPhysicsActive(false);
         mTimerProcessInformationGain.stop();
+        emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), "Informationgain found, generating waypoints...");
         slotGenerateWaypoints();
     }
     else
@@ -190,6 +194,8 @@ void FlightPlannerParticles::slotProcessInformationGain()
 
         // This will completely reset the particle system. No need to slotResetParticles() etc.
         mParticleSystem->slotSetParticleRadius(mSimulationParameters.particleRadius * 0.9f);
+
+        emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Informationgain not found, shrinking particles to %1m radius").arg(mSimulationParameters.particleRadius, 0, 'f', 2));
 
         // Using larger particles means that there will be less particles per information gain grid cell, so
         // we will have to use a lower threshold and possibly longer simulation time
@@ -267,6 +273,8 @@ void FlightPlannerParticles::slotGenerateWaypoints()
 
         qDebug() << "FlightPlannerParticles::slotGenerateWaypoints(): after merging and reducing:" << wayPointsWithHighInformationGain.toString();
 
+        emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("Generated %1 waypoints").arg(wayPointsWithHighInformationGain.size()));
+
         // Now use the occupancy grid to move the waypoints into close-by, safe areas
         mPathPlanner->moveWayPointsToSafety(&wayPointsWithHighInformationGain, true);
 
@@ -324,36 +332,27 @@ void FlightPlannerParticles::slotNewScanFused(const float* const points, const q
 
     if(!CudaHelper::isDeviceSupported) return;
 
-    QTime timeForDenseReduction;
-    timeForDenseReduction.start();
-
     // Reduce the dense cloud only in online mode, when we want to pass the resulting sparser points to pointcloudsparse.
     // If working offline, we just want to display the scanned data using the dense cloud and its ringbuffer
     if(mTimeOfLastDenseCloudReduction.msecsTo(QTime::currentTime()) > 2000 && mBaseStation->getOperatingMode() == OperatingMode::OperatingOnline)
     {
-        qDebug() << "FlightPlannerParticles::slotNewScanFused(): reducing" << mPointCloudDense->getNumberOfPointsQueued() << "queued points in dense cloud.";
+        qDebug() << "FlightPlannerParticles::slotNewScanFused(): reducing points (queued and end) in dense cloud.";
+        mPointCloudDense->slotReduceQueue();
+        mPointCloudDense->slotReduceEnd(200 * 1000); // reduce the last 200k points (limited for interactive framerates)
         mTimeOfLastDenseCloudReduction = QTime::currentTime();
-        mPointCloudDense->slotReduce();
-    }
-
-    if(timeForDenseReduction.elapsed() > 100 && mBaseStation->getOperatingMode() == OperatingMode::OperatingOnline)
-    {
-        qDebug() << "FlightPlannerParticles::slotNewScanFused(): reducing dense cloud took too long during flight:" << timeForDenseReduction.elapsed() << "ms - clearing dense cloud";
-        mPointCloudDense->slotReset();
     }
 
     if(
                mBaseStation->getOperatingMode() == OperatingMode::OperatingOnline
             && mWayPointsAhead.size() == 0
             && mPointCloudDense->getNumberOfPointsStored() > 50000
-//            && !mTimerStepSimulation.isActive()
-//            && !mTimerProcessInformationGain.isActive()
             && mDialog->createWayPoints())
     {
         // This is the first time that points were inserted (and we have no waypoints) - start the physics processing!
         qDebug() << "FlightPlannerParticles::slotNewScanFused(): 50k points are present, reducing and starting wpt generation!";
+        emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("No waypoints present, starting particle simulation..."));
         mTimeOfLastDenseCloudReduction = QTime::currentTime();
-        mPointCloudDense->slotReduce();
+        mPointCloudDense->slotReduceQueue();
         slotStartWayPointGeneration();
     }
 
@@ -395,6 +394,8 @@ void FlightPlannerParticles::slotSetVolumeLocal(const Box3D volume)
 
     // Will completely reset the particleSystem
     mParticleSystem->slotSetVolume(mVolumeLocal);
+    emit message(Information, QString("%1::%2(): ").arg(metaObject()->className()).arg(__FUNCTION__), QString("VolumeLocal changed, resetting particle-size to %1m.").arg(initialParticleRadius, 0, 'f', 2));
+    mParticleSystem->slotSetParticleRadius(FlightPlannerParticles::initialParticleRadius);
 
     if(CudaHelper::isDeviceSupported)
     {
@@ -409,6 +410,7 @@ void FlightPlannerParticles::slotSetVolumeLocal(const Box3D volume)
                     Vector3<quint16>(mSimulationParameters.gridInformationGain.cells.x, mSimulationParameters.gridInformationGain.cells.y, mSimulationParameters.gridInformationGain.cells.z)
                     );
     }
+
 
     qDebug() << __PRETTY_FUNCTION__ << volume << "- done.";
 }
@@ -444,7 +446,11 @@ void FlightPlannerParticles::slotVehiclePoseChanged(const Pose* const pose)
 
 void FlightPlannerParticles::slotSetWayPoints(const QList<WayPoint>* const wayPointList, const WayPointListSource source)
 {
-    qDebug() << __PRETTY_FUNCTION__ << "saving" << wayPointList->size() << "waypoints from" << static_cast<quint8>(source) << "- first one:" << wayPointList->at(0);
+    qDebug() << __PRETTY_FUNCTION__ << "saving"
+             << wayPointList->size() << "waypoints from"
+             << static_cast<quint8>(source)
+             << "- first one:" << (wayPointList->size() > 0 ? wayPointList->at(0).toString() : "[null]");
+
     mWayPointsAhead.setList(wayPointList);
 
     // Tell others about our new waypoints!

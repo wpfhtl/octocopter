@@ -45,7 +45,7 @@ void TestPcdReduction::doTest(const QString& fileIn, const QString& fileOut)
         mPointCloudCuda->importFromFile(fileIn, nullptr);
 //        for(int j=0;j<5;j++) {
 //            qDebug() << __PRETTY_FUNCTION__ << "before" << j << "pointcloud" << i << "contains" << mPointCloudCuda->getNumberOfPointsStored() << "points.";
-            mPointCloudCuda->slotReduce();
+            mPointCloudCuda->slotReduceEnd();
 //            qDebug() << __PRETTY_FUNCTION__ << "after" << j << "pointcloud" << i << "contains" << mPointCloudCuda->getNumberOfPointsStored() << "points.";
 //            mPointCloudCuda->exportToFile(fileOut.arg(i).arg(j), nullptr);
             mPointCloudCuda->exportToFile(fileOut.arg(0).arg(0), nullptr);

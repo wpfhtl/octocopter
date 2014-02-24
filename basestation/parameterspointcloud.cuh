@@ -14,7 +14,9 @@ struct __align__(16) ParametersPointCloud
     // capacity of pointcloud
     unsigned int capacity;
 
-    // how many points are currently stored (not counting the points queued thereafter)
+    // How many points have been inserted so far. Not ethat the cloud itself is a
+    // ring buffer of size @capacity. So with a capacity of e.g. 8M points,
+    // elementCount can be > 8M when previous points have been overwritten.
     unsigned int elementCount;
 
     // how many points were appended/queued after the last reduction. After
@@ -23,8 +25,8 @@ struct __align__(16) ParametersPointCloud
     // Note that if the underlying hardware doesn't support CUDA/reduction,
     // the VBO is used as a ring buffer. In this case, elementCount will remain
     // 0 (as no reduction takes place) and elementQueueCount grows even past
-    // @capacity, indicating NOT the number of points stored, but the number of
-    // points inserted.
+    // @capacity, representing NOT the number of points stored, but the number
+    // of points inserted.
     unsigned int elementQueueCount;
 
     void initialize()

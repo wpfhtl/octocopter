@@ -349,7 +349,7 @@ struct IsOutsideBoundingBoxOp
 
 unsigned int removePointsOutsideBoundingBox(float* points, unsigned int numberOfPoints, Grid* grid)
 {
-    printf("removePointsOutsideBoundingBox(): clearing %d points outside %.2f %.2f %.2f and %.2f %.2f %.2f\n", numberOfPoints, grid->worldMin.x, grid->worldMin.y, grid->worldMin.z, grid->worldMax.x, grid->worldMax.y, grid->worldMax.z);
+    printf("removePointsOutsideBoundingBox(): clearing %d points if outside of %.2f %.2f %.2f and %.2f %.2f %.2f\n", numberOfPoints, grid->worldMin.x, grid->worldMin.y, grid->worldMin.z, grid->worldMax.x, grid->worldMax.y, grid->worldMax.z);
     // move all points in bbox to beginning of devicePointsBase and return number of points left
     IsOutsideBoundingBoxOp op(grid->worldMin, grid->worldMax);
 
@@ -364,7 +364,7 @@ unsigned int removePointsOutsideBoundingBox(float* points, unsigned int numberOf
 
     unsigned int numberOfPointsRemaining = newEnd.get() - pointsf4;
 
-    printf("removePointsOutsideBoundingBox(): done.\n");
+    printf("removePointsOutsideBoundingBox(): done, %d points deleted, %d points remaining\n", numberOfPoints - numberOfPointsRemaining, numberOfPointsRemaining);
 
     return numberOfPointsRemaining;
 }

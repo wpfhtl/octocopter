@@ -25,6 +25,8 @@ public:
     FlightPlannerParticles(BaseStation* baseStation, GlWindow* glWidget, PointCloudCuda *pointcloud);
     ~FlightPlannerParticles();
 
+    static constexpr float initialParticleRadius = 2.0f;
+
     const Pose getLastKnownVehiclePose(void) const;
 
     const QList<WayPoint> *const getWayPoints();

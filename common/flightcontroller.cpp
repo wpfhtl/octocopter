@@ -345,7 +345,7 @@ void FlightController::nextWayPointReached()
 
     ensureSafeFlightAfterWaypointsChanged();
 
-    emit wayPoints(&mWayPoints, WayPointListSource::WayPointListSourceRover);
+    //emit wayPoints(&mWayPoints, WayPointListSource::WayPointListSourceRover);
 }
 
 void FlightController::slotSetWayPoints(const QList<WayPoint>& wayPoints, const WayPointListSource source)
