@@ -25,7 +25,7 @@ public:
     FlightPlannerParticles(BaseStation* baseStation, GlWindow* glWidget, PointCloudCuda *pointcloud);
     ~FlightPlannerParticles();
 
-    static constexpr float initialParticleRadius = 2.0f;
+    static constexpr float initialParticleRadius = 1.9f;
 
     const Pose getLastKnownVehiclePose(void) const;
 

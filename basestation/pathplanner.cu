@@ -394,18 +394,19 @@ void growGrid(unsigned char* gridValues, ParametersPathPlanner* parameters, cuda
     int3 thisIterationCellMin, thisIterationCellMax, lastCellMin, lastCellMax;
 
     // Let the wave propagate as long as it might take to go from one corner to the opposing one
-    const int maxNumberOfSteps = sqrt(pow(longestSideCellCount,2) + pow(longestSideCellCount,2));
+    const int maxNumberOfSteps = sqrt(pow(longestSideCellCount,2) + pow(longestSideCellCount,2)) * 2;
     for(int i=1;i<maxNumberOfSteps;i++)
     {
         thisIterationCellMin = parameters->grid.clampCellCoordinate(cellCoordinateStart + make_int3(-i, -i, -i));
         thisIterationCellMax = parameters->grid.clampCellCoordinate(cellCoordinateStart + make_int3(+i, +i, +i));
 
-        if(thisIterationCellMin == lastCellMin && thisIterationCellMax == lastCellMax)
+        /* disable this break, as it prevents paths from going back "inside"
+         *if(thisIterationCellMin == lastCellMin && thisIterationCellMax == lastCellMax)
         {
             // cell coordinates haven't changed, so we have grown the whole grid.
             printf("growGrid(): stopping after iteration %d, as cellMin/cellMax haven't changed.\n", i);
             break;
-        }
+        }*/
 
         lastCellMin = thisIterationCellMin;
         lastCellMax = thisIterationCellMax;

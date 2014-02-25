@@ -345,7 +345,7 @@ void FlightPlannerParticles::slotNewScanFused(const float* const points, const q
     if(
                mBaseStation->getOperatingMode() == OperatingMode::OperatingOnline
             && mWayPointsAhead.size() == 0
-            && mPointCloudDense->getNumberOfPointsStored() > 50000
+            && mPointCloudDense->getNumberOfPointsStored() > 30000
             && mDialog->createWayPoints())
     {
         // This is the first time that points were inserted (and we have no waypoints) - start the physics processing!
