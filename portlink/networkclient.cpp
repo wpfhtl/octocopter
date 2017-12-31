@@ -1,4 +1,5 @@
 #include "networkclient.h"
+#include <unistd.h>
 
 NetworkClient::NetworkClient(const QString& networkPort) : Port()
 {

@@ -1,4 +1,5 @@
 #include "portlink.h"
+#include <unistd.h>
 
 int PortLink::signalFd[] = {0,0};
 
