@@ -1,0 +1,2 @@
+#!/bin/bash
+./build/portlink -s /dev/serial/by-id/usb-FTDI_Dual_RS232-if00-port0 57600,8,none,1,off -ns 0.0.0.0:10001
