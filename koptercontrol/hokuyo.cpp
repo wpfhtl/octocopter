@@ -86,7 +86,9 @@ void Hokuyo::slotStartScanning()
 
     if(mOffsetTimeScannerToTow == 0)
     {
-        qDebug() << __PRETTY_FUNCTION__ << "scanner time not set, will not scan!";
+        qDebug() << __PRETTY_FUNCTION__ << "scanner time not set, will scan as soon as time is set!";
+	mState = State::ScanRequestedButTimeUnknown;
+	emit finished();
         return;
     }
 
@@ -159,8 +161,12 @@ void Hokuyo::slotStartScanning()
                 emit heightOverGround(distancesToEmit->at(540)/1000.0f + 0.03f);
 
             // With this call, we GIVE UP OWNERSHIP of the data. It might get deleted immediately!
-            qDebug() << __PRETTY_FUNCTION__ << "emitting scanData(qint32, distances)";
-            emit scanData(timeStampScanMiddle, distancesToEmit);
+            qDebug() << __PRETTY_FUNCTION__ << "emitting scanData(qint32, quint16," << distancesToEmit->size() << ")";
+	    
+	    quint16* dists = new quint16[distancesToEmit->size()];
+	    memcpy((void*)dists, (void*)&(*distancesToEmit)[0], distancesToEmit->size() * sizeof(quint16));
+            emit scanData(timeStampScanMiddle, dists, distancesToEmit->size());
+	    delete distancesToEmit;
         }
     } while (mState == State::Scanning);
 

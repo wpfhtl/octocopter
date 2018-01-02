@@ -13,6 +13,15 @@
 class Hokuyo : public QObject
 {
     Q_OBJECT
+    
+public:
+    enum class State
+    {
+        Scanning,
+	ScanRequestedButTimeUnknown,
+        StopRequested,
+        Stopped
+    };
 
 private:
     LogFile* mLogFile;
@@ -23,12 +32,6 @@ private:
 
     std::vector<long> mScannedDistances;
 
-    enum class State
-    {
-        Scanning,
-        StopRequested,
-        Stopped
-    };
 
     State mState;
 
@@ -41,6 +44,8 @@ public:
     ~Hokuyo();
 
     bool open(const QString &deviceFilename);
+    
+    State getState() const {return mState;}
 
 public slots:
     // This will not return, but run endlessly, so start it in a new thread!
@@ -63,7 +68,7 @@ signals:
     void message(const LogImportance& importance, const QString&, const QString& message);
 
     // Emits new scan data, allocated on heap. Ownership is passed to receiver(s).
-    void scanData(qint32 timestampScanner, std::vector<quint16> * const distances);
+    void scanData(qint32 timestampScanner, quint16* distances, quint16 numberOfDistances);
 };
 
 #endif

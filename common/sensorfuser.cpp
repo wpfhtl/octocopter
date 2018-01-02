@@ -283,19 +283,16 @@ void SensorFuser::fuseScans()
             if(allPosesPresent)
             {
                 // We finally have all poses required to fuse this scan. Go!
-                const std::vector<quint16>* scanDistances = scanInfo.ranges;
-
-                const qint16 numRays = scanDistances->size();
-                for(qint16 index=0; index < numRays; index++)
+                for(qint16 index=0; index < scanInfo.numberOfRanges; index++)
                 {
                     // Only process every mStridePoint'th point
                     if(index % mStridePoint != 0) continue;
 
                     // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
-                    if((*scanDistances)[index] < 500 || (*scanDistances)[index] > mMaximumFusableRayLength * 1000.0f) continue;
+                    if(scanInfo.ranges[index] < 500 || scanInfo.ranges[index] > mMaximumFusableRayLength * 1000.0f) continue;
 
                     // Convert millimeters to meters.
-                    const float distance = (*scanDistances)[index] / 1000.0f;
+                    const float distance = scanInfo.ranges[index] / 1000.0f;
 
                     const qint32 timeOfCurrentRay = timestampMiddleOfScan + (qint32)(-9.375f + (((float)index) * 0.01736f));
 
@@ -413,19 +410,16 @@ void SensorFuser::fuseScans()
             if(allPosesPresent)
             {
                 // We finally have all poses required to fuse this scan. Go!
-                const std::vector<quint16>* scanDistances = scanInfo.ranges;
-
-                const qint16 numRays = scanDistances->size();
-                for(qint16 index=0; index < numRays; index++)
+                for(qint16 index=0; index < scanInfo.numberOfRanges; index++)
                 {
                     // Only process every mStridePoint'th point
                     if(index % mStridePoint != 0) continue;
 
                     // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
-                    if((*scanDistances)[index] < 500 || (*scanDistances)[index] > mMaximumFusableRayLength * 1000.0f) continue;
+                    if(scanInfo.ranges[index] < 500 || scanInfo.ranges[index] > mMaximumFusableRayLength * 1000.0f) continue;
 
                     // Convert millimeters to meters.
-                    const float distance = (*scanDistances)[index] / 1000.0f;
+                    const float distance = scanInfo.ranges[index] / 1000.0f;
 
                     const qint32 timeOfCurrentRay = timestampMiddleOfScan + (qint32)(-9.375f + (((float)index) * 0.01736f));
 
@@ -471,19 +465,16 @@ void SensorFuser::fuseScans()
 
             emitLastInterpolatedPose();
 
-            const std::vector<quint16>* scanDistances = scanInfo.ranges;
-
-            const qint16 numRays = scanDistances->size();
-            for(qint16 index=0; index < numRays; index++)
+            for(qint16 index=0; index < scanInfo.numberOfRanges; index++)
             {
                 // Only process every mStridePoint'th point
                 if(index % mStridePoint != 0) continue;
 
                 // Skip reflections on vehicle (=closer than 50cm) and long ones (bad platform orientation accuracy)
-                if((*scanDistances)[index] < 500 || (*scanDistances)[index] > mMaximumFusableRayLength * 1000.0f) continue;
+                if(scanInfo.ranges[index] < 500 || scanInfo.ranges[index] > mMaximumFusableRayLength * 1000.0f) continue;
 
                 // Convert millimeters to meters.
-                const float distance = (*scanDistances)[index] / 1000.0f;
+                const float distance = scanInfo.ranges[index] / 1000.0f;
 
                 fuseRayWithLastInterpolatedPose(index, distance);
             }
@@ -694,9 +685,9 @@ void SensorFuser::slotScanFinished(const quint32 &timestampScanGnss)
     mLastScanMiddleGnssTow = timestampScanGnss;
 }
 
-void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, const Pose* const relativeScannerPose, std::vector<quint16> * distances)
+void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, const Pose* const relativeScannerPose, quint16* distances, quint16 numberOfRanges)
 {
-    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << distances->size() << "distance values from scannertime" << timestampScanScanner;
+    qDebug() << t() << "SensorFuser::slotNewScanData(): received" << numberOfRanges << "distance values from scannertime" << timestampScanScanner;
 
     //Profiler p(__PRETTY_FUNCTION__);
 
@@ -708,10 +699,20 @@ void SensorFuser::slotNewScanData(const qint32& timestampScanScanner, const Pose
         return;
     }
 
-    // Make sure we receive data in order
-    if(mScanInformation.size()) Q_ASSERT(mScanInformation.last().timeStampScanMiddleScanner < timestampScanScanner);
+    // Make sure we receive data in order. With multiple scanners, thats not so easy.
+    quint32 indexToInsert
+    if(mScanInformation.size())
+    {
+        quint32 indexToInsert = mScanInformation.size() - 1;
+        while(mScanInformation.at(indexToInsert).timeStampScanMiddleScanner > timestampScanScanner)
+	{
+	    indexToInsert--;
+	}
+	
+	
+    }
 
-    mScanInformation.append(ScanInformation(relativeScannerPose, distances, timestampScanScanner));
+    mScanInformation.append(ScanInformation(relativeScannerPose, distances, numberOfRanges, timestampScanScanner));
 
     mNewestDataTime = std::max(mNewestDataTime, timestampScanScanner);
 }

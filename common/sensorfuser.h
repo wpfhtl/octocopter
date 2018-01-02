@@ -44,13 +44,15 @@ public:
 
     struct ScanInformation
     {
-        const std::vector<quint16>* ranges;
+        //const std::vector<quint16>* ranges;
+	quint16* ranges;
+	quint16 numberOfRanges;
         qint32 timeStampScanMiddleGnss;
         qint32 timeStampScanMiddleScanner;
         const Pose* relativeScannerPose;
 
-        ScanInformation(const Pose* const p, const std::vector<quint16>* r, const qint32 tScanner = 0, const qint32 tGnss = 0) :
-            relativeScannerPose(p), ranges(r), timeStampScanMiddleScanner(tScanner), timeStampScanMiddleGnss(tGnss)
+        ScanInformation(const Pose* const p, quint16* r, const quint16 n, const qint32 tScanner = 0, const qint32 tGnss = 0) :
+            relativeScannerPose(p), ranges(r), numberOfRanges(n), timeStampScanMiddleScanner(tScanner), timeStampScanMiddleGnss(tGnss)
         {}
     };
 
@@ -136,7 +138,7 @@ public slots:
 
     // Used to feed data from the laserscanner. You must guarantee that the scans are supplied
     // in chronological order!
-    void slotNewScanData(const qint32& timestampScanner, const Pose * const relativeScannerPose, std::vector<quint16> *distances);
+    void slotNewScanData(const qint32& timestampScanner, const Pose * const relativeScannerPose, quint16* distances, quint16 numberOfRanges);
 
     // Clears all poses, gnss timestamps and scans. This is used by LogPlayer when seeking backwards.
     // If it didn't clean our data, there'd be no guarantee data comes in in chronological order.

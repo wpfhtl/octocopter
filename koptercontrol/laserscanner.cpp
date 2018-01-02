@@ -33,8 +33,8 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFile
 
     // This code causes ugly warnings, but we need it to transport the scanned data
     // FIX THIS QT5!
-    qRegisterMetaType<std::vector<quint16>*>("std::vector<quint16>*");
-    qRegisterMetaType<std::vector<quint16> >("std::vector<quint16>");
+    //qRegisterMetaType<std::vector<quint16>*>("std::vector<quint16>*");
+    //qRegisterMetaType<std::vector<quint16> >("std::vector<quint16>");
     //qRegisterMetaType<std::vector<quint16>*const >("std::vector<quint16>*const"); // doesn't compile
 
     // These should come before the worker slot is connected. Otherwise, slotThreadStarted() is called
@@ -48,8 +48,7 @@ LaserScanner::LaserScanner(const QString &deviceFileName, const QString& logFile
 
     connect(mHokuyo, SIGNAL(heightOverGround(float)), SIGNAL(heightOverGround(float)));
 
-
-    connect(mHokuyo, SIGNAL(scanData(qint32,std::vector<quint16>*const)), SLOT(slotNewScanData(qint32,std::vector<quint16>*const)));
+    connect(mHokuyo, SIGNAL(scanData(qint32,quint16*,quint16)), SLOT(slotNewScanData(qint32,quint16*,quint16)));
 }
 
 LaserScanner::~LaserScanner()
@@ -67,10 +66,10 @@ LaserScanner::~LaserScanner()
     qDebug() << "LaserScanner::~LaserScanner(): done.";
 }
 
-void LaserScanner::slotNewScanData(qint32 timestampScanner, std::vector<quint16> * const distances)
+void LaserScanner::slotNewScanData(qint32 timestampScanner, quint16* distances, quint16 numberOfDistances)
 {
     qDebug() << __PRETTY_FUNCTION__ << "emitting scanData()";
-    emit scanData(timestampScanner, &mRelativeScannerPose, distances);
+    emit scanData(timestampScanner, &mRelativeScannerPose, distances, numberOfDistances);
 }
 
 const bool LaserScanner::isScanning() const
@@ -130,6 +129,13 @@ void LaserScanner::slotSetScannerTimeStamp()
     // of delay.
 
     mHokuyo->slotSetScannerTimeStamp();
+    
+    if(mHokuyo->getState() == Hokuyo::State::ScanRequestedButTimeUnknown)
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "deferred start after time is known...";
+	slotEnableScanning(true);
+    }
+    
 }
 
 void LaserScanner::slotEnableScanning(const bool value)
